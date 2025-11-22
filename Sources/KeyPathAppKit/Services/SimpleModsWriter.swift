@@ -60,8 +60,7 @@ public final class SimpleModsWriter {
           }
         }
         // Trim trailing empties
-        while let last = newLines.last, last.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        {
+        while let last = newLines.last, last.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
           newLines.removeLast()
         }
         let newContent = newLines.joined(separator: "\n") + "\n"
@@ -147,8 +146,7 @@ public final class SimpleModsWriter {
 
       // Inside block - filter disabled lines (commented with ';' and/or carrying KP:DISABLED marker)
       if inBlock {
-        if line.contains("KP:DISABLED") || line.trimmingCharacters(in: .whitespaces).hasPrefix(";")
-        {
+        if line.contains("KP:DISABLED") || line.trimmingCharacters(in: .whitespaces).hasPrefix(";") {
           // Skip this line entirely
           continue
         }

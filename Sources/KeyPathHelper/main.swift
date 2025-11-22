@@ -21,8 +21,7 @@ import os
 ///   - requirement: The code signature requirement string
 /// - Returns: true if the connection is from a valid, authorized caller
 func validateConnection(_ connection: NSXPCConnection, requirement requirementString: String)
-  -> Bool
-{
+  -> Bool {
   let logger = Logger(subsystem: "com.keypath.helper", category: "xpc")
   // Get the process ID from the connection
   let pid = connection.processIdentifier
@@ -68,8 +67,7 @@ func validateConnection(_ connection: NSXPCConnection, requirement requirementSt
     if SecCodeCopyStaticCode(validCode, [], &staticCode) == errSecSuccess,
       let sc = staticCode,
       SecCodeCopySigningInformation(sc, [], &codeInfo) == errSecSuccess,
-      let info = codeInfo as? [String: Any]
-    {
+      let info = codeInfo as? [String: Any] {
       let identifier = info[kSecCodeInfoIdentifier as String] as? String ?? "unknown"
       let teamID = info[kSecCodeInfoTeamIdentifier as String] as? String ?? "unknown"
       NSLog("[KeyPathHelper] Code signature validation failed for PID \(pid): \(status)")

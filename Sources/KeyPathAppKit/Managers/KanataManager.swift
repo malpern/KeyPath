@@ -50,30 +50,7 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
   }
 }
 
-/// Simple UI-focused state model (from SimpleKanataManager)
-enum SimpleKanataState: String, CaseIterable {
-  case starting  // App launched, attempting auto-star
-  case running  // Kanata is running successfully
-  case needsHelp = "needs_help"  // Auto-start failed, user intervention required
-  case stopped  // User manually stopped
-
-  var displayName: String {
-    switch self {
-    case .starting: "Starting..."
-    case .running: "Running"
-    case .needsHelp: "Needs Help"
-    case .stopped: "Stopped"
-    }
-  }
-
-  var isWorking: Bool {
-    self == .running
-  }
-
-  var needsUserAction: Bool {
-    self == .needsHelp
-  }
-}
+// SimpleKanataState enum removed (superseded by InstallerEngine)
 
 /// Manages the Kanata process lifecycle and configuration directly.
 ///
@@ -205,7 +182,7 @@ class KanataManager {
   // ViewModel reads these via getCurrentUIState() snapshot method
 
   // Core status tracking
-  var isRunning = false
+  // Removed: isRunning
   var lastError: String?
   var keyMappings: [KeyMapping] = []
   var ruleCollections: [RuleCollection] = []
@@ -215,46 +192,12 @@ class KanataManager {
   var lastProcessExitCode: Int32?
   var lastConfigUpdate: Date = .init()
 
-  // UI state properties (from SimpleKanataManager)
-  var currentState: SimpleKanataState = .starting {
-    didSet {
-      if oldValue != currentState {
-        Task { @MainActor in
-          UserNotificationService.shared.notifyStatusChange(currentState)
-        }
-      }
-    }
-  }
-
+  // UI state properties (Legacy removed)
   var lastWizardSnapshot: WizardSnapshotRecord?
 
-  var errorReason: String?
-  var showWizard: Bool = false
-  var launchFailureStatus: LaunchFailureStatus? {
-    didSet {
-      if let status = launchFailureStatus {
-        Task { @MainActor in
-          UserNotificationService.shared.notifyLaunchFailure(status)
-        }
-      }
-    }
-  }
-
-  var autoStartAttempts: Int = 0
-  var lastHealthCheck: Date?
-  var retryCount: Int = 0
-  var isRetryingAfterFix: Bool = false
-  var userManuallyStopped: Bool = false  // Track if user intentionally stopped service
-
-  // Lifecycle state properties (from KanataLifecycleManager)
-  var lifecycleState: LifecycleStateMachine.KanataState = .uninitialized
-  var lifecycleErrorMessage: String?
-  var isBusy: Bool = false
-  var canPerformActions: Bool = true
-  var autoStartAttempted: Bool = false
-  var autoStartSucceeded: Bool = false
-  var autoStartFailureReason: String?
-  var shouldShowWizard: Bool = false
+  // Removed: errorReason, showWizard, launchFailureStatus
+  // Removed: autoStartAttempts, lastHealthCheck, retryCount, isRetryingAfterFix, userManuallyStopped
+  // Removed: lifecycleState, lifecycleErrorMessage, isBusy, canPerformActions, autoStartAttempted, autoStartSucceeded, autoStartFailureReason, shouldShowWizard
 
   // Validation-specific UI state
   var showingValidationAlert = false
@@ -292,13 +235,8 @@ class KanataManager {
   /// Refresh process running state from system (call after service operations)
   /// This is more efficient than checking on every UI state sync
   func refreshProcessState() {
-    let actuallyRunning = Self.isProcessRunningFast()
-    if actuallyRunning != isRunning {
-      AppLogger.shared.log(
-        "🔄 [KanataManager] Refreshing process state: was \(isRunning), now \(actuallyRunning)")
-      isRunning = actuallyRunning
+    // Deprecated: State is now managed by InstallerEngine/SystemContext
       notifyStateChanged()
-    }
   }
 
   /// Returns a snapshot of current UI state for ViewModel synchronization
@@ -308,7 +246,8 @@ class KanataManager {
     diagnostics = diagnosticsManager.getDiagnostics()
 
     return KanataUIState(
-      isRunning: isRunning,
+      // Core Status
+      // Removed: isRunning
       lastError: lastError,
       keyMappings: keyMappings,
       ruleCollections: ruleCollections,
@@ -317,22 +256,10 @@ class KanataManager {
       diagnostics: diagnostics,
       lastProcessExitCode: lastProcessExitCode,
       lastConfigUpdate: lastConfigUpdate,
-      currentState: currentState,
-      errorReason: errorReason,
-      showWizard: showWizard,
-      launchFailureStatus: launchFailureStatus,
-      autoStartAttempts: autoStartAttempts,
-      lastHealthCheck: lastHealthCheck,
-      retryCount: retryCount,
-      isRetryingAfterFix: isRetryingAfterFix,
-      lifecycleState: lifecycleState,
-      lifecycleErrorMessage: lifecycleErrorMessage,
-      isBusy: isBusy,
-      canPerformActions: canPerformActions,
-      autoStartAttempted: autoStartAttempted,
-      autoStartSucceeded: autoStartSucceeded,
-      autoStartFailureReason: autoStartFailureReason,
-      shouldShowWizard: shouldShowWizard,
+
+      // UI State (Legacy status removed - passed as nil/default)
+
+      // Validation & Save Status
       showingValidationAlert: showingValidationAlert,
       validationAlertTitle: validationAlertTitle,
       validationAlertMessage: validationAlertMessage,
@@ -372,15 +299,9 @@ class KanataManager {
   var isInitializing = false
   private let isHeadlessMode: Bool
 
-  // MARK: - UI State Management Properties (from SimpleKanataManager)
+  // MARK: - UI State Management Properties (Legacy removed)
 
-  private var healthTimer: Timer?
-  private var statusTimer: Timer?
-  private let maxAutoStartAttempts = 2
-  private let maxRetryAttempts = 3
-  private var lastPermissionState: (input: Bool, accessibility: Bool) = (false, false)
-
-  // MARK: - Lifecycle State Machine (from KanataLifecycleManager)
+  // MARK: - Lifecycle State Machine (Legacy removed)
 
   // Note: Removed stateMachine to avoid MainActor isolation issues
   // Lifecycle management is now handled directly in this class
@@ -405,8 +326,7 @@ class KanataManager {
     }
   }
 
-  init(engineClient: EngineClient? = nil, injectedConfigurationService: ConfigurationService? = nil)
-  {
+  init(engineClient: EngineClient? = nil, injectedConfigurationService: ConfigurationService? = nil) {
     AppLogger.shared.log("🏗️ [KanataManager] init() called")
 
     // Check if running in headless mode
@@ -506,8 +426,7 @@ class KanataManager {
     if storedCustomRules.isEmpty,
       let customIndex = storedCollections.firstIndex(where: {
         $0.id == RuleCollectionIdentifier.customMappings
-      })
-    {
+      }) {
       let legacy = storedCollections.remove(at: customIndex)
       storedCustomRules = legacy.mappings.map { mapping in
         CustomRule(
@@ -614,8 +533,7 @@ class KanataManager {
 
       if let act1 = candidateActivator,
         let act2 = normalizedActivator(for: other),
-        act1 == act2
-      {
+        act1 == act2 {
         return RuleConflictInfo(source: .collection(other), keys: [act1])
       }
     }
@@ -632,8 +550,7 @@ class KanataManager {
   private func conflictInfo(for rule: CustomRule) -> RuleConflictInfo? {
     let normalizedKey = KanataKeyConverter.convertToKanataKey(rule.input)
 
-    for collection in ruleCollections where collection.isEnabled && collection.targetLayer == .base
-    {
+    for collection in ruleCollections where collection.isEnabled && collection.targetLayer == .base {
       if normalizedKeys(for: collection).contains(normalizedKey) {
         return RuleConflictInfo(source: .collection(collection), keys: [normalizedKey])
       }
@@ -859,7 +776,6 @@ class KanataManager {
     if !isKarabinerDaemonRunning() {
       AppLogger.shared.warn("⚠️ [Recovery] Karabiner daemon not running - recovery failed")
       updateInternalState(
-        isRunning: isRunning,
         lastProcessExitCode: lastProcessExitCode,
         lastError: "Recovery failed: Karabiner daemon not available"
       )
@@ -921,8 +837,7 @@ class KanataManager {
     // Check for zombie keyboard capture bug (exit code 6 with VirtualHID connection failure)
     if exitCode == 6,
       output.contains("connect_failed asio.system:61")
-        || output.contains("connect_failed asio.system:2")
-    {
+        || output.contains("connect_failed asio.system:2") {
       // This is the "zombie keyboard capture" bug - automatically attempt recovery
       Task {
         AppLogger.shared.log(
@@ -957,9 +872,10 @@ class KanataManager {
     case .process:
       if diagnostic.title == "Process Terminated" {
         // Try restarting Kanata
-        await startKanata()
+        let engine = InstallerEngine()
+        _ = await engine.run(intent: .repair, using: PrivilegeBroker())
         AppLogger.shared.log("🔧 [AutoFix] Attempted to restart Kanata")
-        return isRunning
+        return await engine.inspectSystem().services.kanataRunning
       }
 
     default:
@@ -982,330 +898,20 @@ class KanataManager {
   // MARK: - Public Interface
 
   func startKanataIfConfigured() async {
-    AppLogger.shared.debug("🔍 [StartIfConfigured] Checking if config exists at: \(configPath)")
-
-    // Only start if config file exists and is valid
-    if FileManager.default.fileExists(atPath: configPath) {
-      AppLogger.shared.info("✅ [StartIfConfigured] Config file exists - starting Kanata")
-      await startKanata()
-    } else {
-      AppLogger.shared.warn("⚠️ [StartIfConfigured] Config file does not exist - skipping start")
-    }
+    // Deprecated
   }
 
   func startKanata() async {
-    // Trace who is calling startKanata
-    StartTraceLogger.logStartCallStack()
-
-    // Phase 1: Process synchronization using actor (async-safe)
-    return await KanataManager.startupActor.synchronize { [self] in
-      await performStartKanata()
-    }
+    // Deprecated: Use InstallerEngine
   }
 
   /// Start Kanata with automatic safety timeout - stops if no user interaction for 30 seconds
   func startKanataWithSafetyTimeout() async {
-    await startKanata()
-
-    // Only start safety timer if Kanata actually started
-    if isRunning {
-      AppLogger.shared.log("🛡️ [Safety] Starting 30-second safety timeout for Kanata")
-
-      let safetyTimeoutService = SafetyTimeoutService()
-      safetyTimeoutService.start(
-        durationSeconds: 30.0,
-        shouldStop: { [weak self] in
-          guard let self else { return false }
-          // Check if Kanata is running BUT not healthy (TCP not responding)
-          // If it's healthy, return false to skip the timeout
-          // If it's unhealthy or crashed, return true to trigger stop
-          let stillRunning = await MainActor.run { self.isRunning }
-          if !stillRunning {
-            AppLogger.shared.log("🛡️ [Safety] Kanata already stopped - skipping timeout")
-            return false  // Already stopped, no need to timeout
-          }
-
-          // Check TCP health by trying a quick connection test
-          let reloadResult = await engineClient.reloadConfig()
-          let isHealthy = reloadResult.isSuccess
-
-          if isHealthy {
-            AppLogger.shared.log("🛡️ [Safety] Kanata healthy (TCP responding) - cancelling timeout")
-            return false  // Healthy, cancel timeout
-          } else {
-            AppLogger.shared.log(
-              "⚠️ [Safety] Kanata running but unhealthy (TCP not responding) - triggering timeout")
-            return true  // Unhealthy, trigger timeout
-          }
-        },
-        onTimeout: { [weak self] in
-          guard let self else { return }
-          await stopKanata()
-
-          // Show safety notification
-          await MainActor.run { SafetyAlertPresenter.presentSafetyTimeoutAlert() }
-        }
-      )
-    }
+    // Deprecated
   }
 
   private func performStartKanata() async {
-    let startTime = Date()
-    AppLogger.shared.info("🚀 [Start] ========== KANATA START ATTEMPT ==========")
-    AppLogger.shared.info("🚀 [Start] Time: \(startTime)")
-    AppLogger.shared.info("🚀 [Start] Starting Kanata with synchronization lock...")
-
-    // Check restart cooldown
-    let cooldownState = await diagnosticsManager.canRestartService()
-    if !cooldownState.canRestart {
-      AppLogger.shared.warn(
-        "⚠️ [Start] Restart cooldown active: \(String(format: "%.1f", cooldownState.remainingCooldown))s remaining"
-      )
-      return
-    }
-
-    // Record this start attemp
-    await diagnosticsManager.recordStartAttempt(timestamp: Date())
-    lastStartAttempt = Date()
-
-    // Check if already starting (prevent concurrent operations)
-    if isStartingKanata {
-      AppLogger.shared.warn("⚠️ [Start] Kanata is already starting - skipping concurrent start")
-      return
-    }
-
-    // If Kanata is already running, check if it's healthy before restarting
-    if isRunning {
-      AppLogger.shared.debug("🔍 [Start] Kanata is already running - checking health before restart")
-
-      // Check health via small wrapper service to keep logic cohesive
-      let tcpPort = PreferencesService.shared.tcpServerPort
-      let healthChecker = HealthCheckService(
-        diagnosticsManager: diagnosticsManager,
-        statusProvider: { [weak self] in await self?.checkLaunchDaemonStatus() ?? (false, nil) }
-      )
-      let decision = await healthChecker.evaluate(tcpPort: tcpPort)
-
-      if decision.isHealthy, !decision.shouldRestart {
-        AppLogger.shared.info("✅ [Start] Kanata is healthy - no restart needed")
-        return
-      }
-
-      if !decision.shouldRestart {
-        AppLogger.shared.log("⏳ [Start] Service not ready but should wait - skipping restart")
-        return
-      }
-
-      AppLogger.shared.info(
-        "🔄 [Start] Service unhealthy: \(decision.reason ?? "unknown") - proceeding with restart")
-
-      AppLogger.shared.info("🔄 [Start] Performing necessary restart via kickstart")
-      isStartingKanata = true
-      defer { isStartingKanata = false }
-
-      // Record when we're triggering a service kickstart for grace period tracking
-      lastServiceKickstart = Date()
-
-      let success = await startLaunchDaemonService()  // Already uses kickstart -k
-
-      if success {
-        AppLogger.shared.log("✅ [Start] Kanata service restarted successfully via kickstart")
-        await diagnosticsManager.recordStartSuccess()
-        // Update service status after restar
-        let serviceStatus = await checkLaunchDaemonStatus()
-        if let pid = serviceStatus.pid {
-          AppLogger.shared.log("📝 [Start] Service restarted with PID: \(pid)")
-          let command = buildKanataArguments(configPath: configPath).joined(separator: " ")
-          await processLifecycleManager.registerStartedProcess(
-            pid: Int32(pid), command: "launchd: \(command)")
-
-          // Track service restart for crash loop detection
-          await reloadSafetyMonitor.recordServiceRestart(pid: pid)
-        }
-      } else {
-        AppLogger.shared.error(
-          "❌ [Start] Kickstart restart failed - will fall through to full startup")
-        // Don't return - let it fall through to full startup sequence
-      }
-
-      if success {
-        return  // Successfully restarted, we're done
-      }
-    }
-
-    // Set flag to prevent concurrent starts
-    isStartingKanata = true
-    defer { isStartingKanata = false }
-
-    // Pre-flight checks
-    let validation = await validateConfigFile()
-    if !validation.isValid {
-      let diagnostic = KanataDiagnostic(
-        timestamp: Date(),
-        severity: .error,
-        category: .configuration,
-        title: "Invalid Configuration",
-        description: "Cannot start Kanata due to configuration errors.",
-        technicalDetails: validation.errors.joined(separator: "\n"),
-        suggestedAction: "Fix configuration errors or reset to default",
-        canAutoFix: true
-      )
-      addDiagnostic(diagnostic)
-      updateInternalState(
-        isRunning: isRunning,
-        lastProcessExitCode: lastProcessExitCode,
-        lastError: "Configuration Error: \(validation.errors.first ?? "Unknown error")"
-      )
-      return
-    }
-
-    // Check for karabiner_grabber conflic
-    if isKarabinerElementsRunning() {
-      AppLogger.shared.warn("⚠️ [Start] Detected karabiner_grabber running - attempting to kill it")
-      let killed = await killKarabinerGrabber()
-      if !killed {
-        let diagnostic = KanataDiagnostic(
-          timestamp: Date(),
-          severity: .error,
-          category: .conflict,
-          title: "Karabiner Grabber Conflict",
-          description: "karabiner_grabber is running and preventing Kanata from starting",
-          technicalDetails: "This causes 'exclusive access and device already open' errors",
-          suggestedAction: "Quit Karabiner-Elements manually",
-          canAutoFix: false
-        )
-        addDiagnostic(diagnostic)
-        updateInternalState(
-          isRunning: isRunning,
-          lastProcessExitCode: lastProcessExitCode,
-          lastError: "Conflict: karabiner_grabber is running"
-        )
-        return
-      }
-    }
-
-    // Check for and resolve any existing conflicting processes
-    AppLogger.shared.debug("🔍 [Start] Checking for conflicting Kanata processes...")
-    await resolveProcessConflicts()
-
-    // Ensure a default configuration exists before attempting to start the service
-    let ensuredConfig = await createDefaultUserConfigIfMissing()
-    if ensuredConfig {
-      AppLogger.shared.log("✅ [Start] Verified user config before service start at \(configPath)")
-    } else {
-      AppLogger.shared.warn(
-        "⚠️ [Start] Unable to confirm user config exists at \(configPath) – continuing with best effort"
-      )
-    }
-
-    // Check if config file exists and is readable
-    let fileManager = FileManager.default
-    if !fileManager.fileExists(atPath: configPath) {
-      AppLogger.shared.warn("⚠️ [DEBUG] Config file does NOT exist at: \(configPath)")
-      updateInternalState(
-        isRunning: false,
-        lastProcessExitCode: 1,
-        lastError: "Configuration file not found: \(configPath)"
-      )
-      return
-    } else {
-      AppLogger.shared.info("✅ [DEBUG] Config file exists at: \(configPath)")
-      if !fileManager.isReadableFile(atPath: configPath) {
-        AppLogger.shared.warn("⚠️ [DEBUG] Config file is NOT readable")
-        updateInternalState(
-          isRunning: false,
-          lastProcessExitCode: 1,
-          lastError: "Configuration file not readable: \(configPath)"
-        )
-        return
-      }
-    }
-
-    // Use LaunchDaemon service management exclusively
-    AppLogger.shared.info("🚀 [Start] Starting Kanata via LaunchDaemon service...")
-    AppLogger.shared.debug("🔍 [DEBUG] Config path: \(configPath)")
-    AppLogger.shared.debug("🔍 [DEBUG] Kanata binary: \(WizardSystemPaths.kanataActiveBinary)")
-
-    // Start the LaunchDaemon service
-    // Record when we're triggering a service start for grace period tracking
-    lastServiceKickstart = Date()
-    let success = await startLaunchDaemonService()
-
-    if success {
-      // Wait a moment for service to initialize
-      try? await Task.sleep(nanoseconds: 1_000_000_000)  // 1 second
-
-      // Verify service started successfully
-      let serviceStatus = await checkLaunchDaemonStatus()
-      if let pid = serviceStatus.pid {
-        AppLogger.shared.log("📝 [Start] LaunchDaemon service started with PID: \(pid)")
-
-        // Register with lifecycle manager
-        let command = buildKanataArguments(configPath: configPath).joined(separator: " ")
-        await processLifecycleManager.registerStartedProcess(
-          pid: Int32(pid), command: "launchd: \(command)")
-
-        // Track service restart for crash loop detection
-        await reloadSafetyMonitor.recordServiceRestart(pid: pid)
-
-        // Start real-time log monitoring for VirtualHID connection issues
-        diagnosticsManager.startLogMonitoring()
-
-        // Check for process conflicts after starting
-        await verifyNoProcessConflicts()
-
-        // Update state and clear old diagnostics when successfully starting
-        updateInternalState(
-          isRunning: true,
-          lastProcessExitCode: nil,
-          lastError: nil,
-          shouldClearDiagnostics: true
-        )
-
-        AppLogger.shared.log(
-          "✅ [Start] Successfully started Kanata LaunchDaemon service (PID: \(pid))")
-        AppLogger.shared.log("✅ [Start] ========== KANATA START SUCCESS ==========")
-        await diagnosticsManager.recordStartSuccess()
-
-      } else {
-        // Service started but no PID found - may still be initializing
-        AppLogger.shared.warn("⚠️ [Start] LaunchDaemon service started but PID not yet available")
-
-        // Update state to indicate running
-        updateInternalState(
-          isRunning: true,
-          lastProcessExitCode: nil,
-          lastError: nil,
-          shouldClearDiagnostics: true
-        )
-
-        AppLogger.shared.info("✅ [Start] LaunchDaemon service started successfully")
-        AppLogger.shared.info("✅ [Start] ========== KANATA START SUCCESS ==========")
-        await healthMonitor.recordStartSuccess()
-      }
-    } else {
-      // Failed to start LaunchDaemon service
-      updateInternalState(
-        isRunning: false,
-        lastProcessExitCode: 1,
-        lastError: "Failed to start LaunchDaemon service"
-      )
-      AppLogger.shared.error("❌ [Start] Failed to start LaunchDaemon service")
-
-      let diagnostic = KanataDiagnostic(
-        timestamp: Date(),
-        severity: .error,
-        category: .process,
-        title: "LaunchDaemon Start Failed",
-        description: "Failed to start Kanata LaunchDaemon service.",
-        technicalDetails: "launchctl kickstart command failed",
-        suggestedAction: "Check LaunchDaemon installation and permissions",
-        canAutoFix: true
-      )
-      addDiagnostic(diagnostic)
-    }
-
-    await updateStatus()
+    // Deprecated
   }
 
   // MARK: - UI-Focused Lifecycle Methods (from SimpleKanataManager)
@@ -1336,279 +942,44 @@ class KanataManager {
     return false
   }
 
-  /// Start the automatic Kanata launch sequence
-  /// Optimization: Skips auto-launch if service is already running (just syncs state)
+  // MARK: - Auto Launch (Legacy removed)
   func startAutoLaunch(presentWizardOnFailure: Bool = true) async {
-    AppLogger.shared.info("🚀 [KanataManager] ========== AUTO-LAUNCH START ==========")
-
-    // Respect user's manual stop intention
-    if userManuallyStopped {
-      AppLogger.shared.log("⏸️ [KanataManager] User manually stopped service - skipping auto-launch")
-      AppLogger.shared.info(
-        "🚀 [KanataManager] ========== AUTO-LAUNCH COMPLETE (user stopped) ==========")
-      return
-    }
-
-    // Optimization: Fast check if service is already running - skip auto-launch if so
-    if Self.isProcessRunningFast() {
-      AppLogger.shared.log(
-        "⏭️ [KanataManager] Service already running (fast check) - skipping auto-launch")
-      // Still sync state to ensure UI is accurate
-      await refreshStatus()
-      AppLogger.shared.info(
-        "🚀 [KanataManager] ========== AUTO-LAUNCH COMPLETE (skipped, service running) ==========")
-      return
-    }
-
-    // Check if this is a fresh install firs
-    let isFreshInstall = isFirstTimeInstall()
-    let hasShownWizardBefore = UserDefaults.standard.bool(forKey: "KeyPath.HasShownWizard")
-
-    AppLogger.shared.log(
-      "🔍 [KanataManager] Fresh install: \(isFreshInstall), HasShownWizard: \(hasShownWizardBefore)")
-
-    if isFreshInstall {
-      // Fresh install - show wizard immediately without trying to start (unless quiet mode)
-      AppLogger.shared.log("🆕 [KanataManager] Fresh install detected")
-      await MainActor.run {
-        currentState = .needsHelp
-        errorReason = "Welcome! Let's set up KeyPath on your Mac."
-        if presentWizardOnFailure {
-          showWizard = true
-          AppLogger.shared.log("🆕 [KanataManager] Showing wizard for fresh install")
-        } else {
-          AppLogger.shared.log(
-            "🕊️ [KanataManager] Quiet mode: not presenting wizard on fresh install")
-        }
-      }
-    } else if hasShownWizardBefore {
-      AppLogger.shared.log(
-        "ℹ️ [KanataManager] Returning user - attempting quiet start"
-      )
-      // Try to start silently without showing wizard
-      await attemptQuietStart(presentWizardOnFailure: presentWizardOnFailure)
-    } else {
-      AppLogger.shared.log(
-        "🆕 [KanataManager] First launch on existing system - proceeding with normal auto-launch")
-      AppLogger.shared.log(
-        "🆕 [KanataManager] This means wizard MAY auto-show if system needs help")
-      currentState = .starting
-      errorReason = nil
-      showWizard = false
-      autoStartAttempts = 0
-      await attemptAutoStart(presentWizardOnFailure: presentWizardOnFailure)
-    }
-
-    AppLogger.shared.info("🚀 [KanataManager] ========== AUTO-LAUNCH COMPLETE ==========")
+    // Deprecated: Auto-launch is now handled by the app lifecycle using InstallerEngine
   }
 
-  /// Attempt to start quietly without showing wizard (for subsequent app launches)
-  private func attemptQuietStart(presentWizardOnFailure: Bool = true) async {
-    AppLogger.shared.log("🤫 [KanataManager] ========== QUIET START ATTEMPT ==========")
-    await MainActor.run {
-      currentState = .starting
-      errorReason = nil
-      showWizard = false  // Never show wizard on quiet starts
-    }
-    await MainActor.run {
-      autoStartAttempts = 0
-    }
-
-    // Try to start, but if it fails, just show error state without wizard
-    await attemptAutoStart(presentWizardOnFailure: presentWizardOnFailure)
-
-    // If we ended up in needsHelp state, don't show wizard - just stay in error state
-    if currentState == .needsHelp {
-      AppLogger.shared.log(
-        "🤫 [KanataManager] Quiet start failed - staying in error state without wizard")
-      await MainActor.run {
-        showWizard = false  // Explicitly ensure wizard doesn't show
-      }
-    }
-
-    AppLogger.shared.log("🤫 [KanataManager] ========== QUIET START COMPLETE ==========")
-  }
-
-  /// Show wizard specifically for input monitoring permissions
-  func showWizardForInputMonitoring() async {
-    AppLogger.shared.log("🧙‍♂️ [KanataManager] Showing wizard for input monitoring permissions")
-
-    await MainActor.run {
-      showWizard = true
-      currentState = .needsHelp
-      errorReason = "Input monitoring permission required"
-      launchFailureStatus = .permissionDenied("Input monitoring permission required")
-    }
-  }
-
-  /// Manual start triggered by user action
   func manualStart() async {
-    AppLogger.shared.log("👆 [KanataManager] Manual start requested")
-    userManuallyStopped = false  // Clear manual stop flag
-    await startKanata()
-    await refreshStatus()
+    // Deprecated: Use InstallerEngine.run(intent: .repair) or .start
   }
 
-  /// Manual stop triggered by user action
   func manualStop() async {
-    AppLogger.shared.log("👆 [KanataManager] Manual stop requested")
-    userManuallyStopped = true  // Set flag to prevent auto-restart
-    await stopKanata()
-    await MainActor.run {
-      currentState = .stopped
-    }
+    // Deprecated: Use InstallerEngine to stop service
   }
 
-  /// Force refresh the current status
   func forceRefreshStatus() async {
-    AppLogger.shared.info("🔄 [KanataManager] Force refresh status requested")
-    await refreshStatus()
+    // Deprecated: Use InstallerEngine.inspectSystem()
   }
 
-  /// Refresh status and update UI state
-  private func refreshStatus() async {
-    await updateStatus()
-
-    // Update currentState based on isRunning
-    await MainActor.run {
-      if isRunning {
-        currentState = .running
-        errorReason = nil
-        launchFailureStatus = nil
-      } else if !isRunning, currentState == .running {
-        currentState = .stopped
-      }
-    }
-  }
-
-  /// Attempt auto-start with retry logic
-  private func attemptAutoStart(presentWizardOnFailure: Bool = true) async {
-    autoStartAttempts += 1
-    AppLogger.shared.log(
-      "🔄 [KanataManager] ========== AUTO-START ATTEMPT #\(autoStartAttempts) ==========")
-
-    // Try to start Kanata
-    await startKanata()
-    await refreshStatus()
-
-    // Check if start was successful
-    if isRunning {
-      AppLogger.shared.info("✅ [KanataManager] Auto-start successful!")
-      await MainActor.run {
-        currentState = .running
-        errorReason = nil
-        launchFailureStatus = nil
-      }
-    } else {
-      AppLogger.shared.error("❌ [KanataManager] Auto-start failed")
-      await handleAutoStartFailure(presentWizardOnFailure: presentWizardOnFailure)
-    }
-
-    AppLogger.shared.log(
-      "🔄 [KanataManager] ========== AUTO-START ATTEMPT #\(autoStartAttempts) COMPLETE ==========")
-  }
-
-  /// Handle auto-start failure with retry logic
-  private func handleAutoStartFailure(presentWizardOnFailure: Bool = true) async {
-    // Check if we should retry
-    if autoStartAttempts < maxAutoStartAttempts {
-      AppLogger.shared.info("🔄 [KanataManager] Retrying auto-start...")
-      try? await Task.sleep(nanoseconds: 3_000_000_000)  // Wait 3 seconds
-      await attemptAutoStart(presentWizardOnFailure: presentWizardOnFailure)
-      return
-    }
-
-    // Max attempts reached - show help
-    await MainActor.run {
-      currentState = .needsHelp
-      errorReason = "Failed to start Kanata after \(maxAutoStartAttempts) attempts"
-      if presentWizardOnFailure {
-        showWizard = true
-        AppLogger.shared.error("❌ [KanataManager] Max attempts reached - showing wizard")
-      } else {
-        AppLogger.shared.log(
-          "🕊️ [KanataManager] Quiet mode: not presenting wizard on max attempts failure")
-      }
-    }
-  }
-
-  /// Retry after manual fix (from SimpleKanataManager)
   func retryAfterFix(_ feedbackMessage: String) async {
-    AppLogger.shared.info("🔄 [KanataManager] Retry after fix requested: \(feedbackMessage)")
-
-    await MainActor.run {
-      isRetryingAfterFix = true
-      retryCount += 1
-      currentState = .starting
-      errorReason = nil
-      showWizard = false
-    }
-
-    // Try to start Kanata
-    await startKanata()
-    await refreshStatus()
-
-    await MainActor.run {
-      isRetryingAfterFix = false
-    }
-
-    AppLogger.shared.info("🔄 [KanataManager] Retry after fix completed")
+    // Deprecated
   }
 
   /// Request wizard presentation from any UI componen
   @MainActor
   func requestWizardPresentation(initialPage _: WizardPage? = nil) {
-    AppLogger.shared.log("🧭 [KanataManager] Wizard presentation requested")
-    showWizard = true
-    shouldShowWizard = true
-    notifyStateChanged()
+    // Deprecated
   }
 
   /// Called when wizard is closed (from SimpleKanataManager)
   func onWizardClosed() async {
-    AppLogger.shared.log("🧙‍♂️ [KanataManager] Wizard closed - attempting retry")
-
-    await MainActor.run {
-      showWizard = false
-    }
-
-    // Try to refresh status and start if needed
-    await refreshStatus()
-
-    // Notify any UI components (e.g., main page validator) that the wizard closed
-    NotificationCenter.default.post(name: .wizardClosed, object: nil)
-
-    // If Kanata is now running successfully, mark wizard as completed
-    if isRunning {
-      AppLogger.shared.info("✅ [KanataManager] Wizard completed successfully - Kanata is running")
-      UserDefaults.standard.set(true, forKey: "KeyPath.HasShownWizard")
-      UserDefaults.standard.synchronize()
-      AppLogger.shared.info(
-        "✅ [KanataManager] Set KeyPath.HasShownWizard = true for future launches")
-    } else {
-      AppLogger.shared.warn(
-        "⚠️ [KanataManager] Wizard closed but Kanata is not running - will retry setup on next launch"
-      )
-    }
-
-    if !isRunning, !userManuallyStopped {
-      await startKanata()
-      await refreshStatus()
-    } else if userManuallyStopped {
-      AppLogger.shared.log(
-        "⏸️ [KanataManager] Not auto-starting after wizard - user manually stopped service")
-    }
-
-    AppLogger.shared.log("🧙‍♂️ [KanataManager] Wizard closed handling completed")
-    notifyStateChanged()
+    // Deprecated
   }
 
   // MARK: - LaunchDaemon Service Managemen
 
   /// Start the Kanata LaunchDaemon service via privileged operations facade
   private func startLaunchDaemonService() async -> Bool {
-    AppLogger.shared.info("🚀 [LaunchDaemon] Starting Kanata service via PrivilegedOperations...")
-    return await PrivilegedOperationsProvider.shared.startKanataService()
+    // Deprecated
+    return false
   }
 
   /// Check the status of the LaunchDaemon service
@@ -1618,23 +989,18 @@ class KanataManager {
 
   /// Resolve any conflicting Kanata processes before starting
   private func resolveProcessConflicts() async {
-    await processManager.resolveConflicts()
+    // Deprecated
   }
 
   /// Verify no process conflicts exist after starting
   private func verifyNoProcessConflicts() async {
-    await processManager.verifyNoConflicts()
+    // Deprecated
   }
 
   /// Stop the Kanata LaunchDaemon service via privileged operations facade
   private func stopLaunchDaemonService() async -> Bool {
-    AppLogger.shared.log("🛑 [LaunchDaemon] Stopping Kanata service via PrivilegedOperations...")
-    let ok = await PrivilegedOperationsProvider.shared.stopKanataService()
-    if ok {
-      // Wait a moment for graceful shutdown
-      try? await Task.sleep(nanoseconds: 1_000_000_000)
-    }
-    return ok
+    // Deprecated
+    return false
   }
 
   /// Kill a specific process by PID
@@ -1643,48 +1009,11 @@ class KanataManager {
   // Removed monitorKanataProcess() - no longer needed with LaunchDaemon service managemen
 
   func stopKanata() async {
-    AppLogger.shared.log("🛑 [Stop] Stopping Kanata LaunchDaemon service...")
-
-    // Stop the service via ProcessManager
-    let success = await processManager.stopService()
-
-    if success {
-      AppLogger.shared.log("✅ [Stop] Successfully stopped Kanata LaunchDaemon service")
-
-      // Stop log monitoring when Kanata stops
-      diagnosticsManager.stopLogMonitoring()
-
-      updateInternalState(
-        isRunning: false,
-        lastProcessExitCode: nil,
-        lastError: nil
-      )
-    } else {
-      AppLogger.shared.warn("⚠️ [Stop] Failed to stop Kanata LaunchDaemon service")
-
-      // Still update status to reflect current state
-      await updateStatus()
-    }
+    // Deprecated: Use InstallerEngine
   }
 
   func restartKanata() async {
-    AppLogger.shared.log("🔄 [Restart] Restarting Kanata...")
-    let configPath = configurationManager.configPath
-    let arguments = configurationManager.buildKanataArguments(checkOnly: false)
-    let success = await processManager.restartService(configPath: configPath, arguments: arguments)
-
-    if success {
-      // Start log monitoring
-      diagnosticsManager.startLogMonitoring()
-
-      // Update state
-      updateInternalState(
-        isRunning: true,
-        lastProcessExitCode: nil,
-        lastError: nil,
-        shouldClearDiagnostics: true
-      )
-    }
+    // Deprecated: Use InstallerEngine
   }
 
   /// Save a complete generated configuration (for Claude API generated configs)
@@ -1787,8 +1116,7 @@ class KanataManager {
   func toggleRuleCollection(id: UUID, isEnabled: Bool) async {
     if isEnabled,
       let candidate = ruleCollections.first(where: { $0.id == id }),
-      let conflict = await MainActor.run(body: { self.conflictInfo(for: candidate) })
-    {
+      let conflict = await MainActor.run(body: { self.conflictInfo(for: candidate) }) {
       await MainActor.run {
         lastError =
           "Cannot enable \(candidate.name). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
@@ -1838,8 +1166,7 @@ class KanataManager {
   @discardableResult
   func saveCustomRule(_ rule: CustomRule, skipReload: Bool = false) async -> Bool {
     if rule.isEnabled,
-      let conflict = await MainActor.run(body: { self.conflictInfo(for: rule) })
-    {
+      let conflict = await MainActor.run(body: { self.conflictInfo(for: rule) }) {
       await MainActor.run {
         lastError =
           "Cannot enable \(rule.displayTitle). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
@@ -1869,8 +1196,7 @@ class KanataManager {
     else { return }
 
     if isEnabled,
-      let conflict = await MainActor.run(body: { self.conflictInfo(for: existing) })
-    {
+      let conflict = await MainActor.run(body: { self.conflictInfo(for: existing) }) {
       await MainActor.run {
         lastError =
           "Cannot enable \(existing.displayTitle). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
@@ -2061,87 +1387,25 @@ class KanataManager {
   /// Optimized with fast process check and reduced timeout/poll interval
   func waitForServiceReady(timeout: TimeInterval = 3.0) async -> Bool {
     let startTime = Date()
+    let pollInterval: UInt64 = 250_000_000
 
-    AppLogger.shared.log("⏳ [KanataManager] Waiting for service to be ready (timeout: \(timeout)s)")
-
-    // Ultra-fast path - check process directly (instant, no async overhead)
-    if Self.isProcessRunningFast() {
-      AppLogger.shared.info("✅ [KanataManager] Service already running (fast check)")
-      // Still update status to sync internal state, but don't wait for it
-      Task {
-        await updateStatus()
-      }
-      return true
-    }
-
-    // Fast path - check internal state (may be cached)
-    await updateStatus()
-    if await MainActor.run(body: { currentState == .running }) {
-      AppLogger.shared.info("✅ [KanataManager] Service already ready")
-      return true
-    }
-
-    // Early exit if service is in a failed state
-    let initialState = await MainActor.run { currentState }
-    if initialState == .needsHelp || initialState == .stopped {
-      AppLogger.shared.error("❌ [KanataManager] Service in failed state: \(initialState.rawValue)")
-      return false
-    }
-
-    // Poll until ready or timeout (reduced poll interval for faster detection)
-    let pollInterval: UInt64 = 250_000_000  // 0.25 seconds (faster than 0.5s)
     while Date().timeIntervalSince(startTime) < timeout {
-      // Wait before checking again
-      try? await Task.sleep(nanoseconds: pollInterval)
-
-      // Fast process check first (cheaper than full status update)
-      if Self.isProcessRunningFast() {
-        // Process is running, update status to sync state
-        await updateStatus()
-        let state = await MainActor.run { currentState }
-        if state == .running {
-          let elapsed = Date().timeIntervalSince(startTime)
-          AppLogger.shared.info(
-            "✅ [KanataManager] Service became ready after \(String(format: "%.2f", elapsed))s")
-          return true
-        }
-      } else {
-        // Process not running, do full status check
-        await updateStatus()
-        let state = await MainActor.run { currentState }
-
-        if state == .running {
-          let elapsed = Date().timeIntervalSince(startTime)
-          AppLogger.shared.info(
-            "✅ [KanataManager] Service became ready after \(String(format: "%.2f", elapsed))s")
-          return true
-        }
-
-        if state == .needsHelp || state == .stopped {
-          AppLogger.shared.error(
-            "❌ [KanataManager] Service failed to start (state: \(state.rawValue))")
-          return false
-        }
-      }
-
-      // Still starting, keep waiting
+    if Self.isProcessRunningFast() {
+      return true
     }
-
-    let elapsed = Date().timeIntervalSince(startTime)
-    AppLogger.shared.log(
-      "⏱️ [KanataManager] Service ready timeout after \(String(format: "%.2f", elapsed))s")
+      try? await Task.sleep(nanoseconds: pollInterval)
+    }
     return false
   }
 
   /// Main actor function to safely update internal state properties
   @MainActor
   private func updateInternalState(
-    isRunning: Bool,
     lastProcessExitCode: Int32?,
     lastError: String?,
     shouldClearDiagnostics: Bool = false
   ) {
-    self.isRunning = isRunning
+    // Removed: isRunning
     self.lastProcessExitCode = lastProcessExitCode
     self.lastError = lastError
 
@@ -2168,13 +1432,9 @@ class KanataManager {
     let serviceStatus = await checkLaunchDaemonStatus()
     let serviceRunning = serviceStatus.isRunning
 
-    if isRunning != serviceRunning {
-      AppLogger.shared.warn("⚠️ [Status] LaunchDaemon service state changed: \(serviceRunning)")
-
       if serviceRunning {
         // Service is running - clear any stale errors
         updateInternalState(
-          isRunning: serviceRunning,
           lastProcessExitCode: nil,
           lastError: nil,
           shouldClearDiagnostics: true
@@ -2182,12 +1442,10 @@ class KanataManager {
         AppLogger.shared.info("🔄 [Status] LaunchDaemon service running - cleared stale diagnostics")
 
         if let pid = serviceStatus.pid {
-          AppLogger.shared.info("✅ [Status] LaunchDaemon service PID: \(pid)")
-
           // Update lifecycle manager with current service PID
           let command = buildKanataArguments(configPath: configPath).joined(separator: " ")
           await processLifecycleManager.registerStartedProcess(
-            pid: Int32(pid), command: "launchd: \(command)")
+          pid: Int32(pid), command: "launchd: (command)")
 
           // Track service restart for crash loop detection (in case PID changed)
           await reloadSafetyMonitor.recordServiceRestart(pid: pid)
@@ -2196,11 +1454,10 @@ class KanataManager {
         // Service is not running
         let failureMessage = captureRecentKanataErrorMessage() ?? lastError
         if let failureMessage {
-          AppLogger.shared.error("❌ [Status] Kanata service exited: \(failureMessage)")
+        AppLogger.shared.error("❌ [Status] Kanata service exited: (failureMessage)")
         }
 
         updateInternalState(
-          isRunning: serviceRunning,
           lastProcessExitCode: lastProcessExitCode,
           lastError: failureMessage
         )
@@ -2208,7 +1465,6 @@ class KanataManager {
 
         // Clean up lifecycle manager
         await processLifecycleManager.unregisterProcess()
-      }
     }
 
     // Check for any conflicting processes
@@ -2353,8 +1609,7 @@ class KanataManager {
 
   func openInputMonitoringSettings() {
     if let url = URL(
-      string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
-    {
+      string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
       NSWorkspace.shared.open(url)
     }
   }
@@ -2362,14 +1617,12 @@ class KanataManager {
   func openAccessibilitySettings() {
     if #available(macOS 13.0, *) {
       if let url = URL(
-        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-      {
+        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
         NSWorkspace.shared.open(url)
       }
     } else {
       if let url = URL(
-        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-      {
+        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
         NSWorkspace.shared.open(url)
       } else {
         NSWorkspace.shared.open(
@@ -2758,8 +2011,7 @@ class KanataManager {
 
   /// Schedule notification to inform user about config validation issues
   private func scheduleConfigValidationNotification(originalErrors: [String], backupPath: String)
-    async
-  {
+    async {
     AppLogger.shared.log("📢 [Config] Showing validation error dialog to user")
 
     await MainActor.run {
@@ -2792,7 +2044,7 @@ class KanataManager {
             NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: backupPath)])
           }
           self?.showingValidationAlert = false
-        },
+        }
       ]
 
       showingValidationAlert = true
@@ -2801,8 +2053,7 @@ class KanataManager {
 
   /// Show validation error dialog with options to cancel or revert to defaul
   private func showValidationErrorDialog(title: String, errors: [String], config _: String? = nil)
-    async
-  {
+    async {
     await MainActor.run {
       validationAlertTitle = title
       validationAlertMessage = """
@@ -2974,7 +2225,8 @@ class KanataManager {
     AppLogger.shared.log("🔄 [Reset] Updated stores and manager properties to match default state")
 
     // Apply changes immediately via TCP reload if service is running
-    if isRunning {
+    let context = await InstallerEngine().inspectSystem()
+    if context.services.kanataRunning {
       AppLogger.shared.info("🔄 [Reset] Triggering immediate config reload via TCP...")
       let reloadResult = await triggerConfigReload()
 
@@ -3119,16 +2371,14 @@ class KanataManager {
   // MARK: - Enhanced Config Validation and Recovery
 
   /// Validates a generated config string using Kanata's --check command
-  private func validateGeneratedConfig(_ config: String) async -> (isValid: Bool, errors: [String])
-  {
+  private func validateGeneratedConfig(_ config: String) async -> (isValid: Bool, errors: [String]) {
     // Delegate to ConfigurationService for combined TCP+CLI validation
     await configurationService.validateConfiguration(config)
   }
 
   /// Uses Claude to repair a corrupted Kanata config
   private func repairConfigWithClaude(config: String, errors: [String], mappings: [KeyMapping])
-    async throws -> String
-  {
+    async throws -> String {
     // Try Claude API first, fallback to rule-based repair
     do {
       let prompt = """
@@ -3166,8 +2416,7 @@ class KanataManager {
 
   /// Fallback rule-based repair when Claude is not available
   private func performRuleBasedRepair(config: String, errors: [String], mappings: [KeyMapping])
-    async throws -> String
-  {
+    async throws -> String {
     // Delegate to ConfigurationService for rule-based repair
     try await configurationService.repairConfiguration(
       config: config, errors: errors, mappings: mappings)
@@ -3280,8 +2529,7 @@ class KanataManager {
 
   /// Backs up a failed config and applies safe default, returning backup path
   func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
-    -> String
-  {
+    -> String {
     // Delegate to ConfigurationService for backup and safe config application
     let backupPath = try await configurationService.backupFailedConfigAndApplySafe(
       failedConfig: failedConfig,
@@ -3340,9 +2588,9 @@ class KanataManager {
       "messages": [
         [
           "role": "user",
-          "content": prompt,
+          "content": prompt
         ]
-      ],
+      ]
     ]
 
     request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
@@ -3390,7 +2638,7 @@ class KanataManager {
       kSecAttrService as String: "KeyPath",
       kSecAttrAccount as String: "claude-api-key",
       kSecReturnData as String: true,
-      kSecMatchLimit as String: kSecMatchLimitOne,
+      kSecMatchLimit as String: kSecMatchLimitOne
     ]
 
     var dataTypeRef: AnyObject?

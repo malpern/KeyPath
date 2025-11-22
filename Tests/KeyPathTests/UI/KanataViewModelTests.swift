@@ -31,8 +31,8 @@ final class KanataViewModelTests: XCTestCase {
     let snapshot = manager.getCurrentUIState()
 
     // Snapshot should contain current state
-    XCTAssertNotNil(snapshot.isRunning)
-    XCTAssertNotNil(snapshot.currentState)
+    // XCTAssertNotNil(snapshot.isRunning) // Removed
+    // XCTAssertNotNil(snapshot.currentState) // Removed
     XCTAssertNotNil(snapshot.keyMappings)
   }
 }

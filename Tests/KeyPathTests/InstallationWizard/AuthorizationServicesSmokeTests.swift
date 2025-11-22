@@ -122,7 +122,7 @@ final class AuthorizationServicesSmokeTests: XCTestCase {
     XCTAssertTrue(success)
 
     for id in [
-      "com.keypath.kanata", "com.keypath.karabiner-vhiddaemon", "com.keypath.karabiner-vhidmanager",
+      "com.keypath.kanata", "com.keypath.karabiner-vhiddaemon", "com.keypath.karabiner-vhidmanager"
     ] {
       XCTAssertTrue(
         FileManager.default.fileExists(atPath: plistPath(for: id)),

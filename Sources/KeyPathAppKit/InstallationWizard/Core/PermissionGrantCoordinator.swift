@@ -289,7 +289,7 @@ class PermissionGrantCoordinator: ObservableObject {
     }
   }
 
-  func reopenWizard(for permissionType: CoordinatorPermissionType, kanataManager: KanataManager) {
+  func reopenWizard(for permissionType: CoordinatorPermissionType) {
     logger.log("REOPENING wizard - checking \(permissionType.displayName) permission status")
 
     // Check permissions asynchronously and set appropriate flags
@@ -310,16 +310,15 @@ class PermissionGrantCoordinator: ObservableObject {
         }
       }
 
-      logger.log("KanataManager.showWizardForInputMonitoring called")
-      await kanataManager.showWizardForInputMonitoring()
+      logger.log("Posting .openInstallationWizard notification")
+      NotificationCenter.default.post(name: .openInstallationWizard, object: nil)
       logger.log("  - Wizard shown")
     }
   }
 
   /// Check if permissions were successfully granted for the given permission type
   private func checkIfPermissionsGranted(for permissionType: CoordinatorPermissionType) async
-    -> Bool
-  {
+    -> Bool {
     let snapshot = await PermissionOracle.shared.currentSnapshot()
 
     switch permissionType {

@@ -100,8 +100,7 @@ class MainAppStateController: ObservableObject {
     if let plistData = try? Data(contentsOf: URL(fileURLWithPath: plistPath)),
       let plist = try? PropertyListSerialization.propertyList(
         from: plistData, options: [], format: nil) as? [String: Any],
-      let args = plist["ProgramArguments"] as? [String]
-    {
+      let args = plist["ProgramArguments"] as? [String] {
       let hasTCPPort = args.contains("--port")
       guard hasTCPPort else {
         AppLogger.shared.warn(
@@ -132,8 +131,7 @@ class MainAppStateController: ObservableObject {
 
     // Optimization: Skip validation if recently completed (prevents redundant work on rapid restarts)
     if let lastTime = lastValidationTime,
-      Date().timeIntervalSince(lastTime) < validationCooldown
-    {
+      Date().timeIntervalSince(lastTime) < validationCooldown {
       let timeSince = Int(Date().timeIntervalSince(lastTime))
       AppLogger.shared.log(
         "⏭️ [MainAppStateController] Skipping validation - completed \(timeSince)s ago (cooldown: \(Int(validationCooldown))s)"
@@ -341,9 +339,6 @@ class MainAppStateController: ObservableObject {
       AppLogger.shared.debug(
         "📊 [MainAppStateController]   Blocking \(index + 1): [\(issue.category)] \(issue.title)")
     }
-
-    let kanataIsRunning = kanataManager?.isRunning ?? false
-    AppLogger.shared.debug("📊 [MainAppStateController] kanataManager.isRunning: \(kanataIsRunning)")
 
     // ⭐ Check blocking issues EVEN when Kanata is running to keep UI honest
     switch adapted.state {

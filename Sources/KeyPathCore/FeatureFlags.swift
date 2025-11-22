@@ -11,7 +11,7 @@ public final class FeatureFlags {
   private var _startupModeActive: Bool = false
 
   /// Test seam: allow injecting startup mode during unit tests
-  nonisolated(unsafe) public static var testStartupMode: Bool? = nil
+  nonisolated(unsafe) public static var testStartupMode: Bool?
 
   /// True while we want to avoid potentially-blocking permission checks during early startup.
   public var startupModeActive: Bool {

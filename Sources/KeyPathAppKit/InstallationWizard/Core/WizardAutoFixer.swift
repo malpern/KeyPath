@@ -417,7 +417,7 @@ class WizardAutoFixer: AutoFixCapable {
     AppLogger.shared.log("🔮 [AutoFixer] Oracle permission system - no manual cache clearing needed")
 
     // 4. Reset kanata manager state
-    await kanataManager.stopKanata()
+    _ = await InstallerEngine().run(intent: .uninstall, using: PrivilegeBroker())
     kanataManager.lastError = nil
     kanataManager.diagnostics.removeAll()
     AppLogger.shared.info("🔄 [AutoFixer] Reset KanataManager state")
@@ -1343,7 +1343,7 @@ class WizardAutoFixer: AutoFixCapable {
 
       // Restart the kanata service to use the new binary
       AppLogger.shared.info("🔄 [AutoFixer] Restarting kanata service to use new binary")
-      await kanataManager.restartKanata()
+      _ = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
       AppLogger.shared.info("✅ [AutoFixer] Restarted kanata service with new binary")
 
       return true

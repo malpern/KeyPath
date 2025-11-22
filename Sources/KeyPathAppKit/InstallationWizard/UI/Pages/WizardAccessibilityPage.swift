@@ -342,8 +342,7 @@ struct WizardAccessibilityPage: View {
 
     // Fallback: Open System Settings > Privacy & Security > Accessibility
     if let url = URL(
-      string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-    {
+      string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
       NSWorkspace.shared.open(url)
     }
   }
@@ -355,8 +354,7 @@ struct WizardAccessibilityPage: View {
     }
 
     if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: allIssues),
-      nextPage != navigationCoordinator.currentPage
-    {
+      nextPage != navigationCoordinator.currentPage {
       navigationCoordinator.navigateToPage(nextPage)
     } else {
       navigationCoordinator.navigateToPage(.summary)

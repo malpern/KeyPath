@@ -29,8 +29,7 @@ public enum WizardSystemPaths {
 
   private static func resolvedHomeDirectory() -> String {
     if let override = ProcessInfo.processInfo.environment["KEYPATH_HOME_DIR_OVERRIDE"],
-      !override.isEmpty
-    {
+      !override.isEmpty {
       return override
     }
     return NSHomeDirectory()
@@ -76,8 +75,7 @@ public enum WizardSystemPaths {
       return override
     }
     if let override = ProcessInfo.processInfo.environment["KEYPATH_BUNDLED_KANATA_OVERRIDE"],
-      !override.isEmpty
-    {
+      !override.isEmpty {
       return override
     }
     return "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
@@ -134,7 +132,7 @@ public enum WizardSystemPaths {
   public static var kanataLogFileCandidates: [String] {
     [
       remapSystemPath("/var/log/com.keypath.kanata.stdout.log"),
-      remapSystemPath("/var/log/kanata.log"),
+      remapSystemPath("/var/log/kanata.log")
     ]
   }
 

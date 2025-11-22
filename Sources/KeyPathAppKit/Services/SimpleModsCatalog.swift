@@ -91,7 +91,7 @@ public final class SimpleModsCatalog {
         category: "Common",
         fromKey: "del",
         toKey: "bspc"
-      ),
+      )
     ]
   }
 

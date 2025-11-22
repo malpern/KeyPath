@@ -154,8 +154,7 @@ public actor PermissionOracle {
       // Honor cache semantics in tests to keep behavior deterministic
       if let cachedTime = lastSnapshotTime,
         let cached = lastSnapshot,
-        Date().timeIntervalSince(cachedTime) < cacheTTL
-      {
+        Date().timeIntervalSince(cachedTime) < cacheTTL {
         AppLogger.shared.log("🔮 [Oracle] (Test) Returning cached snapshot")
         return cached
       }
@@ -178,8 +177,7 @@ public actor PermissionOracle {
     // Return cached result if fresh
     if let cachedTime = lastSnapshotTime,
       let cached = lastSnapshot,
-      Date().timeIntervalSince(cachedTime) < cacheTTL
-    {
+      Date().timeIntervalSince(cachedTime) < cacheTTL {
       AppLogger.shared.log(
         "🔮 [Oracle] Returning cached snapshot (age: \(String(format: "%.3f", Date().timeIntervalSince(cachedTime)))s)"
       )
@@ -457,8 +455,7 @@ public actor PermissionOracle {
     let dbPaths = tccDatabaseCandidates()
     for db in dbPaths where FileManager.default.fileExists(atPath: db) {
       if let val = await queryTCCDatabase(
-        dbPath: db, service: service.rawValue, executablePath: execPath)
-      {
+        dbPath: db, service: service.rawValue, executablePath: execPath) {
         // Interpret result:
         // - Newer macOS: auth_value (2=Allow, 0=Deny or Prompt depending on auth_reason)
         // - Older macOS: allowed (1=Allow, 0=Not allowed)
@@ -486,8 +483,7 @@ public actor PermissionOracle {
   // Returns an integer meaning of auth_value/allowed, or nil if not determinable.
   // Uses sqlite3 CLI tool which is available on all macOS systems.
   private func queryTCCDatabase(dbPath: String, service: String, executablePath: String) async
-    -> Int?
-  {
+    -> Int? {
     // The 'access' table schema varies. We try auth_value first, then allowed.
     // We check for client_type=1 (path) because Kanata is a CLI binary.
     let escService = escapeSQLiteLiteral(service)
@@ -498,7 +494,7 @@ public actor PermissionOracle {
 
     let queries = [
       "SELECT auth_value FROM access WHERE service='\(escService)' AND client='\(escExec)' AND client_type=1 ORDER BY auth_value DESC LIMIT 1;",
-      "SELECT allowed FROM access WHERE service='\(escService)' AND client='\(escExec)' AND client_type=1 ORDER BY allowed DESC LIMIT 1;",
+      "SELECT allowed FROM access WHERE service='\(escService)' AND client='\(escExec)' AND client_type=1 ORDER BY allowed DESC LIMIT 1;"
     ]
 
     for (index, sql) in queries.enumerated() {

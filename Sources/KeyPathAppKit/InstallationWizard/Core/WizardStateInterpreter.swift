@@ -10,8 +10,7 @@ struct WizardStateInterpreter {
 
   /// Get the status of a specific permission requirement
   func getPermissionStatus(_ permission: PermissionRequirement, in issues: [WizardIssue])
-    -> InstallationStatus
-  {
+    -> InstallationStatus {
     let hasIssue = issues.contains { $0.identifier == .permission(permission) }
     return hasIssue ? .failed : .completed
   }
@@ -35,8 +34,7 @@ struct WizardStateInterpreter {
 
   /// Get the status of a specific component requirement
   func getComponentStatus(_ component: ComponentRequirement, in issues: [WizardIssue])
-    -> InstallationStatus
-  {
+    -> InstallationStatus {
     let hasIssue = issues.contains { $0.identifier == .component(component) }
     return hasIssue ? .failed : .completed
   }
@@ -213,8 +211,7 @@ struct WizardStateInterpreter {
 
     if relevantIssues.isEmpty {
       return .completed
-    } else if relevantIssues.contains(where: { $0.severity == .critical || $0.severity == .error })
-    {
+    } else if relevantIssues.contains(where: { $0.severity == .critical || $0.severity == .error }) {
       return .failed
     } else {
       return .failed  // Warnings also indicate incomplete status

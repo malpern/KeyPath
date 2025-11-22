@@ -96,8 +96,7 @@ final class RecordingCoordinatorTests: XCTestCase {
     XCTAssertTrue(statusMessages.contains { $0.contains("Accessibility") })
   }
 
-  private static func snapshot(accessibility: PermissionOracle.Status) -> PermissionOracle.Snapshot
-  {
+  private static func snapshot(accessibility: PermissionOracle.Status) -> PermissionOracle.Snapshot {
     let permissionSet = PermissionOracle.PermissionSet(
       accessibility: accessibility,
       inputMonitoring: .granted,

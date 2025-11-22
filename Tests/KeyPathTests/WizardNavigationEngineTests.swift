@@ -134,7 +134,7 @@ class WizardNavigationEngineTests: XCTestCase {
       .karabinerComponents,  // Karabiner driver and VirtualHID setup
       .kanataComponents,  // Kanata binary and service setup
       .service,  // Start keyboard service
-      .communication,  // Optional TCP/communication verification
+      .communication  // Optional TCP/communication verification
     ]
 
     // When: Getting page order
@@ -207,7 +207,7 @@ class WizardNavigationEngineTests: XCTestCase {
       (.initializing, "Checking system..."),
       (.conflictsDetected(conflicts: []), "Resolving conflicts..."),
       (.ready, "Ready to start..."),
-      (.active, "Setup complete!"),
+      (.active, "Setup complete!")
     ]
 
     // When/Then: Each state should have appropriate description
@@ -229,7 +229,7 @@ class WizardNavigationEngineTests: XCTestCase {
       (.accessibility, "Open System Settings"),
       (.karabinerComponents, "Install Karabiner Components"),
       (.kanataComponents, "Install Kanata Components"),
-      (.service, "Start Keyboard Service"),
+      (.service, "Start Keyboard Service")
     ]
 
     // When/Then: Each page should have appropriate button text

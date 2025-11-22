@@ -22,47 +22,36 @@ extension KanataManager {
     isInitializing = true
     defer { isInitializing = false }
 
+    // Use InstallerEngine to orchestrate initialization
+    let engine = InstallerEngine()
+
+    // Create default config if missing
     let ensuredConfig = await createDefaultUserConfigIfMissing()
     if ensuredConfig {
       AppLogger.shared.log("✅ [Init] Verified user config exists at \(configPath)")
-    } else {
-      AppLogger.shared.warn(
-        "⚠️ [Init] Unable to verify user config at \(configPath) - continuing with best effort")
     }
 
+    // Initial status check
     await updateStatus()
 
-    // First, adopt any existing KeyPath-looking kanata processes before deciding to auto-start
-    let lifecycle = ProcessLifecycleManager()
-    await lifecycle.cleanupOrphanedProcesses()
-    await updateStatus()
-    // Try to start Kanata automatically on launch if all requirements are met
-    let status = await getSystemRequirementsStatus()
+    // Try to start Kanata automatically on launch if environment allows
+    let context = await engine.inspectSystem()
 
-    // Check if Kanata is already running before attempting to start
-    if isRunning {
+    // Check if Kanata is already running
+    if context.services.kanataRunning {
       AppLogger.shared.info("✅ [Init] Kanata is already running - skipping initialization")
       return
     }
 
-    // Auto-start kanata if all requirements are met
+    // In headless/production mode, we might want to auto-repair/start
+    // For now, we'll just log the state and let the UI drive the installation flow
+    // unless we are in a state where we *expect* it to be running.
+
     AppLogger.shared.log(
-      "🔍 [Init] Status: installed=\(status.installed), permissions=\(status.permissions), driver=\(status.driver), daemon=\(status.daemon)"
+        "🔍 [Init] System Context: installed=\(context.components.kanataBinaryInstalled), permissions=\(context.permissions.isSystemReady)"
     )
 
-    if status.installed, status.permissions, status.driver, status.daemon {
-      AppLogger.shared.info("✅ [Init] All requirements met - auto-starting Kanata")
-      await startKanata()
-    } else {
-      AppLogger.shared.warn("⚠️ [Init] Requirements not met - skipping auto-start")
-      if !status.installed { AppLogger.shared.log("  - Missing: Kanata binary") }
-      if !status.permissions { AppLogger.shared.log("  - Missing: Required permissions") }
-      if !status.driver { AppLogger.shared.log("  - Missing: VirtualHID driver") }
-      if !status.daemon { AppLogger.shared.log("  - Missing: VirtualHID daemon") }
-    }
-
-    // Start config file watching regardless of whether Kanata started
-    // This allows hot reload to work even if Kanata starts later
+    // Start config file watching
     await MainActor.run {
       startConfigFileWatching()
     }
@@ -94,10 +83,10 @@ extension KanataManager {
     AppLogger.shared.log("🔧 [Recovery] Step 4: Waiting 3 seconds before retry...")
     try? await Task.sleep(nanoseconds: 3_000_000_000)  // 3 seconds
 
-    // Step 5: Try starting Kanata again with validation
+    // Step 5: Try starting Kanata again via InstallerEngine
     AppLogger.shared.log(
       "🔧 [Recovery] Step 5: Attempting to restart Kanata with VirtualHID validation...")
-    await startKanataWithValidation()
+    _ = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
 
     AppLogger.shared.log("🔧 [Recovery] Keyboard recovery process complete")
   }

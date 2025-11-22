@@ -116,7 +116,7 @@ public class UIAutomationFramework {
         mappings: [
           KeyMapping(input: "1", output: "2"),
           KeyMapping(input: "5", output: "6"),
-          KeyMapping(input: "9", output: "0"),
+          KeyMapping(input: "9", output: "0")
         ]
       ),
       KeyMappingScenario(
@@ -125,7 +125,7 @@ public class UIAutomationFramework {
         mappings: [
           KeyMapping(input: "caps", output: "esc"),
           KeyMapping(input: "space", output: "tab"),
-          KeyMapping(input: "delete", output: "backspace"),
+          KeyMapping(input: "delete", output: "backspace")
         ]
       ),
       KeyMappingScenario(
@@ -134,7 +134,7 @@ public class UIAutomationFramework {
         mappings: [
           KeyMapping(input: "f1", output: "f2"),
           KeyMapping(input: "f11", output: "f12"),
-          KeyMapping(input: "f5", output: "f6"),
+          KeyMapping(input: "f5", output: "f6")
         ]
       ),
       KeyMappingScenario(
@@ -143,7 +143,7 @@ public class UIAutomationFramework {
         mappings: [
           KeyMapping(input: "a", output: "b"),
           KeyMapping(input: "x", output: "y"),
-          KeyMapping(input: "q", output: "w"),
+          KeyMapping(input: "q", output: "w")
         ]
       ),
       KeyMappingScenario(
@@ -152,7 +152,7 @@ public class UIAutomationFramework {
         mappings: [
           KeyMapping(input: "caps", output: "ctrl shift"),
           KeyMapping(input: "tab", output: "alt space"),
-          KeyMapping(input: "esc", output: "cmd w"),
+          KeyMapping(input: "esc", output: "cmd w")
         ]
       ),
       KeyMappingScenario(
@@ -161,9 +161,9 @@ public class UIAutomationFramework {
         mappings: [
           KeyMapping(input: "semicolon", output: "colon"),
           KeyMapping(input: "comma", output: "period"),
-          KeyMapping(input: "slash", output: "backslash"),
+          KeyMapping(input: "slash", output: "backslash")
         ]
-      ),
+      )
     ]
   }
 
@@ -183,8 +183,7 @@ public class UIAutomationFramework {
   }
 
   private func executeInputCapture(_ input: String, uiState _: UIStateSnapshot) async
-    -> CaptureResult
-  {
+    -> CaptureResult {
     log(.inputCapture, "Capturing input key: \(input)")
 
     // Start input recording
@@ -202,8 +201,7 @@ public class UIAutomationFramework {
   }
 
   private func executeOutputCapture(_ output: String, uiState _: UIStateSnapshot) async
-    -> CaptureResult
-  {
+    -> CaptureResult {
     log(.outputCapture, "Capturing output key: \(output)")
 
     // Start output recording

@@ -174,30 +174,7 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
     )
   }
 
-  /// Notify user of a status change
-  func notifyStatusChange(_ state: SimpleKanataState) {
-    // Only surface meaningful transitions when not frontmost
-    switch state {
-    case .running:
-      sendNotification(
-        title: "Kanata Running",
-        body: "Keyboard remapping is active",
-        category: .recovery,
-        key: "service.running",
-        ttl: 300
-      )
-    case .needsHelp:
-      sendNotification(
-        title: "KeyPath Needs Attention",
-        body: "Open the setup wizard to resolve issues",
-        category: .serviceFailure,
-        key: "service.needsHelp",
-        ttl: 300
-      )
-    default:
-      break
-    }
-  }
+  // notifyStatusChange removed - SimpleKanataState is deprecated
 
   // MARK: - Additional Notification Helpers
 

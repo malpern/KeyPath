@@ -64,7 +64,7 @@ class BundledKanataManager {
     let systemPaths = [
       WizardSystemPaths.kanataSystemInstallPath,  // System install (highest priority)
       "/usr/local/bin/kanata",  // Intel Homebrew
-      "/opt/homebrew/bin/kanata",  // ARM Homebrew
+      "/opt/homebrew/bin/kanata"  // ARM Homebrew
     ]
 
     for path in systemPaths where FileManager.default.fileExists(atPath: path) {

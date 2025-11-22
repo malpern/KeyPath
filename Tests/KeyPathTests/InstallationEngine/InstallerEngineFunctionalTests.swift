@@ -562,8 +562,7 @@ final class InstallerEngineFunctionalTests: XCTestCase {
     XCTAssertTrue(FileManager.default.fileExists(atPath: plistURL.path))
     var dict = try plistDictionary(at: plistURL)
     if var args = dict["ProgramArguments"] as? [String], let idx = args.firstIndex(of: "--cfg"),
-      idx + 1 < args.count
-    {
+      idx + 1 < args.count {
       args[idx + 1] = "~/test/path"
       dict["ProgramArguments"] = args
       (dict as NSDictionary).write(to: plistURL, atomically: true)
@@ -620,8 +619,7 @@ final class InstallerEngineFunctionalTests: XCTestCase {
   }
 
   private func waitForLogMessage(_ substring: String, logURL: URL, timeout: TimeInterval = 1.0)
-    -> String?
-  {
+    -> String? {
     let deadline = Date().addingTimeInterval(timeout)
     var latestContents: String?
     repeat {
@@ -659,7 +657,7 @@ final class InstallerEngineFunctionalTests: XCTestCase {
   private static let serviceIDs = [
     "com.keypath.kanata",
     "com.keypath.karabiner-vhiddaemon",
-    "com.keypath.karabiner-vhidmanager",
+    "com.keypath.karabiner-vhidmanager"
   ]
 
   private var installerLogPath: String {

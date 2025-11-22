@@ -48,7 +48,7 @@ class ConfigurationServiceTests: XCTestCase {
     let mappings = [
       KeyMapping(input: "caps", output: "esc"),
       KeyMapping(input: "a", output: "b"),
-      KeyMapping(input: "c", output: "d"),
+      KeyMapping(input: "c", output: "d")
     ]
     let config = KanataConfiguration.generateFromMappings(mappings)
 
@@ -84,7 +84,7 @@ class ConfigurationServiceTests: XCTestCase {
   func testGenerateFromMappings_UsesSingleDefsrcAndDeflayer() {
     let mappings = [
       KeyMapping(input: "caps", output: "esc"),
-      KeyMapping(input: "a", output: "b"),
+      KeyMapping(input: "a", output: "b")
     ]
 
     let config = KanataConfiguration.generateFromMappings(mappings)
@@ -121,7 +121,7 @@ class ConfigurationServiceTests: XCTestCase {
       category: .system,
       mappings: [
         KeyMapping(input: "f1", output: "brdn"),
-        KeyMapping(input: "f2", output: "brup"),
+        KeyMapping(input: "f2", output: "brup")
       ],
       isEnabled: false,
       isSystemDefault: true
@@ -151,7 +151,7 @@ class ConfigurationServiceTests: XCTestCase {
       category: .navigation,
       mappings: [
         KeyMapping(input: "h", output: "left"),
-        KeyMapping(input: "j", output: "down"),
+        KeyMapping(input: "j", output: "down")
       ],
       isEnabled: true,
       isSystemDefault: false,
@@ -348,7 +348,7 @@ class ConfigurationServiceTests: XCTestCase {
       CustomRule(title: "Caps Escape", input: "caps", output: "esc"),
       CustomRule(
         title: "Space Layer", input: "space", output: "nav", isEnabled: false,
-        notes: "Disabled nav layer"),
+        notes: "Disabled nav layer")
     ]
 
     try await configService.saveConfiguration(ruleCollections: [preset], customRules: customRules)
@@ -513,7 +513,7 @@ class ConfigurationServiceTests: XCTestCase {
       ("space", "spc"),
       ("return", "ret"),
       ("backspace", "bspc"),
-      ("delete", "del"),
+      ("delete", "del")
     ]
 
     for (input, expectedBase) in testCases {
@@ -582,7 +582,7 @@ class ConfigurationServiceTests: XCTestCase {
     let mappings = [
       KeyMapping(input: "caps", output: "escape"),
       KeyMapping(input: "tab", output: "backspace"),
-      KeyMapping(input: "a", output: "delete"),
+      KeyMapping(input: "a", output: "delete")
     ]
 
     let config = KanataConfiguration.generateFromMappings(mappings)
@@ -669,7 +669,7 @@ class ConfigurationServiceTests: XCTestCase {
     let errors = ["mismatch in defsrc and deflayer lengths"]
     let mappings = [
       KeyMapping(input: "caps", output: "esc"),
-      KeyMapping(input: "a", output: "x"),
+      KeyMapping(input: "a", output: "x")
     ]
 
     let repairedConfig = try await configService.repairConfiguration(
@@ -690,7 +690,7 @@ class ConfigurationServiceTests: XCTestCase {
   func testRoundTrip_GenerateParseGenerate() throws {
     let originalMappings = [
       KeyMapping(input: "caps", output: "esc"),
-      KeyMapping(input: "a", output: "b"),
+      KeyMapping(input: "a", output: "b")
     ]
 
     // Generate config

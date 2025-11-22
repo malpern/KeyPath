@@ -88,8 +88,7 @@ public final class ConfigBackupManager {
 
         if let attributes = try? FileManager.default.attributesOfItem(atPath: fullPath),
           let modDate = attributes[.modificationDate] as? Date,
-          let size = attributes[.size] as? Int64
-        {
+          let size = attributes[.size] as? Int64 {
           backups.append(
             BackupInfo(
               filename: file,

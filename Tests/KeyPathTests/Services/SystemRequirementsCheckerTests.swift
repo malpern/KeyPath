@@ -17,7 +17,7 @@ final class SystemRequirementsCheckerTests: XCTestCase {
         status: .satisfied,
         details: "Log directory exists",
         actionRequired: nil
-      ),
+      )
     ]
 
     let report = checker.makeReport(results: results, startedAt: Date())
@@ -45,7 +45,7 @@ final class SystemRequirementsCheckerTests: XCTestCase {
         status: .satisfied,
         details: "Kanata ready",
         actionRequired: nil
-      ),
+      )
     ]
 
     let report = checker.makeReport(results: results, startedAt: Date())

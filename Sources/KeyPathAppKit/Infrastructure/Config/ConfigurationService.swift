@@ -51,8 +51,7 @@ public struct KanataConfiguration: Sendable {
 
     let aliasBlock = renderAliasBlock(aliasDefinitions)
     let sourceBlock = renderDefsrcBlock(blocks)
-    let baseLayerBlock = renderLayerBlock(name: RuleCollectionLayer.base.kanataName, blocks: blocks)
-    { $0.baseOutput }
+    let baseLayerBlock = renderLayerBlock(name: RuleCollectionLayer.base.kanataName, blocks: blocks) { $0.baseOutput }
     let additionalLayerBlocks = extraLayers.map { layer in
       renderLayerBlock(name: layer.kanataName, blocks: blocks) { entry in
         entry.layerOutputs[layer] ?? "_"
@@ -151,18 +150,17 @@ public struct KanataConfiguration: Sendable {
       ";; )",
       ";; (deflayer base",
       ";;   \(layerKeys)",
-      ";; )",
+      ";; )"
     ])
     return lines.joined(separator: "\n")
   }
 
   private static func metadataLines(for collection: RuleCollection, indent: String, status: String)
-    -> [String]
-  {
+    -> [String] {
     [
       "\(indent);; === Collection: \(collection.name) (\(status)) ===",
       "\(indent);; UUID: \(collection.id.uuidString)",
-      "\(indent);; Description: \(collection.summary)",
+      "\(indent);; Description: \(collection.summary)"
     ]
   }
 
@@ -170,7 +168,7 @@ public struct KanataConfiguration: Sendable {
     [
       "\(indent);; === Momentary Layer Switch ===",
       "\(indent);; Input: \(activator.input)",
-      "\(indent);; Activates: \(activator.targetLayer.displayName)",
+      "\(indent);; Activates: \(activator.targetLayer.displayName)"
     ]
   }
 
@@ -206,7 +204,7 @@ public struct KanataConfiguration: Sendable {
       KeyMapping(input: "f9", output: "next"),
       KeyMapping(input: "f10", output: "mute"),
       KeyMapping(input: "f11", output: "vold"),
-      KeyMapping(input: "f12", output: "volu"),
+      KeyMapping(input: "f12", output: "volu")
     ]
   }
 
@@ -422,8 +420,7 @@ public final class ConfigurationService: FileConfigurationProviding {
   }
 
   public func observe(_ onChange: @Sendable @escaping (Config) async -> Void)
-    -> ConfigurationObservationToken
-  {
+    -> ConfigurationObservationToken {
     var index = 0
     stateLock.lock()
     observers.append(onChange)
@@ -596,8 +593,7 @@ public final class ConfigurationService: FileConfigurationProviding {
       } else {
         // Parse errors from output
         let lines = output.components(separatedBy: .newlines)
-        for line in lines where !line.isEmpty && (line.contains("error") || line.contains("Error"))
-        {
+        for line in lines where !line.isEmpty && (line.contains("error") || line.contains("Error")) {
           errors.append(line.trimmingCharacters(in: .whitespaces))
         }
 
@@ -757,8 +753,7 @@ public final class ConfigurationService: FileConfigurationProviding {
   /// Backs up a failed config and applies safe default, returning backup path
   public func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping])
     async throws
-    -> String
-  {
+    -> String {
     AppLogger.shared.log("🛡️ [Config] Backing up failed config and applying safe default")
 
     // Create backup directory if it doesn't exist
@@ -809,8 +804,7 @@ public final class ConfigurationService: FileConfigurationProviding {
   /// Repair configuration using rule-based strategies (keeps output Kanata-compatible).
   public func repairConfiguration(config: String, errors: [String], mappings: [KeyMapping])
     async throws
-    -> String
-  {
+    -> String {
     AppLogger.shared.log("🔧 [Config] Performing rule-based repair for \(errors.count) errors")
 
     // Common repair strategies
@@ -1103,7 +1097,7 @@ public enum KanataKeyConverter {
       "right option": "ralt",
       "ralt": "ralt",
       "(": "lpar",
-      ")": "rpar",
+      ")": "rpar"
     ]
 
     let lowercased = input.lowercased()
@@ -1181,7 +1175,7 @@ public enum KanataKeyConverter {
       "f16", "f17", "f18", "f19", "f20",
       // Kanata media/system outputs
       "brdn", "brup", "mission_control", "launchpad",
-      "prev", "pp", "next", "mute", "vold", "volu",
+      "prev", "pp", "next", "mute", "vold", "volu"
     ]
 
     // If it's a known key name, don't convert to macro

@@ -29,7 +29,7 @@ final class RuleCollectionStoreTests: XCTestCase {
         category: .custom,
         mappings: [
           KeyMapping(input: "caps_lock", output: "escape"),
-          KeyMapping(input: "left_shift", output: "hyper"),
+          KeyMapping(input: "left_shift", output: "hyper")
         ],
         isEnabled: true,
         isSystemDefault: false,
@@ -59,7 +59,7 @@ final class RuleCollectionStoreTests: XCTestCase {
       ],
       "isEnabled": true,
       "isSystemDefault": false,
-      "icon": "arrow",
+      "icon": "arrow"
     ]
 
     let data = try JSONSerialization.data(withJSONObject: [legacyEntry])

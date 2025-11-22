@@ -215,7 +215,8 @@ struct WizardKanataServicePage: View {
     lastError = nil
 
     Task {
-      await kanataManager.startKanataWithSafetyTimeout()
+      // Use InstallerEngine to start service
+      _ = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
 
       await MainActor.run {
         isPerformingAction = false
@@ -233,14 +234,9 @@ struct WizardKanataServicePage: View {
     lastError = nil
 
     Task {
-      await kanataManager.stopKanata()
+      // Use InstallerEngine to restart (repair)
+      _ = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
       try? await Task.sleep(nanoseconds: 1_000_000_000)  // 1 second
-
-      await MainActor.run {
-        serviceStatus = .starting
-      }
-
-      await kanataManager.startKanataWithSafetyTimeout()
 
       await MainActor.run {
         isPerformingAction = false
@@ -257,7 +253,13 @@ struct WizardKanataServicePage: View {
     serviceStatus = .stopping
 
     Task {
-      await kanataManager.stopKanata()
+      // Use InstallerEngine to stop (uninstall/stop service)
+      // InstallerEngine doesn't have explicit 'stop' intent, but 'uninstall' removes service.
+      // If we just want to stop, we might need a different approach or add 'stop' intent.
+      // For now, using PrivilegeBroker directly or just uninstalling logic?
+      // Actually, 'stop' usually means unload service.
+
+      try? await PrivilegeBroker().stopKanataService()
 
       // Give it a moment to stop
       try? await Task.sleep(nanoseconds: 1_000_000_000)  // 1 second
@@ -279,9 +281,12 @@ struct WizardKanataServicePage: View {
   }
 
   private func refreshStatusAsync() async {
+    // Check running state via InstallerEngine
+    let isRunning = await InstallerEngine().inspectSystem().services.kanataRunning
+
     // Use the same ServiceStatusEvaluator as summary page (SINGLE SOURCE OF TRUTH)
     let processStatus = ServiceStatusEvaluator.evaluate(
-      kanataIsRunning: kanataManager.isRunning,
+      kanataIsRunning: isRunning,
       systemState: systemState,
       issues: issues
     )
@@ -338,8 +343,7 @@ struct WizardKanataServicePage: View {
     }
 
     if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: issues),
-      nextPage != navigationCoordinator.currentPage
-    {
+      nextPage != navigationCoordinator.currentPage {
       navigationCoordinator.navigateToPage(nextPage)
     } else {
       navigationCoordinator.navigateToPage(.summary)
@@ -347,8 +351,7 @@ struct WizardKanataServicePage: View {
   }
 
   private var primaryCTAConfiguration:
-    (label: String, action: () -> Void, tint: Color?, disabled: Bool)?
-  {
+    (label: String, action: () -> Void, tint: Color?, disabled: Bool)? {
     switch serviceStatus {
     case .running:
       nil

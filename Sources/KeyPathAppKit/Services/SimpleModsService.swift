@@ -254,7 +254,11 @@ public final class SimpleModsService: ObservableObject {
       if let manager = kanataManager {
         AppLogger.shared.log("🏥 [SimpleMods] Health check after reload...")
         try? await Task.sleep(nanoseconds: 1_000_000_000)  // 1s
-        let isHealthy = manager.isRunning
+
+        // Check if service is running using InstallerEngine
+        let engine = InstallerEngine()
+        let context = await engine.inspectSystem()
+        let isHealthy = context.services.kanataRunning
 
         if !isHealthy {
           AppLogger.shared.log("⚠️ [SimpleMods] Health check failed - Kanata not running")

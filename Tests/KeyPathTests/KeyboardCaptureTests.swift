@@ -51,7 +51,7 @@ final class KeyboardCaptureTests: XCTestCase {
       (36, "return"), (37, "l"), (38, "j"), (39, "'"), (40, "k"),
       (41, ";"), (42, "\\"), (43, ","), (44, "/"), (45, "n"),
       (46, "m"), (47, "."), (48, "tab"), (49, "space"), (50, "`"),
-      (51, "delete"), (53, "escape"), (58, "caps"), (59, "caps"),
+      (51, "delete"), (53, "escape"), (58, "caps"), (59, "caps")
     ]
 
     for (keyCode, expected) in testCases {
@@ -77,7 +77,7 @@ final class KeyboardCaptureTests: XCTestCase {
       (Int64.max, "key\(Int64.max)"),
       (Int64.min, "key\(Int64.min)"),
       (0, "a"),  // Should be 'a', not 'key0'
-      (10, "key10"),  // Gap in mapping
+      (10, "key10")  // Gap in mapping
     ]
 
     for (keyCode, expected) in edgeCases {

@@ -181,8 +181,7 @@ class LaunchDaemonInstaller {
   }
 
   @MainActor static func hadRecentRestart(within seconds: TimeInterval = healthyWarmupWindow)
-    -> Bool
-  {
+    -> Bool {
     let now = Date()
     return lastKickstartTimes.values.contains { now.timeIntervalSince($0) < seconds }
   }
@@ -1097,7 +1096,7 @@ class LaunchDaemonInstaller {
         let vhidManagerFinal = "\(Self.launchDaemonsPath)/\(Self.vhidManagerServiceID).plist"
         for (src, dst) in [
           (kanataTemp, kanataFinal), (vhidDaemonTemp, vhidDaemonFinal),
-          (vhidManagerTemp, vhidManagerFinal),
+          (vhidManagerTemp, vhidManagerFinal)
         ] {
           try? fm.removeItem(atPath: dst)
           try fm.copyItem(atPath: src, toPath: dst)
@@ -1165,8 +1164,7 @@ class LaunchDaemonInstaller {
 
   /// Execute LaunchDaemon installation with administrator privileges using osascript
   private func executeWithAdminPrivileges(tempPath: String, finalPath: String, serviceID: String)
-    -> Bool
-  {
+    -> Bool {
     AppLogger.shared.log("🔧 [LaunchDaemon] Requesting admin privileges to install \(serviceID)")
 
     // Create the command to copy the file and set proper permissions
@@ -1666,7 +1664,7 @@ class LaunchDaemonInstaller {
 
         for (src, dst) in [
           (kanataTemp, kanataFinal), (vhidDaemonTemp, vhidDaemonFinal),
-          (vhidManagerTemp, vhidManagerFinal),
+          (vhidManagerTemp, vhidManagerFinal)
         ] {
           try? fm.removeItem(atPath: dst)
           try fm.copyItem(atPath: src, toPath: dst)
@@ -1757,7 +1755,7 @@ class LaunchDaemonInstaller {
         AppLogger.shared.log("🔧 [LaunchDaemon] Admin output: \(output)")
         // Mark warm-up for all services we just installed+bootstrapped
         markRestartTime(for: [
-          Self.kanataServiceID, Self.vhidDaemonServiceID, Self.vhidManagerServiceID,
+          Self.kanataServiceID, Self.vhidDaemonServiceID, Self.vhidManagerServiceID
         ])
         return true
       } else {

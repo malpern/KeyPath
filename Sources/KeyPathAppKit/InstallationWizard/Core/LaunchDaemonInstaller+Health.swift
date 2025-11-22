@@ -41,8 +41,7 @@ extension LaunchDaemonInstaller {
     // 2) TCP probe (Hello/Status)
     let tcpOK: Bool = {
       if let portEnv = ProcessInfo.processInfo.environment["KEYPATH_TCP_PORT"],
-        let overridePort = Int(portEnv)
-      {
+        let overridePort = Int(portEnv) {
         return probeTCP(port: overridePort, timeoutMs: timeoutMs)
       }
       return probeTCP(port: tcpPort, timeoutMs: timeoutMs)

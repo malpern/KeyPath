@@ -26,7 +26,7 @@ final class HelperMaintenanceTests: XCTestCase {
         "/Users/test/Downloads/KeyPath.app",
         "/dist/KeyPath.app",
         "/Applications/KeyPath.app",
-        "/Users/test/KeyPath.app",
+        "/Users/test/KeyPath.app"
       ]
     }
 
@@ -37,7 +37,7 @@ final class HelperMaintenanceTests: XCTestCase {
       remaining,
       Set([
         "/Users/test/KeyPath.app",
-        "/Users/test/Downloads/KeyPath.app",
+        "/Users/test/Downloads/KeyPath.app"
       ])
     )
   }
@@ -46,7 +46,7 @@ final class HelperMaintenanceTests: XCTestCase {
     HelperMaintenance.testDuplicateAppPathsOverride = {
       [
         "/Applications/KeyPath.app",
-        "/Users/other/KeyPath.app",
+        "/Users/other/KeyPath.app"
       ]
     }
 

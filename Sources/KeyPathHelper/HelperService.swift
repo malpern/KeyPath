@@ -248,7 +248,7 @@ class HelperService: NSObject, HelperProtocol {
         let u = Self.run(
           "/usr/bin/systemextensionsctl",
           [
-            "uninstall", Self.karabinerTeamID, Self.karabinerDriverBundleID,
+            "uninstall", Self.karabinerTeamID, Self.karabinerDriverBundleID
           ])
         if u.status != 0 {
           // Not fatal; this can fail if not installed or requires user approval
@@ -723,14 +723,12 @@ extension HelperService {
     _ = run("/usr/sbin/chown", ["\(info.name):staff", configFile])
   }
 
-  private static func kanataArguments(binaryPath: String, cfgPath: String, tcpPort: Int) -> [String]
-  {
+  private static func kanataArguments(binaryPath: String, cfgPath: String, tcpPort: Int) -> [String] {
     [binaryPath, "--cfg", cfgPath, "--port", String(tcpPort), "--debug", "--log-layer-changes"]
   }
 
   private static func generateKanataPlist(binaryPath: String, cfgPath: String, tcpPort: Int)
-    -> String
-  {
+    -> String {
     let args = kanataArguments(binaryPath: binaryPath, cfgPath: cfgPath, tcpPort: tcpPort)
     let argsXML = args.map { "                <string>\($0)</string>" }.joined(separator: "\n")
     return """

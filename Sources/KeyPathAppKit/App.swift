@@ -98,7 +98,7 @@ public struct KeyPathApp: App {
               ),
               NSApplication.AboutPanelOptionKey.applicationName: "KeyPath",
               NSApplication.AboutPanelOptionKey.applicationVersion: info.version,
-              NSApplication.AboutPanelOptionKey.version: "Build \(info.build)",
+              NSApplication.AboutPanelOptionKey.version: "Build \(info.build)"
             ]
           )
         }
@@ -254,8 +254,7 @@ private func openPreferencesTab(_ notification: Notification.Name) {
     for item in appMenu.items {
       // Look for the "Settings..." menu item (standard name on macOS)
       if item.title.contains("Settings") || item.title.contains("Preferences"),
-        let action = item.action
-      {
+        let action = item.action {
         AppLogger.shared.log("✅ [App] Found Settings menu item, triggering it")
         NSApp.activate(ignoringOtherApps: true)
         NSApp.sendAction(action, to: item.target, from: item)
@@ -383,8 +382,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         try? await Task.sleep(nanoseconds: 2_000_000_000)  // 2 seconds
 
         // Start kanata if not already running
-        if let manager = kanataManager, !manager.isRunning {
-          await manager.startKanata()
+        let engine = InstallerEngine()
+        let context = await engine.inspectSystem()
+        if !context.services.kanataRunning {
+           _ = await engine.run(intent: .repair, using: PrivilegeBroker())
         }
       }
     }
@@ -412,7 +413,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let result = PermissionGrantCoordinator.shared.checkForPendingPermissionGrant()
         if !result.shouldRestart {
           AppLogger.shared.log("🚀 [AppDelegate] Starting auto-launch sequence (simple)")
-          await manager.startAutoLaunch(presentWizardOnFailure: false)
+          // Replaced deprecated startAutoLaunch with InstallerEngine check & repair
+          Task {
+              let engine = InstallerEngine()
+              let context = await engine.inspectSystem()
+              if !context.services.kanataRunning {
+                  _ = await engine.run(intent: .repair, using: PrivilegeBroker())
+              }
+          }
           AppLogger.shared.log("✅ [AppDelegate] Auto-launch sequence completed (simple)")
         } else {
           AppLogger.shared.log(
@@ -430,9 +438,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     NotificationCenter.default.addObserver(forName: .retryStartService, object: nil, queue: .main) {
       [weak self] _ in
       Task { @MainActor in
-        guard let manager = self?.kanataManager else { return }
-        await manager.manualStart()
-        await manager.updateStatus()
+        AppLogger.shared.log("🔄 [App] Retry start requested via notification")
+        let engine = InstallerEngine()
+        let broker = PrivilegeBroker()
+        let report = await engine.run(intent: .repair, using: broker)
+        if !report.success {
+          AppLogger.shared.error("❌ [App] Retry start failed: \(report.failureReason ?? "Unknown")")
+        }
       }
     }
 
@@ -462,6 +474,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       "🚪 [AppDelegate] Application will terminate - performing synchronous cleanup")
 
     // Use synchronous cleanup to ensure kanata is stopped before app exits
+    // Note: InstallerEngine manages service lifecycle, but for app termination we rely on
+    // KanataManager's cleanup logic which now delegates to standard service handling
     kanataManager?.cleanupSync()
 
     AppLogger.shared.info("✅ [AppDelegate] Cleanup complete, app terminating")

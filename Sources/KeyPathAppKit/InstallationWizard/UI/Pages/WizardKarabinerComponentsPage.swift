@@ -112,8 +112,7 @@ struct WizardKarabinerComponentsPage: View {
           VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
             // Combined row for Driver + Services
             if showAllItems || componentStatus(for: .driver) != .completed
-              || componentStatus(for: .backgroundServices) != .completed
-            {
+              || componentStatus(for: .backgroundServices) != .completed {
               HStack(spacing: 12) {
                 Image(
                   systemName: combinedStatus == .completed
@@ -249,8 +248,7 @@ struct WizardKarabinerComponentsPage: View {
     }
 
     if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: issues),
-      nextPage != navigationCoordinator.currentPage
-    {
+      nextPage != navigationCoordinator.currentPage {
       navigationCoordinator.navigateToPage(nextPage)
     } else {
       navigationCoordinator.navigateToPage(.summary)
@@ -485,9 +483,10 @@ struct WizardKarabinerComponentsPage: View {
 
     // If everything else is healthy but the service isn’t running yet, try to start it now so
     // the summary doesn’t bounce back with a “Start Kanata Service” error.
-    if !kanataManager.isRunning {
+    let isRunning = await InstallerEngine().inspectSystem().services.kanataRunning
+    if !isRunning {
       AppLogger.shared.log("🔄 [Karabiner Fix] Post-fix: Kanata not running, attempting start")
-      _ = await kanataManager.startKanata()
+      _ = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
     }
   }
 }

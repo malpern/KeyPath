@@ -64,7 +64,7 @@ extension WizardPage {
     .karabinerComponents,
     .kanataComponents,
     .service,
-    .communication,
+    .communication
   ]
 }
 

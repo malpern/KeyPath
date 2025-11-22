@@ -79,8 +79,7 @@ class SystemValidator {
   ///
   /// - Parameter progressCallback: Optional callback that receives progress updates (0.0 to 1.0)
   func checkSystem(progressCallback: @escaping @Sendable (Double) -> Void = { _ in }) async
-    -> SystemSnapshot
-  {
+    -> SystemSnapshot {
     // If validation is already in progress, wait for it
     if let inProgress = inProgressValidation {
       AppLogger.shared.log(
@@ -102,8 +101,7 @@ class SystemValidator {
   /// Perform the actual validation work
   /// This is called by checkSystem() and should not be called directly
   private func performValidation(progressCallback: @escaping @Sendable (Double) -> Void = { _ in })
-    async -> SystemSnapshot
-  {
+    async -> SystemSnapshot {
     if TestEnvironment.isRunningTests {
       return await Self.testGate.run(self, progressCallback: progressCallback)
     }
@@ -478,7 +476,8 @@ class SystemValidator {
   private func checkHealth() async -> HealthStatus {
     AppLogger.shared.log("🔍 [SystemValidator] Checking system health")
 
-    let kanataRunning = kanataManager?.isRunning ?? false
+    // Check service status directly via LaunchDaemonInstaller
+    let kanataRunning = launchDaemonInstaller.isServiceHealthy(serviceID: "com.keypath.kanata")
     // Use launchctl-based check instead of unreliable pgrep
     // This aligns with the health check used in LaunchDaemonInstaller
     let karabinerDaemonRunning = launchDaemonInstaller.isServiceHealthy(

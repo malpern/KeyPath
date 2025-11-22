@@ -462,13 +462,11 @@ struct InstallationWizardView: View {
         if shouldNavigateToSummary(
           currentPage: navigationCoordinator.currentPage,
           state: result.state,
-          issues: filteredIssues)
-        {
+          issues: filteredIssues) {
           AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
           navigationCoordinator.navigateToPage(.summary)
         } else if let preferred = preferredDetailPage(for: result.state, issues: filteredIssues),
-          navigationCoordinator.currentPage != preferred
-        {
+          navigationCoordinator.currentPage != preferred {
           AppLogger.shared.log("🔍 [Wizard] Deterministic routing to \(preferred) (single blocker)")
           navigationCoordinator.navigateToPage(preferred)
         } else if navigationCoordinator.currentPage == .summary {
@@ -567,8 +565,7 @@ struct InstallationWizardView: View {
           if shouldNavigateToSummary(
             currentPage: navigationCoordinator.currentPage,
             state: result.state,
-            issues: filteredIssues)
-          {
+            issues: filteredIssues) {
             AppLogger.shared.log(
               "🟢 [Wizard] Healthy system detected during monitor; routing to summary")
             navigationCoordinator.navigateToPage(.summary)
@@ -724,8 +721,7 @@ struct InstallationWizardView: View {
 
     // Short-circuit service installs when Login Items approval is pending
     if (action == .installLaunchDaemonServices || action == .restartUnhealthyServices)
-      && KanataDaemonManager.determineServiceManagementState() == .smappservicePending
-    {
+      && KanataDaemonManager.determineServiceManagementState() == .smappservicePending {
       await MainActor.run {
         toastManager.showError(
           "KeyPath background service needs approval in System Settings → Login Items. Enable ‘KeyPath’ then click Fix again.",
@@ -764,7 +760,7 @@ struct InstallationWizardView: View {
 
     let deferToastActions: Set<AutoFixAction> = [
       .restartVirtualHIDDaemon, .installCorrectVHIDDriver, .repairVHIDDaemonServices,
-      .installLaunchDaemonServices,
+      .installLaunchDaemonServices
     ]
     let deferSuccessToast = report.success && deferToastActions.contains(action)
     var successToastPending = false
@@ -824,8 +820,7 @@ struct InstallationWizardView: View {
         )
         AppLogger.shared.log("🔍 [Wizard] Post-fix health check: karabinerStatus=\(karabinerStatus)")
         if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon ||
-          action == .installCorrectVHIDDriver || action == .repairVHIDDaemonServices
-        {
+          action == .installCorrectVHIDDriver || action == .repairVHIDDaemonServices {
           let smStatePost = KanataDaemonManager.determineServiceManagementState()
 
           if karabinerStatus == .completed {
@@ -946,13 +941,11 @@ struct InstallationWizardView: View {
         if shouldNavigateToSummary(
           currentPage: navigationCoordinator.currentPage,
           state: result.state,
-          issues: filteredIssues)
-        {
+          issues: filteredIssues) {
           AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
           navigationCoordinator.navigateToPage(.summary)
         } else if let preferred = preferredDetailPage(for: result.state, issues: filteredIssues),
-          navigationCoordinator.currentPage != preferred
-        {
+          navigationCoordinator.currentPage != preferred {
           AppLogger.shared.log("🔄 [Wizard] Deterministic routing to \(preferred) after refresh")
           navigationCoordinator.navigateToPage(preferred)
         } else if navigationCoordinator.currentPage == .summary {
@@ -994,8 +987,7 @@ struct InstallationWizardView: View {
   }
 
   private func preferredDetailPage(for state: WizardSystemState, issues: [WizardIssue])
-    -> WizardPage?
-  {
+    -> WizardPage? {
     let page = navigationCoordinator.navigationEngine.determineCurrentPage(
       for: state, issues: issues)
     guard page != .summary else { return nil }
@@ -1014,8 +1006,7 @@ struct InstallationWizardView: View {
   }
 
   private func sanitizedIssues(from issues: [WizardIssue], for state: WizardSystemState)
-    -> [WizardIssue]
-  {
+    -> [WizardIssue] {
     guard shouldSuppressCommunicationIssues(for: state) else {
       return issues
     }
@@ -1059,7 +1050,7 @@ struct InstallationWizardView: View {
       let shouldStart = await showStartConfirmation()
 
       if shouldStart {
-        if !kanataManager.isRunning {
+        if systemState != .active {
           let operation = WizardOperations.startService(kanataManager: kanataManager)
 
           asyncOperationManager.execute(operation: operation) { (success: Bool) in
@@ -1250,8 +1241,7 @@ struct InstallationWizardView: View {
 
   /// Get detailed error message for specific auto-fix failures
   private func getDetailedErrorMessage(for action: AutoFixAction, actionDescription: String)
-    -> String
-  {
+    -> String {
     AppLogger.shared.log("🔍 [ErrorMessage] getDetailedErrorMessage called for action: \(action)")
     AppLogger.shared.log("🔍 [ErrorMessage] Action description: \(actionDescription)")
 
@@ -1296,7 +1286,7 @@ struct InstallationWizardView: View {
     guard navigationCoordinator.currentPage != .summary else { return }
     let defaultSequence: [WizardPage] = [
       .fullDiskAccess, .conflicts, .inputMonitoring, .accessibility,
-      .karabinerComponents, .kanataComponents, .service, .communication,
+      .karabinerComponents, .kanataComponents, .service, .communication
     ]
     let sequence = navSequence.isEmpty ? defaultSequence : navSequence
     guard let idx = sequence.firstIndex(of: navigationCoordinator.currentPage), idx > 0 else {
@@ -1312,7 +1302,7 @@ struct InstallationWizardView: View {
     guard navigationCoordinator.currentPage != .summary else { return }
     let defaultSequence: [WizardPage] = [
       .fullDiskAccess, .conflicts, .inputMonitoring, .accessibility,
-      .karabinerComponents, .kanataComponents, .service, .communication,
+      .karabinerComponents, .kanataComponents, .service, .communication
     ]
     let sequence = navSequence.isEmpty ? defaultSequence : navSequence
     guard let idx = sequence.firstIndex(of: navigationCoordinator.currentPage),
@@ -1342,9 +1332,9 @@ struct InstallationWizardView: View {
 
 // MARK: - Timeout helper for auto-fix actions (file-private)
 
-fileprivate struct AutoFixTimeoutError: Error {}
+private struct AutoFixTimeoutError: Error {}
 
-fileprivate func runWithTimeout<T: Sendable>(
+private func runWithTimeout<T: Sendable>(
   seconds: Double,
   operation: @Sendable @escaping () async -> T
 ) async throws -> T {

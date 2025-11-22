@@ -486,9 +486,7 @@ struct StatusSettingsTabView: View {
     .task {
       await refreshStatus()
     }
-    .onReceive(kanataManager.$currentState) { _ in
-      Task { await refreshStatus() }
-    }
+    // Removed legacy onReceive(currentState)
     .onReceive(NotificationCenter.default.publisher(for: .wizardClosed)) { _ in
       Task {
         await refreshStatus()
@@ -499,7 +497,7 @@ struct StatusSettingsTabView: View {
   // MARK: - Helpers
 
   private func refreshStatus() async {
-    await kanataManager.forceRefreshStatus()
+    // Use InstallerEngine to get fresh status (stateless, no side effects)
     let context = await installerEngine.inspectSystem()
     let snapshot = context.permissions
     let duplicates = HelperMaintenance.shared.detectDuplicateAppCopies()
@@ -513,9 +511,8 @@ struct StatusSettingsTabView: View {
 
     // If services look “starting” (daemons loaded/healthy but kanata not yet running), retry once shortly.
     if !context.services.kanataRunning,
-       (context.components.launchDaemonServicesHealthy || context.services.karabinerDaemonRunning),
-       refreshRetryScheduled == false
-    {
+       context.components.launchDaemonServicesHealthy || context.services.karabinerDaemonRunning,
+       refreshRetryScheduled == false {
       refreshRetryScheduled = true
       DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
         Task {
@@ -537,21 +534,8 @@ struct StatusSettingsTabView: View {
       return
     }
 
-    // Minimal start path when components are healthy but service is stopped
-    if context.services.isHealthy && context.components.launchDaemonServicesHealthy {
-      await kanataManager.startKanata()
-      await refreshStatus()
-      let ctx = await installerEngine.inspectSystem()
-      let started = ctx.services.kanataRunning
-      await MainActor.run {
-        started
-          ? settingsToastManager.showSuccess("KeyPath activated")
-          : settingsToastManager.showError("Start failed: service did not launch")
-      }
-      return
-    }
-
     // Otherwise run a repair plan to bring services up
+    // Note: Minimal start path removed as it was unreachable dead code
     let plan = await installerEngine.makePlan(for: .repair, context: context)
     let report = await installerEngine.execute(plan: plan, using: privilegeBroker)
 

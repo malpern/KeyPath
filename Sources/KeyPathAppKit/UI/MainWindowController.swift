@@ -162,7 +162,7 @@ final class GlassContainerViewController<Content: View>: NSViewController {
       hosted.leadingAnchor.constraint(equalTo: effectView.leadingAnchor),
       hosted.trailingAnchor.constraint(equalTo: effectView.trailingAnchor),
       hosted.topAnchor.constraint(equalTo: effectView.topAnchor),
-      hosted.bottomAnchor.constraint(equalTo: effectView.bottomAnchor),
+      hosted.bottomAnchor.constraint(equalTo: effectView.bottomAnchor)
     ])
   }
 }

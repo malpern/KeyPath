@@ -348,7 +348,7 @@ actor HelperManager {
         if errStr.contains("Could not find service") || errStr.contains("Bad request") {
           return [
             "Helper not registered: launchctl has no job 'system/com.keypath.helper'",
-            "Click ‘Install Helper’, then Test XPC again.",
+            "Click ‘Install Helper’, then Test XPC again."
           ]
         }
       }
@@ -363,7 +363,7 @@ actor HelperManager {
         "--last", "\(seconds)s",
         "--style", "syslog",
         "--predicate",
-        "process == 'KeyPathHelper' OR processImagePath CONTAINS[c] 'KeyPathHelper'",
+        "process == 'KeyPathHelper' OR processImagePath CONTAINS[c] 'KeyPathHelper'"
       ]
       let out = Pipe()
       p.standardOutput = out
@@ -394,12 +394,11 @@ actor HelperManager {
     // Fallback: check file logs if present
     let fileCandidates = [
       "/var/log/com.keypath.helper.stdout.log",
-      "/var/log/com.keypath.helper.stderr.log",
+      "/var/log/com.keypath.helper.stderr.log"
     ]
     for path in fileCandidates {
       if FileManager.default.fileExists(atPath: path),
-        let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: path))
-      {
+        let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: path)) {
         let data = try? handle.readToEnd()
         let s = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
         let lines = s.split(separator: "\n").map(String.init)
@@ -819,8 +818,7 @@ extension HelperManager {
     var plistRequirement: String?
     if let info = NSDictionary(contentsOfFile: bundlePath + "/Contents/Info.plist"),
       let sm = (info["SMPrivilegedExecutables"] as? NSDictionary)?[Self.helperBundleIdentifier]
-        as? String
-    {
+        as? String {
       plistRequirement = sm
       if !req.contains("com.keypath.helper") {
         warnings.append(

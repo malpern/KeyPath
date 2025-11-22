@@ -13,7 +13,7 @@ final class LaunchDaemonInstallerTests: XCTestCase {
   private let correctServiceOrder = [
     "com.keypath.karabiner-vhiddaemon",
     "com.keypath.karabiner-vhidmanager",
-    "com.keypath.kanata",
+    "com.keypath.kanata"
   ]
 
   // MARK: - Test Helpers
@@ -54,7 +54,7 @@ final class LaunchDaemonInstallerTests: XCTestCase {
     let patterns = [
       "com.keypath.kanata",
       "com.keypath.karabiner-vhiddaemon",
-      "com.keypath.karabiner-vhidmanager",
+      "com.keypath.karabiner-vhidmanager"
     ]
 
     for pattern in patterns where line.contains(pattern) {
@@ -73,8 +73,7 @@ final class LaunchDaemonInstallerTests: XCTestCase {
       // Extract service name - handle both direct names and Swift constants
       if line.contains("Self.vhidDaemonServiceID") || line.contains("vhidDaemonServiceID") {
         kickstartServices.append("com.keypath.karabiner-vhiddaemon")
-      } else if line.contains("Self.vhidManagerServiceID") || line.contains("vhidManagerServiceID")
-      {
+      } else if line.contains("Self.vhidManagerServiceID") || line.contains("vhidManagerServiceID") {
         kickstartServices.append("com.keypath.karabiner-vhidmanager")
       } else if line.contains("Self.kanataServiceID") || line.contains("kanataServiceID") {
         kickstartServices.append("com.keypath.kanata")

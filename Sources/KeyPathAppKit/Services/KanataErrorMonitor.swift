@@ -192,7 +192,7 @@ final class KanataErrorMonitor: ObservableObject {
       userMessage: "Permission denied errors detected",
       patternName: "permission_denied",
       toastThreshold: 3
-    ),
+    )
   ]
 
   // MARK: - State Tracking
@@ -219,8 +219,7 @@ final class KanataErrorMonitor: ObservableObject {
 
     // Get current file size to start reading from end
     if let attrs = try? FileManager.default.attributesOfItem(atPath: stderrPath),
-       let fileSize = attrs[.size] as? UInt64
-    {
+       let fileSize = attrs[.size] as? UInt64 {
       lastFilePosition = fileSize
       AppLogger.shared.debug("[ErrorMonitor] Starting from file position: \(fileSize)")
     }

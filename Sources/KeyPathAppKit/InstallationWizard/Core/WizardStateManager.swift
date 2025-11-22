@@ -17,8 +17,7 @@ class WizardStateManager: ObservableObject {
   }
 
   func detectCurrentState(progressCallback: @escaping @Sendable (Double) -> Void = { _ in }) async
-    -> SystemStateResult
-  {
+    -> SystemStateResult {
     // 🎯 NEW: Use InstallerEngine.inspectSystem() and adapt to old format
     AppLogger.shared.log("🎯 [WizardStateManager] Using InstallerEngine.inspectSystem() (Phase 6.7)")
     let context = await installerEngine.inspectSystem()

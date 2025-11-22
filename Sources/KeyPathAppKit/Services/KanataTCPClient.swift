@@ -297,8 +297,7 @@ actor KanataTCPClient {
 
       if let version = try container.decodeIfPresent(String.self, forKey: .version),
         let protocolVersion = try container.decodeIfPresent(Int.self, forKey: .protocolVersion),
-        let capabilities = try container.decodeIfPresent([String].self, forKey: .capabilities)
-      {
+        let capabilities = try container.decodeIfPresent([String].self, forKey: .capabilities) {
         self.version = version
         self.protocolVersion = protocolVersion
         self.capabilities = capabilities
@@ -377,8 +376,7 @@ actor KanataTCPClient {
       // Check if first line indicates error
       if let json = try? JSONSerialization.jsonObject(with: firstLine) as? [String: Any],
         let status = json["status"] as? String,
-        status.lowercased() == "error"
-      {
+        status.lowercased() == "error" {
         let errorMsg = json["msg"] as? String ?? "Hello request failed"
         throw KeyPathError.communication(.connectionFailed(reason: errorMsg))
       }
@@ -426,8 +424,7 @@ actor KanataTCPClient {
       let requestData = try JSONEncoder().encode(["Status": ["request_id": requestId]])
       let responseData = try await send(requestData)
       if let status = try extractMessage(
-        named: "StatusInfo", into: TcpStatusInfo.self, from: responseData)
-      {
+        named: "StatusInfo", into: TcpStatusInfo.self, from: responseData) {
         return status
       }
       throw KeyPathError.communication(.invalidResponse)
@@ -474,7 +471,7 @@ actor KanataTCPClient {
       let payload: [String: Any] = [
         "Validate": [
           "config": configContent,
-          "request_id": requestId,
+          "request_id": requestId
         ]
       ]
       let requestData = try JSONSerialization.data(withJSONObject: payload)
@@ -487,8 +484,7 @@ actor KanataTCPClient {
       // Check if first line indicates error
       if let json = try? JSONSerialization.jsonObject(with: firstLine) as? [String: Any],
         let status = json["status"] as? String,
-        status.lowercased() == "error"
-      {
+        status.lowercased() == "error" {
         let errorMsg = json["msg"] as? String ?? "Validation request failed"
         return .failure(errors: [errorMsg])
       }
@@ -508,8 +504,7 @@ actor KanataTCPClient {
 
       // Parse ValidationResult from second line
       if let vr = try extractMessage(
-        named: "ValidationResult", into: TcpValidationResult.self, from: secondLine)
-      {
+        named: "ValidationResult", into: TcpValidationResult.self, from: secondLine) {
         if vr.errors.isEmpty {
           AppLogger.shared.info("✅ [TCP] Validation succeeded")
           return .success
@@ -551,7 +546,7 @@ actor KanataTCPClient {
         "Reload": [
           "wait": true,
           "timeout_ms": Int(timeoutMs),
-          "request_id": requestId,
+          "request_id": requestId
         ]
       ]
       let requestData = try JSONSerialization.data(withJSONObject: req)
@@ -581,8 +576,7 @@ actor KanataTCPClient {
       // Check if first line indicates error
       if let json = try? JSONSerialization.jsonObject(with: firstLine) as? [String: Any],
         let status = json["status"] as? String,
-        status.lowercased() == "error"
-      {
+        status.lowercased() == "error" {
         let errorMsg = json["msg"] as? String ?? "Reload failed"
         AppLogger.shared.log("❌ [TCP] Reload failed: \(errorMsg)")
         return .failure(error: errorMsg, response: firstLineStr)
@@ -611,8 +605,7 @@ actor KanataTCPClient {
       AppLogger.shared.log("⏱️ [TCP] t=\(Int(Date().timeIntervalSince(startTime)*1000))ms: Second line received, connection state=\(connection.state)")
 
       if let reload = try extractMessage(
-        named: "ReloadResult", into: ReloadResult.self, from: secondLine)
-      {
+        named: "ReloadResult", into: ReloadResult.self, from: secondLine) {
         if reload.ready {
           let dur = reload.duration_ms ?? 0
           let ep = reload.epoch ?? 0
@@ -801,8 +794,7 @@ actor KanataTCPClient {
     // Try to find request_id in the first level of any message type
     for (_, value) in json {
       if let dict = value as? [String: Any],
-        let requestId = dict["request_id"] as? UInt64
-      {
+        let requestId = dict["request_id"] as? UInt64 {
         return requestId
       }
     }
@@ -909,11 +901,9 @@ actor KanataTCPClient {
       // Check if it's a single-line response
       let lines = response.split(separator: "\n")
       if let firstLine = lines.first,
-        let lineData = String(firstLine).data(using: .utf8)
-      {
+        let lineData = String(firstLine).data(using: .utf8) {
         if let serverResponse = try? JSONDecoder().decode(TcpServerResponse.self, from: lineData),
-          serverResponse.isError
-        {
+          serverResponse.isError {
           return serverResponse.msg ?? "Unknown error"
         }
       }
@@ -933,8 +923,7 @@ actor KanataTCPClient {
 
   /// Extract a named server message (second line) from a newline-delimited response
   private func extractMessage<T: Decodable>(named name: String, into _: T.Type, from data: Data)
-    throws -> T?
-  {
+    throws -> T? {
     guard let s = String(data: data, encoding: .utf8) else {
       AppLogger.shared.log("🔍 [TCP extractMessage] Failed to decode data as UTF-8")
       return nil

@@ -8,7 +8,7 @@ final class KanataManagerTests: XCTestCase {
 
   func testInitialState() async {
     // Test initial published properties
-    XCTAssertFalse(manager.isRunning, "Should not be running initially")
+    // XCTAssertFalse(manager.isRunning, "Should not be running initially") // Removed
     if let error = manager.lastError {
       XCTAssertTrue(
         error.lowercased().contains("install"),

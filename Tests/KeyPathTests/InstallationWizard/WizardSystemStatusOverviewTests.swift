@@ -21,7 +21,7 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
         status: .failed,
         isNavigable: true,
         targetPage: .service
-      ),
+      )
     ]
 
     let filtered = WizardSystemStatusOverview.filteredDisplayItems(items, showAllItems: false)

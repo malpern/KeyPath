@@ -165,8 +165,7 @@ class SystemRequirementsChecker {
     return report
   }
 
-  func makeReport(results: [RequirementCheckResult], startedAt _: Date) -> SystemRequirementsReport
-  {
+  func makeReport(results: [RequirementCheckResult], startedAt _: Date) -> SystemRequirementsReport {
     let blockingIssues = results.filter(\.status.isBlocking)
     let warnings = results.filter { $0.status == .warning }
 
@@ -222,13 +221,12 @@ class SystemRequirementsChecker {
     let possiblePaths = [
       "/opt/homebrew/bin/kanata",  // ARM Homebrew
       WizardSystemPaths.kanataActiveBinary,  // Active binary
-      "/usr/bin/kanata",  // System install
+      "/usr/bin/kanata"  // System install
     ]
 
     for path in possiblePaths {
       if FileManager.default.fileExists(atPath: path),
-        FileManager.default.isExecutableFile(atPath: path)
-      {
+        FileManager.default.isExecutableFile(atPath: path) {
         // Verify it's actually the Kanata executable
         let verification = await verifyKanataExecutable(at: path)
         if verification.isValid {

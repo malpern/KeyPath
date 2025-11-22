@@ -105,8 +105,7 @@ final class UninstallCoordinator: ObservableObject {
   }
 
   private static func defaultRunWithAdminPrivileges(scriptURL: URL, deleteConfig: Bool) async
-    -> AppleScriptResult
-  {
+    -> AppleScriptResult {
     let escapedPath = escapeForAppleScript(scriptURL.path)
     let configFlag = deleteConfig ? " --delete-config" : ""
     let script = """

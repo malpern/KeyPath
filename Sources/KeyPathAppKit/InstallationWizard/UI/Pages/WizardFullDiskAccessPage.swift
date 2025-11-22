@@ -198,8 +198,7 @@ struct WizardFullDiskAccessPage: View {
     }
 
     if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: issues),
-      nextPage != navigationCoordinator.currentPage
-    {
+      nextPage != navigationCoordinator.currentPage {
       navigationCoordinator.navigateToPage(nextPage)
     } else {
       navigationCoordinator.navigateToPage(.summary)
@@ -216,8 +215,7 @@ struct WizardFullDiskAccessPage: View {
     // Check cache first
     if let lastCheckTime = lastFDACheckTime,
       Date().timeIntervalSince(lastCheckTime) < cacheValidityDuration,
-      cachedFDAStatus
-    {
+      cachedFDAStatus {
       // Use cached positive result (don't cache negative to allow quick detection)
       hasFullDiskAccess = cachedFDAStatus
       hasCheckedPermission = true
@@ -269,8 +267,7 @@ struct WizardFullDiskAccessPage: View {
     if FileManager.default.isReadableFile(atPath: systemTCCPath) {
       // Try a very light read operation
       if let data = try? Data(
-        contentsOf: URL(fileURLWithPath: systemTCCPath), options: .mappedIfSafe)
-      {
+        contentsOf: URL(fileURLWithPath: systemTCCPath), options: .mappedIfSafe) {
         if data.count > 0 {
           AppLogger.shared.log(
             "✅ [Wizard] FDA granted - can read system TCC database (\(data.count) bytes)")

@@ -37,7 +37,7 @@ struct RuleCollectionCatalog {
                 KeyMapping(input: "f9", output: "next"),
                 KeyMapping(input: "f10", output: "mute"),
                 KeyMapping(input: "f11", output: "vold"),
-                KeyMapping(input: "f12", output: "volu"),
+                KeyMapping(input: "f12", output: "volu")
             ],
             isEnabled: true,
             isSystemDefault: true,
@@ -96,7 +96,7 @@ struct RuleCollectionCatalog {
                 KeyMapping(input: "x", output: "del"), // Delete character
                 KeyMapping(input: "d", output: "M-bspc"), // Delete word backward
                 KeyMapping(input: "u", output: "C-M-z"), // Undo (Cmd-Z)
-                KeyMapping(input: "C-r", output: "C-M-S-z"), // Redo (Cmd-Shift-Z)
+                KeyMapping(input: "C-r", output: "C-M-S-z") // Redo (Cmd-Shift-Z)
             ],
             isEnabled: false,
             isSystemDefault: false,
@@ -120,7 +120,7 @@ struct RuleCollectionCatalog {
                 KeyMapping(input: "C-M-A-left", output: "C-left"), // Previous Desktop
                 KeyMapping(input: "C-M-A-right", output: "C-right"), // Next Desktop
                 KeyMapping(input: "C-M-A-d", output: "f11"), // Show Desktop
-                KeyMapping(input: "C-M-A-n", output: "C-S-n"), // Notification Center
+                KeyMapping(input: "C-M-A-n", output: "C-S-n") // Notification Center
             ],
             isEnabled: false,
             isSystemDefault: false,

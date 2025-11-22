@@ -482,7 +482,7 @@ final class InstallerEngineTests: XCTestCase {
       .regenerateCommServiceConfiguration,
       .restartCommServer,
       .fixDriverVersionMismatch,
-      .installCorrectVHIDDriver,
+      .installCorrectVHIDDriver
     ]
 
     let context = await engine.inspectSystem()

@@ -16,7 +16,7 @@ final class OrphanDetector {
   /// VHID daemon plist paths
   private static let vhidDaemonPlists = [
     "/Library/LaunchDaemons/com.keypath.karabiner-vhiddaemon.plist",
-    "/Library/LaunchDaemons/com.keypath.karabiner-vhidmanager.plist",
+    "/Library/LaunchDaemons/com.keypath.karabiner-vhidmanager.plist"
   ]
 
   /// Detects if this is a reinstall after manual deletion (orphaned user data exists)
@@ -29,7 +29,7 @@ final class OrphanDetector {
         .appendingPathComponent("Library/Logs/KeyPath"),
       FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Preferences")
-        .appendingPathComponent("com.keypath.KeyPath.plist"),
+        .appendingPathComponent("com.keypath.KeyPath.plist")
     ]
 
     // Count how many orphaned paths exist
@@ -146,7 +146,7 @@ final class OrphanDetector {
           .appendingPathComponent("Library/Logs/KeyPath"),
         FileManager.default.homeDirectoryForCurrentUser
           .appendingPathComponent("Library/Preferences")
-          .appendingPathComponent("com.keypath.KeyPath.plist"),
+          .appendingPathComponent("com.keypath.KeyPath.plist")
       ]
 
       for path in pathsToClean {

@@ -53,7 +53,7 @@ struct WizardSummaryPage: View {
               issues: issues,
               stateInterpreter: stateInterpreter,
               onNavigateToPage: onNavigateToPage,
-              kanataIsRunning: kanataManager.isRunning,
+              kanataIsRunning: systemState == .active,
               showAllItems: showAllItems,
               navSequence: $navSequence,
               visibleIssueCount: $visibleIssueCount
@@ -223,7 +223,7 @@ struct WizardSummaryPage: View {
     // Any additional validation should be added there, not here
 
     // Check if system is active and running
-    guard systemState == .active, kanataManager.isRunning else {
+    guard systemState == .active else {
       return false
     }
 

@@ -37,10 +37,11 @@ struct ErrorSection: View {
             }
 
             // Try to start the service
-            await kanataManager.manualStart()
+            _ = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
 
             // If still failing, show wizard
-            if kanataManager.lastError != nil {
+            let context = await InstallerEngine().inspectSystem()
+            if !context.services.kanataRunning {
               AppLogger.shared.log("⚠️ [UI] Manual start failed - showing installation wizard")
               showingInstallationWizard = true
             }

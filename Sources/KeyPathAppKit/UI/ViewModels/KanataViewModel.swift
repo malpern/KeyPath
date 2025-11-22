@@ -20,7 +20,6 @@ class KanataViewModel: ObservableObject {
   // MARK: - Published Properties (moved from KanataManager)
 
   // Core Status Properties
-  @Published var isRunning = false
   @Published var lastError: String?
   @Published var keyMappings: [KeyMapping] = []
   @Published var ruleCollections: [RuleCollection] = []
@@ -30,25 +29,8 @@ class KanataViewModel: ObservableObject {
   @Published var lastProcessExitCode: Int32?
   @Published var lastConfigUpdate: Date = .init()
 
-  // UI State Properties (from SimpleKanataManager)
-  @Published private(set) var currentState: SimpleKanataState = .starting
-  @Published private(set) var errorReason: String?
-  @Published private(set) var showWizard: Bool = false
-  @Published private(set) var launchFailureStatus: LaunchFailureStatus?
-  @Published private(set) var autoStartAttempts: Int = 0
-  @Published private(set) var lastHealthCheck: Date?
-  @Published private(set) var retryCount: Int = 0
-  @Published private(set) var isRetryingAfterFix: Bool = false
-
-  // Lifecycle State Properties (from KanataLifecycleManager)
-  @Published var lifecycleState: LifecycleStateMachine.KanataState = .uninitialized
-  @Published var lifecycleErrorMessage: String?
-  @Published var isBusy: Bool = false
-  @Published var canPerformActions: Bool = true
-  @Published var autoStartAttempted: Bool = false
-  @Published var autoStartSucceeded: Bool = false
-  @Published var autoStartFailureReason: String?
-  @Published var shouldShowWizard: Bool = false
+  // UI State Properties (Legacy state removed - use InstallerEngine/SystemContext)
+  // Removed: errorReason, showWizard, launchFailureStatus
 
   // Validation-specific UI state
   @Published var showingValidationAlert = false
@@ -102,7 +84,6 @@ class KanataViewModel: ObservableObject {
   /// Update UI properties from state snapshot
   /// Only called when state actually changes (not on a timer)
   private func updateUI(with state: KanataUIState) {
-    isRunning = state.isRunning
     lastError = state.lastError
     keyMappings = state.keyMappings
     ruleCollections = state.ruleCollections
@@ -110,23 +91,6 @@ class KanataViewModel: ObservableObject {
     diagnostics = state.diagnostics
     lastProcessExitCode = state.lastProcessExitCode
     lastConfigUpdate = state.lastConfigUpdate
-    currentState = state.currentState
-    errorReason = state.errorReason
-    showWizard = state.showWizard
-    launchFailureStatus = state.launchFailureStatus
-    autoStartAttempts = state.autoStartAttempts
-    lastHealthCheck = state.lastHealthCheck
-    retryCount = state.retryCount
-    isRetryingAfterFix = state.isRetryingAfterFix
-    currentLayerName = state.currentLayerName
-    lifecycleState = state.lifecycleState
-    lifecycleErrorMessage = state.lifecycleErrorMessage
-    isBusy = state.isBusy
-    canPerformActions = state.canPerformActions
-    autoStartAttempted = state.autoStartAttempted
-    autoStartSucceeded = state.autoStartSucceeded
-    autoStartFailureReason = state.autoStartFailureReason
-    shouldShowWizard = state.shouldShowWizard
     showingValidationAlert = state.showingValidationAlert
     validationAlertTitle = state.validationAlertTitle
     validationAlertMessage = state.validationAlertMessage
@@ -137,42 +101,6 @@ class KanataViewModel: ObservableObject {
 
   // MARK: - Action Delegation to KanataManager
   // Note: Removed manual syncFromManager() calls - AsyncStream automatically updates UI
-
-  func startKanata() async {
-    await manager.startKanata()
-  }
-
-  func stopKanata() async {
-    await manager.stopKanata()
-  }
-
-  func manualStart() async {
-    await manager.manualStart()
-  }
-
-  func manualStop() async {
-    await manager.manualStop()
-  }
-
-  func updateStatus() async {
-    await manager.updateStatus()
-  }
-
-  func forceRefreshStatus() async {
-    await manager.forceRefreshStatus()
-  }
-
-  func startAutoLaunch(presentWizardOnFailure: Bool) async {
-    await manager.startAutoLaunch(presentWizardOnFailure: presentWizardOnFailure)
-  }
-
-  func onWizardClosed() async {
-    await manager.onWizardClosed()
-  }
-
-  func requestWizardPresentation() {
-    manager.requestWizardPresentation()
-  }
 
   func toggleRuleCollection(_ id: UUID, enabled: Bool) async {
     await manager.toggleRuleCollection(id: id, isEnabled: enabled)
@@ -207,8 +135,7 @@ class KanataViewModel: ObservableObject {
   }
 
   func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
-    -> String
-  {
+    -> String {
     try await manager.backupFailedConfigAndApplySafe(failedConfig: failedConfig, mappings: mappings)
   }
 
@@ -238,7 +165,8 @@ class KanataViewModel: ObservableObject {
     await manager.regenerateServices()
   }
 
-  func restartKanata() async {
-    await manager.restartKanata()
+  func updateStatus() async {
+    await manager.updateStatus()
   }
+
 }

@@ -24,7 +24,7 @@ final class KeychainService {
       kSecAttrService as String: serviceName,
       kSecAttrAccount as String: udpTokenAccount,
       kSecValueData as String: tokenData,
-      kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+      kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
     ]
 
     // Delete existing item firs
@@ -46,7 +46,7 @@ final class KeychainService {
       kSecAttrService as String: serviceName,
       kSecAttrAccount as String: udpTokenAccount,
       kSecReturnData as String: true,
-      kSecMatchLimit as String: kSecMatchLimitOne,
+      kSecMatchLimit as String: kSecMatchLimitOne
     ]
 
     var result: AnyObject?
@@ -72,7 +72,7 @@ final class KeychainService {
     let query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: serviceName,
-      kSecAttrAccount as String: udpTokenAccount,
+      kSecAttrAccount as String: udpTokenAccount
     ]
 
     let status = SecItemDelete(query as CFDictionary)
@@ -105,7 +105,7 @@ final class KeychainService {
       kSecAttrService as String: serviceName,
       kSecAttrAccount as String: tcpTokenAccount,
       kSecValueData as String: tokenData,
-      kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+      kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
     ]
 
     // Delete existing item firs
@@ -127,7 +127,7 @@ final class KeychainService {
       kSecAttrService as String: serviceName,
       kSecAttrAccount as String: tcpTokenAccount,
       kSecReturnData as String: true,
-      kSecMatchLimit as String: kSecMatchLimitOne,
+      kSecMatchLimit as String: kSecMatchLimitOne
     ]
 
     var result: AnyObject?
@@ -153,7 +153,7 @@ final class KeychainService {
     let query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: serviceName,
-      kSecAttrAccount as String: tcpTokenAccount,
+      kSecAttrAccount as String: tcpTokenAccount
     ]
 
     let status = SecItemDelete(query as CFDictionary)

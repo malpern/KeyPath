@@ -33,7 +33,7 @@ final class CustomRulesStoreTests: XCTestCase {
         title: "Caps Escape", input: "caps", output: "escape", createdAt: fixedDate),
       CustomRule(
         title: "Space Nav", input: "space", output: "nav", isEnabled: false,
-        createdAt: fixedDate),
+        createdAt: fixedDate)
     ]
 
     try await store.saveRules(rules)

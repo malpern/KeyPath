@@ -131,8 +131,7 @@ public final class InstallerEngine {
   /// Check if requirements are met for the given intent
   /// Returns: Blocking requirement if any, nil if all requirements met
   private func checkRequirements(for intent: InstallIntent, context: SystemContext) async
-    -> Requirement?
-  {
+    -> Requirement? {
     // For inspectOnly, no requirements needed
     if intent == .inspectOnly {
       return nil
@@ -167,8 +166,7 @@ public final class InstallerEngine {
 
   /// Determine which actions are needed based on intent and context
   private func determineActions(for intent: InstallIntent, context: SystemContext)
-    -> [AutoFixAction]
-  {
+    -> [AutoFixAction] {
     // Use shared ActionDeterminer to avoid duplication
     ActionDeterminer.determineActions(for: intent, context: context)
   }
@@ -177,8 +175,7 @@ public final class InstallerEngine {
 
   /// Generate ServiceRecipes from AutoFixActions
   private func generateRecipes(from actions: [AutoFixAction], context: SystemContext)
-    -> [ServiceRecipe]
-  {
+    -> [ServiceRecipe] {
     var recipes: [ServiceRecipe] = []
 
     for action in actions {
@@ -191,8 +188,7 @@ public final class InstallerEngine {
   }
 
   /// Convert an AutoFixAction to a ServiceRecipe
-  func recipeForAction(_ action: AutoFixAction, context _: SystemContext) -> ServiceRecipe?
-  {
+  func recipeForAction(_ action: AutoFixAction, context _: SystemContext) -> ServiceRecipe? {
     switch action {
     case .installLaunchDaemonServices:
       return ServiceRecipe(
@@ -202,7 +198,7 @@ public final class InstallerEngine {
         launchctlActions: [
           .bootstrap(serviceID: "com.keypath.kanata"),
           .bootstrap(serviceID: "com.keypath.vhid-daemon"),
-          .bootstrap(serviceID: "com.keypath.vhid-manager"),
+          .bootstrap(serviceID: "com.keypath.vhid-manager")
         ],
         healthCheck: HealthCheckCriteria(serviceID: "com.keypath.kanata", shouldBeRunning: true)
       )
@@ -508,8 +504,7 @@ public final class InstallerEngine {
 
   /// Execute restartService recipe
   private func executeRestartService(_ recipe: ServiceRecipe, using broker: PrivilegeBroker)
-    async throws
-  {
+    async throws {
     if let serviceID = recipe.serviceID, serviceID == "com.keypath.kanata" {
       // Restart Karabiner daemon with verification
       let success = try await broker.restartKarabinerDaemonVerified()
@@ -524,8 +519,7 @@ public final class InstallerEngine {
 
   /// Execute installComponent recipe
   private func executeInstallComponent(_ recipe: ServiceRecipe, using broker: PrivilegeBroker)
-    async throws
-  {
+    async throws {
     // Map recipe ID to component installation method
     switch recipe.id {
     case "install-bundled-kanata":
@@ -588,8 +582,7 @@ public final class InstallerEngine {
 
   /// Execute checkRequirement recipe
   private func executeCheckRequirement(_ recipe: ServiceRecipe, using broker: PrivilegeBroker)
-    async throws
-  {
+    async throws {
     // Check requirement recipes (e.g., terminate conflicting processes)
     switch recipe.id {
     case "terminate-conflicting-processes":
@@ -634,8 +627,7 @@ public final class InstallerEngine {
   }
 
   /// Execute uninstall via the existing coordinator (placeholder until uninstall recipes exist)
-  public func uninstall(deleteConfig: Bool, using broker: PrivilegeBroker) async -> InstallerReport
-  {
+  public func uninstall(deleteConfig: Bool, using broker: PrivilegeBroker) async -> InstallerReport {
     AppLogger.shared.log("🗑️ [InstallerEngine] Starting uninstall (deleteConfig: \(deleteConfig))")
     _ = broker  // Reserved for future privileged uninstall steps
 
@@ -668,15 +660,14 @@ public final class InstallerEngine {
   /// This is useful for GUI single-action fixes where the user clicks a specific "Fix" button
   /// Note: Some actions (like installLaunchDaemonServices) are only in install plans, not repair plans
   public func runSingleAction(_ action: AutoFixAction, using broker: PrivilegeBroker) async
-    -> InstallerReport
-  {
+    -> InstallerReport {
     AppLogger.shared.log("🔧 [InstallerEngine] runSingleAction(\(action), using:) starting")
     let context = await inspectSystem()
-    
+
     // Determine which intent would include this action
     // installLaunchDaemonServices is install-specific, others are typically repair
     let intent: InstallIntent = action == .installLaunchDaemonServices ? .install : .repair
-    
+
     let basePlan = await makePlan(for: intent, context: context)
 
     // Filter recipes to only include ones matching the action

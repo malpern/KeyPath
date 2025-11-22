@@ -60,7 +60,7 @@ public class KeyboardCapture: ObservableObject {
     do {
       try task.run()
     } catch {
-      return kanataManager?.isRunning ?? false
+      return false
     }
     // Kill if it takes too long
     DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
@@ -244,7 +244,7 @@ public class KeyboardCapture: ObservableObject {
     // This avoids redundant checks and prevents UI blocking
     // Determine capture mode. Prefer listen-only if the service is running to
     // avoid competing intercepting taps. Re-check process table to reduce race risk.
-    var listenOnly = FeatureFlags.captureListenOnlyEnabled && (kanataManager?.isRunning == true)
+    var listenOnly = FeatureFlags.captureListenOnlyEnabled && fastProbeKanataRunning()
     if FeatureFlags.captureListenOnlyEnabled, listenOnly == false {
       // Fast secondary probe to reduce race conditions with UI state
       if fastProbeKanataRunning() { listenOnly = true }
@@ -255,7 +255,7 @@ public class KeyboardCapture: ObservableObject {
     noEventTimer?.invalidate()
     noEventTimer = nil
     AppLogger.shared.log(
-      "🎹 [KeyboardCapture] Starting \(mode) capture (tap=\(listenOnly ? "listenOnly" : "defaultTap/suppress"), kanataRunning=\(kanataManager?.isRunning == true))"
+      "🎹 [KeyboardCapture] Starting \(mode) capture (tap=\(listenOnly ? "listenOnly" : "defaultTap/suppress"), kanataRunning=\(listenOnly))"
     )
 
     // Install a local keyDown monitor to (a) prevent the audible beep in this app
@@ -452,8 +452,7 @@ public class KeyboardCapture: ObservableObject {
     if let last = lastCapturedKey, let lastAt = lastCaptureAt {
       if last.baseKey == keyPress.baseKey,
         last.modifiers == keyPress.modifiers,
-        now.timeIntervalSince(lastAt) <= dedupWindow
-      {
+        now.timeIntervalSince(lastAt) <= dedupWindow {
         AppLogger.shared.log("🎹 [KeyboardCapture] Deduped duplicate keyDown: \(keyName)")
         return
       }
@@ -567,7 +566,7 @@ public class KeyboardCapture: ObservableObject {
       30: "]", 31: "o", 32: "u", 33: "[", 34: "i", 35: "p", 36: "return",
       37: "l", 38: "j", 39: "'", 40: "k", 41: ";", 42: "\\", 43: ",",
       44: "/", 45: "n", 46: "m", 47: ".", 48: "tab", 49: "space",
-      50: "`", 51: "delete", 53: "escape", 58: "caps", 59: "caps",
+      50: "`", 51: "delete", 53: "escape", 58: "caps", 59: "caps"
     ]
 
     if let keyName = keyMap[keyCode] {
@@ -586,8 +585,7 @@ public class KeyboardCapture: ObservableObject {
   // Public method to explicitly request permissions (for use in wizard)
   func requestPermissionsExplicitly() {
     if let url = URL(
-      string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-    {
+      string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
       NSWorkspace.shared.open(url)
     }
   }
@@ -610,7 +608,7 @@ public class KeyboardCapture: ObservableObject {
     // The emergency tap uses a different location (CGEventTapLocation.cghidEventTap) which
     // should not conflict with Kanata's tap
     // Note: Emergency monitoring is critical for safety, so we prioritize it over ADR-006
-    if let kanataManager, kanataManager.isRunning {
+    if fastProbeKanataRunning() {
       AppLogger.shared.log(
         "⚠️ [KeyboardCapture] Emergency monitoring enabled even while Kanata is running (safety override)"
       )
@@ -687,8 +685,7 @@ public class KeyboardCapture: ObservableObject {
       // Check if all three keys are pressed simultaneously
       if pressedKeys.contains(leftControlKey),
         pressedKeys.contains(spaceKey),
-        pressedKeys.contains(escapeKey)
-      {
+        pressedKeys.contains(escapeKey) {
         AppLogger.shared.log("🚨 [Emergency] Kanata emergency stop sequence detected!")
 
         DispatchQueue.main.async {

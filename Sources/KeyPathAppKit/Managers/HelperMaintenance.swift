@@ -204,8 +204,7 @@ final class HelperMaintenance: ObservableObject {
   }
 
   private func removeLegacyHelperArtifacts(useAppleScriptFallback: Bool) async
-    -> LegacyCleanupResult
-  {
+    -> LegacyCleanupResult {
     if let override = testHooks?.removeLegacyHelperArtifacts {
       return await override(useAppleScriptFallback)
     }
@@ -287,7 +286,7 @@ final class HelperMaintenance: ObservableObject {
     let defaults = [
       "/Applications/KeyPath.app",
       NSHomeDirectory() + "/Applications/KeyPath.app",
-      NSHomeDirectory() + "/Downloads/KeyPath.app",
+      NSHomeDirectory() + "/Downloads/KeyPath.app"
     ]
     for p in defaults where FileManager.default.fileExists(atPath: p) {
       candidates.append(p)

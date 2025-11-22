@@ -63,7 +63,7 @@ final class FDADetectionTests: XCTestCase {
     let protectedPaths = [
       "\(NSHomeDirectory())/Library/Mail",
       "\(NSHomeDirectory())/Library/Messages",
-      "\(NSHomeDirectory())/Library/Safari/Bookmarks.plist",
+      "\(NSHomeDirectory())/Library/Safari/Bookmarks.plist"
     ]
 
     for path in protectedPaths {

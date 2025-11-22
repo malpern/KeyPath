@@ -9,7 +9,7 @@ public enum KeyPathCLIEntrypoint {
     "inspect",
     "help",
     "--help",
-    "-h",
+    "-h"
   ]
 
   /// Returns an exit code if CLI mode handled, otherwise nil to bootstrap the UI app.

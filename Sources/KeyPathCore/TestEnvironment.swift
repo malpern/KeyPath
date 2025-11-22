@@ -107,7 +107,7 @@ public enum TestEnvironment {
       let testIndicators = [
         "XCTest class exists: \(xctestExists)",
         "SWIFT_TEST env: \(swiftTestEnv)",
-        "CI env detected: \(ciDetected)",
+        "CI env detected: \(ciDetected)"
       ]
       AppLogger.shared.log(
         "🧪 [TestEnvironment] Test indicators: \(testIndicators.joined(separator: ", "))")

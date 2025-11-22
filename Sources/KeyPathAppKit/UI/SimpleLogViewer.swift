@@ -130,7 +130,7 @@ struct SimpleLogViewer: View {
       // Sublime
       ("/usr/local/bin/subl", [logPath]),
       // Vim/Neovim in terminal
-      ("/usr/bin/open", ["-a", "Terminal", logPath]),
+      ("/usr/bin/open", ["-a", "Terminal", logPath])
     ]
 
     for (editorPath, args) in editors {

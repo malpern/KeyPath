@@ -95,7 +95,7 @@ struct ContentView: View {
       ContentViewHeader(
         validator: stateController,  // 🎯 Phase 3: New controller
         showingInstallationWizard: $showingInstallationWizard,
-        onWizardRequest: { kanataManager.requestWizardPresentation() },
+        onWizardRequest: { showingInstallationWizard = true },
         layerIndicatorVisible: hasLayeredCollections,
         currentLayerName: kanataManager.currentLayerName
       )
@@ -148,7 +148,7 @@ struct ContentView: View {
           onRestart: {
             Task { @MainActor in
               kanataManager.emergencyStopActivated = false
-              await kanataManager.startKanata()
+              _ = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
               await kanataManager.updateStatus()
             }
           }
@@ -156,7 +156,7 @@ struct ContentView: View {
       }
 
       // Legacy Error Section (only show if there's an error)
-      if let error = kanataManager.lastError, !kanataManager.isRunning {
+      if let error = kanataManager.lastError {
         ErrorSection(
           kanataManager: kanataManager, showingInstallationWizard: $showingInstallationWizard,
           error: error
@@ -235,10 +235,9 @@ struct ContentView: View {
           // When wizard closes, call SimpleKanataManager to handle the closure
           AppLogger.shared.log("🎭 [ContentView] ========== WIZARD CLOSED ==========")
           AppLogger.shared.log("🎭 [ContentView] Installation wizard sheet dismissed by user")
-          AppLogger.shared.log("🎭 [ContentView] Calling kanataManager.onWizardClosed()")
+          // onWizardClosed removed - legacy status plumbing is gone
 
           Task {
-            await kanataManager.onWizardClosed()
             // Note: validation triggered via .kp_startupRevalidate notification
             // Do NOT trigger here to avoid duplicate validations
             await kanataManager.updateStatus()
@@ -259,7 +258,7 @@ struct ContentView: View {
     .onAppear {
       AppLogger.shared.log("🔍 [ContentView] onAppear called")
       AppLogger.shared.log(
-        "🏗️ [ContentView] Using shared SimpleKanataManager, initial showWizard: \(kanataManager.showWizard)"
+        "🏗️ [ContentView] Using shared SimpleKanataManager"
       )
 
       // 🎯 Phase 3/4: Configure state controller and recording coordinator with underlying KanataManager
@@ -325,20 +324,7 @@ struct ContentView: View {
     .onReceive(recordingCoordinator.$isSequenceMode.removeDuplicates()) { mode in
       AppLogger.shared.log("🔁 [UI] isSequenceMode changed -> \(mode ? "sequence" : "chord")")
     }
-    .onChange(of: kanataManager.showWizard) { _, shouldShow in
-      AppLogger.shared.log("🔍 [ContentView] showWizard changed to: \(shouldShow)")
-
-      if shouldShow, !canPresentModals {
-        pendingShowWizardRequest = true
-        AppLogger.shared.log(
-          "🔍 [ContentView] Deferring wizard presentation until modals are allowed")
-        return
-      }
-
-      showingInstallationWizard = shouldShow
-      AppLogger.shared.log(
-        "🔍 [ContentView] showingInstallationWizard set to: \(showingInstallationWizard)")
-    }
+    // Removed: onChange(of: kanataManager.showWizard) - legacy plumbing removed
     .onChange(of: kanataManager.lastConfigUpdate) { _, _ in
       // Skip toast on initial config load at app startup
       guard !isInitialConfigLoad else {
@@ -373,8 +359,7 @@ struct ContentView: View {
       _ in
       showingSimpleMods = true
     }
-    .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowEmergencyStop")))
-    { _ in
+    .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowEmergencyStop"))) { _ in
       showingEmergencyStopDialog = true
     }
     .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowUninstall"))) {
@@ -499,7 +484,7 @@ struct ContentView: View {
 
     capture.startEmergencyMonitoring {
       Task { @MainActor in
-        await kanataManager.stopKanata()
+        try? await PrivilegeBroker().stopKanataService()
         kanataManager.emergencyStopActivated = true
         showStatusMessage(message: "🚨 Emergency stop activated - Kanata stopped")
         UserNotificationService.shared.notifyLaunchFailure(
@@ -520,14 +505,19 @@ struct ContentView: View {
 
     NotificationCenter.default.addObserver(
       forName: .kp_startupAutoLaunch, object: nil, queue: .main
-    ) { [kanataManager] _ in
+    ) { _ in
       AppLogger.shared.log("🚦 [Startup] AutoLaunch phase")
       Task { @MainActor in
         // Respect permission-grant return to avoid resetting wizard state
         let result = PermissionGrantCoordinator.shared.checkForPendingPermissionGrant()
         if !result.shouldRestart {
           AppLogger.shared.log("🚀 [ContentView] Starting auto-launch sequence (coordinated)")
-          await kanataManager.startAutoLaunch(presentWizardOnFailure: false)
+          // Use InstallerEngine for auto-launch
+          let engine = InstallerEngine()
+          let context = await engine.inspectSystem()
+          if !context.services.kanataRunning {
+             _ = await engine.run(intent: .repair, using: PrivilegeBroker())
+          }
           AppLogger.shared.log("✅ [ContentView] Auto-launch sequence completed")
         }
       }
@@ -582,8 +572,7 @@ struct ContentView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
           // Reopen wizard to the appropriate permission page
           PermissionGrantCoordinator.shared.reopenWizard(
-            for: permissionType,
-            kanataManager: kanataManager.underlyingManager  // Phase 4: Business logic needs underlying manager
+            for: permissionType
           )
         }
       }
@@ -608,7 +597,7 @@ struct ContentView: View {
       _ in
       Task { @MainActor in
         _ = await kanataManager.createDefaultUserConfigIfMissing()
-        await kanataManager.updateStatus()
+        await stateController.revalidate()
         showStatusMessage(message: "✅ Configuration reset to safe defaults")
       }
     }
@@ -635,10 +624,12 @@ struct ContentView: View {
     saveDebounceTimer?.invalidate()
     saveDebounceTimer = nil
 
+    // Check running state via InstallerEngine
+    let isRunning = await InstallerEngine().inspectSystem().services.kanataRunning
+
     // If Kanata is not running but we're recording, stop recording first (resumes Kanata)
-    if !kanataManager.isRunning,
-      recordingCoordinator.isInputRecording() || recordingCoordinator.isOutputRecording()
-    {
+    if !isRunning,
+      recordingCoordinator.isInputRecording() || recordingCoordinator.isOutputRecording() {
       AppLogger.shared.log("🔄 [ContentView] Kanata paused during recording - resuming before save")
       await MainActor.run {
         recordingCoordinator.stopAllRecording()
@@ -649,7 +640,9 @@ struct ContentView: View {
     }
 
     // Pre-flight check: Ensure kanata is running before attempting save
-    guard kanataManager.isRunning else {
+    // Re-check status
+    let isRunningNow = await InstallerEngine().inspectSystem().services.kanataRunning
+    guard isRunningNow else {
       AppLogger.shared.log("⚠️ [ContentView] Cannot save - kanata service is not running")
       await MainActor.run {
         showingKanataNotRunningAlert = true
@@ -680,8 +673,7 @@ struct ContentView: View {
       let reasonLower = reason.lowercased()
       if reasonLower.contains("tcp"),
         reasonLower.contains("required") || reasonLower.contains("unresponsive")
-          || reasonLower.contains("failed") || reasonLower.contains("reload")
-      {
+          || reasonLower.contains("failed") || reasonLower.contains("reload") {
         // TCP connectivity issues - open wizard directly to Communication page
         showStatusMessage(message: "⚠️ Service connection failed - opening setup wizard...")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

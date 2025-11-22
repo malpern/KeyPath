@@ -4,7 +4,8 @@ import KeyPathWizardCore
 
 /// Snapshot of KanataManager state for UI updates
 struct KanataUIState {
-  let isRunning: Bool
+  // Core Status
+  // Removed: isRunning
   let lastError: String?
   let keyMappings: [KeyMapping]
   let ruleCollections: [RuleCollection]
@@ -13,22 +14,11 @@ struct KanataUIState {
   let diagnostics: [KanataDiagnostic]
   let lastProcessExitCode: Int32?
   let lastConfigUpdate: Date
-  let currentState: SimpleKanataState
-  let errorReason: String?
-  let showWizard: Bool
-  let launchFailureStatus: LaunchFailureStatus?
-  let autoStartAttempts: Int
-  let lastHealthCheck: Date?
-  let retryCount: Int
-  let isRetryingAfterFix: Bool
-  let lifecycleState: LifecycleStateMachine.KanataState
-  let lifecycleErrorMessage: String?
-  let isBusy: Bool
-  let canPerformActions: Bool
-  let autoStartAttempted: Bool
-  let autoStartSucceeded: Bool
-  let autoStartFailureReason: String?
-  let shouldShowWizard: Bool
+
+  // UI State (Legacy status removed)
+  // Removed: errorReason, showWizard, launchFailureStatus
+
+  // Validation & Save Status
   let showingValidationAlert: Bool
   let validationAlertTitle: String
   let validationAlertMessage: String

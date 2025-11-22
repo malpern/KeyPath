@@ -43,8 +43,7 @@ public final class SimpleModsParser {
 
       // Check for KP:BEGIN (accept both '#' and ';' comment styles)
       if trimmed.hasPrefix("# KP:BEGIN") || trimmed.hasPrefix("; KP:BEGIN")
-        || trimmed.hasPrefix(";; KP:BEGIN")
-      {
+        || trimmed.hasPrefix(";; KP:BEGIN") {
         if inBlock {
           // Nested block - not expected but handle gracefully
           continue
@@ -63,8 +62,7 @@ public final class SimpleModsParser {
 
       // Check for KP:END (accept both '#' and ';' comment styles)
       if trimmed.hasPrefix("# KP:END") || trimmed.hasPrefix("; KP:END")
-        || trimmed.hasPrefix(";; KP:END")
-      {
+        || trimmed.hasPrefix(";; KP:END") {
         if inBlock {
           let endId = parseAttributes(from: trimmed)["id"]
           if endId == blockId {
@@ -227,7 +225,7 @@ public final class SimpleModsParser {
       "f13", "f14", "f15", "playpause", "volup", "voldown",
       "a", "b", "c", "d", "e", "f", "g", "h", "i", "j",
       "k", "l", "m", "n", "o", "p", "q", "r", "s", "t",
-      "u", "v", "w", "x", "y", "z",
+      "u", "v", "w", "x", "y", "z"
     ]
 
     return validKeys.contains(key.lowercased())

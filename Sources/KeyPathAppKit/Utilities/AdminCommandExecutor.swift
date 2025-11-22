@@ -12,8 +12,7 @@ public protocol AdminCommandExecutor: Sendable {
 public final class DefaultAdminCommandExecutor: AdminCommandExecutor {
   public init() {}
 
-  public func execute(command: String, description _: String) async throws -> CommandExecutionResult
-  {
+  public func execute(command: String, description _: String) async throws -> CommandExecutionResult {
     let osascriptCommand = """
       do shell script "\(escapeForAppleScript(command))" with administrator privileges with prompt "KeyPath needs to install system services"
       """

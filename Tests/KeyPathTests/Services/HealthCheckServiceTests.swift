@@ -15,8 +15,7 @@ final class HealthCheckServiceTests: XCTestCase {
     func startLogMonitoring() {}
     func stopLogMonitoring() {}
     func checkHealth(processStatus _: ProcessHealthStatus, tcpPort _: Int) async
-      -> ServiceHealthStatus
-    { nextStatus }
+      -> ServiceHealthStatus { nextStatus }
     func canRestartService() async -> RestartCooldownState {
       .init(
         canRestart: true, remainingCooldown: 0, attemptsSinceLastSuccess: 0, isInGracePeriod: false)
