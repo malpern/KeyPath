@@ -203,7 +203,7 @@ SimpleKanataManager.swift        -> ✅ Oracle integrated
 KanataManager.swift              -> ✅ Oracle integrated  
 KanataLifecycleManager.swift     -> Keep
 ProcessLifecycleManager.swift    -> Keep
-LaunchAgentManager.swift         -> Keep
+LaunchAgentManager.swift         -> Removed (legacy launch agent path retired)
 ...
 ```
 
