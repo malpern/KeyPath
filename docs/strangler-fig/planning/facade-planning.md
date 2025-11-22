@@ -447,7 +447,7 @@
 - [x] **Update architecture docs**:
   - [x] Document façade design in `ARCHITECTURE.md`
   - [x] Update `NEW_DEVELOPER_GUIDE.md` with façade usage
-  - [ ] Add code examples
+  - [x] Add code examples
 - [ ] **Add inline documentation**:
   - [ ] Document public API methods
   - [ ] Document type contracts

@@ -39,6 +39,25 @@ swift build
 KEYPATH_USE_INSTALLER_ENGINE=1 swift test --filter InstallerEngine
 ```
 
+### 3.5 Quick code sample: InstallerEngine in a tool
+
+```swift
+import KeyPathAppKit
+
+let engine = InstallerEngine()
+let broker = PrivilegeBroker()   // wraps PrivilegedOperationsCoordinator.shared
+
+// Inspect → plan → execute in one call
+let report = await engine.run(intent: .install, using: broker)
+if report.success {
+  print("Install finished (\(report.executedRecipes.count) steps)")
+} else {
+  print("Install failed: \(report.failureReason ?? "unknown")")
+}
+```
+
+Run the app or tests with `KEYPATH_USE_INSTALLER_ENGINE=1` to route callers through the façade.
+
 ### 3. Explore Key Components (10 minutes)
 
 Open these files in your editor to understand the core architecture:
