@@ -159,6 +159,7 @@ struct StatusSettingsTabView: View {
   @State private var showingPermissionAlert = false
   private let installerEngine = InstallerEngine()
   private let privilegeBroker = PrivilegeBroker()
+  @State private var refreshRetryScheduled = false
 
   private var isServiceRunning: Bool {
     systemContext?.services.kanataRunning ?? false
@@ -509,6 +510,20 @@ struct StatusSettingsTabView: View {
       showSetupBanner = !(snapshot.isSystemReady && context.services.isHealthy)
       duplicateAppCopies = duplicates
     }
+
+    // If services look “starting” (daemons loaded/healthy but kanata not yet running), retry once shortly.
+    if !context.services.kanataRunning,
+       (context.components.launchDaemonServicesHealthy || context.services.karabinerDaemonRunning),
+       refreshRetryScheduled == false
+    {
+      refreshRetryScheduled = true
+      DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+        Task {
+          refreshRetryScheduled = false
+          await refreshStatus()
+        }
+      }
+    }
   }
 
   private func startViaInstallerEngine() async {
@@ -525,13 +540,27 @@ struct StatusSettingsTabView: View {
     let plan = await installerEngine.makePlan(for: .repair, context: context)
     let report = await installerEngine.execute(plan: plan, using: privilegeBroker)
 
-    await refreshStatus()
+    // Poll a few times to catch the daemon transition to running
+    var running = false
+    for _ in 0..<6 {
+      let ctx = await installerEngine.inspectSystem()
+      await MainActor.run {
+        systemContext = ctx
+        permissionSnapshot = ctx.permissions
+        showSetupBanner = !(ctx.permissions.isSystemReady && ctx.services.isHealthy)
+      }
+      if ctx.services.kanataRunning {
+        running = true
+        break
+      }
+      try? await Task.sleep(nanoseconds: 500_000_000)  // 0.5s
+    }
 
     await MainActor.run {
-      if report.success {
+      if report.success && running {
         settingsToastManager.showSuccess("KeyPath activated")
       } else {
-        let reason = report.failureReason ?? "Unknown error"
+        let reason = report.failureReason ?? "Service not running yet"
         settingsToastManager.showError("Start failed: \(reason)")
       }
     }
