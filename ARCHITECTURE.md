@@ -21,8 +21,8 @@ KeyPath is a native macOS application that simplifies the usage of the powerful 
 │                        System Integration Layer                         │
 │                                                                         │
 │  ┌─────────────────┐  ┌────────────────────┐  ┌──────────────────────┐  │
-│  │ PermissionOracle│  │    KanataManager   │  │ SystemStatusChecker  │  │
-│  │ (Truth Source)  │  │ (Service Control)  │  │ (State Detection)    │  │
+│  │ PermissionOracle│  │    KanataManager   │  │    InstallerEngine   │  │
+│  │ (Truth Source)  │  │ (Service Control)  │  │   (Setup Façade)     │  │
 │  └─────────────────┘  └────────────────────┘  └──────────────────────┘  │
 └───────────┬──────────────────┬────────────────────────┬─────────────────┘
             │                  │                        │
@@ -42,19 +42,27 @@ KeyPath uses a dedicated Actor, `PermissionOracle`, to manage the complex state 
 *   **Caching**: Results are cached for ~1.5s to balance UI responsiveness with system load.
 *   **Principle**: Never bypass the Oracle. If the Oracle says permission is denied, the UI must reflect that, even if other heuristics suggest otherwise.
 
-### 2. State-Driven Installation Wizard
+### 2. InstallerEngine: The Setup Façade
+The `InstallerEngine` provides a unified, declarative API for all installation, repair, and uninstall operations.
+*   **Declarative API**: `run(intent: .install)` handles everything.
+*   **State-Driven Planning**: `inspectSystem()` -> `makePlan()` -> `execute()`.
+*   **Recipe-Based Execution**: Atomic `ServiceRecipe` units ensure consistent operations.
+*   **Unified Reporting**: Returns structured `InstallerReport` for UI and logging.
+*   **Supersedes**: Replaces ad-hoc logic in `WizardAutoFixer` and direct manager calls.
+
+### 3. State-Driven Installation Wizard
 The installation wizard is not a linear script but a state machine.
 *   **Pure Function Detection**: `SystemStatusChecker` examines the system state (permissions, drivers, processes) without side effects.
 *   **Deterministic Navigation**: `WizardNavigationEngine` maps the detected state + current issues to the exact page the user needs to see.
 *   **Auto-Fixer**: Atomic, idempotent actions (e.g., `restartVirtualHIDDaemon`) resolve specific issues without brittle scripting.
 
-### 3. Service Architecture (LaunchDaemons)
+### 4. Service Architecture (LaunchDaemons)
 KeyPath relies on system-level persistence via `launchd`.
 *   **Kanata Service**: `com.keypath.kanata` runs the `kanata` binary as root.
 *   **VirtualHID Services**: Separate services manage the kernel driver connection.
 *   **Why Split?**: Allows granular health checks. If the driver crashes, we can restart just the driver service without killing the main app or the remapping engine.
 
-### 4. Process Lifecycle Management
+### 5. Process Lifecycle Management
 We use a `PID file` strategy to track ownership of the `kanata` process.
 *   **Ownership**: We write a PID file when we start `kanata`.
 *   **Conflict Detection**: We check for running `kanata` processes that *don't* match our PID. These are flagged as "external conflicts" (e.g., a user running `kanata` in a terminal).
@@ -68,10 +76,11 @@ We check permissions from the **GUI context** (User Session), not the Root Daemo
 *   **Pattern**: The UI checks if it *could* listen to keystrokes. If yes, we assume the root daemon (which has even more power) can too, provided it is launched correctly.
 
 ### Inter-Process Communication (IPC)
-Communication between the UI and the Root Daemon happens via **UDP**.
-*   **Protocol**: Lightweight JSON payloads.
+Communication between the UI and the Root Daemon happens via **TCP**.
+*   **Protocol**: Lightweight JSON payloads over TCP port 37001.
 *   **Performance**: < 100ms latency for status updates.
 *   **Usage**: Sending config reloads, receiving "heartbeat" status updates.
+*   **Security**: Localhost-only binding.
 
 ## Project Structure
 
