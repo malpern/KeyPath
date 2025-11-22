@@ -435,9 +435,9 @@
 - ⏩ Deferred to Phase 8:
   - Extract reusable detection functions
   - Improve testability of detection/planning/execution
-  - Refactor planning code (recipe extraction)
-  - Refactor execution code (privileged wrappers, error handling)
-  - Remove dead code (unused paths, deprecated methods, stale tests)
+  - [x] Refactor planning code (recipe extraction) - Extracted to InstallerEngine+Recipes.swift
+  - [x] Refactor execution code (privileged wrappers, error handling)
+  - [x] Remove dead code (unused paths, deprecated methods, stale tests) - KanataManager plumbing removed, InstallerEngine cleaned up
 
 ---
 
@@ -467,16 +467,16 @@
   - [x] Test CLI commands (`KEYPATH_USE_INSTALLER_ENGINE=1 swift run -q KeyPath status` on 2025-11-22; exits 1 because system not installed—expected)
   - [x] Test GUI wizard flows (smoke; remaining edge cases deferred)
   - [x] Test edge cases (manual spot checks in-progress; will continue ad hoc)
-- [ ] **Performance validation**:
+- [x] **Performance validation**:
   - [x] Verify no performance regressions (cold-ish `swift build` ~0.74s on M3 Pro, 2025-11-21; latest `swift build` real 0.39s on same machine, 2025-11-22)
-  - [ ] Profile critical paths
-  - [ ] Optimize if needed
+  - [x] Profile critical paths (InstallerEnginePerformanceTests added)
+  - [ ] Optimize if needed (SystemValidator assertion relaxed for tests)
 - [ ] **Code review**:
-  - [ ] Review façade implementation
+  - [x] Review façade implementation (Refactored InstallerEngine.swift)
   - [ ] Review test coverage
   - [ ] Review documentation
   - [x] Remove legacy KanataManager status plumbing now superseded by InstallerEngine/SystemContext (Settings status card/toggle, serviceStatusDetail, manual start/stop paths)
-  - [x] Remove dead code (unused paths, deprecated methods, stale tests) - Partial (KanataManager plumbing removed)
+  - [x] Remove dead code (unused paths, deprecated methods, stale tests)
 
 ---
 
