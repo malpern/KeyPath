@@ -35,55 +35,51 @@ struct WizardSummaryPage: View {
   @State private var fadeMaskOpacity: Double = 0.0
   @State private var visibleIssueCount: Int = 0
 
-  var body: some View {
+var body: some View {
     ZStack(alignment: .top) {
-      // Content area (issues list and actions) - positioned below fixed header
-      VStack(spacing: 0) {
-        // Spacer to push content below the fixed header area
-        Spacer()
-          .frame(height: 180)  // Space for header (60pt top + 120pt header)
+      ScrollView {
+        VStack(spacing: 16) {
+          // Spacer to push content below the fixed header area
+          Spacer()
+            .frame(height: 180)  // Space for header (60pt top + 120pt header)
 
-        // System Status Overview
-        // Cap list region height so window grows until cap, then scrolls internally
-        if !isValidating {
-          // Cross-fade entire list to avoid row-wise jitter on filter toggle
-          Group {
-            WizardSystemStatusOverview(
-              systemState: systemState,
-              issues: issues,
-              stateInterpreter: stateInterpreter,
-              onNavigateToPage: onNavigateToPage,
-              kanataIsRunning: kanataManager.isRunning,
-              showAllItems: showAllItems,
-              navSequence: $navSequence,
-              visibleIssueCount: $visibleIssueCount
-            )
+          // System Status Overview
+          if !isValidating {
+            Group {
+              WizardSystemStatusOverview(
+                systemState: systemState,
+                issues: issues,
+                stateInterpreter: stateInterpreter,
+                onNavigateToPage: onNavigateToPage,
+                kanataIsRunning: kanataManager.isRunning,
+                showAllItems: showAllItems,
+                navSequence: $navSequence,
+                visibleIssueCount: $visibleIssueCount
+              )
+            }
+            .id(showAllItems ? "list_all" : "list_errors")
+            .frame(maxWidth: 720)
+            .transition(.opacity)
           }
-          .id(showAllItems ? "list_all" : "list_errors")
-          .frame(maxHeight: listMaxHeight)
-          .transition(.opacity)
-        } else {
-          // During validation, don't reserve list space; allow compact height
-        }
 
-        // Minimal separation before action section
-        Spacer(minLength: 0)
-
-        // Action Section
-        // Always reserve space to prevent window resizing
-        if !isValidating {
-          WizardActionSection(
-            systemState: systemState,
-            isFullyConfigured: isEverythingComplete,
-            onStartService: onStartService,
-            onDismiss: onDismiss
-          )
-          .padding(.bottom, WizardDesign.Spacing.elementGap)  // Reduce bottom padding
-          .transition(.opacity)
-        } else {
-          // No action section during validation; keep window minimal
+          // Action Section
+          if !isValidating {
+            WizardActionSection(
+              systemState: systemState,
+              isFullyConfigured: isEverythingComplete,
+              onStartService: onStartService,
+              onDismiss: onDismiss
+            )
+            .frame(maxWidth: 720)
+            .padding(.bottom, WizardDesign.Spacing.elementGap)
+            .transition(.opacity)
+          }
         }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 24)
+        .padding(.bottom, 24)
       }
+      .background(WizardDesign.Colors.wizardBackground.ignoresSafeArea())
 
       // Icon - absolutely positioned, independent of text
       ZStack {
