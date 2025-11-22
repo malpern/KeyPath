@@ -468,7 +468,7 @@
   - [x] Test GUI wizard flows (smoke; remaining edge cases deferred)
   - [ ] Test edge cases
 - [ ] **Performance validation**:
-  - [x] Verify no performance regressions (cold-ish `swift build` ~0.74s on M3 Pro, 2025-11-21)
+  - [x] Verify no performance regressions (cold-ish `swift build` ~0.74s on M3 Pro, 2025-11-21; latest `swift build` real 0.39s on same machine, 2025-11-22)
   - [ ] Profile critical paths
   - [ ] Optimize if needed
 - [ ] **Code review**:
