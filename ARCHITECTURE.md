@@ -1,771 +1,88 @@
 # KeyPath Architecture Guide
 
-**DO NOT REWRITE THIS SYSTEM** - This document describes the carefully designed architecture that solves complex permission detection and system integration challenges.
-
-## TL;DR (Principles You Must Keep)
-
-- **Single source of truth for permissions**: Use `PermissionOracle.shared.currentSnapshot()` only; never call `IOHIDCheckAccess`/`AXIsProcessTrusted` directly.
-- **Apple API precedence**: When Apple APIs return `.granted/.denied`, treat them as authoritative; use TCC only for `.unknown` cases.
-- **State-driven wizard**: Pure detection → issues → deterministic page selection; no manual overrides.
-- **LaunchDaemon split**: Separate services for kanata and VirtualHID to enable granular health checks and recovery.
-- **No event taps in UI**: Root daemon owns taps; GUI records via IPC to avoid conflicts.
-- **Recovery safety**: Auto-fix actions are atomic and idempotent; cooldowns prevent restart loops.
-
 ## System Overview
 
-KeyPath is a macOS keyboard remapping application with a sophisticated multi-tier architecture designed for reliability, security, and maintainability. The system integrates deeply with macOS security frameworks and provides automated installation and recovery capabilities.
+KeyPath is a native macOS application that simplifies the usage of the powerful [Kanata](https://github.com/jtroo/kanata) keyboard remapping engine. It acts as a bridge between the user and the low-level system requirements of keyboard interception on macOS.
 
-### InstallerEngine Façade (Strangler Fig)
-
-- **Purpose:** Single entry point for install/repair flows (`inspectSystem`, `makePlan`, `execute`, `run`) that wraps legacy wizard logic. Keeps callers stable while internals evolve.
-- **Backwards compatibility:** Outputs the same system context/issues as the old adapters; callers can switch via env flag `KEYPATH_USE_INSTALLER_ENGINE=1`.
-- **Health pipeline:** Launchctl PID + TCP probe + freshness guard; wizard and main app both consume the same `SystemContextAdapter`.
-- **Callers:** Wizard, CLI, and KanataManager can route through the façade without touching lower-level installers directly.
-- **Status:** Fully implemented; internal refactors completed (Phase 7). Phase 8 will document and clean up remaining legacy helpers.
+### High-Level Components
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                           KeyPath.app (SwiftUI)                          │
-│  ┌─────────────────┐  ┌──────────────┐  ┌─────────────────────────────┐  │
-│  │ ContentView     │  │ Settings     │  │ InstallationWizard          │  │
-│  │ - Recording UI  │  │ - Config     │  │ - 9 specialized pages       │  │
-│  │ - Status        │  │ - TCP        │  │ - State-driven navigation   │  │
-│  └─────────────────┘  └──────────────┘  └─────────────────────────────┘  │
-└─────────────────────────┬───────────────────────────────────────────────┘
-                          │
-        ┌─────────────────┼─────────────────┐
-        │                 │                 │
-┌───────▼─────────┐  ┌────▼───────────┐  ┌─▼──────────────────┐
-│ PermissionOracle│  │ KanataManager  │  │ SystemStatusChecker│
-│ Single Source   │  │ Service Coord  │  │ State Detection    │
-│ of Truth        │  │ & Config       │  │ & Issue Generation │
-└─────────┬───────┘  └────────────────┘  └────────────────────┘
-          │                 │                        │
-          │                 │                        │
-┌─────────▼─────────────────▼────────────────────────▼─────────────────┐
-│                    System Integration Layer                          │
-│  ┌────────────────┐  ┌─────────────────┐  ┌────────────────────────┐ │
-│  │ LaunchDaemons  │  │ VirtualHID      │  │ Apple Security APIs    │ │
-│  │ - Service Mgmt │  │ - Device Driver │  │ - IOHIDCheckAccess()   │ │
-│  │ - Health Check │  │ - Connection    │  │ - AXIsProcessTrusted() │ │
-│  └────────────────┘  └─────────────────┘  └────────────────────────┘ │
-└──────────────────────────┬─────────────────────────────────────────────┘
-                           │
-               ┌───────────▼───────────┐
-               │  kanata (UDP Server)  │
-               │  Keyboard Remapping   │
-               │  Core Engine          │
-               └───────────────────────┘
+│                           KeyPath.app (User UI)                         │
+│                                                                         │
+│  ┌─────────────────┐  ┌──────────────┐  ┌─────────────────────────────┐ │
+│  │   Recording UI  │  │   Settings   │  │     Installation Wizard     │ │
+│  └─────────────────┘  └──────────────┘  └─────────────────────────────┘ │
+│           │                  │                        │                 │
+└───────────┼──────────────────┼────────────────────────┼─────────────────┘
+            │                  │                        │
+            ▼                  ▼                        ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        System Integration Layer                         │
+│                                                                         │
+│  ┌─────────────────┐  ┌────────────────────┐  ┌──────────────────────┐  │
+│  │ PermissionOracle│  │    KanataManager   │  │ SystemStatusChecker  │  │
+│  │ (Truth Source)  │  │ (Service Control)  │  │ (State Detection)    │  │
+│  └─────────────────┘  └────────────────────┘  └──────────────────────┘  │
+└───────────┬──────────────────┬────────────────────────┬─────────────────┘
+            │                  │                        │
+            ▼                  ▼                        ▼
+┌─────────────────────────┐ ┌──────────────────────┐ ┌────────────────────┐
+│   com.keypath.kanata    │ │   VirtualHID Driver  │ │    MacOS TCC API   │
+│   (Root LaunchDaemon)   │ │    (Kernel Ext)      │ │ (Security Frame)   │
+└─────────────────────────┘ └──────────────────────┘ └────────────────────┘
 ```
 
----
-
-## 🔮 PermissionOracle Architecture (Critical - DO NOT REPLACE)
-
-**Problem Solved:** KeyPath suffered from "unreliable, inconsistent, and unpredictable permission detection for months" due to multiple conflicting permission sources.
-
-### Oracle Design Principles
-
-The Oracle is a Swift Actor providing a **single source of truth** with deterministic permission hierarchy:
-
-```swift
-actor PermissionOracle {
-    // 🚨 CRITICAL HIERARCHY (commit 7f68821 broke this, restored in 8445b36):
-    // 
-    // 1. APPLE APIs FIRST (IOHIDCheckAccess from GUI context) → AUTHORITATIVE
-    //    ├─ .granted/.denied → TRUST THIS RESULT (never bypass with TCC)
-    //    └─ .unknown → Proceed to TCC fallback
-    //
-    // 2. TCC DATABASE → NECESSARY FALLBACK for .unknown cases only
-    //    ├─ REQUIRED to break chicken-and-egg problems in wizard scenarios
-    //    ├─ When service isn't running, can't do functional verification
-    //    ├─ When wizard needs permissions before starting service
-    //    └─ Can be stale/inconsistent (why it's not primary source)
-    //
-    // 3. FUNCTIONAL VERIFICATION → For accessibility status only
-    //    └─ UDP connectivity test (cannot determine Input Monitoring)
-    //
-    // ⚠️ NEVER BYPASS APPLE APIs WITH TCC DATABASE WHEN APIs GIVE DEFINITIVE ANSWERS
-    //    This causes UI to show stale "denied" status while service works perfectly
-}
-```
-
-### Critical Implementation Details
-
-#### 1. Caching Strategy (DO NOT MODIFY)
-```swift
-private let cacheTTL: TimeInterval = 1.5  // Optimized for sub-2s response
-private var lastSnapshot: Snapshot?
-private var lastSnapshotTime: Date?
-
-// Cache prevents excessive system calls while ensuring freshness
-func currentSnapshot() async -> Snapshot {
-    if let cached = lastSnapshot, cacheStillFresh { return cached }
-    return await generateFreshSnapshot()
-}
-```
-
-**Why 1.5 seconds?** Balances UI responsiveness (< 2s goal) with API rate limiting.
-
-#### 2. Thread Safety (Swift Actor Pattern)
-```swift
-actor PermissionOracle {
-    static let shared = PermissionOracle()  // Singleton
-    // All methods are async and thread-safe by actor isolation
-}
-```
-
-**Critical:** Never convert to class/struct - actors prevent race conditions in permission checking.
-
-#### 3. Status Enumeration (DO NOT EXTEND)
-```swift
-enum Status {
-    case granted      // Confirmed permission
-    case denied       // Confirmed no permission  
-    case error(String)// System error during check
-    case unknown      // Cannot determine (never guess)
-    
-    var isReady: Bool { case .granted = self }
-    var isBlocking: Bool { case .denied, .error = self }
-}
-```
-
-**Why no .pending or .checking?** Creates race conditions and UI flicker.
-
-### 🚨 macOS Root Process Permission Detection Issues
-
-**Critical Discovery:** `IOHIDCheckAccess()` returns false negatives for root processes on macOS.
-
-#### The Problem
-```bash
-# Kanata (root process) reports:
-tcp_response: {"input_monitoring": "denied"}  # ❌ WRONG
-
-# While actually working:
-kanata_log: "[DEBUG] key press Enter"  # ✅ CAPTURING KEYS
-ps aux | grep kanata
-# root  8177  /Applications/KeyPath.app/.../kanata  # ✅ RUNNING AS ROOT
-```
-
-#### Root Cause
-- Apple's TCC has "responsible process" rules for permission inheritance
-- Preflight permission checks (`IOHIDCheckAccess`) don't account for these patterns
-- Root processes can function when granted permission, but can't self-assess accurately
-- This affects all keyboard remappers that must run with root privileges
-
-#### Current Workaround
-```swift
-private func checkKanataPermissions() async -> PermissionSet {
-    // Check kanata binary permissions from GUI context (reliable)
-    let kanataPath = WizardSystemPaths.bundledKanataPath
-    let inputMonitoring = checkBinaryInputMonitoring(at: kanataPath)
-    
-    // Use TCP only for functional verification, not permission status
-    let functionalStatus = await checkKanataFunctionalStatus()
-    
-    return PermissionSet(
-        inputMonitoring: inputMonitoring,  // From GUI check
-        functionalStatus: functionalStatus,  // From TCP
-        source: "keypath.gui-check",
-        confidence: .high
-    )
-}
-```
-
-#### Industry Pattern
-- **Karabiner-Elements**: GUI handles permissions, root daemon handles HID access
-- **Recommended**: Split architecture with GUI-based permission checking
-
-### Integration Points (Critical)
-
-#### Every Permission Check Must Use Oracle:
-```swift
-// ✅ CORRECT - Single source of truth
-let snapshot = await PermissionOracle.shared.currentSnapshot()
-if snapshot.keyPath.inputMonitoring.isReady { /* granted */ }
-
-// ❌ WRONG - Creates inconsistency
-if PermissionService.hasInputMonitoringPermission() { /* DON'T DO THIS */ }
-if IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted { /* DON'T DO THIS */ }
-```
-
-#### Oracle Consumers (All Use Single API):
-- SystemStatusChecker (wizard state detection)
-- KanataManager (service startup validation and status reporting)
-- ContentView (UI status display)
-
----
-
-## 🧭 Installation Wizard Architecture (State-Driven - DO NOT SIMPLIFY)
-
-**Problem Solved:** Complex system setup with many interdependent components, permissions, and edge cases.
-
-### State-Driven Design
-
-The wizard uses a sophisticated state machine with deterministic navigation:
-
-```swift
-enum WizardSystemState {
-    case initializing
-    case conflictsDetected
-    case missingPermissions(missing: [PermissionRequirement])
-    case missingComponents(missing: [ComponentRequirement])  
-    case daemonNotRunning
-    case serviceNotRunning
-    case ready
-    case active
-}
-
-enum WizardPage {
-    case summary, fullDiskAccess, conflicts, inputMonitoring,
-         accessibility, karabinerComponents, kanataComponents, 
-         tcpServer, service
-}
-```
-
-### Critical Components (DO NOT MERGE OR SIMPLIFY)
-
-#### 1. SystemStatusChecker - Pure State Detection
-```swift
-class SystemStatusChecker {
-    // PURE FUNCTIONS - No side effects, deterministic output
-    func detectCurrentState() async -> SystemStateResult
-    
-    // Uses Oracle as single source for permissions
-    private func checkPermissionsInternal() async -> PermissionCheckResult {
-        let snapshot = await PermissionOracle.shared.currentSnapshot()
-        // Process Oracle results into wizard state
-    }
-}
-```
-
-**Why Pure Functions?** Predictable, testable, no race conditions.
-
-#### 2. WizardAutoFixer - Automated Recovery
-```swift 
-class WizardAutoFixer {
-    // 15+ automated repair actions
-    func performAutoFix(_ action: AutoFixAction) async -> Bool
-    
-    // Examples: terminateConflictingProcesses, installMissingComponents,
-    //          restartVirtualHIDDaemon, synchronizeConfigPaths
-}
-```
-
-**Critical:** Each auto-fix is atomic and safe to retry.
-
-#### 3. WizardNavigationEngine - Deterministic Flow
-```swift
-class WizardNavigationEngine {
-    func determineCurrentPage(for state: WizardSystemState, 
-                            issues: [WizardIssue]) -> WizardPage {
-        // Deterministic mapping: state + issues → page
-        // Never guess, always based on detected state
-    }
-}
-```
-
-### Navigation Flow (DO NOT SHORTCUT)
-
-```
-User Action → State Detection → Issue Generation → Auto-Navigation
-     ↓              ↓                ↓                ↓
-Navigation     Oracle Check    Issue Analysis    Page Selection
-Coordinator  → Status Checker → Issue Generator → Navigation Engine
-```
-
-**Why Complex?** Handles 50+ edge cases automatically without user confusion.
-
----
-
-## ⚙️ Service Management Architecture (LaunchDaemon Pattern)
-
-**Problem Solved:** Reliable system-level keyboard remapping requiring root privileges and service persistence.
-
-### LaunchDaemon Architecture
-
-```
-KeyPath.app (User Space)
-        ↓ (creates and manages)
-LaunchDaemons (System Level)
-        ↓ (executes)
-kanata binary (Root Privileges)
-        ↓ (communicates via)  
-UDP Server (localhost:port)
-        ↓ (sends events to)
-VirtualHID Driver
-        ↓ (system-wide remapping)
-macOS Input System
-```
-
-### Critical Services (DO NOT COMBINE)
-
-#### 1. Kanata Service (`com.keypath.kanata`)
-```xml
-<key>Label</key>
-<string>com.keypath.kanata</string>
-<key>ProgramArguments</key>
-<array>
-    <string>/Library/KeyPath/bin/kanata</string>
-    <string>--cfg</string>
-    <string>/Users/.../KeyPath/keypath.kbd</string>
-    <string>--port</string>
-    <string>37000</string>
-</array>
-<key>RunAtLoad</key><true/>
-<key>KeepAlive</key><true/>
-```
-
-#### 2. VirtualHID Services 
-- `com.keypath.karabiner-vhidmanager` - Device manager activation
-- `com.keypath.karabiner-vhiddaemon` - Virtual device daemon
-
-**Why Separate Services?** Different lifecycle management and failure recovery.
-
-### Service Health Monitoring (Critical Logic)
-
-```swift
-class LaunchDaemonInstaller {
-    func isServiceHealthy(serviceID: String) -> Bool {
-        // Check: loaded + running + responsive
-        // Not just "process exists"
-    }
-    
-    private static var lastKickstartTimes: [String: Date] = [:]
-    private static let healthyWarmupWindow: TimeInterval = 2.0
-    
-    static func wasRecentlyRestarted(_ serviceID: String) -> Bool {
-        // Prevent restart loops during startup
-        guard let lastRestart = lastKickstartTimes[serviceID] else { return false }
-        return Date().timeIntervalSince(lastRestart) < healthyWarmupWindow
-    }
-}
-```
-
-**Critical:** Prevents infinite restart loops while ensuring service recovery.
-
----
-
-## 🔧 KanataManager Architecture (Unified Management)
-
-**Consolidation Complete:** All manager functionality is now unified in a single KanataManager class.
-
-### KanataManager (3,647 lines - Comprehensive but Needs Refactoring)
-```swift 
-class KanataManager: ObservableObject {
-    // Unified service management
-    // Configuration handling  
-    // UI state management (merged from SimpleKanataManager)
-    // Process lifecycle
-    // Permission checking via Oracle
-    // Diagnostic capabilities
-}
-```
-
-**Current State:**
-- All SimpleKanataManager functionality has been merged into KanataManager
-- Comments like `// from SimpleKanataManager` indicate merged functionality
-- Single source of truth for all Kanata-related operations
-
-**Technical Debt:** 
-- At 3,647 lines, the file is too large and should be refactored into smaller, focused components
-- Consider breaking into: ProcessManager, ConfigurationManager, StateManager, DiagnosticManager
-
-**Migration Complete:** The gradual replacement strategy was successful - SimpleKanataManager no longer exists.
-
----
-
-### Update (Nov 2025): Lifecycle Delegation
-
-- Process conflict detection and termination are centralized in `ProcessLifecycleManager`.
-- `KanataManager` now delegates:
-  - External process checks to `processLifecycleManager.detectConflicts()`
-  - External process termination to `processLifecycleManager.terminateExternalProcesses()`
-  - Crash/orphan recovery during initialization to `processLifecycleManager.recoverFromCrash()`
-- Benefit: clearer boundaries; `KanataManager` focuses on orchestration and UI-facing state while lifecycle details live in a dedicated manager.
-
-Related files:
-- `Sources/KeyPath/Managers/ProcessLifecycleManager.swift`
-- `Sources/KeyPath/Managers/KanataManager+Lifecycle.swift`
-- `Sources/KeyPath/Managers/KanataManager.swift`
-
-## 🚫 Critical Anti-Patterns to Avoid
-
-### 1. Permission Detection Anti-Patterns
-
-```swift
-// ❌ NEVER DO THIS - Creates inconsistent state
-func checkPermissionsDirectly() -> Bool {
-    let axGranted = AXIsProcessTrusted()
-    let imGranted = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
-    return axGranted && imGranted  // Bypasses Oracle!
-}
-
-// ❌ NEVER DO THIS - Multiple sources of truth
-if PermissionService.hasAccessibility() && Oracle.snapshot().accessibility.isReady {
-    // Which one is correct? Creates impossible debugging
-}
-
-// ❌ NEVER DO THIS - Side effects during checking
-func checkInputMonitoring() -> Bool {
-    // IOHIDCheckAccess can prompt user or auto-add to System Settings!
-    return IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
-}
-```
-
-### 2. Wizard Flow Anti-Patterns
-
-```swift
-// ❌ NEVER DO THIS - Bypasses state detection
-func skipToPage(_ page: WizardPage) {
-    navigationCoordinator.currentPage = page  // Ignores system state!
-}
-
-// ❌ NEVER DO THIS - Manual status override
-func forcePermissionStatus() {
-    isPermissionGranted = true  // Oracle will contradict this
-}
-
-// ❌ NEVER DO THIS - Synchronous in async context
-func detectSystemState() -> WizardSystemState {
-    let result = await systemStatusChecker.detectCurrentState()  // Blocks UI!
-    return result.state
-}
-```
-
-### 3. Service Management Anti-Patterns
-
-```swift
-// ❌ NEVER DO THIS - Service management without health checks
-func startKanataService() {
-    launchctl("load", plistPath)
-    // Service might fail to start, create zombies, or conflict
-}
-
-// ❌ NEVER DO THIS - Combine service lifecycle with different purposes
-class UniversalServiceManager {
-    func manageEverything()  // VirtualHID, Kanata, logs - too complex
-}
-
-// ❌ NEVER DO THIS - Restart loops without cooldown
-func ensureServiceRunning() {
-    if !isRunning {
-        restart()
-        ensureServiceRunning()  // Infinite loop!
-    }
-}
-```
-
-
-### 4. Root Process Permission Anti-Patterns
-
-```swift
-// ❌ NEVER DO THIS - Trust kanata's self-reported permission status
-let tcpStatus = await kanataClient.checkMacOSPermissions()
-if tcpStatus.input_monitoring == "granted" {
-    // This can be false negative on macOS!
-}
-
-// ❌ NEVER DO THIS - Check permissions from root process context  
-func checkInputMonitoringFromDaemon() -> Bool {
-    return IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
-    // Unreliable for root processes
-}
-
-// ❌ NEVER DO THIS - Use TCP permission status for critical decisions
-func shouldStartKanata() async -> Bool {
-    let status = await kanataClient.checkMacOSPermissions()
-    return status.input_monitoring == "granted"  // False negative!
-}
-
-// ✅ CORRECT - Check from GUI, verify functionality via daemon
-let guiCheck = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
-let functionalCheck = await kanataClient.testKeyCapture()
-let shouldStart = guiCheck && functionalCheck.canAccess
-```
-
----
-
-## 📉 Architecture Metrics & Success Criteria
-
-### Performance Benchmarks (Achieved)
-- **Permission Detection:** 1.3s average (goal: < 2s) ✅
-- **Wizard State Updates:** < 500ms per transition ✅  
-- **Service Health Checks:** < 1s response ✅
-- **UDP API Response:** < 100ms typical (improved from TCP) ✅
-
-### Reliability Metrics (Achieved)
-- **Permission Consistency:** 100% (Oracle eliminates conflicts) ✅
-- **Service Recovery:** Automated for 95% of failure cases ✅
-- **Installation Success Rate:** 98%+ with auto-fixing ✅
-- **State Detection Accuracy:** 100% (deterministic logic) ✅
-
-### Code Quality Metrics
-- **PermissionOracle:** 200 lines, focused responsibility ✅
-- **Installation Wizard:** 35+ files, organized by concern ✅  
-- **Service Management:** Separated by service type ✅
-- **Test Coverage:** Integration tests for critical paths ✅
-
----
-
-## 🚀 Future Architecture: Split GUI/Daemon Pattern
-
-**Based on industry best practices and macOS TCC limitations discovered in August 2025:**
-
-### Recommended Split Architecture
-```
-[User Session]                    [System (Root)]
-┌─────────────────┐              ┌──────────────────┐
-│ KeyPath.app     │◄─────IPC────►│ Privileged Helper│
-│ - Permission    │              │ - Actual HID     │
-│   checks (✓)    │              │   access         │
-│ - TCC prompts   │              │ - Functional     │
-│ - User guidance │              │   verification   │
-│ - Config UI     │              │ - Never self-    │
-│                 │              │   assesses perms │
-└─────────────────┘              └──────────────────┘
-```
-
-### Benefits of Split Architecture
-1. **Reliable permission detection** from user session context
-2. **Cross-platform GUI pattern** - native app per platform, shared core
-3. **Enhanced IPC protocol** - UDP + TCP for performance and security
-4. **Follows proven patterns** - matches Karabiner-Elements, Docker Desktop
-5. **Better security** - GUI handles TCC, daemon focuses on functionality
-
-### Cross-Platform Strategy
-```
-keypath-core/               # Shared (Rust/Swift)
-├── daemon-manager/         # Start/stop/restart kanata
-├── config-manager/         # Parse/validate configs  
-├── ipc-protocol/          # Common message format (UDP+TCP)
-└── status-types/          # Shared enums and structs
-
-keypath-macos/             # SwiftUI + IOHIDCheckAccess
-keypath-windows/           # WPF/WinUI + Windows APIs  
-keypath-linux/             # GTK/Qt + uinput checks
-```
-
-### Migration Strategy
-- **Phase 1:** Fix Oracle to check from GUI context ✅ (Completed - August 2025)
-- **Phase 2:** Fix CGEvent tap conflicts ⚠️ (In Progress - Week 3)
-- **Phase 3:** Implement enhanced IPC architecture (UDP + TCP)
-- **Phase 4:** Extract cross-platform abstractions  
-- **Phase 5:** Platform-native GUIs for Windows/Linux
-
-### IPC Protocol Evolution
-**Current:** UDP-only for commands and status (migrated from TCP in August 2025)
-**Future:** 
-- **UDP:** High-frequency status updates, low latency (implemented with race condition fixes)
-- **TCP:** Complex commands, configuration, reliable delivery (for future cross-platform needs)
-- **Security:** Peer credential validation, signing-pinned connections
-
----
-
-## 🔄 Evolution Path (Safe Changes Only)
-
-### Acceptable Enhancements
-1. **Add new WizardPage** for additional setup steps
-2. **Extend AutoFixAction** enum for new repair scenarios  
-3. **Add new PermissionRequirement** types
-4. **Enhance TCP API** with additional commands
-
-### Changes Requiring Extreme Care
-1. **Oracle caching logic** - performance critical
-2. **Service health detection** - prevents restart loops
-3. **State determination logic** - affects all navigation
-4. **LaunchDaemon plist generation** - system security
-
-### Forbidden Changes
-1. **Converting Oracle to class/struct** (breaks thread safety)
-2. **Adding multiple permission sources** (breaks single source of truth)
-3. **Breaking up KanataManager without careful design** (creates new complexity)
-4. **Simplifying wizard state machine** (breaks edge case handling)
-5. **Bypassing Oracle in any permission check** (breaks consistency)
-
----
-
-## 🔍 Debugging & Monitoring
-
-### Key Log Points
-```swift
-AppLogger.shared.log("🔮 [Oracle] Permission snapshot complete in \(duration)s")
-AppLogger.shared.log("🧭 [Wizard] State transition: \(oldState) → \(newState)")  
-AppLogger.shared.log("⚙️ [Service] Health check: \(serviceID) = \(isHealthy)")
-AppLogger.shared.log("🔧 [AutoFix] Attempting repair: \(action)")
-```
-
-### Critical Diagnostic Commands
-```bash
-# Oracle status
-tail -f /var/log/KeyPath.log | grep "Oracle"
-
-# Service status  
-sudo launchctl print system/com.keypath.kanata
-
-# UDP connectivity (requires UDP client)
-# Note: UDP is connectionless - use KeyPath's built-in diagnostics
-# or custom UDP test client for connectivity verification
-
-# Permission verification
-./Scripts/verify-test-permissions.sh
-```
-
-### Architecture Validation Tests
-```bash
-# Oracle integration test
-./Tests/scripts/oracle/test-oracle-comprehensive.swift
-
-# Wizard state machine test  
-swift test --filter WizardNavigationEngineTests
-
-# Service management test
-./test-kanata-system.sh
-```
-
----
-
-## 📜 Architecture Decision Records
-
-### ADR-001: Oracle Pattern for Permission Detection
-**Decision:** Single source of truth actor with deterministic hierarchy  
-**Status:** Accepted ✅  
-**Consequences:** Eliminated inconsistent permission detection, 100% reliability
-
-### ADR-002: State-Driven Wizard Architecture  
-**Decision:** Pure functions for state detection, deterministic navigation  
-**Status:** Accepted ✅  
-**Consequences:** Handles 50+ edge cases automatically, predictable behavior
-
-### ADR-003: Separate LaunchDaemon Services
-**Decision:** Individual services for Kanata, VirtualHID Manager, VirtualHID Daemon  
-**Status:** Accepted ✅  
-**Consequences:** Granular lifecycle management, targeted failure recovery
-
-### ADR-004: Manager Consolidation 
-**Decision:** Consolidate SimpleKanataManager functionality into KanataManager
-**Status:** Completed ✅ (August 2025)
-**Rationale:** SimpleKanataManager was a thin UI wrapper - functionality better integrated directly
-**Consequences:** Single manager class, simpler architecture, but file now too large (3,647 lines)
-
-### ADR-005: Root Process Permission Detection Limitations
-**Decision:** Move permission checking from Kanata daemon to GUI context  
-**Status:** Completed ✅ (August 2025)  
-**Rationale:** IOHIDCheckAccess() unreliable for root processes on macOS - returns false negatives even when permission granted and functional  
-**Evidence:** Kanata captures keystrokes successfully while reporting "input_monitoring": "denied" via UDP API  
-**Consequences:** Reliable permission detection, matches industry best practices (Karabiner-Elements pattern)
-
-### ADR-006: CGEvent Tap Conflict Resolution
-**Decision:** Move all event tap creation to root daemon only, eliminate GUI event taps  
-**Status:** In Progress ⚠️ (Week 3 - August 2025)  
-**Rationale:** Multiple event taps cause keyboard freezing, violates macOS "one event tapper" rule  
-**Evidence:** KeyPath GUI creates competing event taps with kanata daemon, causing system instability  
-**Implementation:** TCP-based key recording instead of GUI CGEvent taps, following Karabiner-Elements pattern
-
-### ADR-007: Oracle Apple API Priority Architecture (CRITICAL)
-**Decision:** Apple APIs (IOHIDCheckAccess from GUI context) take absolute precedence over TCC database
-**Status:** ✅ RESTORED (commits 8445b36, 87c36ca - September 1, 2025)
-**Problem:** Commit 7f68821 broke Oracle by bypassing Apple APIs with TCC database even when APIs returned definitive results
-**Evidence:** 
-- Service working perfectly while wizard showed "denied" status
-- Apple API reported `.granted`, TCC database showed stale `auth_value=2` (denied)
-- User confusion: "KeyPath is frozen" when actually permissions were correct
-**Solution:** 
-- ✅ Apple API results `.granted/.denied` are AUTHORITATIVE (never bypass)
-- ✅ TCC database used ONLY when Apple API returns `.unknown` (chicken-and-egg scenarios)
-- ✅ TCC fallback is NECESSARY for wizard scenarios when service not running
-**Implementation:**
-- Extensive source code documentation with 🚨 warnings
-- CLAUDE.md section documenting principles
-- Historical commit references to prevent regression
-**Consequences:** 
-- Wizard now shows correct permission status matching actual system state
-- UI consistency restored: green checkmarks when service works
-- Architecture protected with rigorous documentation
-
-### ADR-008: UI Permission Detection Consistency (CRITICAL)
-**Decision:** Remove all Oracle overrides from SystemStatusChecker to ensure UI consistency  
-**Status:** ✅ COMPLETED (commit bbdd053 - September 1, 2025)  
-**Problem:** Different UI components showed conflicting permission status  
-**Evidence:**
-- Main screen: Green checkmark (Oracle result)
-- Wizard screens: Red X marks (SystemStatusChecker overrides)
-- User confusion: "Permission screens inconsistent - which is correct?"
-**Root Cause:** Commit 7f68821 added Oracle overrides to SystemStatusChecker that were never removed when Oracle was fixed in commit 8445b36  
-**Solution:**
-- ✅ Removed "TCC Domain Mismatch" logic from SystemStatusChecker
-- ✅ Removed "HARD EVIDENCE OVERRIDE" log parsing logic
-- ✅ SystemStatusChecker now trusts Oracle results unconditionally
-- ✅ Added 25-line anti-regression comment with commit references
-**Architecture Rule:** ALL UI components MUST use Oracle as single source of truth  
-**Components Verified:**
-- StartupValidator (main screen) → Oracle ✅
-- SystemStatusChecker (wizard) → Oracle (without overrides) ✅  
-- ContentView indicators → Oracle ✅
-**Prevention:** Extensive source code warnings at exact regression location (SystemStatusChecker:338-365)  
-**Consequences:**
-- UI consistency restored across all permission indicators
-- Single source of truth architecture maintained
-- Future regression prevented with rigorous documentation
-
-### ADR-009: Deterministic UI Activation — Split UI App from Background Agent
-**Decision:** Keep the main app purely UI (activationPolicy .regular, no headless mode). Move background/headless responsibilities to a separate helper (user-level agent), and consider a minimal privileged helper for admin tasks.  
-**Status:** Phase 1 implemented (November 2025); Phase 2 under consideration  
-**Problem:** Some users observed that launching KeyPath from Finder showed no main window until clicking the Dock icon. Root causes:
-- Finder’s “open” event can target an existing headless/accessory instance of the same binary (started by a LaunchAgent), which is not front‑eligible.
-- Early show/activate attempts before the app is truly active can be ignored; password prompts (admin flows) can also preempt first‑window fronting.
-
-**Context & Evidence:**
-- We migrated to AppKit window management and added activation gating/priming. This stabilized most scenarios, but Finder→headless collisions can still suppress first‑window appearance.
-- Logs show clean first‑activation fronting when the UI binary runs in .regular mode; problems correlate with accessory/headless runs and admin prompts racing activation.
-
-**Chosen Direction:**
-- Main UI (KeyPath.app): UI‑only. Never runs with `--headless` or `.accessory`. Finder/Dock always starts this process; first activation fronts the window deterministically.
-- Background helper (KeyPathAgent, user-level LaunchAgent): owns non‑UI background tasks (config watching, light health checks, notifications/orchestration). No windows; no activation.
-- Privileged helper (SMAppService-based): very small, async, and bounded surface for admin operations (install/update LaunchDaemons, privileged file writes, kickstarts). Replaces AppleScript prompts and reduces focus‑stealing during first launch.
-
-**Consequences:**
-- Deterministic Finder/Dock behavior; main window appears reliably without extra clicks.
-- Clear separation of concerns; fewer activation races and no reliance on `orderFrontRegardless` beyond rare edge cases.
-- Slightly more build/runtime components (UI app + agent + optional helper) but each is simpler and more reliable.
-- Kanata LaunchDaemon architecture remains unchanged; remapping continues at boot independent of UI.
-
-**Alternatives Considered:**
-- Keep single binary with headless flag and continue layering activation fallbacks. Rejected: fragile and repeatedly regresses on OS changes and Spaces/Stage Manager nuances.
-- Return to SwiftUI WindowGroup. Rejected: prior unpredictability under Finder activation and reopen paths.
-
-**Migration Plan (Phased):**
-1) Short term (Implemented): Disable the LaunchAgent that runs the UI binary headless. The app auto-disables any legacy LaunchAgent on launch. Keep LaunchDaemon for kanata.  
-2) Medium term (Optional): Introduce a small KeyPathAgent (user-level) for background conveniences; communicate via DistributedNotifications/XPC/file signals.  
-3) Long term (Optional): Maintain a minimal SMAppService privileged helper for admin flows; keep the API surface tiny and asynchronous to avoid the XPC pitfalls called out earlier in this document.
-
-Note on Phase 2: A user-level agent can consolidate Input Monitoring to a branded process and further decouple UI from background work, but it reintroduces tap-ownership considerations and increases QA surface. Proceed only if the UX benefit outweighs the added complexity.
-
-**Risks & Mitigations:**
-- XPC/SMJobBless complexity: mitigate by keeping the helper’s API minimal, time‑bounded, and non‑blocking; use Authorization Services interim if needed.
-- Extra targets to maintain: offset by simpler responsibilities and reduced UI fragility.
-
-**Success Criteria:**
-- Finder launch consistently shows the main window (no Dock click required).
-- No background/headless state prevents UI activation.
-- Admin prompts never race the first window; admin work can run post‑activation or in a helper.
-
----
-
-## ⚠️ Final Warning
-
-**This architecture represents months of debugging complex macOS integration issues. Every design decision solves specific edge cases discovered through real-world usage.**
-
-**Before making architectural changes:**
-1. Review git history for the specific component  
-2. Run full integration test suite
-3. Test on multiple macOS versions
-4. Verify Oracle consistency is maintained  
-5. Confirm wizard navigation works for all edge cases
-
-**The system works reliably because of this architecture, not despite it.**
-
----
-
-*Last Updated: September 1, 2025*  
-*Architecture Version: 2.5 (UI Permission Consistency Restored, Regression Prevention Complete)*
+## Core Architectural Principles
+
+### 1. PermissionOracle: Single Source of Truth
+KeyPath uses a dedicated Actor, `PermissionOracle`, to manage the complex state of macOS permissions.
+*   **Apple APIs First**: We trust `IOHIDCheckAccess` from the GUI context as the authoritative source.
+*   **TCC Fallback**: We query the TCC database only when Apple APIs return "Unknown", typically during initial setup chicken-and-egg scenarios.
+*   **Caching**: Results are cached for ~1.5s to balance UI responsiveness with system load.
+*   **Principle**: Never bypass the Oracle. If the Oracle says permission is denied, the UI must reflect that, even if other heuristics suggest otherwise.
+
+### 2. State-Driven Installation Wizard
+The installation wizard is not a linear script but a state machine.
+*   **Pure Function Detection**: `SystemStatusChecker` examines the system state (permissions, drivers, processes) without side effects.
+*   **Deterministic Navigation**: `WizardNavigationEngine` maps the detected state + current issues to the exact page the user needs to see.
+*   **Auto-Fixer**: Atomic, idempotent actions (e.g., `restartVirtualHIDDaemon`) resolve specific issues without brittle scripting.
+
+### 3. Service Architecture (LaunchDaemons)
+KeyPath relies on system-level persistence via `launchd`.
+*   **Kanata Service**: `com.keypath.kanata` runs the `kanata` binary as root.
+*   **VirtualHID Services**: Separate services manage the kernel driver connection.
+*   **Why Split?**: Allows granular health checks. If the driver crashes, we can restart just the driver service without killing the main app or the remapping engine.
+
+### 4. Process Lifecycle Management
+We use a `PID file` strategy to track ownership of the `kanata` process.
+*   **Ownership**: We write a PID file when we start `kanata`.
+*   **Conflict Detection**: We check for running `kanata` processes that *don't* match our PID. These are flagged as "external conflicts" (e.g., a user running `kanata` in a terminal).
+*   **Recovery**: On startup, we check for orphaned PID files or processes and clean them up.
+
+## Critical Implementation Details
+
+### Permission Checking
+We check permissions from the **GUI context** (User Session), not the Root Daemon context.
+*   **Reason**: macOS `root` processes often cannot self-report TCC status accurately due to "responsible process" inheritance rules.
+*   **Pattern**: The UI checks if it *could* listen to keystrokes. If yes, we assume the root daemon (which has even more power) can too, provided it is launched correctly.
+
+### Inter-Process Communication (IPC)
+Communication between the UI and the Root Daemon happens via **UDP**.
+*   **Protocol**: Lightweight JSON payloads.
+*   **Performance**: < 100ms latency for status updates.
+*   **Usage**: Sending config reloads, receiving "heartbeat" status updates.
+
+## Project Structure
+
+*   `Sources/KeyPathAppKit`: The monolithic library containing most UI and Logic.
+*   `Sources/KeyPathHelper`: The privileged helper tool for admin tasks.
+*   `Sources/KeyPathPermissions`: The Oracle and permission logic.
+*   `Sources/KeyPathDaemonLifecycle`: Service management and PID logic.
+*   `Scripts/`: Build, test, and maintenance scripts.
+
+## Development Guidelines
+
+1.  **Logging**: Use `AppLogger`. Start logs with emojis for readability (🚀 start, ✅ success, ❌ error).
+2.  **Concurrency**: Use Swift 6 concurrency (`async`/`await`, `Actor`). Avoid completion handlers.
+3.  **Tests**: Run `./test.sh` before committing. Do not use `sudo` in tests; mock the system environment.

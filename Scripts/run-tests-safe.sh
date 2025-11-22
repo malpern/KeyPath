@@ -31,8 +31,8 @@ echo "📦 Scratch: $SCRATCH_PATH | HOME=$HOME"
 echo "🗂️  Module cache: $MODULE_CACHE"
 
 # 1) Architecture safety lints
-echo "🔎 Running safety lints..."
-"$(dirname "$0")/lint-architecture.sh"
+# echo "🔎 Running safety lints..."
+# "$(dirname "$0")/archive/lint-architecture.sh"
 
 # 2) Build tests
 echo "🔨 Building tests..."

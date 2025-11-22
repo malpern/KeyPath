@@ -15,9 +15,9 @@ struct WizardKarabinerComponentsPage: View {
   @State private var fixingIssues: Set<UUID> = []
   @State private var showingInstallationGuide = false
   @State private var lastDriverFixNote: String?
+  @State private var lastServiceFixNote: String?
   @State private var showAllItems = false
-  @State private var isDriverFixLoading = false
-  @State private var isServicesFixLoading = false
+  @State private var isCombinedFixLoading = false
   @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
   var body: some View {
@@ -110,36 +110,38 @@ struct WizardKarabinerComponentsPage: View {
 
           // Component details for error state
           VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
-            // Show Karabiner Driver only if showAllItems OR if it has issues
-            if showAllItems || componentStatus(for: .driver) != .completed {
+            // Combined row for Driver + Services
+            if showAllItems || componentStatus(for: .driver) != .completed
+              || componentStatus(for: .backgroundServices) != .completed
+            {
               HStack(spacing: 12) {
                 Image(
-                  systemName: componentStatus(for: .driver) == .completed
+                  systemName: combinedStatus == .completed
                     ? "checkmark.circle.fill" : "xmark.circle.fill"
                 )
-                .foregroundColor(componentStatus(for: .driver) == .completed ? .green : .red)
+                .foregroundColor(combinedStatus == .completed ? .green : .red)
                 HStack(spacing: 0) {
-                  Text("Karabiner Driver")
+                  Text("Karabiner Driver & Services")
                     .font(.headline)
                     .fontWeight(.semibold)
-                  Text(" - Virtual keyboard driver")
+                  Text(" - Virtual keyboard driver and Login Items")
                     .font(.headline)
                     .fontWeight(.regular)
                 }
                 Spacer()
-                if componentStatus(for: .driver) != .completed {
+                if combinedStatus != .completed {
                   Button("Fix") {
-                    handleKarabinerDriverFix()
+                    handleCombinedFix()
                   }
                   .buttonStyle(
-                    WizardDesign.Component.SecondaryButton(isLoading: isDriverFixLoading))
+                    WizardDesign.Component.SecondaryButton(isLoading: isCombinedFixLoading))
                   .scaleEffect(0.8)
-                  .disabled(isDriverFixLoading)
+                  .disabled(isCombinedFixLoading)
                 }
               }
-              .help(driverIssues.asTooltipText())
+              .help(combinedTooltipText)
 
-              if let note = lastDriverFixNote, componentStatus(for: .driver) != .completed {
+              if let note = combinedNote, combinedStatus != .completed {
                 Text("Last fix: \(note)")
                   .font(.footnote)
                   .foregroundColor(.secondary)
@@ -147,36 +149,6 @@ struct WizardKarabinerComponentsPage: View {
               }
             }
 
-            // Show Background Services only if showAllItems OR if it has issues
-            if showAllItems || componentStatus(for: .backgroundServices) != .completed {
-              HStack(spacing: 12) {
-                Image(
-                  systemName: componentStatus(for: .backgroundServices) == .completed
-                    ? "checkmark.circle.fill" : "xmark.circle.fill"
-                )
-                .foregroundColor(
-                  componentStatus(for: .backgroundServices) == .completed ? .green : .red)
-                HStack(spacing: 0) {
-                  Text("Background Services")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                  Text(" - Login Items for automatic startup")
-                    .font(.headline)
-                    .fontWeight(.regular)
-                }
-                Spacer()
-                if componentStatus(for: .backgroundServices) != .completed {
-                  Button("Fix") {
-                    handleBackgroundServicesFix()
-                  }
-                  .buttonStyle(
-                    WizardDesign.Component.SecondaryButton(isLoading: isServicesFixLoading))
-                  .scaleEffect(0.8)
-                  .disabled(isServicesFixLoading)
-                }
-              }
-              .help(backgroundServicesIssues.asTooltipText())
-            }
           }
           .frame(maxWidth: .infinity)
           .padding(WizardDesign.Spacing.cardPadding)
@@ -217,17 +189,45 @@ struct WizardKarabinerComponentsPage: View {
   }
 
   private var driverIssues: [WizardIssue] {
-    // Filter for driver-related issues (VHID, driver extension, etc.)
     issues.filter { issue in
       issue.category == .installation && issue.identifier.isVHIDRelated
     }
   }
 
   private var backgroundServicesIssues: [WizardIssue] {
-    // Filter for background services issues
     issues.filter { issue in
       issue.category == .backgroundServices
     }
+  }
+
+  private var combinedStatus: InstallationStatus {
+    // If either driver or services failed, show failed; else if any incomplete, show pending
+    let driverStatus = componentStatus(for: .driver)
+    let serviceStatus = componentStatus(for: .backgroundServices)
+
+    if driverStatus == .failed || serviceStatus == .failed {
+      return .failed
+    }
+    if driverStatus == .completed && serviceStatus == .completed {
+      return .completed
+    }
+    return .inProgress
+  }
+
+  private var combinedNote: String? {
+    // Prefer latest note (services > driver)
+    lastServiceFixNote ?? lastDriverFixNote
+  }
+
+  private var combinedTooltipText: String {
+    var parts: [String] = []
+    if !driverIssues.isEmpty {
+      parts.append("Driver: \(driverIssues.asTooltipText())")
+    }
+    if !backgroundServicesIssues.isEmpty {
+      parts.append("Services: \(backgroundServicesIssues.asTooltipText())")
+    }
+    return parts.isEmpty ? "No issues detected" : parts.joined(separator: "\n")
   }
 
   private func componentStatus(for component: KarabinerComponent) -> InstallationStatus {
@@ -313,35 +313,46 @@ struct WizardKarabinerComponentsPage: View {
 
   /// Smart handler for Karabiner Driver Fix button
   /// Detects if Karabiner is installed vs needs installation
-  private func handleKarabinerDriverFix() {
-    guard !isDriverFixLoading else { return }
-    isDriverFixLoading = true
+  private func handleCombinedFix() {
+    guard !isCombinedFixLoading else { return }
+    isCombinedFixLoading = true
     let isInstalled = kanataManager.isKarabinerDriverInstalled()
 
     Task { @MainActor in
-      defer { isDriverFixLoading = false }
+      defer { isCombinedFixLoading = false }
 
+      // 1) Driver install/repair (always if missing, repair if unhealthy)
       if isInstalled {
         AppLogger.shared.log(
           "🔧 [Karabiner Fix] Driver installed but having issues - attempting repair")
-        performAutomaticDriverRepair()
-        return
-      }
-
-      AppLogger.shared.log(
-        "🔧 [Karabiner Fix] Driver not installed - attempting automatic install via helper (up to 2 attempts)"
-      )
-      let ok = await attemptAutoInstallDriver(maxAttempts: 2)
-      if ok {
-        AppLogger.shared.log("✅ [Karabiner Fix] Automatic driver install succeeded")
-        lastDriverFixNote = formattedStatus(success: true)
-        onRefresh()
+        let ok = await performAutomaticDriverRepair()
+        if ok {
+          lastDriverFixNote = formattedStatus(success: true)
+        } else {
+          lastDriverFixNote = formattedStatus(success: false)
+        }
       } else {
         AppLogger.shared.log(
-          "❌ [Karabiner Fix] Automatic driver install failed twice - showing manual guide")
-        lastDriverFixNote = formattedStatus(success: false)
-        showingInstallationGuide = true
+          "🔧 [Karabiner Fix] Driver not installed - attempting automatic install via helper (up to 2 attempts)"
+        )
+        let ok = await attemptAutoInstallDriver(maxAttempts: 2)
+        lastDriverFixNote = formattedStatus(success: ok)
+        if !ok {
+          showingInstallationGuide = true
+          return
+        }
       }
+
+      // 2) Services repair/install (only if driver succeeded or already healthy)
+      let driverHealthy = componentStatus(for: .driver) == .completed
+      if driverHealthy {
+        let serviceOk = await performAutomaticServiceRepair()
+        lastServiceFixNote = formattedStatus(success: serviceOk)
+      } else {
+        lastServiceFixNote = formattedStatus(success: false)
+      }
+
+      await refreshAndWait()
     }
   }
 
@@ -388,41 +399,10 @@ struct WizardKarabinerComponentsPage: View {
 
   /// Smart handler for Background Services Fix button
   /// Attempts repair first, falls back to system settings
-  private func handleBackgroundServicesFix() {
-    guard !isServicesFixLoading else { return }
-    let driverHealthy = componentStatus(for: .driver) == .completed
-    if !driverHealthy {
-      AppLogger.shared.log(
-        "💡 [Background Services Fix] Driver not healthy; redirecting to driver fix first")
-      handleKarabinerDriverFix()
-      return
-    }
-    // If Login Items approval is pending, prompt once and skip repeated installs
-    let kanataState = KanataDaemonManager.determineServiceManagementState()
-    if kanataState == .smappservicePending {
-      AppLogger.shared.log(
-        "💡 [Background Services Fix] SMAppService pending approval - prompting user")
-      toastApprovalNeeded()
-      return
-    }
-    isServicesFixLoading = true
-    let isInstalled = kanataManager.isKarabinerDriverInstalled()
-
-    if isInstalled {
-      // Try automatic repair first
-      AppLogger.shared.log("🔧 [Background Services Fix] Attempting automatic service repair")
-      performAutomaticServiceRepair()
-    } else {
-      // No driver installed - open system settings for manual configuration
-      AppLogger.shared.log("💡 [Background Services Fix] No driver - opening Login Items settings")
-      openLoginItemsSettings()
-      isServicesFixLoading = false
-    }
-  }
+  // Legacy handlers removed in favor of combined flow
 
   /// Attempts automatic repair of Karabiner driver issues
-  private func performAutomaticDriverRepair() {
-    Task { @MainActor in
+  private func performAutomaticDriverRepair() async -> Bool {
       // Fix Session envelope for traceability
       let session = UUID().uuidString
       let t0 = Date()
@@ -463,31 +443,28 @@ struct WizardKarabinerComponentsPage: View {
 
       if success {
         // Run a fresh validation synchronously before leaving the page to avoid stale summary red states.
-        await refreshAndWait()
+        Task {
+          await refreshAndWait()
+        }
       } else {
         showingInstallationGuide = true
       }
-      isDriverFixLoading = false
+      return success
     }
-  }
 
   /// Attempts automatic repair of background services
-  private func performAutomaticServiceRepair() {
-    Task { @MainActor in
-      // Use the wizard's auto-fix capability
+  private func performAutomaticServiceRepair() async -> Bool {
+    AppLogger.shared.log("🔧 [Service Repair] Installing/repairing LaunchDaemon services")
+    let success = await performAutoFix(.installLaunchDaemonServices)
 
-      AppLogger.shared.log("🔧 [Service Repair] Installing/repairing LaunchDaemon services")
-      let success = await performAutoFix(.installLaunchDaemonServices)
-
-      if success {
-        AppLogger.shared.log("✅ [Service Repair] Service repair succeeded")
-        await refreshAndWait()
-      } else {
-        AppLogger.shared.log("❌ [Service Repair] Service repair failed - opening system settings")
-        openLoginItemsSettings()
-      }
-      isServicesFixLoading = false
+    if success {
+      AppLogger.shared.log("✅ [Service Repair] Service repair succeeded")
+      await refreshAndWait()
+    } else {
+      AppLogger.shared.log("❌ [Service Repair] Service repair failed - opening system settings")
+      openLoginItemsSettings()
     }
+    return success
   }
 
   /// Perform auto-fix using the wizard's auto-fix capability

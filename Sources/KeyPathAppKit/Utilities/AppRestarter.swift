@@ -11,7 +11,7 @@ enum AppRestarter {
             userDefaults = defaults
         }
     #else
-        private static let userDefaults: UserDefaults = .standard
+        private nonisolated(unsafe) static let userDefaults: UserDefaults = .standard
     #endif
     /// Restarts the application after a brief delay
     /// - Parameter afterDelay: Delay in seconds before restarting (default: 0.5)

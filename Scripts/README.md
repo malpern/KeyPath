@@ -1,42 +1,18 @@
 # Scripts
 
 ## Supported commands (recommended)
-- `./build.sh` — Canonical build & sign entry
-- `./Scripts/run-tests.sh` — Run the full test suite
+- `./build.sh` — Canonical build & sign entry (root)
+- `./test.sh` — Run the full test suite (root)
 
-## Production-like build & deploy
-```bash
-./build.sh
-cp -R dist/KeyPath.app /Applications/
-osascript -e 'tell application "KeyPath" to quit' || true
-open /Applications/KeyPath.app
-```
-
-## Build & Release
-- `build.sh` - Canonical build (signing included)
+## Scripts in this directory
+- `build-and-sign.sh` - The implementation of the build process
+- `run-tests-safe.sh` - The safe test runner implementation
+- `uninstall.sh` - Uninstaller script
+- `archive/` - Deprecated or historical scripts
 
 ## Testing
-- `run-tests.sh` - All tests
-- `test-*.sh` - Individual test suites
+- `test.sh` (in root) - All tests
+- `test-*.sh` (in Scripts/) - Individual test suites
 
 ## Development Setup
-Run `./setup-passwordless-testing.sh` for testing setup. Grant Accessibility and Input Monitoring permissions to Terminal/Xcode in System Settings.
-- **clean-reinstall-kanata.sh** - Clean reinstall of Kanata system
-- **reinstall-kanata.sh** - Reinstall Kanata integration
-- **reset-kanata-permissions.sh** - Reset Kanata permissions
-- **uninstall.sh** - Complete uninstall
-
-## Maintenance
-
-- **cleanup-old-services.sh** - Clean up old service files
-- **setup-git.sh** - Set up git configuration
-- **validate-project.sh** - Validate project structure
-
-## Usage
-
-All scripts should be run from the project root:
-
-```bash
-./build.sh
-./Scripts/run-tests.sh
-```
+Most development scripts have been moved to `archive/`.
