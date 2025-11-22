@@ -21,14 +21,14 @@ public struct KanataConfiguration: Sendable {
     self.path = path
   }
 
-  /// Generate configuration content from key mappings
+  /// Generate configuration content from key mappings (adds default system collections when absent).
   public static func generateFromMappings(_ mappings: [KeyMapping]) -> String {
     let collections = [RuleCollection].collection(named: "Custom Mappings", mappings: mappings)
     return generateFromCollections(collections)
   }
 
   /// Generate configuration content from rule collections.
-  /// Currently flattens to enabled mappings for backward compatibility.
+  /// Flattens enabled collections to `defsrc`/`deflayer` for backward compatibility with Kanata config format.
   public static func generateFromCollections(_ collections: [RuleCollection]) -> String {
     var resolvedCollections = collections.isEmpty ? defaultSystemCollections : collections
     if !resolvedCollections.contains(where: { $0.id == RuleCollectionIdentifier.macFunctionKeys }) {
@@ -806,7 +806,7 @@ public final class ConfigurationService: FileConfigurationProviding {
     return backupPath
   }
 
-  /// Repair configuration using rule-based strategies
+  /// Repair configuration using rule-based strategies (keeps output Kanata-compatible).
   public func repairConfiguration(config: String, errors: [String], mappings: [KeyMapping])
     async throws
     -> String
