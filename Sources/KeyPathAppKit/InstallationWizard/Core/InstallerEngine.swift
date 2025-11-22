@@ -4,9 +4,11 @@ import KeyPathDaemonLifecycle
 import KeyPathPermissions
 import KeyPathWizardCore
 
-/// Façade for installer operations
-/// Provides a simple, unified API for installation, repair, and uninstallation
-/// Wraps existing installer logic (LaunchDaemonInstaller, WizardAutoFixer, etc.)
+  /// Façade for installer operations.
+  ///
+  /// - Provides a stable, unified API for install/repair/uninstall flows.
+  /// - Wraps existing installer logic (LaunchDaemonInstaller, WizardAutoFixer, etc.).
+  /// - Backward-compatible with legacy wizard outputs (SystemContext/SystemContextAdapter).
 @MainActor
 public final class InstallerEngine {
   // MARK: - Dependencies
@@ -33,14 +35,12 @@ public final class InstallerEngine {
     AppLogger.shared.log("🔧 [InstallerEngine] Initialized")
   }
 
-  /// Create a new installer engine (public API)
-  /// No DI for callers outside the module
+  /// Public initializer for app/CLI callers (no DI needed).
   public convenience init() {
     self.init(processLifecycleManager: ProcessLifecycleManager(), kanataManager: nil)
   }
 
-  /// Internal convenience initializer that threads through a live KanataManager
-  /// Used by the wizard to surface real-time service state
+  /// Internal convenience initializer used by the wizard to surface live Kanata health.
   convenience init(kanataManager: KanataManager) {
     self.init(processLifecycleManager: ProcessLifecycleManager(), kanataManager: kanataManager)
   }
@@ -81,9 +81,9 @@ public final class InstallerEngine {
     return context
   }
 
-  /// Create an execution plan without running it
-  /// Returns: Ordered list of operations tailored to the observed context.
-  /// If prerequisites are unmet, the plan will be marked as `.blocked` with details about missing requirements.
+  /// Create an execution plan without running it.
+  /// Returns an ordered list of operations tailored to the observed context. If prerequisites are unmet, the plan
+  /// is marked `.blocked` with the missing requirement.
   public func makePlan(for intent: InstallIntent, context: SystemContext) async -> InstallPlan {
     AppLogger.shared.log("📋 [InstallerEngine] Starting makePlan(for: \(intent), context:)")
 
@@ -613,8 +613,8 @@ public final class InstallerEngine {
     return installer.isServiceHealthy(serviceID: criteria.serviceID)
   }
 
-  /// Convenience wrapper that chains inspectSystem() → makePlan() → execute() internally
-  /// Useful for CLI "one-button repair" automation or simple GUI flows
+  /// Convenience wrapper that chains inspectSystem() → makePlan() → execute() internally.
+  /// Useful for CLI "one-button repair" automation or simple GUI flows.
   public func run(intent: InstallIntent, using broker: PrivilegeBroker) async -> InstallerReport {
     AppLogger.shared.log("🚀 [InstallerEngine] Starting run(intent: \(intent), using:)")
 
