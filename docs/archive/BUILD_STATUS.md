@@ -63,7 +63,7 @@ Ensure both dev and production-like builds pass tests.
   - Delete `--headless`/`KEYPATH_HEADLESS` handling
   - Remove `.accessory` activation path and headless-only startup branches
   - Simplify reopen/escalation logic that referenced headless mode
-- Following Release (N+2): Remove legacy LaunchAgent auto-cleanup
+- Following Release (N+2): Keep legacy LaunchAgent auto-cleanup in place; UI for legacy agent has been removed
   - Drop the proactive disable-on-launch migration path once the fleet is updated
 
 ## ⏱️ Time Investment So Far
@@ -88,4 +88,3 @@ Ensure both dev and production-like builds pass tests.
 - Removed 19 dead code references
 
 **Estimated remaining work for Option 1**: 30-60 minutes to make all Core types public
-
