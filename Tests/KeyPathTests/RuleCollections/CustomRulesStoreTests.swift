@@ -27,9 +27,13 @@ final class CustomRulesStoreTests: XCTestCase {
   }
 
   func testSaveAndLoadRoundTrip() async throws {
+    let fixedDate = Date(timeIntervalSince1970: 0)  // Truncated to seconds to survive ISO8601 encode/decode
     let rules = [
-      CustomRule(title: "Caps Escape", input: "caps", output: "escape"),
-      CustomRule(title: "Space Nav", input: "space", output: "nav", isEnabled: false),
+      CustomRule(
+        title: "Caps Escape", input: "caps", output: "escape", createdAt: fixedDate),
+      CustomRule(
+        title: "Space Nav", input: "space", output: "nav", isEnabled: false,
+        createdAt: fixedDate),
     ]
 
     try await store.saveRules(rules)

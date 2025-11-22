@@ -652,6 +652,10 @@ class ConfigurationServiceTests: XCTestCase {
       repairedConfig.contains("process-unmapped-keys yes"),
       "Repaired config should have safe defaults"
     )
+    XCTAssertTrue(
+      repairedConfig.contains("danger-enable-cmd yes"),
+      "Repaired config should include command key safety toggle"
+    )
   }
 
   func testRepairConfiguration_MismatchedLengths() async throws {
@@ -695,13 +699,15 @@ class ConfigurationServiceTests: XCTestCase {
     // Parse it back
     let parsed = try configService.parseConfigurationFromString(generatedConfig)
 
-    // Verify mappings match
-    XCTAssertEqual(parsed.keyMappings.count, originalMappings.count, "Should preserve all mappings")
+    // Verify original mappings are preserved (system defaults may add more)
     for original in originalMappings {
       let found = parsed.keyMappings.first { $0.input == original.input }
       XCTAssertNotNil(found, "Should find mapping for \(original.input)")
       XCTAssertEqual(found?.output, original.output, "Output should match for \(original.input)")
     }
+    XCTAssertGreaterThanOrEqual(
+      parsed.keyMappings.count, originalMappings.count,
+      "Generated config should not drop mappings (may include system defaults)")
   }
 
   // MARK: - Observer/Notification Tests

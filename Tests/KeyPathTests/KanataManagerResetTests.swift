@@ -15,9 +15,8 @@ final class KanataManagerResetTests: XCTestCase {
     let path = NSHomeDirectory() + "/.config/keypath/keypath.kbd"
     let written = try String(contentsOfFile: path, encoding: .utf8)
 
-    let expected = KanataConfiguration.generateFromMappings([
-      KeyMapping(input: "caps", output: "escape")
-    ])
+    let expected = KanataConfiguration.generateFromCollections(
+      KanataConfiguration.systemDefaultCollections)
 
     XCTAssertEqual(
       written.trimmingCharacters(in: .whitespacesAndNewlines),
