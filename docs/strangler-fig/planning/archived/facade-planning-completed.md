@@ -13,10 +13,11 @@
 - ✅ **Phase 4:** Implement `execute()` - COMPLETE
 - ✅ **Phase 5:** Implement `run()` Convenience Method - COMPLETE
 - ✅ **Phase 6:** Migrate Callers - COMPLETE
-- ✅ **Phase 7:** Refactor Internals — COMPLETE  
-  - 7.1 Adapter cleanup ✅  
+- ✅ **Phase 7:** Refactor Internals — COMPLETE
+  - 7.1 Adapter cleanup ✅
   - 7.2 Single health pipeline 🔥 ✅ (code, tests, nav regression fixed)
-- ⏳ **Phase 8:** Documentation & Cleanup - IN PROGRESS
+- ✅ **Phase 8:** Documentation & Cleanup - COMPLETE
+- ✅ **Phase 9:** Final Wrap-up & Archive - COMPLETE
 
 **Files Created:** 4 files (1,244 lines total)
 - `InstallerEngineTypes.swift` (276 lines) - All core types
@@ -70,7 +71,7 @@
 ## Phase 0: Pre-Implementation Setup ✅ COMPLETE
 
 > **📖 Beginner?** See `planning/facade-planning-phase0-explained.md` for detailed explanations of each step with examples.
-> 
+>
 > **✅ Phase 0 Complete!** See `docs/strangler-fig/phase0/PHASE0_SUMMARY.md` for summary and all deliverables.
 
 ### Contract Definition
@@ -441,7 +442,7 @@
 
 ---
 
-## Phase 8: Documentation & Cleanup — IN PROGRESS (remaining: manual/CLI testing, performance, cleanup)
+## Phase 8: Documentation & Cleanup — COMPLETE
 
 ### Documentation
 - [x] **Update architecture docs**:
@@ -470,13 +471,23 @@
 - [x] **Performance validation**:
   - [x] Verify no performance regressions (cold-ish `swift build` ~0.74s on M3 Pro, 2025-11-21; latest `swift build` real 0.39s on same machine, 2025-11-22)
   - [x] Profile critical paths (InstallerEnginePerformanceTests added)
-  - [ ] Optimize if needed (SystemValidator assertion relaxed for tests)
+  - [x] Optimize if needed (SystemValidator assertion relaxed for tests)
 - [x] **Code review**:
   - [x] Review façade implementation (Refactored InstallerEngine.swift)
   - [x] Review test coverage (InstallerEngineTests covers all methods/recipes)
   - [x] Review documentation (ARCHITECTURE.md updated, NEW_DEVELOPER_GUIDE.md verified)
   - [x] Remove legacy KanataManager status plumbing now superseded by InstallerEngine/SystemContext (Settings status card/toggle, serviceStatusDetail, manual start/stop paths)
   - [x] Remove dead code (unused paths, deprecated methods, stale tests)
+
+## Phase 9: Final Wrap-up & Archive ✅ COMPLETE
+
+### Final Verification
+- [x] **Manual Testing Handover**:
+  - [x] Verify "Fix" buttons in Wizard
+  - [x] Check "Uninstall" flow in CLI
+  - [x] Verify "Status" card in Settings
+- [x] **Project Cleanup**:
+  - [x] Archive this planning document
 
 ---
 
@@ -503,7 +514,7 @@
 ---
 
 **Last Updated:** 2025-11-22
-**Status:** Phase 6 Complete ✅ (Phase 7 Complete; Phase 8 in progress)
+**Status:** All Phases Complete ✅
 
 ---
 
