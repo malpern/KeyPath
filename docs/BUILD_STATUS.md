@@ -55,7 +55,7 @@ Ensure both dev and production-like builds pass tests.
 ## 🔄 Ongoing Work / Scheduled Follow-ups
 
 ### ADR-009: Deterministic UI Activation
-- Phase 1 (Implemented): UI no longer runs headless; app auto-disables any legacy LaunchAgent on launch; Settings provides a "Disable Legacy Agent" button.
+- Phase 1 (Implemented): UI no longer runs headless; app auto-disables any legacy LaunchAgent on launch; Settings no longer exposes the legacy LaunchAgent toggle (cleanup complete).
 - Phase 2 (Optional, under consideration): A lightweight user-level agent (Login Item) for background conveniences and possibly a single branded Input Monitoring entry. Tradeoffs: tap ownership, larger QA surface. Only proceed if benefits clearly outweigh complexity.
 
 ### Removal Schedule
@@ -88,5 +88,4 @@ Ensure both dev and production-like builds pass tests.
 - Removed 19 dead code references
 
 **Estimated remaining work for Option 1**: 30-60 minutes to make all Core types public
-
 

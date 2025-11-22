@@ -53,7 +53,6 @@ Convert all app-modal alerts and permission dialogs to window-attached sheets fo
    - Button order: ⚠️ Cancel left, Destructive right - needs review
    - Issue: App-modal
 
-4. **LaunchAgentSettingsView.swift**
    - Line 71: "Launch Agent Error" alert
    - Button order: Unknown
    - Issue: App-modal
@@ -188,7 +187,7 @@ Use SwiftUI `.confirmationDialog()` or `.sheet()` when:
    - **Close Wizard**: Use SwiftUI `.confirmationDialog()` (user-initiated)
    - Fix button order: Cancel left, Destructive right
 
-4. **LaunchAgentSettingsView.swift** (1 alert)
+4. **LaunchAgentSettingsView.swift** (removed in strangler cleanup)
    - **Launch Agent Error**: Convert to AppKit sheet (error condition)
    - Use `AlertSheetHelper`
 
