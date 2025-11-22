@@ -63,7 +63,7 @@ Ensure both dev and production-like builds pass tests.
   - Delete `--headless`/`KEYPATH_HEADLESS` handling
   - Remove `.accessory` activation path and headless-only startup branches
   - Simplify reopen/escalation logic that referenced headless mode
-- Following Release (N+2): Keep legacy LaunchAgent auto-cleanup in place; UI for legacy agent has been removed
+- Following Release (N+2): Legacy LaunchAgent fully removed (UI removed; code deleted)
   - Drop the proactive disable-on-launch migration path once the fleet is updated
 
 ## ⏱️ Time Investment So Far
