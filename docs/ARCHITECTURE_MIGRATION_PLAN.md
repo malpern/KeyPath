@@ -4,6 +4,13 @@
 
 This document outlines the migration from the current conflict-prone, multi-instance architecture to a clean, state-driven architecture that eliminates race conditions and provides predictable behavior.
 
+### InstallerEngine Façade (Status: Complete; Callers Migrated)
+- Façade API: `inspectSystem`, `makePlan`, `execute`, `run` (see `InstallerEngine.swift`)
+- Feature flag: `KEYPATH_USE_INSTALLER_ENGINE=1` routes wizard/CLI/manager through the façade
+- Health pipeline: launchctl PID + TCP probe + freshness guard shared by wizard & main app
+- Backward compatibility: output issues and plans remain compatible with legacy config behavior
+- Next (Phase 8): finalize docs and retire remaining legacy adapters once stable
+
 **Problem**: Multiple Kanata processes are started due to uncoordinated initialization paths, auto-conflict resolution, and race conditions between UI components.
 
 **Solution**: Centralized state management with explicit user actions, comprehensive logging, and full test coverage.

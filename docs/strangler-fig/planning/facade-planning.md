@@ -448,6 +448,7 @@
   - [x] Document façade design in `ARCHITECTURE.md`
   - [x] Update `NEW_DEVELOPER_GUIDE.md` with façade usage
   - [x] Add code examples
+- [x] Add façade migration snippet to `ARCHITECTURE_MIGRATION_PLAN.md`
 - [ ] **Add inline documentation**:
   - [ ] Document public API methods
   - [ ] Document type contracts
