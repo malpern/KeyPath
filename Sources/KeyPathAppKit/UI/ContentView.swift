@@ -327,11 +327,6 @@ struct ContentView: View {
     }
     .onChange(of: kanataManager.showWizard) { _, shouldShow in
       AppLogger.shared.log("🔍 [ContentView] showWizard changed to: \(shouldShow)")
-      AppLogger.shared.log(
-        "🔍 [ContentView] Current kanataManager state: \(kanataManager.currentState.rawValue)"
-      )
-      AppLogger.shared.log(
-        "🔍 [ContentView] Current errorReason: \(kanataManager.errorReason ?? "nil")")
 
       if shouldShow, !canPresentModals {
         pendingShowWizardRequest = true
