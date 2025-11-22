@@ -485,6 +485,9 @@ struct StatusSettingsTabView: View {
     .task {
       await refreshStatus()
     }
+    .onReceive(kanataManager.$currentState) { _ in
+      Task { await refreshStatus() }
+    }
     .onReceive(NotificationCenter.default.publisher(for: .wizardClosed)) { _ in
       Task {
         await refreshStatus()
