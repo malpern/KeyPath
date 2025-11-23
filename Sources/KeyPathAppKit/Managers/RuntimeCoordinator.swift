@@ -169,7 +169,12 @@ class RuntimeCoordinator {
     var validationError: ConfigValidationError?
 
     // Save progress feedback
-    var saveStatus: SaveStatus = .idle
+    var saveStatus: SaveStatus = .idle {
+        didSet {
+            notifyStateChanged()
+        }
+    }
+
 
     // MARK: - UI State Snapshot (Phase 4: MVVM)
 
@@ -556,7 +561,7 @@ class RuntimeCoordinator {
     private func updateActiveLayerName(_ rawName: String) {
         let normalized = rawName.isEmpty ? RuleCollectionLayer.base.kanataName : rawName
         let display = normalized.capitalized
-        AppLogger.shared.log(
+        AppLogger.shared.debug(
             "🎯 [RuntimeCoordinator] updateActiveLayerName: raw='\(rawName)' normalized='\(normalized)' display='\(display)' current='\(currentLayerName)'"
         )
 
