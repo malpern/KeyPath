@@ -147,7 +147,7 @@ struct IssueCardView: View {
     let issue: WizardIssue
     let onAutoFix: (() -> Void)?
     let isFixing: Bool
-    let kanataManager: KanataManager?
+    let kanataManager: RuntimeCoordinator?
 
     @State private var showingBackgroundServicesHelp = false
 

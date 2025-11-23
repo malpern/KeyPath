@@ -31,7 +31,7 @@ class WizardStateMachine: ObservableObject {
     // MARK: - Dependencies
 
     private var validator: SystemValidator?
-    private weak var kanataManager: KanataManager?
+    private weak var kanataManager: RuntimeCoordinator?
 
     // MARK: - Defensive State
 
@@ -44,8 +44,8 @@ class WizardStateMachine: ObservableObject {
         AppLogger.shared.log("🎯 [WizardStateMachine] Initialized")
     }
 
-    /// Configure with KanataManager (called after init)
-    func configure(kanataManager: KanataManager) {
+    /// Configure with RuntimeCoordinator (called after init)
+    func configure(kanataManager: RuntimeCoordinator) {
         self.kanataManager = kanataManager
 
         // Create validator with process manager

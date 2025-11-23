@@ -10,7 +10,7 @@ import XCTest
 public class UIAutomationFramework {
     // MARK: - Core Components
 
-    private let kanataManager: KanataManager
+    private let kanataManager: RuntimeCoordinator
     private let keyboardCapture: MockKeyboardCapture
     private var automationLog: [AutomationStep] = []
 
@@ -22,7 +22,7 @@ public class UIAutomationFramework {
 
     // MARK: - Initialization
 
-    public init(kanataManager: KanataManager, keyboardCapture: MockKeyboardCapture? = nil) {
+    public init(kanataManager: RuntimeCoordinator, keyboardCapture: MockKeyboardCapture? = nil) {
         self.kanataManager = kanataManager
         self.keyboardCapture = keyboardCapture ?? MockKeyboardCapture()
     }

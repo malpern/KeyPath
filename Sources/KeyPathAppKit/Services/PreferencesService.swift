@@ -86,7 +86,7 @@ final class PreferencesService: @unchecked Sendable {
         didSet {
             UserDefaults.standard.set(verboseKanataLogging, forKey: Keys.verboseKanataLogging)
             AppLogger.shared.log("📊 [Preferences] verboseKanataLogging = \(verboseKanataLogging)")
-            // Post notification so KanataManager can restart with new flags
+            // Post notification so RuntimeCoordinator can restart with new flags
             NotificationCenter.default.post(name: .verboseLoggingChanged, object: nil)
         }
     }

@@ -47,13 +47,13 @@ class SystemValidator {
     private let launchDaemonInstaller: LaunchDaemonInstaller
     private let vhidDeviceManager: VHIDDeviceManager
     private let processLifecycleManager: ProcessLifecycleManager
-    private weak var kanataManager: KanataManager?
+    private weak var kanataManager: RuntimeCoordinator?
 
     init(
         launchDaemonInstaller: LaunchDaemonInstaller = LaunchDaemonInstaller(),
         vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(),
         processLifecycleManager: ProcessLifecycleManager,
-        kanataManager: KanataManager? = nil
+        kanataManager: RuntimeCoordinator? = nil
     ) {
         self.launchDaemonInstaller = launchDaemonInstaller
         self.vhidDeviceManager = vhidDeviceManager

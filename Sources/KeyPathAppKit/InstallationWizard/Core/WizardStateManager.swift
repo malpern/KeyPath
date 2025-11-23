@@ -3,13 +3,21 @@ import KeyPathCore
 import KeyPathDaemonLifecycle
 import KeyPathWizardCore
 
+struct WizardSnapshotRecord {
+    let state: WizardSystemState
+    let issues: [WizardIssue]
+}
+
 @MainActor
 class WizardStateManager: ObservableObject {
     // 🎯 NEW: Use InstallerEngine façade instead of SystemValidator directly
     private var installerEngine = InstallerEngine()
+    
+    // Cache for the last known wizard state
+    var lastWizardSnapshot: WizardSnapshotRecord?
 
-    func configure(kanataManager: KanataManager) {
-        // Recreate InstallerEngine with live KanataManager so state detection can
+    func configure(kanataManager: RuntimeCoordinator) {
+        // Recreate InstallerEngine with live RuntimeCoordinator so state detection can
         // trust the active TCP connection instead of treating Kanata as stopped.
         installerEngine = InstallerEngine(kanataManager: kanataManager)
         AppLogger.shared.log(

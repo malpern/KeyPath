@@ -4,7 +4,7 @@ import SwiftUI
 // MARK: - Permission Details Sheet
 
 struct PermissionDetailsSheet: View {
-    let kanataManager: KanataManager
+    let kanataManager: RuntimeCoordinator
     @Environment(\.dismiss) private var dismiss
     @State private var permissionDetails = ""
     @State private var isLoading = true
@@ -102,7 +102,7 @@ struct PermissionDetailsSheet: View {
 // MARK: - Input Monitoring Help Sheet
 
 struct InputMonitoringHelpSheet: View {
-    let kanataManager: KanataManager
+    let kanataManager: RuntimeCoordinator
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -198,7 +198,7 @@ struct InputMonitoringHelpSheet: View {
 // MARK: - Accessibility Help Sheet
 
 struct AccessibilityHelpSheet: View {
-    let kanataManager: KanataManager
+    let kanataManager: RuntimeCoordinator
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -281,7 +281,7 @@ struct AccessibilityHelpSheet: View {
 // MARK: - Background Services Help Sheet
 
 struct BackgroundServicesHelpSheet: View {
-    let kanataManager: KanataManager
+    let kanataManager: RuntimeCoordinator
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -452,7 +452,7 @@ struct BackgroundServicesHelpSheet: View {
 // MARK: - Karabiner Installation Guide Sheet
 
 struct KarabinerInstallationGuideSheet: View {
-    let kanataManager: KanataManager
+    let kanataManager: RuntimeCoordinator
     @Environment(\.dismiss) private var dismiss
     @State private var isCheckingStatus = false
 

@@ -4,20 +4,20 @@ import KeyPathDaemonLifecycle
 import KeyPathWizardCore
 import SwiftUI
 
-/// MVVM ViewModel for KanataManager
+/// MVVM ViewModel for RuntimeCoordinator
 ///
-/// This class provides a thin UI-focused layer between SwiftUI views and KanataManager.
-/// It owns all @Published properties for UI reactivity and delegates business logic to KanataManager.
+/// This class provides a thin UI-focused layer between SwiftUI views and RuntimeCoordinator.
+/// It owns all @Published properties for UI reactivity and delegates business logic to RuntimeCoordinator.
 ///
 /// Architecture:
 /// - ObservableObject for SwiftUI reactivity
-/// - All @Published properties moved from KanataManager
+/// - All @Published properties moved from RuntimeCoordinator
 /// - Thin adapter - no business logic
-/// - Observes KanataManager state changes
-/// - Delegates all actions to KanataManager
+/// - Observes RuntimeCoordinator state changes
+/// - Delegates all actions to RuntimeCoordinator
 @MainActor
 class KanataViewModel: ObservableObject {
-    // MARK: - Published Properties (moved from KanataManager)
+    // MARK: - Published Properties (moved from RuntimeCoordinator)
 
     // Core Status Properties
     @Published var lastError: String?
@@ -46,20 +46,20 @@ class KanataViewModel: ObservableObject {
 
     // MARK: - Private Properties
 
-    private let manager: KanataManager
+    private let manager: RuntimeCoordinator
     private var stateObservationTask: Task<Void, Never>?
 
     // MARK: - Manager Access
 
-    /// Provides access to the underlying KanataManager for business logic components
+    /// Provides access to the underlying RuntimeCoordinator for business logic components
     /// Use this sparingly - only when business logic components need direct manager access
-    var underlyingManager: KanataManager {
+    var underlyingManager: RuntimeCoordinator {
         manager
     }
 
     // MARK: - Initialization
 
-    init(manager: KanataManager) {
+    init(manager: RuntimeCoordinator) {
         self.manager = manager
         setupObservation()
     }
@@ -70,7 +70,7 @@ class KanataViewModel: ObservableObject {
 
     // MARK: - Observation Setup
 
-    /// Observe KanataManager state changes via AsyncStream (event-driven, not polling)
+    /// Observe RuntimeCoordinator state changes via AsyncStream (event-driven, not polling)
     /// This dramatically reduces unnecessary UI updates by only reacting to actual state changes
     private func setupObservation() {
         stateObservationTask = Task { @MainActor in
@@ -91,15 +91,71 @@ class KanataViewModel: ObservableObject {
         diagnostics = state.diagnostics
         lastProcessExitCode = state.lastProcessExitCode
         lastConfigUpdate = state.lastConfigUpdate
-        showingValidationAlert = state.showingValidationAlert
-        validationAlertTitle = state.validationAlertTitle
-        validationAlertMessage = state.validationAlertMessage
-        validationAlertActions = state.validationAlertActions
         saveStatus = state.saveStatus
         // Note: emergencyStopActivated is managed locally in ViewModel, not synced from manager
+
+        // Map validation error to alert properties
+        if let error = state.validationError {
+            showingValidationAlert = true
+
+            switch error {
+            case let .invalidStartup(errors, backupPath):
+                validationAlertTitle = "Configuration File Invalid"
+                validationAlertMessage = """
+                KeyPath detected errors in your configuration file and has automatically created a backup and restored default settings.
+
+                Errors found:
+                \(errors.joined(separator: "\n• "))
+
+                Your original configuration has been backed up to:
+                \(backupPath)
+
+                KeyPath is now using a default configuration (Caps Lock → Escape).
+                """
+                validationAlertActions = [
+                    ValidationAlertAction(title: "OK", style: .default) { [weak self] in
+                        self?.clearValidationError()
+                    },
+                    ValidationAlertAction(title: "Open Backup Location", style: .default) { [weak self] in
+                        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: backupPath)])
+                        self?.clearValidationError()
+                    }
+                ]
+
+            case let .saveFailed(title, errors):
+                validationAlertTitle = title
+                validationAlertMessage = """
+                KeyPath found errors in the configuration:
+
+                \(errors.joined(separator: "\n• "))
+
+                What would you like to do?
+                """
+                validationAlertActions = [
+                    ValidationAlertAction(title: "Cancel", style: .cancel) { [weak self] in
+                        self?.clearValidationError()
+                    },
+                    ValidationAlertAction(title: "Use Default Config", style: .destructive) { [weak self] in
+                        Task {
+                            try? await self?.resetToDefaultConfig()
+                            self?.clearValidationError()
+                        }
+                    }
+                ]
+            }
+        } else {
+            showingValidationAlert = false
+            validationAlertActions = []
+        }
     }
 
-    // MARK: - Action Delegation to KanataManager
+    private func clearValidationError() {
+        Task {
+            await manager.clearValidationError()
+        }
+    }
+
+    // MARK: - Action Delegation to RuntimeCoordinator
 
     // Note: Removed manual syncFromManager() calls - AsyncStream automatically updates UI
 
@@ -168,5 +224,19 @@ class KanataViewModel: ObservableObject {
 
     func updateStatus() async {
         await manager.updateStatus()
+    }
+}
+
+/// Actions available in validation error dialogs
+struct ValidationAlertAction: Identifiable {
+    let id = UUID()
+    let title: String
+    let style: ActionStyle
+    let action: () -> Void
+
+    enum ActionStyle {
+        case `default`
+        case cancel
+        case destructive
     }
 }

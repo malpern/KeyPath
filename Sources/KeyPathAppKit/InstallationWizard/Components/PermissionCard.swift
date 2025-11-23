@@ -9,7 +9,7 @@ struct PermissionCard: View {
     let appPath: String
     let status: InstallationStatus
     let permissionType: String
-    let kanataManager: KanataManager
+    let kanataManager: RuntimeCoordinator
 
     // Fixed trailing area width so status icons/buttons align across rows
     private let trailingAreaWidth: CGFloat = 160

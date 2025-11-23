@@ -162,7 +162,7 @@ class PermissionGrantCoordinator: ObservableObject {
 
     func performPermissionRestart(
         for permissionType: CoordinatorPermissionType,
-        kanataManager: KanataManager,
+        kanataManager: RuntimeCoordinator,
         completion: @escaping (Bool) -> Void
     ) {
         let timestamp = UserDefaults.standard.double(forKey: permissionType.timestampKey)
@@ -176,7 +176,7 @@ class PermissionGrantCoordinator: ObservableObject {
             "  - Assumption: User granted \(permissionType.displayName) permissions to KeyPath and/or kanata"
         )
         logger.log("  - Action: Restarting kanata process to pick up new permissions")
-        logger.log("  - Method: KanataManager retryAfterFix for complete restart")
+        logger.log("  - Method: RuntimeCoordinator retryAfterFix for complete restart")
 
         // Skip auto-launch to prevent resetting wizard flag
         logger.log("SKIPPING auto-launch (would reset wizard flag)")
@@ -229,7 +229,7 @@ class PermissionGrantCoordinator: ObservableObject {
         }
     }
 
-    private func attemptKanataRestart(kanataManager _: KanataManager) async -> Bool {
+    private func attemptKanataRestart(kanataManager _: RuntimeCoordinator) async -> Bool {
         // Use InstallerEngine for service repair/restart
         let engine = InstallerEngine()
         let result = await engine.run(intent: .repair, using: PrivilegeBroker())

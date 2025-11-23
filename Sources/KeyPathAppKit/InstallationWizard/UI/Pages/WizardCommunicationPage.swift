@@ -14,8 +14,8 @@ struct WizardCommunicationPage: View {
     @EnvironmentObject var kanataViewModel: KanataViewModel
     @Environment(\.preferencesService) private var preferences: PreferencesService
 
-    // Access underlying KanataManager for business logic
-    private var kanataManager: KanataManager {
+    // Access underlying RuntimeCoordinator for business logic
+    private var kanataManager: RuntimeCoordinator {
         kanataViewModel.underlyingManager
     }
 

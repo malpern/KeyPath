@@ -3,38 +3,38 @@ import Foundation
 import KeyPathCore
 
 @MainActor
-class BundledKanataManager {
+class BundledRuntimeCoordinator {
     private let packageManager = PackageManager()
 
     /// Replace system kanata binary with bundled Developer ID signed version
     func replaceBinaryWithBundled() async -> Bool {
-        AppLogger.shared.log("🔄 [BundledKanataManager] Starting replacement of system kanata binary")
+        AppLogger.shared.log("🔄 [BundledRuntimeCoordinator] Starting replacement of system kanata binary")
 
         guard let systemKanataPath = findSystemKanataPath() else {
-            AppLogger.shared.log("❌ [BundledKanataManager] No system kanata binary found to replace")
+            AppLogger.shared.log("❌ [BundledRuntimeCoordinator] No system kanata binary found to replace")
             return false
         }
 
         guard bundledKanataExists() else {
-            AppLogger.shared.log("❌ [BundledKanataManager] Bundled kanata binary not found")
+            AppLogger.shared.log("❌ [BundledRuntimeCoordinator] Bundled kanata binary not found")
             return false
         }
 
         do {
             let backupPath = try createBackup(of: systemKanataPath)
-            AppLogger.shared.log("📁 [BundledKanataManager] Created backup at: \(backupPath)")
+            AppLogger.shared.log("📁 [BundledRuntimeCoordinator] Created backup at: \(backupPath)")
 
             let success = try await replaceSystemBinary(at: systemKanataPath)
             if success {
-                AppLogger.shared.log("✅ [BundledKanataManager] Successfully replaced system kanata binary")
+                AppLogger.shared.log("✅ [BundledRuntimeCoordinator] Successfully replaced system kanata binary")
                 return true
             } else {
                 try restoreBackup(from: backupPath, to: systemKanataPath)
-                AppLogger.shared.log("🔙 [BundledKanataManager] Replacement failed, backup restored")
+                AppLogger.shared.log("🔙 [BundledRuntimeCoordinator] Replacement failed, backup restored")
                 return false
             }
         } catch {
-            AppLogger.shared.log("❌ [BundledKanataManager] Replacement failed: \(error)")
+            AppLogger.shared.log("❌ [BundledRuntimeCoordinator] Replacement failed: \(error)")
             return false
         }
     }
@@ -68,7 +68,7 @@ class BundledKanataManager {
         ]
 
         for path in systemPaths where FileManager.default.fileExists(atPath: path) {
-            AppLogger.shared.log("🔍 [BundledKanataManager] Found system kanata at: \(path)")
+            AppLogger.shared.log("🔍 [BundledRuntimeCoordinator] Found system kanata at: \(path)")
             return path
         }
 
@@ -80,9 +80,9 @@ class BundledKanataManager {
         let exists = FileManager.default.fileExists(atPath: bundledPath)
 
         if exists {
-            AppLogger.shared.log("✅ [BundledKanataManager] Bundled kanata found at: \(bundledPath)")
+            AppLogger.shared.log("✅ [BundledRuntimeCoordinator] Bundled kanata found at: \(bundledPath)")
         } else {
-            AppLogger.shared.log("❌ [BundledKanataManager] Bundled kanata not found at: \(bundledPath)")
+            AppLogger.shared.log("❌ [BundledRuntimeCoordinator] Bundled kanata not found at: \(bundledPath)")
         }
 
         return exists
@@ -93,7 +93,7 @@ class BundledKanataManager {
 
         try FileManager.default.copyItem(atPath: originalPath, toPath: backupPath)
         AppLogger.shared.log(
-            "📁 [BundledKanataManager] Created backup: \(originalPath) -> \(backupPath)")
+            "📁 [BundledRuntimeCoordinator] Created backup: \(originalPath) -> \(backupPath)")
 
         return backupPath
     }
@@ -112,11 +112,11 @@ class BundledKanataManager {
                 let result = appleScript?.executeAndReturnError(&error)
 
                 if let error {
-                    AppLogger.shared.log("❌ [BundledKanataManager] AppleScript error: \(error)")
+                    AppLogger.shared.log("❌ [BundledRuntimeCoordinator] AppleScript error: \(error)")
                     continuation.resume(returning: false)
                 } else if result != nil {
                     AppLogger.shared.log(
-                        "✅ [BundledKanataManager] Successfully copied bundled kanata to system path")
+                        "✅ [BundledRuntimeCoordinator] Successfully copied bundled kanata to system path")
                     guard let strongSelf = self else {
                         continuation.resume(returning: false)
                         return
@@ -124,7 +124,7 @@ class BundledKanataManager {
                     let verificationSuccess = strongSelf.verifyReplacement(at: systemPath)
                     continuation.resume(returning: verificationSuccess)
                 } else {
-                    AppLogger.shared.log("❌ [BundledKanataManager] AppleScript returned nil result")
+                    AppLogger.shared.log("❌ [BundledRuntimeCoordinator] AppleScript returned nil result")
                     continuation.resume(returning: false)
                 }
             }
@@ -139,11 +139,11 @@ class BundledKanataManager {
 
         if verified {
             AppLogger.shared.log(
-                "✅ [BundledKanataManager] Verification successful: System binary is now Developer ID signed"
+                "✅ [BundledRuntimeCoordinator] Verification successful: System binary is now Developer ID signed"
             )
         } else {
             AppLogger.shared.log(
-                "❌ [BundledKanataManager] Verification failed: System binary signing status: \(newSigningStatus)"
+                "❌ [BundledRuntimeCoordinator] Verification failed: System binary signing status: \(newSigningStatus)"
             )
         }
 
@@ -160,16 +160,16 @@ class BundledKanataManager {
         let result = appleScript?.executeAndReturnError(&error)
 
         if let error {
-            AppLogger.shared.log("❌ [BundledKanataManager] Failed to restore backup: \(error)")
+            AppLogger.shared.log("❌ [BundledRuntimeCoordinator] Failed to restore backup: \(error)")
             throw NSError(
-                domain: "BundledKanataManager", code: 1,
+                domain: "BundledRuntimeCoordinator", code: 1,
                 userInfo: [NSLocalizedDescriptionKey: "Failed to restore backup"]
             )
         } else if result != nil {
-            AppLogger.shared.log("🔙 [BundledKanataManager] Successfully restored backup")
+            AppLogger.shared.log("🔙 [BundledRuntimeCoordinator] Successfully restored backup")
 
             try FileManager.default.removeItem(atPath: backupPath)
-            AppLogger.shared.log("🗑️ [BundledKanataManager] Cleaned up backup file")
+            AppLogger.shared.log("🗑️ [BundledRuntimeCoordinator] Cleaned up backup file")
         }
     }
 }

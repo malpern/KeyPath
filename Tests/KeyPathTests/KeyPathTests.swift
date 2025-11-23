@@ -15,7 +15,7 @@ final class KeyPathTests: XCTestCase {
     // MARK: - KanataManager Tests
 
     func testKanataManagerInitialization() throws {
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
         // Default state should be clean
         if let error = manager.lastError {
             XCTAssertTrue(error.lowercased().contains("install"), "Unexpected init error: \(error)")
@@ -26,7 +26,7 @@ final class KeyPathTests: XCTestCase {
     }
 
     func testConvertToKanataKey() throws {
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
 
         // Test known key conversions
         let testCases: [(String, String)] = [
@@ -55,7 +55,7 @@ final class KeyPathTests: XCTestCase {
     }
 
     func testConvertToKanataSequence() throws {
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
 
         // Test single character keys
         XCTAssertEqual(manager.convertToKanataSequence("a"), "a")
@@ -178,7 +178,7 @@ final class KeyPathTests: XCTestCase {
     // MARK: - Integration Tests
 
     func testKanataManagerConfigIntegration() throws {
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
 
         // Test that generated config can be used by the manager
         let mapping = KeyMapping(input: "caps", output: "escape")
@@ -211,7 +211,7 @@ final class KeyPathTests: XCTestCase {
     }
 
     func testKeyConversionPerformance() throws {
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
 
         let testKeys = ["caps", "space", "return", "tab", "escape", "a", "b", "c", "unknown"]
 
@@ -255,7 +255,7 @@ final class KeyPathTests: XCTestCase {
 
     func testAutoStartInitialization() throws {
         // Test that KanataManager initializes with auto-start
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
 
         // No sleep needed - initialization is deterministic
 
@@ -264,7 +264,7 @@ final class KeyPathTests: XCTestCase {
     }
 
     func testCleanupFunction() async throws {
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
 
         // The cleanup function should exist and be callable
         await manager.cleanup()
@@ -274,7 +274,7 @@ final class KeyPathTests: XCTestCase {
     }
 
     func testDaemonManagement() async throws {
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
 
         // Test that daemon checking doesn't crash
         // We can't test actual daemon operations without system permissions
@@ -290,7 +290,7 @@ final class KeyPathTests: XCTestCase {
     }
 
     func testAutoStartErrorHandling() async throws {
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
 
         // Test that errors are properly set when Kanata isn't installed
         // This test may pass or fail depending on system state
@@ -310,7 +310,7 @@ final class KeyPathTests: XCTestCase {
     // MARK: - Seamless Experience Tests
 
     func testCompleteInstallationCheck() throws {
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
 
         // Test that isCompletelyInstalled checks both binary and daemon
         let binaryExists = manager.isInstalled()
@@ -322,7 +322,7 @@ final class KeyPathTests: XCTestCase {
     }
 
     func testInstallationStatusMessages() throws {
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
 
         let status = manager.getInstallationStatus()
 
@@ -340,7 +340,7 @@ final class KeyPathTests: XCTestCase {
     }
 
     func testAutoReloadFunctionality() async throws {
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
 
         // Test that auto-reload doesn't crash when called
         // In test environment, this will likely fail due to missing installation
@@ -364,7 +364,7 @@ final class KeyPathTests: XCTestCase {
     }
 
     func testSeamlessConfigSaving() async throws {
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
 
         // Test configuration generation and validation
         let mapping = KeyMapping(input: "caps", output: "escape")
@@ -387,7 +387,7 @@ final class KeyPathTests: XCTestCase {
     }
 
     func testErrorMessagesForNewUsers() async throws {
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
 
         // Simulate new user experience by checking error handling
         if !manager.isCompletelyInstalled() {
@@ -417,7 +417,7 @@ final class KeyPathTests: XCTestCase {
     }
 
     func testTransparentKanataManagement() throws {
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
 
         // Test that all user-facing functionality hides Kanata implementation details
         let status = manager.getInstallationStatus()
@@ -441,7 +441,7 @@ final class KeyPathTests: XCTestCase {
 
     func testInstallationWizardFlow() throws {
         // Test the installation wizard components exist and function
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
 
         // These functions should exist for the wizard
         let binaryInstalled = manager.isInstalled()
@@ -465,7 +465,7 @@ final class KeyPathTests: XCTestCase {
     // MARK: - Root Privilege Tests
 
     func testLaunchDaemonRootConfiguration() throws {
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
 
         // Test that LaunchDaemon components exist
         XCTAssertNotNil(manager.isServiceInstalled())
@@ -481,7 +481,7 @@ final class KeyPathTests: XCTestCase {
     }
 
     func testRootPrivilegeVerification() async throws {
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
 
         // Test that root verification doesn't crash
         // In test environment, this should complete without throwing
@@ -512,7 +512,7 @@ final class KeyPathTests: XCTestCase {
     }
 
     func testAutomatedRootHandling() throws {
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
 
         // Test that the system is designed to handle root privileges automatically
         // LaunchDaemons should run as root by default
@@ -534,7 +534,7 @@ final class KeyPathTests: XCTestCase {
     // MARK: - UI and UX Tests
 
     func testResetToDefaultConfig() async throws {
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
 
         do {
             // Test that reset to default creates a clean config
@@ -566,7 +566,7 @@ final class KeyPathTests: XCTestCase {
     }
 
     func testInputMonitoringPermissionDetection() async throws {
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
 
         // Test that permission detection works
         let hasPermission = await manager.hasInputMonitoringPermission()
@@ -591,7 +591,7 @@ final class KeyPathTests: XCTestCase {
     }
 
     func testConfigurationManagement() throws {
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
 
         // Test config path is correct
         XCTAssertEqual(

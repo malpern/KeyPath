@@ -9,7 +9,7 @@ struct WizardConflictsPage: View {
     let allIssues: [WizardIssue]
     let isFixing: Bool
     let onRefresh: () -> Void
-    let kanataManager: KanataManager
+    let kanataManager: RuntimeCoordinator
 
     @State private var isScanning = false
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
@@ -135,7 +135,7 @@ struct CleanConflictsCard: View {
     let isFixing: Bool
     let onRefresh: () -> Void
     let issues: [WizardIssue]
-    let kanataManager: KanataManager
+    let kanataManager: RuntimeCoordinator
 
     @State private var showingDetails = false
     @State private var isPerformingPermanentFix = false
@@ -291,7 +291,7 @@ struct CleanConflictsCard: View {
 
 struct TechnicalDetailsView: View {
     let issues: [WizardIssue]
-    let kanataManager: KanataManager
+    let kanataManager: RuntimeCoordinator
     @State private var conflictDetectionResult: ConflictDetectionResult?
     @State private var isLoadingConflicts = false
 

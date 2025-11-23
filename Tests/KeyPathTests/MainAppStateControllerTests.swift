@@ -64,7 +64,7 @@ struct MainAppStateControllerTests {
     @Test("Controller can be configured without crashing")
     func configuration() {
         let controller = MainAppStateController()
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
 
         // Should not crash
         controller.configure(with: manager)

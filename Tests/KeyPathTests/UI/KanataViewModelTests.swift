@@ -15,7 +15,7 @@ final class KanataViewModelTests: XCTestCase {
 
     func testViewModelCompiles() {
         // Basic sanity test to verify MVVM architecture compiles
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
         let viewModel = KanataViewModel(manager: manager)
 
         // Verify ViewModel has access to underlying manager
@@ -27,7 +27,7 @@ final class KanataViewModelTests: XCTestCase {
 
     func testStateSnapshotMethod() {
         // Verify KanataManager can create state snapshots
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
         let snapshot = manager.getCurrentUIState()
 
         // Snapshot should contain current state

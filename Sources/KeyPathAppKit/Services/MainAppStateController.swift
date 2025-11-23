@@ -42,7 +42,7 @@ class MainAppStateController: ObservableObject {
     // MARK: - Dependencies
 
     private var validator: SystemValidator?
-    private weak var kanataManager: KanataManager?
+    private weak var kanataManager: RuntimeCoordinator?
     private var hasRunInitialValidation = false
 
     // MARK: - Validation Cooldown (Optimization: Skip redundant validations on rapid restarts)
@@ -56,8 +56,8 @@ class MainAppStateController: ObservableObject {
         AppLogger.shared.log("🎯 [MainAppStateController] Initialized (Phase 3)")
     }
 
-    /// Configure with KanataManager (called after init)
-    func configure(with kanataManager: KanataManager) {
+    /// Configure with RuntimeCoordinator (called after init)
+    func configure(with kanataManager: RuntimeCoordinator) {
         self.kanataManager = kanataManager
 
         // Create validator

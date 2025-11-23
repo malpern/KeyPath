@@ -9,8 +9,8 @@ struct WizardKanataServicePage: View {
     let onRefresh: () -> Void
     let toastManager: WizardToastManager
 
-    // Access underlying KanataManager for business logic
-    private var kanataManager: KanataManager {
+    // Access underlying RuntimeCoordinator for business logic
+    private var kanataManager: RuntimeCoordinator {
         kanataViewModel.underlyingManager
     }
 
@@ -19,7 +19,7 @@ struct WizardKanataServicePage: View {
     @State private var serviceStatus: ServiceStatus = .unknown
     @State private var refreshTimer: Timer?
 
-    // Integration with KanataManager for better error context
+    // Integration with RuntimeCoordinator for better error context
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
     enum ServiceStatus: Equatable {
@@ -410,7 +410,7 @@ struct WizardKanataServicePage: View {
 
 struct WizardKanataServicePage_Previews: PreviewProvider {
     static var previews: some View {
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
         let viewModel = KanataViewModel(manager: manager)
         let toastManager = WizardToastManager()
 

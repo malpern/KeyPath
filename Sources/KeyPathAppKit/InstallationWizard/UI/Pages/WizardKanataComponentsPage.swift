@@ -9,7 +9,7 @@ struct WizardKanataComponentsPage: View {
     let isFixing: Bool
     let onAutoFix: (AutoFixAction) async -> Bool
     let onRefresh: () -> Void
-    let kanataManager: KanataManager
+    let kanataManager: RuntimeCoordinator
 
     // Track which specific issues are being fixed
     @State private var fixingIssues: Set<UUID> = []

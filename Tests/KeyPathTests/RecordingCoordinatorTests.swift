@@ -10,7 +10,7 @@ final class RecordingCoordinatorTests: XCTestCase {
         snapshot: RecordingCoordinatorTests.snapshot(accessibility: .unknown)
     )
     private lazy var captureStub = StubRecordingCapture()
-    private lazy var kanataManager = KanataManager()
+    private lazy var kanataManager = RuntimeCoordinator()
     private lazy var coordinator: RecordingCoordinator = {
         let c = RecordingCoordinator()
         c.configure(
@@ -133,7 +133,7 @@ private final class StubRecordingCapture: RecordingCapture {
     private var callback: ((KeySequence) -> Void)?
     var autoFire = true
 
-    func setEventRouter(_: EventRouter?, kanataManager _: KanataManager?) {
+    func setEventRouter(_: EventRouter?, kanataManager _: RuntimeCoordinator?) {
         // No-op in tests
     }
 

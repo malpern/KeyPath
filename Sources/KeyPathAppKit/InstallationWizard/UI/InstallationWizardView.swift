@@ -8,8 +8,8 @@ struct InstallationWizardView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var kanataViewModel: KanataViewModel
 
-    // Access underlying KanataManager for business logic
-    private var kanataManager: KanataManager {
+    // Access underlying RuntimeCoordinator for business logic
+    private var kanataManager: RuntimeCoordinator {
         kanataViewModel.underlyingManager
     }
 
@@ -439,7 +439,7 @@ struct InstallationWizardView: View {
             let filteredIssues = sanitizedIssues(from: result.issues, for: result.state)
             systemState = result.state
             currentIssues = filteredIssues
-            kanataManager.lastWizardSnapshot = WizardSnapshotRecord(
+            stateManager.lastWizardSnapshot = WizardSnapshotRecord(
                 state: result.state, issues: filteredIssues
             )
             // Start at summary page - no auto navigation
@@ -942,7 +942,7 @@ struct InstallationWizardView: View {
             let filteredIssues = sanitizedIssues(from: result.issues, for: result.state)
             systemState = result.state
             currentIssues = filteredIssues
-            kanataManager.lastWizardSnapshot = WizardSnapshotRecord(
+            stateManager.lastWizardSnapshot = WizardSnapshotRecord(
                 state: result.state, issues: filteredIssues
             )
             Task { @MainActor in
@@ -1008,8 +1008,8 @@ struct InstallationWizardView: View {
     }
 
     private func cachedPreferredPage() -> WizardPage? {
-        // Use last known system state from KanataManager if available
-        guard let cachedState = kanataManager.lastWizardSnapshot else { return nil }
+        // Use last known system state from WizardStateManager if available
+        guard let cachedState = stateManager.lastWizardSnapshot else { return nil }
         let adaptedIssues = cachedState.issues
         let adaptedState = cachedState.state
         return preferredDetailPage(for: adaptedState, issues: adaptedIssues)
@@ -1367,8 +1367,8 @@ private func runWithTimeout<T: Sendable>(
 class WizardAutoFixerManager: ObservableObject {
     private(set) var autoFixer: WizardAutoFixer?
 
-    func configure(kanataManager: KanataManager, toastManager _: WizardToastManager) {
-        AppLogger.shared.log("🔧 [AutoFixerManager] Configuring with KanataManager")
+    func configure(kanataManager: RuntimeCoordinator, toastManager _: WizardToastManager) {
+        AppLogger.shared.log("🔧 [AutoFixerManager] Configuring with RuntimeCoordinator")
         // FIXED: Removed toastManager parameter (was unused, created Core→UI architecture violation)
         autoFixer = WizardAutoFixer(kanataManager: kanataManager)
         AppLogger.shared.log("🔧 [AutoFixerManager] Configuration complete")
