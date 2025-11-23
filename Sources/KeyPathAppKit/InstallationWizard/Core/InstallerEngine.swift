@@ -22,7 +22,7 @@ public final class InstallerEngine {
     /// Internal designated initializer to share construction logic
     init(
         processLifecycleManager: ProcessLifecycleManager,
-        kanataManager: KanataManager? = nil
+        kanataManager: RuntimeCoordinator? = nil
     ) {
         // Create SystemValidator (stateless, can be reused)
         systemValidator = SystemValidator(
@@ -41,7 +41,7 @@ public final class InstallerEngine {
     }
 
     /// Internal convenience initializer used by the wizard to surface live Kanata health.
-    convenience init(kanataManager: KanataManager) {
+    convenience init(kanataManager: RuntimeCoordinator) {
         self.init(processLifecycleManager: ProcessLifecycleManager(), kanataManager: kanataManager)
     }
 

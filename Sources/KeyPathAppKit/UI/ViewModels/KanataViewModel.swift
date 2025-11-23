@@ -4,20 +4,20 @@ import KeyPathDaemonLifecycle
 import KeyPathWizardCore
 import SwiftUI
 
-/// MVVM ViewModel for KanataManager
+/// MVVM ViewModel for RuntimeCoordinator
 ///
-/// This class provides a thin UI-focused layer between SwiftUI views and KanataManager.
-/// It owns all @Published properties for UI reactivity and delegates business logic to KanataManager.
+/// This class provides a thin UI-focused layer between SwiftUI views and RuntimeCoordinator.
+/// It owns all @Published properties for UI reactivity and delegates business logic to RuntimeCoordinator.
 ///
 /// Architecture:
 /// - ObservableObject for SwiftUI reactivity
-/// - All @Published properties moved from KanataManager
+/// - All @Published properties moved from RuntimeCoordinator
 /// - Thin adapter - no business logic
-/// - Observes KanataManager state changes
-/// - Delegates all actions to KanataManager
+/// - Observes RuntimeCoordinator state changes
+/// - Delegates all actions to RuntimeCoordinator
 @MainActor
 class KanataViewModel: ObservableObject {
-    // MARK: - Published Properties (moved from KanataManager)
+    // MARK: - Published Properties (moved from RuntimeCoordinator)
 
     // Core Status Properties
     @Published var lastError: String?
@@ -46,20 +46,20 @@ class KanataViewModel: ObservableObject {
 
     // MARK: - Private Properties
 
-    private let manager: KanataManager
+    private let manager: RuntimeCoordinator
     private var stateObservationTask: Task<Void, Never>?
 
     // MARK: - Manager Access
 
-    /// Provides access to the underlying KanataManager for business logic components
+    /// Provides access to the underlying RuntimeCoordinator for business logic components
     /// Use this sparingly - only when business logic components need direct manager access
-    var underlyingManager: KanataManager {
+    var underlyingManager: RuntimeCoordinator {
         manager
     }
 
     // MARK: - Initialization
 
-    init(manager: KanataManager) {
+    init(manager: RuntimeCoordinator) {
         self.manager = manager
         setupObservation()
     }
@@ -70,7 +70,7 @@ class KanataViewModel: ObservableObject {
 
     // MARK: - Observation Setup
 
-    /// Observe KanataManager state changes via AsyncStream (event-driven, not polling)
+    /// Observe RuntimeCoordinator state changes via AsyncStream (event-driven, not polling)
     /// This dramatically reduces unnecessary UI updates by only reacting to actual state changes
     private func setupObservation() {
         stateObservationTask = Task { @MainActor in
@@ -155,7 +155,7 @@ class KanataViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Action Delegation to KanataManager
+    // MARK: - Action Delegation to RuntimeCoordinator
 
     // Note: Removed manual syncFromManager() calls - AsyncStream automatically updates UI
 

@@ -4,7 +4,7 @@ import KeyPathWizardCore
 import SwiftUI
 
 /// Centralized interpreter for wizard state to ensure consistent UI status across all components
-/// Eliminates direct KanataManager queries in UI and provides single source of truth
+/// Eliminates direct RuntimeCoordinator queries in UI and provides single source of truth
 struct WizardStateInterpreter {
     // MARK: - Permission Status
 

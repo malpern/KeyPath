@@ -232,7 +232,7 @@ struct ContentView: View {
                     }
                 }
                 .onDisappear {
-                    // When wizard closes, call SimpleKanataManager to handle the closure
+                    // When wizard closes, call SimpleRuntimeCoordinator to handle the closure
                     AppLogger.shared.log("🎭 [ContentView] ========== WIZARD CLOSED ==========")
                     AppLogger.shared.log("🎭 [ContentView] Installation wizard sheet dismissed by user")
                     // onWizardClosed removed - legacy status plumbing is gone
@@ -258,10 +258,10 @@ struct ContentView: View {
         .onAppear {
             AppLogger.shared.log("🔍 [ContentView] onAppear called")
             AppLogger.shared.log(
-                "🏗️ [ContentView] Using shared SimpleKanataManager"
+                "🏗️ [ContentView] Using shared SimpleRuntimeCoordinator"
             )
 
-            // 🎯 Phase 3/4: Configure state controller and recording coordinator with underlying KanataManager
+            // 🎯 Phase 3/4: Configure state controller and recording coordinator with underlying RuntimeCoordinator
             // Business logic components need the actual manager, not the ViewModel
             stateController.configure(with: kanataManager.underlyingManager)
             recordingCoordinator.configure(
@@ -299,7 +299,7 @@ struct ContentView: View {
 
             // The StartupCoordinator will trigger emergency monitoring when safe.
 
-            // Status monitoring now handled centrally by SimpleKanataManager
+            // Status monitoring now handled centrally by SimpleRuntimeCoordinator
             // Defer these UI state reads to the next runloop to avoid doing work
             // during the initial display cycle (prevents AppKit layout reentrancy).
             DispatchQueue.main.async {
@@ -551,7 +551,7 @@ struct ContentView: View {
         }
     }
 
-    // Status monitoring functions removed - now handled centrally by SimpleKanataManager
+    // Status monitoring functions removed - now handled centrally by SimpleRuntimeCoordinator
 
     /// Check if we're returning from granting permissions using the unified coordinator
     /// Returns true if we detected a pending permission grant restart, false otherwise
@@ -818,7 +818,7 @@ struct ContentView: View {
 }
 
 #Preview {
-    let manager = KanataManager()
+    let manager = RuntimeCoordinator()
     let viewModel = KanataViewModel(manager: manager)
     ContentView()
         .environmentObject(viewModel)

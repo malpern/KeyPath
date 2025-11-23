@@ -405,9 +405,9 @@ final class KeyboardCaptureTests: XCTestCase {
 
     // MARK: - Integration Tests
 
-    func testKeyboardCaptureWithKanataManager() throws {
+    func testKeyboardCaptureWithRuntimeCoordinator() throws {
         // Test integration between KeyboardCapture and KanataManager
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
         var capturedInput: String?
 
         let expectation = expectation(description: "Integration test")

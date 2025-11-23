@@ -7,7 +7,7 @@ import SwiftUI
 public struct KeyPathApp: App {
     // Phase 4: MVVM - Use ViewModel instead of Manager directly
     @StateObject private var viewModel: KanataViewModel
-    private let kanataManager: KanataManager
+    private let kanataManager: RuntimeCoordinator
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     private let isHeadlessMode: Bool
@@ -40,14 +40,14 @@ public struct KeyPathApp: App {
         AppLogger.shared.log(
             "🔍 [App] Startup mode set (auto-clear in 5s) - IOHIDCheckAccess calls will be skipped")
 
-        // Phase 4: MVVM - Initialize services and KanataManager via composition root
+        // Phase 4: MVVM - Initialize services and RuntimeCoordinator via composition root
         let configurationService = ConfigurationService(
             configDirectory: "\(NSHomeDirectory())/.config/keypath")
-        let manager = KanataManager(injectedConfigurationService: configurationService)
+        let manager = RuntimeCoordinator(injectedConfigurationService: configurationService)
         kanataManager = manager
         _viewModel = StateObject(wrappedValue: KanataViewModel(manager: manager))
         AppLogger.shared.debug(
-            "🎯 [Phase 4] MVVM architecture initialized - ViewModel wrapping KanataManager")
+            "🎯 [Phase 4] MVVM architecture initialized - ViewModel wrapping RuntimeCoordinator")
 
         // Set activation policy based on mode
         if isHeadlessMode {
@@ -279,7 +279,7 @@ private func openPreferencesTab(_ notification: Notification.Name) {
 
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
-    var kanataManager: KanataManager?
+    var kanataManager: RuntimeCoordinator?
     var isHeadlessMode = false
     private var mainWindowController: MainWindowController?
     private var initialMainWindowShown = false
@@ -392,14 +392,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
-        // Note: In normal mode, kanata is already started in KanataManager.init() if requirements are met
+        // Note: In normal mode, kanata is already started in RuntimeCoordinator.init() if requirements are met
 
         // Create main window controller (defer fronting until first activation)
         if !isHeadlessMode {
             AppLogger.shared.debug("🪟 [AppDelegate] Setting up main window controller")
 
             guard let manager = kanataManager else {
-                AppLogger.shared.error("❌ [AppDelegate] KanataManager is nil, cannot create window")
+                AppLogger.shared.error("❌ [AppDelegate] RuntimeCoordinator is nil, cannot create window")
                 return
             }
 
@@ -478,7 +478,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Use synchronous cleanup to ensure kanata is stopped before app exits
         // Note: InstallerEngine manages service lifecycle, but for app termination we rely on
-        // KanataManager's cleanup logic which now delegates to standard service handling
+        // RuntimeCoordinator's cleanup logic which now delegates to standard service handling
         kanataManager?.cleanupSync()
 
         AppLogger.shared.info("✅ [AppDelegate] Cleanup complete, app terminating")
@@ -502,7 +502,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 AppLogger.shared.debug("🪟 [AppDelegate] Created main window controller on reopen")
             } else {
                 AppLogger.shared.error(
-                    "❌ [AppDelegate] Cannot create window on reopen: KanataManager is nil")
+                    "❌ [AppDelegate] Cannot create window on reopen: RuntimeCoordinator is nil")
             }
         }
 

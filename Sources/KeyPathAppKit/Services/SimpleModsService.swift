@@ -22,7 +22,7 @@ public final class SimpleModsService: ObservableObject {
     private let debounceDelay: TimeInterval = 0.3
 
     // Apply pipeline dependencies (will be injected)
-    private var kanataManager: KanataManager?
+    private var kanataManager: RuntimeCoordinator?
 
     public init(configPath: String) {
         self.configPath = configPath
@@ -32,7 +32,7 @@ public final class SimpleModsService: ObservableObject {
 
     /// Set dependencies for apply pipeline
     func setDependencies(
-        kanataManager: KanataManager?
+        kanataManager: RuntimeCoordinator?
     ) {
         self.kanataManager = kanataManager
     }

@@ -1071,7 +1071,7 @@ private extension ConfigurationService {
 public enum KanataKeyConverter {
     /// Convert KeyPath input key to Kanata key format
     public static func convertToKanataKey(_ input: String) -> String {
-        // Use the same key mapping logic as the original KanataManager
+        // Use the same key mapping logic as the original RuntimeCoordinator
         let keyMap: [String: String] = [
             "caps": "caps",
             "capslock": "caps",

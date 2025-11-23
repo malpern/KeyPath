@@ -13,7 +13,7 @@ struct WizardInputMonitoringPage: View {
     let onRefresh: () async -> Void
     let onNavigateToPage: ((WizardPage) -> Void)?
     let onDismiss: (() -> Void)?
-    let kanataManager: KanataManager
+    let kanataManager: RuntimeCoordinator
 
     @State private var showingStaleEntryCleanup = false
     @State private var staleEntryDetails: [String] = []
@@ -475,7 +475,7 @@ struct CleanupStep: View {
 
 struct WizardInputMonitoringPage_Previews: PreviewProvider {
     static var previews: some View {
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
         let viewModel = KanataViewModel(manager: manager)
 
         return WizardInputMonitoringPage(

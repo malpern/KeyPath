@@ -5,7 +5,7 @@ import SwiftUI
 
 @MainActor
 protocol RecordingCapture: AnyObject {
-    func setEventRouter(_ router: EventRouter?, kanataManager: KanataManager?)
+    func setEventRouter(_ router: EventRouter?, kanataManager: RuntimeCoordinator?)
     func startSequenceCapture(mode: CaptureMode, callback: @escaping (KeySequence) -> Void)
     func stopCapture()
 }
@@ -18,7 +18,7 @@ final class KeyboardCaptureAdapter: RecordingCapture {
         capture = KeyboardCapture()
     }
 
-    func setEventRouter(_ router: EventRouter?, kanataManager: KanataManager?) {
+    func setEventRouter(_ router: EventRouter?, kanataManager: RuntimeCoordinator?) {
         capture.setEventRouter(router, kanataManager: kanataManager)
     }
 
@@ -51,7 +51,7 @@ final class RecordingCoordinator: ObservableObject {
         }
     }
 
-    private var kanataManager: KanataManager?
+    private var kanataManager: RuntimeCoordinator?
     private var showStatusMessage: ((String) -> Void)?
     private var permissionProvider: PermissionSnapshotProviding?
     private var keyboardCapture: RecordingCapture?
@@ -71,7 +71,7 @@ final class RecordingCoordinator: ObservableObject {
     }
 
     func configure(
-        kanataManager: KanataManager,
+        kanataManager: RuntimeCoordinator,
         statusHandler: @escaping (String) -> Void,
         permissionProvider: PermissionSnapshotProviding,
         keyboardCaptureFactory: @escaping () -> RecordingCapture = { KeyboardCaptureAdapter() }
@@ -142,7 +142,7 @@ final class RecordingCoordinator: ObservableObject {
     }
 
     func saveMapping(
-        kanataManager: KanataManager,
+        kanataManager: RuntimeCoordinator,
         onSuccess: @escaping (String) -> Void,
         onError: @escaping (Error) -> Void
     ) async {

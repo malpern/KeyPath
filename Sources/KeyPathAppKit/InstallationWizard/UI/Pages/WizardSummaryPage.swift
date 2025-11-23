@@ -16,8 +16,8 @@ struct WizardSummaryPage: View {
     @Binding var showAllItems: Bool // Lifted to parent to drive navigation sequence
     @Binding var navSequence: [WizardPage] // Ordered pages for back/next navigation
 
-    // Access underlying KanataManager for business logic
-    private var kanataManager: KanataManager {
+    // Access underlying RuntimeCoordinator for business logic
+    private var kanataManager: RuntimeCoordinator {
         kanataViewModel.underlyingManager
     }
 

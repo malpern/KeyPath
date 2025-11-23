@@ -8,8 +8,8 @@ struct InstallationWizardView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var kanataViewModel: KanataViewModel
 
-    // Access underlying KanataManager for business logic
-    private var kanataManager: KanataManager {
+    // Access underlying RuntimeCoordinator for business logic
+    private var kanataManager: RuntimeCoordinator {
         kanataViewModel.underlyingManager
     }
 
@@ -1367,8 +1367,8 @@ private func runWithTimeout<T: Sendable>(
 class WizardAutoFixerManager: ObservableObject {
     private(set) var autoFixer: WizardAutoFixer?
 
-    func configure(kanataManager: KanataManager, toastManager _: WizardToastManager) {
-        AppLogger.shared.log("🔧 [AutoFixerManager] Configuring with KanataManager")
+    func configure(kanataManager: RuntimeCoordinator, toastManager _: WizardToastManager) {
+        AppLogger.shared.log("🔧 [AutoFixerManager] Configuring with RuntimeCoordinator")
         // FIXED: Removed toastManager parameter (was unused, created Core→UI architecture violation)
         autoFixer = WizardAutoFixer(kanataManager: kanataManager)
         AppLogger.shared.log("🔧 [AutoFixerManager] Configuration complete")

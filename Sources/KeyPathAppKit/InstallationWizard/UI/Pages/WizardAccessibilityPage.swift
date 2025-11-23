@@ -11,7 +11,7 @@ struct WizardAccessibilityPage: View {
     let onRefresh: () async -> Void
     let onNavigateToPage: ((WizardPage) -> Void)?
     let onDismiss: (() -> Void)?
-    let kanataManager: KanataManager
+    let kanataManager: RuntimeCoordinator
     @State private var permissionPollingTask: Task<Void, Never>?
 
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
@@ -383,7 +383,7 @@ struct WizardAccessibilityPage: View {
 
 struct WizardAccessibilityPage_Previews: PreviewProvider {
     static var previews: some View {
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
         let viewModel = KanataViewModel(manager: manager)
 
         return WizardAccessibilityPage(

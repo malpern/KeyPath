@@ -3,9 +3,9 @@ import KeyPathCore
 
 /// Service for generating Kanata configuration using Claude API
 public class KanataConfigGenerator {
-    private let kanataManager: KanataManager
+    private let kanataManager: RuntimeCoordinator
 
-    init(kanataManager: KanataManager) {
+    init(kanataManager: RuntimeCoordinator) {
         self.kanataManager = kanataManager
     }
 
@@ -228,7 +228,7 @@ public class KanataConfigGenerator {
     (multi key1 key2)       ; Press keys simultaneously
     """
 
-    /// Direct Claude API call (copied from KanataManager for independence)
+    /// Direct Claude API call (copied from RuntimeCoordinator for independence)
     private func callClaudeAPIDirectly(prompt: String) async throws -> String {
         guard let apiKey = getClaudeAPIKey() else {
             throw NSError(
@@ -300,7 +300,7 @@ public class KanataConfigGenerator {
             return envKey
         }
 
-        // Try keychain (using the same pattern as KanataManager)
+        // Try keychain (using the same pattern as RuntimeCoordinator)
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: "KeyPath",

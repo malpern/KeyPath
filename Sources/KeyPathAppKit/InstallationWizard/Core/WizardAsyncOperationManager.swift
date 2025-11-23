@@ -343,7 +343,7 @@ enum WizardOperations {
     }
 
     /// Service start operation
-    static func startService(kanataManager _: KanataManager) -> AsyncOperation<Bool> {
+    static func startService(kanataManager _: RuntimeCoordinator) -> AsyncOperation<Bool> {
         AsyncOperation<Bool>(
             id: "start_service",
             name: "Start Kanata Service"
@@ -373,7 +373,7 @@ enum WizardOperations {
     /// Permission grant operation (opens settings and waits for user)
     static func grantPermission(
         type: PermissionType,
-        kanataManager: KanataManager
+        kanataManager: RuntimeCoordinator
     ) -> AsyncOperation<Bool> {
         AsyncOperation<Bool>(
             id: "grant_permission_\(type.rawValue)",

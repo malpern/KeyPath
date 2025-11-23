@@ -46,8 +46,8 @@ public class KeyboardCapture: ObservableObject {
     /// Default: false to maintain legacy behavior and avoid CGEvent tap conflicts
     public var useEventRouter: Bool = false
 
-    /// Reference to KanataManager to check if Kanata is running (to avoid tap conflicts)
-    private weak var kanataManager: KanataManager?
+    /// Reference to RuntimeCoordinator to check if Kanata is running (to avoid tap conflicts)
+    private weak var kanataManager: RuntimeCoordinator?
 
     // Fast process probe to reduce race with manager.isRunning updates
     private func fastProbeKanataRunning(timeout: TimeInterval = 0.25) -> Bool {
@@ -75,7 +75,7 @@ public class KeyboardCapture: ObservableObject {
     // MARK: - Event Router Configuration
 
     /// Set the event router for processing captured events
-    func setEventRouter(_ router: EventRouter?, kanataManager: KanataManager? = nil) {
+    func setEventRouter(_ router: EventRouter?, kanataManager: RuntimeCoordinator? = nil) {
         eventRouter = router
         self.kanataManager = kanataManager
         AppLogger.shared.log(

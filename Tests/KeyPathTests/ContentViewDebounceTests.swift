@@ -8,13 +8,13 @@ import XCTest
 /// Tests the save operation debouncing added in Phase 1.3 to prevent rapid successive saves
 @MainActor
 class ContentViewDebounceTests: XCTestCase {
-    lazy var testManager: KanataManager = .init()
+    lazy var testManager: RuntimeCoordinator = .init()
 
     // MARK: - Debounce Logic Tests (Non-UI)
 
     func testConfigurationSaveDebouncing() async throws {
         // Test actual debounce behavior by making rapid saves and verifying only the final result persists
-        _ = KanataManager()
+        _ = RuntimeCoordinator()
 
         // Create test directory
         let testConfigDir = "/tmp/keypath-debounce-test-\(UUID().uuidString)"
@@ -41,7 +41,7 @@ class ContentViewDebounceTests: XCTestCase {
 
     func testErrorHandlingPreservesUIState() async {
         // Test that errors during save operations properly reset the UI state
-        let manager = KanataManager()
+        let manager = RuntimeCoordinator()
 
         // This test verifies that the error handling structure exists
         // In a full implementation, we would:
@@ -58,7 +58,7 @@ class ContentViewDebounceTests: XCTestCase {
 
     func testConfigurationSaveFlow() async throws {
         // Test the complete save flow without UI dependencies
-        _ = KanataManager()
+        _ = RuntimeCoordinator()
 
         // Create a test directory for configuration
         let testConfigDir = "/tmp/keypath-test-\(UUID().uuidString)"
@@ -84,7 +84,7 @@ class ContentViewDebounceTests: XCTestCase {
 
     func testMultipleConcurrentSaves() async throws {
         // Test that multiple concurrent save attempts are handled gracefully
-        _ = KanataManager()
+        _ = RuntimeCoordinator()
 
         // Create multiple concurrent save tasks
         let saveTasks = (1 ... 3).map { taskId in
@@ -128,7 +128,7 @@ class ContentViewDebounceTests: XCTestCase {
 class Phase1LoggingTests: XCTestCase {
     func testLoggingCapturesActualOperations() async {
         // Test that logging captures important operational information
-        _ = KanataManager()
+        _ = RuntimeCoordinator()
 
         // Test that we can generate a config and logging reflects the operation
         let mapping = KeyMapping(input: "f1", output: "f13")

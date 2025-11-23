@@ -2,7 +2,7 @@ import Foundation
 import KeyPathDaemonLifecycle
 import KeyPathWizardCore
 
-/// Snapshot of KanataManager state for UI updates
+/// Snapshot of RuntimeCoordinator state for UI updates
 struct KanataUIState: Sendable {
     // Core Status
     // Removed: isRunning

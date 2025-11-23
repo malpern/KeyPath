@@ -11,7 +11,7 @@ struct WizardHelperPage: View {
     let isFixing: Bool
     let onAutoFix: (AutoFixAction) async -> Bool
     let onRefresh: () -> Void
-    let kanataManager: KanataManager
+    let kanataManager: RuntimeCoordinator
 
     // MARK: - State
 

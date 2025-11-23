@@ -2,7 +2,7 @@ import Foundation
 import KeyPathCore
 import KeyPathDaemonLifecycle
 
-/// Small wrapper service to centralize health checks used by KanataManager.
+/// Small wrapper service to centralize health checks used by RuntimeCoordinator.
 /// Delegates to DiagnosticsService with the required inputs.
 struct HealthCheckDecision {
     let isHealthy: Bool

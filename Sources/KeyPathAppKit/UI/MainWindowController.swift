@@ -8,8 +8,8 @@ import SwiftUI
 final class MainWindowController: NSWindowController {
     private var topLeftBeforeResize: NSPoint?
 
-    init(kanataManager: KanataManager) {
-        // Phase 4: MVVM - Create ViewModel wrapper for KanataManager
+    init(kanataManager: RuntimeCoordinator) {
+        // Phase 4: MVVM - Create ViewModel wrapper for RuntimeCoordinator
         let viewModel = KanataViewModel(manager: kanataManager)
 
         // Create SwiftUI hosting controller with full environment

@@ -7,26 +7,26 @@ import os
 
 /// Handles automatic fixing of detected issues - pure action logic
 class WizardAutoFixer: AutoFixCapable {
-    private let kanataManager: KanataManager
+    private let kanataManager: RuntimeCoordinator
     private let vhidDeviceManager: VHIDDeviceManager
     private let launchDaemonInstaller: LaunchDaemonInstaller
     private let packageManager: PackageManager
-    private let bundledKanataManager: BundledKanataManager
+    private let bundledRuntimeCoordinator: BundledRuntimeCoordinator
     // REMOVED: toastManager was unused and created architecture violation (Core → UI dependency)
     // REMOVED: ProcessSynchronizationActor - no longer needed
 
     @MainActor init(
-        kanataManager: KanataManager,
+        kanataManager: RuntimeCoordinator,
         vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(),
         launchDaemonInstaller: LaunchDaemonInstaller = LaunchDaemonInstaller(),
         packageManager: PackageManager = PackageManager(),
-        bundledKanataManager: BundledKanataManager = BundledKanataManager()
+        bundledRuntimeCoordinator: BundledRuntimeCoordinator = BundledRuntimeCoordinator()
     ) {
         self.kanataManager = kanataManager
         self.vhidDeviceManager = vhidDeviceManager
         self.launchDaemonInstaller = launchDaemonInstaller
         self.packageManager = packageManager
-        self.bundledKanataManager = bundledKanataManager
+        self.bundledRuntimeCoordinator = bundledRuntimeCoordinator
     }
 
     // MARK: - Error Analysis
@@ -419,7 +419,7 @@ class WizardAutoFixer: AutoFixCapable {
         _ = await InstallerEngine().run(intent: .uninstall, using: PrivilegeBroker())
         kanataManager.lastError = nil
         kanataManager.diagnostics.removeAll()
-        AppLogger.shared.info("🔄 [AutoFixer] Reset KanataManager state")
+        AppLogger.shared.info("🔄 [AutoFixer] Reset RuntimeCoordinator state")
 
         // 5. Wait for system to settle
         try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
@@ -908,7 +908,7 @@ class WizardAutoFixer: AutoFixCapable {
 
         // Step 1: Check if bundled binary is available and properly signed
         AppLogger.shared.log("🔧 [AutoFixer] Step 1/\(totalSteps): Verifying bundled kanata binary...")
-        let bundledManager = await BundledKanataManager()
+        let bundledManager = await BundledRuntimeCoordinator()
         let signingStatus = await bundledManager.bundledKanataSigningStatus()
 
         guard signingStatus.isDeveloperID else {
@@ -1334,7 +1334,7 @@ class WizardAutoFixer: AutoFixCapable {
         AppLogger.shared.log(
             "🔧 [AutoFixer] Replacing system kanata with bundled Developer ID signed version")
 
-        let success = await bundledKanataManager.replaceBinaryWithBundled()
+        let success = await bundledRuntimeCoordinator.replaceBinaryWithBundled()
 
         if success {
             AppLogger.shared.info(
