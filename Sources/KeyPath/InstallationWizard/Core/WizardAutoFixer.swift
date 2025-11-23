@@ -985,17 +985,18 @@ class WizardAutoFixer: AutoFixCapable {
             let configContent = try String(contentsOfFile: userConfigPath, encoding: .utf8)
             AppLogger.shared.log("📄 [AutoFixer] Read \(configContent.count) characters from user config")
 
-            // Use AppleScript to write to system location with admin privileges
-            let script = """
-            do shell script "echo '\(configContent.replacingOccurrences(of: "'", with: "\\'"))' > '\(systemConfigPath)'" with administrator privileges
-            """
+            // Write to system location with admin privileges
+            // Escape single quotes in content for shell
+            let escapedContent = configContent.replacingOccurrences(of: "'", with: "'\\''")
+            let command = "echo '\(escapedContent)' > '\(systemConfigPath)'"
 
-            let appleScript = NSAppleScript(source: script)
-            var error: NSDictionary?
-            _ = appleScript?.executeAndReturnError(&error)
+            let result = PrivilegedCommandRunner.run(
+                command,
+                prompt: "KeyPath needs to synchronize configuration to system location."
+            )
 
-            if let error {
-                AppLogger.shared.error("❌ [AutoFixer] AppleScript error: \(error)")
+            if result.exitCode != 0 {
+                AppLogger.shared.error("❌ [AutoFixer] Privileged command error: \(result.output)")
                 return false
             }
 

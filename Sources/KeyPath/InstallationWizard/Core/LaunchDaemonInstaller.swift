@@ -78,11 +78,12 @@ class LaunchDaemonInstaller {
 
     // MARK: - Diagnostic Methods
 
-    /// Test admin dialog capability - use this to diagnose osascript issues
+    /// Test admin dialog capability - use this to diagnose privileged command issues
     /// NOTE: This is a blocking operation that should not be called during startup
     func testAdminDialog() -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Testing admin dialog capability...")
         AppLogger.shared.log("🔧 [LaunchDaemon] Current thread: \(Thread.isMainThread ? "main" : "background")")
+        AppLogger.shared.log("🔧 [LaunchDaemon] Using sudo mode: \(PrivilegedCommandRunner.useSudo)")
 
         // Skip test if called during startup to prevent freezes
         if ProcessInfo.processInfo.environment["KEYPATH_SKIP_ADMIN_TEST"] == "1" {
@@ -90,67 +91,22 @@ class LaunchDaemonInstaller {
             return true // Assume it works to avoid blocking
         }
 
-        let testCommand = "echo 'Admin dialog test successful'"
-        let osascriptCode = """
-        do shell script "\(
-            testCommand
-        )" with administrator privileges with prompt "KeyPath Admin Dialog Test - This is a test of the admin password dialog. Please enter your password to confirm it's working."
-        """
+        let result = PrivilegedCommandRunner.run(
+            "echo 'Admin dialog test successful'",
+            prompt: "KeyPath Admin Dialog Test - This is a test of the admin password dialog."
+        )
 
-        // Execute directly without semaphore to avoid deadlock
-        let success = executeOSAScriptDirectly(osascriptCode)
-
-        AppLogger.shared.log("🔧 [LaunchDaemon] Admin dialog test result: \(success)")
-        return success
+        AppLogger.shared.log("🔧 [LaunchDaemon] Admin dialog test output: \(result.output)")
+        AppLogger.shared.log("🔧 [LaunchDaemon] Admin dialog test result: \(result.exitCode == 0)")
+        return result.exitCode == 0
     }
 
-    /// Execute osascript directly without thread switching
-    private func executeOSAScriptDirectly(_ osascriptCode: String) -> Bool {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        task.arguments = ["-e", osascriptCode]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            AppLogger.shared.log("🔧 [LaunchDaemon] OSAScript test output: \(output)")
-            return task.terminationStatus == 0
-        } catch {
-            AppLogger.shared.log("❌ [LaunchDaemon] OSAScript test error: \(error)")
-            return false
-        }
-    }
-
-    private func executeOSAScriptOnMainThread(_ osascriptCode: String) -> Bool {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        task.arguments = ["-e", osascriptCode]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            AppLogger.shared.log("🔧 [LaunchDaemon] OSAScript test output: \(output)")
-            return task.terminationStatus == 0
-        } catch {
-            AppLogger.shared.log("❌ [LaunchDaemon] OSAScript test failed: \(error)")
-            return false
-        }
+    /// Execute a shell command with admin privileges using the centralized runner
+    /// TODO: TEMPORARY - Uses sudo mode when KEYPATH_USE_SUDO=1. Remove before shipping.
+    private func runPrivilegedCommand(_ command: String, prompt: String) -> Bool {
+        let result = PrivilegedCommandRunner.run(command, prompt: prompt)
+        AppLogger.shared.log("🔧 [LaunchDaemon] Privileged command output: \(result.output)")
+        return result.exitCode == 0
     }
 
     // MARK: - Warm-up tracking (to distinguish "starting" from "failed")
@@ -192,13 +148,6 @@ class LaunchDaemonInstaller {
             return override
         }
         return WizardSystemPaths.remapSystemPath("/Library/LaunchDaemons")
-    }
-
-    /// Escapes a shell command string for safe embedding in AppleScript
-    private func escapeForAppleScript(_ command: String) -> String {
-        var escaped = command.replacingOccurrences(of: "\\", with: "\\\\")
-        escaped = escaped.replacingOccurrences(of: "\"", with: "\\\"")
-        return escaped
     }
 
     // MARK: - Path Detection Methods
@@ -1071,45 +1020,23 @@ class LaunchDaemonInstaller {
         cp '\(vhidManagerTemp)' '\(vhidManagerFinal)' && chown root:wheel '\(vhidManagerFinal)' && chmod 644 '\(vhidManagerFinal)'
         """
 
-        // Use osascript to request admin privileges with proper password dialog
-        let escapedCommand = escapeForAppleScript(command)
-        let osascriptCommand = """
-        do shell script "\(escapedCommand)" with administrator privileges with prompt "KeyPath needs to install LaunchDaemon services for keyboard management."
-        """
+        let result = PrivilegedCommandRunner.run(
+            command,
+            prompt: "KeyPath needs to install LaunchDaemon services for keyboard management."
+        )
 
-        let osascriptTask = Process()
-        osascriptTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        osascriptTask.arguments = ["-e", osascriptCommand]
-
-        let pipe = Pipe()
-        osascriptTask.standardOutput = pipe
-        osascriptTask.standardError = pipe
-
-        do {
-            try osascriptTask.run()
-            osascriptTask.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            if osascriptTask.terminationStatus == 0 {
-                AppLogger.shared.log("✅ [LaunchDaemon] Successfully installed all LaunchDaemon services")
-                return true
-            } else {
-                let reason = "Failed to install services: \(output)"
-                updateInstallerFailure(reason)
-                AppLogger.shared.log("❌ [LaunchDaemon] \(reason)")
-                return false
-            }
-        } catch {
-            let reason = "Failed to execute admin command: \(error.localizedDescription)"
+        if result.exitCode == 0 {
+            AppLogger.shared.log("✅ [LaunchDaemon] Successfully installed all LaunchDaemon services")
+            return true
+        } else {
+            let reason = "Failed to install services: \(result.output)"
             updateInstallerFailure(reason)
             AppLogger.shared.log("❌ [LaunchDaemon] \(reason)")
             return false
         }
     }
 
-    /// Execute LaunchDaemon installation with administrator privileges using osascript
+    /// Execute LaunchDaemon installation with administrator privileges
     private func executeWithAdminPrivileges(tempPath: String, finalPath: String, serviceID: String)
         -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Requesting admin privileges to install \(serviceID)")
@@ -1118,37 +1045,16 @@ class LaunchDaemonInstaller {
         let command =
             "mkdir -p '\(Self.launchDaemonsPath)' && cp '\(tempPath)' '\(finalPath)' && chown root:wheel '\(finalPath)' && chmod 644 '\(finalPath)'"
 
-        // Use osascript to request admin privileges with proper password dialog
-        let escapedCommand = escapeForAppleScript(command)
-        let osascriptCommand = """
-        do shell script "\(escapedCommand)" with administrator privileges with prompt "KeyPath needs to install LaunchDaemon services for keyboard management."
-        """
+        let result = PrivilegedCommandRunner.run(
+            command,
+            prompt: "KeyPath needs to install LaunchDaemon services for keyboard management."
+        )
 
-        let osascriptTask = Process()
-        osascriptTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        osascriptTask.arguments = ["-e", osascriptCommand]
-
-        let pipe = Pipe()
-        osascriptTask.standardOutput = pipe
-        osascriptTask.standardError = pipe
-
-        do {
-            try osascriptTask.run()
-            osascriptTask.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            if osascriptTask.terminationStatus == 0 {
-                AppLogger.shared.log("✅ [LaunchDaemon] Successfully installed plist: \(serviceID)")
-                return true
-            } else {
-                AppLogger.shared.log("❌ [LaunchDaemon] Failed to install plist \(serviceID): \(output)")
-                return false
-            }
-        } catch {
-            AppLogger.shared.log(
-                "❌ [LaunchDaemon] Failed to execute admin command for \(serviceID): \(error)")
+        if result.exitCode == 0 {
+            AppLogger.shared.log("✅ [LaunchDaemon] Successfully installed plist: \(serviceID)")
+            return true
+        } else {
+            AppLogger.shared.log("❌ [LaunchDaemon] Failed to install plist \(serviceID): \(result.output)")
             return false
         }
     }
@@ -1359,56 +1265,29 @@ class LaunchDaemonInstaller {
         }
     }
 
-    /// Execute consolidated installation with improved osascript execution
+    /// Execute consolidated installation with improved privileged command execution
     /// This method addresses sandbox restrictions by ensuring proper execution context
     private func executeConsolidatedInstallationImproved(
         kanataTemp: String, vhidDaemonTemp: String, vhidManagerTemp: String
     ) -> Bool {
         AppLogger.shared.log(
-            "🔧 [LaunchDaemon] Starting consolidated installation with improved osascript")
+            "🔧 [LaunchDaemon] Starting consolidated installation")
         AppLogger.shared.log(
-            "🔧 [LaunchDaemon] Using direct osascript execution with proper environment")
+            "🔧 [LaunchDaemon] Using sudo mode: \(PrivilegedCommandRunner.useSudo)")
 
-        // First, test if osascript works at all with a simple command
-        AppLogger.shared.log("🔧 [LaunchDaemon] Testing osascript functionality first...")
-        let testCommand = """
-        do shell script "echo 'osascript test successful'" with administrator privileges
-        """
+        // First, test if privileged command execution works
+        AppLogger.shared.log("🔧 [LaunchDaemon] Testing privileged command execution...")
+        let testResult = PrivilegedCommandRunner.run(
+            "echo 'admin test successful'",
+            prompt: "KeyPath needs to verify administrator access."
+        )
 
-        let testTask = Process()
-        testTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        testTask.arguments = ["-e", testCommand]
-
-        // Capture both stdout and stderr
-        let testPipe = Pipe()
-        let testErrorPipe = Pipe()
-        testTask.standardOutput = testPipe
-        testTask.standardError = testErrorPipe
-
-        do {
-            try testTask.run()
-            testTask.waitUntilExit()
-
-            let testStatus = testTask.terminationStatus
-            AppLogger.shared.log("🔧 [LaunchDaemon] osascript test result: \(testStatus)")
-
-            if testStatus != 0 {
-                // Capture stderr for detailed error info
-                let errorData = testErrorPipe.fileHandleForReading.readDataToEndOfFile()
-                if let errorString = String(data: errorData, encoding: .utf8), !errorString.isEmpty {
-                    AppLogger.shared.log("❌ [LaunchDaemon] osascript error output: \(errorString)")
-                }
-
-                AppLogger.shared.log("❌ [LaunchDaemon] osascript test failed - admin dialogs may be blocked")
-                AppLogger.shared.log("❌ [LaunchDaemon] This usually indicates missing entitlements or sandbox restrictions")
-                return false
-            }
-            AppLogger.shared.log("✅ [LaunchDaemon] osascript test passed - proceeding with installation")
-        } catch {
-            AppLogger.shared.log("❌ [LaunchDaemon] osascript test threw error: \(error)")
-            AppLogger.shared.log("❌ [LaunchDaemon] Error details: \(error.localizedDescription)")
+        if testResult.exitCode != 0 {
+            AppLogger.shared.log("❌ [LaunchDaemon] Privileged command test failed: \(testResult.output)")
+            AppLogger.shared.log("❌ [LaunchDaemon] This may indicate permission issues or user cancelled")
             return false
         }
+        AppLogger.shared.log("✅ [LaunchDaemon] Privileged command test passed - proceeding with installation")
 
         // Build installation script (same as before)
         let kanataFinal = "\(Self.launchDaemonsPath)/\(Self.kanataServiceID).plist"
@@ -1487,79 +1366,37 @@ class LaunchDaemonInstaller {
 
         // Create a temporary script file
         let tempScriptPath = NSTemporaryDirectory() + "keypath-install-\(UUID().uuidString).sh"
+        let fileManager = FileManager.default
 
         do {
             try command.write(toFile: tempScriptPath, atomically: true, encoding: .utf8)
-
-            // Set executable permissions
-            let fileManager = FileManager.default
             try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempScriptPath)
 
-            // Use osascript to execute the script with admin privileges
-            // Custom prompt to clearly identify KeyPath (not osascript)
-            let osascriptCode = """
-            do shell script "bash '\(tempScriptPath)'" with administrator privileges with prompt "KeyPath needs administrator access to install system services for keyboard management."
-            """
-
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-            task.arguments = ["-e", osascriptCode]
-            task.currentDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory())
-
-            let pipe = Pipe()
-            task.standardOutput = pipe
-            task.standardError = pipe
-
-            AppLogger.shared.log("🔐 [LaunchDaemon] Executing osascript with temp script approach...")
+            AppLogger.shared.log("🔐 [LaunchDaemon] Executing installation script...")
             AppLogger.shared.log("🔐 [LaunchDaemon] Script path: \(tempScriptPath)")
-            AppLogger.shared.log("🔐 [LaunchDaemon] Current thread: \(Thread.isMainThread ? "main" : "background")")
-            AppLogger.shared.log("🔐 [LaunchDaemon] osascript command: \(osascriptCode)")
-            AppLogger.shared.log("🔐 [LaunchDaemon] About to execute: /usr/bin/osascript -e [command]")
 
-            // Execute without thread switching to avoid deadlock
-            // Admin dialogs can run from any thread when using osascript
-            var taskSuccess = false
-            var taskStatus: Int32 = -1
+            let result = PrivilegedCommandRunner.run(
+                "bash '\(tempScriptPath)'",
+                prompt: "KeyPath needs administrator access to install system services for keyboard management."
+            )
 
-            do {
-                AppLogger.shared.log("🔐 [LaunchDaemon] Executing osascript directly")
-                try task.run()
-                task.waitUntilExit()
-                taskStatus = task.terminationStatus
-                taskSuccess = true
-                AppLogger.shared.log("🔐 [LaunchDaemon] Execution completed with status: \(taskStatus)")
-            } catch {
-                AppLogger.shared.log("❌ [LaunchDaemon] Execution failed: \(error)")
-                taskSuccess = false
-            }
-
-            if !taskSuccess {
-                AppLogger.shared.log("❌ [LaunchDaemon] Failed to execute osascript task")
-                try? fileManager.removeItem(atPath: tempScriptPath)
-                return false
-            }
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            AppLogger.shared.log("🔐 [LaunchDaemon] osascript completed with status: \(taskStatus)")
-            AppLogger.shared.log("🔐 [LaunchDaemon] Output: \(output)")
+            AppLogger.shared.log("🔐 [LaunchDaemon] Installation completed with exit code: \(result.exitCode)")
+            AppLogger.shared.log("🔐 [LaunchDaemon] Output: \(result.output)")
 
             // Clean up temp script
             try? fileManager.removeItem(atPath: tempScriptPath)
 
-            if taskStatus == 0 {
-                AppLogger.shared.log("✅ [LaunchDaemon] Successfully completed installation with main thread osascript")
+            if result.exitCode == 0 {
+                AppLogger.shared.log("✅ [LaunchDaemon] Successfully completed installation")
                 return true
             } else {
-                AppLogger.shared.log("❌ [LaunchDaemon] osascript installation failed with status: \(taskStatus)")
+                AppLogger.shared.log("❌ [LaunchDaemon] Installation failed with exit code: \(result.exitCode)")
                 return false
             }
 
         } catch {
-            AppLogger.shared.log("❌ [LaunchDaemon] Error with improved osascript approach: \(error)")
-            // Clean up temp script on error
-            try? FileManager.default.removeItem(atPath: tempScriptPath)
+            AppLogger.shared.log("❌ [LaunchDaemon] Error during installation: \(error)")
+            try? fileManager.removeItem(atPath: tempScriptPath)
             return false
         }
     }
@@ -1649,57 +1486,25 @@ class LaunchDaemonInstaller {
         /bin/echo Installation completed successfully
         """
 
-        // Use osascript to request admin privileges with clear explanation
-        AppLogger.shared.log("🔐 [LaunchDaemon] *** ABOUT TO EXECUTE OSASCRIPT FOR ADMIN PRIVILEGES ***")
-        AppLogger.shared.log("🔐 [LaunchDaemon] This should show a password dialog to the user")
+        AppLogger.shared.log("🔐 [LaunchDaemon] Executing privileged installation command...")
         AppLogger.shared.log("🔐 [LaunchDaemon] isTestMode = \(Self.isTestMode)")
+        AppLogger.shared.log("🔐 [LaunchDaemon] Using sudo mode: \(PrivilegedCommandRunner.useSudo)")
 
-        // Escape the command for safe AppleScript embedding
-        let escapedCommand = escapeForAppleScript(command)
+        let result = PrivilegedCommandRunner.run(
+            command,
+            prompt: "KeyPath needs administrator access to install LaunchDaemon services, create configuration files, and start the keyboard services."
+        )
 
-        let osascriptCommand = """
-        do shell script "\(
-            escapedCommand
-        )" with administrator privileges with prompt "KeyPath needs administrator access to install LaunchDaemon services, create configuration files, and start the keyboard services. This will be a single prompt."
-        """
+        AppLogger.shared.log("🔐 [LaunchDaemon] Privileged command completed with exit code: \(result.exitCode)")
+        AppLogger.shared.log("🔐 [LaunchDaemon] Output: \(result.output)")
 
-        AppLogger.shared.log("🔐 [LaunchDaemon] osascript command length: \(osascriptCommand.count) characters")
-        AppLogger.shared.log("🔐 [LaunchDaemon] Starting osascript process...")
-
-        let osascriptTask = Process()
-        osascriptTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        osascriptTask.arguments = ["-e", osascriptCommand]
-
-        let pipe = Pipe()
-        osascriptTask.standardOutput = pipe
-        osascriptTask.standardError = pipe
-
-        do {
-            AppLogger.shared.log("🔐 [LaunchDaemon] Executing osascript.run()...")
-            try osascriptTask.run()
-            AppLogger.shared.log("🔐 [LaunchDaemon] osascript.run() succeeded, now waiting for completion...")
-            osascriptTask.waitUntilExit()
-            AppLogger.shared.log("🔐 [LaunchDaemon] osascript completed with status: \(osascriptTask.terminationStatus)")
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            AppLogger.shared.log("🔐 [LaunchDaemon] osascript output: \(output)")
-
-            if osascriptTask.terminationStatus == 0 {
-                AppLogger.shared.log("✅ [LaunchDaemon] Successfully completed consolidated installation")
-                AppLogger.shared.log("🔧 [LaunchDaemon] Admin output: \(output)")
-                // Mark warm-up for all services we just installed+bootstrapped
-                markRestartTime(for: [Self.kanataServiceID, Self.vhidDaemonServiceID, Self.vhidManagerServiceID])
-                return true
-            } else {
-                AppLogger.shared.log("❌ [LaunchDaemon] Failed consolidated installation: \(output)")
-                AppLogger.shared.log("❌ [LaunchDaemon] Exit status was: \(osascriptTask.terminationStatus)")
-                return false
-            }
-        } catch {
-            AppLogger.shared.log(
-                "❌ [LaunchDaemon] Failed to execute consolidated admin command: \(error)")
-            AppLogger.shared.log("❌ [LaunchDaemon] This means osascript.run() threw an exception")
+        if result.exitCode == 0 {
+            AppLogger.shared.log("✅ [LaunchDaemon] Successfully completed consolidated installation")
+            // Mark warm-up for all services we just installed+bootstrapped
+            markRestartTime(for: [Self.kanataServiceID, Self.vhidDaemonServiceID, Self.vhidManagerServiceID])
+            return true
+        } else {
+            AppLogger.shared.log("❌ [LaunchDaemon] Failed consolidated installation: \(result.output)")
             return false
         }
     }
@@ -1866,49 +1671,22 @@ class LaunchDaemonInstaller {
         let cmds = serviceIDs.map { "launchctl kickstart -k system/\($0)" }.joined(separator: " && ")
         AppLogger.shared.log("🔧 [LaunchDaemon] Executing admin command: \(cmds)")
 
-        let escapedCmds = escapeForAppleScript(cmds)
-        let script = """
-        do shell script "\(escapedCmds)" with administrator privileges with prompt "KeyPath needs to restart failing system services."
-        """
+        let result = PrivilegedCommandRunner.run(
+            cmds,
+            prompt: "KeyPath needs to restart failing system services."
+        )
 
-        AppLogger.shared.log("🔧 [LaunchDaemon] Running osascript with admin privileges...")
+        AppLogger.shared.log("🔧 [LaunchDaemon] Privileged command exit code: \(result.exitCode)")
+        AppLogger.shared.log("🔧 [LaunchDaemon] Privileged command output: \(result.output)")
 
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        task.arguments = ["-e", script]
-
-        // Capture both stdout and stderr for debugging
-        let outputPipe = Pipe()
-        let errorPipe = Pipe()
-        task.standardOutput = outputPipe
-        task.standardError = errorPipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            // Read output and error streams
-            let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: outputData, encoding: .utf8) ?? "(no output)"
-            let error = String(data: errorData, encoding: .utf8) ?? "(no error)"
-
-            AppLogger.shared.log(
-                "🔧 [LaunchDaemon] osascript termination status: \(task.terminationStatus)")
-            AppLogger.shared.log("🔧 [LaunchDaemon] osascript stdout: \(output)")
-            AppLogger.shared.log("🔧 [LaunchDaemon] osascript stderr: \(error)")
-
-            let success = task.terminationStatus == 0
-            AppLogger.shared.log(
-                "🔧 [LaunchDaemon] Admin restart command result: \(success ? "SUCCESS" : "FAILED")")
-            if success {
-                // Mark warm-up start time for those services
-                markRestartTime(for: serviceIDs)
-            }
-            return success
-        } catch {
-            AppLogger.shared.log("❌ [LaunchDaemon] kickstart admin failed with exception: \(error)")
-            return false
+        let success = result.exitCode == 0
+        AppLogger.shared.log(
+            "🔧 [LaunchDaemon] Admin restart command result: \(success ? "SUCCESS" : "FAILED")")
+        if success {
+            // Mark warm-up start time for those services
+            markRestartTime(for: serviceIDs)
+        }
+        return success
         }
     }
 
@@ -2475,39 +2253,19 @@ class LaunchDaemonInstaller {
         launchctl kickstart system/\(serviceID)
         """
 
-        // Use osascript for admin privileges
-        let escapedCommand = escapeForAppleScript(command)
-        let osascriptCommand = """
-        do shell script "\(escapedCommand)" with administrator privileges with prompt "KeyPath needs to update the TCP server configuration for the keyboard service."
-        """
+        let result = PrivilegedCommandRunner.run(
+            command,
+            prompt: "KeyPath needs to update the TCP server configuration for the keyboard service."
+        )
 
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        task.arguments = ["-e", osascriptCommand]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            if task.terminationStatus == 0 {
-                AppLogger.shared.log("✅ [LaunchDaemon] Successfully reloaded service \(serviceID)")
-                AppLogger.shared.log("🔧 [LaunchDaemon] Reload output: \(output)")
-                // Mark restart time for warm-up detection
-                markRestartTime(for: [serviceID])
-                return true
-            } else {
-                AppLogger.shared.log("❌ [LaunchDaemon] Failed to reload service \(serviceID): \(output)")
-                return false
-            }
-        } catch {
-            AppLogger.shared.log("❌ [LaunchDaemon] Error executing service reload: \(error)")
+        if result.exitCode == 0 {
+            AppLogger.shared.log("✅ [LaunchDaemon] Successfully reloaded service \(serviceID)")
+            AppLogger.shared.log("🔧 [LaunchDaemon] Reload output: \(result.output)")
+            // Mark restart time for warm-up detection
+            markRestartTime(for: [serviceID])
+            return true
+        } else {
+            AppLogger.shared.log("❌ [LaunchDaemon] Failed to reload service \(serviceID): \(result.output)")
             return false
         }
     }
@@ -2755,13 +2513,11 @@ class LaunchDaemonInstaller {
             xattr -d com.apple.quarantine '\(systemPath)' 2>/dev/null || true
             """
 
-            // Use osascript approach like other admin operations
-            let escapedCommand = escapeForAppleScript(command)
-            let osascriptCommand = """
-            do shell script "\(escapedCommand)" with administrator privileges
-            """
-
-            success = executeOSAScriptOnMainThread(osascriptCommand)
+            let result = PrivilegedCommandRunner.run(
+                command,
+                prompt: "KeyPath needs to install the keyboard service binary."
+            )
+            success = result.exitCode == 0
         }
 
         if success {

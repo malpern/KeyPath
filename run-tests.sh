@@ -6,6 +6,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SUDOERS_FILE="/etc/sudoers.d/keypath-testing"
 
 echo "🧪 KeyPath Test Runner"
 echo "======================"
@@ -18,9 +19,19 @@ if [ -f "$SCRIPT_DIR/run-tests-automated.sh" ] && [ "$KEYPATH_MANUAL_TESTS" != "
     exec "$SCRIPT_DIR/run-tests-automated.sh"
 fi
 
-# Manual testing mode
-echo "⚠️  Manual testing mode - you may be prompted for passwords"
-echo "💡 Create run-tests-automated.sh locally for passwordless testing"
+# Check if sudoers is configured for passwordless testing
+# TODO: TEMPORARY - Remove sudo mode before shipping
+if [ -f "$SUDOERS_FILE" ] && [ "$KEYPATH_USE_SUDO" != "0" ]; then
+    echo "🔓 Sudoers configured - enabling passwordless sudo mode"
+    echo "   (Set KEYPATH_USE_SUDO=0 to disable)"
+    export KEYPATH_USE_SUDO=1
+elif [ "$KEYPATH_USE_SUDO" = "1" ]; then
+    echo "🔓 KEYPATH_USE_SUDO=1 set - using sudo mode"
+    echo "⚠️  Note: Run ./Scripts/setup-test-sudo.sh first if not already done"
+else
+    echo "⚠️  Manual testing mode - you may be prompted for passwords"
+    echo "💡 Run ./Scripts/setup-test-sudo.sh for passwordless testing"
+fi
 echo ""
 
 # Fallback to manual testing

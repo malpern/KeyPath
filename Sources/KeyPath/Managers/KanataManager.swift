@@ -2294,51 +2294,28 @@ class KanataManager {
         let rootOnlyPath = "/Library/Application Support/org.pqrs/tmp/rootonly"
         let tmpPath = "/Library/Application Support/org.pqrs/tmp"
 
-        // Use AppleScript to run commands with admin privileges
-        let createDirScript = """
-        do shell script "mkdir -p '\(rootOnlyPath)' && chown -R \(NSUserName()) '\(tmpPath)' && chmod -R 755 '\(tmpPath)'"
-        with administrator privileges
-        with prompt "KeyPath needs to prepare system directories for the virtual keyboard."
-        """
+        let command = "mkdir -p '\(rootOnlyPath)' && chown -R \(NSUserName()) '\(tmpPath)' && chmod -R 755 '\(tmpPath)'"
+        let result = PrivilegedCommandRunner.run(
+            command,
+            prompt: "KeyPath needs to prepare system directories for the virtual keyboard."
+        )
 
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        task.arguments = ["-e", createDirScript]
+        if result.exitCode == 0 {
+            AppLogger.shared.info("✅ [Daemon] Successfully prepared daemon directories")
 
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
+            // Also ensure log directory exists and is accessible
+            let logResult = PrivilegedCommandRunner.run(
+                "mkdir -p '/var/log/karabiner' && chmod 755 '/var/log/karabiner'",
+                prompt: "KeyPath needs to create system log directories."
+            )
 
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            if task.terminationStatus == 0 {
-                AppLogger.shared.info("✅ [Daemon] Successfully prepared daemon directories")
-
-                // Also ensure log directory exists and is accessible
-                let logDirScript =
-                    "do shell script \"mkdir -p '/var/log/karabiner' && chmod 755 '/var/log/karabiner'\" with administrator privileges with prompt \"KeyPath needs to create system log directories.\""
-
-                let logTask = Process()
-                logTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-                logTask.arguments = ["-e", logDirScript]
-
-                try logTask.run()
-                logTask.waitUntilExit()
-
-                if logTask.terminationStatus == 0 {
-                    AppLogger.shared.info("✅ [Daemon] Log directory permissions set")
-                } else {
-                    AppLogger.shared.warn("⚠️ [Daemon] Could not set log directory permissions")
-                }
+            if logResult.exitCode == 0 {
+                AppLogger.shared.info("✅ [Daemon] Log directory permissions set")
             } else {
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                let output = String(data: data, encoding: .utf8) ?? ""
-                AppLogger.shared.error("❌ [Daemon] Failed to prepare directories: \(output)")
+                AppLogger.shared.warn("⚠️ [Daemon] Could not set log directory permissions")
             }
-        } catch {
-            AppLogger.shared.error("❌ [Daemon] Error preparing daemon directories: \(error)")
+        } else {
+            AppLogger.shared.error("❌ [Daemon] Failed to prepare directories: \(result.output)")
         }
     }
 

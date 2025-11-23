@@ -100,29 +100,17 @@ class BundledKanataManager {
     private func replaceSystemBinary(at systemPath: String) async throws -> Bool {
         let bundledPath = WizardSystemPaths.bundledKanataPath
 
-        let script = """
-        do shell script "cp '\(bundledPath)' '\(systemPath)'" with administrator privileges
-        """
+        let result = await PrivilegedCommandRunner.runAsync(
+            "cp '\(bundledPath)' '\(systemPath)'",
+            prompt: "KeyPath needs to replace the system kanata binary."
+        )
 
-        return await withCheckedContinuation { [weak self] continuation in
-            DispatchQueue.main.async {
-                var error: NSDictionary?
-                let appleScript = NSAppleScript(source: script)
-                let result = appleScript?.executeAndReturnError(&error)
-
-                if let error {
-                    AppLogger.shared.log("❌ [BundledKanataManager] AppleScript error: \(error)")
-                    continuation.resume(returning: false)
-                } else if result != nil {
-                    AppLogger.shared.log("✅ [BundledKanataManager] Successfully copied bundled kanata to system path")
-                    guard let strongSelf = self else { continuation.resume(returning: false); return }
-                    let verificationSuccess = strongSelf.verifyReplacement(at: systemPath)
-                    continuation.resume(returning: verificationSuccess)
-                } else {
-                    AppLogger.shared.log("❌ [BundledKanataManager] AppleScript returned nil result")
-                    continuation.resume(returning: false)
-                }
-            }
+        if result.exitCode == 0 {
+            AppLogger.shared.log("✅ [BundledKanataManager] Successfully copied bundled kanata to system path")
+            return verifyReplacement(at: systemPath)
+        } else {
+            AppLogger.shared.log("❌ [BundledKanataManager] Privileged command error: \(result.output)")
+            return false
         }
     }
 
@@ -142,22 +130,18 @@ class BundledKanataManager {
     }
 
     private func restoreBackup(from backupPath: String, to originalPath: String) throws {
-        let script = """
-        do shell script "cp '\(backupPath)' '\(originalPath)'" with administrator privileges
-        """
+        let result = PrivilegedCommandRunner.run(
+            "cp '\(backupPath)' '\(originalPath)'",
+            prompt: "KeyPath needs to restore the backup binary."
+        )
 
-        var error: NSDictionary?
-        let appleScript = NSAppleScript(source: script)
-        let result = appleScript?.executeAndReturnError(&error)
-
-        if let error {
-            AppLogger.shared.log("❌ [BundledKanataManager] Failed to restore backup: \(error)")
+        if result.exitCode != 0 {
+            AppLogger.shared.log("❌ [BundledKanataManager] Failed to restore backup: \(result.output)")
             throw NSError(domain: "BundledKanataManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to restore backup"])
-        } else if result != nil {
-            AppLogger.shared.log("🔙 [BundledKanataManager] Successfully restored backup")
-
-            try FileManager.default.removeItem(atPath: backupPath)
-            AppLogger.shared.log("🗑️ [BundledKanataManager] Cleaned up backup file")
         }
+
+        AppLogger.shared.log("🔙 [BundledKanataManager] Successfully restored backup")
+        try FileManager.default.removeItem(atPath: backupPath)
+        AppLogger.shared.log("🗑️ [BundledKanataManager] Cleaned up backup file")
     }
 }

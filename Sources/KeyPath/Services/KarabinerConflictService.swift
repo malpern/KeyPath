@@ -350,67 +350,48 @@ final class KarabinerConflictService: KarabinerConflictManaging {
     }
 
     private func executeScriptWithSudo(script: String, description: String) async -> Bool {
-        await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                let tempDir = NSTemporaryDirectory()
-                let scriptPath = "\(tempDir)disable_karabiner_\(UUID().uuidString).sh"
+        let tempDir = NSTemporaryDirectory()
+        let scriptPath = "\(tempDir)disable_karabiner_\(UUID().uuidString).sh"
 
-                do {
-                    // Write script to temporary file
-                    try script.write(toFile: scriptPath, atomically: true, encoding: .utf8)
+        do {
+            // Write script to temporary file
+            try script.write(toFile: scriptPath, atomically: true, encoding: .utf8)
 
-                    // Make script executable
-                    let chmodTask = Process()
-                    chmodTask.executableURL = URL(fileURLWithPath: "/bin/chmod")
-                    chmodTask.arguments = ["+x", scriptPath]
-                    try chmodTask.run()
-                    chmodTask.waitUntilExit()
+            // Make script executable
+            let chmodTask = Process()
+            chmodTask.executableURL = URL(fileURLWithPath: "/bin/chmod")
+            chmodTask.arguments = ["+x", scriptPath]
+            try chmodTask.run()
+            chmodTask.waitUntilExit()
 
-                    // Execute script with sudo using osascript
-                    let osascriptCommand = """
-                    do shell script "\(scriptPath)" with administrator privileges with prompt "KeyPath needs to \(description.lowercased()) to fix keyboard conflicts."
-                    """
+            // Execute script with admin privileges
+            let result = await PrivilegedCommandRunner.runAsync(
+                scriptPath,
+                prompt: "KeyPath needs to \(description.lowercased()) to fix keyboard conflicts."
+            )
 
-                    let osascriptTask = Process()
-                    osascriptTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-                    osascriptTask.arguments = ["-e", osascriptCommand]
+            // Clean up temporary file
+            try? FileManager.default.removeItem(atPath: scriptPath)
 
-                    let pipe = Pipe()
-                    osascriptTask.standardOutput = pipe
-                    osascriptTask.standardError = pipe
+            if result.exitCode == 0 {
+                AppLogger.shared.log("✅ [Karabiner] Successfully disabled Karabiner Elements services")
+                AppLogger.shared.log("📝 [Karabiner] Output: \(result.output)")
 
-                    try osascriptTask.run()
-                    osascriptTask.waitUntilExit()
+                // Perform additional verification
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                await verifyKarabinerGrabberRemoval()
 
-                    let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                    let output = String(data: data, encoding: .utf8) ?? ""
-
-                    // Clean up temporary file
-                    try? FileManager.default.removeItem(atPath: scriptPath)
-
-                    if osascriptTask.terminationStatus == 0 {
-                        AppLogger.shared.log("✅ [Karabiner] Successfully disabled Karabiner Elements services")
-                        AppLogger.shared.log("📝 [Karabiner] Output: \(output)")
-
-                        // Perform additional verification
-                        Task {
-                            try? await Task.sleep(nanoseconds: 1_000_000_000)
-                            await self.verifyKarabinerGrabberRemoval()
-                        }
-
-                        continuation.resume(returning: true)
-                    } else {
-                        AppLogger.shared.log("❌ [Karabiner] Failed to disable Karabiner Elements services")
-                        AppLogger.shared.log("📝 [Karabiner] Error output: \(output)")
-                        continuation.resume(returning: false)
-                    }
-
-                } catch {
-                    AppLogger.shared.log("❌ [Karabiner] Error executing disable script: \(error)")
-                    try? FileManager.default.removeItem(atPath: scriptPath)
-                    continuation.resume(returning: false)
-                }
+                return true
+            } else {
+                AppLogger.shared.log("❌ [Karabiner] Failed to disable Karabiner Elements services")
+                AppLogger.shared.log("📝 [Karabiner] Error output: \(result.output)")
+                return false
             }
+
+        } catch {
+            AppLogger.shared.log("❌ [Karabiner] Error executing disable script: \(error)")
+            try? FileManager.default.removeItem(atPath: scriptPath)
+            return false
         }
     }
 

@@ -810,15 +810,6 @@ final class PrivilegedOperationsCoordinator {
 
     // MARK: - Helper Methods
 
-    /// Escape a string for use in AppleScript
-    private func escapeForAppleScript(_ string: String) -> String {
-        string
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-            .replacingOccurrences(of: "\n", with: "\\n")
-            .replacingOccurrences(of: "\r", with: "\\r")
-    }
-
     /// Helper: current VHID daemon PIDs (best-effort, no throw)
     private static func getDaemonPIDs() -> [String] {
         let task = Process()

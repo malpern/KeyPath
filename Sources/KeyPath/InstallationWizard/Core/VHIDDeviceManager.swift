@@ -315,59 +315,30 @@ final class VHIDDeviceManager: @unchecked Sendable {
         )
     }
 
-    /// Execute a command with administrator privileges using osascript
+    /// Execute a command with administrator privileges
     private func executeWithAdminPrivileges(command: String, description: String) async -> Bool {
-        await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                AppLogger.shared.log("🔧 [VHIDManager] Requesting admin privileges for: \(description)")
+        AppLogger.shared.log("🔧 [VHIDManager] Requesting admin privileges for: \(description)")
 
-                // Properly escape command for AppleScript (escape backslashes first, then quotes)
-                let escapedCommand = command
-                    .replacingOccurrences(of: "\\", with: "\\\\")
-                    .replacingOccurrences(of: "\"", with: "\\\"")
+        let result = await PrivilegedCommandRunner.runAsync(
+            command,
+            prompt: "KeyPath needs to \(description.lowercased())."
+        )
 
-                // Use osascript to request admin privileges with proper password dialog
-                let osascriptCommand =
-                    "do shell script \"\(escapedCommand)\" with administrator privileges with prompt \"KeyPath needs to \(description.lowercased()).\""
+        if result.exitCode == 0 {
+            AppLogger.shared.log("✅ [VHIDManager] \(description) completed successfully")
 
-                let osascriptTask = Process()
-                osascriptTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-                osascriptTask.arguments = ["-e", osascriptCommand]
+            // Wait a moment for the activation to take effect
+            try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
 
-                let pipe = Pipe()
-                osascriptTask.standardOutput = pipe
-                osascriptTask.standardError = pipe
-
-                do {
-                    try osascriptTask.run()
-                    osascriptTask.waitUntilExit()
-
-                    let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                    let output = String(data: data, encoding: .utf8) ?? ""
-
-                    if osascriptTask.terminationStatus == 0 {
-                        AppLogger.shared.log("✅ [VHIDManager] \(description) completed successfully")
-
-                        // Wait a moment for the activation to take effect
-                        Task {
-                            try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-
-                            // Verify activation worked
-                            let activated = self.detectActivation()
-                            AppLogger.shared.log("🔍 [VHIDManager] Post-activation verification: \(activated)")
-                            continuation.resume(returning: activated)
-                        }
-                    } else {
-                        AppLogger.shared.log(
-                            "❌ [VHIDManager] \(description) failed with status \(osascriptTask.terminationStatus): \(output)"
-                        )
-                        continuation.resume(returning: false)
-                    }
-                } catch {
-                    AppLogger.shared.log("❌ [VHIDManager] Error executing \(description): \(error)")
-                    continuation.resume(returning: false)
-                }
-            }
+            // Verify activation worked
+            let activated = detectActivation()
+            AppLogger.shared.log("🔍 [VHIDManager] Post-activation verification: \(activated)")
+            return activated
+        } else {
+            AppLogger.shared.log(
+                "❌ [VHIDManager] \(description) failed with status \(result.exitCode): \(result.output)"
+            )
+            return false
         }
     }
 
