@@ -142,7 +142,7 @@ public final class InstallerEngine {
         // Authorization Services will prompt when needed
 
         // Check that system directories exist (not writable - installation uses admin privileges)
-        let launchDaemonsDir = "/Library/LaunchDaemons"
+        let launchDaemonsDir = KeyPathConstants.System.launchDaemonsDir
         if !FileManager.default.fileExists(atPath: launchDaemonsDir) {
             return Requirement(
                 name: "LaunchDaemons directory missing",
@@ -308,7 +308,7 @@ public final class InstallerEngine {
     /// Execute restartService recipe
     private func executeRestartService(_ recipe: ServiceRecipe, using broker: PrivilegeBroker)
         async throws {
-        if let serviceID = recipe.serviceID, serviceID == "com.keypath.kanata" {
+        if let serviceID = recipe.serviceID, serviceID == KeyPathConstants.Bundle.daemonID {
             // Restart Karabiner daemon with verification
             let success = try await broker.restartKarabinerDaemonVerified()
             if !success {

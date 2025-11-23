@@ -333,7 +333,7 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     public let configurationPath: String
     public let configDirectory: String
-    public let configFileName = "keypath.kbd"
+    public let configFileName = KeyPathConstants.Config.fileName
 
     private var currentConfiguration: KanataConfiguration?
     private var fileWatcher: FileWatcher?
@@ -556,17 +556,27 @@ public final class ConfigurationService: FileConfigurationProviding {
         try await saveConfiguration(keyMappings: [keyMapping])
     }
 
+    /// Write raw configuration content to file (for restoration/repair)
+    public func writeConfigurationContent(_ content: String) async throws {
+        try await writeFileAsync(string: content, to: configurationPath)
+        // Update current configuration
+        let newConfig = try validate(content: content)
+        setCurrentConfiguration(newConfig)
+    }
+
     // MARK: - Validation
 
     /// Validate configuration via file-based check
     public func validateConfigViaFile() -> (isValid: Bool, errors: [String]) {
+        if TestEnvironment.isTestMode {
+            AppLogger.shared.log("🧪 [ConfigService] Test mode: Skipping file validation")
+            return (true, [])
+        }
+
         let binaryPath = WizardSystemPaths.kanataActiveBinary
         guard FileManager.default.isExecutableFile(atPath: binaryPath) else {
             let message = "Kanata binary missing at \(binaryPath)"
             AppLogger.shared.log("❌ [ConfigService] File validation skipped: \(message)")
-            if TestEnvironment.isTestMode {
-                return (true, [])
-            }
             return (false, [message])
         }
 

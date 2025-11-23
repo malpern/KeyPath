@@ -8,13 +8,6 @@ import KeyPathWizardCore
 import Network
 import SwiftUI
 
-struct WizardSnapshotRecord {
-    let state: WizardSystemState
-    let issues: [WizardIssue]
-}
-
-// ProcessSynchronizationActor removed (unused)
-
 /// Represents a simple key mapping from input to output
 /// Used throughout the codebase for representing user-configured key remappings
 public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
@@ -44,8 +37,6 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
         try container.encode(output, forKey: .output)
     }
 }
-
-// SimpleKanataState enum removed (superseded by InstallerEngine)
 
 /// Manages the Kanata process lifecycle and configuration directly.
 ///
@@ -130,19 +121,6 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
 ///
 /// All other methods are internal implementation details and may change.
 
-/// Actions available in validation error dialogs
-struct ValidationAlertAction {
-    let title: String
-    let style: ActionStyle
-    let action: () -> Void
-
-    enum ActionStyle {
-        case `default`
-        case cancel
-        case destructive
-    }
-}
-
 /// Save operation status for UI feedback
 enum SaveStatus {
     case idle
@@ -187,18 +165,8 @@ class KanataManager {
     var lastProcessExitCode: Int32?
     var lastConfigUpdate: Date = .init()
 
-    // UI state properties (Legacy removed)
-    var lastWizardSnapshot: WizardSnapshotRecord?
-
-    // Removed: errorReason, showWizard, launchFailureStatus
-    // Removed: autoStartAttempts, lastHealthCheck, retryCount, isRetryingAfterFix, userManuallyStopped
-    // Removed: lifecycleState, lifecycleErrorMessage, isBusy, canPerformActions, autoStartAttempted, autoStartSucceeded, autoStartFailureReason, shouldShowWizard
-
     // Validation-specific UI state
-    var showingValidationAlert = false
-    var validationAlertTitle = ""
-    var validationAlertMessage = ""
-    var validationAlertActions: [ValidationAlertAction] = []
+    var validationError: ConfigValidationError?
 
     // Save progress feedback
     var saveStatus: SaveStatus = .idle
@@ -230,7 +198,6 @@ class KanataManager {
     /// Refresh process running state from system (call after service operations)
     /// This is more efficient than checking on every UI state sync
     func refreshProcessState() {
-        // Deprecated: State is now managed by InstallerEngine/SystemContext
         notifyStateChanged()
     }
 
@@ -242,7 +209,6 @@ class KanataManager {
 
         return KanataUIState(
             // Core Status
-            // Removed: isRunning
             lastError: lastError,
             keyMappings: keyMappings,
             ruleCollections: ruleCollections,
@@ -252,18 +218,12 @@ class KanataManager {
             lastProcessExitCode: lastProcessExitCode,
             lastConfigUpdate: lastConfigUpdate,
 
-            // UI State (Legacy status removed - passed as nil/default)
-
             // Validation & Save Status
-            showingValidationAlert: showingValidationAlert,
-            validationAlertTitle: validationAlertTitle,
-            validationAlertMessage: validationAlertMessage,
-            validationAlertActions: validationAlertActions,
+            validationError: validationError,
             saveStatus: saveStatus
         )
     }
 
-    // Removed kanataProcess: Process? - now using LaunchDaemon service exclusively
     let configDirectory = KeyPathConstants.Config.directory
     let configFileName = "keypath.kbd"
 
@@ -294,13 +254,6 @@ class KanataManager {
     private var isStartingKanata = false
     var isInitializing = false
     private let isHeadlessMode: Bool
-
-    // MARK: - UI State Management Properties (Legacy removed)
-
-    // MARK: - Lifecycle State Machine (Legacy removed)
-
-    // Note: Removed stateMachine to avoid MainActor isolation issues
-    // Lifecycle management is now handled directly in this class
 
     // MARK: - Process Synchronization (Phase 1)
 
@@ -808,13 +761,9 @@ class KanataManager {
 
     /// Backup current working config before making changes
     private func backupCurrentConfig() async {
-        do {
-            let currentConfig = try String(contentsOfFile: configPath, encoding: .utf8)
-            lastGoodConfig = currentConfig
-            AppLogger.shared.log("💾 [Backup] Current config backed up successfully")
-        } catch {
-            AppLogger.shared.warn("⚠️ [Backup] Failed to backup current config: \(error)")
-        }
+        let config = await configurationService.current()
+        lastGoodConfig = config.content
+        AppLogger.shared.log("💾 [Backup] Current config backed up to memory successfully")
     }
 
     /// Restore last known good config in case of validation failure
@@ -823,7 +772,7 @@ class KanataManager {
             throw KeyPathError.configuration(.backupNotFound)
         }
 
-        try backup.write(toFile: configPath, atomically: true, encoding: .utf8)
+        try await configurationService.writeConfigurationContent(backup)
         AppLogger.shared.info("🔄 [Restore] Restored last good config successfully")
     }
 
@@ -922,7 +871,6 @@ class KanataManager {
     }
 
     // Removed: checkLaunchDaemonStatus, killProcess
-    // Removed monitorKanataProcess() - no longer needed with LaunchDaemon service managemen
 
     /// Save a complete generated configuration (for Claude API generated configs)
     func saveGeneratedConfiguration(_ configContent: String) async throws {
@@ -1260,11 +1208,8 @@ class KanataManager {
     }
 
     func updateStatus() async {
-        // Legacy status update removed - state is now managed by InstallerEngine/SystemContext
         notifyStateChanged()
     }
-
-    // Removed: isProcessRunningFast, waitForServiceReady, updateInternalState, performUpdateStatus
 
     private func captureRecentKanataErrorMessage() -> String? {
         let stderrPath = KeyPathConstants.Logs.kanataStderr
@@ -1341,10 +1286,6 @@ class KanataManager {
         return snapshot.keyPath.accessibility.isReady
     }
 
-    // REMOVED: checkAccessibilityForPath() - now handled by PermissionService.checkTCCForAccessibility()
-
-    // REMOVED: checkTCCForAccessibility() - now handled by PermissionService
-
     func checkBothAppsHavePermissions() async -> (
         keyPathHasPermission: Bool, kanataHasPermission: Bool, permissionDetails: String
     ) {
@@ -1374,8 +1315,6 @@ class KanataManager {
         return (keyPathOverall, kanataOverall, details)
     }
 
-    // REMOVED: checkTCCForInputMonitoring() - now handled by PermissionService
-
     func hasAllRequiredPermissions() async -> Bool {
         let snapshot = await PermissionOracle.shared.currentSnapshot()
         return snapshot.keyPath.hasAllPermissions
@@ -1401,7 +1340,7 @@ class KanataManager {
 
     func openInputMonitoringSettings() {
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+            string: KeyPathConstants.URLs.inputMonitoringPrivacy) {
             NSWorkspace.shared.open(url)
         }
     }
@@ -1409,16 +1348,16 @@ class KanataManager {
     func openAccessibilitySettings() {
         if #available(macOS 13.0, *) {
             if let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                string: KeyPathConstants.URLs.accessibilityPrivacy) {
                 NSWorkspace.shared.open(url)
             }
         } else {
             if let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                string: KeyPathConstants.URLs.accessibilityPrivacy) {
                 NSWorkspace.shared.open(url)
             } else {
                 NSWorkspace.shared.open(
-                    URL(fileURLWithPath: "/System/Library/PreferencePanes/Security.prefPane"))
+                    URL(fileURLWithPath: KeyPathConstants.System.securityPrefPane))
             }
         }
     }
@@ -1481,8 +1420,6 @@ class KanataManager {
     func isKarabinerElementsRunning() -> Bool {
         karabinerConflictService.isKarabinerElementsRunning()
     }
-
-    // Removed legacy helper command string (avoid exposing unload/load guidance)
 
     /// Permanently disable all Karabiner Elements services with user permission
     func disableKarabinerElementsPermanently() async -> Bool {
@@ -1648,15 +1585,13 @@ class KanataManager {
         return success
     }
 
-    // createSystemConfigIfNeeded() removed - no longer needed since LaunchDaemon reads user config directly
-
     private func prepareDaemonDirectories() async {
         AppLogger.shared.log("🔧 [Daemon] Preparing Karabiner daemon directories...")
 
         // The daemon needs access to rootOnlyTmp
         // We'll create this directory with proper permissions during installation
         let rootOnlyPath = KeyPathConstants.VirtualHID.rootOnlyTmp
-        let tmpPath = "/Library/Application Support/org.pqrs/tmp"
+        let tmpPath = KeyPathConstants.VirtualHID.tmpDir
 
         // Use AppleScript to run commands with admin privileges
         let createDirScript = """
@@ -1666,7 +1601,7 @@ class KanataManager {
         """
 
         let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        task.executableURL = URL(fileURLWithPath: KeyPathConstants.System.osascript)
         task.arguments = ["-e", createDirScript]
 
         let pipe = Pipe()
@@ -1681,11 +1616,12 @@ class KanataManager {
                 AppLogger.shared.info("✅ [Daemon] Successfully prepared daemon directories")
 
                 // Also ensure log directory exists and is accessible
+                let karabinerLogDir = KeyPathConstants.Logs.karabinerDir
                 let logDirScript =
-                    "do shell script \"mkdir -p '/var/log/karabiner' && chmod 755 '/var/log/karabiner'\" with administrator privileges with prompt \"KeyPath needs to create system log directories.\""
+                    "do shell script \"mkdir -p '\(karabinerLogDir)' && chmod 755 '\(karabinerLogDir)'\" with administrator privileges with prompt \"KeyPath needs to create system log directories.\""
 
                 let logTask = Process()
-                logTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+                logTask.executableURL = URL(fileURLWithPath: KeyPathConstants.System.osascript)
                 logTask.arguments = ["-e", logDirScript]
 
                 try logTask.run()
@@ -1805,42 +1741,15 @@ class KanataManager {
     /// Schedule notification to inform user about config validation issues
     private func scheduleConfigValidationNotification(originalErrors: [String], backupPath: String)
         async {
-        AppLogger.shared.log("📢 [Config] Showing validation error dialog to user")
+        AppLogger.shared.log("📢 [Config] Setting validation error state")
 
         await MainActor.run {
             if TestEnvironment.isRunningTests {
                 AppLogger.shared.debug("🧪 [Config] Suppressing validation alert in test environment")
                 return
             }
-            validationAlertTitle = "Configuration File Invalid"
-            validationAlertMessage = """
-            KeyPath detected errors in your configuration file and has automatically created a backup and restored default settings.
-
-            Errors found:
-            \(originalErrors.joined(separator: "\n• "))
-
-            Your original configuration has been backed up to:
-            \(backupPath)
-
-            KeyPath is now using a default configuration (Caps Lock → Escape).
-            """
-
-            validationAlertActions = [
-                ValidationAlertAction(title: "OK", style: .default) { [weak self] in
-                    self?.showingValidationAlert = false
-                },
-                ValidationAlertAction(title: "Open Backup Location", style: .default) { [weak self] in
-                    if TestEnvironment.isRunningTests {
-                        AppLogger.shared.debug(
-                            "🧪 [Config] Suppressing NSWorkspace file viewer in test environment")
-                    } else {
-                        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: backupPath)])
-                    }
-                    self?.showingValidationAlert = false
-                }
-            ]
-
-            showingValidationAlert = true
+            validationError = .invalidStartup(errors: originalErrors, backupPath: backupPath)
+            notifyStateChanged()
         }
     }
 
@@ -1848,37 +1757,14 @@ class KanataManager {
     private func showValidationErrorDialog(title: String, errors: [String], config _: String? = nil)
         async {
         await MainActor.run {
-            validationAlertTitle = title
-            validationAlertMessage = """
-            KeyPath found errors in the configuration:
-
-            \(errors.joined(separator: "\n• "))
-
-            What would you like to do?
-            """
-
-            var actions: [ValidationAlertAction] = []
-
-            // Cancel option
-            actions.append(
-                ValidationAlertAction(title: "Cancel", style: .cancel) { [weak self] in
-                    self?.showingValidationAlert = false
-                })
-
-            // Revert to default option
-            actions.append(
-                ValidationAlertAction(title: "Use Default Config", style: .destructive) { [weak self] in
-                    Task {
-                        await self?.revertToDefaultConfig()
-                        await MainActor.run {
-                            self?.showingValidationAlert = false
-                        }
-                    }
-                })
-
-            validationAlertActions = actions
-            showingValidationAlert = true
+            validationError = .saveFailed(title: title, errors: errors)
+            notifyStateChanged()
         }
+    }
+
+    func clearValidationError() {
+        validationError = nil
+        notifyStateChanged()
     }
 
     /// Revert to a safe default configuration
@@ -2170,29 +2056,6 @@ class KanataManager {
         await configurationService.validateConfiguration(config)
     }
 
-    /// Uses AI to repair a corrupted Kanata config
-    private func repairConfigWithClaude(config: String, errors: [String], mappings: [KeyMapping])
-        async throws -> String {
-        // Try AI repair first, fallback to rule-based repair
-        do {
-            return try await configRepairService.repairConfig(config: config, errors: errors, mappings: mappings)
-        } catch {
-            AppLogger.shared.warn(
-                "⚠️ [KanataManager] AI repair failed: \(error), falling back to rule-based repair")
-            // For now, use rule-based repair as fallback
-            return try await performRuleBasedRepair(config: config, errors: errors, mappings: mappings)
-        }
-    }
-
-    /// Fallback rule-based repair when Claude is not available
-    private func performRuleBasedRepair(config: String, errors: [String], mappings: [KeyMapping])
-        async throws -> String {
-        // Delegate to ConfigurationService for rule-based repair
-        try await configurationService.repairConfiguration(
-            config: config, errors: errors, mappings: mappings
-        )
-    }
-
     /// Saves a validated config to disk
     private func saveValidatedConfig(_ config: String) async throws {
         // DEBUG: Log detailed file save information
@@ -2297,7 +2160,6 @@ class KanataManager {
     }
 
     // Synchronize config to system path for Kanata --watch compatibility
-    // synchronizeConfigToSystemPath removed - no longer needed since LaunchDaemon reads user config directly
 
     /// Backs up a failed config and applies safe default, returning backup path
     func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
@@ -2346,12 +2208,10 @@ class KanataManager {
     }
 
     /// Fallback rule-based repair when AI is not available
-    private func performRuleBasedRepair(config _: String, errors _: [String], mappings: [KeyMapping]) async throws -> String {
-        AppLogger.shared.log("🔧 [KanataManager] Performing rule-based repair (regeneration)...")
-
-        // Simplest repair: Just regenerate the config from the current mappings
-        // This guarantees a valid syntax, even if it loses manual custom edits
-        let keyPathConfig = KeyPathConfig(mappings: mappings)
-        return KanataConfigGenerator.generateConfig(from: keyPathConfig)
+    private func performRuleBasedRepair(config: String, errors: [String], mappings: [KeyMapping]) async throws -> String {
+        // Delegate to ConfigurationService for rule-based repair
+        try await configurationService.repairConfiguration(
+            config: config, errors: errors, mappings: mappings
+        )
     }
 }

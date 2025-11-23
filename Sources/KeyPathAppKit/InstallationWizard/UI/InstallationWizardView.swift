@@ -439,7 +439,7 @@ struct InstallationWizardView: View {
             let filteredIssues = sanitizedIssues(from: result.issues, for: result.state)
             systemState = result.state
             currentIssues = filteredIssues
-            kanataManager.lastWizardSnapshot = WizardSnapshotRecord(
+            stateManager.lastWizardSnapshot = WizardSnapshotRecord(
                 state: result.state, issues: filteredIssues
             )
             // Start at summary page - no auto navigation
@@ -942,7 +942,7 @@ struct InstallationWizardView: View {
             let filteredIssues = sanitizedIssues(from: result.issues, for: result.state)
             systemState = result.state
             currentIssues = filteredIssues
-            kanataManager.lastWizardSnapshot = WizardSnapshotRecord(
+            stateManager.lastWizardSnapshot = WizardSnapshotRecord(
                 state: result.state, issues: filteredIssues
             )
             Task { @MainActor in
@@ -1008,8 +1008,8 @@ struct InstallationWizardView: View {
     }
 
     private func cachedPreferredPage() -> WizardPage? {
-        // Use last known system state from KanataManager if available
-        guard let cachedState = kanataManager.lastWizardSnapshot else { return nil }
+        // Use last known system state from WizardStateManager if available
+        guard let cachedState = stateManager.lastWizardSnapshot else { return nil }
         let adaptedIssues = cachedState.issues
         let adaptedState = cachedState.state
         return preferredDetailPage(for: adaptedState, issues: adaptedIssues)

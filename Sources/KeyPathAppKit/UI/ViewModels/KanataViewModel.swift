@@ -91,12 +91,68 @@ class KanataViewModel: ObservableObject {
         diagnostics = state.diagnostics
         lastProcessExitCode = state.lastProcessExitCode
         lastConfigUpdate = state.lastConfigUpdate
-        showingValidationAlert = state.showingValidationAlert
-        validationAlertTitle = state.validationAlertTitle
-        validationAlertMessage = state.validationAlertMessage
-        validationAlertActions = state.validationAlertActions
         saveStatus = state.saveStatus
         // Note: emergencyStopActivated is managed locally in ViewModel, not synced from manager
+
+        // Map validation error to alert properties
+        if let error = state.validationError {
+            showingValidationAlert = true
+
+            switch error {
+            case let .invalidStartup(errors, backupPath):
+                validationAlertTitle = "Configuration File Invalid"
+                validationAlertMessage = """
+                KeyPath detected errors in your configuration file and has automatically created a backup and restored default settings.
+
+                Errors found:
+                \(errors.joined(separator: "\n• "))
+
+                Your original configuration has been backed up to:
+                \(backupPath)
+
+                KeyPath is now using a default configuration (Caps Lock → Escape).
+                """
+                validationAlertActions = [
+                    ValidationAlertAction(title: "OK", style: .default) { [weak self] in
+                        self?.clearValidationError()
+                    },
+                    ValidationAlertAction(title: "Open Backup Location", style: .default) { [weak self] in
+                        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: backupPath)])
+                        self?.clearValidationError()
+                    }
+                ]
+
+            case let .saveFailed(title, errors):
+                validationAlertTitle = title
+                validationAlertMessage = """
+                KeyPath found errors in the configuration:
+
+                \(errors.joined(separator: "\n• "))
+
+                What would you like to do?
+                """
+                validationAlertActions = [
+                    ValidationAlertAction(title: "Cancel", style: .cancel) { [weak self] in
+                        self?.clearValidationError()
+                    },
+                    ValidationAlertAction(title: "Use Default Config", style: .destructive) { [weak self] in
+                        Task {
+                            try? await self?.resetToDefaultConfig()
+                            self?.clearValidationError()
+                        }
+                    }
+                ]
+            }
+        } else {
+            showingValidationAlert = false
+            validationAlertActions = []
+        }
+    }
+
+    private func clearValidationError() {
+        Task {
+            await manager.clearValidationError()
+        }
     }
 
     // MARK: - Action Delegation to KanataManager
@@ -168,5 +224,19 @@ class KanataViewModel: ObservableObject {
 
     func updateStatus() async {
         await manager.updateStatus()
+    }
+}
+
+/// Actions available in validation error dialogs
+struct ValidationAlertAction: Identifiable {
+    let id = UUID()
+    let title: String
+    let style: ActionStyle
+    let action: () -> Void
+
+    enum ActionStyle {
+        case `default`
+        case cancel
+        case destructive
     }
 }

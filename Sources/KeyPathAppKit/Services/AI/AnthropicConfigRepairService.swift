@@ -3,7 +3,19 @@ import KeyPathCore
 
 /// Implementation of ConfigRepairService using Anthropic's Claude API
 public actor AnthropicConfigRepairService: ConfigRepairService {
-    public init() {}
+    private let endpoint: URL
+    private let model: String
+    private let version: String
+
+    public init(
+        endpoint: URL = URL(string: "https://api.anthropic.com/v1/messages")!,
+        model: String = "claude-3-5-sonnet-20241022",
+        version: String = "2023-06-01"
+    ) {
+        self.endpoint = endpoint
+        self.model = model
+        self.version = version
+    }
 
     public func repairConfig(config: String, errors: [String], mappings: [KeyMapping]) async throws -> String {
         let prompt = """
@@ -45,21 +57,14 @@ public actor AnthropicConfigRepairService: ConfigRepairService {
             )
         }
 
-        guard let url = URL(string: "https://api.anthropic.com/v1/messages") else {
-            throw NSError(
-                domain: "ClaudeAPI", code: 2,
-                userInfo: [NSLocalizedDescriptionKey: "Invalid Claude API URL"]
-            )
-        }
-
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue(apiKey, forHTTPHeaderField: "x-api-key")
-        request.addValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        request.addValue(version, forHTTPHeaderField: "anthropic-version")
 
         let requestBody: [String: Any] = [
-            "model": "claude-3-5-sonnet-20241022",
+            "model": model,
             "max_tokens": 4096,
             "messages": [
                 [

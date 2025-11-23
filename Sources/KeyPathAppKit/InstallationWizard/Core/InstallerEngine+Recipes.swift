@@ -41,11 +41,11 @@ extension InstallerEngine {
                 type: .installService,
                 serviceID: nil,
                 launchctlActions: [
-                    .bootstrap(serviceID: "com.keypath.kanata"),
-                    .bootstrap(serviceID: "com.keypath.vhid-daemon"),
-                    .bootstrap(serviceID: "com.keypath.vhid-manager")
+                    .bootstrap(serviceID: KeyPathConstants.Bundle.daemonID),
+                    .bootstrap(serviceID: KeyPathConstants.Bundle.vhidDaemonID),
+                    .bootstrap(serviceID: KeyPathConstants.Bundle.vhidManagerID)
                 ],
-                healthCheck: HealthCheckCriteria(serviceID: "com.keypath.kanata", shouldBeRunning: true)
+                healthCheck: HealthCheckCriteria(serviceID: KeyPathConstants.Bundle.daemonID, shouldBeRunning: true)
             )
 
         case .installBundledKanata:
@@ -73,23 +73,23 @@ extension InstallerEngine {
             ServiceRecipe(
                 id: "install-privileged-helper",
                 type: .installService,
-                serviceID: "com.keypath.KeyPath.helper"
+                serviceID: KeyPathConstants.Bundle.helperID
             )
 
         case .reinstallPrivilegedHelper:
             ServiceRecipe(
                 id: "reinstall-privileged-helper",
                 type: .installService,
-                serviceID: "com.keypath.KeyPath.helper"
+                serviceID: KeyPathConstants.Bundle.helperID
             )
 
         case .startKarabinerDaemon:
             ServiceRecipe(
                 id: "start-karabiner-daemon",
                 type: .restartService,
-                serviceID: "com.keypath.kanata",
-                launchctlActions: [.kickstart(serviceID: "com.keypath.kanata")],
-                healthCheck: HealthCheckCriteria(serviceID: "com.keypath.kanata", shouldBeRunning: true)
+                serviceID: KeyPathConstants.Bundle.daemonID,
+                launchctlActions: [.kickstart(serviceID: KeyPathConstants.Bundle.daemonID)],
+                healthCheck: HealthCheckCriteria(serviceID: KeyPathConstants.Bundle.daemonID, shouldBeRunning: true)
             )
 
         case .restartUnhealthyServices:

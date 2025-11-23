@@ -99,25 +99,4 @@ extension KanataManager {
             AppLogger.shared.warn("⚠️ [Recovery] Failed to kill Kanata processes: \(error)")
         }
     }
-
-    /// Legacy coordinator-based restart - now delegates to verified restart for safety
-    func restartKarabinerDaemonLegacy() async {
-        do {
-            let ok = try await PrivilegedOperationsCoordinator.shared.restartKarabinerDaemonVerified()
-            AppLogger.shared.log(
-                "🔧 [Recovery] Restarted Karabiner daemon (legacy path via verified): \(ok)")
-
-            // Wait a moment then check if it auto-restarts
-            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-
-            // Check VirtualHID daemon status
-            let vhidDeviceManager = VHIDDeviceManager()
-            let status = vhidDeviceManager.getDetailedStatus()
-            AppLogger.shared.log(
-                "🔧 [Recovery] VirtualHID daemon restart - running: \(status.daemonRunning)")
-
-        } catch {
-            AppLogger.shared.warn("⚠️ [Recovery] Failed to restart Karabiner daemon: \(error)")
-        }
-    }
 }
