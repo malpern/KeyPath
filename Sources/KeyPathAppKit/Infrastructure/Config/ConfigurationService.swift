@@ -648,6 +648,11 @@ public final class ConfigurationService: FileConfigurationProviding {
             return cliResult
         }
 
+        // Give the service a brief warmup after (re)install before attempting TCP
+        if managementState == .smappserviceActive {
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+        }
+
         // Try TCP validation first
         let tcpPort = PreferencesService.shared.tcpServerPort
         let tcpClient = KanataTCPClient(port: tcpPort)
