@@ -4,26 +4,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ⚠️ CURRENT SESSION STATUS
 
-**LATEST WORK:** InstallerEngine Façade Migration (Completed November 22, 2025)
+**LATEST WORK:** Strangler Fig Façade Migration Complete (November 24, 2025)
 
 **Recent Commits:**
-- refactor: completed InstallerEngine migration (Phases 8-9)
-  - Archived planning docs, verified manual steps
-  - Removed legacy status plumbing from KanataManager
-  - Updated ContentView and Settings to use InstallerEngine/SystemContext
-- refactor: internal cleanup (Phase 7)
-  - Extracted recipe logic to `InstallerEngine+Recipes.swift`
-  - Unified health pipeline using `SystemValidator`
-- feat: CLI migration (Phase 6)
-  - All CLI commands (`install`, `repair`, `status`) now route through `InstallerEngine`
+- Merge branch 'refactor/unify-service-layer': Strangler Fig façade migration
+  - Added health check APIs to InstallerEngine façade
+  - Migrated callers from direct LaunchDaemonInstaller usage
+  - Added InstallerEngineHealthCheckTests (11 tests)
+  - Updated documentation and status tracking
+- refactor: expose health check APIs via InstallerEngine façade
+- test: add InstallerEngine health check façade tests
+- docs: update refactoring plan with façade migration status
 
 **Previous Session Work:**
-- fix: robust app restart and XPC signature mismatch detection (Nov 17)
-- feat: improve rules UI layout and document home row mods
-- fix: SMAppService daemon registration and TCP validation
+- refactor: completed InstallerEngine migration (Phases 8-9)
+- refactor: internal cleanup (Phase 7)
+- feat: CLI migration (Phase 6)
 
 **⚠️ INCOMPLETE WORK (requires follow-up):**
-- **Optimization:** Performance profiling for `InstallerEngine` if needed (currently fast enough)
+- **Strangler Fig Phase 4:** Decommission legacy managers (slim LaunchDaemonInstaller further)
+- **Strangler Fig Phase 5:** Cleanroom post-refactor pass (audit docs, archive legacy scripts)
 - ADR-012: Karabiner driver version detection implemented but NOT wired to Fix button
 - TODO: Connect VHIDDeviceManager.downloadAndInstallCorrectVersion() to WizardAutoFixer
 - TODO: Show version mismatch dialog when user clicks Fix button
