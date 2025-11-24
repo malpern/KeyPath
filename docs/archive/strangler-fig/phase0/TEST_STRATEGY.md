@@ -1,5 +1,7 @@
 # Test Strategy
 
+> **Modern note (Nov 24, 2025):** This document captures the original InstallerEngine rollout plan. New helpers should call `RuntimeCoordinator`/`ProcessCoordinator`/`KanataService` instead of instantiating `InstallerEngine` directly; the historical snippets below remain for archival context only.
+
 **Status:** ✅ PLANNED - Test approach defined
 
 **Date:** 2025-11-17

@@ -1,5 +1,7 @@
 # Test Strategy
 
+> **Modern note (Nov 24, 2025):** Current code should use `RuntimeCoordinator`/`ProcessCoordinator`/`KanataService` instead of instantiating `InstallerEngine` directly. The examples below remain for historical reference.
+
 **Status:** ✅ PLANNED - Test approach defined
 
 **Date:** 2025-11-17

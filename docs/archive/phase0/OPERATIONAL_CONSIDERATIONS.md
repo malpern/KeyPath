@@ -1,5 +1,7 @@
 # Operational Considerations
 
+> **Modern note (Nov 24, 2025):** Operational tooling is now expected to call `RuntimeCoordinator`/`ProcessCoordinator` so that InstallerEngine stays behind the façade. The historical guidance below references the old direct-call model.
+
 **Status:** ✅ PLANNED - Rollout strategy defined
 
 **Date:** 2025-11-17

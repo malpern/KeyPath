@@ -13,11 +13,13 @@ This document outlines the migration from the current conflict-prone, multi-inst
 
 #### Migration steps for callers
 1) Set env `KEYPATH_USE_INSTALLER_ENGINE=1` in your target (tests, CLI, or app scheme).
-2) Replace direct calls to `SystemValidator`/`LaunchDaemonInstaller` with the façade:
+2) Replace direct calls to `SystemValidator`/`LaunchDaemonInstaller` with façade entry points:
    ```swift
-   let engine = InstallerEngine()
-   let broker = PrivilegeBroker()
-   let report = await engine.run(intent: .repair, using: broker)
+   let coordinator = ProcessCoordinator()
+   let restarted = await coordinator.restartService() // Uses KanataService first, InstallerEngine second
+
+   let runtimeCoordinator = RuntimeCoordinator()
+   let report = await runtimeCoordinator.runFullRepair(reason: "Wizard fix button")
    ```
 3) Remove legacy adapter dependencies (`SystemSnapshotAdapter`, pgrep-based health checks) — already done in wizard/main app.
 4) Keep Kanata config backwards compatible (generator/repair emit vanilla Kanata config with documented options only).

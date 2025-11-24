@@ -1,5 +1,7 @@
 # Operational Considerations
 
+> **Modern note (Nov 24, 2025):** Operational flows now route through `RuntimeCoordinator`/`ProcessCoordinator` so InstallerEngine usage stays centralized. The legacy snippets below reference direct `InstallerEngine` calls for historical completeness only.
+
 **Status:** ✅ PLANNED - Rollout strategy defined
 
 **Date:** 2025-11-17
