@@ -653,6 +653,17 @@ public final class ConfigurationService: FileConfigurationProviding {
             try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
         }
 
+        // Skip TCP if Kanata service isn't healthy yet (avoid connection-refused storm)
+        let daemonStatus = await LaunchDaemonInstaller().getServiceStatus()
+        if !daemonStatus.kanataHealthy {
+            AppLogger.shared.log(
+                "🌐 [Validation] TCP validation skipped (kanata not healthy yet); using CLI"
+            )
+            let cliResult = await validateConfigWithCLI(config)
+            AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
+            return cliResult
+        }
+
         // Try TCP validation first
         let tcpPort = PreferencesService.shared.tcpServerPort
         let tcpClient = KanataTCPClient(port: tcpPort)
