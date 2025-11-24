@@ -41,6 +41,8 @@ struct InstallationWizardView: View {
     @State private var inFlightFixActions: Set<AutoFixAction> = []
     @State private var showingBackgroundApprovalPrompt = false
     @State private var currentFixAction: AutoFixAction?
+    @State private var fixInFlight: Bool = false
+    @State private var lastRefreshAt: Date?
 
     // Task management for race condition prevention
     @State private var refreshTask: Task<Void, Never>?
@@ -622,6 +624,26 @@ struct InstallationWizardView: View {
 
         // Use InstallerEngine to repair all issues at once
         Task {
+            guard !fixInFlight else {
+                await MainActor.run {
+                    toastManager.showInfo("Another fix is already running…", duration: 3.0)
+                }
+                return
+            }
+            await MainActor.run { fixInFlight = true }
+            defer { Task { @MainActor in fixInFlight = false } }
+
+            let smState = await KanataDaemonManager.shared.refreshManagementState()
+            if smState == .smappservicePending {
+                await MainActor.run {
+                    toastManager.showError(
+                        "Enable KeyPath in System Settings → Login Items before running Fix.",
+                        duration: 6.0
+                    )
+                }
+                return
+            }
+
             let broker = privilegeBroker
             let report = await installerEngine.run(intent: .repair, using: broker)
 
@@ -667,7 +689,7 @@ struct InstallationWizardView: View {
                 return false
             }) {
                 Task {
-                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    try? await Task.sleep(nanoseconds: 2_000_000_000) // allow services to settle
                     let latestResult = await stateManager.detectCurrentState()
                     let filteredIssues = sanitizedIssues(from: latestResult.issues, for: latestResult.state)
                     await MainActor.run {
@@ -703,12 +725,20 @@ struct InstallationWizardView: View {
             }
             return false
         }
+        if fixInFlight {
+            await MainActor.run {
+                toastManager.showInfo("Another fix is already running…", duration: 3.0)
+            }
+            return false
+        }
         inFlightFixActions.insert(action)
         currentFixAction = action
         defer {
             inFlightFixActions.remove(action)
             currentFixAction = nil
         }
+        await MainActor.run { fixInFlight = true }
+        defer { Task { @MainActor in fixInFlight = false } }
 
         // IMMEDIATE crash-proof logging for ACTUAL Fix button
         Swift.print(
@@ -801,7 +831,7 @@ struct InstallationWizardView: View {
         // Refresh system state after auto-fix
         Task {
             // Shorter delay - we have warm-up window to handle startup
-            try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
+            try? await Task.sleep(nanoseconds: 1_000_000_000) // allow services to start
             refreshState()
 
             // Notify StartupValidator to refresh main screen status
@@ -811,7 +841,7 @@ struct InstallationWizardView: View {
 
             // Schedule a follow-up health check; if still red, show a diagnostic error toast
             Task {
-                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1.0 seconds to allow state to settle
+                try? await Task.sleep(nanoseconds: 2_000_000_000) // allow additional settle time
                 let latestResult = await stateManager.detectCurrentState()
                 let filteredIssues = sanitizedIssues(from: latestResult.issues, for: latestResult.state)
                 await MainActor.run {
@@ -923,6 +953,13 @@ struct InstallationWizardView: View {
             AppLogger.shared.log("🔍 [Wizard] Refresh state blocked - force closing in progress")
             return
         }
+
+        let now = Date()
+        if let last = lastRefreshAt, now.timeIntervalSince(last) < 0.3 {
+            AppLogger.shared.log("🔍 [Wizard] Refresh skipped (debounced)")
+            return
+        }
+        lastRefreshAt = now
 
         AppLogger.shared.log("🔍 [Wizard] Refreshing system state (using cache if available)")
 

@@ -2,6 +2,7 @@ import ApplicationServices
 import Foundation
 import IOKit.hidsystem
 import KeyPathCore
+import KeyPathDaemonLifecycle
 import Network
 import SwiftUI
 
@@ -631,6 +632,20 @@ public final class ConfigurationService: FileConfigurationProviding {
             let result = validateConfigurationInTestMode(config)
             AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
             return result
+        }
+
+        // If the service isn't managed/approved yet, skip TCP to avoid long timeouts
+        let managementState = await KanataDaemonManager.shared.refreshManagementState()
+        let tcpCapableStates: Set<KanataDaemonManager.ServiceManagementState> = [
+            .smappserviceActive, .legacyActive, .conflicted
+        ]
+        if !tcpCapableStates.contains(managementState) {
+            AppLogger.shared.log(
+                "🌐 [Validation] TCP validation skipped (service state=\(managementState)); using CLI"
+            )
+            let cliResult = await validateConfigWithCLI(config)
+            AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
+            return cliResult
         }
 
         // Try TCP validation first
