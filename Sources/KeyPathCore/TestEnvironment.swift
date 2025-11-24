@@ -4,19 +4,43 @@ import Foundation
 public enum TestEnvironment {
     /// Check if code is running in test environment
     public static var isRunningTests: Bool {
-        // Check for XCTest environment
+        // Check for XCTest environment (XCTest-based tests)
         if NSClassFromString("XCTestCase") != nil {
             return true
         }
 
-        // Check for Swift test runner
+        // Check for Swift Testing framework (modern @Test macro-based tests)
+        // The Testing module provides these types when tests are running
+        if NSClassFromString("Testing.Test") != nil
+            || NSClassFromString("XCTestScaffold.XCTestScaffold") != nil
+        {
+            return true
+        }
+
+        // Check for Swift test runner env var
         if ProcessInfo.processInfo.environment["SWIFT_TEST"] != nil {
+            return true
+        }
+
+        // Check for KEYPATH_USE_SUDO - if set, we're definitely in test mode
+        // This is the explicit test environment flag
+        if ProcessInfo.processInfo.environment["KEYPATH_USE_SUDO"] == "1" {
             return true
         }
 
         // Check for test process names
         let processName = ProcessInfo.processInfo.processName
-        if processName.contains("xctest") || processName.contains("KeyPathPackageTests") {
+        if processName.contains("xctest") || processName.contains("KeyPathPackageTests")
+            || processName.contains("swift-test")
+        {
+            return true
+        }
+
+        // Check if running in swift-testing worker process
+        // Swift Testing uses worker processes with specific environment
+        if ProcessInfo.processInfo.environment["__XCODE_BUILT_PRODUCTS_DIR_PATHS"] != nil
+            || ProcessInfo.processInfo.environment["DYLD_LIBRARY_PATH"]?.contains(".build") == true
+        {
             return true
         }
 
@@ -54,7 +78,52 @@ public enum TestEnvironment {
         if allowOverride {
             return false
         }
+        // If sudo mode is enabled, don't skip admin operations
+        if useSudoForPrivilegedOps {
+            return false
+        }
         return isRunningTests
+    }
+
+    /// Check if we should use sudo instead of osascript for privileged operations.
+    /// This requires BOTH:
+    /// 1. Running in a test environment (XCTest, swift test, CI)
+    /// 2. KEYPATH_USE_SUDO=1 environment variable set
+    ///
+    /// When enabled:
+    /// - Privileged operations use `sudo -n` (non-interactive) instead of osascript admin prompts
+    /// - Requires sudoers NOPASSWD configuration (see Scripts/dev-setup-sudoers.sh)
+    /// - Only works during test runs - production app always uses osascript for user prompts
+    ///
+    /// ⚠️ WARNING: Remove sudoers config before public release!
+    public static var useSudoForPrivilegedOps: Bool {
+        // MUST be running tests AND have the env var set
+        // This ensures production app NEVER uses sudo, always prompts user via osascript
+        guard isRunningTests else { return false }
+        return ProcessInfo.processInfo.environment["KEYPATH_USE_SUDO"] == "1"
+    }
+
+    /// Check if sudo NOPASSWD is configured and working for launchctl
+    /// Returns true if we can run `sudo -n launchctl list` without a password prompt
+    public static func verifySudoConfigured() -> Bool {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+        task.arguments = ["-n", "/bin/launchctl", "list", "com.keypath.kanata"]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+            // Exit code 0 means success, any other code means it failed
+            // (which could be "service not found" but that's OK - we just care that sudo worked)
+            // Exit code 1 with "sudo: a password is required" means NOPASSWD isn't configured
+            return task.terminationStatus == 0 || task.terminationStatus == 1
+        } catch {
+            return false
+        }
     }
 
     /// Check if we should use mock data instead of real system calls

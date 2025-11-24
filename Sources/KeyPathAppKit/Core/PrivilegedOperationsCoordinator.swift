@@ -111,13 +111,13 @@ final class PrivilegedOperationsCoordinator {
         try await sudoInstallAllServicesWithPreferences()
     }
 
-    private func currentServiceState() -> KanataDaemonManager.ServiceManagementState {
+    private func currentServiceState() async -> KanataDaemonManager.ServiceManagementState {
         #if DEBUG
             if let override = Self.serviceStateOverride {
                 return override()
             }
         #endif
-        return KanataDaemonManager.determineServiceManagementState()
+        return await KanataDaemonManager.shared.refreshManagementState()
     }
 
     private func runServiceInstall() async throws {
@@ -153,7 +153,7 @@ final class PrivilegedOperationsCoordinator {
     /// - Returns: `true` if installation was performed.
     @discardableResult
     func installServicesIfUninstalled(context: String) async throws -> Bool {
-        let state = currentServiceState()
+        let state = await currentServiceState()
         AppLogger.shared.log("\(Self.serviceGuardLogPrefix) \(context): state=\(state.description)")
 
         if state == .smappservicePending {
@@ -186,7 +186,7 @@ final class PrivilegedOperationsCoordinator {
         Self.lastServiceInstallAttempt = now
         AppLogger.shared.log("\(Self.serviceGuardLogPrefix) \(context): running SMAppService install")
         try await runServiceInstall()
-        let postInstallState = currentServiceState()
+        let postInstallState = await currentServiceState()
         AppLogger.shared.log(
             "\(Self.serviceGuardLogPrefix) \(context): install complete, new state=\(postInstallState.description)"
         )
@@ -480,7 +480,7 @@ final class PrivilegedOperationsCoordinator {
         // Snapshot PRE state
         let preLoaded = await LaunchDaemonInstaller().isServiceLoaded(
             serviceID: "com.keypath.karabiner-vhiddaemon")
-        let preHealth = LaunchDaemonInstaller().isServiceHealthy(
+        let preHealth = await LaunchDaemonInstaller().isServiceHealthy(
             serviceID: "com.keypath.karabiner-vhiddaemon")
         AppLogger.shared.log(
             "🔎 [PrivCoordinator] PRE: vhiddaemon loaded=\(preLoaded), healthy=\(preHealth)")
@@ -506,7 +506,7 @@ final class PrivilegedOperationsCoordinator {
         let vhidManager = VHIDDeviceManager()
         let start = Date()
         while Date().timeIntervalSince(start) < 3.0 {
-            if vhidManager.detectRunning() {
+            if await vhidManager.detectRunning() {
                 AppLogger.shared.log(
                     "✅ [PrivCoordinator] Verified: VirtualHIDDevice daemon healthy after helper restart")
                 return true
@@ -526,11 +526,11 @@ final class PrivilegedOperationsCoordinator {
         try await Task.sleep(nanoseconds: 300_000_000)
         let postLoaded = await LaunchDaemonInstaller().isServiceLoaded(
             serviceID: "com.keypath.karabiner-vhiddaemon")
-        let postHealth = LaunchDaemonInstaller().isServiceHealthy(
+        let postHealth = await LaunchDaemonInstaller().isServiceHealthy(
             serviceID: "com.keypath.karabiner-vhiddaemon")
         AppLogger.shared.log(
             "🔎 [PrivCoordinator] POST: vhiddaemon loaded=\(postLoaded), healthy=\(postHealth)")
-        if vhidManager.detectRunning() {
+        if await vhidManager.detectRunning() {
             AppLogger.shared.log("✅ [PrivCoordinator] Verified after repair: daemon healthy")
             return true
         }
@@ -802,7 +802,7 @@ final class PrivilegedOperationsCoordinator {
         let vhidManager = VHIDDeviceManager()
         let startTime = Date()
         while Date().timeIntervalSince(startTime) < 3.0 {
-            if vhidManager.detectRunning() {
+            if await vhidManager.detectRunning() {
                 AppLogger.shared.log(
                     "✅ [PrivCoordinator] Restart verified: daemon is healthy (single instance)")
                 return true

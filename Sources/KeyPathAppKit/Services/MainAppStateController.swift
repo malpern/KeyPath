@@ -125,7 +125,7 @@ class MainAppStateController: ObservableObject {
     /// Can be called multiple times - first time waits for service, subsequent times validate immediately
     /// Optimization: Skips validation if completed within cooldown period (30s) to avoid redundant work on rapid restarts
     func performInitialValidation() async {
-        guard let kanataManager else {
+        guard kanataManager != nil else {
             AppLogger.shared.warn("⚠️ [MainAppStateController] Cannot validate - not configured")
             return
         }

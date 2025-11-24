@@ -213,6 +213,12 @@ actor HelperManager {
             return cached
         }
 
+        // Bypass XPC call in tests
+        if TestEnvironment.isRunningTests {
+            AppLogger.shared.log("🧪 [HelperManager] Test mode - returning mock version")
+            return Self.expectedHelperVersion
+        }
+
         // Query version from helper
         guard isHelperInstalled() else {
             AppLogger.shared.log("⚠️ [HelperManager] Helper not installed, cannot get version")

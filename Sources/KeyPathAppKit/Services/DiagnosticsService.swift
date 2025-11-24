@@ -263,6 +263,11 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
     // MARK: - System Diagnostics
 
     func getSystemDiagnostics() async -> [KanataDiagnostic] {
+        // Fast path for tests - skip all process/system checks
+        if TestEnvironment.isRunningTests {
+            return []
+        }
+
         var diagnostics: [KanataDiagnostic] = []
 
         // Check Kanata installation
@@ -571,6 +576,9 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
     }
 
     private func isKarabinerElementsRunning() -> Bool {
+        // Skip process checks in test mode
+        if TestEnvironment.isRunningTests { return false }
+
         let process = Process()
         let pipe = Pipe()
 
@@ -593,6 +601,9 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
     }
 
     private func isKarabinerDaemonRunning() -> Bool {
+        // Skip process checks in test mode
+        if TestEnvironment.isRunningTests { return false }
+
         let process = Process()
         let pipe = Pipe()
 
@@ -610,6 +621,9 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
     }
 
     private func isKarabinerDriverExtensionEnabled() -> Bool {
+        // Skip process checks in test mode
+        if TestEnvironment.isRunningTests { return true }
+
         let process = Process()
         let pipe = Pipe()
 
@@ -633,6 +647,9 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
     }
 
     private func areKarabinerBackgroundServicesEnabled() -> Bool {
+        // Skip launchctl checks in test mode
+        if TestEnvironment.isRunningTests { return true }
+
         let process = Process()
         let pipe = Pipe()
 

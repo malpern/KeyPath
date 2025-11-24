@@ -4,15 +4,17 @@ import XCTest
 @testable import KeyPathWizardCore
 
 @MainActor
-final class InstallerEngineTests: XCTestCase {
+final class InstallerEngineTests: KeyPathAsyncTestCase {
     var engine: InstallerEngine!
 
     override func setUp() async throws {
+        try await super.setUp()
         engine = InstallerEngine()
     }
 
     override func tearDown() async throws {
         engine = nil
+        try await super.tearDown()
     }
 
     // MARK: - Façade Instantiation

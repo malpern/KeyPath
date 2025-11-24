@@ -231,10 +231,8 @@ class WizardAutoFixer: AutoFixCapable {
         let installerRef = launchDaemonInstaller
         let loaded = await installerRef.isServiceLoaded(
             serviceID: "com.keypath.karabiner-vhiddaemon")
-        let healthy = await MainActor.run {
-            installerRef.isServiceHealthy(serviceID: "com.keypath.karabiner-vhiddaemon")
-        }
-        let running = vhidDeviceManager.detectRunning()
+        let healthy = await installerRef.isServiceHealthy(serviceID: "com.keypath.karabiner-vhiddaemon")
+        let running = await vhidDeviceManager.detectRunning()
         let version = vhidDeviceManager.getInstalledVersion()
         return VHIDSnapshot(
             serviceLoaded: loaded,
@@ -1159,9 +1157,7 @@ class WizardAutoFixer: AutoFixCapable {
         }
 
         // Check for registered-but-not-loaded state (common after clean uninstall)
-        let isRegisteredButNotLoaded = await MainActor.run {
-            KanataDaemonManager.shared.isRegisteredButNotLoaded()
-        }
+        let isRegisteredButNotLoaded = await KanataDaemonManager.shared.isRegisteredButNotLoaded()
 
         if isRegisteredButNotLoaded {
             AppLogger.shared.log(

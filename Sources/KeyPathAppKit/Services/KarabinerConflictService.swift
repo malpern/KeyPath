@@ -376,29 +376,17 @@ final class KarabinerConflictService: KarabinerConflictManaging {
                     try chmodTask.run()
                     chmodTask.waitUntilExit()
 
-                    // Execute script with sudo using osascript
-                    let osascriptCommand = """
-                    do shell script "\(scriptPath)" with administrator privileges with prompt "KeyPath needs to \(description.lowercased()) to fix keyboard conflicts."
-                    """
-
-                    let osascriptTask = Process()
-                    osascriptTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-                    osascriptTask.arguments = ["-e", osascriptCommand]
-
-                    let pipe = Pipe()
-                    osascriptTask.standardOutput = pipe
-                    osascriptTask.standardError = pipe
-
-                    try osascriptTask.run()
-                    osascriptTask.waitUntilExit()
-
-                    let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                    let output = String(data: data, encoding: .utf8) ?? ""
+                    // Execute script with admin privileges (uses sudo if KEYPATH_USE_SUDO=1, otherwise osascript)
+                    let result = PrivilegedCommandRunner.execute(
+                        command: scriptPath,
+                        prompt: "KeyPath needs to \(description.lowercased()) to fix keyboard conflicts."
+                    )
+                    let output = result.output
 
                     // Clean up temporary file
                     try? FileManager.default.removeItem(atPath: scriptPath)
 
-                    if osascriptTask.terminationStatus == 0 {
+                    if result.success {
                         AppLogger.shared.log("✅ [Karabiner] Successfully disabled Karabiner Elements services")
                         AppLogger.shared.log("📝 [Karabiner] Output: \(output)")
 

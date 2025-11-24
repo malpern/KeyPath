@@ -2,7 +2,9 @@
 import XCTest
 
 @MainActor
-final class InstallerEnginePerformanceTests: XCTestCase {
+final class InstallerEnginePerformanceTests: KeyPathTestCase {
+    // MARK: - Performance Tests
+
     func testInspectSystemPerformance() async {
         let engine = InstallerEngine()
 

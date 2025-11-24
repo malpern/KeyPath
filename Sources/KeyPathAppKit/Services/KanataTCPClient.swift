@@ -100,13 +100,18 @@ actor KanataTCPClient {
 
     // MARK: - Initialization
 
+    /// Default timeout: 5 seconds for production, 0.1 seconds for tests
+    private static var defaultTimeout: TimeInterval {
+        TestEnvironment.isRunningTests ? 0.1 : 5.0
+    }
+
     init(
-        host: String = "127.0.0.1", port: Int, timeout: TimeInterval = 5.0,
+        host: String = "127.0.0.1", port: Int, timeout: TimeInterval? = nil,
         reuseConnection _: Bool = true
     ) {
         self.host = host
         self.port = port
-        self.timeout = timeout
+        self.timeout = timeout ?? Self.defaultTimeout
     }
 
     // MARK: - Connection Management

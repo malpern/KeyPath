@@ -64,12 +64,12 @@ final class VHIDDeviceManager: @unchecked Sendable {
     }
 
     /// Checks if VirtualHIDDevice processes are currently running
-    func detectRunning() -> Bool {
+    func detectRunning() async -> Bool {
         let maxAttempts = FeatureFlags.shared.startupModeActive ? 1 : 2
-        let retryDelay: useconds_t = 500_000 // 0.5s between attempts to allow daemon to settle
+        let retryDelay: UInt64 = 500_000_000 // 0.5s
 
         for attempt in 1 ... maxAttempts {
-            switch evaluateDaemonProcess() {
+            switch await evaluateDaemonProcess() {
             case .healthy:
                 return true
             case .notRunning:
@@ -77,7 +77,7 @@ final class VHIDDeviceManager: @unchecked Sendable {
                     AppLogger.shared.log(
                         "⏳ [VHIDManager] Daemon reported not running; retrying shortly to avoid false positives"
                     )
-                    usleep(retryDelay)
+                    try? await Task.sleep(nanoseconds: retryDelay)
                     continue
                 }
                 return false
@@ -88,7 +88,7 @@ final class VHIDDeviceManager: @unchecked Sendable {
                     AppLogger.shared.log(
                         "⏳ [VHIDManager] Timeout while checking daemon; retrying to avoid false negatives"
                     )
-                    usleep(retryDelay)
+                    try? await Task.sleep(nanoseconds: retryDelay)
                     continue
                 }
                 return false
@@ -99,111 +99,117 @@ final class VHIDDeviceManager: @unchecked Sendable {
         return false
     }
 
-    private func evaluateDaemonProcess() -> DaemonHealthState {
+    private struct TimeoutError: Error {}
+
+    private func evaluateDaemonProcess() async -> DaemonHealthState {
         // During startup mode, use fast non-blocking check to avoid false negatives
         // while still preventing UI freezes from Process() execution
         if FeatureFlags.shared.startupModeActive {
             AppLogger.shared.log(
                 "🔍 [VHIDManager] Startup mode - using fast launchctl check to prevent UI freeze")
             // Use launchctl list which is much faster than pgrep and doesn't block UI
-            let result = shell("/bin/launchctl list com.keypath.karabiner-vhiddaemon")
+            let result = await shellAsync("/bin/launchctl list com.keypath.karabiner-vhiddaemon")
             let isRunning = result.contains("\"PID\"")
             AppLogger.shared.log(
                 "🔍 [VHIDManager] Startup mode fast check: daemon \(isRunning ? "running" : "not running")")
             return isRunning ? .healthy : .notRunning
         }
 
-        // Test seam: allow mocked PID list in tests
-        if TestEnvironment.isRunningTests, let provider = Self.testPIDProvider {
-            let startTime = CFAbsoluteTimeGetCurrent()
-            let pids = provider().filter { !$0.isEmpty }
-            let processCount = pids.count
-            if processCount == 0 {
-                AppLogger.shared.log("🔍 [VHIDManager] (test) VHIDDevice daemon health: NOT RUNNING")
-                return .notRunning
-            }
-            if processCount > 1 {
-                AppLogger.shared.log(
-                    "❌ [VHIDManager] (test) UNHEALTHY: Multiple VHIDDevice daemon processes detected (\(processCount))"
-                )
-                AppLogger.shared.log("❌ [VHIDManager] (test) PIDs: \(pids.joined(separator: ", "))")
-                let duration = CFAbsoluteTimeGetCurrent() - startTime
-                AppLogger.shared.log(
-                    "🔍 [VHIDManager] (test) VHIDDevice daemon health: UNHEALTHY (duplicates) (took \(String(format: "%.3f", duration))s)"
-                )
-                return .duplicateProcesses
-            }
-            AppLogger.shared.log(
-                "🔍 [VHIDManager] (test) VHIDDevice daemon health: HEALTHY (single instance)")
-            return .healthy
-        }
-
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        task.arguments = ["-f", Self.vhidDeviceRunningCheck]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            let startTime = CFAbsoluteTimeGetCurrent()
-            try task.run()
-
-            // Use DispatchGroup to implement timeout for process execution
-            let group = DispatchGroup()
-            group.enter()
-
-            DispatchQueue.global().async {
-                task.waitUntilExit()
-                group.leave()
-            }
-
-            // Give the system a bit longer before we declare failure; pgrep occasionally stalls
-            let timeoutResult = group.wait(timeout: .now() + 3.0) // was 2s
-            if timeoutResult == .timedOut {
-                task.terminate()
-                // Fallback to a fast launchctl check so we don't flip the wizard red on a hung pgrep
-                let launchctlRunning = Self.fastLaunchctlCheck()
-                AppLogger.shared.log(
-                    "⚠️ [VHIDManager] VHIDDevice process check timed out after 3s - fallback launchctl says running=\(launchctlRunning)"
-                )
-                return launchctlRunning ? .healthy : .timeout
-            }
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            let isRunning =
-                task.terminationStatus == 0
-                    && !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-
-            // Check for duplicate processes - UNHEALTHY if more than one
-            if isRunning {
-                let pids = output.trimmingCharacters(in: .whitespacesAndNewlines).components(
-                    separatedBy: .newlines)
-                let processCount = pids.filter { !$0.isEmpty }.count
+        return await Task.detached {
+            // Test seam: allow mocked PID list in tests
+            if TestEnvironment.isRunningTests, let provider = Self.testPIDProvider {
+                let startTime = CFAbsoluteTimeGetCurrent()
+                let pids = provider().filter { !$0.isEmpty }
+                let processCount = pids.count
+                if processCount == 0 {
+                    AppLogger.shared.log("🔍 [VHIDManager] (test) VHIDDevice daemon health: NOT RUNNING")
+                    return .notRunning
+                }
                 if processCount > 1 {
                     AppLogger.shared.log(
-                        "❌ [VHIDManager] UNHEALTHY: Multiple VHIDDevice daemon processes detected (\(processCount)) - should only be 1"
+                        "❌ [VHIDManager] (test) UNHEALTHY: Multiple VHIDDevice daemon processes detected (\(processCount))"
                     )
-                    AppLogger.shared.log("❌ [VHIDManager] PIDs: \(pids.joined(separator: ", "))")
+                    AppLogger.shared.log("❌ [VHIDManager] (test) PIDs: \(pids.joined(separator: ", "))")
                     let duration = CFAbsoluteTimeGetCurrent() - startTime
                     AppLogger.shared.log(
-                        "🔍 [VHIDManager] VHIDDevice daemon health: UNHEALTHY (duplicates) (took \(String(format: "%.3f", duration))s)"
+                        "🔍 [VHIDManager] (test) VHIDDevice daemon health: UNHEALTHY (duplicates) (took \(String(format: "%.3f", duration))s)"
                     )
                     return .duplicateProcesses
                 }
+                AppLogger.shared.log(
+                    "🔍 [VHIDManager] (test) VHIDDevice daemon health: HEALTHY (single instance)")
+                return .healthy
             }
 
-            let duration = CFAbsoluteTimeGetCurrent() - startTime
-            AppLogger.shared.log(
-                "🔍 [VHIDManager] VHIDDevice daemon health: \(isRunning ? "HEALTHY" : "NOT RUNNING") (took \(String(format: "%.3f", duration))s)"
-            )
-            return isRunning ? .healthy : .notRunning
-        } catch {
-            AppLogger.shared.log("❌ [VHIDManager] Error checking VHIDDevice processes: \(error)")
-            return .error
-        }
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+            task.arguments = ["-f", Self.vhidDeviceRunningCheck]
+
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            task.standardError = pipe
+
+            do {
+                let startTime = CFAbsoluteTimeGetCurrent()
+                try task.run()
+
+                // Race process execution against timeout
+                do {
+                    try await withThrowingTaskGroup(of: Void.self) { group in
+                        group.addTask {
+                            task.waitUntilExit()
+                        }
+                        group.addTask {
+                            try await Task.sleep(nanoseconds: 3_000_000_000) // 3s
+                            throw TimeoutError()
+                        }
+                        try await group.next()
+                        group.cancelAll()
+                    }
+                } catch is TimeoutError {
+                    task.terminate()
+                    // Fallback to a fast launchctl check so we don't flip the wizard red on a hung pgrep
+                    let launchctlRunning = Self.fastLaunchctlCheck()
+                    AppLogger.shared.log(
+                        "⚠️ [VHIDManager] VHIDDevice process check timed out after 3s - fallback launchctl says running=\(launchctlRunning)"
+                    )
+                    return launchctlRunning ? .healthy : .timeout
+                }
+
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                let output = String(data: data, encoding: .utf8) ?? ""
+                let isRunning =
+                    task.terminationStatus == 0
+                        && !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+
+                // Check for duplicate processes - UNHEALTHY if more than one
+                if isRunning {
+                    let pids = output.trimmingCharacters(in: .whitespacesAndNewlines).components(
+                        separatedBy: .newlines)
+                    let processCount = pids.filter { !$0.isEmpty }.count
+                    if processCount > 1 {
+                        AppLogger.shared.log(
+                            "❌ [VHIDManager] UNHEALTHY: Multiple VHIDDevice daemon processes detected (\(processCount)) - should only be 1"
+                        )
+                        AppLogger.shared.log("❌ [VHIDManager] PIDs: \(pids.joined(separator: ", "))")
+                        let duration = CFAbsoluteTimeGetCurrent() - startTime
+                        AppLogger.shared.log(
+                            "🔍 [VHIDManager] VHIDDevice daemon health: UNHEALTHY (duplicates) (took \(String(format: "%.3f", duration))s)"
+                        )
+                        return .duplicateProcesses
+                    }
+                }
+
+                let duration = CFAbsoluteTimeGetCurrent() - startTime
+                AppLogger.shared.log(
+                    "🔍 [VHIDManager] VHIDDevice daemon health: \(isRunning ? "HEALTHY" : "NOT RUNNING") (took \(String(format: "%.3f", duration))s)"
+                )
+                return isRunning ? .healthy : .notRunning
+            } catch {
+                AppLogger.shared.log("❌ [VHIDManager] Error checking VHIDDevice processes: \(error)")
+                return .error
+            }
+        }.value
     }
 
     /// Extremely fast check using launchctl list; used as a fallback when pgrep stalls.
@@ -308,8 +314,8 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
     /// Checks if VirtualHID daemon is functioning correctly (wizard prerequisite)
     /// Wizard now treats this as a pure process health check; log parsing lives in DiagnosticsView
-    func detectConnectionHealth() -> Bool {
-        let isRunning = detectRunning()
+    func detectConnectionHealth() async -> Bool {
+        let isRunning = await detectRunning()
         // 🔍 DEBUG: Log the result to understand health check behavior
         AppLogger.shared.log("🔍 [VHIDManager] detectConnectionHealth() -> isRunning=\(isRunning)")
         if !isRunning {
@@ -422,57 +428,35 @@ final class VHIDDeviceManager: @unchecked Sendable {
         )
     }
 
-    /// Execute a command with administrator privileges using osascript
+    /// Execute a command with administrator privileges.
+    /// Uses sudo if KEYPATH_USE_SUDO=1 is set (for testing), otherwise uses osascript.
     private func executeWithAdminPrivileges(command: String, description: String) async -> Bool {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 AppLogger.shared.log("🔧 [VHIDManager] Requesting admin privileges for: \(description)")
 
-                // Properly escape command for AppleScript (escape backslashes first, then quotes)
-                let escapedCommand =
-                    command
-                        .replacingOccurrences(of: "\\", with: "\\\\")
-                        .replacingOccurrences(of: "\"", with: "\\\"")
+                // Use centralized PrivilegedCommandRunner (uses sudo if KEYPATH_USE_SUDO=1, otherwise osascript)
+                let result = PrivilegedCommandRunner.execute(
+                    command: command,
+                    prompt: "KeyPath needs to \(description.lowercased())."
+                )
 
-                // Use osascript to request admin privileges with proper password dialog
-                let osascriptCommand =
-                    "do shell script \"\(escapedCommand)\" with administrator privileges with prompt \"KeyPath needs to \(description.lowercased()).\""
+                if result.success {
+                    AppLogger.shared.log("✅ [VHIDManager] \(description) completed successfully")
 
-                let osascriptTask = Process()
-                osascriptTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-                osascriptTask.arguments = ["-e", osascriptCommand]
+                    // Wait a moment for the activation to take effect
+                    Task {
+                        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
 
-                let pipe = Pipe()
-                osascriptTask.standardOutput = pipe
-                osascriptTask.standardError = pipe
-
-                do {
-                    try osascriptTask.run()
-                    osascriptTask.waitUntilExit()
-
-                    let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                    let output = String(data: data, encoding: .utf8) ?? ""
-
-                    if osascriptTask.terminationStatus == 0 {
-                        AppLogger.shared.log("✅ [VHIDManager] \(description) completed successfully")
-
-                        // Wait a moment for the activation to take effect
-                        Task {
-                            try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-
-                            // Verify activation worked
-                            let activated = self.detectActivation()
-                            AppLogger.shared.log("🔍 [VHIDManager] Post-activation verification: \(activated)")
-                            continuation.resume(returning: activated)
-                        }
-                    } else {
-                        AppLogger.shared.log(
-                            "❌ [VHIDManager] \(description) failed with status \(osascriptTask.terminationStatus): \(output)"
-                        )
-                        continuation.resume(returning: false)
+                        // Verify activation worked
+                        let activated = self.detectActivation()
+                        AppLogger.shared.log("🔍 [VHIDManager] Post-activation verification: \(activated)")
+                        continuation.resume(returning: activated)
                     }
-                } catch {
-                    AppLogger.shared.log("❌ [VHIDManager] Error executing \(description): \(error)")
+                } else {
+                    AppLogger.shared.log(
+                        "❌ [VHIDManager] \(description) failed with status \(result.exitCode): \(result.output)"
+                    )
                     continuation.resume(returning: false)
                 }
             }
@@ -624,11 +608,11 @@ final class VHIDDeviceManager: @unchecked Sendable {
     }
 
     /// Comprehensive status check - returns detailed information about VHIDDevice state
-    func getDetailedStatus() -> VHIDDeviceStatus {
+    func getDetailedStatus() async -> VHIDDeviceStatus {
         let installed = detectInstallation()
         let activated = detectActivation()
-        let running = detectRunning()
-        let connectionHealthy = detectConnectionHealth()
+        let running = await detectRunning()
+        let connectionHealthy = await detectConnectionHealth()
 
         return VHIDDeviceStatus(
             managerInstalled: installed,
@@ -665,6 +649,12 @@ final class VHIDDeviceManager: @unchecked Sendable {
         } catch {
             return ""
         }
+    }
+
+    private func shellAsync(_ command: String) async -> String {
+        await Task.detached {
+            self.shell(command)
+        }.value
     }
 }
 

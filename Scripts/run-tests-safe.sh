@@ -16,8 +16,16 @@ export SKIP_EVENT_TAP_TESTS=1
 export CI_ENVIRONMENT=${CI_ENVIRONMENT:-false}
 export NSUnbufferedIO=YES
 
+# Optional: Enable sudo mode for fully autonomous privileged operations
+# Set KEYPATH_USE_SUDO=1 to use sudo instead of osascript admin prompts
+# Requires: sudo ./Scripts/dev-setup-sudoers.sh (one-time setup)
+export KEYPATH_USE_SUDO=${KEYPATH_USE_SUDO:-0}
+
 echo "⏱️  Timeout: ${TIMEOUT_SECONDS}s"
 echo "🧪 SWIFT_TEST=$SWIFT_TEST | SKIP_EVENT_TAP_TESTS=$SKIP_EVENT_TAP_TESTS"
+if [ "$KEYPATH_USE_SUDO" = "1" ]; then
+    echo "🔐 KEYPATH_USE_SUDO=1 (privileged ops via sudo, no prompts)"
+fi
 
 # 0) Isolated build/test dirs and HOME to avoid parallel-agent collisions
 SCRATCH_PATH=${SCRATCH_PATH:-.build-ci}

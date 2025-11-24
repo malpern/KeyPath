@@ -1818,7 +1818,7 @@ class RuntimeCoordinator {
     // MARK: - Methods Expected by Tests
 
     func isServiceInstalled() -> Bool {
-        let state = KanataDaemonManager.determineServiceManagementState()
+        let state = KanataDaemonManager.shared.currentManagementState
         switch state {
         case .uninstalled:
             return false

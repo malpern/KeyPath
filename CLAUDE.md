@@ -118,6 +118,13 @@ if context.permissions.inputMonitoring != .granted { ... }
 ❌ **No real sleeps** - Use backdated timestamps (`Date().addingTimeInterval(-3.0)`).
 ✅ **Mock time control** - Keep tests fast (<5s total).
 
+### Test Seams (CRITICAL)
+❌ **Never call real `pgrep`** - Tests using `InstallerEngine`, `RuntimeCoordinator`, or `SystemValidator` will deadlock.
+✅ **Always use `KeyPathTestCase` base class** - Automatically sets up `VHIDDeviceManager.testPIDProvider = { [] }`.
+✅ **Or manually set seam** - If not using base class: set `VHIDDeviceManager.testPIDProvider` in setUp/tearDown.
+
+**Why?** `VHIDDeviceManager.detectConnectionHealth()` spawns `pgrep` subprocesses with 3s timeouts that deadlock during rapid parallel test execution.
+
 ## 📜 Architecture Decision Records
 
 ### ADR-015: InstallerEngine Façade (Completed Nov 2025) ✅
@@ -166,7 +173,32 @@ Deploys release build locally and restarts app.
 ```bash
 swift test
 KEYPATH_MANUAL_TESTS=true ./run-tests.sh  # Force manual tests
+KEYPATH_USE_SUDO=1 swift test             # Run tests with sudo (requires sudoers setup)
 ```
+
+### Sudoers Configuration (Local Development Only)
+
+For running tests that need admin privileges without osascript dialogs:
+
+```bash
+# Setup (one-time)
+sudo ./Scripts/dev-setup-sudoers.sh
+
+# Run tests with sudo instead of osascript
+KEYPATH_USE_SUDO=1 swift test
+
+# Remove before public release!
+sudo ./Scripts/dev-remove-sudoers.sh
+```
+
+**How it works:**
+- `KEYPATH_USE_SUDO=1` makes `LaunchDaemonInstaller` use `sudo -n` instead of osascript
+- `TestEnvironment.useSudoForPrivilegedOps` controls the behavior
+- Sudoers rules are scoped to KeyPath-specific paths only
+
+**Files:**
+- `Scripts/dev-setup-sudoers.sh` - Adds NOPASSWD rules to `/etc/sudoers.d/keypath-dev`
+- `Scripts/dev-remove-sudoers.sh` - Removes the rules
 
 ## Code Quality
 

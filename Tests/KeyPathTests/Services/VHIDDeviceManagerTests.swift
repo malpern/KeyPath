@@ -11,28 +11,31 @@ final class VHIDDeviceManagerTests: XCTestCase {
         FeatureFlags.testStartupMode = nil
     }
 
-    func testDetectRunning_UnhealthyWithDuplicates() {
+    func testDetectRunning_UnhealthyWithDuplicates() async {
         // Provide two PIDs to simulate duplicate daemons
         VHIDDeviceManager.testPIDProvider = { ["123", "456"] }
         let mgr = VHIDDeviceManager()
-        XCTAssertFalse(mgr.detectRunning(), "Duplicate daemons should be considered unhealthy")
+        let running = await mgr.detectRunning()
+        XCTAssertFalse(running, "Duplicate daemons should be considered unhealthy")
     }
 
-    func testDetectRunning_HealthySingleInstance() {
+    func testDetectRunning_HealthySingleInstance() async {
         VHIDDeviceManager.testPIDProvider = { ["123"] }
         let mgr = VHIDDeviceManager()
-        XCTAssertTrue(mgr.detectRunning(), "Single daemon should be healthy")
+        let running = await mgr.detectRunning()
+        XCTAssertTrue(running, "Single daemon should be healthy")
     }
 
-    func testDetectRunning_NotRunning() {
+    func testDetectRunning_NotRunning() async {
         VHIDDeviceManager.testPIDProvider = { [] }
         let mgr = VHIDDeviceManager()
-        XCTAssertFalse(mgr.detectRunning(), "No daemon should be reported as not running")
+        let running = await mgr.detectRunning()
+        XCTAssertFalse(running, "No daemon should be reported as not running")
     }
 
     // MARK: - Startup Mode Tests
 
-    func testDetectRunning_StartupMode_DaemonRunning() {
+    func testDetectRunning_StartupMode_DaemonRunning() async {
         // Simulate startup mode active
         FeatureFlags.testStartupMode = true
 
@@ -55,10 +58,11 @@ final class VHIDDeviceManagerTests: XCTestCase {
         }
 
         let mgr = VHIDDeviceManager()
-        XCTAssertTrue(mgr.detectRunning(), "Startup mode with running daemon should return healthy")
+        let running = await mgr.detectRunning()
+        XCTAssertTrue(running, "Startup mode with running daemon should return healthy")
     }
 
-    func testDetectRunning_StartupMode_DaemonNotRunning() {
+    func testDetectRunning_StartupMode_DaemonNotRunning() async {
         // Simulate startup mode active
         FeatureFlags.testStartupMode = true
 
@@ -71,12 +75,13 @@ final class VHIDDeviceManagerTests: XCTestCase {
         }
 
         let mgr = VHIDDeviceManager()
+        let running = await mgr.detectRunning()
         XCTAssertFalse(
-            mgr.detectRunning(), "Startup mode with daemon not running should return not running"
+            running, "Startup mode with daemon not running should return not running"
         )
     }
 
-    func testEvaluateDaemonProcess_StartupMode_UsesFastCheck() {
+    func testEvaluateDaemonProcess_StartupMode_UsesFastCheck() async {
         // Simulate startup mode active
         FeatureFlags.testStartupMode = true
 
@@ -94,12 +99,12 @@ final class VHIDDeviceManagerTests: XCTestCase {
         }
 
         let mgr = VHIDDeviceManager()
-        _ = mgr.detectRunning()
+        _ = await mgr.detectRunning()
 
         XCTAssertTrue(launchctlCalled, "Startup mode should use launchctl for fast health check")
     }
 
-    func testDetectRunning_NormalMode_BypassesFastCheck() {
+    func testDetectRunning_NormalMode_BypassesFastCheck() async {
         // Normal mode (startup mode not active)
         FeatureFlags.testStartupMode = false
 
@@ -113,12 +118,12 @@ final class VHIDDeviceManagerTests: XCTestCase {
         }
 
         let mgr = VHIDDeviceManager()
-        _ = mgr.detectRunning()
+        _ = await mgr.detectRunning()
 
         XCTAssertFalse(shellCommandCalled, "Normal mode should NOT use shell command, should use pgrep")
     }
 
-    func testGetDaemonPIDs_StartupMode_ReturnsEmpty() {
+    func testGetDaemonPIDs_StartupMode_ReturnsEmpty() async {
         // Simulate startup mode active
         FeatureFlags.testStartupMode = true
 
@@ -131,7 +136,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
         XCTAssertTrue(pids.isEmpty, "Startup mode should skip PID collection and return empty array")
     }
 
-    func testStartupMode_RaceConditionPrevention() {
+    func testStartupMode_RaceConditionPrevention() async {
         // This test verifies the fix for the race condition that caused wizard false positives
         // When startup mode is active, we should get consistent results from rapid health checks
 
@@ -150,7 +155,10 @@ final class VHIDDeviceManagerTests: XCTestCase {
         let mgr = VHIDDeviceManager()
 
         // Perform multiple rapid health checks (simulating wizard behavior)
-        let results = (0 ..< 10).map { _ in mgr.detectRunning() }
+        var results: [Bool] = []
+        for _ in 0 ..< 10 {
+            results.append(await mgr.detectRunning())
+        }
 
         // All results should be consistent (all true in this case since daemon is "running")
         XCTAssertTrue(

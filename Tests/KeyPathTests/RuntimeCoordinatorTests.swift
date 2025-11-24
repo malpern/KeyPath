@@ -3,7 +3,7 @@ import XCTest
 @testable import KeyPathAppKit
 
 @MainActor
-final class RuntimeCoordinatorTests: XCTestCase {
+final class RuntimeCoordinatorTests: KeyPathTestCase {
     lazy var manager: RuntimeCoordinator = .init()
 
     func testInitialState() async {

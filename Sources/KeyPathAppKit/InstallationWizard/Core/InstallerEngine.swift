@@ -406,7 +406,7 @@ public final class InstallerEngine {
     private func verifyHealthCheck(_ criteria: HealthCheckCriteria) async -> Bool {
         // Use LaunchDaemonInstaller to check service health
         let installer = LaunchDaemonInstaller()
-        return installer.isServiceHealthy(serviceID: criteria.serviceID)
+        return await installer.isServiceHealthy(serviceID: criteria.serviceID)
     }
 
     /// Convenience wrapper that chains inspectSystem() → makePlan() → execute() internally.

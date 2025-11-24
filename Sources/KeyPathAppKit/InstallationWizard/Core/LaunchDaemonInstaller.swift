@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import os.lock
 import Security
 import ServiceManagement
 
@@ -18,28 +19,28 @@ import ServiceManagement
 class LaunchDaemonInstaller {
     // MARK: - Constants
 
-    private static var launchDaemonsPath: String {
+    nonisolated private static var launchDaemonsPath: String {
         LaunchDaemonInstaller.resolveLaunchDaemonsPath()
     }
 
-    static var systemLaunchDaemonsDir: String {
+    nonisolated static var systemLaunchDaemonsDir: String {
         launchDaemonsPath
     }
 
-    static var systemLaunchAgentsDir: String {
+    nonisolated static var systemLaunchAgentsDir: String {
         WizardSystemPaths.remapSystemPath("/Library/LaunchAgents")
     }
 
-    static var launchctlPathOverride: String?
-    static var isTestModeOverride: Bool?
-    static var authorizationScriptRunnerOverride: ((String) -> Bool)?
-    static let kanataServiceID = "com.keypath.kanata"
-    private static let vhidDaemonServiceID = "com.keypath.karabiner-vhiddaemon"
-    private static let vhidManagerServiceID = "com.keypath.karabiner-vhidmanager"
-    private static let logRotationServiceID = "com.keypath.logrotate"
+    nonisolated(unsafe) static var launchctlPathOverride: String?
+    nonisolated(unsafe) static var isTestModeOverride: Bool?
+    nonisolated(unsafe) static var authorizationScriptRunnerOverride: ((String) -> Bool)?
+    nonisolated static let kanataServiceID = "com.keypath.kanata"
+    nonisolated private static let vhidDaemonServiceID = "com.keypath.karabiner-vhiddaemon"
+    nonisolated private static let vhidManagerServiceID = "com.keypath.karabiner-vhidmanager"
+    nonisolated private static let logRotationServiceID = "com.keypath.logrotate"
 
     /// Path to the log rotation script
-    private static var logRotationScriptPath: String {
+    nonisolated private static var logRotationScriptPath: String {
         WizardSystemPaths.remapSystemPath("/usr/local/bin/keypath-logrotate.sh")
     }
 
@@ -58,23 +59,23 @@ class LaunchDaemonInstaller {
     private var installerFailureReason: String?
 
     /// Path to the Kanata service plist file (system daemon)
-    static var kanataPlistPath: String {
+    nonisolated static var kanataPlistPath: String {
         "\(systemLaunchDaemonsDir)/\(kanataServiceID).plist"
     }
 
     /// Path to the Kanata LaunchAgent plist file (per-user)
-    static var kanataLaunchAgentPlistPath: String {
+    nonisolated static var kanataLaunchAgentPlistPath: String {
         "\(systemLaunchAgentsDir)/\(kanataServiceID).plist"
     }
 
     // Use user config path following industry standard ~/.config/ pattern
-    private static var kanataConfigPath: String {
+    nonisolated private static var kanataConfigPath: String {
         WizardSystemPaths.userConfigPath
     }
 
-    private static let vhidDaemonPath =
+    nonisolated private static let vhidDaemonPath =
         "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon"
-    private static let vhidManagerPath =
+    nonisolated private static let vhidManagerPath =
         "/Applications/.Karabiner-VirtualHIDDevice-Manager.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Manager"
 
     // MARK: - Initialization
@@ -97,21 +98,45 @@ class LaunchDaemonInstaller {
         }
 
         let testCommand = "echo 'Admin dialog test successful'"
-        let osascriptCode = """
-        do shell script "\(
-            testCommand
-        )" with administrator privileges with prompt "KeyPath Admin Dialog Test - This is a test of the admin password dialog. Please enter your password to confirm it's working."
-        """
+        // Use centralized PrivilegedCommandRunner (uses sudo if KEYPATH_USE_SUDO=1, otherwise osascript)
+        let result = PrivilegedCommandRunner.execute(
+            command: testCommand,
+            prompt: "KeyPath Admin Dialog Test - This is a test of the admin password dialog. Please enter your password to confirm it's working."
+        )
 
-        // Execute directly without semaphore to avoid deadlock
-        let success = executeOSAScriptDirectly(osascriptCode)
-
-        AppLogger.shared.log("🔧 [LaunchDaemon] Admin dialog test result: \(success)")
-        return success
+        AppLogger.shared.log("🔧 [LaunchDaemon] Admin dialog test result: \(result.success)")
+        return result.success
     }
 
-    /// Execute osascript directly without thread switching
+    /// Execute a shell command with admin privileges (wrapper for PrivilegedCommandRunner).
+    /// NOTE: For AppleScript commands that need to be executed directly, use the osascriptCode parameter.
     private func executeOSAScriptDirectly(_ osascriptCode: String) -> Bool {
+        // Extract the shell command from the AppleScript code
+        // This is for backward compatibility - ideally callers should use PrivilegedCommandRunner directly
+        if let commandRange = osascriptCode.range(of: "do shell script \""),
+           let endRange = osascriptCode.range(of: "\" with administrator privileges")
+        {
+            let startIndex = commandRange.upperBound
+            let endIndex = endRange.lowerBound
+            let command = String(osascriptCode[startIndex..<endIndex])
+                .replacingOccurrences(of: "\\\"", with: "\"")
+                .replacingOccurrences(of: "\\\\", with: "\\")
+
+            // Extract prompt if present
+            var prompt = "KeyPath needs administrator privileges."
+            if let promptRange = osascriptCode.range(of: "with prompt \""),
+               let promptEndRange = osascriptCode.range(of: "\"", range: promptRange.upperBound..<osascriptCode.endIndex)
+            {
+                prompt = String(osascriptCode[promptRange.upperBound..<promptEndRange.lowerBound])
+            }
+
+            let result = PrivilegedCommandRunner.execute(command: command, prompt: prompt)
+            AppLogger.shared.log("🔧 [LaunchDaemon] OSAScript result: \(result.output)")
+            return result.success
+        }
+
+        // Fallback: run osascript directly (for non-standard AppleScript code)
+        AppLogger.shared.log("⚠️ [LaunchDaemon] Non-standard osascript code, running directly")
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
         task.arguments = ["-e", osascriptCode]
@@ -136,66 +161,52 @@ class LaunchDaemonInstaller {
     }
 
     private func executeOSAScriptOnMainThread(_ osascriptCode: String) -> Bool {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        task.arguments = ["-e", osascriptCode]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            AppLogger.shared.log("🔧 [LaunchDaemon] OSAScript test output: \(output)")
-            return task.terminationStatus == 0
-        } catch {
-            AppLogger.shared.log("❌ [LaunchDaemon] OSAScript test failed: \(error)")
-            return false
-        }
+        // Delegate to executeOSAScriptDirectly which now uses PrivilegedCommandRunner
+        executeOSAScriptDirectly(osascriptCode)
     }
 
     // MARK: - Warm-up tracking (to distinguish "starting" from "failed")
 
-    @MainActor private static var lastKickstartTimes: [String: Date] = [:]
-    private static let healthyWarmupWindow: TimeInterval = 2.0
+    nonisolated private static let kickstartLock = OSAllocatedUnfairLock(initialState: [String: Date]())
+    nonisolated private static let healthyWarmupWindow: TimeInterval = 2.0
 
-    @MainActor private func markRestartTime(for serviceIDs: [String]) {
+    private func markRestartTime(for serviceIDs: [String]) {
         let now = Date()
-        for id in serviceIDs {
-            Self.lastKickstartTimes[id] = now
+        Self.kickstartLock.withLock { times in
+            for id in serviceIDs {
+                times[id] = now
+            }
         }
     }
 
     // Expose read access across instances
-    @MainActor static func wasRecentlyRestarted(
+    nonisolated static func wasRecentlyRestarted(
         _ serviceID: String, within seconds: TimeInterval? = nil
     ) -> Bool {
-        guard let last = lastKickstartTimes[serviceID] else { return false }
+        let last = kickstartLock.withLock { $0[serviceID] }
+        guard let last else { return false }
         let window = seconds ?? healthyWarmupWindow
         return Date().timeIntervalSince(last) < window
     }
 
-    @MainActor static func hadRecentRestart(within seconds: TimeInterval = healthyWarmupWindow)
+    nonisolated static func hadRecentRestart(within seconds: TimeInterval = healthyWarmupWindow)
         -> Bool {
         let now = Date()
-        return lastKickstartTimes.values.contains { now.timeIntervalSince($0) < seconds }
+        return kickstartLock.withLock { times in
+            times.values.contains { now.timeIntervalSince($0) < seconds }
+        }
     }
 
     // MARK: - Env/Test helpers
 
-    private static var isTestMode: Bool {
+    nonisolated private static var isTestMode: Bool {
         if let override = isTestModeOverride {
             return override
         }
         return ProcessInfo.processInfo.environment["KEYPATH_TEST_MODE"] == "1"
     }
 
-    private static func resolveLaunchDaemonsPath() -> String {
+    nonisolated private static func resolveLaunchDaemonsPath() -> String {
         let env = ProcessInfo.processInfo.environment
         if let override = env["KEYPATH_LAUNCH_DAEMONS_DIR"], !override.isEmpty {
             return override
@@ -208,6 +219,88 @@ class LaunchDaemonInstaller {
         var escaped = command.replacingOccurrences(of: "\\", with: "\\\\")
         escaped = escaped.replacingOccurrences(of: "\"", with: "\\\"")
         return escaped
+    }
+
+    // MARK: - Privileged Execution
+
+    /// Execute a shell command with administrator privileges.
+    /// Uses sudo if KEYPATH_USE_SUDO=1 is set (for testing), otherwise uses osascript.
+    ///
+    /// - Parameters:
+    ///   - command: The shell command to execute
+    ///   - prompt: The prompt to show in the admin dialog (osascript only)
+    /// - Returns: Tuple of (success, output)
+    private func executeWithPrivileges(command: String, prompt: String) -> (success: Bool, output: String)
+    {
+        // Check if we should use sudo instead of osascript (for testing)
+        if TestEnvironment.useSudoForPrivilegedOps {
+            return executeWithSudo(command: command)
+        } else {
+            return executeWithOsascript(command: command, prompt: prompt)
+        }
+    }
+
+    /// Execute a command using sudo (for testing with sudoers NOPASSWD rules).
+    /// Requires: sudo ./Scripts/dev-setup-sudoers.sh
+    private func executeWithSudo(command: String) -> (success: Bool, output: String) {
+        AppLogger.shared.log("🧪 [LaunchDaemon] Using sudo for privileged operation (KEYPATH_USE_SUDO=1)")
+
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+        // Use -n for non-interactive (fails if password required)
+        task.arguments = ["-n", "/bin/bash", "-c", command]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+
+            if task.terminationStatus == 0 {
+                AppLogger.shared.log("✅ [LaunchDaemon] sudo command succeeded")
+                return (true, output)
+            } else {
+                AppLogger.shared.log("❌ [LaunchDaemon] sudo command failed (status \(task.terminationStatus)): \(output)")
+                return (false, output)
+            }
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] Failed to execute sudo: \(error)")
+            return (false, error.localizedDescription)
+        }
+    }
+
+    /// Execute a command using osascript with admin privileges dialog.
+    private func executeWithOsascript(command: String, prompt: String) -> (success: Bool, output: String)
+    {
+        let escapedCommand = escapeForAppleScript(command)
+        let osascriptCommand = """
+        do shell script "\(escapedCommand)" with administrator privileges with prompt "\(prompt)"
+        """
+
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        task.arguments = ["-e", osascriptCommand]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+
+            return (task.terminationStatus == 0, output)
+        } catch {
+            return (false, error.localizedDescription)
+        }
     }
 
     // MARK: - Path Detection Methods
@@ -425,7 +518,7 @@ class LaunchDaemonInstaller {
         }
 
         // Check current state
-        let state = KanataDaemonManager.determineServiceManagementState()
+        let state = await KanataDaemonManager.shared.refreshManagementState()
         AppLogger.shared.log("🔍 [LaunchDaemon] Current state: \(state.description)")
 
         // If conflicted, auto-resolve by removing legacy plist
@@ -655,7 +748,7 @@ class LaunchDaemonInstaller {
 
     /// Checks if a LaunchDaemon service is currently loaded
     /// Uses state determination for Kanata service to ensure consistent detection
-    func isServiceLoaded(serviceID: String) async -> Bool {
+    nonisolated func isServiceLoaded(serviceID: String) async -> Bool {
         // Special handling for Kanata service: Use state determination for consistent detection
         if serviceID == Self.kanataServiceID {
             if Self.isTestMode {
@@ -665,7 +758,7 @@ class LaunchDaemonInstaller {
                     "🔍 [LaunchDaemon] (test) Kanata service loaded via file existence: \(exists)")
                 return exists
             }
-            let state = KanataDaemonManager.determineServiceManagementState()
+            let state = await KanataDaemonManager.shared.refreshManagementState()
             AppLogger.shared.log("🔍 [LaunchDaemon] Kanata service state: \(state.description)")
 
             switch state {
@@ -685,6 +778,7 @@ class LaunchDaemonInstaller {
                 return true
             case .unknown:
                 // Process running but unclear - check process, consider loaded if running
+                // Use local async check to avoid actor hop
                 if await checkKanataServiceHealth().isRunning {
                     AppLogger.shared.log(
                         "🔍 [LaunchDaemon] Unknown state but process running - considering loaded")
@@ -706,24 +800,26 @@ class LaunchDaemonInstaller {
             return exists
         }
 
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-        task.arguments = ["print", "system/\(serviceID)"]
+        return await Task.detached {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+            task.arguments = ["print", "system/\(serviceID)"]
 
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            task.standardError = pipe
 
-        do {
-            try task.run()
-            task.waitUntilExit()
-            let isLoaded = task.terminationStatus == 0
-            AppLogger.shared.log("🔍 [LaunchDaemon] (system) Service \(serviceID) loaded: \(isLoaded)")
-            return isLoaded
-        } catch {
-            AppLogger.shared.log("❌ [LaunchDaemon] Error checking service \(serviceID): \(error)")
-            return false
-        }
+            do {
+                try task.run()
+                task.waitUntilExit()
+                let isLoaded = task.terminationStatus == 0
+                AppLogger.shared.log("🔍 [LaunchDaemon] (system) Service \(serviceID) loaded: \(isLoaded)")
+                return isLoaded
+            } catch {
+                AppLogger.shared.log("❌ [LaunchDaemon] Error checking service \(serviceID): \(error)")
+                return false
+            }
+        }.value
     }
 
     /// Legacy pgrep helper (disabled) — use checkKanataServiceHealth instead.
@@ -731,7 +827,7 @@ class LaunchDaemonInstaller {
     nonisolated func pgrepKanataProcess() -> Bool { false }
 
     /// Checks if a LaunchDaemon service is running healthily (not just loaded)
-    @MainActor func isServiceHealthy(serviceID: String) -> Bool {
+    nonisolated func isServiceHealthy(serviceID: String) async -> Bool {
         AppLogger.shared.log("🔍 [LaunchDaemon] HEALTH CHECK (system/print) for: \(serviceID)")
 
         if Self.isTestMode {
@@ -742,80 +838,82 @@ class LaunchDaemonInstaller {
             return exists
         }
 
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-        task.arguments = ["print", "system/\(serviceID)"]
+        return await Task.detached {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+            task.arguments = ["print", "system/\(serviceID)"]
 
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            task.standardError = pipe
 
-        do {
-            try task.run()
-            task.waitUntilExit()
+            do {
+                try task.run()
+                task.waitUntilExit()
 
-            guard task.terminationStatus == 0 else {
-                AppLogger.shared.log("🔍 [LaunchDaemon] \(serviceID) not found in system domain")
+                guard task.terminationStatus == 0 else {
+                    AppLogger.shared.log("🔍 [LaunchDaemon] \(serviceID) not found in system domain")
+                    return false
+                }
+
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                let output = String(data: data, encoding: .utf8) ?? ""
+
+                // Extract details from 'launchctl print' output
+                let state = output.firstMatchString(pattern: #"state\s*=\s*([A-Za-z]+)"#)?.lowercased()
+                let pid =
+                    output.firstMatchInt(pattern: #"\bpid\s*=\s*([0-9]+)"#)
+                        ?? output.firstMatchInt(pattern: #""PID"\s*=\s*([0-9]+)"#)
+                let lastExit =
+                    output.firstMatchInt(pattern: #"last exit (?:status|code)\s*=\s*(-?\d+)"#)
+                        ?? output.firstMatchInt(pattern: #""LastExitStatus"\s*=\s*(-?\d+)"#)
+
+                let isOneShot = (serviceID == Self.vhidManagerServiceID)
+                let isRunningLike = (state == "running" || state == "launching")
+                let hasPID = (pid != nil)
+                let inWarmup = Self.wasRecentlyRestarted(serviceID)
+
+                var healthy = false
+                if isOneShot {
+                    // One-shot services run once and exit - this is normal behavior
+                    if let lastExit {
+                        // If we have exit status, it must be clean (0)
+                        healthy = (lastExit == 0)
+                    } else if isRunningLike || hasPID || inWarmup {
+                        // Service currently running or starting up
+                        healthy = true
+                    } else {
+                        // No exit status and not running - assume it ran successfully
+                        // This is normal for one-shot services that run at boot
+                        AppLogger.shared.log(
+                            "🔍 [LaunchDaemon] One-shot service \(serviceID) not running (normal) - assuming healthy"
+                        )
+                        healthy = true
+                    }
+                } else {
+                    // KeepAlive jobs should be running. Allow starting states or warm-up.
+                    if isRunningLike || hasPID {
+                        healthy = true
+                    } else if inWarmup {
+                        healthy = true
+                    } // starting up
+                    else {
+                        healthy = false
+                    }
+                }
+
+                AppLogger.shared.log("🔍 [LaunchDaemon] HEALTH ANALYSIS \(serviceID):")
+                AppLogger.shared
+                    .log(
+                        "    state=\(state ?? "nil"), pid=\(pid?.description ?? "nil"), lastExit=\(lastExit?.description ?? "nil"), oneShot=\(isOneShot), warmup=\(inWarmup), healthy=\(healthy)"
+                    )
+
+                return healthy
+            } catch {
+                AppLogger.shared.log("❌ [LaunchDaemon] Error checking service health \(serviceID): \(error)")
                 return false
             }
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            // Extract details from 'launchctl print' output
-            let state = output.firstMatchString(pattern: #"state\s*=\s*([A-Za-z]+)"#)?.lowercased()
-            let pid =
-                output.firstMatchInt(pattern: #"\bpid\s*=\s*([0-9]+)"#)
-                    ?? output.firstMatchInt(pattern: #""PID"\s*=\s*([0-9]+)"#)
-            let lastExit =
-                output.firstMatchInt(pattern: #"last exit (?:status|code)\s*=\s*(-?\d+)"#)
-                    ?? output.firstMatchInt(pattern: #""LastExitStatus"\s*=\s*(-?\d+)"#)
-
-            let isOneShot = (serviceID == Self.vhidManagerServiceID)
-            let isRunningLike = (state == "running" || state == "launching")
-            let hasPID = (pid != nil)
-            let inWarmup = Self.wasRecentlyRestarted(serviceID)
-
-            var healthy = false
-            if isOneShot {
-                // One-shot services run once and exit - this is normal behavior
-                if let lastExit {
-                    // If we have exit status, it must be clean (0)
-                    healthy = (lastExit == 0)
-                } else if isRunningLike || hasPID || inWarmup {
-                    // Service currently running or starting up
-                    healthy = true
-                } else {
-                    // No exit status and not running - assume it ran successfully
-                    // This is normal for one-shot services that run at boot
-                    AppLogger.shared.log(
-                        "🔍 [LaunchDaemon] One-shot service \(serviceID) not running (normal) - assuming healthy"
-                    )
-                    healthy = true
-                }
-            } else {
-                // KeepAlive jobs should be running. Allow starting states or warm-up.
-                if isRunningLike || hasPID {
-                    healthy = true
-                } else if inWarmup {
-                    healthy = true
-                } // starting up
-                else {
-                    healthy = false
-                }
-            }
-
-            AppLogger.shared.log("🔍 [LaunchDaemon] HEALTH ANALYSIS \(serviceID):")
-            AppLogger.shared
-                .log(
-                    "    state=\(state ?? "nil"), pid=\(pid?.description ?? "nil"), lastExit=\(lastExit?.description ?? "nil"), oneShot=\(isOneShot), warmup=\(inWarmup), healthy=\(healthy)"
-                )
-
-            return healthy
-        } catch {
-            AppLogger.shared.log("❌ [LaunchDaemon] Error checking service health \(serviceID): \(error)")
-            return false
-        }
+        }.value
     }
 
     // MARK: - Plist Generation
@@ -1126,38 +1224,17 @@ class LaunchDaemonInstaller {
         cp '\(vhidManagerTemp)' '\(vhidManagerFinal)' && chown root:wheel '\(vhidManagerFinal)' && chmod 644 '\(vhidManagerFinal)'
         """
 
-        // Use osascript to request admin privileges with proper password dialog
-        let escapedCommand = escapeForAppleScript(command)
-        let osascriptCommand = """
-        do shell script "\(escapedCommand)" with administrator privileges with prompt "KeyPath needs to install LaunchDaemon services for keyboard management."
-        """
+        // Execute with admin privileges (uses sudo if KEYPATH_USE_SUDO=1, otherwise osascript)
+        let result = executeWithPrivileges(
+            command: command,
+            prompt: "KeyPath needs to install LaunchDaemon services for keyboard management."
+        )
 
-        let osascriptTask = Process()
-        osascriptTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        osascriptTask.arguments = ["-e", osascriptCommand]
-
-        let pipe = Pipe()
-        osascriptTask.standardOutput = pipe
-        osascriptTask.standardError = pipe
-
-        do {
-            try osascriptTask.run()
-            osascriptTask.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            if osascriptTask.terminationStatus == 0 {
-                AppLogger.shared.log("✅ [LaunchDaemon] Successfully installed all LaunchDaemon services")
-                return true
-            } else {
-                let reason = "Failed to install services: \(output)"
-                updateInstallerFailure(reason)
-                AppLogger.shared.log("❌ [LaunchDaemon] \(reason)")
-                return false
-            }
-        } catch {
-            let reason = "Failed to execute admin command: \(error.localizedDescription)"
+        if result.success {
+            AppLogger.shared.log("✅ [LaunchDaemon] Successfully installed all LaunchDaemon services")
+            return true
+        } else {
+            let reason = "Failed to install services: \(result.output)"
             updateInstallerFailure(reason)
             AppLogger.shared.log("❌ [LaunchDaemon] \(reason)")
             return false
@@ -1173,37 +1250,17 @@ class LaunchDaemonInstaller {
         let command =
             "mkdir -p '\(Self.launchDaemonsPath)' && cp '\(tempPath)' '\(finalPath)' && chown root:wheel '\(finalPath)' && chmod 644 '\(finalPath)'"
 
-        // Use osascript to request admin privileges with proper password dialog
-        let escapedCommand = escapeForAppleScript(command)
-        let osascriptCommand = """
-        do shell script "\(escapedCommand)" with administrator privileges with prompt "KeyPath needs to install LaunchDaemon services for keyboard management."
-        """
+        // Use centralized PrivilegedCommandRunner (uses sudo if KEYPATH_USE_SUDO=1, otherwise osascript)
+        let result = PrivilegedCommandRunner.execute(
+            command: command,
+            prompt: "KeyPath needs to install LaunchDaemon services for keyboard management."
+        )
 
-        let osascriptTask = Process()
-        osascriptTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        osascriptTask.arguments = ["-e", osascriptCommand]
-
-        let pipe = Pipe()
-        osascriptTask.standardOutput = pipe
-        osascriptTask.standardError = pipe
-
-        do {
-            try osascriptTask.run()
-            osascriptTask.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            if osascriptTask.terminationStatus == 0 {
-                AppLogger.shared.log("✅ [LaunchDaemon] Successfully installed plist: \(serviceID)")
-                return true
-            } else {
-                AppLogger.shared.log("❌ [LaunchDaemon] Failed to install plist \(serviceID): \(output)")
-                return false
-            }
-        } catch {
-            AppLogger.shared.log(
-                "❌ [LaunchDaemon] Failed to execute admin command for \(serviceID): \(error)")
+        if result.success {
+            AppLogger.shared.log("✅ [LaunchDaemon] Successfully installed plist: \(serviceID)")
+            return true
+        } else {
+            AppLogger.shared.log("❌ [LaunchDaemon] Failed to install plist \(serviceID): \(result.output)")
             return false
         }
     }
@@ -1556,67 +1613,31 @@ class LaunchDaemonInstaller {
             let fileManager = FileManager.default
             try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempScriptPath)
 
-            // Use osascript to execute the script with admin privileges
-            // Custom prompt to clearly identify KeyPath (not osascript)
-            let osascriptCode = """
-            do shell script "bash '\(tempScriptPath)'" with administrator privileges with prompt "KeyPath needs administrator access to install system services for keyboard management."
-            """
-
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-            task.arguments = ["-e", osascriptCode]
-            task.currentDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory())
-
-            let pipe = Pipe()
-            task.standardOutput = pipe
-            task.standardError = pipe
-
-            AppLogger.shared.log("🔐 [LaunchDaemon] Executing osascript with temp script approach...")
+            // Use PrivilegedCommandRunner to execute the script with admin privileges
+            AppLogger.shared.log("🔐 [LaunchDaemon] Executing with temp script approach...")
             AppLogger.shared.log("🔐 [LaunchDaemon] Script path: \(tempScriptPath)")
             AppLogger.shared.log(
                 "🔐 [LaunchDaemon] Current thread: \(Thread.isMainThread ? "main" : "background")")
-            AppLogger.shared.log("🔐 [LaunchDaemon] osascript command: \(osascriptCode)")
-            AppLogger.shared.log("🔐 [LaunchDaemon] About to execute: /usr/bin/osascript -e [command]")
 
-            // Execute without thread switching to avoid deadlock
-            // Admin dialogs can run from any thread when using osascript
-            var taskSuccess = false
-            var taskStatus: Int32 = -1
+            // Use centralized PrivilegedCommandRunner (uses sudo if KEYPATH_USE_SUDO=1, otherwise osascript)
+            let result = PrivilegedCommandRunner.execute(
+                command: "bash '\(tempScriptPath)'",
+                prompt: "KeyPath needs administrator access to install system services for keyboard management."
+            )
 
-            do {
-                AppLogger.shared.log("🔐 [LaunchDaemon] Executing osascript directly")
-                try task.run()
-                task.waitUntilExit()
-                taskStatus = task.terminationStatus
-                taskSuccess = true
-                AppLogger.shared.log("🔐 [LaunchDaemon] Execution completed with status: \(taskStatus)")
-            } catch {
-                AppLogger.shared.log("❌ [LaunchDaemon] Execution failed: \(error)")
-                taskSuccess = false
-            }
-
-            if !taskSuccess {
-                AppLogger.shared.log("❌ [LaunchDaemon] Failed to execute osascript task")
-                try? fileManager.removeItem(atPath: tempScriptPath)
-                return false
-            }
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            AppLogger.shared.log("🔐 [LaunchDaemon] osascript completed with status: \(taskStatus)")
-            AppLogger.shared.log("🔐 [LaunchDaemon] Output: \(output)")
+            AppLogger.shared.log("🔐 [LaunchDaemon] Execution completed with status: \(result.exitCode)")
+            AppLogger.shared.log("🔐 [LaunchDaemon] Output: \(result.output)")
 
             // Clean up temp script
             try? fileManager.removeItem(atPath: tempScriptPath)
 
-            if taskStatus == 0 {
+            if result.success {
                 AppLogger.shared.log(
-                    "✅ [LaunchDaemon] Successfully completed installation with main thread osascript")
+                    "✅ [LaunchDaemon] Successfully completed installation with privileged runner")
                 return true
             } else {
                 AppLogger.shared.log(
-                    "❌ [LaunchDaemon] osascript installation failed with status: \(taskStatus)")
+                    "❌ [LaunchDaemon] Installation failed with status: \(result.exitCode)")
                 return false
             }
 
@@ -1714,62 +1735,35 @@ class LaunchDaemonInstaller {
         /bin/echo Installation completed successfully
         """
 
-        // Use osascript to request admin privileges with clear explanation
-        AppLogger.shared.log("🔐 [LaunchDaemon] *** ABOUT TO EXECUTE OSASCRIPT FOR ADMIN PRIVILEGES ***")
-        AppLogger.shared.log("🔐 [LaunchDaemon] This should show a password dialog to the user")
+        // Use PrivilegedCommandRunner (uses sudo if KEYPATH_USE_SUDO=1, otherwise osascript)
+        AppLogger.shared.log("🔐 [LaunchDaemon] *** ABOUT TO EXECUTE PRIVILEGED COMMAND ***")
+        AppLogger.shared.log("🔐 [LaunchDaemon] This should show a password dialog to the user (unless sudo mode)")
         AppLogger.shared.log("🔐 [LaunchDaemon] isTestMode = \(Self.isTestMode)")
+        AppLogger.shared.log("🔐 [LaunchDaemon] useSudoForPrivilegedOps = \(TestEnvironment.useSudoForPrivilegedOps)")
 
-        // Escape the command for safe AppleScript embedding
-        let escapedCommand = escapeForAppleScript(command)
+        AppLogger.shared.log("🔐 [LaunchDaemon] Command length: \(command.count) characters")
+        AppLogger.shared.log("🔐 [LaunchDaemon] Executing privileged command...")
 
-        let osascriptCommand = """
-        do shell script "\(
-            escapedCommand
-        )" with administrator privileges with prompt "KeyPath needs administrator access to install LaunchDaemon services, create configuration files, and start the keyboard services. This will be a single prompt."
-        """
+        // Use centralized PrivilegedCommandRunner (uses sudo if KEYPATH_USE_SUDO=1, otherwise osascript)
+        let result = PrivilegedCommandRunner.execute(
+            command: command,
+            prompt: "KeyPath needs administrator access to install LaunchDaemon services, create configuration files, and start the keyboard services. This will be a single prompt."
+        )
 
-        AppLogger.shared.log(
-            "🔐 [LaunchDaemon] osascript command length: \(osascriptCommand.count) characters")
-        AppLogger.shared.log("🔐 [LaunchDaemon] Starting osascript process...")
+        AppLogger.shared.log("🔐 [LaunchDaemon] Execution completed with status: \(result.exitCode)")
+        AppLogger.shared.log("🔐 [LaunchDaemon] Output: \(result.output)")
 
-        let osascriptTask = Process()
-        osascriptTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        osascriptTask.arguments = ["-e", osascriptCommand]
-
-        let pipe = Pipe()
-        osascriptTask.standardOutput = pipe
-        osascriptTask.standardError = pipe
-
-        do {
-            AppLogger.shared.log("🔐 [LaunchDaemon] Executing osascript.run()...")
-            try osascriptTask.run()
-            AppLogger.shared.log(
-                "🔐 [LaunchDaemon] osascript.run() succeeded, now waiting for completion...")
-            osascriptTask.waitUntilExit()
-            AppLogger.shared.log(
-                "🔐 [LaunchDaemon] osascript completed with status: \(osascriptTask.terminationStatus)")
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            AppLogger.shared.log("🔐 [LaunchDaemon] osascript output: \(output)")
-
-            if osascriptTask.terminationStatus == 0 {
-                AppLogger.shared.log("✅ [LaunchDaemon] Successfully completed consolidated installation")
-                AppLogger.shared.log("🔧 [LaunchDaemon] Admin output: \(output)")
-                // Mark warm-up for all services we just installed+bootstrapped
-                markRestartTime(for: [
-                    Self.kanataServiceID, Self.vhidDaemonServiceID, Self.vhidManagerServiceID
-                ])
-                return true
-            } else {
-                AppLogger.shared.log("❌ [LaunchDaemon] Failed consolidated installation: \(output)")
-                AppLogger.shared.log("❌ [LaunchDaemon] Exit status was: \(osascriptTask.terminationStatus)")
-                return false
-            }
-        } catch {
-            AppLogger.shared.log(
-                "❌ [LaunchDaemon] Failed to execute consolidated admin command: \(error)")
-            AppLogger.shared.log("❌ [LaunchDaemon] This means osascript.run() threw an exception")
+        if result.success {
+            AppLogger.shared.log("✅ [LaunchDaemon] Successfully completed consolidated installation")
+            AppLogger.shared.log("🔧 [LaunchDaemon] Admin output: \(result.output)")
+            // Mark warm-up for all services we just installed+bootstrapped
+            markRestartTime(for: [
+                Self.kanataServiceID, Self.vhidDaemonServiceID, Self.vhidManagerServiceID
+            ])
+            return true
+        } else {
+            AppLogger.shared.log("❌ [LaunchDaemon] Failed consolidated installation: \(result.output)")
+            AppLogger.shared.log("❌ [LaunchDaemon] Exit status was: \(result.exitCode)")
             return false
         }
     }
@@ -1825,9 +1819,9 @@ class LaunchDaemonInstaller {
 
     /// Gets comprehensive status of all LaunchDaemon services
     /// OPTIMIZED: For SMAppService-managed Kanata, skips expensive launchctl checks
-    @MainActor func getServiceStatus() async -> LaunchDaemonStatus {
+    nonisolated func getServiceStatus() async -> LaunchDaemonStatus {
         // Fast path: Check Kanata state first to avoid expensive checks if SMAppService is managing it
-        let kanataState = KanataDaemonManager.determineServiceManagementState()
+        let kanataState = await KanataDaemonManager.shared.refreshManagementState()
         let kanataLoaded: Bool
         let kanataHealthy: Bool
 
@@ -1841,14 +1835,14 @@ class LaunchDaemonInstaller {
         } else {
             // Legacy or unknown - use full checks
             kanataLoaded = await isServiceLoaded(serviceID: Self.kanataServiceID)
-            kanataHealthy = isServiceHealthy(serviceID: Self.kanataServiceID)
+            kanataHealthy = await isServiceHealthy(serviceID: Self.kanataServiceID)
         }
 
         // VHID services always use launchctl (no SMAppService option)
         let vhidDaemonLoaded = await isServiceLoaded(serviceID: Self.vhidDaemonServiceID)
         let vhidManagerLoaded = await isServiceLoaded(serviceID: Self.vhidManagerServiceID)
-        let vhidDaemonHealthy = isServiceHealthy(serviceID: Self.vhidDaemonServiceID)
-        let vhidManagerHealthy = isServiceHealthy(serviceID: Self.vhidManagerServiceID)
+        let vhidDaemonHealthy = await isServiceHealthy(serviceID: Self.vhidDaemonServiceID)
+        let vhidManagerHealthy = await isServiceHealthy(serviceID: Self.vhidManagerServiceID)
 
         return LaunchDaemonStatus(
             kanataServiceLoaded: kanataLoaded,
@@ -1874,7 +1868,7 @@ class LaunchDaemonInstaller {
         await ensureDefaultUserConfigExists()
 
         // GUARD: Use state determination to check if SMAppService is managing Kanata
-        let state = KanataDaemonManager.determineServiceManagementState()
+        let state = await KanataDaemonManager.shared.refreshManagementState()
         AppLogger.shared.log("🔍 [LaunchDaemon] Current state: \(state.description)")
 
         // If SMAppService is managing Kanata, skip Kanata installation to prevent reverting to launchctl
@@ -2029,7 +2023,7 @@ class LaunchDaemonInstaller {
         let needsInstallation = !toInstall.isEmpty
 
         // Use state determination to determine current state
-        let state = KanataDaemonManager.determineServiceManagementState()
+        let state = await KanataDaemonManager.shared.refreshManagementState()
         AppLogger.shared.log("🔍 [LaunchDaemon] Current state: \(state.description)")
 
         // If legacy exists, auto-resolve by removing it (we always use SMAppService now)
@@ -2056,7 +2050,7 @@ class LaunchDaemonInstaller {
         // This detects:
         // 1. Registered but launchd can't find it (path resolution failure)
         // 2. Spawn failed state with exit code 78 (BundleProgram caching bug)
-        let isRegisteredButBroken = KanataDaemonManager.shared.isRegisteredButNotLoaded()
+        let isRegisteredButBroken = await KanataDaemonManager.shared.isRegisteredButNotLoaded()
         if isRegisteredButBroken {
             AppLogger.shared.log(
                 "🔄 [LaunchDaemon] Detected SMAppService broken state (exit 78 or not loaded)")
@@ -2089,7 +2083,7 @@ class LaunchDaemonInstaller {
                     try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
 
                     // Verify the fix worked
-                    let stillBroken = KanataDaemonManager.shared.isRegisteredButNotLoaded()
+                    let stillBroken = await KanataDaemonManager.shared.isRegisteredButNotLoaded()
                     if !stillBroken {
                         AppLogger.shared.log("✅ [LaunchDaemon] Successfully fixed SMAppService broken state!")
                         success = true

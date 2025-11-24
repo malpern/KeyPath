@@ -43,6 +43,7 @@ class KanataDaemonManager {
 
     private init() {
         AppLogger.shared.log("🔧 [KanataDaemonManager] Initialized")
+        Task { await refreshManagementState() }
     }
 
     // MARK: - Service Management State (Single Source of Truth)
@@ -89,7 +90,14 @@ class KanataDaemonManager {
         }
     }
 
-    /// Determines the current service management state
+    @MainActor private var cachedManagementState: ServiceManagementState = .unknown
+
+    /// Synchronous access to cached state for UI usage
+    @MainActor var currentManagementState: ServiceManagementState {
+        cachedManagementState
+    }
+
+    /// Determines the current service management state (Async, updates cache)
     /// This is the SINGLE SOURCE OF TRUTH for determining which management method is active
     /// Priority order (most reliable first):
     /// 1. Legacy plist existence (most reliable indicator)
@@ -97,9 +105,10 @@ class KanataDaemonManager {
     /// 3. Process running state (for ambiguous cases - only checked when needed)
     ///
     /// - Returns: The current ServiceManagementState
-    nonisolated static func determineServiceManagementState() -> ServiceManagementState {
-        let hasLegacy = FileManager.default.fileExists(atPath: legacyPlistPath)
-        let svc = smServiceFactory(kanataPlistName)
+    @discardableResult
+    nonisolated func refreshManagementState() async -> ServiceManagementState {
+        let hasLegacy = FileManager.default.fileExists(atPath: Self.legacyPlistPath)
+        let svc = Self.smServiceFactory(Self.kanataPlistName)
         let smStatus = svc.status
 
         AppLogger.shared.log("🔍 [KanataDaemonManager] State determination:")
@@ -107,72 +116,91 @@ class KanataDaemonManager {
         AppLogger.shared.log(
             "  - SMAppService status: \(smStatus.rawValue) (\(String(describing: smStatus)))")
 
-        // Check for conflicts first (both methods active - error state)
-        if hasLegacy, smStatus == .enabled {
-            AppLogger.shared.log(
-                "⚠️ [KanataDaemonManager] CONFLICTED STATE: Both legacy plist and SMAppService active")
-            return .conflicted
-        }
-
-        // Priority 1: Legacy plist existence (most reliable check)
-        if hasLegacy {
-            AppLogger.shared.log("✅ [KanataDaemonManager] State: LEGACY_ACTIVE (plist exists)")
-            return .legacyActive
-        }
-
-        // Priority 2: SMAppService status
-        switch smStatus {
-        case .enabled:
-            AppLogger.shared.log("✅ [KanataDaemonManager] State: SMAPPSERVICE_ACTIVE")
-            return .smappserviceActive
-        case .requiresApproval:
-            AppLogger.shared.log("⏳ [KanataDaemonManager] State: SMAPPSERVICE_PENDING (approval needed)")
-            return .smappservicePending
-        case .notFound, .notRegistered:
-            if TestEnvironment.isTestMode {
+        let newState: ServiceManagementState = await {
+            // Check for conflicts first (both methods active - error state)
+            if hasLegacy, smStatus == .enabled {
                 AppLogger.shared.log(
-                    "🧪 [KanataDaemonManager] Test mode - treating missing plist as uninstalled")
-                return .uninstalled
+                    "⚠️ [KanataDaemonManager] CONFLICTED STATE: Both legacy plist and SMAppService active")
+                return .conflicted
             }
-            // No legacy plist and SMAppService not registered
-            // Only check process when state is ambiguous (lazy evaluation for performance)
-            let isProcessRunning = pgrepKanataProcess()
-            AppLogger.shared.log("  - Process running: \(isProcessRunning)")
-            if isProcessRunning {
-                // Process running but unclear management - investigate
+
+            // Priority 1: Legacy plist existence (most reliable check)
+            if hasLegacy {
+                AppLogger.shared.log("✅ [KanataDaemonManager] State: LEGACY_ACTIVE (plist exists)")
+                return .legacyActive
+            }
+
+            // Priority 2: SMAppService status
+            switch smStatus {
+            case .enabled:
+                AppLogger.shared.log("✅ [KanataDaemonManager] State: SMAPPSERVICE_ACTIVE")
+                return .smappserviceActive
+            case .requiresApproval:
+                AppLogger.shared.log("⏳ [KanataDaemonManager] State: SMAPPSERVICE_PENDING (approval needed)")
+                return .smappservicePending
+            case .notFound, .notRegistered:
+                if TestEnvironment.isTestMode {
+                    AppLogger.shared.log(
+                        "🧪 [KanataDaemonManager] Test mode - treating missing plist as uninstalled")
+                    return .uninstalled
+                }
+                // No legacy plist and SMAppService not registered
+                // Only check process when state is ambiguous (lazy evaluation for performance)
+                let isProcessRunning = await Self.pgrepKanataProcessAsync()
+                AppLogger.shared.log("  - Process running: \(isProcessRunning)")
+                if isProcessRunning {
+                    // Process running but unclear management - investigate
+                    AppLogger.shared.log(
+                        "❓ [KanataDaemonManager] State: UNKNOWN (process running but no clear management)")
+                    return .unknown
+                }
+                AppLogger.shared.log("❌ [KanataDaemonManager] State: UNINSTALLED")
+                return .uninstalled
+            @unknown default:
                 AppLogger.shared.log(
-                    "❓ [KanataDaemonManager] State: UNKNOWN (process running but no clear management)")
+                    "❓ [KanataDaemonManager] State: UNKNOWN (unexpected SMAppService status)")
                 return .unknown
             }
-            AppLogger.shared.log("❌ [KanataDaemonManager] State: UNINSTALLED")
-            return .uninstalled
-        @unknown default:
-            AppLogger.shared.log(
-                "❓ [KanataDaemonManager] State: UNKNOWN (unexpected SMAppService status)")
-            return .unknown
+        }()
+
+        await MainActor.run {
+            self.cachedManagementState = newState
         }
+        return newState
+    }
+
+    /// Legacy static method alias for compatibility (deprecated)
+    @available(*, unavailable, message: "Use shared.refreshManagementState()")
+    nonisolated static func determineServiceManagementState() async -> ServiceManagementState {
+        await shared.refreshManagementState()
     }
 
     /// Helper function to check if Kanata process is running
     /// This is used as a fallback when state is ambiguous
-    private nonisolated static func pgrepKanataProcess() -> Bool {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        task.arguments = ["-f", "kanata.*--cfg"]
+    private nonisolated static func pgrepKanataProcessAsync() async -> Bool {
+        await Task.detached {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+            task.arguments = ["-f", "kanata.*--cfg"]
 
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            task.standardError = pipe
 
-        do {
-            try task.run()
-            task.waitUntilExit()
-            let isRunning = task.terminationStatus == 0
-            return isRunning
-        } catch {
-            return false
-        }
+            do {
+                try task.run()
+                task.waitUntilExit()
+                let isRunning = task.terminationStatus == 0
+                return isRunning
+            } catch {
+                return false
+            }
+        }.value
     }
+
+    /// Legacy synchronous helper (deprecated)
+    @available(*, unavailable, message: "Use async version")
+    private nonisolated static func pgrepKanataProcess() -> Bool { false }
 
     // MARK: - Status Checking (Legacy - kept for compatibility)
 
@@ -251,7 +279,7 @@ class KanataDaemonManager {
     /// 2. Spawn failed state - launchd finds service but it crashes immediately (exit code 78)
     ///
     /// - Returns: true if service needs unregister/re-register cycle to fix
-    nonisolated func isRegisteredButNotLoaded() -> Bool {
+    nonisolated func isRegisteredButNotLoaded() async -> Bool {
         let svc = Self.smServiceFactory(Self.kanataPlistName)
 
         // 1. Check if SMAppService thinks it's registered
@@ -259,60 +287,63 @@ class KanataDaemonManager {
             return false
         }
 
-        // 2. Check launchd state
-        let launchctlOutput: String
-        do {
-            let p = Process()
-            p.launchPath = "/bin/launchctl"
-            p.arguments = ["print", "system/\(Self.kanataServiceID)"]
-            let out = Pipe()
-            p.standardOutput = out
-            let err = Pipe()
-            p.standardError = err
-            try p.run()
-            p.waitUntilExit()
+        // Run expensive checks async
+        return await Task.detached {
+            // 2. Check launchd state
+            let launchctlOutput: String
+            do {
+                let p = Process()
+                p.launchPath = "/bin/launchctl"
+                p.arguments = ["print", "system/\(Self.kanataServiceID)"]
+                let out = Pipe()
+                p.standardOutput = out
+                let err = Pipe()
+                p.standardError = err
+                try p.run()
+                p.waitUntilExit()
 
-            if p.terminationStatus == 0 {
-                let data = out.fileHandleForReading.readDataToEndOfFile()
-                launchctlOutput = String(data: data, encoding: .utf8) ?? ""
-            } else {
+                if p.terminationStatus == 0 {
+                    let data = out.fileHandleForReading.readDataToEndOfFile()
+                    launchctlOutput = String(data: data, encoding: .utf8) ?? ""
+                } else {
+                    launchctlOutput = ""
+                }
+            } catch {
                 launchctlOutput = ""
             }
-        } catch {
-            launchctlOutput = ""
-        }
 
-        // 3. Check if process is running
-        let processIsRunning = Self.pgrepKanataProcess()
+            // 3. Check if process is running
+            let processIsRunning = await Self.pgrepKanataProcessAsync()
 
-        // 4. Analyze the state
-        let launchctlCanFindService = !launchctlOutput.isEmpty
-        let isSpawnFailed = launchctlOutput.contains("spawn failed") ||
-            launchctlOutput.contains("last exit code = 78")
+            // 4. Analyze the state
+            let launchctlCanFindService = !launchctlOutput.isEmpty
+            let isSpawnFailed = launchctlOutput.contains("spawn failed") ||
+                launchctlOutput.contains("last exit code = 78")
 
-        // Issue detected if:
-        // - Service registered but launchd can't find it, OR
-        // - Service in spawn failed state with exit code 78
-        // AND process is not actually running
-        let hasIssue = (!launchctlCanFindService || isSpawnFailed) && !processIsRunning
+            // Issue detected if:
+            // - Service registered but launchd can't find it, OR
+            // - Service in spawn failed state with exit code 78
+            // AND process is not actually running
+            let hasIssue = (!launchctlCanFindService || isSpawnFailed) && !processIsRunning
 
-        if hasIssue {
-            AppLogger.shared.log(
-                "⚠️ [KanataDaemonManager] Detected SMAppService broken state requiring re-registration:"
-            )
-            AppLogger.shared.log("  - SMAppService status: .enabled")
-            AppLogger.shared.log("  - launchctl can find service: \(launchctlCanFindService)")
-            AppLogger.shared.log("  - Spawn failed state: \(isSpawnFailed)")
-            AppLogger.shared.log("  - Process running: \(processIsRunning)")
-            AppLogger.shared.log(
-                "💡 [KanataDaemonManager] This is a known macOS bug after clean uninstall"
-            )
-            AppLogger.shared.log(
-                "💡 [KanataDaemonManager] BundleProgram path caching issue - will fix via unregister/re-register"
-            )
-        }
+            if hasIssue {
+                AppLogger.shared.log(
+                    "⚠️ [KanataDaemonManager] Detected SMAppService broken state requiring re-registration:"
+                )
+                AppLogger.shared.log("  - SMAppService status: .enabled")
+                AppLogger.shared.log("  - launchctl can find service: \(launchctlCanFindService)")
+                AppLogger.shared.log("  - Spawn failed state: \(isSpawnFailed)")
+                AppLogger.shared.log("  - Process running: \(processIsRunning)")
+                AppLogger.shared.log(
+                    "💡 [KanataDaemonManager] This is a known macOS bug after clean uninstall"
+                )
+                AppLogger.shared.log(
+                    "💡 [KanataDaemonManager] BundleProgram path caching issue - will fix via unregister/re-register"
+                )
+            }
 
-        return hasIssue
+            return hasIssue
+        }.value
     }
 
     // MARK: - Registration

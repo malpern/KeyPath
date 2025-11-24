@@ -561,8 +561,8 @@ struct AdvancedSettingsTabView: View {
     }
 
     private func refreshServiceStatus() async {
+        let state = await KanataDaemonManager.shared.refreshManagementState()
         await MainActor.run {
-            let state = KanataDaemonManager.determineServiceManagementState()
             switch state {
             case .legacyActive:
                 activeMethod = .launchctl

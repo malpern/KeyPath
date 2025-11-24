@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 
 public struct CommandExecutionResult: Sendable {
     public let exitCode: Int32
@@ -12,31 +13,13 @@ public protocol AdminCommandExecutor: Sendable {
 public final class DefaultAdminCommandExecutor: AdminCommandExecutor {
     public init() {}
 
-    public func execute(command: String, description _: String) async throws -> CommandExecutionResult {
-        let osascriptCommand = """
-        do shell script "\(escapeForAppleScript(command))" with administrator privileges with prompt "KeyPath needs to install system services"
-        """
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        task.arguments = ["-e", osascriptCommand]
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        try task.run()
-        task.waitUntilExit()
-
-        let outputData = pipe.fileHandleForReading.readDataToEndOfFile()
-        let output = String(data: outputData, encoding: .utf8) ?? ""
-        return CommandExecutionResult(exitCode: task.terminationStatus, output: output)
-    }
-
-    private func escapeForAppleScript(_ command: String) -> String {
-        command
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-            .replacingOccurrences(of: "\n", with: "\\n")
-            .replacingOccurrences(of: "\r", with: "\\r")
+    public func execute(command: String, description: String) async throws -> CommandExecutionResult {
+        // Use centralized PrivilegedCommandRunner (uses sudo if KEYPATH_USE_SUDO=1, otherwise osascript)
+        let result = PrivilegedCommandRunner.execute(
+            command: command,
+            prompt: "KeyPath needs to \(description.lowercased())."
+        )
+        return CommandExecutionResult(exitCode: result.exitCode, output: result.output)
     }
 }
 

@@ -725,7 +725,7 @@ struct InstallationWizardView: View {
 
         // Short-circuit service installs when Login Items approval is pending
         if action == .installLaunchDaemonServices || action == .restartUnhealthyServices,
-           KanataDaemonManager.determineServiceManagementState() == .smappservicePending {
+           await KanataDaemonManager.shared.refreshManagementState() == .smappservicePending {
             await MainActor.run {
                 toastManager.showError(
                     "KeyPath background service needs approval in System Settings → Login Items. Enable ‘KeyPath’ then click Fix again.",
@@ -748,7 +748,7 @@ struct InstallationWizardView: View {
                 await installerEngine.runSingleAction(action, using: broker)
             }
         } catch {
-            let stateSummary = describeServiceState()
+            let stateSummary = await describeServiceState()
             await MainActor.run {
                 toastManager.showError(
                     "Fix timed out after \(Int(timeoutSeconds))s. \(stateSummary)", duration: 7.0
@@ -760,7 +760,7 @@ struct InstallationWizardView: View {
 
         let actionDescription = getAutoFixActionDescription(action)
 
-        let smState = KanataDaemonManager.determineServiceManagementState()
+        let smState = await KanataDaemonManager.shared.refreshManagementState()
 
         let deferToastActions: Set<AutoFixAction> = [
             .restartVirtualHIDDaemon, .installCorrectVHIDDriver, .repairVHIDDaemonServices,
@@ -825,7 +825,7 @@ struct InstallationWizardView: View {
                 AppLogger.shared.log("🔍 [Wizard] Post-fix health check: karabinerStatus=\(karabinerStatus)")
                 if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon ||
                     action == .installCorrectVHIDDriver || action == .repairVHIDDaemonServices {
-                    let smStatePost = KanataDaemonManager.determineServiceManagementState()
+                    let smStatePost = await KanataDaemonManager.shared.refreshManagementState()
 
                     if karabinerStatus == .completed {
                         if successToastPending {
@@ -1334,9 +1334,9 @@ struct InstallationWizardView: View {
     }
 
     /// Quick summary to surface state when a fix times out
-    private func describeServiceState() -> String {
-        let state = KanataDaemonManager.determineServiceManagementState()
-        let vhidRunning = VHIDDeviceManager().detectRunning()
+    private func describeServiceState() async -> String {
+        let state = await KanataDaemonManager.shared.refreshManagementState()
+        let vhidRunning = await VHIDDeviceManager().detectRunning()
         return "VHID running=\(vhidRunning ? "yes" : "no"); services=\(state.description)"
     }
 }
