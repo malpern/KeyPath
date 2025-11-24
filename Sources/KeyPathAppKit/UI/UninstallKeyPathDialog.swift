@@ -3,7 +3,6 @@ import SwiftUI
 
 struct UninstallKeyPathDialog: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var deleteConfig = false
 
     // InstallerEngine façade for uninstall
     private let installerEngine = InstallerEngine()
@@ -11,128 +10,63 @@ struct UninstallKeyPathDialog: View {
         PrivilegeBroker()
     }
 
-    // Local state tracking (replaces UninstallCoordinator's @Published properties)
+    // Local state tracking
     @State private var isRunning = false
     @State private var lastError: String?
     @State private var didSucceed = false
-    @State private var logLines: [String] = []
+
+    private enum Field { case uninstall }
+    @FocusState private var focusedField: Field?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            header
-            guidance
-            removalList
-            configCheckbox
-            statusFooter
-            actions
-        }
-        .padding(24)
-        .frame(minWidth: 640, minHeight: 480)
-    }
+        VStack(spacing: 20) {
+            // Icon and title
+            Image(systemName: "trash.circle.fill")
+                .font(.system(size: 48))
+                .foregroundColor(.red)
 
-    private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Uninstall KeyPath")
-                    .font(.system(size: 22, weight: .bold))
-                Text("Remove all LaunchDaemons, helper tools, configs, and the app bundle.")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            Spacer()
-            Button("Close") { dismiss() }
-        }
-    }
+            Text("Uninstall KeyPath?")
+                .font(.title2.bold())
 
-    private var guidance: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label {
-                Text(
-                    "This runs KeyPath's bundled uninstaller script with administrator privileges so every file is removed for you."
-                )
-            } icon: {
-                Image(systemName: "wrench.adjustable")
-                    .foregroundColor(.blue)
-            }
-            .font(.footnote)
-        }
-    }
+            Text("This will remove all services, helpers, and the app.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
 
-    private var removalList: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("The uninstaller will:")
-                .font(.headline)
-            Label("Stop and unload KeyPath LaunchDaemons", systemImage: "bolt.slash")
-            Label("Remove helper binaries, plists, and configs from /Library", systemImage: "trash")
-            Label("Delete /Applications/KeyPath.app", systemImage: "app.dashed")
-            Label("Clear log files and kanata installs", systemImage: "doc.text")
-        }
-        .labelStyle(.titleAndIcon)
-        .font(.subheadline)
-    }
-
-    private var configCheckbox: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Toggle(isOn: $deleteConfig) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Also delete your configuration")
-                        .font(.body)
-                    Text("If unchecked, your config will be preserved at ~/.config/keypath")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            .toggleStyle(.checkbox)
-        }
-        .padding(.vertical, 8)
-    }
-
-    private var statusFooter: some View {
-        VStack(alignment: .leading, spacing: 8) {
+            // Status
             if isRunning {
-                Label("Running uninstall…", systemImage: "arrow.triangle.2.circlepath")
-                    .foregroundColor(.secondary)
-            } else if let error = lastError, !error.isEmpty {
+                ProgressView()
+                    .scaleEffect(0.8)
+            } else if let error = lastError {
                 Label(error, systemImage: "exclamationmark.triangle")
                     .foregroundColor(.orange)
-                    .font(.footnote)
+                    .font(.caption)
             } else if didSucceed {
-                Label("All components removed.", systemImage: "checkmark.circle")
+                Label("Uninstall complete", systemImage: "checkmark.circle")
                     .foregroundColor(.green)
-                    .font(.footnote)
-            } else {
-                Text("You may be asked for your administrator password once.")
-                    .font(.footnote)
-                    .foregroundColor(.secondary)
-            }
-        }
-    }
-
-    private var actions: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Button {
-                    copyTerminalCommand()
-                } label: {
-                    Label("Copy Terminal Command", systemImage: "doc.on.doc")
-                }
-                Spacer()
             }
 
-            HStack {
-                Button("Cancel", role: .cancel) { dismiss() }
-                Spacer()
+            // Buttons
+            HStack(spacing: 12) {
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.escape, modifiers: [])
+
                 Button(role: .destructive) {
-                    Task {
-                        await performUninstall()
-                    }
+                    Task { await performUninstall() }
                 } label: {
-                    Label(isRunning ? "Working…" : "Uninstall KeyPath", systemImage: "trash")
+                    Text(isRunning ? "Working…" : "Uninstall")
+                        .frame(minWidth: 80)
                 }
+                .focused($focusedField, equals: .uninstall)
+                .keyboardShortcut(.return, modifiers: [])
                 .disabled(isRunning)
                 .buttonStyle(.borderedProminent)
+                .tint(.red)
             }
         }
+        .padding(32)
+        .frame(width: 320)
+        .onAppear { focusedField = .uninstall }
     }
 
     // MARK: - Actions
@@ -144,42 +78,21 @@ struct UninstallKeyPathDialog: View {
             isRunning = true
             didSucceed = false
             lastError = nil
-            logLines = ["🗑️ Starting KeyPath uninstall..."]
         }
 
         let broker = privilegeBroker
-        let report = await installerEngine.uninstall(deleteConfig: deleteConfig, using: broker)
+        // Always delete config for simplicity - user can reinstall fresh
+        let report = await installerEngine.uninstall(deleteConfig: true, using: broker)
 
         await MainActor.run {
             isRunning = false
             didSucceed = report.success
             lastError = report.failureReason
-            logLines = report.logs
 
             if report.success {
                 NotificationCenter.default.post(name: .keyPathUninstallCompleted, object: nil)
                 dismiss()
             }
         }
-    }
-
-    private func copyTerminalCommand() {
-        // Extract uninstaller script URL (same logic as UninstallCoordinator)
-        let scriptURL: URL?
-        if let bundled = Bundle.main.url(forResource: "uninstall", withExtension: "sh") {
-            scriptURL = bundled
-        } else {
-            let repoPath = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-                .appendingPathComponent("Sources/KeyPath/Resources/uninstall.sh")
-            scriptURL = FileManager.default.isExecutableFile(atPath: repoPath.path) ? repoPath : nil
-        }
-
-        guard let scriptURL else { return }
-        let command = "sudo \"\(scriptURL.path)\""
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(command, forType: .string)
-
-        logLines.append("📋 Copied command: \(command)")
     }
 }

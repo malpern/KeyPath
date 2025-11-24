@@ -13,12 +13,12 @@ struct WizardKarabinerComponentsPage: View {
 
     // Track which specific issues are being fixed
     @State private var fixingIssues: Set<UUID> = []
-    @State private var showingInstallationGuide = false
     @State private var lastDriverFixNote: String?
     @State private var lastServiceFixNote: String?
     @State private var showAllItems = false
     @State private var isCombinedFixLoading = false
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
+    @EnvironmentObject var toastManager: WizardToastManager
 
     var body: some View {
         VStack(spacing: 0) {
@@ -162,9 +162,6 @@ struct WizardKarabinerComponentsPage: View {
         .fixedSize(horizontal: false, vertical: true)
         .background(WizardDesign.Colors.wizardBackground)
         .wizardDetailPage()
-        .sheet(isPresented: $showingInstallationGuide) {
-            KarabinerInstallationGuideSheet(kanataManager: kanataManager)
-        }
     }
 
     // MARK: - Helper Methods
@@ -335,7 +332,9 @@ struct WizardKarabinerComponentsPage: View {
                 let ok = await attemptAutoInstallDriver(maxAttempts: 2)
                 lastDriverFixNote = formattedStatus(success: ok)
                 if !ok {
-                    showingInstallationGuide = true
+                    toastManager.showError(
+                        "Driver installation failed. Check System Settings > Privacy & Security."
+                    )
                     return
                 }
             }
@@ -443,7 +442,9 @@ struct WizardKarabinerComponentsPage: View {
                 await refreshAndWait()
             }
         } else {
-            showingInstallationGuide = true
+            toastManager.showError(
+                "Driver repair failed. Try restarting your Mac."
+            )
         }
         return success
     }

@@ -60,12 +60,6 @@ class PackageManager {
             isRequired: true
         )
 
-        static let karabinerElements = PackageInfo(
-            name: "Karabiner-Elements",
-            homebrewFormula: nil, // Not available via Homebrew - manual download required
-            description: "Virtual HID device driver",
-            isRequired: true
-        )
     }
 
     // MARK: - Homebrew Detection
@@ -585,16 +579,6 @@ class PackageManager {
                     ))
             }
         }
-
-        // Karabiner-Elements recommendations (always manual)
-        recommendations.append(
-            InstallationRecommendation(
-                package: .karabinerElements,
-                method: .manual,
-                priority: .high,
-                command: "Download from website",
-                description: "Install Karabiner-Elements for virtual HID device support"
-            ))
 
         return recommendations
     }

@@ -257,10 +257,10 @@ class MainAppStateController: ObservableObject {
 
         // Avoid TCP validation/reload spam while Kanata is still starting
         let serviceStatus = await LaunchDaemonInstaller().getServiceStatus()
-        if !serviceStatus.kanataHealthy {
+        if !serviceStatus.kanataServiceHealthy {
             AppLogger.shared.warn(
                 "⚠️ [MainAppStateController] Skipping validation - Kanata service not healthy yet")
-            validationState = .uninitialized
+            validationState = nil
             return
         }
 

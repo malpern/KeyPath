@@ -175,7 +175,6 @@ class RuntimeCoordinator {
         }
     }
 
-
     // MARK: - UI State Snapshot (Phase 4: MVVM)
 
     /// AsyncStream for UI state changes (replaces polling)
@@ -299,7 +298,11 @@ class RuntimeCoordinator {
             configurationService = ConfigurationService(
                 configDirectory: KeyPathConstants.Config.directory)
         }
-        processLifecycleManager = ProcessLifecycleManager()
+        
+        // Phase 3: Use shared KanataService for dependencies
+        let kanataService = KanataService.shared
+        processLifecycleManager = kanataService.processLifecycle
+        
         ruleCollectionStore = RuleCollectionStore.shared
         customRulesStore = CustomRulesStore.shared
 
@@ -313,7 +316,8 @@ class RuntimeCoordinator {
         // Initialize manager dependencies
         let karabinerConflictService = KarabinerConflictService()
         let diagnosticsService = DiagnosticsService(processLifecycleManager: processLifecycleManager)
-        let healthMonitor = ServiceHealthMonitor(processLifecycle: processLifecycleManager)
+        // Use shared health monitor from KanataService
+        let healthMonitor = kanataService.healthMonitor
         let processCoordinator = ProcessCoordinator()
 
         // Store for extensions
@@ -728,7 +732,7 @@ class RuntimeCoordinator {
     }
 
     /// Attempts to recover from zombie keyboard capture when VirtualHID connection fails
-
+    
     /// Starts Kanata with VirtualHID connection validation
     func startKanataWithValidation() async {
         // Check if VirtualHID daemon is running firs
@@ -739,8 +743,14 @@ class RuntimeCoordinator {
             return
         }
 
-        // Try starting Kanata normally via ProcessCoordinator
-        _ = await processCoordinator.startService()
+        // Try starting Kanata normally via KanataService
+        do {
+            try await KanataService.shared.start()
+        } catch {
+            AppLogger.shared.error("❌ [RuntimeCoordinator] Failed to start Kanata: \(error)")
+            lastError = "Start failed: \(error.localizedDescription)"
+            notifyStateChanged()
+        }
     }
 
     /// Configuration management errors
@@ -1247,7 +1257,7 @@ class RuntimeCoordinator {
 
     /// Stop Kanata when the app is terminating (async version).
     func cleanup() async {
-        _ = await processCoordinator.stopService()
+        try? await KanataService.shared.stop()
     }
 
     /// Synchronous cleanup for app termination - blocks until process is killed
