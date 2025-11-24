@@ -247,7 +247,9 @@ class RuntimeCoordinator {
 
     // Additional dependencies needed by extensions
     private let processCoordinator: ProcessCoordinating
-    private let healthMonitor: ServiceHealthMonitorProtocol
+    private let installerEngine: InstallerEngine
+    private let privilegeBroker: PrivilegeBroker
+    let kanataService: KanataService
     private nonisolated let diagnosticsService: DiagnosticsServiceProtocol
     let reloadSafetyMonitor = ReloadSafetyMonitor() // internal for use by extensions
     private let karabinerConflictService: KarabinerConflictManaging
@@ -298,11 +300,12 @@ class RuntimeCoordinator {
             configurationService = ConfigurationService(
                 configDirectory: KeyPathConstants.Config.directory)
         }
-        
+
         // Phase 3: Use shared KanataService for dependencies
         let kanataService = KanataService.shared
-        processLifecycleManager = kanataService.processLifecycle
-        
+        let lifecycleManager = ProcessLifecycleManager()
+        processLifecycleManager = lifecycleManager
+
         ruleCollectionStore = RuleCollectionStore.shared
         customRulesStore = CustomRulesStore.shared
 
@@ -315,21 +318,25 @@ class RuntimeCoordinator {
 
         // Initialize manager dependencies
         let karabinerConflictService = KarabinerConflictService()
-        let diagnosticsService = DiagnosticsService(processLifecycleManager: processLifecycleManager)
-        // Use shared health monitor from KanataService
-        let healthMonitor = kanataService.healthMonitor
-        let processCoordinator = ProcessCoordinator()
+        let diagnosticsService = DiagnosticsService(processLifecycleManager: lifecycleManager)
+        privilegeBroker = PrivilegeBroker()
+        installerEngine = InstallerEngine()
+        let processCoordinator = ProcessCoordinator(
+            kanataService: kanataService,
+            installerEngine: installerEngine,
+            privilegeBroker: privilegeBroker
+        )
 
         // Store for extensions
         self.processCoordinator = processCoordinator
-        self.healthMonitor = healthMonitor
+        self.kanataService = kanataService
         self.diagnosticsService = diagnosticsService
         self.karabinerConflictService = karabinerConflictService
         self.configBackupManager = configBackupManager
 
         // Initialize ProcessManager
         processManager = ProcessManager(
-            processLifecycleManager: processLifecycleManager,
+            processLifecycleManager: lifecycleManager,
             karabinerConflictService: karabinerConflictService
         )
 
@@ -343,8 +350,7 @@ class RuntimeCoordinator {
         // Initialize DiagnosticsManager
         diagnosticsManager = DiagnosticsManager(
             diagnosticsService: diagnosticsService,
-            healthMonitor: healthMonitor,
-            processLifecycleManager: processLifecycleManager
+            kanataService: kanataService
         )
 
         // Initialize ConfigRepairService
@@ -732,7 +738,7 @@ class RuntimeCoordinator {
     }
 
     /// Attempts to recover from zombie keyboard capture when VirtualHID connection fails
-    
+
     /// Starts Kanata with VirtualHID connection validation
     func startKanataWithValidation() async {
         // Check if VirtualHID daemon is running firs
@@ -744,12 +750,9 @@ class RuntimeCoordinator {
         }
 
         // Try starting Kanata normally via KanataService
-        do {
-            try await KanataService.shared.start()
-        } catch {
-            AppLogger.shared.error("❌ [RuntimeCoordinator] Failed to start Kanata: \(error)")
-            lastError = "Start failed: \(error.localizedDescription)"
-            notifyStateChanged()
+        let started = await startKanata(reason: "VirtualHID validation start")
+        if !started {
+            AppLogger.shared.error("❌ [RuntimeCoordinator] Failed to start Kanata during validation")
         }
     }
 
@@ -834,17 +837,86 @@ class RuntimeCoordinator {
 
         case .process:
             if diagnostic.title == "Process Terminated" {
-                // Try restarting Kanata
-                let engine = InstallerEngine()
-                _ = await engine.run(intent: .repair, using: PrivilegeBroker())
-                AppLogger.shared.log("🔧 [AutoFix] Attempted to restart Kanata")
-                return await engine.inspectSystem().services.kanataRunning
+                let restarted = await restartServiceWithFallback(
+                    reason: "AutoFix diagnostic: \(diagnostic.title)"
+                )
+                AppLogger.shared.log("🔧 [AutoFix] Attempted to restart Kanata (success=\(restarted))")
+                return restarted
             }
 
         default:
             return false
         }
 
+        return false
+    }
+
+    // MARK: - Service Management Helpers
+
+    @discardableResult
+    func startKanata(reason: String = "Manual start") async -> Bool {
+        AppLogger.shared.log("🚀 [Service] Starting Kanata (\(reason))")
+        do {
+            try await kanataService.start()
+            await kanataService.refreshStatus()
+            lastError = nil
+            notifyStateChanged()
+            return true
+        } catch {
+            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            AppLogger.shared.error("❌ [Service] Start failed: \(message)")
+            lastError = "Start failed: \(message)"
+            notifyStateChanged()
+            return false
+        }
+    }
+
+    @discardableResult
+    func stopKanata(reason: String = "Manual stop") async -> Bool {
+        AppLogger.shared.log("🛑 [Service] Stopping Kanata (\(reason))")
+        do {
+            try await kanataService.stop()
+            await kanataService.refreshStatus()
+            notifyStateChanged()
+            return true
+        } catch {
+            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            AppLogger.shared.error("❌ [Service] Stop failed: \(message)")
+            lastError = "Stop failed: \(message)"
+            notifyStateChanged()
+            return false
+        }
+    }
+
+    @discardableResult
+    func restartKanata(reason: String = "Manual restart") async -> Bool {
+        await restartServiceWithFallback(reason: reason)
+    }
+
+    func currentServiceState() async -> KanataService.ServiceState {
+        await kanataService.refreshStatus()
+    }
+
+    @discardableResult
+    func restartServiceWithFallback(reason: String) async -> Bool {
+        AppLogger.shared.log("🔄 [ServiceRestart] \(reason) - delegating to ProcessCoordinator")
+        let restarted = await processCoordinator.restartService()
+
+        let state = await kanataService.refreshStatus()
+        let isRunning = state.isRunning
+
+        if restarted && isRunning {
+            AppLogger.shared.log("✅ [ServiceRestart] Kanata is running (state=\(state.description))")
+            notifyStateChanged()
+            return true
+        }
+
+        if !restarted {
+            AppLogger.shared.warn("⚠️ [ServiceRestart] ProcessCoordinator restart failed")
+        } else {
+            AppLogger.shared.warn("⚠️ [ServiceRestart] Restart finished but state=\(state.description)")
+        }
+        notifyStateChanged()
         return false
     }
 
@@ -1229,6 +1301,19 @@ class RuntimeCoordinator {
         notifyStateChanged()
     }
 
+    func inspectSystemContext() async -> SystemContext {
+        await installerEngine.inspectSystem()
+    }
+
+    func uninstall(deleteConfig: Bool) async -> InstallerReport {
+        await installerEngine.uninstall(deleteConfig: deleteConfig, using: privilegeBroker)
+    }
+
+    func runFullRepair(reason: String = "RuntimeCoordinator repair request") async -> InstallerReport {
+        AppLogger.shared.log("🛠️ [RuntimeCoordinator] runFullRepair invoked (\(reason))")
+        return await installerEngine.run(intent: .repair, using: privilegeBroker)
+    }
+
     private func captureRecentKanataErrorMessage() -> String? {
         let stderrPath = KeyPathConstants.Logs.kanataStderr
         guard let contents = try? String(contentsOfFile: stderrPath, encoding: .utf8) else {
@@ -1257,7 +1342,7 @@ class RuntimeCoordinator {
 
     /// Stop Kanata when the app is terminating (async version).
     func cleanup() async {
-        try? await KanataService.shared.stop()
+        try? await kanataService.stop()
     }
 
     /// Synchronous cleanup for app termination - blocks until process is killed
@@ -1922,8 +2007,8 @@ class RuntimeCoordinator {
         AppLogger.shared.log("🔄 [Reset] Updated stores and manager properties to match default state")
 
         // Apply changes immediately via TCP reload if service is running
-        let context = await InstallerEngine().inspectSystem()
-        if context.services.kanataRunning {
+        let serviceState = await kanataService.refreshStatus()
+        if serviceState.isRunning {
             AppLogger.shared.info("🔄 [Reset] Triggering immediate config reload via TCP...")
             let reloadResult = await triggerConfigReload()
 
@@ -1944,8 +2029,7 @@ class RuntimeCoordinator {
                     saveStatus = .failed("Reset reload failed: \(error)")
                 }
                 // If TCP reload fails, fall back to service restart
-                let engine = InstallerEngine()
-                _ = await engine.run(intent: .repair, using: PrivilegeBroker())
+                _ = await restartServiceWithFallback(reason: "Default config reload fallback")
             }
 
             // Reset to idle after a delay
@@ -2008,14 +2092,14 @@ class RuntimeCoordinator {
         for event in events {
             switch event {
             case .virtualHIDConnectionFailed:
-                let shouldTriggerRecovery = await healthMonitor.recordConnectionFailure()
+                let shouldTriggerRecovery = await kanataService.recordConnectionFailure()
                 if shouldTriggerRecovery {
                     AppLogger.shared.log(
                         "🚨 [LogMonitor] Maximum connection failures reached - triggering recovery")
                     await triggerVirtualHIDRecovery()
                 }
             case .virtualHIDConnected:
-                await healthMonitor.recordConnectionSuccess()
+                await kanataService.recordConnectionSuccess()
             }
         }
     }

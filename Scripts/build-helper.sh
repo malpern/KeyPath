@@ -42,6 +42,7 @@ if [ -f "$HELPER_ENTITLEMENTS" ]; then
         --identifier "com.keypath.helper" \
         --entitlements "$HELPER_ENTITLEMENTS" \
         --sign "$SIGNING_IDENTITY" \
+        --timestamp \
         "$HELPER_EXECUTABLE"
 else
     echo "❌ ERROR: Helper entitlements not found: $HELPER_ENTITLEMENTS"

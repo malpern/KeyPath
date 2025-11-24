@@ -83,10 +83,10 @@ extension RuntimeCoordinator {
         AppLogger.shared.log("🔧 [Recovery] Step 4: Waiting 3 seconds before retry...")
         try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
 
-        // Step 5: Try starting Kanata again via InstallerEngine
+        // Step 5: Try restarting Kanata via KanataService (fallback to InstallerEngine on failure)
         AppLogger.shared.log(
             "🔧 [Recovery] Step 5: Attempting to restart Kanata with VirtualHID validation...")
-        _ = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
+        _ = await restartServiceWithFallback(reason: "Keyboard recovery")
 
         AppLogger.shared.log("🔧 [Recovery] Keyboard recovery process complete")
     }

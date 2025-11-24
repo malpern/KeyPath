@@ -229,15 +229,14 @@ class PermissionGrantCoordinator: ObservableObject {
         }
     }
 
-    private func attemptKanataRestart(kanataManager _: RuntimeCoordinator) async -> Bool {
-        // Use InstallerEngine for service repair/restart
-        let engine = InstallerEngine()
-        let result = await engine.run(intent: .repair, using: PrivilegeBroker())
-
-        // Give it a moment to complete the restart
-        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-
-        return result.success
+    private func attemptKanataRestart(kanataManager: RuntimeCoordinator) async -> Bool {
+        let success = await kanataManager.restartServiceWithFallback(
+            reason: "Permission grant restart"
+        )
+        if success {
+            await kanataManager.updateStatus()
+        }
+        return success
     }
 
     private func logPermissionSnapshot() {

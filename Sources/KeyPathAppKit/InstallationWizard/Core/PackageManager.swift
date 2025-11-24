@@ -60,6 +60,13 @@ class PackageManager {
             isRequired: true
         )
 
+        static let karabinerElements = PackageInfo(
+            name: "Karabiner-Elements",
+            homebrewFormula: nil,
+            description: "VirtualHID driver and background services required for Kanata",
+            isRequired: true
+        )
+
     }
 
     // MARK: - Homebrew Detection
@@ -579,6 +586,16 @@ class PackageManager {
                     ))
             }
         }
+
+        // Karabiner-Elements is always required for the VirtualHID driver pipeline
+        recommendations.append(
+            InstallationRecommendation(
+                package: .karabinerElements,
+                method: .manual,
+                priority: .high,
+                command: "Download from https://karabiner-elements.pqrs.org/",
+                description: "Install Karabiner-Elements to provide the required VirtualHID driver"
+            ))
 
         return recommendations
     }

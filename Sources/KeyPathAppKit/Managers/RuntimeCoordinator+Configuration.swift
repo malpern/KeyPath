@@ -49,14 +49,17 @@ extension RuntimeCoordinator {
         }
 
         // Skip reloads if Kanata service isn't healthy yet; avoid connection-refused storm
-        let serviceStatus = await LaunchDaemonInstaller().getServiceStatus()
-        if !serviceStatus.kanataServiceHealthy {
+        let healthStatus = await kanataService.checkHealth(
+            tcpPort: PreferencesService.shared.tcpServerPort
+        )
+        if !healthStatus.isHealthy {
             AppLogger.shared.warn(
-                "⚠️ [Reload] Skipping TCP reload because Kanata service is not healthy yet")
+                "⚠️ [Reload] Skipping TCP reload because Kanata service is not healthy yet: \(healthStatus.reason ?? "unknown reason")"
+            )
             return ReloadResult(
                 success: false,
                 response: nil,
-                errorMessage: "Kanata service is starting; retry shortly",
+                errorMessage: healthStatus.reason ?? "Kanata service is starting; retry shortly",
                 protocol: nil
             )
         }
@@ -94,13 +97,15 @@ extension RuntimeCoordinator {
                 "📡 [Reload] TCP reload failed: \(tcpResult.errorMessage ?? "Unknown error")")
             // Fall back to service restart
             AppLogger.shared.warn("⚠️ [Reload] Falling back to service restart")
-            _ = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
-            // After a successful restart, clear stale diagnostics
-            clearDiagnostics()
+            let restarted = await restartServiceWithFallback(reason: "Config reload fallback")
+            if restarted {
+                // After a successful restart, clear stale diagnostics
+                clearDiagnostics()
+            }
             return ReloadResult(
-                success: true,
-                response: "Service restarted (TCP reload failed)",
-                errorMessage: nil,
+                success: restarted,
+                response: restarted ? "Service restarted (TCP reload failed)" : nil,
+                errorMessage: restarted ? nil : "Service restart failed",
                 protocol: nil
             )
         }
@@ -152,7 +157,7 @@ extension RuntimeCoordinator {
             AppLogger.shared.info(
                 "🔄 [Reload] Falling back to service restart due to error: \(result.errorMessage ?? "Unknown")"
             )
-            _ = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
+            _ = await restartServiceWithFallback(reason: "triggerReload fallback")
         }
     }
 }

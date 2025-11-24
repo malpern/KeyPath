@@ -39,24 +39,32 @@ swift build
 KEYPATH_USE_INSTALLER_ENGINE=1 swift test --filter InstallerEngine
 ```
 
-### 3.5 Quick code sample: InstallerEngine in a tool
+### 3.5 Quick code sample: façade-first service control
 
 ```swift
 import KeyPathAppKit
 
-let engine = InstallerEngine()
-let broker = PrivilegeBroker()   // wraps PrivilegedOperationsCoordinator.shared
+let coordinator = ProcessCoordinator()
 
-// Inspect → plan → execute in one call
-let report = await engine.run(intent: .install, using: broker)
-if report.success {
-  print("Install finished (\(report.executedRecipes.count) steps)")
+// Start/stop/restart always go through KanataService and only fall back to InstallerEngine if needed
+let restarted = await coordinator.restartService()
+if restarted {
+    print("Kanata service is healthy")
 } else {
-  print("Install failed: \(report.failureReason ?? "unknown")")
+    print("Restart failed even after InstallerEngine fallback")
+}
+
+// Need a full repair? Go through RuntimeCoordinator so it can log + inspect system context for you.
+let runtimeCoordinator = RuntimeCoordinator()
+let report = await runtimeCoordinator.runFullRepair(reason: "CLI repair")
+if report.success {
+    print("Repair finished (\(report.executedRecipes.count) steps)")
+} else {
+    print("Repair failed: \(report.failureReason ?? "unknown")")
 }
 ```
 
-Run the app or tests with `KEYPATH_USE_INSTALLER_ENGINE=1` to route callers through the façade.
+`InstallerEngine` still powers installs/repairs under the hood, but new helpers should prefer `ProcessCoordinator` / `RuntimeCoordinator` so that cool-downs, health checks, and privilege handling stay centralized.
 
 ### 3. Explore Key Components (10 minutes)
 

@@ -206,6 +206,11 @@ public struct KeyPathCLI {
     private func runRepair() async -> Int32 {
         print("Starting repair...")
 
+        if await attemptFastRepair() {
+            print("\n✅ Repair completed via KanataService restart")
+            return 0
+        }
+
         let broker = privilegeBrokerFactory()
         let report = await installerEngine.run(intent: .repair, using: broker)
 
@@ -242,6 +247,26 @@ public struct KeyPathCLI {
         } else {
             print("\n❌ Repair failed")
             return 1
+        }
+    }
+
+    private func attemptFastRepair() async -> Bool {
+        print("Attempting KanataService restart before full repair...")
+        let coordinator = ProcessCoordinator()
+        let restarted = await coordinator.restartService()
+
+        guard restarted else {
+            print("Fast-path restart failed; continuing with InstallerEngine repair.")
+            return false
+        }
+
+        let context = await installerEngine.inspectSystem()
+        if context.isOperational {
+            print("Kanata service healthy after restart; skipping InstallerEngine repair.")
+            return true
+        } else {
+            print("System still has issues after restart; running full repair.")
+            return false
         }
     }
 

@@ -62,15 +62,40 @@ This document outlines the step-by-step plan to decompose the `KanataManager` mo
 ## Phase 4: The Final Split (Service Architecture)
 **Goal:** `KanataManager` becomes a thin coordinator.
 
+> **Progress (Nov 24, 2025):** 
+> 
+> ✅ **Façade Migration Complete:**
+> - Health/TCP monitoring consolidated inside `KanataService`
+> - `RuntimeCoordinator` consumes the façade instead of `ServiceHealthMonitor` directly
+> - All wizard flows (Kanata Service page, Components page, Reset Everything, etc.) use façade
+> - CLI commands (`keypath-cli repair`) route through `InstallerEngine`
+> - Settings Status tab, uninstall dialog, wizard state detector use façade
+> 
+> ✅ **Health Check APIs Exposed (Nov 24, 2025):**
+> - `InstallerEngine.getServiceStatus()` - aggregated service status
+> - `InstallerEngine.isServiceHealthy(serviceID:)` - per-service health check
+> - `InstallerEngine.isServiceLoaded(serviceID:)` - per-service load check
+> - `InstallerEngine.checkKanataServiceHealth(tcpPort:)` - Kanata running + TCP responsive
+> - Callers (`MainAppStateController`, `ConfigurationService`, `WizardAutoFixer`) migrated to façade
+> 
+> ✅ **Types Made Public:**
+> - `LaunchDaemonStatus` - service status snapshot
+> - `KanataHealthSnapshot` - Kanata health snapshot
+> - `KanataServiceHealth` - internal health type
+> 
+> **Remaining Work:**
+> 1. Update legacy helper documentation to describe façade-first approach
+> 2. Continue slimming `LaunchDaemonInstaller` as more logic moves to façade
+
 ### 6. Split into Functional Services
 Decompose the remaining logic into injected services:
-*   **`ProcessCoordinator`**: Handles start/stop/restart logic (delegating to `InstallerEngine`).
-*   **`HealthMonitor`**: Ensure it owns *all* health logic.
-*   **`DiagnosticService`**: Ensure it owns *all* log parsing (remove `analyzeLogContent` from Manager).
+- [x] **`ProcessCoordinator`**: Handles start/stop/restart logic (delegating to `InstallerEngine`). _Status:_ `ProcessCoordinator` now wraps `KanataService` for start/stop/restart (with installer fallback). Wizard flows now reuse the façade. Remaining direct callers have been migrated.
+- [x] **`HealthMonitor`**: Ensure it owns *all* health logic. _Status:_ `KanataService` now owns `ServiceHealthMonitor`, and callers (RuntimeCoordinator, DiagnosticsManager, TCP reloads) invoke façade helpers instead of keeping their own monitors.
+- [x] **`DiagnosticService`**: Ensure it owns *all* log parsing (remove `analyzeLogContent` from Manager). _Status:_ `DiagnosticsService` now performs log parsing and real-time VirtualHID monitoring; RuntimeCoordinator simply forwards events.
 
 ### 7. Rename to `RuntimeCoordinator`
-*   **Action:** Rename `KanataManager` to `RuntimeCoordinator`.
-*   **Responsibility:** It simply listens to events from the services above and updates the UI stream. It does *not* do the work itself.
+- [x] **Action:** Rename `KanataManager` to `RuntimeCoordinator`.
+- [x] **Responsibility:** It simply listens to events from the services above and updates the UI stream. (UI state now flows through `KanataViewModel`; remaining service wiring is being migrated.)
 
 ## Proposed Architecture Diagram
 
@@ -78,15 +103,29 @@ Decompose the remaining logic into injected services:
 graph TD
     UI[SwiftUI Views] --> ViewModel[KanataViewModel]
     
-    ViewModel --> Coordinator[RuntimeCoordinator (old KanataManager)]
+    ViewModel --> Coordinator[RuntimeCoordinator]
     
+    Coordinator --> InstallerEngine[InstallerEngine Façade]
+    Coordinator --> KanataService[KanataService]
     Coordinator --> ConfigService[ConfigurationService]
-    Coordinator --> ProcessService[InstallerEngine / ProcessCoordinator]
-    Coordinator --> AIService[<<AIConfigRepairService>>]
+    
+    InstallerEngine --> LaunchDaemonInstaller[LaunchDaemonInstaller]
+    InstallerEngine --> SystemValidator[SystemValidator]
+    InstallerEngine --> PrivilegeBroker[PrivilegeBroker]
+    
+    KanataService --> HealthMonitor[ServiceHealthMonitor]
+    KanataService --> ProcessLifecycle[ProcessLifecycleManager]
     
     ConfigService --> Constants[SystemConstants]
-    ProcessService --> Constants
-    
-    AIService -.-> Anthropic[AnthropicProvider]
-    AIService -.-> Ollama[OllamaProvider]
 ```
+
+## Summary
+
+The strangler fig refactor is **substantially complete**. The façade (`InstallerEngine`) now provides:
+
+1. **System Inspection:** `inspectSystem()` returns a `SystemContext` snapshot
+2. **Repair/Install:** `run(intent:using:)` chains inspect → plan → execute
+3. **Health Checks:** `getServiceStatus()`, `isServiceHealthy()`, `checkKanataServiceHealth()`
+4. **Single Actions:** `runSingleAction(_:using:)` for targeted repairs
+
+All major callers have been migrated to use the façade. The remaining work is documentation updates and continued cleanup of legacy code paths.

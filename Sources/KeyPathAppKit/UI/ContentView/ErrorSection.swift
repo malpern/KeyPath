@@ -36,14 +36,16 @@ struct ErrorSection: View {
                             AppLogger.shared.log("⚠️ [UI] Config already exists or creation failed")
                         }
 
-                        // Try to start the service
-                        _ = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
-
-                        // If still failing, show wizard
-                        let context = await InstallerEngine().inspectSystem()
-                        if !context.services.kanataRunning {
-                            AppLogger.shared.log("⚠️ [UI] Manual start failed - showing installation wizard")
+                        // Try to restart the service via KanataService
+                        let restarted = await kanataManager.restartKanata(reason: "Fix Issues button")
+                        let state = await kanataManager.currentServiceState()
+                        if !restarted || !state.isRunning {
+                            AppLogger.shared.log("⚠️ [UI] Manual restart failed - showing installation wizard")
                             showingInstallationWizard = true
+                        } else {
+                            await MainActor.run {
+                                kanataManager.lastError = nil
+                            }
                         }
                     }
                 }

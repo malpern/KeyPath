@@ -24,12 +24,6 @@ struct InstallationWizardView: View {
     @State private var asyncOperationManager = WizardAsyncOperationManager()
     @State private var toastManager = WizardToastManager()
 
-    // InstallerEngine façade for unified installer operations
-    private let installerEngine = InstallerEngine()
-    private var privilegeBroker: PrivilegeBroker {
-        PrivilegeBroker()
-    }
-
     // UI state
     @State private var isValidating: Bool = true // Track validation state for gear icon
     @State private var preflightStart = Date()
@@ -622,7 +616,7 @@ struct InstallationWizardView: View {
             }
         }
 
-        // Use InstallerEngine to repair all issues at once
+        // Use InstallerEngine to repair all issues at once (with façade fast-path)
         Task {
             guard !fixInFlight else {
                 await MainActor.run {
@@ -644,8 +638,24 @@ struct InstallationWizardView: View {
                 return
             }
 
-            let broker = privilegeBroker
-            let report = await installerEngine.run(intent: .repair, using: broker)
+            if await attemptFastRestartFix() {
+                AppLogger.shared.log(
+                    "✅ [Wizard] Fast-path restart resolved issues; skipping InstallerEngine repair"
+                )
+                return
+            }
+
+            if await attemptAutoFixActions() {
+                AppLogger.shared.log(
+                    "✅ [Wizard] Auto-fix actions resolved issues; skipping InstallerEngine repair"
+                )
+                await MainActor.run {
+                    toastManager.showSuccess("Issues resolved", duration: 4.0)
+                }
+                return
+            }
+
+            let report = await kanataManager.runFullRepair(reason: "Wizard Fix button fallback repair")
 
             await MainActor.run {
                 if report.success {
@@ -717,6 +727,71 @@ struct InstallationWizardView: View {
         }
     }
 
+    private func attemptFastRestartFix() async -> Bool {
+        AppLogger.shared.log(
+            "🔄 [Wizard] Attempting KanataService restart before running InstallerEngine repair"
+        )
+        let restarted = await kanataManager.restartServiceWithFallback(
+            reason: "Wizard Fix button fast path"
+        )
+        guard restarted else {
+            AppLogger.shared.warn("⚠️ [Wizard] Fast-path restart failed; falling back to InstallerEngine")
+            return false
+        }
+
+        let latestResult = await stateManager.detectCurrentState()
+        let filteredIssues = await MainActor.run { applySystemStateResult(latestResult) }
+
+        let resolved = filteredIssues.isEmpty && latestResult.state == .active
+
+        if resolved {
+            await MainActor.run {
+                toastManager.showSuccess("Kanata service recovered", duration: 4.0)
+            }
+        } else {
+            AppLogger.shared.log(
+                "ℹ️ [Wizard] Fast-path restart completed but issues remain (\(filteredIssues.count) issue(s))"
+            )
+        }
+
+        return resolved
+    }
+
+    private func attemptAutoFixActions() async -> Bool {
+        guard autoFixer.autoFixer != nil else {
+            AppLogger.shared.warn("⚠️ [Wizard] AutoFixer not configured - cannot run auto-fix actions")
+            return false
+        }
+
+        let issuesSnapshot = await MainActor.run { currentIssues }
+        let uniqueActions = Array(Set(issuesSnapshot.compactMap(\.autoFixAction)))
+        guard !uniqueActions.isEmpty else {
+            AppLogger.shared.log("ℹ️ [Wizard] No auto-fix actions available for current issues")
+            return false
+        }
+
+        AppLogger.shared.log("🔧 [Wizard] Attempting \(uniqueActions.count) auto-fix action(s) before InstallerEngine repair")
+
+        for action in uniqueActions {
+            AppLogger.shared.log("🔧 [Wizard] Running auto-fix action: \(action)")
+            let success = await autoFixer.performAutoFix(action)
+            AppLogger.shared.log("🔧 [Wizard] Auto-fix action \(action) completed with success=\(success)")
+            guard success else { continue }
+
+            let latestResult = await stateManager.detectCurrentState()
+            let filteredIssues = await MainActor.run { applySystemStateResult(latestResult) }
+            let resolved = filteredIssues.isEmpty && latestResult.state == .active
+
+            if resolved {
+                AppLogger.shared.log("✅ [Wizard] System healthy after auto-fix action: \(action)")
+                return true
+            }
+        }
+
+        AppLogger.shared.log("ℹ️ [Wizard] Auto-fix actions did not fully resolve issues")
+        return false
+    }
+
     private func performAutoFix(_ action: AutoFixAction) async -> Bool {
         // Single-flight guard for Fix buttons
         if inFlightFixActions.contains(action) {
@@ -751,8 +826,6 @@ struct InstallationWizardView: View {
 
         AppLogger.shared.log("🔧 [Wizard] Auto-fix for specific action: \(action)")
 
-        let broker = privilegeBroker
-
         // Short-circuit service installs when Login Items approval is pending
         if action == .installLaunchDaemonServices || action == .restartUnhealthyServices,
            await KanataDaemonManager.shared.refreshManagementState() == .smappservicePending {
@@ -772,10 +845,21 @@ struct InstallationWizardView: View {
         default:
             12.0
         }
-        let report: InstallerReport
+        let actionDescription = getAutoFixActionDescription(action)
+
+        let smState = await KanataDaemonManager.shared.refreshManagementState()
+
+        let deferToastActions: Set<AutoFixAction> = [
+            .restartVirtualHIDDaemon, .installCorrectVHIDDriver, .repairVHIDDaemonServices,
+            .installLaunchDaemonServices
+        ]
+        let deferSuccessToast = deferToastActions.contains(action)
+        var successToastPending = false
+
+        let success: Bool
         do {
-            report = try await runWithTimeout(seconds: timeoutSeconds) {
-                await installerEngine.runSingleAction(action, using: broker)
+            success = try await runWithTimeout(seconds: timeoutSeconds) {
+                await autoFixer.performAutoFix(action)
             }
         } catch {
             let stateSummary = await describeServiceState()
@@ -788,19 +872,8 @@ struct InstallationWizardView: View {
             return false
         }
 
-        let actionDescription = getAutoFixActionDescription(action)
-
-        let smState = await KanataDaemonManager.shared.refreshManagementState()
-
-        let deferToastActions: Set<AutoFixAction> = [
-            .restartVirtualHIDDaemon, .installCorrectVHIDDriver, .repairVHIDDaemonServices,
-            .installLaunchDaemonServices
-        ]
-        let deferSuccessToast = report.success && deferToastActions.contains(action)
-        var successToastPending = false
-
         await MainActor.run {
-            if report.success {
+            if success {
                 if deferSuccessToast {
                     successToastPending = true
                     toastManager.showInfo("Verifying…", duration: 3.0)
@@ -808,8 +881,7 @@ struct InstallationWizardView: View {
                     toastManager.showSuccess("\(actionDescription) completed successfully", duration: 5.0)
                 }
             } else {
-                var errorMessage = report.failureReason
-                    ?? getDetailedErrorMessage(for: action, actionDescription: actionDescription)
+                var errorMessage = getDetailedErrorMessage(for: action, actionDescription: actionDescription)
 
                 if smState == .smappservicePending {
                     errorMessage =
@@ -820,13 +892,7 @@ struct InstallationWizardView: View {
             }
         }
 
-        // Log report details
-        AppLogger.shared.log("🔧 [Wizard] Single-action fix completed - success: \(report.success)")
-        for (index, result) in report.executedRecipes.enumerated() {
-            AppLogger.shared.log(
-                "🔧 [Wizard] Recipe \(index + 1): \(result.recipeID) - \(result.success ? "success" : "failed")"
-            )
-        }
+        AppLogger.shared.log("🔧 [Wizard] Single-action fix completed - success: \(success)")
 
         // Refresh system state after auto-fix
         Task {
@@ -887,7 +953,7 @@ struct InstallationWizardView: View {
             }
         }
 
-        return report.success
+        return success
     }
 
     /// Get user-friendly description for auto-fix actions
@@ -977,33 +1043,9 @@ struct InstallationWizardView: View {
         )
 
         asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
-            let filteredIssues = sanitizedIssues(from: result.issues, for: result.state)
-            systemState = result.state
-            currentIssues = filteredIssues
-            stateManager.lastWizardSnapshot = WizardSnapshotRecord(
-                state: result.state, issues: filteredIssues
-            )
             Task { @MainActor in
-                if shouldNavigateToSummary(
-                    currentPage: navigationCoordinator.currentPage,
-                    state: result.state,
-                    issues: filteredIssues
-                ) {
-                    AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
-                    navigationCoordinator.navigateToPage(.summary)
-                } else if let preferred = preferredDetailPage(for: result.state, issues: filteredIssues),
-                          navigationCoordinator.currentPage != preferred {
-                    AppLogger.shared.log("🔄 [Wizard] Deterministic routing to \(preferred) after refresh")
-                    navigationCoordinator.navigateToPage(preferred)
-                } else if navigationCoordinator.currentPage == .summary {
-                    // Wait a tick for navSequence to be updated by WizardSystemStatusOverview's onChange handlers
-                    try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
-                    autoNavigateIfSingleIssue(in: filteredIssues, state: result.state)
-                }
+                _ = applySystemStateResult(result)
             }
-            AppLogger.shared.log(
-                "🔍 [Wizard] Refresh complete - Issues: \(filteredIssues.map { "\($0.category)-\($0.title)" })"
-            )
         }
     }
 
@@ -1066,6 +1108,41 @@ struct InstallationWizardView: View {
             )
         }
         return filtered
+    }
+
+    @MainActor
+    private func applySystemStateResult(_ result: SystemStateResult) -> [WizardIssue] {
+        let filteredIssues = sanitizedIssues(from: result.issues, for: result.state)
+        systemState = result.state
+        currentIssues = filteredIssues
+        stateManager.lastWizardSnapshot = WizardSnapshotRecord(
+            state: result.state,
+            issues: filteredIssues
+        )
+
+        if shouldNavigateToSummary(
+            currentPage: navigationCoordinator.currentPage,
+            state: result.state,
+            issues: filteredIssues
+        ) {
+            AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
+            navigationCoordinator.navigateToPage(.summary)
+        } else if let preferred = preferredDetailPage(for: result.state, issues: filteredIssues),
+                  navigationCoordinator.currentPage != preferred {
+            AppLogger.shared.log("🔄 [Wizard] Deterministic routing to \(preferred) after refresh")
+            navigationCoordinator.navigateToPage(preferred)
+        } else if navigationCoordinator.currentPage == .summary {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+                autoNavigateIfSingleIssue(in: filteredIssues, state: result.state)
+            }
+        }
+
+        AppLogger.shared.log(
+            "🔍 [Wizard] State applied - Issues: \(filteredIssues.map { "\($0.category)-\($0.title)" })"
+        )
+
+        return filteredIssues
     }
 
     private func shouldSuppressCommunicationIssues(for state: WizardSystemState) -> Bool {

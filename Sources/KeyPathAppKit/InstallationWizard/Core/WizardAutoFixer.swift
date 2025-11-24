@@ -413,11 +413,18 @@ class WizardAutoFixer: AutoFixCapable {
         // 3. Oracle handles permission caching automatically
         AppLogger.shared.log("🔮 [AutoFixer] Oracle permission system - no manual cache clearing needed")
 
-        // 4. Reset kanata manager state
-        _ = await InstallerEngine().run(intent: .uninstall, using: PrivilegeBroker())
+        // 4. Reset kanata manager state via the façade (installer fallback happens inside)
+        AppLogger.shared.log("🔄 [AutoFixer] Restarting Kanata service via façade after nuclear reset")
+        let restarted = await kanataManager.restartServiceWithFallback(
+            reason: "WizardAutoFixer nuclear reset"
+        )
         kanataManager.lastError = nil
         kanataManager.diagnostics.removeAll()
-        AppLogger.shared.info("🔄 [AutoFixer] Reset RuntimeCoordinator state")
+        if restarted {
+            AppLogger.shared.info("🔄 [AutoFixer] Restarted Kanata service via façade")
+        } else {
+            AppLogger.shared.warn("⚠️ [AutoFixer] Kanata service restart failed post-reset")
+        }
 
         // 5. Wait for system to settle
         try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
@@ -891,6 +898,16 @@ class WizardAutoFixer: AutoFixCapable {
             try await PrivilegedOperationsCoordinator.shared.installAllLaunchDaemonServices()
             AppLogger.shared.log(
                 "✅ [AutoFixer] LaunchDaemon installation completed successfully with single admin prompt")
+
+            let restarted = await kanataManager.restartServiceWithFallback(
+                reason: "WizardAutoFixer launch daemon install"
+            )
+            if restarted {
+                AppLogger.shared.info("🔄 [AutoFixer] Kanata service restarted after LaunchDaemon install")
+            } else {
+                AppLogger.shared.warn(
+                    "⚠️ [AutoFixer] Kanata service restart failed after LaunchDaemon install (may require approval)")
+            }
             return true
         } catch {
             AppLogger.shared.error("❌ [AutoFixer] LaunchDaemon installation failed: \(error)")
@@ -1094,9 +1111,23 @@ class WizardAutoFixer: AutoFixCapable {
             "🔧 [AutoFixer] This means the new logic is working - will install missing + restart unhealthy"
         )
 
+        // Fast path: attempt restart via KanataService façade before doing privileged repairs.
+        AppLogger.shared.log(
+            "🔄 [AutoFixer] Fast path: attempting KanataService restart before privileged repairs")
+        let fastRestart = await kanataManager.restartServiceWithFallback(
+            reason: "WizardAutoFixer restart unhealthy (fast path)"
+        )
+        if fastRestart {
+            AppLogger.shared.info(
+                "✅ [AutoFixer] Fast path restart succeeded via KanataService - skipping privileged repairs")
+            return true
+        }
+        AppLogger.shared.warn(
+            "⚠️ [AutoFixer] Fast path restart failed - continuing with privileged repair workflow")
+
         // Get current status to determine what needs to be done
         AppLogger.shared.log("🔧 [AutoFixer] Step 1: Getting current service status...")
-        let status = await launchDaemonInstaller.getServiceStatus()
+        let status = await InstallerEngine().getServiceStatus()
 
         AppLogger.shared.log("🔧 [AutoFixer] Current status breakdown:")
         AppLogger.shared.log(
@@ -1131,7 +1162,8 @@ class WizardAutoFixer: AutoFixCapable {
             KanataDaemonManager.isUsingSMAppService
         }
         // Also check if process is running (SMAppService might have status .notFound but process is running)
-        let isProcessRunning = await launchDaemonInstaller.checkKanataServiceHealth().isRunning
+        let healthStatus = await InstallerEngine().checkKanataServiceHealth()
+        let isProcessRunning = healthStatus.isRunning
 
         // If SMAppService is managing Kanata (enabled OR requiresApproval) OR process is running, don't trigger installation
         let shouldSkipInstallation =
@@ -1226,7 +1258,7 @@ class WizardAutoFixer: AutoFixCapable {
         )
         AppLogger.shared.log("🔧 [AutoFixer] Checking final service status after restart...")
 
-        let finalStatus = await launchDaemonInstaller.getServiceStatus()
+        let finalStatus = await InstallerEngine().getServiceStatus()
         AppLogger.shared.log("🔧 [AutoFixer] Final status breakdown:")
         AppLogger.shared.log(
             "🔧 [AutoFixer] - Kanata loaded: \(finalStatus.kanataServiceLoaded), healthy: \(finalStatus.kanataServiceHealthy)"
@@ -1336,10 +1368,16 @@ class WizardAutoFixer: AutoFixCapable {
             AppLogger.shared.info(
                 "✅ [AutoFixer] Successfully replaced system kanata with bundled version")
 
-            // Restart the kanata service to use the new binary
+            // Restart the kanata service to use the new binary via façade + fallback path
             AppLogger.shared.info("🔄 [AutoFixer] Restarting kanata service to use new binary")
-            _ = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
-            AppLogger.shared.info("✅ [AutoFixer] Restarted kanata service with new binary")
+            let restarted = await kanataManager.restartServiceWithFallback(
+                reason: "AutoFixer replace bundled kanata binary"
+            )
+            if restarted {
+                AppLogger.shared.info("✅ [AutoFixer] Restarted kanata service with new binary")
+            } else {
+                AppLogger.shared.warn("⚠️ [AutoFixer] Service restart failed after binary replace")
+            }
 
             return true
         } else {

@@ -207,6 +207,7 @@ public final class InstallerEngine {
         // Execute recipes in order
         var executedRecipes: [RecipeResult] = []
         var firstFailure: (recipe: ServiceRecipe, error: Error)?
+        var allLogs: [String] = []
 
         for recipe in plan.recipes {
             AppLogger.shared.log(
@@ -214,28 +215,41 @@ public final class InstallerEngine {
 
             let startTime = Date()
             var recipeError: String?
+            var recipeLogs: [String] = []
+            var commandsRun: [String] = []
+
+            recipeLogs.append("[\(recipe.id)] Starting execution...")
 
             do {
-                // Execute recipe based on type
-                try await executeRecipe(recipe, using: broker)
+                // Execute recipe based on type, capturing execution details
+                let executionResult = try await executeRecipeWithDetails(recipe, using: broker)
+                recipeLogs.append(contentsOf: executionResult.logs)
+                commandsRun.append(contentsOf: executionResult.commands)
 
                 // Perform health check if specified
                 if let healthCheck = recipe.healthCheck {
+                    recipeLogs.append("[\(recipe.id)] Running health check for \(healthCheck.serviceID)...")
                     let isHealthy = await verifyHealthCheck(healthCheck)
                     if !isHealthy {
                         throw InstallerError.healthCheckFailed(
                             "Health check failed for service: \(healthCheck.serviceID)"
                         )
                     }
+                    recipeLogs.append("[\(recipe.id)] Health check passed")
                 }
 
                 let duration = Date().timeIntervalSince(startTime)
+                recipeLogs.append("[\(recipe.id)] Completed in \(String(format: "%.2f", duration))s")
+                allLogs.append(contentsOf: recipeLogs)
+
                 executedRecipes.append(
                     RecipeResult(
                         recipeID: recipe.id,
                         success: true,
                         error: nil,
-                        duration: duration
+                        duration: duration,
+                        logs: recipeLogs,
+                        commandsRun: commandsRun
                     ))
                 AppLogger.shared.log("✅ [InstallerEngine] Recipe \(recipe.id) completed successfully")
 
@@ -243,12 +257,17 @@ public final class InstallerEngine {
                 // Stop on first failure
                 let duration = Date().timeIntervalSince(startTime)
                 recipeError = error.localizedDescription
+                recipeLogs.append("[\(recipe.id)] FAILED: \(recipeError ?? "Unknown error")")
+                allLogs.append(contentsOf: recipeLogs)
+
                 executedRecipes.append(
                     RecipeResult(
                         recipeID: recipe.id,
                         success: false,
                         error: recipeError,
-                        duration: duration
+                        duration: duration,
+                        logs: recipeLogs,
+                        commandsRun: commandsRun
                     ))
 
                 AppLogger.shared.log(
@@ -259,7 +278,7 @@ public final class InstallerEngine {
             }
         }
 
-        // Generate report
+        // Generate report with aggregated logs
         let success = firstFailure == nil
         let report = InstallerReport(
             success: success,
@@ -267,7 +286,8 @@ public final class InstallerEngine {
                 "Recipe '\($0.recipe.id)' failed: \($0.error.localizedDescription)"
             },
             unmetRequirements: success ? [] : plan.blockedBy.map { [$0] } ?? [],
-            executedRecipes: executedRecipes
+            executedRecipes: executedRecipes,
+            logs: allLogs
         )
 
         AppLogger.shared.log(
@@ -278,36 +298,104 @@ public final class InstallerEngine {
 
     // MARK: - Recipe Execution
 
-    /// Execute a single recipe
-    private func executeRecipe(_ recipe: ServiceRecipe, using broker: PrivilegeBroker) async throws {
+    /// Result of executing a recipe with detailed logs
+    private struct RecipeExecutionResult {
+        let logs: [String]
+        let commands: [String]
+    }
+
+    /// Execute a single recipe and capture execution details
+    private func executeRecipeWithDetails(_ recipe: ServiceRecipe, using broker: PrivilegeBroker) async throws -> RecipeExecutionResult {
+        var logs: [String] = []
+        var commands: [String] = []
+
         switch recipe.type {
         case .installService:
+            logs.append("Checking VHID Manager activation status...")
+            let vhidManager = VHIDDeviceManager()
+            if !vhidManager.detectActivation() {
+                logs.append("VHID Manager not activated - will activate first")
+            }
+            logs.append("Installing LaunchDaemon services...")
+            commands.append("launchctl bootstrap system /Library/LaunchDaemons/com.keypath.*")
             try await executeInstallService(recipe, using: broker)
+            logs.append("LaunchDaemon services installed")
 
         case .restartService:
+            logs.append("Checking VHID Manager activation status...")
+            if let serviceID = recipe.serviceID {
+                logs.append("Restarting service: \(serviceID)")
+                commands.append("launchctl kickstart -k system/\(serviceID)")
+            } else {
+                logs.append("Restarting unhealthy services...")
+                commands.append("launchctl kickstart -k system/com.keypath.*")
+            }
             try await executeRestartService(recipe, using: broker)
+            logs.append("Service restart completed")
 
         case .installComponent:
+            logs.append("Installing component: \(recipe.id)")
             try await executeInstallComponent(recipe, using: broker)
+            logs.append("Component installed: \(recipe.id)")
 
         case .writeConfig:
+            logs.append("Writing configuration: \(recipe.id)")
             try await executeWriteConfig(recipe, using: broker)
+            logs.append("Configuration written")
 
         case .checkRequirement:
+            logs.append("Checking requirement: \(recipe.id)")
             try await executeCheckRequirement(recipe, using: broker)
+            logs.append("Requirement satisfied")
         }
+
+        return RecipeExecutionResult(logs: logs, commands: commands)
+    }
+
+    /// Execute a single recipe (legacy method for backward compatibility)
+    private func executeRecipe(_ recipe: ServiceRecipe, using broker: PrivilegeBroker) async throws {
+        _ = try await executeRecipeWithDetails(recipe, using: broker)
     }
 
     /// Execute installService recipe
+    /// Includes pre-check for VHID Manager activation (per Karabiner documentation)
     private func executeInstallService(_: ServiceRecipe, using broker: PrivilegeBroker) async throws {
+        // CRITICAL: Ensure VHID Manager is activated BEFORE installing daemon services
+        // Per Karabiner documentation, manager activation must happen before daemon startup
+        let vhidManager = VHIDDeviceManager()
+        if !vhidManager.detectActivation() {
+            AppLogger.shared.log(
+                "⚠️ [InstallerEngine] VirtualHID Manager not activated - activating before daemon install")
+            try await broker.activateVirtualHIDManager()
+            // Wait for activation to take effect
+            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+            
+            // Verify activation
+            if !vhidManager.detectActivation() {
+                AppLogger.shared.log(
+                    "⚠️ [InstallerEngine] Manager activation may need user approval - proceeding anyway")
+            } else {
+                AppLogger.shared.log("✅ [InstallerEngine] Manager activated successfully")
+            }
+        }
+        
         // Install all LaunchDaemon services
-        // Note: Individual service installation would require plistPath, which isn't in recipe yet
         try await broker.installAllLaunchDaemonServices()
     }
 
     /// Execute restartService recipe
+    /// Includes pre-check for VHID Manager activation (per Karabiner documentation)
     private func executeRestartService(_ recipe: ServiceRecipe, using broker: PrivilegeBroker)
         async throws {
+        // CRITICAL: Ensure VHID Manager is activated before restarting services
+        let vhidManager = VHIDDeviceManager()
+        if !vhidManager.detectActivation() {
+            AppLogger.shared.log(
+                "⚠️ [InstallerEngine] VirtualHID Manager not activated - activating before restart")
+            try await broker.activateVirtualHIDManager()
+            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+        }
+        
         if let serviceID = recipe.serviceID, serviceID == KeyPathConstants.Bundle.daemonID {
             // Restart Karabiner daemon with verification
             let success = try await broker.restartKarabinerDaemonVerified()
@@ -404,9 +492,35 @@ public final class InstallerEngine {
 
     /// Verify health check criteria
     private func verifyHealthCheck(_ criteria: HealthCheckCriteria) async -> Bool {
-        // Use LaunchDaemonInstaller to check service health
+        await isServiceHealthy(serviceID: criteria.serviceID)
+    }
+
+    // MARK: - Public Health Check API
+
+    /// Check if a specific service is healthy (running and responsive)
+    /// This is a façade method that delegates to LaunchDaemonInstaller
+    public func isServiceHealthy(serviceID: String) async -> Bool {
         let installer = LaunchDaemonInstaller()
-        return await installer.isServiceHealthy(serviceID: criteria.serviceID)
+        return await installer.isServiceHealthy(serviceID: serviceID)
+    }
+
+    /// Check if a specific service is loaded (registered with launchd)
+    public func isServiceLoaded(serviceID: String) async -> Bool {
+        let installer = LaunchDaemonInstaller()
+        return await installer.isServiceLoaded(serviceID: serviceID)
+    }
+
+    /// Get aggregated status of all KeyPath services
+    public func getServiceStatus() async -> LaunchDaemonStatus {
+        let installer = LaunchDaemonInstaller()
+        return await installer.getServiceStatus()
+    }
+
+    /// Check Kanata service health (running + TCP responsive)
+    public func checkKanataServiceHealth(tcpPort: Int = 37001) async -> KanataHealthSnapshot {
+        let installer = LaunchDaemonInstaller()
+        let health = await installer.checkKanataServiceHealth(tcpPort: tcpPort)
+        return KanataHealthSnapshot(isRunning: health.isRunning, isResponding: health.isResponding)
     }
 
     /// Convenience wrapper that chains inspectSystem() → makePlan() → execute() internally.

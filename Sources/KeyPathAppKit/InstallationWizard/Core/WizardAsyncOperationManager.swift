@@ -343,30 +343,28 @@ enum WizardOperations {
     }
 
     /// Service start operation
-    static func startService(kanataManager _: RuntimeCoordinator) -> AsyncOperation<Bool> {
+    static func startService(kanataManager: RuntimeCoordinator) -> AsyncOperation<Bool> {
         AsyncOperation<Bool>(
             id: "start_service",
             name: "Start Kanata Service"
         ) { progressCallback in
             progressCallback(0.1)
 
-            // Use InstallerEngine for starting the service (must run on MainActor)
-            await Task { @MainActor in
-                let engine = InstallerEngine()
-                let broker = PrivilegeBroker()
-                _ = await engine.run(intent: .repair, using: broker)
-            }.value
+            let restarted = await kanataManager.restartServiceWithFallback(
+                reason: "Wizard async start operation"
+            )
 
-            progressCallback(0.8)
+            progressCallback(restarted ? 0.85 : 0.6)
 
-            // Wait for service to fully start
-            try await Task.sleep(nanoseconds: 1_000_000_000)
+            if restarted {
+                // Give the service a short window to settle so the summary screen doesn’t flicker.
+                try await Task.sleep(nanoseconds: 1_000_000_000)
+                await kanataManager.updateStatus()
+            }
+
             progressCallback(1.0)
 
-            return await Task { @MainActor in
-                let engine = InstallerEngine()
-                return await engine.inspectSystem().services.kanataRunning
-            }.value
+            return restarted
         }
     }
 

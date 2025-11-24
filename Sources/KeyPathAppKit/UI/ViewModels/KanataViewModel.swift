@@ -225,6 +225,36 @@ class KanataViewModel: ObservableObject {
     func updateStatus() async {
         await manager.updateStatus()
     }
+
+    func inspectSystemContext() async -> SystemContext {
+        await manager.inspectSystemContext()
+    }
+
+    func uninstall(deleteConfig: Bool) async -> InstallerReport {
+        await manager.uninstall(deleteConfig: deleteConfig)
+    }
+
+    func runFullRepair(reason: String) async -> InstallerReport {
+        await manager.runFullRepair(reason: reason)
+    }
+
+    // MARK: - Service Controls
+
+    func startKanata(reason: String = "User action") async -> Bool {
+        await manager.startKanata(reason: reason)
+    }
+
+    func stopKanata(reason: String = "User action") async -> Bool {
+        await manager.stopKanata(reason: reason)
+    }
+
+    func restartKanata(reason: String = "User action") async -> Bool {
+        await manager.restartKanata(reason: reason)
+    }
+
+    func currentServiceState() async -> KanataService.ServiceState {
+        await manager.currentServiceState()
+    }
 }
 
 /// Actions available in validation error dialogs

@@ -21,19 +21,7 @@ protocol DiagnosticsManaging: Sendable {
     func stopLogMonitoring()
 
     /// Check service health
-    func checkHealth(processStatus: ProcessHealthStatus, tcpPort: Int) async -> ServiceHealthStatus
-
-    /// Check if restart is allowed based on cooldown
-    func canRestartService() async -> RestartCooldownState
-
-    /// Record that a service start was attempted
-    func recordStartAttempt(timestamp: Date) async
-
-    /// Record start success
-    func recordStartSuccess() async
-
-    /// Record connection success
-    func recordConnectionSuccess() async
+    func checkHealth(tcpPort: Int) async -> ServiceHealthStatus
 
     /// Diagnose Kanata failure
     func diagnoseFailure(exitCode: Int32, output: String) -> [KanataDiagnostic]
@@ -47,19 +35,16 @@ protocol DiagnosticsManaging: Sendable {
 final class DiagnosticsManager: @preconcurrency DiagnosticsManaging {
     private var diagnostics: [KanataDiagnostic] = []
     private let diagnosticsService: DiagnosticsServiceProtocol
-    private let healthMonitor: ServiceHealthMonitorProtocol
-    private let processLifecycleManager: ProcessLifecycleManager
+    private let kanataService: KanataService
 
     private var logMonitorTask: Task<Void, Never>?
 
     init(
         diagnosticsService: DiagnosticsServiceProtocol,
-        healthMonitor: ServiceHealthMonitorProtocol,
-        processLifecycleManager: ProcessLifecycleManager
+        kanataService: KanataService
     ) {
         self.diagnosticsService = diagnosticsService
-        self.healthMonitor = healthMonitor
-        self.processLifecycleManager = processLifecycleManager
+        self.kanataService = kanataService
     }
 
     func addDiagnostic(_ diagnostic: KanataDiagnostic) {
@@ -164,31 +149,12 @@ final class DiagnosticsManager: @preconcurrency DiagnosticsManaging {
         logMonitorTask?.cancel()
         logMonitorTask = nil
         Task { @MainActor [weak self] in
-            await self?.healthMonitor.recordConnectionSuccess() // Reset on stop
+            await self?.kanataService.recordConnectionSuccess() // Reset on stop
         }
     }
 
-    func checkHealth(processStatus: ProcessHealthStatus, tcpPort: Int) async -> ServiceHealthStatus {
-        await healthMonitor.checkServiceHealth(
-            processStatus: processStatus,
-            tcpPort: tcpPort
-        )
-    }
-
-    func recordStartSuccess() async {
-        await healthMonitor.recordStartSuccess()
-    }
-
-    func recordConnectionSuccess() async {
-        await healthMonitor.recordConnectionSuccess()
-    }
-
-    func canRestartService() async -> RestartCooldownState {
-        await healthMonitor.canRestartService()
-    }
-
-    func recordStartAttempt(timestamp: Date) async {
-        await healthMonitor.recordStartAttempt(timestamp: timestamp)
+    func checkHealth(tcpPort: Int) async -> ServiceHealthStatus {
+        await kanataService.checkHealth(tcpPort: tcpPort)
     }
 
     func diagnoseFailure(exitCode: Int32, output: String) -> [KanataDiagnostic] {
@@ -215,7 +181,7 @@ final class DiagnosticsManager: @preconcurrency DiagnosticsManaging {
             }
 
             // Record connection success
-            await healthMonitor.recordConnectionSuccess()
+            await kanataService.recordConnectionSuccess()
             return
         }
 
@@ -246,7 +212,7 @@ final class DiagnosticsManager: @preconcurrency DiagnosticsManaging {
             }
 
             // Record connection failure for health monitoring
-            let shouldRecover = await healthMonitor.recordConnectionFailure()
+            let shouldRecover = await kanataService.recordConnectionFailure()
             if shouldRecover {
                 AppLogger.shared.log(
                     "🚨 [DiagnosticsManager] Max connection failures reached - recovery recommended")

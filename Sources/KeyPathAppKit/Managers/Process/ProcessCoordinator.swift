@@ -27,67 +27,98 @@ protocol ProcessCoordinating: AnyObject {
 /// This provides a clean interface for RuntimeCoordinator (formerly RuntimeCoordinator)
 @MainActor
 final class ProcessCoordinator: ProcessCoordinating {
+    private let kanataService: KanataService
     private let installerEngine: InstallerEngine
     private let privilegeBroker: PrivilegeBroker
 
     init(
-        installerEngine: InstallerEngine? = nil,
-        privilegeBroker: PrivilegeBroker? = nil
+        kanataService: KanataService = .shared,
+        installerEngine: InstallerEngine = InstallerEngine(),
+        privilegeBroker: PrivilegeBroker = PrivilegeBroker()
     ) {
-        self.installerEngine = installerEngine ?? InstallerEngine()
-        self.privilegeBroker = privilegeBroker ?? PrivilegeBroker()
+        self.kanataService = kanataService
+        self.installerEngine = installerEngine
+        self.privilegeBroker = privilegeBroker
     }
 
     func startService() async -> Bool {
-        AppLogger.shared.log("🚀 [ProcessCoordinator] Starting Kanata service...")
-
-        // Use InstallerEngine to start the service
-        let report = await installerEngine.run(intent: .repair, using: privilegeBroker)
-
-        if report.success {
-            AppLogger.shared.log("✅ [ProcessCoordinator] Service started successfully")
+        AppLogger.shared.log("🚀 [ProcessCoordinator] Starting Kanata service via KanataService…")
+        do {
+            try await kanataService.start()
+            await kanataService.refreshStatus()
+            AppLogger.shared.log("✅ [ProcessCoordinator] KanataService start succeeded")
             return true
-        } else {
-            AppLogger.shared.warn("⚠️ [ProcessCoordinator] Service start failed: \(report.failureReason ?? "Unknown error")")
-            return false
+        } catch {
+            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            AppLogger.shared.warn(
+                "⚠️ [ProcessCoordinator] KanataService start failed (\(message)) - falling back to InstallerEngine repair"
+            )
+            let report = await installerEngine.run(intent: .repair, using: privilegeBroker)
+            if report.success {
+                await kanataService.refreshStatus()
+                AppLogger.shared.info("✅ [ProcessCoordinator] InstallerEngine fallback start succeeded")
+                return true
+            } else {
+                AppLogger.shared.error(
+                    "❌ [ProcessCoordinator] InstallerEngine fallback start failed: \(report.failureReason ?? "Unknown error")"
+                )
+                return false
+            }
         }
     }
 
     func stopService() async -> Bool {
-        AppLogger.shared.log("🛑 [ProcessCoordinator] Stopping Kanata service...")
-
-        // Use PrivilegeBroker to stop the service directly
+        AppLogger.shared.log("🛑 [ProcessCoordinator] Stopping Kanata service via KanataService…")
         do {
-            try await privilegeBroker.stopKanataService()
-            AppLogger.shared.log("✅ [ProcessCoordinator] Service stopped successfully")
+            try await kanataService.stop()
+            await kanataService.refreshStatus()
+            AppLogger.shared.log("✅ [ProcessCoordinator] KanataService stop succeeded")
             return true
         } catch {
-            AppLogger.shared.warn("⚠️ [ProcessCoordinator] Service stop failed: \(error)")
-            return false
+            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            AppLogger.shared.warn(
+                "⚠️ [ProcessCoordinator] KanataService stop failed (\(message)) - falling back to privilege broker"
+            )
+            do {
+                try await privilegeBroker.stopKanataService()
+                await kanataService.refreshStatus()
+                AppLogger.shared.info("✅ [ProcessCoordinator] Privilege broker stop fallback succeeded")
+                return true
+            } catch {
+                AppLogger.shared.error("❌ [ProcessCoordinator] Privilege broker stop failed: \(error)")
+                return false
+            }
         }
     }
 
     func restartService() async -> Bool {
-        AppLogger.shared.log("🔄 [ProcessCoordinator] Restarting Kanata service...")
-
-        // Stop first
-        let stopped = await stopService()
-        guard stopped else {
-            AppLogger.shared.warn("⚠️ [ProcessCoordinator] Failed to stop service before restart")
-            return false
+        AppLogger.shared.log("🔄 [ProcessCoordinator] Restarting Kanata service via KanataService…")
+        do {
+            try await kanataService.restart()
+            await kanataService.refreshStatus()
+            AppLogger.shared.log("✅ [ProcessCoordinator] KanataService restart succeeded")
+            return true
+        } catch {
+            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            AppLogger.shared.warn(
+                "⚠️ [ProcessCoordinator] KanataService restart failed (\(message)) - falling back to InstallerEngine repair"
+            )
+            let report = await installerEngine.run(intent: .repair, using: privilegeBroker)
+            if report.success {
+                await kanataService.refreshStatus()
+                AppLogger.shared.info("✅ [ProcessCoordinator] InstallerEngine fallback restart succeeded")
+                return true
+            } else {
+                AppLogger.shared.error(
+                    "❌ [ProcessCoordinator] InstallerEngine fallback restart failed: \(report.failureReason ?? "Unknown error")"
+                )
+                return false
+            }
         }
-
-        // Wait a moment for cleanup
-        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-
-        // Start again
-        return await startService()
     }
 
     func isServiceRunning() async -> Bool {
-        let context = await installerEngine.inspectSystem()
-        return context.services.kanataRunning
+        let state = await kanataService.refreshStatus()
+        return state.isRunning
     }
 }
-
-

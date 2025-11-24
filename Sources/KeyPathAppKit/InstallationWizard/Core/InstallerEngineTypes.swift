@@ -232,12 +232,25 @@ public struct RecipeResult: Sendable, Equatable {
     public let error: String?
     /// How long it took (seconds)
     public let duration: TimeInterval
+    /// Structured log lines captured during execution
+    public let logs: [String]
+    /// Shell command(s) that were run (for diagnostics)
+    public let commandsRun: [String]
 
-    public init(recipeID: String, success: Bool, error: String? = nil, duration: TimeInterval = 0) {
+    public init(
+        recipeID: String,
+        success: Bool,
+        error: String? = nil,
+        duration: TimeInterval = 0,
+        logs: [String] = [],
+        commandsRun: [String] = []
+    ) {
         self.recipeID = recipeID
         self.success = success
         self.error = error
         self.duration = duration
+        self.logs = logs
+        self.commandsRun = commandsRun
     }
 }
 
@@ -275,5 +288,20 @@ public struct InstallerReport: Sendable {
         self.executedRecipes = executedRecipes
         self.finalContext = finalContext
         self.logs = logs
+    }
+}
+
+// MARK: - Service Health Types
+
+/// Health status of the Kanata service (running + TCP responsive)
+public struct KanataHealthSnapshot: Sendable {
+    /// Whether the service process is running (launchctl PID check)
+    public let isRunning: Bool
+    /// Whether the service is responding to TCP health checks
+    public let isResponding: Bool
+
+    public init(isRunning: Bool, isResponding: Bool) {
+        self.isRunning = isRunning
+        self.isResponding = isResponding
     }
 }

@@ -14,17 +14,7 @@ final class HealthCheckServiceTests: XCTestCase {
         func clearDiagnostics() {}
         func startLogMonitoring() {}
         func stopLogMonitoring() {}
-        func checkHealth(processStatus _: ProcessHealthStatus, tcpPort _: Int) async
-            -> ServiceHealthStatus { nextStatus }
-        func canRestartService() async -> RestartCooldownState {
-            .init(
-                canRestart: true, remainingCooldown: 0, attemptsSinceLastSuccess: 0, isInGracePeriod: false
-            )
-        }
-
-        func recordStartAttempt(timestamp _: Date) async {}
-        func recordStartSuccess() async {}
-        func recordConnectionSuccess() async {}
+        func checkHealth(tcpPort _: Int) async -> ServiceHealthStatus { nextStatus }
         func diagnoseFailure(exitCode _: Int32, output _: String) -> [KanataDiagnostic] { [] }
         func getSystemDiagnostics(engineClient _: EngineClient?) async -> [KanataDiagnostic] { [] }
     }
@@ -32,10 +22,7 @@ final class HealthCheckServiceTests: XCTestCase {
     func testEvaluate_Healthy_NoRestart() async {
         let fake = FakeDiagnosticsManager()
         fake.nextStatus = .healthy()
-        let service = HealthCheckService(
-            diagnosticsManager: fake,
-            statusProvider: { (true, 123) }
-        )
+        let service = HealthCheckService(diagnosticsManager: fake)
 
         let decision = await service.evaluate(tcpPort: 37001)
         XCTAssertTrue(decision.isHealthy)
@@ -46,10 +33,7 @@ final class HealthCheckServiceTests: XCTestCase {
     func testEvaluate_Unhealthy_ShouldRestart() async {
         let fake = FakeDiagnosticsManager()
         fake.nextStatus = .unhealthy(reason: "tcp down", shouldRestart: true)
-        let service = HealthCheckService(
-            diagnosticsManager: fake,
-            statusProvider: { (true, 123) }
-        )
+        let service = HealthCheckService(diagnosticsManager: fake)
 
         let decision = await service.evaluate(tcpPort: 37001)
         XCTAssertFalse(decision.isHealthy)

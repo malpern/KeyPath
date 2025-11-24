@@ -148,7 +148,14 @@ struct ContentView: View {
                     onRestart: {
                         Task { @MainActor in
                             kanataManager.emergencyStopActivated = false
-                            _ = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
+                            let restarted = await kanataManager.restartKanata(
+                                reason: "Emergency stop recovery"
+                            )
+                            if !restarted {
+                                showStatusMessage(
+                                    message: "❌ Failed to restart Kanata after emergency stop"
+                                )
+                            }
                             await kanataManager.updateStatus()
                         }
                     }
@@ -254,6 +261,7 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showingUninstallDialog) {
             UninstallKeyPathDialog()
+                .environmentObject(kanataManager)
         }
         .onAppear {
             AppLogger.shared.log("🔍 [ContentView] onAppear called")
@@ -482,16 +490,19 @@ struct ContentView: View {
 
         guard let capture = keyboardCapture else { return }
 
-        capture.startEmergencyMonitoring {
-            Task { @MainActor in
-                try? await PrivilegeBroker().stopKanataService()
+        capture.startEmergencyMonitoring { Task { @MainActor in
+                let stopped = await kanataManager.stopKanata(reason: "Emergency stop hotkey")
+                if stopped {
+                    AppLogger.shared.log("🛑 [EmergencyStop] Kanata service stopped via façade")
+                } else {
+                    AppLogger.shared.warn("⚠️ [EmergencyStop] Failed to stop Kanata service via façade")
+                }
                 kanataManager.emergencyStopActivated = true
                 showStatusMessage(message: "🚨 Emergency stop activated - Kanata stopped")
                 UserNotificationService.shared.notifyLaunchFailure(
                     .serviceFailure("Emergency stop activated"))
                 showingEmergencyAlert = true
-            }
-        }
+            } }
     }
 
     // MARK: - Startup Observers
@@ -512,13 +523,13 @@ struct ContentView: View {
                 let result = PermissionGrantCoordinator.shared.checkForPendingPermissionGrant()
                 if !result.shouldRestart {
                     AppLogger.shared.log("🚀 [ContentView] Starting auto-launch sequence (coordinated)")
-                    // Use InstallerEngine for auto-launch
-                    let engine = InstallerEngine()
-                    let context = await engine.inspectSystem()
-                    if !context.services.kanataRunning {
-                        _ = await engine.run(intent: .repair, using: PrivilegeBroker())
+                    let success = await kanataManager.startKanata(reason: "Auto-launch phase")
+                    if success {
+                        AppLogger.shared.log("✅ [ContentView] Auto-launch sequence completed")
+                    } else {
+                        AppLogger.shared.error("❌ [ContentView] Auto-launch failed via KanataService")
                     }
-                    AppLogger.shared.log("✅ [ContentView] Auto-launch sequence completed")
+                    await kanataManager.updateStatus()
                 }
             }
         }
@@ -624,11 +635,11 @@ struct ContentView: View {
         saveDebounceTimer?.invalidate()
         saveDebounceTimer = nil
 
-        // Check running state via InstallerEngine
-        let isRunning = await InstallerEngine().inspectSystem().services.kanataRunning
+        // Check running state via KanataService
+        var serviceState = await kanataManager.currentServiceState()
 
         // If Kanata is not running but we're recording, stop recording first (resumes Kanata)
-        if !isRunning,
+        if !serviceState.isRunning,
            recordingCoordinator.isInputRecording() || recordingCoordinator.isOutputRecording() {
             AppLogger.shared.log("🔄 [ContentView] Kanata paused during recording - resuming before save")
             await MainActor.run {
@@ -637,12 +648,11 @@ struct ContentView: View {
 
             // Wait briefly for Kanata to resume
             try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
+            serviceState = await kanataManager.currentServiceState()
         }
 
         // Pre-flight check: Ensure kanata is running before attempting save
-        // Re-check status
-        let isRunningNow = await InstallerEngine().inspectSystem().services.kanataRunning
-        guard isRunningNow else {
+        guard serviceState.isRunning else {
             AppLogger.shared.log("⚠️ [ContentView] Cannot save - kanata service is not running")
             await MainActor.run {
                 showingKanataNotRunningAlert = true

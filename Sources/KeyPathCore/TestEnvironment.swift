@@ -86,21 +86,32 @@ public enum TestEnvironment {
     }
 
     /// Check if we should use sudo instead of osascript for privileged operations.
-    /// This requires BOTH:
-    /// 1. Running in a test environment (XCTest, swift test, CI)
-    /// 2. KEYPATH_USE_SUDO=1 environment variable set
+    ///
+    /// **Enabled when:**
+    /// - `KEYPATH_USE_SUDO=1` environment variable is set, AND
+    /// - Either running tests OR in a DEBUG build
     ///
     /// When enabled:
     /// - Privileged operations use `sudo -n` (non-interactive) instead of osascript admin prompts
     /// - Requires sudoers NOPASSWD configuration (see Scripts/dev-setup-sudoers.sh)
-    /// - Only works during test runs - production app always uses osascript for user prompts
+    /// - Release builds always use osascript for user prompts (unless running tests)
     ///
     /// ⚠️ WARNING: Remove sudoers config before public release!
     public static var useSudoForPrivilegedOps: Bool {
-        // MUST be running tests AND have the env var set
-        // This ensures production app NEVER uses sudo, always prompts user via osascript
-        guard isRunningTests else { return false }
-        return ProcessInfo.processInfo.environment["KEYPATH_USE_SUDO"] == "1"
+        // Check env var first - if not set, never use sudo
+        guard ProcessInfo.processInfo.environment["KEYPATH_USE_SUDO"] == "1" else {
+            return false
+        }
+        // Allow in tests (any build config)
+        if isRunningTests {
+            return true
+        }
+        // Allow in DEBUG builds for autonomous dev sessions
+        #if DEBUG
+            return true
+        #else
+            return false
+        #endif
     }
 
     /// Check if sudo NOPASSWD is configured and working for launchctl

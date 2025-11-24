@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>KeyPath Service Layer Strangler Fig</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            --blue: #0071e3;
+            --indigo: #5e5ce6;
+            --teal: #30d158;
+            --amber: #ffd60a;
+            --gray: rgba(60, 60, 67, 0.6);
+            --panel: rgba(255, 255, 255, 0.7);
+            --panel-dark: rgba(28, 28, 30, 0.65);
+        }
+        body {
+            margin: 0;
+            font-family: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+            color: #111;
+            background: radial-gradient(circle at top, #f4f4f7 0%, #e2e6ee 40%, #d7dbea 80%);
+            padding-bottom: 120px;
+        }
+        @media (prefers-color-scheme: dark) {
+            body {
+                color: #f5f5f7;
+                background: radial-gradient(circle at top, #1c1c1e 0%, #0f0f10 40%, #09090b 80%);
+            }
+        }
+        .hero {
+            padding: 80px 8vw 60px;
+            text-align: center;
+        }
+        h1 {
+            font-size: clamp(2.5rem, 4vw, 4rem);
+            margin-bottom: 0.5em;
+        }
+        .tagline {
+            font-size: 1.25rem;
+            color: var(--gray);
+        }
+        section {
+            margin: 40px auto;
+            width: min(1100px, 92vw);
+            background: var(--panel);
+            backdrop-filter: blur(18px);
+            border-radius: 28px;
+            padding: 36px 46px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.08);
+        }
+        @media (prefers-color-scheme: dark) {
+            section {
+                background: var(--panel-dark);
+                box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
+            }
+        }
+        h2 {
+            font-size: 1.75rem;
+            margin-top: 0;
+        }
+        .grid {
+            display: grid;
+            gap: 24px;
+        }
+        @media (min-width: 900px) {
+            .grid.two {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .grid.three {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+        .card {
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+        }
+        .metric {
+            font-size: 2.25rem;
+            font-weight: 600;
+            color: var(--blue);
+        }
+        .metric-label {
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.85rem;
+            color: var(--gray);
+        }
+        .timeline {
+            border-left: 3px solid var(--indigo);
+            padding-left: 24px;
+            margin-left: 10px;
+        }
+        .timeline-item {
+            margin-bottom: 26px;
+        }
+        .timeline-item h3 {
+            margin: 0 0 6px;
+            font-size: 1.2rem;
+        }
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 0.9rem;
+            background: rgba(0, 0, 0, 0.07);
+        }
+        .pill.done {
+            background: rgba(48, 209, 88, 0.15);
+            color: var(--teal);
+        }
+        .pill.next {
+            background: rgba(0, 113, 227, 0.15);
+            color: var(--blue);
+        }
+        .pill.risk {
+            background: rgba(255, 214, 10, 0.18);
+            color: var(--amber);
+        }
+        .diagram {
+            margin: 30px auto;
+            border-radius: 24px;
+            padding: 30px;
+            background: linear-gradient(135deg, rgba(0, 113, 227, 0.15), rgba(94, 92, 230, 0.15));
+        }
+        .diagram svg {
+            width: 100%;
+            height: auto;
+        }
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .table th,
+        .table td {
+            text-align: left;
+            padding: 14px 12px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+        }
+        .table th {
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-size: 0.85rem;
+            color: var(--gray);
+        }
+        .effort {
+            font-weight: 600;
+            color: var(--indigo);
+        }
+        footer {
+            text-align: center;
+            color: var(--gray);
+            margin-top: 60px;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <p class="pill done">InstallerEngine Era · November 2025</p>
+        <h1>Kanata Service Strangler Fig</h1>
+        <p class="tagline">From sprawling legacy managers to a single, testable façade.</p>
+    </div>
+
+    <section>
+        <h2>Where We Started</h2>
+        <div class="grid two">
+            <div class="card">
+                <div class="metric">7</div>
+                <div class="metric-label">independent start/repair paths</div>
+                <p>Wizard, CLI, Settings, helper scripts, and emergency flows all touched Kanata directly, fighting each other and prompting random admin dialogs.</p>
+            </div>
+            <div class="card">
+                <div class="metric">5</div>
+                <div class="metric-label">critical singletons with hidden side‑effects</div>
+                <p>`KanataManager`, `LaunchDaemonInstaller`, `ServiceHealthMonitor`, `ProcessLifecycleManager`, and the wizard each owned their own “truth.” Debugging was guesswork.</p>
+            </div>
+        </div>
+        <div class="diagram">
+            <svg viewBox="0 0 800 220">
+                <defs>
+                    <linearGradient id="fade" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#ff9a8b" stop-opacity="0.8"/>
+                        <stop offset="100%" stop-color="#ff6a88" stop-opacity="0.9"/>
+                    </linearGradient>
+                </defs>
+                <rect x="30" y="40" width="740" height="140" rx="28" fill="url(#fade)" opacity="0.25"/>
+                <text x="60" y="80" font-size="20" font-weight="600" fill="#3c3c43b3">2019-2024 Architecture</text>
+                <text x="60" y="120" font-size="16" fill="#3c3c43b3">• Multiple launchctl wrappers</text>
+                <text x="60" y="150" font-size="16" fill="#3c3c43b3">• Wizard owned its own PID cache & SMAppService</text>
+                <text x="60" y="180" font-size="16" fill="#3c3c43b3">• CLI restart logic drifted from GUI restart logic</text>
+                <text x="380" y="120" font-size="16" fill="#3c3c43b3">• Emergency stop bypassed privilege broker</text>
+                <text x="380" y="150" font-size="16" fill="#3c3c43b3">• Settings tab directly invoked InstallerEngine</text>
+                <text x="380" y="180" font-size="16" fill="#3c3c43b3">• SimpleMods wrote config + probed health on its own</text>
+            </svg>
+        </div>
+    </section>
+
+    <section>
+        <h2>What We’ve Delivered</h2>
+        <div class="grid two">
+            <div class="card">
+                <p class="pill done">Completed</p>
+                <h3>Unified façade</h3>
+                <ul>
+                    <li>All start/stop/restart entry points now route through `KanataService` → `ProcessCoordinator`.</li>
+                    <li>InstallerEngine runs only from the façade, so privilege prompts are predictable.</li>
+                    <li>Wizard Fix button, CLI repair, emergency stop, verbose logging toggle: same pipeline.</li>
+                </ul>
+            </div>
+            <div class="card">
+                <p class="pill done">Completed</p>
+                <h3>Runtime state ingestion</h3>
+                <ul>
+                    <li>`RuntimeCoordinator.inspectSystemContext()` feeds Settings, Wizard, SimpleMods health checks.</li>
+                    <li>`WizardStateManager` and helper docs now reflect façade-first workflows.</li>
+                    <li>`SimpleModsService` post-reload validation uses the shared context snapshot.</li>
+                </ul>
+            </div>
+        </div>
+        <div class="grid three" style="margin-top:24px;">
+            <div class="card">
+                <div class="metric">15+</div>
+                <div class="metric-label">direct call sites removed</div>
+                <p>InstallerEngine is no longer instantiated from SwiftUI views, wizard controllers, or CLI tools. Health checks now use façade APIs.</p>
+            </div>
+            <div class="card">
+                <div class="metric">4</div>
+                <div class="metric-label">new façade APIs</div>
+                <p>`getServiceStatus()`, `isServiceHealthy()`, `isServiceLoaded()`, `checkKanataServiceHealth()` provide unified health monitoring.</p>
+            </div>
+            <div class="card">
+                <div class="metric">11</div>
+                <div class="metric-label">new tests added</div>
+                <p>InstallerEngineHealthCheckTests verify façade methods work correctly and consistently.</p>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2>Remaining Strangler Fig Stages</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Stage</th>
+                    <th>Details</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>1. Internalize Repair Recipes</strong></td>
+                    <td>
+                        Collapsed `LaunchDaemonInstaller` actions into `InstallerEngine+Recipes`. Ported wizard-only driver flows. Reports now contain structured metadata with logs and commands.
+                    </td>
+                    <td><span class="pill done">✅ Complete</span></td>
+                </tr>
+                <tr>
+                    <td><strong>2. Expose Health Check APIs</strong></td>
+                    <td>
+                        Added façade methods: `getServiceStatus()`, `isServiceHealthy()`, `isServiceLoaded()`, `checkKanataServiceHealth()`. Migrated callers from direct `LaunchDaemonInstaller` usage.
+                    </td>
+                    <td><span class="pill done">✅ Complete</span></td>
+                </tr>
+                <tr>
+                    <td><strong>3. Test Sweep</strong></td>
+                    <td>
+                        Added `InstallerEngineHealthCheckTests` with 11 tests. Verified existing tests pass with façade changes. Updated documentation.
+                    </td>
+                    <td><span class="pill done">✅ Complete</span></td>
+                </tr>
+                <tr>
+                    <td><strong>4. Decommission Legacy Managers</strong></td>
+                    <td>
+                        Slim down `LaunchDaemonInstaller` further. Replace global singletons with scoped structs/actors where beneficial.
+                    </td>
+                    <td><span class="pill next">Next Up</span></td>
+                </tr>
+                <tr>
+                    <td><strong>5. Cleanroom Post-Refactor Pass</strong></td>
+                    <td>
+                        Final audit of docs/ADR, archive legacy helper scripts, update onboarding documentation.
+                    </td>
+                    <td class="effort">~1 day</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section>
+        <h2>Challenges & Risks</h2>
+        <div class="grid two">
+            <div class="card">
+                <p class="pill risk">Risk</p>
+                <h3>Karabiner driver flows</h3>
+                <p>The driver installer still leans on wizard-specific scripts. Moving those recipes inside the façade could surface new permission prompts or signing steps. We need to replicate the exact `LaunchDaemonInstaller` self-tests inside `InstallerEngine` to avoid regressions.</p>
+            </div>
+            <div class="card">
+                <p class="pill risk">Risk</p>
+                <h3>Observer churn</h3>
+                <p>Multiple notification centers (wizard, runtime coordinator, CLI) depend on legacy `Notification.Name` values. Removing the old managers requires a migration layer so we don’t break automation tests or user automation that listens for those notifications.</p>
+            </div>
+        </div>
+        <div class="card" style="margin-top:24px;">
+            <p class="pill risk">Mitigation Plan</p>
+            <ul>
+                <li>Land façade-internal rewrites behind a feature flag (`KEYPATH_NEW_SERVICE_CORE=1`) for one release.</li>
+                <li>Snapshot LaunchDaemon plist & binary signatures before/after each stage to guarantee parity.</li>
+                <li>Expand the smoke-test matrix (headless CLI, GUI wizard, SimpleMods apply) per stage.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section>
+        <h2>Celebrating the Momentum</h2>
+        <div class="timeline">
+            <div class="timeline-item">
+                <h3>Phase 1 · Surface Coordination <span class="pill done">Done</span></h3>
+                <p>Unified start/stop/restart UX across the app, CLI, wizard, and emergency flows.</p>
+            </div>
+            <div class="timeline-item">
+                <h3>Phase 2 · Health & Diagnostics <span class="pill done">Done</span></h3>
+                <p>Service health checks, diagnostics, and SimpleMods all share `inspectSystemContext()` snapshots.</p>
+            </div>
+            <div class="timeline-item">
+                <h3>Phase 3 · Helper & Docs Refresh <span class="pill done">Done</span></h3>
+                <p>Developers now learn the façade-first flow on day one; legacy docs are clearly marked historical.</p>
+            </div>
+            <div class="timeline-item">
+                <h3>Phase 4 · Core Rewrite <span class="pill done">Done</span></h3>
+                <p>Repair recipes internalized, health check APIs exposed, callers migrated to façade.</p>
+            </div>
+            <div class="timeline-item">
+                <h3>Phase 5 · Final Cleanup <span class="pill next">In Progress</span></h3>
+                <p>Slim legacy managers, archive outdated docs, final test sweep.</p>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        Built with ❤️ by the KeyPath team · “Great tools feel invisible.” — Apple Engineering Playbook
+    </footer>
+</body>
+</html>
+
