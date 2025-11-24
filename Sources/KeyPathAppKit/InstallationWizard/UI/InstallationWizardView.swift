@@ -856,8 +856,9 @@ struct InstallationWizardView: View {
                 if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon ||
                     action == .installCorrectVHIDDriver || action == .repairVHIDDaemonServices {
                     let smStatePost = await KanataDaemonManager.shared.refreshManagementState()
+                    let vhidHealthy = await VHIDDeviceManager().detectConnectionHealth()
 
-                    if karabinerStatus == .completed {
+                    if karabinerStatus == .completed || vhidHealthy {
                         if successToastPending {
                             await MainActor.run {
                                 toastManager.showSuccess(

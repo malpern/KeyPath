@@ -2,6 +2,7 @@ import ApplicationServices
 import Foundation
 import IOKit.hidsystem
 import KeyPathCore
+import KeyPathDaemonLifecycle
 import SwiftUI
 
 // MARK: - RuntimeCoordinator Configuration Extension
@@ -34,6 +35,19 @@ extension RuntimeCoordinator {
 
     /// Main reload method using TCP protocol
     func triggerConfigReload() async -> ReloadResult {
+        // Skip reloads if SMAppService is awaiting approval; avoid long TCP timeouts
+        let smState = await KanataDaemonManager.shared.refreshManagementState()
+        if smState == .smappservicePending {
+            AppLogger.shared.warn(
+                "⚠️ [Reload] Skipping TCP reload because SMAppService requires approval")
+            return ReloadResult(
+                success: false,
+                response: nil,
+                errorMessage: "Approve KeyPath in Login Items before reloading config",
+                protocol: nil
+            )
+        }
+
         // Phase 2: Just-in-time permission gating for reload
         if FeatureFlags.useJustInTimePermissionRequests {
             var allowed = false
