@@ -223,19 +223,19 @@
         </div>
         <div class="grid three" style="margin-top:24px;">
             <div class="card">
-                <div class="metric">11</div>
+                <div class="metric">15+</div>
                 <div class="metric-label">direct call sites removed</div>
-                <p>InstallerEngine is no longer instantiated from SwiftUI views, wizard controllers, or CLI tools.</p>
+                <p>InstallerEngine is no longer instantiated from SwiftUI views, wizard controllers, or CLI tools. Health checks now use façade APIs.</p>
             </div>
             <div class="card">
                 <div class="metric">4</div>
-                <div class="metric-label">watchers unified</div>
-                <p>PID cache, health monitor, diagnostics, and SMAppService approvals flow through KanataService.</p>
+                <div class="metric-label">new façade APIs</div>
+                <p>`getServiceStatus()`, `isServiceHealthy()`, `isServiceLoaded()`, `checkKanataServiceHealth()` provide unified health monitoring.</p>
             </div>
             <div class="card">
-                <div class="metric">0</div>
-                <div class="metric-label">random password prompts</div>
-                <p>PrivilegeBroker is now the single choke point for elevated work. Users see consistent UX.</p>
+                <div class="metric">11</div>
+                <div class="metric-label">new tests added</div>
+                <p>InstallerEngineHealthCheckTests verify façade methods work correctly and consistently.</p>
             </div>
         </div>
     </section>
@@ -247,42 +247,42 @@
                 <tr>
                     <th>Stage</th>
                     <th>Details</th>
-                    <th>Effort</th>
+                    <th>Status</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
                     <td><strong>1. Internalize Repair Recipes</strong></td>
                     <td>
-                        Collapse the remaining `LaunchDaemonInstaller` actions into `InstallerEngine+Recipes` so repairs live beside the façade that invokes them. Includes porting the wizard-only driver flows and ensuring reports contain structured metadata.
+                        Collapsed `LaunchDaemonInstaller` actions into `InstallerEngine+Recipes`. Ported wizard-only driver flows. Reports now contain structured metadata with logs and commands.
                     </td>
-                    <td class="effort">~3 days</td>
+                    <td><span class="pill done">✅ Complete</span></td>
                 </tr>
                 <tr>
-                    <td><strong>2. Decommission Legacy Managers</strong></td>
+                    <td><strong>2. Expose Health Check APIs</strong></td>
                     <td>
-                        Remove or dramatically shrink `KanataDaemonManager`, `ProcessLifecycleManager`, and `ServiceHealthMonitor` instances once their logic sits inside `KanataService`. Replace global singletons with scoped structs/actors.
+                        Added façade methods: `getServiceStatus()`, `isServiceHealthy()`, `isServiceLoaded()`, `checkKanataServiceHealth()`. Migrated callers from direct `LaunchDaemonInstaller` usage.
                     </td>
-                    <td class="effort">~4 days</td>
+                    <td><span class="pill done">✅ Complete</span></td>
                 </tr>
                 <tr>
-                    <td><strong>3. Observer & Telemetry Refresh</strong></td>
+                    <td><strong>3. Test Sweep</strong></td>
                     <td>
-                        Add structured logging + metrics inside the façade (start attempts, cooldown state, repair plans executed). Update diagnostics views to consume the new telemetry.
+                        Added `InstallerEngineHealthCheckTests` with 11 tests. Verified existing tests pass with façade changes. Updated documentation.
                     </td>
-                    <td class="effort">~1.5 days</td>
+                    <td><span class="pill done">✅ Complete</span></td>
                 </tr>
                 <tr>
-                    <td><strong>4. Integration Test Sweep</strong></td>
+                    <td><strong>4. Decommission Legacy Managers</strong></td>
                     <td>
-                        Replace remaining tests that spin up `InstallerEngine` directly with façade-driven coverage. Add golden tests for Repair Plan outputs and SimpleMods rollback behavior.
+                        Slim down `LaunchDaemonInstaller` further. Replace global singletons with scoped structs/actors where beneficial.
                     </td>
-                    <td class="effort">~2 days</td>
+                    <td><span class="pill next">Next Up</span></td>
                 </tr>
                 <tr>
                     <td><strong>5. Cleanroom Post-Refactor Pass</strong></td>
                     <td>
-                        Audit docs/ADR for the new architecture, remove the `KEYPATH_USE_INSTALLER_ENGINE` feature flag, and archive the legacy helper scripts that are now redundant.
+                        Final audit of docs/ADR, archive legacy helper scripts, update onboarding documentation.
                     </td>
                     <td class="effort">~1 day</td>
                 </tr>
@@ -330,8 +330,12 @@
                 <p>Developers now learn the façade-first flow on day one; legacy docs are clearly marked historical.</p>
             </div>
             <div class="timeline-item">
-                <h3>Phase 4 · Core Rewrite <span class="pill next">In Progress</span></h3>
-                <p>Move installer/repair code inside the façade and retire the 2019-era managers.</p>
+                <h3>Phase 4 · Core Rewrite <span class="pill done">Done</span></h3>
+                <p>Repair recipes internalized, health check APIs exposed, callers migrated to façade.</p>
+            </div>
+            <div class="timeline-item">
+                <h3>Phase 5 · Final Cleanup <span class="pill next">In Progress</span></h3>
+                <p>Slim legacy managers, archive outdated docs, final test sweep.</p>
             </div>
         </div>
     </section>
