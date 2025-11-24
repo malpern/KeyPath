@@ -32,10 +32,11 @@ enum SettingsTab: Hashable, CaseIterable {
 struct SettingsContainerView: View {
     @EnvironmentObject var kanataManager: KanataViewModel
     @State private var selection: SettingsTab = .status
+    @State private var canManageRules: Bool = true
 
     var body: some View {
         VStack(spacing: 0) {
-            SettingsTabPicker(selection: $selection)
+            SettingsTabPicker(selection: $selection, rulesEnabled: canManageRules)
                 .padding(.bottom, 12)
 
             Group {
@@ -45,7 +46,11 @@ struct SettingsContainerView: View {
                 case .status:
                     StatusSettingsTabView()
                 case .rules:
-                    RulesTabView()
+                    if canManageRules {
+                        RulesTabView()
+                    } else {
+                        RulesDisabledView(onOpenStatus: { selection = .status })
+                    }
                 case .advanced:
                     AdvancedSettingsTabView()
                 }
@@ -53,6 +58,7 @@ struct SettingsContainerView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(minWidth: 680, maxWidth: 680, minHeight: 550, idealHeight: 700)
+        .task { await refreshCanManageRules() }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsGeneral)) { _ in
             selection = .general
         }
@@ -67,10 +73,23 @@ struct SettingsContainerView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsRules)) { _ in
-            selection = .rules
+            selection = canManageRules ? .rules : .status
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .wizardClosed)) { _ in
+            Task { await refreshCanManageRules() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsAdvanced)) { _ in
             selection = .advanced
+        }
+    }
+
+    private func refreshCanManageRules() async {
+        let context = await InstallerEngine().inspectSystem()
+        await MainActor.run {
+            canManageRules = context.services.isHealthy && context.services.kanataRunning
+            if !canManageRules, selection == .rules {
+                selection = .status
+            }
         }
     }
 }
@@ -79,17 +98,24 @@ struct SettingsContainerView: View {
 
 private struct SettingsTabPicker: View {
     @Binding var selection: SettingsTab
+    let rulesEnabled: Bool
 
     var body: some View {
         HStack(spacing: 24) {
             ForEach(SettingsTab.allCases, id: \.self) { tab in
+                let disabled = (tab == .rules && !rulesEnabled)
                 SettingsTabButton(
                     tab: tab,
                     isSelected: selection == tab,
+                    disabled: disabled,
                     action: {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                            selection = tab
+                        guard !disabled else {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                                selection = .status
+                            }
+                            return
                         }
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { selection = tab }
                     }
                 )
             }
@@ -102,6 +128,7 @@ private struct SettingsTabPicker: View {
 private struct SettingsTabButton: View {
     let tab: SettingsTab
     let isSelected: Bool
+    let disabled: Bool
     let action: () -> Void
 
     var body: some View {
@@ -109,7 +136,8 @@ private struct SettingsTabButton: View {
             VStack(spacing: 8) {
                 Image(systemName: tab.icon)
                     .font(.system(size: 28, weight: .regular))
-                    .foregroundColor(isSelected ? Color.accentColor : Color.secondary)
+                    .foregroundColor(disabled ? Color.secondary.opacity(0.35)
+                        : (isSelected ? Color.accentColor : Color.secondary))
                     .frame(width: 54, height: 54)
                     .background(
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -118,19 +146,46 @@ private struct SettingsTabButton: View {
                     .overlay(
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
                             .stroke(
-                                isSelected ? Color.accentColor : Color(NSColor.separatorColor),
-                                lineWidth: isSelected ? 2 : 1
+                                disabled ? Color(NSColor.separatorColor)
+                                    : (isSelected ? Color.accentColor : Color(NSColor.separatorColor)),
+                                lineWidth: isSelected && !disabled ? 2 : 1
                             )
                     )
 
                 Text(tab.title)
                     .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
-                    .foregroundColor(isSelected ? .primary : .secondary)
+                    .foregroundColor(disabled ? .secondary.opacity(0.6)
+                        : (isSelected ? .primary : .secondary))
             }
             .frame(width: 120)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(disabled)
+    }
+}
+
+private struct RulesDisabledView: View {
+    let onOpenStatus: () -> Void
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "power")
+                .font(.system(size: 40, weight: .semibold))
+                .foregroundColor(.secondary)
+            Text("Turn on Kanata to manage rules.")
+                .font(.title3.weight(.semibold))
+            Text("Start the service on the Status tab, then return to manage rules.")
+                .font(.callout)
+                .multilineTextAlignment(.center)
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 40)
+            Button(action: onOpenStatus) {
+                Label("Go to Status", systemImage: "arrow.right.circle.fill")
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
