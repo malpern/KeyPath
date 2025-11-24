@@ -56,6 +56,11 @@ enum ActionDeterminer {
             }
         }
 
+        // If the SMAppService/launchd jobs are missing or Kanata isn't running, reinstall services
+        if !context.components.launchDaemonServicesHealthy || !context.services.kanataRunning {
+            actions.append(.installLaunchDaemonServices)
+        }
+
         // Check if daemon needs starting
         if !context.services.karabinerDaemonRunning {
             // Ensure manager is activated before starting daemon

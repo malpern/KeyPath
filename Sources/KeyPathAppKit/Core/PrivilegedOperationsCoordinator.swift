@@ -175,7 +175,8 @@ final class PrivilegedOperationsCoordinator {
 
         let now = Date()
         if let last = Self.lastServiceInstallAttempt,
-           now.timeIntervalSince(last) < Self.serviceInstallThrottle {
+           now.timeIntervalSince(last) < Self.serviceInstallThrottle
+        {
             let remaining = Self.serviceInstallThrottle - now.timeIntervalSince(last)
             AppLogger.shared.log(
                 "\(Self.serviceGuardLogPrefix) \(context): skipping auto-install (throttled, \(String(format: "%.1f", remaining))s remaining)"
@@ -364,6 +365,10 @@ final class PrivilegedOperationsCoordinator {
         case .directSudo:
             try await sudoInstallBundledKanata()
         }
+
+        // Ensure SMAppService launchd job exists after installing the binary
+        // (common case: fresh reinstall leaves service missing even though binary is present)
+        try await installServicesIfUninstalled(context: "installBundledKanata")
     }
 
     // Note: executeCommand removed for security. All privileged operations
@@ -888,7 +893,8 @@ final class PrivilegedOperationsCoordinator {
     private static func notifySMAppServiceApprovalRequired(context: String) {
         let now = Date()
         if let last = lastSMAppApprovalNotice,
-           now.timeIntervalSince(last) < smAppApprovalNoticeThrottle {
+           now.timeIntervalSince(last) < smAppApprovalNoticeThrottle
+        {
             return
         }
         lastSMAppApprovalNotice = now
