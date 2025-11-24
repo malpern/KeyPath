@@ -62,15 +62,34 @@ This document outlines the step-by-step plan to decompose the `KanataManager` mo
 ## Phase 4: The Final Split (Service Architecture)
 **Goal:** `KanataManager` becomes a thin coordinator.
 
-> **Progress (Nov 24, 2025):** Health/TCP monitoring has been consolidated inside `KanataService`, and `RuntimeCoordinator` now consumes the façade instead of talking to `ServiceHealthMonitor` directly. The wizard’s Kanata Service page (start/stop/restart/status), the Karabiner Components “post-fix” restart, the async “Start Service” operation, the nuclear “Reset Everything” flow, the fast-path branch of `restartUnhealthyServices()`, the LaunchDaemon install auto-fix, the Fix button’s restart/auto-fix chain, the CLI `keypath-cli repair` command (fast façade restart before `InstallerEngine`), the in-app Emergency Stop, `RuntimeCoordinator.restartServiceWithFallback`, the Settings Status tab (start/stop/status refresh, rules gating), the uninstall dialog, the wizard’s bulk Fix button fallback, the wizard state detector, and the SimpleMods service now all go through `RuntimeCoordinator`/`KanataService`. Remaining work is to route the few helper-only entry points (legacy helper UI, Settings toggle) that still invoke `InstallerEngine` directly.
-
-> **Remaining Direct Callers (Nov 24, 2025):**
->
-> 1. **Legacy helper documentation:** Helper onboarding notes and archived planning docs still instruct new devs to instantiate `InstallerEngine` directly. Update them to describe the façade-first approach (RuntimeCoordinator/KanataService/ProcessCoordinator).
+> **Progress (Nov 24, 2025):** 
+> 
+> ✅ **Façade Migration Complete:**
+> - Health/TCP monitoring consolidated inside `KanataService`
+> - `RuntimeCoordinator` consumes the façade instead of `ServiceHealthMonitor` directly
+> - All wizard flows (Kanata Service page, Components page, Reset Everything, etc.) use façade
+> - CLI commands (`keypath-cli repair`) route through `InstallerEngine`
+> - Settings Status tab, uninstall dialog, wizard state detector use façade
+> 
+> ✅ **Health Check APIs Exposed (Nov 24, 2025):**
+> - `InstallerEngine.getServiceStatus()` - aggregated service status
+> - `InstallerEngine.isServiceHealthy(serviceID:)` - per-service health check
+> - `InstallerEngine.isServiceLoaded(serviceID:)` - per-service load check
+> - `InstallerEngine.checkKanataServiceHealth(tcpPort:)` - Kanata running + TCP responsive
+> - Callers (`MainAppStateController`, `ConfigurationService`, `WizardAutoFixer`) migrated to façade
+> 
+> ✅ **Types Made Public:**
+> - `LaunchDaemonStatus` - service status snapshot
+> - `KanataHealthSnapshot` - Kanata health snapshot
+> - `KanataServiceHealth` - internal health type
+> 
+> **Remaining Work:**
+> 1. Update legacy helper documentation to describe façade-first approach
+> 2. Continue slimming `LaunchDaemonInstaller` as more logic moves to façade
 
 ### 6. Split into Functional Services
 Decompose the remaining logic into injected services:
-- [ ] **`ProcessCoordinator`**: Handles start/stop/restart logic (delegating to `InstallerEngine`). _Status:_ `ProcessCoordinator` now wraps `KanataService` for start/stop/restart (with installer fallback). Wizard flows (Kanata Service page, Components page post-fix, async Start button, Reset Everything, restartUnhealthyServices fast-path, LaunchDaemon install auto-fix, and the Fix button’s fast-path restart + auto-fix chain) now reuse the façade. Remaining direct callers: wizard repair recipes that still call `InstallerEngine.run(intent: .repair, using:)` for bulk fixes and helper-specific tools (e.g., CLI repair, legacy helper UI) that spin up their own `PrivilegeBroker`. Next step is to route those repair recipes through façade helpers (start/stop/status) before invoking InstallerEngine for heavy installs.
+- [x] **`ProcessCoordinator`**: Handles start/stop/restart logic (delegating to `InstallerEngine`). _Status:_ `ProcessCoordinator` now wraps `KanataService` for start/stop/restart (with installer fallback). Wizard flows now reuse the façade. Remaining direct callers have been migrated.
 - [x] **`HealthMonitor`**: Ensure it owns *all* health logic. _Status:_ `KanataService` now owns `ServiceHealthMonitor`, and callers (RuntimeCoordinator, DiagnosticsManager, TCP reloads) invoke façade helpers instead of keeping their own monitors.
 - [x] **`DiagnosticService`**: Ensure it owns *all* log parsing (remove `analyzeLogContent` from Manager). _Status:_ `DiagnosticsService` now performs log parsing and real-time VirtualHID monitoring; RuntimeCoordinator simply forwards events.
 
@@ -84,15 +103,29 @@ Decompose the remaining logic into injected services:
 graph TD
     UI[SwiftUI Views] --> ViewModel[KanataViewModel]
     
-    ViewModel --> Coordinator[RuntimeCoordinator (old KanataManager)]
+    ViewModel --> Coordinator[RuntimeCoordinator]
     
+    Coordinator --> InstallerEngine[InstallerEngine Façade]
+    Coordinator --> KanataService[KanataService]
     Coordinator --> ConfigService[ConfigurationService]
-    Coordinator --> ProcessService[InstallerEngine / ProcessCoordinator]
-    Coordinator --> AIService[<<AIConfigRepairService>>]
+    
+    InstallerEngine --> LaunchDaemonInstaller[LaunchDaemonInstaller]
+    InstallerEngine --> SystemValidator[SystemValidator]
+    InstallerEngine --> PrivilegeBroker[PrivilegeBroker]
+    
+    KanataService --> HealthMonitor[ServiceHealthMonitor]
+    KanataService --> ProcessLifecycle[ProcessLifecycleManager]
     
     ConfigService --> Constants[SystemConstants]
-    ProcessService --> Constants
-    
-    AIService -.-> Anthropic[AnthropicProvider]
-    AIService -.-> Ollama[OllamaProvider]
 ```
+
+## Summary
+
+The strangler fig refactor is **substantially complete**. The façade (`InstallerEngine`) now provides:
+
+1. **System Inspection:** `inspectSystem()` returns a `SystemContext` snapshot
+2. **Repair/Install:** `run(intent:using:)` chains inspect → plan → execute
+3. **Health Checks:** `getServiceStatus()`, `isServiceHealthy()`, `checkKanataServiceHealth()`
+4. **Single Actions:** `runSingleAction(_:using:)` for targeted repairs
+
+All major callers have been migrated to use the façade. The remaining work is documentation updates and continued cleanup of legacy code paths.
