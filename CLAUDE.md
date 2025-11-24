@@ -22,13 +22,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - feat: CLI migration (Phase 6)
 
 **⚠️ INCOMPLETE WORK (requires follow-up):**
-- **Strangler Fig Phase 4:** Decommission legacy managers (slim LaunchDaemonInstaller further)
-- **Strangler Fig Phase 5:** Cleanroom post-refactor pass (audit docs, archive legacy scripts)
 - ADR-012: Karabiner driver version detection implemented but NOT wired to Fix button
 - TODO: Connect VHIDDeviceManager.downloadAndInstallCorrectVersion() to WizardAutoFixer
 - TODO: Show version mismatch dialog when user clicks Fix button
 - TODO: When kanata v1.10 is released, update requiredDriverVersionMajor to 6
 - HELPER.md: Phase 1 complete (coordinator extraction), Phase 2-4 pending (XPC helper)
+
+**✅ COMPLETED (Nov 24, 2025):**
+- **Strangler Fig Migration:** All 5 phases complete
+  - Phase 1: Internalize Repair Recipes ✅
+  - Phase 2: Expose Health Check APIs ✅
+  - Phase 3: Test Sweep ✅
+  - Phase 4: Decommission Legacy Managers ✅
+  - Phase 5: Cleanroom Post-Refactor Pass ✅
 
 **Core Architecture (Stable):**
 - **InstallerEngine:** Primary façade for all installation/repair logic (Strangler Fig complete)
