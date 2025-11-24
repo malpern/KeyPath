@@ -193,8 +193,8 @@ actor HelperManager {
                 let data = out.fileHandleForReading.readDataToEndOfFile()
                 let s = String(data: data, encoding: .utf8) ?? ""
                 if s.contains("program") || s.contains("state =") || s.contains("pid =") {
-                    AppLogger.shared.log(
-                        "ℹ️ [HelperManager] launchctl reports helper present while SMAppService status=\(svc.status)"
+                    AppLogger.shared.debug(
+                        "[HelperManager] launchctl reports helper present while SMAppService status=\(svc.status)"
                     )
                     return true
                 }
