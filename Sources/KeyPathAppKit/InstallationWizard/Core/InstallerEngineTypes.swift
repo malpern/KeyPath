@@ -232,12 +232,25 @@ public struct RecipeResult: Sendable, Equatable {
     public let error: String?
     /// How long it took (seconds)
     public let duration: TimeInterval
+    /// Structured log lines captured during execution
+    public let logs: [String]
+    /// Shell command(s) that were run (for diagnostics)
+    public let commandsRun: [String]
 
-    public init(recipeID: String, success: Bool, error: String? = nil, duration: TimeInterval = 0) {
+    public init(
+        recipeID: String,
+        success: Bool,
+        error: String? = nil,
+        duration: TimeInterval = 0,
+        logs: [String] = [],
+        commandsRun: [String] = []
+    ) {
         self.recipeID = recipeID
         self.success = success
         self.error = error
         self.duration = duration
+        self.logs = logs
+        self.commandsRun = commandsRun
     }
 }
 

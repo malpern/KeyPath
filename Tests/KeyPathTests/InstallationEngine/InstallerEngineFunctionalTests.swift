@@ -688,7 +688,7 @@ final class InstallerEngineFunctionalTests: XCTestCase {
     }
 }
 
-private final class TestSMAppService: SMAppServiceProtocol {
+private final class TestSMAppService: SMAppServiceProtocol, @unchecked Sendable {
     var status: ServiceManagement.SMAppService.Status
     var registerCallCount = 0
     var unregisterCallCount = 0

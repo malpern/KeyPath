@@ -4,6 +4,7 @@ import KeyPathCore
 /// Cache for LaunchDaemon PID lookups to prevent repeated expensive launchctl calls
 /// Solves race condition where rapid process checks cause inconsistent conflict detection
 public actor LaunchDaemonPIDCache {
+    public init() {}
     // MARK: - State
 
     private var cachedPID: pid_t?

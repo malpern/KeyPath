@@ -84,7 +84,7 @@ struct SettingsContainerView: View {
     }
 
     private func refreshCanManageRules() async {
-        let context = await InstallerEngine().inspectSystem()
+        let context = await kanataManager.inspectSystemContext()
         await MainActor.run {
             canManageRules = context.services.isHealthy && context.services.kanataRunning
             if !canManageRules, selection == .rules {
@@ -680,6 +680,7 @@ private struct AdvancedDuplicateCallout: View {
 // MARK: - Verbose Logging Toggle
 
 struct VerboseLoggingToggle: View {
+    @EnvironmentObject var kanataManager: KanataViewModel
     @State private var verboseLogging = PreferencesService.shared.verboseKanataLogging
     @State private var showingRestartAlert = false
 
@@ -737,7 +738,9 @@ struct VerboseLoggingToggle: View {
 
     private func restartKanataService() async {
         AppLogger.shared.log("🔄 [VerboseLogging] Restarting Kanata service with new logging flags")
-        // Post notification to trigger service restart
-        NotificationCenter.default.post(name: .retryStartService, object: nil)
+        let success = await kanataManager.restartKanata(reason: "Verbose logging toggle")
+        if !success {
+            AppLogger.shared.error("❌ [VerboseLogging] Kanata restart failed after verbose toggle")
+        }
     }
 }

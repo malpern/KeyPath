@@ -282,6 +282,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var kanataManager: RuntimeCoordinator?
     var isHeadlessMode = false
     private var mainWindowController: MainWindowController?
+    private var menuBarController: MenuBarController?
     private var initialMainWindowShown = false
     private var pendingReopenShow = false
 
@@ -352,6 +353,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Phase 2/3: TCP-only mode (no authentication needed)
         AppLogger.shared.debug("📡 [AppDelegate] TCP communication mode - no auth token needed")
 
+        if !isHeadlessMode {
+            setupMenuBarController()
+        }
+
         // Legacy LaunchAgent support removed
 
         // Check for pending service bounce first
@@ -385,10 +390,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
 
                 // Start kanata if not already running
-                let engine = InstallerEngine()
-                let context = await engine.inspectSystem()
-                if !context.services.kanataRunning {
-                    _ = await engine.run(intent: .repair, using: PrivilegeBroker())
+                if let manager = self.kanataManager {
+                    let started = await manager.startKanata(reason: "Headless auto-start")
+                    if !started {
+                        AppLogger.shared.error("❌ [AppDelegate] Headless auto-start failed via KanataService")
+                    }
+                } else {
+                    AppLogger.shared.error("❌ [AppDelegate] Headless auto-start failed: RuntimeCoordinator unavailable")
                 }
             }
         }
@@ -416,15 +424,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 let result = PermissionGrantCoordinator.shared.checkForPendingPermissionGrant()
                 if !result.shouldRestart {
                     AppLogger.shared.log("🚀 [AppDelegate] Starting auto-launch sequence (simple)")
-                    // Replaced deprecated startAutoLaunch with InstallerEngine check & repair
-                    Task {
-                        let engine = InstallerEngine()
-                        let context = await engine.inspectSystem()
-                        if !context.services.kanataRunning {
-                            _ = await engine.run(intent: .repair, using: PrivilegeBroker())
+                    if let manager = self.kanataManager {
+                        let started = await manager.startKanata(reason: "AppDelegate auto-launch")
+                        if started {
+                            AppLogger.shared.log("✅ [AppDelegate] Auto-launch sequence completed (simple)")
+                        } else {
+                            AppLogger.shared.error("❌ [AppDelegate] Auto-launch failed via KanataService")
                         }
+                    } else {
+                        AppLogger.shared.error(
+                            "❌ [AppDelegate] Auto-launch requested but RuntimeCoordinator unavailable"
+                        )
                     }
-                    AppLogger.shared.log("✅ [AppDelegate] Auto-launch sequence completed (simple)")
                 } else {
                     AppLogger.shared.log(
                         "⏭️ [AppDelegate] Skipping auto-launch (returning from permission grant)")
@@ -438,15 +449,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         // Observe notification action events
-        NotificationCenter.default.addObserver(forName: .retryStartService, object: nil, queue: .main) {
-            [weak self] _ in
+        NotificationCenter.default.addObserver(forName: .retryStartService, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in
                 AppLogger.shared.log("🔄 [App] Retry start requested via notification")
-                let engine = InstallerEngine()
-                let broker = PrivilegeBroker()
-                let report = await engine.run(intent: .repair, using: broker)
-                if !report.success {
-                    AppLogger.shared.error("❌ [App] Retry start failed: \(report.failureReason ?? "Unknown")")
+                guard let manager = self?.kanataManager else {
+                    AppLogger.shared.error("❌ [App] Retry start requested but RuntimeCoordinator unavailable")
+                    return
+                }
+                let success = await manager.restartServiceWithFallback(reason: "Notification retryStartService")
+                if !success {
+                    AppLogger.shared.error("❌ [App] Retry start failed via KanataService fallback")
                 }
             }
         }
@@ -466,6 +478,48 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.kanataManager?.openAccessibilitySettings()
             }
         }
+    }
+
+    private func setupMenuBarController() {
+        guard menuBarController == nil else { return }
+        menuBarController = MenuBarController(
+            bringToFrontHandler: { [weak self] in
+                self?.showKeyPathFromStatusItem()
+            },
+            showWizardHandler: {
+                NotificationCenter.default.post(name: NSNotification.Name("ShowWizard"), object: nil)
+            },
+            uninstallHandler: {
+                NotificationCenter.default.post(name: NSNotification.Name("ShowUninstall"), object: nil)
+            },
+            quitHandler: {
+                NSApplication.shared.terminate(nil)
+            }
+        )
+        AppLogger.shared.debug("☰ [MenuBar] Status item initialized")
+    }
+
+    private func showKeyPathFromStatusItem() {
+        AppLogger.shared.debug("☰ [MenuBar] Show KeyPath requested from status item")
+
+        if mainWindowController == nil {
+            if let manager = kanataManager {
+                mainWindowController = MainWindowController(kanataManager: manager)
+                AppLogger.shared.debug("🪟 [MenuBar] Created main window controller for status item request")
+            } else {
+                AppLogger.shared.error("❌ [MenuBar] Cannot show KeyPath: RuntimeCoordinator unavailable")
+                return
+            }
+        }
+
+        if NSApp.isHidden {
+            NSApp.unhide(nil)
+        }
+
+        NSApp.activate(ignoringOtherApps: true)
+        mainWindowController?.show(focus: true)
+        initialMainWindowShown = true
+        pendingReopenShow = false
     }
 
     func applicationWillResignActive(_: Notification) {

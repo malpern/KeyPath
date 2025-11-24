@@ -157,8 +157,6 @@ struct StatusSettingsTabView: View {
     @State private var duplicateAppCopies: [String] = []
     @State private var settingsToastManager = WizardToastManager()
     @State private var showingPermissionAlert = false
-    private let installerEngine = InstallerEngine()
-    private let privilegeBroker = PrivilegeBroker()
     @State private var refreshRetryScheduled = false
 
     private var isServiceRunning: Bool {
@@ -497,8 +495,8 @@ struct StatusSettingsTabView: View {
     // MARK: - Helpers
 
     private func refreshStatus() async {
-        // Use InstallerEngine to get fresh status (stateless, no side effects)
-        let context = await installerEngine.inspectSystem()
+        // Use RuntimeCoordinator (via façade) to get fresh status
+        let context = await kanataManager.inspectSystemContext()
         let snapshot = context.permissions
         let duplicates = HelperMaintenance.shared.detectDuplicateAppCopies()
 
@@ -524,44 +522,18 @@ struct StatusSettingsTabView: View {
     }
 
     private func startViaInstallerEngine() async {
-        // Fresh context
-        let context = await installerEngine.inspectSystem()
-
-        // If already running, exit early
-        if context.services.kanataRunning {
-            await refreshStatus()
-            await MainActor.run { settingsToastManager.showSuccess("KeyPath is already running") }
-            return
+        await MainActor.run {
+            settingsToastManager.showInfo("Starting…")
         }
 
-        // Otherwise run a repair plan to bring services up
-        // Note: Minimal start path removed as it was unreachable dead code
-        let plan = await installerEngine.makePlan(for: .repair, context: context)
-        let report = await installerEngine.execute(plan: plan, using: privilegeBroker)
-
-        // Poll briefly for service to come up
-        var running = false
-        for _ in 0 ..< 6 {
-            let ctx = await installerEngine.inspectSystem()
-            await MainActor.run {
-                systemContext = ctx
-                permissionSnapshot = ctx.permissions
-                showSetupBanner = !(ctx.permissions.isSystemReady && ctx.services.isHealthy)
-            }
-            if ctx.services.kanataRunning {
-                running = true
-                break
-            }
-            try? await Task.sleep(nanoseconds: 300_000_000) // 0.3s
-        }
+        let started = await kanataManager.startKanata(reason: "Status tab start button")
+        await refreshStatus()
 
         await MainActor.run {
-            if report.success, running {
+            if started {
                 settingsToastManager.showSuccess("KeyPath activated")
             } else {
-                let reason = report.failureReason
-                    ?? report.unmetRequirements.first?.name
-                    ?? "Service not running yet"
+                let reason = kanataManager.lastError ?? "Service did not start"
                 settingsToastManager.showError("Start failed: \(reason)")
             }
         }
@@ -590,16 +562,14 @@ struct StatusSettingsTabView: View {
     }
 
     private func stopViaInstallerEngine() async {
-        do {
-            // Stop Kanata only; leave VHID/Karabiner services running to avoid extra prompts.
-            try await privilegeBroker.stopKanataService()
-            await refreshStatus()
-            await MainActor.run {
+        let stopped = await kanataManager.stopKanata(reason: "Status tab stop button")
+        await refreshStatus()
+        await MainActor.run {
+            if stopped {
                 settingsToastManager.showInfo("KeyPath deactivated")
-            }
-        } catch {
-            await MainActor.run {
-                settingsToastManager.showError("Stop failed: \(error.localizedDescription)")
+            } else {
+                let reason = kanataManager.lastError ?? "Service did not stop"
+                settingsToastManager.showError("Stop failed: \(reason)")
             }
         }
     }

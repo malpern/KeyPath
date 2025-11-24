@@ -214,17 +214,15 @@ struct WizardKanataServicePage: View {
         serviceStatus = .starting
         lastError = nil
 
-        Task {
-            // Use InstallerEngine to start service
-            _ = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
+        Task { @MainActor in
+            let success = await kanataManager.startKanata(reason: "Wizard service start button")
+            if !success {
+                lastError = kanataManager.lastError
+            }
 
-            await MainActor.run {
-                isPerformingAction = false
-            }
+            isPerformingAction = false
             await refreshStatusAsync()
-            await MainActor.run {
-                evaluateServiceCompletion(target: .running, actionName: "Kanata start")
-            }
+            evaluateServiceCompletion(target: .running, actionName: "Kanata start")
         }
     }
 
@@ -233,44 +231,32 @@ struct WizardKanataServicePage: View {
         serviceStatus = .stopping
         lastError = nil
 
-        Task {
-            // Use InstallerEngine to restart (repair)
-            _ = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
-            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+        Task { @MainActor in
+            let success = await kanataManager.restartServiceWithFallback(reason: "Wizard service restart button")
+            if !success {
+                lastError = kanataManager.lastError
+            }
 
-            await MainActor.run {
-                isPerformingAction = false
-            }
+            isPerformingAction = false
             await refreshStatusAsync()
-            await MainActor.run {
-                evaluateServiceCompletion(target: .running, actionName: "Kanata restart")
-            }
+            evaluateServiceCompletion(target: .running, actionName: "Kanata restart")
         }
     }
 
     private func stopService() {
         isPerformingAction = true
         serviceStatus = .stopping
+        lastError = nil
 
-        Task {
-            // Use InstallerEngine to stop (uninstall/stop service)
-            // InstallerEngine doesn't have explicit 'stop' intent, but 'uninstall' removes service.
-            // If we just want to stop, we might need a different approach or add 'stop' intent.
-            // For now, using PrivilegeBroker directly or just uninstalling logic?
-            // Actually, 'stop' usually means unload service.
-
-            try? await PrivilegeBroker().stopKanataService()
-
-            // Give it a moment to stop
-            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-
-            await MainActor.run {
-                isPerformingAction = false
+        Task { @MainActor in
+            let success = await kanataManager.stopKanata(reason: "Wizard service stop button")
+            if !success {
+                lastError = kanataManager.lastError
             }
+
+            isPerformingAction = false
             await refreshStatusAsync()
-            await MainActor.run {
-                evaluateServiceCompletion(target: .stopped, actionName: "Kanata stop")
-            }
+            evaluateServiceCompletion(target: .stopped, actionName: "Kanata stop")
         }
     }
 
@@ -281,38 +267,75 @@ struct WizardKanataServicePage: View {
     }
 
     private func refreshStatusAsync() async {
-        // Check running state via InstallerEngine
-        let isRunning = await InstallerEngine().inspectSystem().services.kanataRunning
+        let serviceState = await kanataManager.currentServiceState()
 
-        // Use the same ServiceStatusEvaluator as summary page (SINGLE SOURCE OF TRUTH)
         let processStatus = ServiceStatusEvaluator.evaluate(
-            kanataIsRunning: isRunning,
+            kanataIsRunning: serviceState.isRunning,
             systemState: systemState,
             issues: issues
         )
 
         await MainActor.run {
             withAnimation(.easeInOut(duration: 0.3)) {
-                switch processStatus {
-                case .running:
-                    serviceStatus = .running
-                    lastError = nil
-                    AppLogger.shared.log(
-                        "✅ [ServiceStatus] Service confirmed functional via shared evaluator")
-
-                case let .failed(message):
-                    serviceStatus = .crashed(error: message ?? "Permission or service issue detected")
-                    lastError = message
-                    AppLogger.shared.log(
-                        "⚠️ [ServiceStatus] Service failed via shared evaluator: \(message ?? "unknown")")
-
-                case .stopped:
-                    // Preserve existing crash log heuristic when stopped
-                    checkForCrash()
-                    AppLogger.shared.log("🔍 [ServiceStatus] Service stopped - checking for crash indicators")
-                }
+                applyStatusUpdate(serviceState: serviceState, processStatus: processStatus)
             }
         }
+    }
+
+    @MainActor
+    private func applyStatusUpdate(
+        serviceState: KanataService.ServiceState,
+        processStatus: ServiceProcessStatus
+    ) {
+        var derivedStatus: ServiceStatus
+        var derivedError: String?
+
+        switch serviceState {
+        case .running:
+            derivedStatus = .running
+        case .stopped:
+            derivedStatus = .stopped
+        case let .failed(reason):
+            derivedStatus = .crashed(error: reason)
+            derivedError = reason
+        case .maintenance:
+            derivedStatus = .starting
+        case .requiresApproval:
+            let message = "Approval required in System Settings ▸ Privacy & Security"
+            derivedStatus = .crashed(error: message)
+            derivedError = message
+        case .unknown:
+            derivedStatus = .unknown
+        }
+
+        switch processStatus {
+        case .running:
+            break
+        case let .failed(message):
+            let errorMessage = message ?? "Permission or service issue detected"
+            derivedStatus = .crashed(error: errorMessage)
+            derivedError = errorMessage
+        case .stopped:
+            // If we previously thought it was running, align with evaluator
+            if derivedStatus == .running {
+                derivedStatus = .stopped
+            }
+        }
+
+        if case .stopped = derivedStatus {
+            AppLogger.shared.log("🔍 [ServiceStatus] Service stopped - checking for crash indicators")
+            checkForCrash()
+            return
+        }
+
+        if case .running = derivedStatus {
+            AppLogger.shared.log("✅ [ServiceStatus] Service confirmed functional via shared evaluator")
+        } else if case let .crashed(error) = derivedStatus {
+            AppLogger.shared.log("⚠️ [ServiceStatus] Service failed: \(error)")
+        }
+
+        serviceStatus = derivedStatus
+        lastError = derivedError
     }
 
     private func checkForCrash() {

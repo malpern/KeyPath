@@ -44,7 +44,7 @@ final class HelperManagerTests: XCTestCase {
 
 // MARK: - Test Doubles
 
-private struct FakeSMAppService: SMAppServiceProtocol {
+private struct FakeSMAppService: SMAppServiceProtocol, @unchecked Sendable {
     let status: SMAppService.Status
     let registerError: Error
     func register() throws { throw registerError }

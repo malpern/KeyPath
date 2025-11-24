@@ -3,12 +3,7 @@ import SwiftUI
 
 struct UninstallKeyPathDialog: View {
     @Environment(\.dismiss) private var dismiss
-
-    // InstallerEngine façade for uninstall
-    private let installerEngine = InstallerEngine()
-    private var privilegeBroker: PrivilegeBroker {
-        PrivilegeBroker()
-    }
+    @EnvironmentObject var kanataManager: KanataViewModel
 
     // Local state tracking
     @State private var isRunning = false
@@ -80,9 +75,8 @@ struct UninstallKeyPathDialog: View {
             lastError = nil
         }
 
-        let broker = privilegeBroker
         // Always delete config for simplicity - user can reinstall fresh
-        let report = await installerEngine.uninstall(deleteConfig: true, using: broker)
+        let report = await kanataManager.uninstall(deleteConfig: true)
 
         await MainActor.run {
             isRunning = false

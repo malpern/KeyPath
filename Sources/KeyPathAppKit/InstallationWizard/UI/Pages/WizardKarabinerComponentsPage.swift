@@ -393,9 +393,8 @@ struct WizardKarabinerComponentsPage: View {
         }
     }
 
-    /// Smart handler for Background Services Fix button
-    /// Attempts repair first, falls back to system settings
-    // Legacy handlers removed in favor of combined flow
+    // Smart handler for Background Services Fix button. Attempts repair first, falls back to system settings.
+    // Legacy handlers removed in favor of combined flow.
 
     /// Attempts automatic repair of Karabiner driver issues
     private func performAutomaticDriverRepair() async -> Bool {
@@ -482,10 +481,16 @@ struct WizardKarabinerComponentsPage: View {
 
         // If everything else is healthy but the service isn’t running yet, try to start it now so
         // the summary doesn’t bounce back with a “Start Kanata Service” error.
-        let isRunning = await InstallerEngine().inspectSystem().services.kanataRunning
-        if !isRunning {
-            AppLogger.shared.log("🔄 [Karabiner Fix] Post-fix: Kanata not running, attempting start")
-            _ = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
+        let serviceState = await kanataManager.currentServiceState()
+        guard !serviceState.isRunning else {
+            return
+        }
+
+        AppLogger.shared.log("🔄 [Karabiner Fix] Post-fix: Kanata not running, attempting restart via KanataService")
+        let restarted = await kanataManager.restartServiceWithFallback(reason: "Wizard driver/service repair follow-up")
+
+        if !restarted {
+            AppLogger.shared.warn("⚠️ [Karabiner Fix] Post-fix restart failed - service may still be inactive")
         }
     }
 }
