@@ -95,7 +95,8 @@ class LaunchDaemonInstaller {
 
     /// Test admin dialog capability - use this to diagnose osascript issues
     /// NOTE: This is a blocking operation that should not be called during startup
-    func testAdminDialog() -> Bool {
+    /// Internal use only - not part of the public API
+    private func testAdminDialog() -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Testing admin dialog capability...")
         AppLogger.shared.log(
             "🔧 [LaunchDaemon] Current thread: \(Thread.isMainThread ? "main" : "background")")
@@ -341,7 +342,8 @@ class LaunchDaemonInstaller {
 
     /// Checks if the bundled kanata is newer than the system-installed version
     /// Returns true if an upgrade is needed
-    func shouldUpgradeKanata() -> Bool {
+    /// Internal use only - called by installation flows
+    private func shouldUpgradeKanata() -> Bool {
         let systemPath = WizardSystemPaths.kanataSystemInstallPath
         let bundledPath = WizardSystemPaths.bundledKanataPath
 
@@ -510,6 +512,7 @@ class LaunchDaemonInstaller {
     }
 
     /// Creates and installs the Kanata LaunchDaemon service via SMAppService
+    /// Internal - exposed for testing
     func createKanataLaunchDaemon() async -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Creating Kanata LaunchDaemon service via SMAppService")
         return await createKanataLaunchDaemonViaSMAppService()
@@ -577,7 +580,8 @@ class LaunchDaemonInstaller {
     }
 
     /// Creates and installs the VirtualHIDDevice Daemon LaunchDaemon service
-    func createVHIDDaemonService() -> Bool {
+    /// Internal use only - called by createAllLaunchDaemonServicesInstallOnly
+    private func createVHIDDaemonService() -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Creating VHIDDevice Daemon LaunchDaemon service")
 
         let plistContent = generateVHIDDaemonPlist()
@@ -587,7 +591,8 @@ class LaunchDaemonInstaller {
     }
 
     /// Creates and installs the VirtualHIDDevice Manager LaunchDaemon service
-    func createVHIDManagerService() -> Bool {
+    /// Internal use only - called by createAllLaunchDaemonServicesInstallOnly
+    private func createVHIDManagerService() -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Creating VHIDDevice Manager LaunchDaemon service")
 
         let plistContent = generateVHIDManagerPlist()
@@ -664,6 +669,7 @@ class LaunchDaemonInstaller {
     }
 
     /// Loads all KeyPath LaunchDaemon services
+    /// Internal - exposed for testing
     func loadServices() async -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Loading all KeyPath LaunchDaemon services")
 
@@ -1780,7 +1786,8 @@ class LaunchDaemonInstaller {
     // MARK: - Cleanup Methods
 
     /// Removes all KeyPath LaunchDaemon services
-    func removeAllServices() async -> Bool {
+    /// Internal use only - not currently used but kept for future uninstall flows
+    private func removeAllServices() async -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Removing all KeyPath LaunchDaemon services")
 
         let services = [Self.kanataServiceID, Self.vhidDaemonServiceID, Self.vhidManagerServiceID]
@@ -1864,6 +1871,7 @@ class LaunchDaemonInstaller {
     }
 
     /// Check if Kanata service plist file exists (but may not be loaded)
+    /// Internal - exposed for testing
     func isKanataPlistInstalled() -> Bool {
         FileManager.default.fileExists(atPath: Self.kanataPlistPath)
     }
@@ -1913,6 +1921,7 @@ class LaunchDaemonInstaller {
     }
 
     /// Verifies that the installed VHID LaunchDaemon plist points to the DriverKit daemon path
+    /// Internal - exposed for testing
     func isVHIDDaemonConfiguredCorrectly() -> Bool {
         let plistPath = "\(Self.launchDaemonsPath)/\(Self.vhidDaemonServiceID).plist"
         guard let dict = NSDictionary(contentsOfFile: plistPath) as? [String: Any] else {
@@ -2580,8 +2589,9 @@ class LaunchDaemonInstaller {
 
     /// Regenerates Kanata service plist with current TCP settings
     /// GUARD: Skips regeneration if SMAppService is active (SMAppService manages its own plist)
+    /// Internal use only
     @MainActor
-    func regenerateServiceWithCurrentSettings() -> Bool {
+    private func regenerateServiceWithCurrentSettings() -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Regenerating Kanata service with current TCP settings")
 
         // GUARD: Check if SMAppService is active - if so, don't regenerate legacy plist
@@ -2621,8 +2631,9 @@ class LaunchDaemonInstaller {
     }
 
     /// Reloads a service using bootout/bootstrap pattern for plist changes
+    /// Internal use only - called by regenerateServiceWithCurrentSettings
     @MainActor
-    func reloadService(serviceID: String, plistPath: String, tempPlistPath: String) -> Bool {
+    private func reloadService(serviceID: String, plistPath: String, tempPlistPath: String) -> Bool {
         AppLogger.shared.log(
             "🔧 [LaunchDaemon] Reloading service \(serviceID) with bootout/bootstrap pattern")
 
@@ -2790,7 +2801,8 @@ class LaunchDaemonInstaller {
     }
 
     /// Check if log rotation service is already installed
-    func isLogRotationServiceInstalled() -> Bool {
+    /// Internal use only
+    private func isLogRotationServiceInstalled() -> Bool {
         let plistPath = "\(Self.systemLaunchDaemonsDir)/\(Self.logRotationServiceID).plist"
         let scriptPath = Self.logRotationScriptPath
 
