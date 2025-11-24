@@ -4,10 +4,19 @@ import os.lock
 import Security
 import ServiceManagement
 
-/// Manages LaunchDaemon installation and configuration for KeyPath services
-/// Implements the production-ready LaunchDaemon architecture identified in the installer improvement analysis
+/// Manages LaunchDaemon installation and configuration for KeyPath services.
 ///
-/// IMPORTANT: Service Dependency Order
+/// ## Migration Notice
+/// This class is being phased out as part of the Strangler Fig refactor.
+/// New code should use `InstallerEngine` instead:
+/// - For service status: `InstallerEngine().getServiceStatus()`
+/// - For health checks: `InstallerEngine().isServiceHealthy(serviceID:)`
+/// - For repairs: `InstallerEngine().run(intent: .repair, using: broker)`
+///
+/// Low-level primitives (plist generation, launchctl commands) will remain
+/// but orchestration logic is moving to `InstallerEngine`.
+///
+/// ## Service Dependency Order
 /// The services MUST be bootstrapped in this specific order:
 /// 1. VirtualHID Daemon (com.keypath.karabiner-vhiddaemon) - provides base VirtualHID framework
 /// 2. VirtualHID Manager (com.keypath.karabiner-vhidmanager) - manages VirtualHID devices
@@ -44,9 +53,9 @@ class LaunchDaemonInstaller {
         WizardSystemPaths.remapSystemPath("/usr/local/bin/keypath-logrotate.sh")
     }
 
-    struct KanataServiceHealth: Sendable {
-        let isRunning: Bool
-        let isResponding: Bool
+    public struct KanataServiceHealth: Sendable {
+        public let isRunning: Bool
+        public let isResponding: Bool
     }
 
     struct InstallerReport: Sendable {
@@ -3029,26 +3038,26 @@ class LaunchDaemonInstaller {
 // MARK: - Supporting Types
 
 /// Status information for LaunchDaemon services
-struct LaunchDaemonStatus {
-    let kanataServiceLoaded: Bool
-    let vhidDaemonServiceLoaded: Bool
-    let vhidManagerServiceLoaded: Bool
-    let kanataServiceHealthy: Bool
-    let vhidDaemonServiceHealthy: Bool
-    let vhidManagerServiceHealthy: Bool
+public struct LaunchDaemonStatus: Sendable {
+    public let kanataServiceLoaded: Bool
+    public let vhidDaemonServiceLoaded: Bool
+    public let vhidManagerServiceLoaded: Bool
+    public let kanataServiceHealthy: Bool
+    public let vhidDaemonServiceHealthy: Bool
+    public let vhidManagerServiceHealthy: Bool
 
     /// True if all required services are loaded
-    var allServicesLoaded: Bool {
+    public var allServicesLoaded: Bool {
         kanataServiceLoaded && vhidDaemonServiceLoaded && vhidManagerServiceLoaded
     }
 
     /// True if all required services are healthy (loaded and running properly)
-    var allServicesHealthy: Bool {
+    public var allServicesHealthy: Bool {
         kanataServiceHealthy && vhidDaemonServiceHealthy && vhidManagerServiceHealthy
     }
 
     /// Description of current status for logging/debugging
-    var description: String {
+    public var description: String {
         """
         LaunchDaemon Status:
         - Kanata Service: loaded=\(kanataServiceLoaded) healthy=\(kanataServiceHealthy)

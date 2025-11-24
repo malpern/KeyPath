@@ -290,3 +290,18 @@ public struct InstallerReport: Sendable {
         self.logs = logs
     }
 }
+
+// MARK: - Service Health Types
+
+/// Health status of the Kanata service (running + TCP responsive)
+public struct KanataHealthSnapshot: Sendable {
+    /// Whether the service process is running (launchctl PID check)
+    public let isRunning: Bool
+    /// Whether the service is responding to TCP health checks
+    public let isResponding: Bool
+
+    public init(isRunning: Bool, isResponding: Bool) {
+        self.isRunning = isRunning
+        self.isResponding = isResponding
+    }
+}

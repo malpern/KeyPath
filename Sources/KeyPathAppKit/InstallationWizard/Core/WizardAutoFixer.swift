@@ -1127,7 +1127,7 @@ class WizardAutoFixer: AutoFixCapable {
 
         // Get current status to determine what needs to be done
         AppLogger.shared.log("🔧 [AutoFixer] Step 1: Getting current service status...")
-        let status = await launchDaemonInstaller.getServiceStatus()
+        let status = await InstallerEngine().getServiceStatus()
 
         AppLogger.shared.log("🔧 [AutoFixer] Current status breakdown:")
         AppLogger.shared.log(
@@ -1162,7 +1162,8 @@ class WizardAutoFixer: AutoFixCapable {
             KanataDaemonManager.isUsingSMAppService
         }
         // Also check if process is running (SMAppService might have status .notFound but process is running)
-        let isProcessRunning = await launchDaemonInstaller.checkKanataServiceHealth().isRunning
+        let healthStatus = await InstallerEngine().checkKanataServiceHealth()
+        let isProcessRunning = healthStatus.isRunning
 
         // If SMAppService is managing Kanata (enabled OR requiresApproval) OR process is running, don't trigger installation
         let shouldSkipInstallation =
@@ -1257,7 +1258,7 @@ class WizardAutoFixer: AutoFixCapable {
         )
         AppLogger.shared.log("🔧 [AutoFixer] Checking final service status after restart...")
 
-        let finalStatus = await launchDaemonInstaller.getServiceStatus()
+        let finalStatus = await InstallerEngine().getServiceStatus()
         AppLogger.shared.log("🔧 [AutoFixer] Final status breakdown:")
         AppLogger.shared.log(
             "🔧 [AutoFixer] - Kanata loaded: \(finalStatus.kanataServiceLoaded), healthy: \(finalStatus.kanataServiceHealthy)"
