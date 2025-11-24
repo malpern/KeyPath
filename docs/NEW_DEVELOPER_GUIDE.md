@@ -79,12 +79,22 @@ Open these files in your editor to understand the core architecture:
 ### System Design
 
 ```
-KeyPath.app (SwiftUI) → KanataManager → launchctl → Kanata daemon
-                     ↓                              ↓
-              CGEvent Capture              VirtualHID Driver
-                     ↓                              ↓
-              User Input Recording          System-wide Remapping
+KeyPath.app (SwiftUI) → InstallerEngine → LaunchDaemon/PrivilegedHelper
+          ↓                    ↓
+    RuntimeCoordinator   SystemContext (State)
+          ↓
+   TCP/Runtime Control → Kanata daemon
+          ↓                    ↓
+   CGEvent Capture      VirtualHID Driver
+          ↓                    ↓
+   User Input Recording  System-wide Remapping
 ```
+
+**Key Components:**
+- **InstallerEngine**: Unified façade for installation, repair, and system inspection
+- **RuntimeCoordinator**: Orchestrates active service, handles config reloading
+- **KanataService**: Manages service lifecycle (start/stop/restart)
+- **SystemContext**: Snapshot of system state (permissions, services, components)
 
 ### Directory Structure
 
@@ -193,11 +203,36 @@ let uiState = manager.getCurrentUIState()
 
 **See also:** `InstallationWizard/README.md` for the full 9-page flow diagram
 
-### 4. Services (Independent, Focused Components)
+### 4. InstallerEngine (The Façade)
+
+**Location:** `InstallationWizard/Core/InstallerEngine.swift`
+
+**What it does:** Unified façade for all installation, repair, and system inspection operations.
+
+**Key APIs:**
+```swift
+let engine = InstallerEngine()
+
+// System inspection
+let context = await engine.inspectSystem()
+
+// Repair/install operations
+let report = await engine.run(intent: .repair, using: broker)
+
+// Health checks (façade methods)
+let status = await engine.getServiceStatus()
+let healthy = await engine.isServiceHealthy(serviceID: "com.keypath.kanata")
+let health = await engine.checkKanataServiceHealth()
+```
+
+**Why use it:** All callers should go through InstallerEngine rather than directly using `LaunchDaemonInstaller`. This ensures consistent privilege handling, logging, and error reporting.
+
+### 5. Services (Independent, Focused Components)
 
 | Service | Purpose | Lines |
 |---------|---------|-------|
 | **PermissionOracle** | Permission detection | 671 |
+| **KanataService** | Service lifecycle (start/stop/restart) | 400+ |
 | **KeyboardCapture** | CGEvent input recording | 622 |
 | **KarabinerConflictService** | Detect keyboard conflicts | 600 |
 | **DiagnosticsService** | System analysis | 537 |
@@ -307,6 +342,7 @@ KeyPath documents major architectural decisions in `CLAUDE.md`. Key ADRs:
 - **ADR-008**: Validation Refactor - Stateless SystemValidator (100x improvement)
 - **ADR-010**: Module Split Revert - Single executable target
 - **ADR-011**: Test Performance - Mock time > real sleeps (625x speedup)
+- **ADR-015**: InstallerEngine Façade - Unified API for install/repair/inspect
 
 **Before changing architecture, check for related ADRs in CLAUDE.md.**
 
