@@ -655,7 +655,7 @@ public final class ConfigurationService: FileConfigurationProviding {
 
         // Skip TCP if Kanata service isn't healthy yet (avoid connection-refused storm)
         let daemonStatus = await LaunchDaemonInstaller().getServiceStatus()
-        if !daemonStatus.kanataHealthy {
+        if !daemonStatus.kanataServiceHealthy {
             AppLogger.shared.log(
                 "🌐 [Validation] TCP validation skipped (kanata not healthy yet); using CLI"
             )

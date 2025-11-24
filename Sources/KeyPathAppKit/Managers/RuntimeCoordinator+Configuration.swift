@@ -48,6 +48,19 @@ extension RuntimeCoordinator {
             )
         }
 
+        // Skip reloads if Kanata service isn't healthy yet; avoid connection-refused storm
+        let serviceStatus = await LaunchDaemonInstaller().getServiceStatus()
+        if !serviceStatus.kanataHealthy {
+            AppLogger.shared.warn(
+                "⚠️ [Reload] Skipping TCP reload because Kanata service is not healthy yet")
+            return ReloadResult(
+                success: false,
+                response: nil,
+                errorMessage: "Kanata service is starting; retry shortly",
+                protocol: nil
+            )
+        }
+
         // Phase 2: Just-in-time permission gating for reload
         if FeatureFlags.useJustInTimePermissionRequests {
             var allowed = false
