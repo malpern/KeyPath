@@ -203,9 +203,9 @@
     <section>
         <h2>Overall Status</h2>
         <div class="status-banner partial">
-            <h2 style="color: #5e5ce6; margin-bottom: 10px;">🔧 Phase 2 In Progress — Services Extracted</h2>
-            <p style="font-size: 1.1rem;">5 new services extracted from LaunchDaemonInstaller. Integration complete. LaunchDaemonInstaller reduced by ~356 lines.</p>
-            <p style="font-size: 0.95rem; margin-top: 12px; opacity: 0.8;">60 tests passing · 5 new services · ~356 lines removed from legacy code</p>
+            <h2 style="color: #5e5ce6; margin-bottom: 10px;">🔧 Phase 2 In Progress — RuntimeCoordinator Cleanup</h2>
+            <p style="font-size: 1.1rem;">7 services extracted. RuntimeCoordinator now delegates to ConfigHotReloadService and StatePublisherService. KanataConfigManager deleted (516 lines).</p>
+            <p style="font-size: 0.95rem; margin-top: 12px; opacity: 0.8;">60 tests passing · 7 new services · ~870 lines removed from legacy code</p>
         </div>
         <div class="grid four" style="margin-top:24px;">
             <div class="card">
@@ -214,14 +214,14 @@
                 <p>Reduced from 3,128. Now delegates to extracted services.</p>
             </div>
             <div class="card">
-                <div class="metric">2,321</div>
+                <div class="metric">2,261</div>
                 <div class="metric-label">RuntimeCoordinator lines</div>
-                <p>Renamed from KanataManager but still contains legacy patterns.</p>
+                <p>Now delegates to ConfigHotReloadService and StatePublisherService.</p>
             </div>
             <div class="card">
-                <div class="metric" style="color: var(--teal);">5</div>
+                <div class="metric" style="color: var(--teal);">7</div>
                 <div class="metric-label">New extracted services</div>
-                <p>PlistGenerator, ServiceBootstrapper, ServiceHealthChecker, KanataBinaryInstaller, PrivilegedExecutor</p>
+                <p>PlistGenerator, ServiceBootstrapper, ServiceHealthChecker, KanataBinaryInstaller, PrivilegedExecutor, ConfigHotReloadService, StatePublisherService</p>
             </div>
             <div class="card">
                 <div class="metric">1,529</div>
@@ -357,15 +357,15 @@
                 </tr>
                 <tr>
                     <td><strong>Extract RuntimeCoordinator concerns</strong></td>
-                    <td>2,321 lines mixing UI state, process lifecycle, config management</td>
+                    <td>ConfigHotReloadService, StatePublisherService extracted</td>
                     <td>Separate: ProcessLifecycle, ConfigReloader, StatePublisher</td>
-                    <td><span class="pill pending">Pending (~2-3 days)</span></td>
+                    <td><span class="pill partial">Partial (2 of 3 done)</span></td>
                 </tr>
                 <tr>
                     <td><strong>Consolidate Manager classes</strong></td>
-                    <td>20+ overlapping managers</td>
+                    <td>KanataConfigManager deleted (516 lines, dead code)</td>
                     <td>Merge into InstallerEngine subsystems or delete</td>
-                    <td><span class="pill pending">Pending (~2 days)</span></td>
+                    <td><span class="pill partial">Partial (1 of 3 done)</span></td>
                 </tr>
                 <tr>
                     <td><strong>Add unit tests for new services</strong></td>
@@ -376,8 +376,8 @@
             </tbody>
         </table>
         <div class="card" style="margin-top: 24px;">
-            <p class="pill partial">6 of 9 tasks complete · ~5-6 days remaining</p>
-            <p>Major extraction work complete. Remaining tasks focus on RuntimeCoordinator cleanup and consolidation.</p>
+            <p class="pill partial">7.5 of 9 tasks complete · ~2-3 days remaining</p>
+            <p>RuntimeCoordinator extraction progressing. ConfigHotReloadService, StatePublisherService extracted. KanataConfigManager (dead code) deleted.</p>
         </div>
     </section>
 
