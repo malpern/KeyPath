@@ -10,6 +10,7 @@
             --indigo: #5e5ce6;
             --teal: #30d158;
             --amber: #ffd60a;
+            --orange: #ff9500;
             --gray: rgba(60, 60, 67, 0.6);
             --panel: rgba(255, 255, 255, 0.7);
             --panel-dark: rgba(28, 28, 30, 0.65);
@@ -69,6 +70,9 @@
             .grid.three {
                 grid-template-columns: repeat(3, minmax(0, 1fr));
             }
+            .grid.four {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
         }
         .card {
             border-radius: 20px;
@@ -79,6 +83,9 @@
             font-size: 2.25rem;
             font-weight: 600;
             color: var(--blue);
+        }
+        .metric.warning {
+            color: var(--orange);
         }
         .metric-label {
             text-transform: uppercase;
@@ -119,6 +126,14 @@
             background: rgba(255, 214, 10, 0.18);
             color: var(--amber);
         }
+        .pill.pending {
+            background: rgba(255, 149, 0, 0.18);
+            color: var(--orange);
+        }
+        .pill.partial {
+            background: rgba(94, 92, 230, 0.15);
+            color: var(--indigo);
+        }
         .diagram {
             margin: 30px auto;
             border-radius: 24px;
@@ -156,14 +171,57 @@
             margin-top: 60px;
             font-size: 0.95rem;
         }
+        .status-banner {
+            text-align: center;
+            margin-top: 40px;
+            padding: 30px;
+            border-radius: 20px;
+        }
+        .status-banner.partial {
+            background: linear-gradient(135deg, rgba(255, 149, 0, 0.15), rgba(255, 214, 10, 0.15));
+        }
+        .status-banner.complete {
+            background: linear-gradient(135deg, rgba(48, 209, 88, 0.15), rgba(0, 113, 227, 0.15));
+        }
     </style>
 </head>
 <body>
     <div class="hero">
-        <p class="pill done">InstallerEngine Era · November 2025</p>
+        <p class="pill partial">Phase 1 Complete · Phases 2-3 Pending · November 2025</p>
         <h1>Kanata Service Strangler Fig</h1>
         <p class="tagline">From sprawling legacy managers to a single, testable façade.</p>
     </div>
+
+    <section>
+        <h2>Overall Status</h2>
+        <div class="status-banner partial">
+            <h2 style="color: var(--orange); margin-bottom: 10px;">⚠️ Phase 1 Complete — Façade in Place</h2>
+            <p style="font-size: 1.1rem; color: var(--gray);">The InstallerEngine façade is working and all callers have been migrated. However, the legacy code behind the façade has NOT been rewritten or removed.</p>
+            <p style="font-size: 0.95rem; color: var(--gray); margin-top: 12px;">60 tests passing · Façade operational · Legacy code still present (3,128+ lines)</p>
+        </div>
+        <div class="grid four" style="margin-top:24px;">
+            <div class="card">
+                <div class="metric">3,128</div>
+                <div class="metric-label">LaunchDaemonInstaller lines</div>
+                <p>Still the largest file. Hidden behind façade but not rewritten.</p>
+            </div>
+            <div class="card">
+                <div class="metric">2,321</div>
+                <div class="metric-label">RuntimeCoordinator lines</div>
+                <p>Renamed from KanataManager but still contains legacy patterns.</p>
+            </div>
+            <div class="card">
+                <div class="metric">18</div>
+                <div class="metric-label">LaunchDaemonInstaller() calls</div>
+                <p>Direct instantiations remaining in codebase.</p>
+            </div>
+            <div class="card">
+                <div class="metric">20+</div>
+                <div class="metric-label">Manager/Service classes</div>
+                <p>Many overlapping responsibilities not yet consolidated.</p>
+            </div>
+        </div>
+    </section>
 
     <section>
         <h2>Where We Started</h2>
@@ -176,7 +234,7 @@
             <div class="card">
                 <div class="metric">5</div>
                 <div class="metric-label">critical singletons with hidden side‑effects</div>
-                <p>`KanataManager`, `LaunchDaemonInstaller`, `ServiceHealthMonitor`, `ProcessLifecycleManager`, and the wizard each owned their own “truth.” Debugging was guesswork.</p>
+                <p>`KanataManager`, `LaunchDaemonInstaller`, `ServiceHealthMonitor`, `ProcessLifecycleManager`, and the wizard each owned their own "truth." Debugging was guesswork.</p>
             </div>
         </div>
         <div class="diagram">
@@ -200,7 +258,7 @@
     </section>
 
     <section>
-        <h2>What We've Delivered</h2>
+        <h2>Phase 1: Façade Layer (✅ Complete)</h2>
         <div class="grid two">
             <div class="card">
                 <p class="pill done">Completed</p>
@@ -221,47 +279,129 @@
                 </ul>
             </div>
         </div>
-        <div class="grid two" style="margin-top:24px;">
-            <div class="card">
-                <p class="pill done">Completed</p>
-                <h3>Critical issue detection</h3>
-                <ul>
-                    <li>Missing bundled kanata binary now surfaces as `.critical` wizard issue.</li>
-                    <li>New `ComponentRequirement.bundledKanataMissing` for packaging issues.</li>
-                    <li>Clear user guidance: "Download and reinstall KeyPath from official release."</li>
-                </ul>
-            </div>
-            <div class="card">
-                <p class="pill done">Completed</p>
-                <h3>Privileged helper documentation</h3>
-                <ul>
-                    <li>HELPER.md Phase 4 documentation complete.</li>
-                    <li>Architecture, security model, and troubleshooting guides.</li>
-                    <li>ADR-012 driver version Fix button verified working.</li>
-                </ul>
-            </div>
-        </div>
         <div class="grid three" style="margin-top:24px;">
             <div class="card">
                 <div class="metric">15+</div>
                 <div class="metric-label">direct call sites removed</div>
-                <p>InstallerEngine is no longer instantiated from SwiftUI views, wizard controllers, or CLI tools. Health checks now use façade APIs.</p>
+                <p>InstallerEngine is no longer instantiated from SwiftUI views, wizard controllers, or CLI tools.</p>
             </div>
             <div class="card">
                 <div class="metric">60</div>
                 <div class="metric-label">tests passing</div>
-                <p>Full test suite runs in under 1 second. InstallerEngineHealthCheckTests verify façade methods work correctly.</p>
+                <p>Full test suite runs in under 1 second.</p>
             </div>
             <div class="card">
                 <div class="metric">5</div>
                 <div class="metric-label">new façade APIs</div>
-                <p>`getServiceStatus()`, `isServiceHealthy()`, `isServiceLoaded()`, `checkKanataServiceHealth()`, `inspectSystemContext()` provide unified health monitoring.</p>
+                <p>`getServiceStatus()`, `isServiceHealthy()`, `isServiceLoaded()`, `checkKanataServiceHealth()`, `inspectSystemContext()`</p>
             </div>
         </div>
     </section>
 
     <section>
-        <h2>Remaining Strangler Fig Stages</h2>
+        <h2>Phase 2: Internal Rewrite (🔶 Not Started)</h2>
+        <p style="color: var(--gray); margin-bottom: 24px;">Replace legacy implementations behind the façade with clean, testable services.</p>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Task</th>
+                    <th>Current State</th>
+                    <th>Target</th>
+                    <th>Effort</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Decompose LaunchDaemonInstaller</strong></td>
+                    <td>3,128 lines, 71 functions in one file</td>
+                    <td>Split into: PlistGenerator, ServiceBootstrapper, HealthChecker, BinaryInstaller</td>
+                    <td><span class="effort">~3-4 days</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Extract RuntimeCoordinator concerns</strong></td>
+                    <td>2,321 lines mixing UI state, process lifecycle, config management</td>
+                    <td>Separate: ProcessLifecycle, ConfigReloader, StatePublisher</td>
+                    <td><span class="effort">~2-3 days</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Consolidate Manager classes</strong></td>
+                    <td>20+ overlapping managers (KanataDaemonManager, KanataConfigManager, BundledKanataManager, etc.)</td>
+                    <td>Merge into InstallerEngine subsystems or delete</td>
+                    <td><span class="effort">~2 days</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Remove LaunchDaemonInstaller() direct calls</strong></td>
+                    <td>18 direct instantiations remaining</td>
+                    <td>All calls go through InstallerEngine façade</td>
+                    <td><span class="effort">~1 day</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Add unit tests for new services</strong></td>
+                    <td>Tests exist but cover façade, not internals</td>
+                    <td>Each new service has isolated unit tests</td>
+                    <td><span class="effort">~2 days</span></td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="card" style="margin-top: 24px;">
+            <p class="pill pending">Estimated Total: 10-14 days</p>
+            <p>This phase requires careful incremental work to avoid regressions. Each decomposition should be a separate PR with full test coverage.</p>
+        </div>
+    </section>
+
+    <section>
+        <h2>Phase 3: Legacy Removal (🔶 Not Started)</h2>
+        <p style="color: var(--gray); margin-bottom: 24px;">Delete legacy code once new implementations are verified.</p>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Task</th>
+                    <th>Blocked By</th>
+                    <th>Lines to Remove</th>
+                    <th>Effort</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Delete LaunchDaemonInstaller.swift</strong></td>
+                    <td>Phase 2 decomposition complete</td>
+                    <td>~3,000 lines</td>
+                    <td><span class="effort">~1 day</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Remove duplicate Manager classes</strong></td>
+                    <td>Consolidation in Phase 2</td>
+                    <td>~1,500 lines</td>
+                    <td><span class="effort">~1 day</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Clean up RuntimeCoordinator</strong></td>
+                    <td>Extraction in Phase 2</td>
+                    <td>~1,000 lines</td>
+                    <td><span class="effort">~1 day</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Archive legacy documentation</strong></td>
+                    <td>Code removal complete</td>
+                    <td>N/A</td>
+                    <td><span class="effort">~0.5 day</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Final test sweep & cleanup</strong></td>
+                    <td>All removal complete</td>
+                    <td>N/A</td>
+                    <td><span class="effort">~1 day</span></td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="card" style="margin-top: 24px;">
+            <p class="pill pending">Estimated Total: 4-5 days</p>
+            <p>Target: Remove ~5,500 lines of legacy code. Final codebase should be ~40% smaller with clearer separation of concerns.</p>
+        </div>
+    </section>
+
+    <section>
+        <h2>Completed Work (Phase 1)</h2>
         <table class="table">
             <thead>
                 <tr>
@@ -293,30 +433,30 @@
                     <td><span class="pill done">✅ Complete</span></td>
                 </tr>
                 <tr>
-                    <td><strong>4. Decommission Legacy Managers</strong></td>
+                    <td><strong>4. Slim Legacy Public API</strong></td>
                     <td>
-                        Slimmed down `LaunchDaemonInstaller` public API. Made 8 methods private, kept 5 internal for testing. Reduced API surface while maintaining test coverage.
+                        Made 8 methods private, kept 5 internal for testing. Reduced API surface while maintaining test coverage.
                     </td>
                     <td><span class="pill done">✅ Complete</span></td>
                 </tr>
                 <tr>
-                    <td><strong>5. Cleanroom Post-Refactor Pass</strong></td>
+                    <td><strong>5. Documentation Update</strong></td>
                     <td>
-                        Updated NEW_DEVELOPER_GUIDE.md with InstallerEngine façade. Verified Scripts are organized. Documentation complete.
+                        Updated NEW_DEVELOPER_GUIDE.md with InstallerEngine façade. Verified Scripts are organized.
                     </td>
                     <td><span class="pill done">✅ Complete</span></td>
                 </tr>
                 <tr>
                     <td><strong>6. Critical Issue Detection</strong></td>
                     <td>
-                        Added `bundledKanataMissing` component requirement for corrupted app bundles. Critical severity wizard issue with clear reinstall guidance. No auto-fix (requires app reinstall).
+                        Added `bundledKanataMissing` component requirement for corrupted app bundles. Critical severity wizard issue.
                     </td>
                     <td><span class="pill done">✅ Complete</span></td>
                 </tr>
                 <tr>
                     <td><strong>7. Privileged Helper Docs</strong></td>
                     <td>
-                        HELPER.md Phase 4 documentation complete. Architecture diagrams, security model, troubleshooting guides. ADR-012 driver version detection verified.
+                        HELPER.md Phase 4 documentation complete. Architecture diagrams, security model, troubleshooting guides.
                     </td>
                     <td><span class="pill done">✅ Complete</span></td>
                 </tr>
@@ -325,7 +465,7 @@
     </section>
 
     <section>
-        <h2>Remaining Work & Future Considerations</h2>
+        <h2>Other Pending Work</h2>
         <div class="grid two">
             <div class="card">
                 <p class="pill next">Future</p>
@@ -338,59 +478,47 @@
                 <p>Test release build workflow with certificate. Test helper installation/upgrade flow. Test fallback to sudo if helper unavailable. Requires maintainer with signing certificate.</p>
             </div>
         </div>
-        <div class="card" style="margin-top:24px;">
-            <p class="pill done">Mitigations Applied</p>
-            <ul>
-                <li>All façade changes landed incrementally with full test coverage.</li>
-                <li>Legacy managers slimmed but not removed - internal methods available for testing.</li>
-                <li>Documentation updated to reflect façade-first architecture.</li>
-                <li>Critical issue detection added for packaging problems.</li>
-            </ul>
-        </div>
     </section>
 
     <section>
-        <h2>Celebrating the Momentum</h2>
+        <h2>Timeline</h2>
         <div class="timeline">
             <div class="timeline-item">
-                <h3>Phase 1 · Surface Coordination <span class="pill done">Done</span></h3>
+                <h3>Phase 1.1 · Surface Coordination <span class="pill done">Done</span></h3>
                 <p>Unified start/stop/restart UX across the app, CLI, wizard, and emergency flows.</p>
             </div>
             <div class="timeline-item">
-                <h3>Phase 2 · Health & Diagnostics <span class="pill done">Done</span></h3>
+                <h3>Phase 1.2 · Health & Diagnostics <span class="pill done">Done</span></h3>
                 <p>Service health checks, diagnostics, and SimpleMods all share `inspectSystemContext()` snapshots.</p>
             </div>
             <div class="timeline-item">
-                <h3>Phase 3 · Helper & Docs Refresh <span class="pill done">Done</span></h3>
+                <h3>Phase 1.3 · Helper & Docs Refresh <span class="pill done">Done</span></h3>
                 <p>Developers now learn the façade-first flow on day one; legacy docs are clearly marked historical.</p>
             </div>
             <div class="timeline-item">
-                <h3>Phase 4 · Core Rewrite <span class="pill done">Done</span></h3>
+                <h3>Phase 1.4 · Façade APIs <span class="pill done">Done</span></h3>
                 <p>Repair recipes internalized, health check APIs exposed, callers migrated to façade.</p>
             </div>
             <div class="timeline-item">
-                <h3>Phase 5 · Final Cleanup <span class="pill done">Done</span></h3>
-                <p>Slimmed legacy managers, updated documentation, verified scripts organized.</p>
+                <h3>Phase 2 · Internal Rewrite <span class="pill pending">Pending</span></h3>
+                <p>Decompose LaunchDaemonInstaller (3,128 lines) into clean, testable services. Extract RuntimeCoordinator concerns. Consolidate overlapping managers.</p>
             </div>
             <div class="timeline-item">
-                <h3>Phase 6 · Critical Issue Detection <span class="pill done">Done</span></h3>
-                <p>Added bundled kanata missing detection as critical wizard issue with clear user guidance.</p>
-            </div>
-            <div class="timeline-item">
-                <h3>Phase 7 · Privileged Helper Docs <span class="pill done">Done</span></h3>
-                <p>HELPER.md Phase 4 complete. Architecture, security model, and troubleshooting documented.</p>
+                <h3>Phase 3 · Legacy Removal <span class="pill pending">Pending</span></h3>
+                <p>Delete legacy code (~5,500 lines). Archive old documentation. Final test sweep.</p>
             </div>
         </div>
-        <div style="text-align: center; margin-top: 40px; padding: 30px; background: linear-gradient(135deg, rgba(48, 209, 88, 0.15), rgba(0, 113, 227, 0.15)); border-radius: 20px;">
-            <h2 style="color: var(--teal); margin-bottom: 10px;">🎉 Strangler Fig Migration Complete!</h2>
-            <p style="font-size: 1.1rem; color: var(--gray);">All 7 phases successfully completed. The InstallerEngine façade is now the unified API for installation, repair, and system inspection.</p>
-            <p style="font-size: 0.95rem; color: var(--gray); margin-top: 12px;">60 tests passing · Critical issue detection · Privileged helper documented</p>
+        <div class="status-banner partial" style="margin-top: 40px;">
+            <h2 style="color: var(--orange); margin-bottom: 10px;">📊 Project Status: Phase 1 of 3 Complete</h2>
+            <p style="font-size: 1.1rem; color: var(--gray);">Façade is operational. Legacy code is hidden but not yet replaced.</p>
+            <p style="font-size: 0.95rem; color: var(--gray); margin-top: 12px;">
+                <strong>Remaining effort:</strong> ~14-19 days to complete Phases 2-3
+            </p>
         </div>
     </section>
 
     <footer>
-        Built with ❤️ by the KeyPath team · “Great tools feel invisible.” — Apple Engineering Playbook
+        Built with ❤️ by the KeyPath team · "Great tools feel invisible." — Apple Engineering Playbook
     </footer>
 </body>
 </html>
-
