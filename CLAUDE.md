@@ -22,7 +22,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - feat: CLI migration (Phase 6)
 
 **⚠️ INCOMPLETE WORK (requires follow-up):**
-- TODO: When kanata v1.10 is released, update requiredDriverVersionMajor to 6 in VHIDDeviceManager.swift
+- ✅ DONE: Updated requiredDriverVersionMajor to 6 in VHIDDeviceManager.swift (Kanata v1.10.0 released Nov 2025)
 - HELPER.md: Phase 4 pending (Documentation & Testing) - Phases 1-3.5 complete
 
 **✅ Privileged Helper (Nov 2025):**

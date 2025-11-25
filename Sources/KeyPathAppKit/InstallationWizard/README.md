@@ -268,7 +268,7 @@ Each page is 400-600 lines and follows a consistent pattern:
   - Install: Downloads and installs v5.0.0 via `PrivilegedOperationsCoordinator`
 
 ### Pending Work
-- TODO: Update `requiredDriverVersionMajor` to 6 in VHIDDeviceManager.swift when kanata v1.10 is released
+- ✅ DONE: Updated `requiredDriverVersionMajor` to 6 in VHIDDeviceManager.swift (Kanata v1.10.0 released Nov 2025)
 - ✅ DONE: Missing bundled kanata binary now surfaces as .critical wizard issue (Nov 2025)
 
 ### Future Improvements

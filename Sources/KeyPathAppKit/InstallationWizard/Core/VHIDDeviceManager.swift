@@ -30,11 +30,11 @@ final class VHIDDeviceManager: @unchecked Sendable {
     nonisolated(unsafe) static var testShellProvider: ((String) -> String)?
 
     // Version compatibility for kanata
-    // NOTE: Kanata v1.9.0 requires Karabiner-DriverKit-VirtualHIDDevice v5.0.0
-    // Kanata v1.10 will support v6.0.0+ but is currently in pre-release (as of Oct 2025)
-    private static let requiredDriverVersionMajor = 5
-    private static let requiredDriverVersionString = "5.0.0"
-    private static let futureCompatibleVersion = "1.10" // Kanata version that will support v6
+    // NOTE: Kanata v1.10.0+ requires Karabiner-DriverKit-VirtualHIDDevice v6.0.0
+    // Updated Nov 2025 when Kanata v1.10.0 was released
+    private static let requiredDriverVersionMajor = 6
+    private static let requiredDriverVersionString = "6.0.0"
+    private static let currentKanataVersion = "1.10.0" // Current supported Kanata version
 
     // Driver DriverKit extension identifiers
     private static let driverTeamID = "G43BCU2T37" // pqrs.org team ID
@@ -375,7 +375,7 @@ final class VHIDDeviceManager: @unchecked Sendable {
             AppLogger.shared.log(
                 "  - Required: v\(Self.requiredDriverVersionString) (major: \(Self.requiredDriverVersionMajor))"
             )
-            AppLogger.shared.log("  - Note: Kanata \(Self.futureCompatibleVersion)+ will support v6.0.0+")
+            AppLogger.shared.log("  - Kanata \(Self.currentKanataVersion) requires driver v\(Self.requiredDriverVersionMajor).x")
         } else {
             AppLogger.shared.log("✅ [VHIDManager] Version compatible: v\(installedVersion)")
         }
@@ -398,12 +398,9 @@ final class VHIDDeviceManager: @unchecked Sendable {
             return """
             Version Compatibility Issue
 
-            You have Karabiner-DriverKit-VirtualHIDDevice v\(installedVersion) installed, but the current version of Kanata (v1.9.0) requires v\(Self.requiredDriverVersionString).
+            You have Karabiner-DriverKit-VirtualHIDDevice v\(installedVersion) installed, but Kanata v\(Self.currentKanataVersion) requires v\(Self.requiredDriverVersionString).
 
             KeyPath will automatically download and install v\(Self.requiredDriverVersionString) for you.
-
-            📝 Note: Kanata v\(Self.futureCompatibleVersion) (currently in pre-release) will support v6.0.0+. Once v\(Self
-                .futureCompatibleVersion) is released and stable, we'll update KeyPath to use the newer driver version.
             """
         }
 
