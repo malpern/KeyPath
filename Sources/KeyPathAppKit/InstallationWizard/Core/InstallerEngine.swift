@@ -498,28 +498,24 @@ public final class InstallerEngine {
     // MARK: - Public Health Check API
 
     /// Check if a specific service is healthy (running and responsive)
-    /// This is a façade method that delegates to LaunchDaemonInstaller
+    /// Delegates to ServiceHealthChecker (extracted from LaunchDaemonInstaller)
     public func isServiceHealthy(serviceID: String) async -> Bool {
-        let installer = LaunchDaemonInstaller()
-        return await installer.isServiceHealthy(serviceID: serviceID)
+        await ServiceHealthChecker.shared.isServiceHealthy(serviceID: serviceID)
     }
 
     /// Check if a specific service is loaded (registered with launchd)
     public func isServiceLoaded(serviceID: String) async -> Bool {
-        let installer = LaunchDaemonInstaller()
-        return await installer.isServiceLoaded(serviceID: serviceID)
+        await ServiceHealthChecker.shared.isServiceLoaded(serviceID: serviceID)
     }
 
     /// Get aggregated status of all KeyPath services
     public func getServiceStatus() async -> LaunchDaemonStatus {
-        let installer = LaunchDaemonInstaller()
-        return await installer.getServiceStatus()
+        await ServiceHealthChecker.shared.getServiceStatus()
     }
 
     /// Check Kanata service health (running + TCP responsive)
     public func checkKanataServiceHealth(tcpPort: Int = 37001) async -> KanataHealthSnapshot {
-        let installer = LaunchDaemonInstaller()
-        let health = await installer.checkKanataServiceHealth(tcpPort: tcpPort)
+        let health = await ServiceHealthChecker.shared.checkKanataServiceHealth(tcpPort: tcpPort)
         return KanataHealthSnapshot(isRunning: health.isRunning, isResponding: health.isResponding)
     }
 

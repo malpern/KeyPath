@@ -9,7 +9,7 @@ import os
 class WizardAutoFixer: AutoFixCapable {
     private let kanataManager: RuntimeCoordinator
     private let vhidDeviceManager: VHIDDeviceManager
-    private let launchDaemonInstaller: LaunchDaemonInstaller
+    // NOTE: launchDaemonInstaller removed - health checks migrated to ServiceHealthChecker
     private let packageManager: PackageManager
     private let bundledRuntimeCoordinator: BundledRuntimeCoordinator
     // REMOVED: toastManager was unused and created architecture violation (Core → UI dependency)
@@ -18,13 +18,11 @@ class WizardAutoFixer: AutoFixCapable {
     @MainActor init(
         kanataManager: RuntimeCoordinator,
         vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(),
-        launchDaemonInstaller: LaunchDaemonInstaller = LaunchDaemonInstaller(),
         packageManager: PackageManager = PackageManager(),
         bundledRuntimeCoordinator: BundledRuntimeCoordinator = BundledRuntimeCoordinator()
     ) {
         self.kanataManager = kanataManager
         self.vhidDeviceManager = vhidDeviceManager
-        self.launchDaemonInstaller = launchDaemonInstaller
         self.packageManager = packageManager
         self.bundledRuntimeCoordinator = bundledRuntimeCoordinator
     }
@@ -228,10 +226,10 @@ class WizardAutoFixer: AutoFixCapable {
     }
 
     private func captureVHIDSnapshot() async -> VHIDSnapshot {
-        let installerRef = launchDaemonInstaller
-        let loaded = await installerRef.isServiceLoaded(
+        // Use extracted ServiceHealthChecker instead of LaunchDaemonInstaller
+        let loaded = await ServiceHealthChecker.shared.isServiceLoaded(
             serviceID: "com.keypath.karabiner-vhiddaemon")
-        let healthy = await installerRef.isServiceHealthy(serviceID: "com.keypath.karabiner-vhiddaemon")
+        let healthy = await ServiceHealthChecker.shared.isServiceHealthy(serviceID: "com.keypath.karabiner-vhiddaemon")
         let running = await vhidDeviceManager.detectRunning()
         let version = vhidDeviceManager.getInstalledVersion()
         return VHIDSnapshot(

@@ -35,18 +35,16 @@ class SystemValidator {
 
     // MARK: - Dependencies
 
-    private let launchDaemonInstaller: LaunchDaemonInstaller
+    // NOTE: launchDaemonInstaller removed - health checks migrated to ServiceHealthChecker
     private let vhidDeviceManager: VHIDDeviceManager
     private let processLifecycleManager: ProcessLifecycleManager
     private weak var kanataManager: RuntimeCoordinator?
 
     init(
-        launchDaemonInstaller: LaunchDaemonInstaller = LaunchDaemonInstaller(),
         vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(),
         processLifecycleManager: ProcessLifecycleManager,
         kanataManager: RuntimeCoordinator? = nil
     ) {
-        self.launchDaemonInstaller = launchDaemonInstaller
         self.vhidDeviceManager = vhidDeviceManager
         self.processLifecycleManager = processLifecycleManager
         self.kanataManager = kanataManager
@@ -391,11 +389,11 @@ class SystemValidator {
             (kanataManager?.isKarabinerDriverExtensionEnabled() ?? false)
                 || vhidInstalled || vhidHealthy
         // Use launchctl-based check instead of unreliable pgrep (same as checkHealth)
-        let karabinerDaemonRunning = await launchDaemonInstaller.isServiceHealthy(
+        let karabinerDaemonRunning = await ServiceHealthChecker.shared.isServiceHealthy(
             serviceID: "com.keypath.karabiner-vhiddaemon")
 
-        // Check LaunchDaemon services
-        let daemonStatus = await launchDaemonInstaller.getServiceStatus()
+        // Check LaunchDaemon services via ServiceHealthChecker
+        let daemonStatus = await ServiceHealthChecker.shared.getServiceStatus()
         let launchDaemonServicesHealthy = daemonStatus.allServicesHealthy
 
         AppLogger.shared
@@ -485,11 +483,11 @@ class SystemValidator {
     private func checkHealth() async -> HealthStatus {
         AppLogger.shared.log("🔍 [SystemValidator] Checking system health")
 
-        // Check service status directly via LaunchDaemonInstaller
-        let kanataRunning = await launchDaemonInstaller.isServiceHealthy(serviceID: "com.keypath.kanata")
+        // Check service status via ServiceHealthChecker (extracted from LaunchDaemonInstaller)
+        let kanataRunning = await ServiceHealthChecker.shared.isServiceHealthy(serviceID: "com.keypath.kanata")
         // Use launchctl-based check instead of unreliable pgrep
-        // This aligns with the health check used in LaunchDaemonInstaller
-        let karabinerDaemonRunning = await launchDaemonInstaller.isServiceHealthy(
+        // This aligns with the health check used in ServiceHealthChecker
+        let karabinerDaemonRunning = await ServiceHealthChecker.shared.isServiceHealthy(
             serviceID: "com.keypath.karabiner-vhiddaemon")
         let vhidHealthy = await vhidDeviceManager.detectConnectionHealth()
 

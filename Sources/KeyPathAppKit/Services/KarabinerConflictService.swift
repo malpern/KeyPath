@@ -166,8 +166,8 @@ final class KarabinerConflictService: KarabinerConflictManaging {
         }
 
         // Check if daemon was recently restarted - if so, consider it healthy during warm-up window
-        // This aligns with LaunchDaemonInstaller.isServiceHealthy() warm-up logic
-        if LaunchDaemonInstaller.wasRecentlyRestarted("com.keypath.karabiner-vhiddaemon") {
+        // This aligns with ServiceHealthChecker.isServiceHealthy() warm-up logic
+        if ServiceBootstrapper.wasRecentlyRestarted("com.keypath.karabiner-vhiddaemon") {
             AppLogger.shared.log(
                 "🔍 [Daemon] VirtualHIDDevice-Daemon in warm-up window (recently restarted) - treating as healthy"
             )

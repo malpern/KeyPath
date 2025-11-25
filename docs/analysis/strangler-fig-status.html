@@ -205,7 +205,7 @@
         <div class="status-banner complete">
             <h2 style="color: var(--teal); margin-bottom: 10px;">✅ Phase 2 Complete — All Services Extracted</h2>
             <p style="font-size: 1.1rem;">7 services extracted. RuntimeCoordinator delegates to ConfigHotReloadService, StatePublisherService. KanataConfigManager (dead code) deleted. Diagnostics already well-factored via DiagnosticsManager.</p>
-            <p style="font-size: 0.95rem; margin-top: 12px; opacity: 0.8;">60 tests passing · 7 new services · ~870 lines removed from legacy code</p>
+            <p style="font-size: 0.95rem; margin-top: 12px; opacity: 0.8;">147 tests passing · 7 new services · 87 new unit tests · ~870 lines removed from legacy code</p>
         </div>
         <div class="grid four" style="margin-top:24px;">
             <div class="card">
@@ -294,14 +294,14 @@
                 <p>InstallerEngine is no longer instantiated from SwiftUI views, wizard controllers, or CLI tools.</p>
             </div>
             <div class="card">
-                <div class="metric">60</div>
+                <div class="metric">147</div>
                 <div class="metric-label">tests passing</div>
-                <p>Full test suite runs in under 1 second.</p>
+                <p>Full test suite includes 87 new service unit tests.</p>
             </div>
             <div class="card">
-                <div class="metric">5</div>
-                <div class="metric-label">new façade APIs</div>
-                <p>`getServiceStatus()`, `isServiceHealthy()`, `isServiceLoaded()`, `checkKanataServiceHealth()`, `inspectSystemContext()`</p>
+                <div class="metric">87</div>
+                <div class="metric-label">new unit tests</div>
+                <p>Comprehensive test coverage for all 7 extracted services: PlistGenerator (30), StatePublisherService (11), ServiceBootstrapper (12), ConfigHotReloadService (9), KanataBinaryInstaller (6), PrivilegedExecutor (8), ServiceHealthChecker (11).</p>
             </div>
         </div>
     </section>
@@ -371,13 +371,13 @@
                     <td><strong>Add unit tests for new services</strong></td>
                     <td>Tests exist but cover façade, not internals</td>
                     <td>Each new service has isolated unit tests</td>
-                    <td><span class="pill pending">Nice-to-have (~1 day)</span></td>
+                    <td><span class="pill done">✅ Done (87 tests)</span></td>
                 </tr>
             </tbody>
         </table>
         <div class="card" style="margin-top: 24px;">
-            <p class="pill done">8 of 9 tasks complete · Unit tests optional</p>
-            <p>All extraction work complete. RuntimeCoordinator delegates to extracted services. Only optional unit tests remain.</p>
+            <p class="pill done">9 of 9 tasks complete</p>
+            <p>All extraction work complete. RuntimeCoordinator delegates to extracted services. Unit tests added for all 7 services (87 tests total).</p>
         </div>
     </section>
 
@@ -549,6 +549,10 @@
             <div class="timeline-item">
                 <h3>Phase 2.3 · RuntimeCoordinator Cleanup <span class="pill done">Done</span></h3>
                 <p>Extracted ConfigHotReloadService, StatePublisherService. Deleted KanataConfigManager (dead code). RuntimeCoordinator reduced to 2,261 lines.</p>
+            </div>
+            <div class="timeline-item">
+                <h3>Phase 2.4 · Unit Tests <span class="pill done">Done</span></h3>
+                <p>Added comprehensive unit tests for all 7 extracted services: 87 tests covering PlistGenerator (30), StatePublisherService (11), ServiceBootstrapper (12), ConfigHotReloadService (9), KanataBinaryInstaller (6), PrivilegedExecutor (8), and ServiceHealthChecker (11).</p>
             </div>
             <div class="timeline-item">
                 <h3>Phase 3 Prep · Test Harness & Readiness <span class="pill done">Done</span></h3>

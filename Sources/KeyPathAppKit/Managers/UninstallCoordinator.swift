@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import KeyPathCore
 
 @MainActor
 final class UninstallCoordinator: ObservableObject {
@@ -106,12 +107,19 @@ final class UninstallCoordinator: ObservableObject {
 
     private static func defaultRunWithAdminPrivileges(scriptURL: URL, deleteConfig: Bool) async
         -> AppleScriptResult {
-        let escapedPath = escapeForAppleScript(scriptURL.path)
+        // Use PrivilegedCommandRunner which respects TestEnvironment.useSudoForPrivilegedOps
         let configFlag = deleteConfig ? " --delete-config" : ""
-        let script = """
-        do shell script \"KEYPATH_UNINSTALL_ASSUME_YES=1 \" & quoted form of \"\(escapedPath)\" & \" --assume-yes\(configFlag)\" with administrator privileges
-        """
-        return await AppleScriptRunner.run(script: script)
+        let command = "KEYPATH_UNINSTALL_ASSUME_YES=1 '\(scriptURL.path)' --assume-yes\(configFlag)"
+        let result = PrivilegedCommandRunner.execute(
+            command: command,
+            prompt: "KeyPath needs to uninstall system services."
+        )
+        return AppleScriptResult(
+            success: result.success,
+            output: result.output,
+            error: result.success ? "" : result.output,
+            exitStatus: result.exitCode
+        )
     }
 
     private static func escapeForAppleScript(_ path: String) -> String {
@@ -128,49 +136,5 @@ struct AppleScriptResult {
     let exitStatus: Int32
 }
 
-enum AppleScriptRunner {
-    static func run(script: String) async -> AppleScriptResult {
-        await withCheckedContinuation { continuation in
-            Task.detached {
-                let process = Process()
-                process.launchPath = "/usr/bin/osascript"
-                process.arguments = ["-e", script]
-
-                let outPipe = Pipe()
-                let errPipe = Pipe()
-                process.standardOutput = outPipe
-                process.standardError = errPipe
-
-                do {
-                    try process.run()
-                } catch {
-                    continuation.resume(
-                        returning: AppleScriptResult(
-                            success: false,
-                            output: "",
-                            error: error.localizedDescription,
-                            exitStatus: -1
-                        ))
-                    return
-                }
-
-                process.waitUntilExit()
-
-                let outputData = outPipe.fileHandleForReading.readDataToEndOfFile()
-                let errorData = errPipe.fileHandleForReading.readDataToEndOfFile()
-
-                let output = String(data: outputData, encoding: .utf8) ?? ""
-                let errorString = String(data: errorData, encoding: .utf8) ?? ""
-                let exitStatus = process.terminationStatus
-
-                continuation.resume(
-                    returning: AppleScriptResult(
-                        success: exitStatus == 0,
-                        output: output,
-                        error: errorString,
-                        exitStatus: exitStatus
-                    ))
-            }
-        }
-    }
-}
+// NOTE: AppleScriptRunner was removed - now using PrivilegedCommandRunner which respects
+// TestEnvironment.useSudoForPrivilegedOps for sudo-based execution in test environments.

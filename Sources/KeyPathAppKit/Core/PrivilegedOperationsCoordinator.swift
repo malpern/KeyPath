@@ -481,10 +481,10 @@ final class PrivilegedOperationsCoordinator {
     private func helperRestartKarabinerDaemonVerified() async throws -> Bool {
         AppLogger.shared.log("🔐 [PrivCoordinator] Helper path: verified restart of Karabiner daemon")
 
-        // Snapshot PRE state
-        let preLoaded = await LaunchDaemonInstaller().isServiceLoaded(
+        // Snapshot PRE state (using extracted ServiceHealthChecker)
+        let preLoaded = await ServiceHealthChecker.shared.isServiceLoaded(
             serviceID: "com.keypath.karabiner-vhiddaemon")
-        let preHealth = await LaunchDaemonInstaller().isServiceHealthy(
+        let preHealth = await ServiceHealthChecker.shared.isServiceHealthy(
             serviceID: "com.keypath.karabiner-vhiddaemon")
         AppLogger.shared.log(
             "🔎 [PrivCoordinator] PRE: vhiddaemon loaded=\(preLoaded), healthy=\(preHealth)")
@@ -528,9 +528,9 @@ final class PrivilegedOperationsCoordinator {
         }
 
         try await Task.sleep(nanoseconds: 300_000_000)
-        let postLoaded = await LaunchDaemonInstaller().isServiceLoaded(
+        let postLoaded = await ServiceHealthChecker.shared.isServiceLoaded(
             serviceID: "com.keypath.karabiner-vhiddaemon")
-        let postHealth = await LaunchDaemonInstaller().isServiceHealthy(
+        let postHealth = await ServiceHealthChecker.shared.isServiceHealthy(
             serviceID: "com.keypath.karabiner-vhiddaemon")
         AppLogger.shared.log(
             "🔎 [PrivCoordinator] POST: vhiddaemon loaded=\(postLoaded), healthy=\(postHealth)")
@@ -583,7 +583,7 @@ final class PrivilegedOperationsCoordinator {
     }
 
     /// Install all LaunchDaemon services using consolidated single-prompt method
-    /// This delegates to LaunchDaemonInstaller which has the complex multi-service logic
+    /// NOTE: Still uses LaunchDaemonInstaller - complex multi-service orchestration not yet extracted
     private func sudoInstallAllServices(
         kanataBinaryPath _: String,
         kanataConfigPath _: String,
@@ -609,7 +609,8 @@ final class PrivilegedOperationsCoordinator {
         }
     }
 
-    /// Restart unhealthy services using LaunchDaemonInstaller
+    /// Restart unhealthy services
+    /// NOTE: Still uses LaunchDaemonInstaller - complex health/install orchestration not yet extracted
     private func sudoRestartServices() async throws {
         let installer = LaunchDaemonInstaller()
         let success = await installer.restartUnhealthyServices()
@@ -619,8 +620,8 @@ final class PrivilegedOperationsCoordinator {
         }
     }
 
-    /// Regenerate service configuration using LaunchDaemonInstaller
-    /// Uses SMAppService for Kanata
+    /// Regenerate service configuration (SMAppService for Kanata)
+    /// NOTE: Still uses LaunchDaemonInstaller - complex multi-service orchestration not yet extracted
     private func sudoRegenerateConfig() async throws {
         AppLogger.shared.log("🔧 [PrivCoordinator] Regenerating service configuration via SMAppService")
         let installer = LaunchDaemonInstaller()
@@ -631,7 +632,8 @@ final class PrivilegedOperationsCoordinator {
         }
     }
 
-    /// Install log rotation using LaunchDaemonInstaller
+    /// Install log rotation service
+    /// NOTE: Still uses LaunchDaemonInstaller - log rotation not yet extracted
     private func sudoInstallLogRotation() async throws {
         let installer = LaunchDaemonInstaller()
         let success = await installer.installLogRotationService()
@@ -641,7 +643,8 @@ final class PrivilegedOperationsCoordinator {
         }
     }
 
-    /// Repair VHID daemon services using LaunchDaemonInstaller
+    /// Repair VHID daemon services
+    /// NOTE: Still uses LaunchDaemonInstaller - VHID repair orchestration not yet extracted
     private func sudoRepairVHIDServices() async throws {
         let installer = LaunchDaemonInstaller()
         let success = await installer.repairVHIDDaemonServices()
@@ -651,7 +654,8 @@ final class PrivilegedOperationsCoordinator {
         }
     }
 
-    /// Install LaunchDaemon services without loading them using LaunchDaemonInstaller
+    /// Install LaunchDaemon services without loading them (for orphan adoption)
+    /// NOTE: Still uses LaunchDaemonInstaller - install-only orchestration not yet extracted
     private func sudoInstallServicesWithoutLoading() async throws {
         let installer = LaunchDaemonInstaller()
         let success = await installer.createAllLaunchDaemonServicesInstallOnly()
@@ -828,10 +832,9 @@ final class PrivilegedOperationsCoordinator {
         return false
     }
 
-    /// Install bundled Kanata binary using LaunchDaemonInstaller
+    /// Install bundled Kanata binary using KanataBinaryInstaller
     private func sudoInstallBundledKanata() async throws {
-        let installer = LaunchDaemonInstaller()
-        let success = installer.installBundledKanataBinaryOnly()
+        let success = KanataBinaryInstaller.shared.installBundledKanata()
 
         if !success {
             throw PrivilegedOperationError.operationFailed("Bundled Kanata installation failed")

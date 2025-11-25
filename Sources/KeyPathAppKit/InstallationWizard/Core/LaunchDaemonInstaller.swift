@@ -144,6 +144,11 @@ class LaunchDaemonInstaller {
         }
 
         // Fallback: run osascript directly (for non-standard AppleScript code)
+        // But first check if we should use sudo instead
+        if TestEnvironment.useSudoForPrivilegedOps {
+            AppLogger.shared.log("⚠️ [LaunchDaemon] Non-standard osascript code, but using sudo mode - skipping")
+            return false
+        }
         AppLogger.shared.log("⚠️ [LaunchDaemon] Non-standard osascript code, running directly")
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
@@ -1262,46 +1267,51 @@ class LaunchDaemonInstaller {
             "🔧 [LaunchDaemon] Using direct osascript execution with proper environment")
 
         // First, test if osascript works at all with a simple command
-        AppLogger.shared.log("🔧 [LaunchDaemon] Testing osascript functionality first...")
-        let testCommand = """
-        do shell script "echo 'osascript test successful'" with administrator privileges
-        """
+        // But skip this test if we're using sudo mode
+        if TestEnvironment.useSudoForPrivilegedOps {
+            AppLogger.shared.log("🔧 [LaunchDaemon] Skipping osascript test (using sudo mode)")
+        } else {
+            AppLogger.shared.log("🔧 [LaunchDaemon] Testing osascript functionality first...")
+            let testCommand = """
+            do shell script "echo 'osascript test successful'" with administrator privileges
+            """
 
-        let testTask = Process()
-        testTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        testTask.arguments = ["-e", testCommand]
+            let testTask = Process()
+            testTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+            testTask.arguments = ["-e", testCommand]
 
-        // Capture both stdout and stderr
-        let testPipe = Pipe()
-        let testErrorPipe = Pipe()
-        testTask.standardOutput = testPipe
-        testTask.standardError = testErrorPipe
+            // Capture both stdout and stderr
+            let testPipe = Pipe()
+            let testErrorPipe = Pipe()
+            testTask.standardOutput = testPipe
+            testTask.standardError = testErrorPipe
 
-        do {
-            try testTask.run()
-            testTask.waitUntilExit()
+            do {
+                try testTask.run()
+                testTask.waitUntilExit()
 
-            let testStatus = testTask.terminationStatus
-            AppLogger.shared.log("🔧 [LaunchDaemon] osascript test result: \(testStatus)")
+                let testStatus = testTask.terminationStatus
+                AppLogger.shared.log("🔧 [LaunchDaemon] osascript test result: \(testStatus)")
 
-            if testStatus != 0 {
-                // Capture stderr for detailed error info
-                let errorData = testErrorPipe.fileHandleForReading.readDataToEndOfFile()
-                if let errorString = String(data: errorData, encoding: .utf8), !errorString.isEmpty {
-                    AppLogger.shared.log("❌ [LaunchDaemon] osascript error output: \(errorString)")
+                if testStatus != 0 {
+                    // Capture stderr for detailed error info
+                    let errorData = testErrorPipe.fileHandleForReading.readDataToEndOfFile()
+                    if let errorString = String(data: errorData, encoding: .utf8), !errorString.isEmpty {
+                        AppLogger.shared.log("❌ [LaunchDaemon] osascript error output: \(errorString)")
+                    }
+
+                    AppLogger.shared.log(
+                        "❌ [LaunchDaemon] osascript test failed - admin dialogs may be blocked")
+                    AppLogger.shared.log(
+                        "❌ [LaunchDaemon] This usually indicates missing entitlements or sandbox restrictions")
+                    return false
                 }
-
-                AppLogger.shared.log(
-                    "❌ [LaunchDaemon] osascript test failed - admin dialogs may be blocked")
-                AppLogger.shared.log(
-                    "❌ [LaunchDaemon] This usually indicates missing entitlements or sandbox restrictions")
+                AppLogger.shared.log("✅ [LaunchDaemon] osascript test passed - proceeding with installation")
+            } catch {
+                AppLogger.shared.log("❌ [LaunchDaemon] osascript test threw error: \(error)")
+                AppLogger.shared.log("❌ [LaunchDaemon] Error details: \(error.localizedDescription)")
                 return false
             }
-            AppLogger.shared.log("✅ [LaunchDaemon] osascript test passed - proceeding with installation")
-        } catch {
-            AppLogger.shared.log("❌ [LaunchDaemon] osascript test threw error: \(error)")
-            AppLogger.shared.log("❌ [LaunchDaemon] Error details: \(error.localizedDescription)")
-            return false
         }
 
         // Build installation script (same as before)
@@ -2320,39 +2330,20 @@ class LaunchDaemonInstaller {
         launchctl kickstart system/\(serviceID)
         """
 
-        // Use osascript for admin privileges
-        let escapedCommand = escapeForAppleScript(command)
-        let osascriptCommand = """
-        do shell script "\(escapedCommand)" with administrator privileges with prompt "KeyPath needs to update the TCP server configuration for the keyboard service."
-        """
+        // Use PrivilegedCommandRunner (uses sudo if KEYPATH_USE_SUDO=1, otherwise osascript)
+        let result = PrivilegedCommandRunner.execute(
+            command: command,
+            prompt: "KeyPath needs to update the TCP server configuration for the keyboard service."
+        )
 
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        task.arguments = ["-e", osascriptCommand]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            if task.terminationStatus == 0 {
-                AppLogger.shared.log("✅ [LaunchDaemon] Successfully reloaded service \(serviceID)")
-                AppLogger.shared.log("🔧 [LaunchDaemon] Reload output: \(output)")
-                // Mark restart time for warm-up detection
-                markRestartTime(for: [serviceID])
-                return true
-            } else {
-                AppLogger.shared.log("❌ [LaunchDaemon] Failed to reload service \(serviceID): \(output)")
-                return false
-            }
-        } catch {
-            AppLogger.shared.log("❌ [LaunchDaemon] Error executing service reload: \(error)")
+        if result.success {
+            AppLogger.shared.log("✅ [LaunchDaemon] Successfully reloaded service \(serviceID)")
+            AppLogger.shared.log("🔧 [LaunchDaemon] Reload output: \(result.output)")
+            // Mark restart time for warm-up detection
+            markRestartTime(for: [serviceID])
+            return true
+        } else {
+            AppLogger.shared.log("❌ [LaunchDaemon] Failed to reload service \(serviceID): \(result.output)")
             return false
         }
     }
