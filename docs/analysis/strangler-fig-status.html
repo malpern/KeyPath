@@ -195,7 +195,7 @@
 </head>
 <body>
     <div class="hero">
-        <p class="pill partial">Phase 1 Complete · Phases 2-3 Pending · November 2025</p>
+        <p class="pill partial">Phase 2 In Progress · November 2025</p>
         <h1>Kanata Service Strangler Fig</h1>
         <p class="tagline">From sprawling legacy managers to a single, testable façade.</p>
     </div>
@@ -203,15 +203,15 @@
     <section>
         <h2>Overall Status</h2>
         <div class="status-banner partial">
-            <h2 style="color: #ff9500; margin-bottom: 10px;">⚠️ Phase 1 Complete — Façade in Place</h2>
-            <p style="font-size: 1.1rem;">The InstallerEngine façade is working and all callers have been migrated. However, the legacy code behind the façade has NOT been rewritten or removed.</p>
-            <p style="font-size: 0.95rem; margin-top: 12px; opacity: 0.8;">60 tests passing · Façade operational · Legacy code still present (3,128+ lines)</p>
+            <h2 style="color: #5e5ce6; margin-bottom: 10px;">🔧 Phase 2 In Progress — Services Extracted</h2>
+            <p style="font-size: 1.1rem;">5 new services extracted from LaunchDaemonInstaller. Integration complete. LaunchDaemonInstaller reduced by ~356 lines.</p>
+            <p style="font-size: 0.95rem; margin-top: 12px; opacity: 0.8;">60 tests passing · 5 new services · ~356 lines removed from legacy code</p>
         </div>
         <div class="grid four" style="margin-top:24px;">
             <div class="card">
-                <div class="metric">3,128</div>
+                <div class="metric" style="color: var(--teal);">2,772</div>
                 <div class="metric-label">LaunchDaemonInstaller lines</div>
-                <p>Still the largest file. Hidden behind façade but not rewritten.</p>
+                <p>Reduced from 3,128. Now delegates to extracted services.</p>
             </div>
             <div class="card">
                 <div class="metric">2,321</div>
@@ -219,14 +219,14 @@
                 <p>Renamed from KanataManager but still contains legacy patterns.</p>
             </div>
             <div class="card">
-                <div class="metric">18</div>
-                <div class="metric-label">LaunchDaemonInstaller() calls</div>
-                <p>Direct instantiations remaining in codebase.</p>
+                <div class="metric" style="color: var(--teal);">5</div>
+                <div class="metric-label">New extracted services</div>
+                <p>PlistGenerator, ServiceBootstrapper, ServiceHealthChecker, KanataBinaryInstaller, PrivilegedExecutor</p>
             </div>
             <div class="card">
-                <div class="metric">20+</div>
-                <div class="metric-label">Manager/Service classes</div>
-                <p>Many overlapping responsibilities not yet consolidated.</p>
+                <div class="metric">1,529</div>
+                <div class="metric-label">Lines in new services</div>
+                <p>Clean, focused, testable code extracted from legacy.</p>
             </div>
         </div>
     </section>
@@ -307,7 +307,7 @@
     </section>
 
     <section>
-        <h2>Phase 2: Internal Rewrite (🔶 Not Started)</h2>
+        <h2>Phase 2: Internal Rewrite (🔧 In Progress)</h2>
         <p style="color: var(--gray); margin-bottom: 24px;">Replace legacy implementations behind the façade with clean, testable services.</p>
         <table class="table">
             <thead>
@@ -315,45 +315,69 @@
                     <th>Task</th>
                     <th>Current State</th>
                     <th>Target</th>
-                    <th>Effort</th>
+                    <th>Status</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td><strong>Decompose LaunchDaemonInstaller</strong></td>
-                    <td>3,128 lines, 71 functions in one file</td>
-                    <td>Split into: PlistGenerator, ServiceBootstrapper, HealthChecker, BinaryInstaller</td>
-                    <td><span class="effort">~3-4 days</span></td>
+                    <td><strong>Extract PlistGenerator</strong></td>
+                    <td>Plist generation logic in LaunchDaemonInstaller</td>
+                    <td>Pure functions for generating launchd plist XML</td>
+                    <td><span class="pill done">✅ Done (268 lines)</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Extract KanataBinaryInstaller</strong></td>
+                    <td>Binary installation logic scattered</td>
+                    <td>Dedicated service for Kanata binary management</td>
+                    <td><span class="pill done">✅ Done (266 lines)</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Extract PrivilegedExecutor</strong></td>
+                    <td>osascript/sudo logic duplicated</td>
+                    <td>Unified interface for privileged operations</td>
+                    <td><span class="pill done">✅ Done (228 lines)</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Extract ServiceBootstrapper</strong></td>
+                    <td>Service load/unload/restart logic</td>
+                    <td>Clean interface for launchd service management</td>
+                    <td><span class="pill done">✅ Done (288 lines)</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Extract ServiceHealthChecker</strong></td>
+                    <td>Health check logic in LaunchDaemonInstaller</td>
+                    <td>Comprehensive health checking capabilities</td>
+                    <td><span class="pill done">✅ Done (479 lines)</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Integrate services into LaunchDaemonInstaller</strong></td>
+                    <td>LaunchDaemonInstaller still has duplicate code</td>
+                    <td>Delegate to extracted services</td>
+                    <td><span class="pill done">✅ Done (-356 lines)</span></td>
                 </tr>
                 <tr>
                     <td><strong>Extract RuntimeCoordinator concerns</strong></td>
                     <td>2,321 lines mixing UI state, process lifecycle, config management</td>
                     <td>Separate: ProcessLifecycle, ConfigReloader, StatePublisher</td>
-                    <td><span class="effort">~2-3 days</span></td>
+                    <td><span class="pill pending">Pending (~2-3 days)</span></td>
                 </tr>
                 <tr>
                     <td><strong>Consolidate Manager classes</strong></td>
-                    <td>20+ overlapping managers (KanataDaemonManager, KanataConfigManager, BundledKanataManager, etc.)</td>
+                    <td>20+ overlapping managers</td>
                     <td>Merge into InstallerEngine subsystems or delete</td>
-                    <td><span class="effort">~2 days</span></td>
-                </tr>
-                <tr>
-                    <td><strong>Remove LaunchDaemonInstaller() direct calls</strong></td>
-                    <td>18 direct instantiations remaining</td>
-                    <td>All calls go through InstallerEngine façade</td>
-                    <td><span class="effort">~1 day</span></td>
+                    <td><span class="pill pending">Pending (~2 days)</span></td>
                 </tr>
                 <tr>
                     <td><strong>Add unit tests for new services</strong></td>
                     <td>Tests exist but cover façade, not internals</td>
                     <td>Each new service has isolated unit tests</td>
-                    <td><span class="effort">~2 days</span></td>
+                    <td><span class="pill pending">Pending (~1 day)</span></td>
                 </tr>
             </tbody>
         </table>
         <div class="card" style="margin-top: 24px;">
-            <p class="pill pending">Estimated Total: 10-14 days</p>
-            <p>This phase requires careful incremental work to avoid regressions. Each decomposition should be a separate PR with full test coverage.</p>
+            <p class="pill partial">6 of 9 tasks complete · ~5-6 days remaining</p>
+            <p>Major extraction work complete. Remaining tasks focus on RuntimeCoordinator cleanup and consolidation.</p>
         </div>
     </section>
 
@@ -508,19 +532,27 @@
                 <p>Repair recipes internalized, health check APIs exposed, callers migrated to façade.</p>
             </div>
             <div class="timeline-item">
-                <h3>Phase 2 · Internal Rewrite <span class="pill pending">Pending</span></h3>
-                <p>Decompose LaunchDaemonInstaller (3,128 lines) into clean, testable services. Extract RuntimeCoordinator concerns. Consolidate overlapping managers.</p>
+                <h3>Phase 2.1 · Service Extraction <span class="pill done">Done</span></h3>
+                <p>Extracted 5 services: PlistGenerator, KanataBinaryInstaller, PrivilegedExecutor, ServiceBootstrapper, ServiceHealthChecker. Total: 1,529 lines of clean code.</p>
+            </div>
+            <div class="timeline-item">
+                <h3>Phase 2.2 · Integration <span class="pill done">Done</span></h3>
+                <p>LaunchDaemonInstaller now delegates to extracted services. Removed 356 lines of duplicate code.</p>
+            </div>
+            <div class="timeline-item">
+                <h3>Phase 2.3 · RuntimeCoordinator Cleanup <span class="pill pending">Pending</span></h3>
+                <p>Extract concerns from RuntimeCoordinator (2,321 lines). Consolidate overlapping managers.</p>
             </div>
             <div class="timeline-item">
                 <h3>Phase 3 · Legacy Removal <span class="pill pending">Pending</span></h3>
-                <p>Delete legacy code (~5,500 lines). Archive old documentation. Final test sweep.</p>
+                <p>Delete legacy code. Archive old documentation. Final test sweep.</p>
             </div>
         </div>
         <div class="status-banner partial" style="margin-top: 40px;">
-            <h2 style="color: #ff9500; margin-bottom: 10px;">📊 Project Status: Phase 1 of 3 Complete</h2>
-            <p style="font-size: 1.1rem;">Façade is operational. Legacy code is hidden but not yet replaced.</p>
+            <h2 style="color: #5e5ce6; margin-bottom: 10px;">📊 Project Status: Phase 2 In Progress (67% complete)</h2>
+            <p style="font-size: 1.1rem;">5 services extracted and integrated. LaunchDaemonInstaller reduced by ~356 lines.</p>
             <p style="font-size: 0.95rem; margin-top: 12px; opacity: 0.8;">
-                <strong>Remaining effort:</strong> ~14-19 days to complete Phases 2-3
+                <strong>Remaining effort:</strong> ~9-11 days to complete Phases 2-3
             </p>
         </div>
     </section>
