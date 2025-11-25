@@ -124,7 +124,8 @@ class LaunchDaemonInstaller {
         // Extract the shell command from the AppleScript code
         // This is for backward compatibility - ideally callers should use PrivilegedCommandRunner directly
         if let commandRange = osascriptCode.range(of: "do shell script \""),
-           let endRange = osascriptCode.range(of: "\" with administrator privileges") {
+           let endRange = osascriptCode.range(of: "\" with administrator privileges")
+        {
             let startIndex = commandRange.upperBound
             let endIndex = endRange.lowerBound
             let command = String(osascriptCode[startIndex ..< endIndex])
@@ -134,7 +135,8 @@ class LaunchDaemonInstaller {
             // Extract prompt if present
             var prompt = "KeyPath needs administrator privileges."
             if let promptRange = osascriptCode.range(of: "with prompt \""),
-               let promptEndRange = osascriptCode.range(of: "\"", range: promptRange.upperBound ..< osascriptCode.endIndex) {
+               let promptEndRange = osascriptCode.range(of: "\"", range: promptRange.upperBound ..< osascriptCode.endIndex)
+            {
                 prompt = String(osascriptCode[promptRange.upperBound ..< promptEndRange.lowerBound])
             }
 
@@ -198,7 +200,8 @@ class LaunchDaemonInstaller {
     }
 
     nonisolated static func hadRecentRestart(within seconds: TimeInterval = healthyWarmupWindow)
-        -> Bool {
+        -> Bool
+    {
         let now = Date()
         return kickstartLock.withLock { times in
             times.values.contains { now.timeIntervalSince($0) < seconds }
@@ -760,77 +763,8 @@ class LaunchDaemonInstaller {
     /// Checks if a LaunchDaemon service is currently loaded
     /// Uses state determination for Kanata service to ensure consistent detection
     nonisolated func isServiceLoaded(serviceID: String) async -> Bool {
-        // Special handling for Kanata service: Use state determination for consistent detection
-        if serviceID == Self.kanataServiceID {
-            if Self.isTestMode {
-                let exists = FileManager.default.fileExists(
-                    atPath: "\(Self.launchDaemonsPath)/\(serviceID).plist")
-                AppLogger.shared.log(
-                    "🔍 [LaunchDaemon] (test) Kanata service loaded via file existence: \(exists)")
-                return exists
-            }
-            let state = await KanataDaemonManager.shared.refreshManagementState()
-            AppLogger.shared.log("🔍 [LaunchDaemon] Kanata service state: \(state.description)")
-
-            switch state {
-            case .legacyActive:
-                // Legacy plist exists - check launchctl status
-                // Fall through to launchctl check below
-                AppLogger.shared.log("🔍 [LaunchDaemon] Legacy plist exists - checking launchctl status")
-            case .smappserviceActive, .smappservicePending:
-                // SMAppService is managing - consider it loaded
-                AppLogger.shared.log(
-                    "🔍 [LaunchDaemon] Kanata service loaded via SMAppService (state: \(state.description))")
-                return true
-            case .conflicted:
-                // Both active - consider it loaded (SMAppService takes precedence)
-                AppLogger.shared.log(
-                    "🔍 [LaunchDaemon] Conflicted state - considering loaded (SMAppService active)")
-                return true
-            case .unknown:
-                // Process running but unclear - check process, consider loaded if running
-                // Use local async check to avoid actor hop
-                if await checkKanataServiceHealth().isRunning {
-                    AppLogger.shared.log(
-                        "🔍 [LaunchDaemon] Unknown state but process running - considering loaded")
-                    return true
-                }
-                return false
-            case .uninstalled:
-                // Not installed
-                AppLogger.shared.log("🔍 [LaunchDaemon] Service not installed (state: \(state.description))")
-                return false
-            }
-        }
-
-        if Self.isTestMode {
-            let exists = FileManager.default.fileExists(
-                atPath: "\(Self.launchDaemonsPath)/\(serviceID).plist")
-            AppLogger.shared.log(
-                "🔍 [LaunchDaemon] (test) Service \(serviceID) considered loaded: \(exists)")
-            return exists
-        }
-
-        return await Task.detached {
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-            task.arguments = ["print", "system/\(serviceID)"]
-
-            let pipe = Pipe()
-            task.standardOutput = pipe
-            task.standardError = pipe
-
-            do {
-                try task.run()
-                task.waitUntilExit()
-                let isLoaded = task.terminationStatus == 0
-                AppLogger.shared.log("🔍 [LaunchDaemon] (system) Service \(serviceID) loaded: \(isLoaded)")
-                return isLoaded
-            } catch {
-                AppLogger.shared.log("❌ [LaunchDaemon] Error checking service \(serviceID): \(error)")
-                return false
-            }
-        }.value
+        // Delegate to ServiceHealthChecker
+        await ServiceHealthChecker.shared.isServiceLoaded(serviceID: serviceID)
     }
 
     /// Legacy pgrep helper (disabled) — use checkKanataServiceHealth instead.
@@ -839,207 +773,41 @@ class LaunchDaemonInstaller {
 
     /// Checks if a LaunchDaemon service is running healthily (not just loaded)
     nonisolated func isServiceHealthy(serviceID: String) async -> Bool {
-        AppLogger.shared.log("🔍 [LaunchDaemon] HEALTH CHECK (system/print) for: \(serviceID)")
-
-        if Self.isTestMode {
-            let exists = FileManager.default.fileExists(
-                atPath: "\(Self.launchDaemonsPath)/\(serviceID).plist")
-            AppLogger.shared.log(
-                "🔍 [LaunchDaemon] (test) Service \(serviceID) considered healthy: \(exists)")
-            return exists
-        }
-
-        return await Task.detached {
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-            task.arguments = ["print", "system/\(serviceID)"]
-
-            let pipe = Pipe()
-            task.standardOutput = pipe
-            task.standardError = pipe
-
-            do {
-                try task.run()
-                task.waitUntilExit()
-
-                guard task.terminationStatus == 0 else {
-                    AppLogger.shared.log("🔍 [LaunchDaemon] \(serviceID) not found in system domain")
-                    return false
-                }
-
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                let output = String(data: data, encoding: .utf8) ?? ""
-
-                // Extract details from 'launchctl print' output
-                let state = output.firstMatchString(pattern: #"state\s*=\s*([A-Za-z]+)"#)?.lowercased()
-                let pid =
-                    output.firstMatchInt(pattern: #"\bpid\s*=\s*([0-9]+)"#)
-                        ?? output.firstMatchInt(pattern: #""PID"\s*=\s*([0-9]+)"#)
-                let lastExit =
-                    output.firstMatchInt(pattern: #"last exit (?:status|code)\s*=\s*(-?\d+)"#)
-                        ?? output.firstMatchInt(pattern: #""LastExitStatus"\s*=\s*(-?\d+)"#)
-
-                let isOneShot = (serviceID == Self.vhidManagerServiceID)
-                let isRunningLike = (state == "running" || state == "launching")
-                let hasPID = (pid != nil)
-                let inWarmup = Self.wasRecentlyRestarted(serviceID)
-
-                var healthy = false
-                if isOneShot {
-                    // One-shot services run once and exit - this is normal behavior
-                    if let lastExit {
-                        // If we have exit status, it must be clean (0)
-                        healthy = (lastExit == 0)
-                    } else if isRunningLike || hasPID || inWarmup {
-                        // Service currently running or starting up
-                        healthy = true
-                    } else {
-                        // No exit status and not running - assume it ran successfully
-                        // This is normal for one-shot services that run at boot
-                        AppLogger.shared.log(
-                            "🔍 [LaunchDaemon] One-shot service \(serviceID) not running (normal) - assuming healthy"
-                        )
-                        healthy = true
-                    }
-                } else {
-                    // KeepAlive jobs should be running. Allow starting states or warm-up.
-                    if isRunningLike || hasPID {
-                        healthy = true
-                    } else if inWarmup {
-                        healthy = true
-                    } // starting up
-                    else {
-                        healthy = false
-                    }
-                }
-
-                AppLogger.shared.log("🔍 [LaunchDaemon] HEALTH ANALYSIS \(serviceID):")
-                AppLogger.shared
-                    .log(
-                        "    state=\(state ?? "nil"), pid=\(pid?.description ?? "nil"), lastExit=\(lastExit?.description ?? "nil"), oneShot=\(isOneShot), warmup=\(inWarmup), healthy=\(healthy)"
-                    )
-
-                return healthy
-            } catch {
-                AppLogger.shared.log("❌ [LaunchDaemon] Error checking service health \(serviceID): \(error)")
-                return false
-            }
-        }.value
+        // Delegate to ServiceHealthChecker
+        await ServiceHealthChecker.shared.isServiceHealthy(serviceID: serviceID)
     }
 
-    // MARK: - Plist Generation
+    // MARK: - Plist Generation (delegates to PlistGenerator)
 
     private func generateKanataPlist(binaryPath: String) -> String {
-        let arguments = buildKanataPlistArguments(binaryPath: binaryPath)
+        // Read settings from UserDefaults
+        let tcpPort = UserDefaults.standard.object(forKey: "KeyPath.TCP.ServerPort") as? Int ?? 37001
+        let verboseLogging =
+            UserDefaults.standard.object(forKey: "KeyPath.Diagnostics.VerboseKanataLogging") as? Bool
+                ?? false
 
-        // TCP mode: No environment variables needed (auth token stored in Keychain)
-        let environmentXML = ""
-
-        var argumentsXML = ""
-        for arg in arguments {
-            argumentsXML += "                <string>\(arg)</string>\n"
+        AppLogger.shared.log("📡 [LaunchDaemon] TCP server enabled on port \(tcpPort)")
+        if verboseLogging {
+            AppLogger.shared.log("📊 [LaunchDaemon] Verbose logging enabled (--trace)")
         }
-        // Ensure proper indentation for the XML
-        argumentsXML = argumentsXML.trimmingCharacters(in: .newlines)
 
-        return """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>Label</key>
-            <string>\(Self.kanataServiceID)</string>
-            <key>ProgramArguments</key>
-            <array>
-            \(argumentsXML)
-            </array>\(environmentXML)
-            <key>RunAtLoad</key>
-            <true/>
-            <key>KeepAlive</key>
-            <false/>
-            <key>StandardOutPath</key>
-            <string>/var/log/kanata.log</string>
-            <key>StandardErrorPath</key>
-            <string>/var/log/kanata.log</string>
-            <key>SoftResourceLimits</key>
-            <dict>
-                <key>NumberOfFiles</key>
-                <integer>256</integer>
-            </dict>
-            <key>UserName</key>
-            <string>root</string>
-            <key>GroupName</key>
-            <string>wheel</string>
-            <key>ThrottleInterval</key>
-            <integer>10</integer>
-            <key>AssociatedBundleIdentifiers</key>
-            <array>
-                <string>com.keypath.KeyPath</string>
-            </array>
-        </dict>
-        </plist>
-        """
+        // Delegate to PlistGenerator
+        return PlistGenerator.generateKanataPlist(
+            binaryPath: binaryPath,
+            configPath: Self.kanataConfigPath,
+            tcpPort: tcpPort,
+            verboseLogging: verboseLogging
+        )
     }
 
     private func generateVHIDDaemonPlist() -> String {
-        """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>Label</key>
-            <string>\(Self.vhidDaemonServiceID)</string>
-            <key>ProgramArguments</key>
-            <array>
-                <string>\(Self.vhidDaemonPath)</string>
-            </array>
-            <key>RunAtLoad</key>
-            <true/>
-            <key>KeepAlive</key>
-            <true/>
-            <key>StandardOutPath</key>
-            <string>/var/log/karabiner-vhid-daemon.log</string>
-            <key>StandardErrorPath</key>
-            <string>/var/log/karabiner-vhid-daemon.log</string>
-            <key>UserName</key>
-            <string>root</string>
-            <key>GroupName</key>
-            <string>wheel</string>
-            <key>ThrottleInterval</key>
-            <integer>10</integer>
-        </dict>
-        </plist>
-        """
+        // Delegate to PlistGenerator
+        PlistGenerator.generateVHIDDaemonPlist()
     }
 
     private func generateVHIDManagerPlist() -> String {
-        """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>Label</key>
-            <string>\(Self.vhidManagerServiceID)</string>
-            <key>ProgramArguments</key>
-            <array>
-                <string>\(Self.vhidManagerPath)</string>
-                <string>activate</string>
-            </array>
-            <key>RunAtLoad</key>
-            <true/>
-            <key>KeepAlive</key>
-            <false/>
-            <key>StandardOutPath</key>
-            <string>/var/log/karabiner-vhid-manager.log</string>
-            <key>StandardErrorPath</key>
-            <string>/var/log/karabiner-vhid-manager.log</string>
-            <key>UserName</key>
-            <string>root</string>
-            <key>GroupName</key>
-            <string>wheel</string>
-        </dict>
-        </plist>
-        """
+        // Delegate to PlistGenerator
+        PlistGenerator.generateVHIDManagerPlist()
     }
 
     private func ensureDefaultUserConfigExists() async {
@@ -1254,7 +1022,8 @@ class LaunchDaemonInstaller {
 
     /// Execute LaunchDaemon installation with administrator privileges using osascript
     private func executeWithAdminPrivileges(tempPath: String, finalPath: String, serviceID: String)
-        -> Bool {
+        -> Bool
+    {
         AppLogger.shared.log("🔧 [LaunchDaemon] Requesting admin privileges to install \(serviceID)")
 
         // Create the command to copy the file and set proper permissions
@@ -1832,44 +1601,15 @@ class LaunchDaemonInstaller {
     /// Gets comprehensive status of all LaunchDaemon services
     /// OPTIMIZED: For SMAppService-managed Kanata, skips expensive launchctl checks
     nonisolated func getServiceStatus() async -> LaunchDaemonStatus {
-        // Fast path: Check Kanata state first to avoid expensive checks if SMAppService is managing it
-        let kanataState = await KanataDaemonManager.shared.refreshManagementState()
-        let kanataLoaded: Bool
-        let kanataHealthy: Bool
-
-        if kanataState.isSMAppServiceManaged {
-            // SMAppService is managing Kanata - use fast checks
-            kanataLoaded = true // SMAppService managed = loaded
-            // For health, just check if process is running (faster than launchctl print)
-            kanataHealthy = await checkKanataServiceHealth().isRunning
-            AppLogger.shared.log(
-                "🔍 [LaunchDaemon] Kanata SMAppService-managed: loaded=true, healthy=\(kanataHealthy)")
-        } else {
-            // Legacy or unknown - use full checks
-            kanataLoaded = await isServiceLoaded(serviceID: Self.kanataServiceID)
-            kanataHealthy = await isServiceHealthy(serviceID: Self.kanataServiceID)
-        }
-
-        // VHID services always use launchctl (no SMAppService option)
-        let vhidDaemonLoaded = await isServiceLoaded(serviceID: Self.vhidDaemonServiceID)
-        let vhidManagerLoaded = await isServiceLoaded(serviceID: Self.vhidManagerServiceID)
-        let vhidDaemonHealthy = await isServiceHealthy(serviceID: Self.vhidDaemonServiceID)
-        let vhidManagerHealthy = await isServiceHealthy(serviceID: Self.vhidManagerServiceID)
-
-        return LaunchDaemonStatus(
-            kanataServiceLoaded: kanataLoaded,
-            vhidDaemonServiceLoaded: vhidDaemonLoaded,
-            vhidManagerServiceLoaded: vhidManagerLoaded,
-            kanataServiceHealthy: kanataHealthy,
-            vhidDaemonServiceHealthy: vhidDaemonHealthy,
-            vhidManagerServiceHealthy: vhidManagerHealthy
-        )
+        // Delegate to ServiceHealthChecker
+        await ServiceHealthChecker.shared.getServiceStatus()
     }
 
     /// Check if Kanata service plist file exists (but may not be loaded)
     /// Internal - exposed for testing
     func isKanataPlistInstalled() -> Bool {
-        FileManager.default.fileExists(atPath: Self.kanataPlistPath)
+        // Delegate to ServiceHealthChecker
+        ServiceHealthChecker.shared.isKanataPlistInstalled()
     }
 
     /// Install LaunchDaemon service files without loading/starting them
@@ -1919,85 +1659,15 @@ class LaunchDaemonInstaller {
     /// Verifies that the installed VHID LaunchDaemon plist points to the DriverKit daemon path
     /// Internal - exposed for testing
     func isVHIDDaemonConfiguredCorrectly() -> Bool {
-        let plistPath = "\(Self.launchDaemonsPath)/\(Self.vhidDaemonServiceID).plist"
-        guard let dict = NSDictionary(contentsOfFile: plistPath) as? [String: Any] else {
-            AppLogger.shared.log("🔍 [LaunchDaemon] VHID plist not found or unreadable at: \(plistPath)")
-            return false
-        }
-
-        if let args = dict["ProgramArguments"] as? [String], let first = args.first {
-            let ok = first == Self.vhidDaemonPath
-            AppLogger.shared.log(
-                "🔍 [LaunchDaemon] VHID plist ProgramArguments[0]=\(first) | expected=\(Self.vhidDaemonPath) | ok=\(ok)"
-            )
-            return ok
-        }
-        AppLogger.shared.log("🔍 [LaunchDaemon] VHID plist ProgramArguments missing or malformed")
-        return false
+        // Delegate to ServiceHealthChecker
+        ServiceHealthChecker.shared.isVHIDDaemonConfiguredCorrectly()
     }
 
     /// Restarts services with admin privileges using launchctl kickstart
     @MainActor
     private func restartServicesWithAdmin(_ serviceIDs: [String]) -> Bool {
-        AppLogger.shared.log(
-            "🔧 [LaunchDaemon] *** ENHANCED RESTART *** Restarting services: \(serviceIDs)")
-
-        if Self.isTestMode {
-            AppLogger.shared.log("🔧 [LaunchDaemon] Test mode - simulating successful restart")
-            return true
-        }
-        guard !serviceIDs.isEmpty else {
-            AppLogger.shared.log("🔧 [LaunchDaemon] No services to restart - returning success")
-            return true
-        }
-
-        let cmds = serviceIDs.map { "launchctl kickstart -k system/\($0)" }.joined(separator: " && ")
-        AppLogger.shared.log("🔧 [LaunchDaemon] Executing admin command: \(cmds)")
-
-        let escapedCmds = escapeForAppleScript(cmds)
-        let script = """
-        do shell script "\(escapedCmds)" with administrator privileges with prompt "KeyPath needs to restart failing system services."
-        """
-
-        AppLogger.shared.log("🔧 [LaunchDaemon] Running osascript with admin privileges...")
-
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        task.arguments = ["-e", script]
-
-        // Capture both stdout and stderr for debugging
-        let outputPipe = Pipe()
-        let errorPipe = Pipe()
-        task.standardOutput = outputPipe
-        task.standardError = errorPipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            // Read output and error streams
-            let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: outputData, encoding: .utf8) ?? "(no output)"
-            let error = String(data: errorData, encoding: .utf8) ?? "(no error)"
-
-            AppLogger.shared.log(
-                "🔧 [LaunchDaemon] osascript termination status: \(task.terminationStatus)")
-            AppLogger.shared.log("🔧 [LaunchDaemon] osascript stdout: \(output)")
-            AppLogger.shared.log("🔧 [LaunchDaemon] osascript stderr: \(error)")
-
-            let success = task.terminationStatus == 0
-            AppLogger.shared.log(
-                "🔧 [LaunchDaemon] Admin restart command result: \(success ? "SUCCESS" : "FAILED")")
-            if success {
-                // Mark warm-up start time for those services
-                markRestartTime(for: serviceIDs)
-            }
-            return success
-        } catch {
-            AppLogger.shared.log("❌ [LaunchDaemon] kickstart admin failed with exception: \(error)")
-            return false
-        }
+        // Delegate to ServiceBootstrapper (handles test mode, sudo/osascript, and warm-up tracking)
+        ServiceBootstrapper.shared.restartServicesWithAdmin(serviceIDs)
     }
 
     /// Restarts unhealthy services and diagnoses/fixes underlying issues
@@ -2695,27 +2365,24 @@ class LaunchDaemonInstaller {
 
     /// Builds Kanata command line arguments for LaunchDaemon plist including TCP port when enabled
     private func buildKanataPlistArguments(binaryPath: String) -> [String] {
-        var arguments = [binaryPath, "--cfg", Self.kanataConfigPath]
-
-        // Add TCP port for communication server
+        // Read settings from UserDefaults
         let tcpPort = UserDefaults.standard.object(forKey: "KeyPath.TCP.ServerPort") as? Int ?? 37001
-        arguments.append(contentsOf: ["--port", "\(tcpPort)"])
-        AppLogger.shared.log("📡 [LaunchDaemon] TCP server enabled on port \(tcpPort)")
-
-        // Add logging flags based on user preference
         let verboseLogging =
             UserDefaults.standard.object(forKey: "KeyPath.Diagnostics.VerboseKanataLogging") as? Bool
                 ?? false
-        if verboseLogging {
-            // Trace mode: comprehensive logging with event timing
-            arguments.append("--trace")
-            AppLogger.shared.log("📊 [LaunchDaemon] Verbose logging enabled (--trace)")
-        } else {
-            // Standard debug mode
-            arguments.append("--debug")
-        }
-        arguments.append("--log-layer-changes")
 
+        // Delegate to PlistGenerator
+        let arguments = PlistGenerator.buildKanataPlistArguments(
+            binaryPath: binaryPath,
+            configPath: Self.kanataConfigPath,
+            tcpPort: tcpPort,
+            verboseLogging: verboseLogging
+        )
+
+        AppLogger.shared.log("📡 [LaunchDaemon] TCP server enabled on port \(tcpPort)")
+        if verboseLogging {
+            AppLogger.shared.log("📊 [LaunchDaemon] Verbose logging enabled (--trace)")
+        }
         AppLogger.shared.log(
             "🔧 [LaunchDaemon] Built plist arguments: \(arguments.joined(separator: " "))")
         return arguments
@@ -2769,31 +2436,8 @@ class LaunchDaemonInstaller {
 
     /// Generate plist for log rotation service (runs every hour)
     private func generateLogRotationPlist() -> String {
-        """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>Label</key>
-            <string>\(Self.logRotationServiceID)</string>
-            <key>ProgramArguments</key>
-            <array>
-                <string>\(Self.logRotationScriptPath)</string>
-            </array>
-            <key>StartCalendarInterval</key>
-            <dict>
-                <key>Minute</key>
-                <integer>0</integer>
-            </dict>
-            <key>StandardOutPath</key>
-            <string>/var/log/keypath-logrotate.log</string>
-            <key>StandardErrorPath</key>
-            <string>/var/log/keypath-logrotate.log</string>
-            <key>UserName</key>
-            <string>root</string>
-        </dict>
-        </plist>
-        """
+        // Delegate to PlistGenerator
+        PlistGenerator.generateLogRotationPlist(scriptPath: Self.logRotationScriptPath)
     }
 
     /// Check if log rotation service is already installed
