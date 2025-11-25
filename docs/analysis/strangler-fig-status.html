@@ -214,9 +214,9 @@
                 <p>Reduced from 4 files. Only PrivilegedOperationsCoordinator internal methods remain.</p>
             </div>
             <div class="card">
-                <div class="metric" style="color: var(--teal);">7</div>
+                <div class="metric" style="color: var(--teal);">4</div>
                 <div class="metric-label">LaunchDaemonInstaller() calls</div>
-                <p>All confined to PrivilegedOperationsCoordinator. Clean boundary for Phase 3.</p>
+                <p>Reduced from 7 to 4. Remaining are complex SMAppService orchestration.</p>
             </div>
             <div class="card">
                 <div class="metric" style="color: var(--teal);">7</div>
@@ -441,7 +441,7 @@
         <div class="card" style="margin-top: 24px;">
             <p class="pill done">✅ External Caller Migration Complete</p>
             <p><strong>Completed:</strong> ALL external callers now use InstallerEngine façade. WizardAutoFixer (both install paths), SystemValidator, KarabinerConflictService, InstallerEngine health checks, UninstallCoordinator, RuntimeCoordinator.runFullInstall().</p>
-            <p style="margin-top: 12px;"><strong>Remaining (Phase 3):</strong> 7 internal methods in PrivilegedOperationsCoordinator. These are complex orchestration (SMAppService state, legacy migration, retry logic). Estimated 1-2 days to rewrite when deleting LaunchDaemonInstaller.</p>
+            <p style="margin-top: 12px;"><strong>Remaining (Phase 3):</strong> 4 internal methods in PrivilegedOperationsCoordinator (complex SMAppService orchestration). ServiceBootstrapper now handles log rotation, VHID repair, and install-only flows.</p>
         </div>
     </section>
 
@@ -569,15 +569,19 @@
                 <p>Created LegacyRemovalReadinessTests, behavior equivalence verification, comprehensive readiness checklist. Ready for safe legacy code removal.</p>
             </div>
             <div class="timeline-item">
-                <h3>Phase 3 · Legacy Removal <span class="pill partial">In Progress</span></h3>
-                <p>Only PrivilegedOperationsCoordinator complex orchestration remains. Then delete LaunchDaemonInstaller (~2,768 lines) and remove duplicate managers.</p>
+                <h3>Phase 3.1 · Internal Method Migration <span class="pill done">Done</span></h3>
+                <p>Migrated 3 PrivilegedOperationsCoordinator methods to ServiceBootstrapper: log rotation, VHID repair, install-only. Reduced LaunchDaemonInstaller() calls from 7 to 4.</p>
+            </div>
+            <div class="timeline-item">
+                <h3>Phase 3.2 · Legacy Removal <span class="pill partial">In Progress</span></h3>
+                <p>4 complex SMAppService orchestration methods remain. Then delete LaunchDaemonInstaller (~2,768 lines).</p>
             </div>
         </div>
         <div class="status-banner complete" style="margin-top: 40px;">
             <h2 style="color: var(--teal); margin-bottom: 10px;">📊 Project Status: Phase 2.5 Complete · Ready for Phase 3</h2>
             <p style="font-size: 1.1rem;">ALL external callers migrated to InstallerEngine façade. LaunchDaemonInstaller() calls confined to 1 file (7 internal methods). Clean boundary for Phase 3 deletion.</p>
             <p style="font-size: 0.95rem; margin-top: 12px; opacity: 0.8;">
-                <strong>Remaining effort:</strong> ~1-2 days to complete Phase 3 (rewrite 7 internal methods + delete LaunchDaemonInstaller)
+                <strong>Remaining effort:</strong> ~1 day to complete Phase 3 (4 SMAppService methods + delete LaunchDaemonInstaller)
             </p>
         </div>
     </section>
