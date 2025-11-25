@@ -1,8 +1,8 @@
 # Privileged Helper Implementation Plan
 
-**Status:** Phase 1 Complete (✅), Phase 2-4 Pending
-**Priority:** Medium
-**Estimated Effort:** 1.5 days remaining (Phase 1: ✅ Complete, Phase 2: 1 day, Phase 3-4: 0.5 days)
+**Status:** Phases 1-3.5 Complete (✅), Phase 4 Documentation Complete, Testing Pending
+**Priority:** Low (helper infrastructure in place, maintainer testing needed)
+**Estimated Effort:** 0.25 days remaining (release build + helper installation testing)
 **Goal:** Professional user experience with zero contributor friction
 **Last Updated:** 2025-10-30
 
@@ -584,14 +584,16 @@ xcrun notarytool submit KeyPath.zip \
 
 ### Phase 4: Documentation & Testing (0.5 days)
 
+**Status:** ✅ Documentation complete, testing partially complete
+
 **Tasks:**
-- [ ] Update `README.md` with build instructions
-- [ ] Update `ARCHITECTURE.md` with helper explanation
-- [ ] Add section to `NEW_DEVELOPER_GUIDE.md`
-- [ ] Test dev build workflow (no certificate)
-- [ ] Test release build workflow (with certificate)
-- [ ] Test helper installation/upgrade flow
-- [ ] Test fallback to sudo if helper unavailable
+- [x] Update `README.md` with build instructions (already comprehensive)
+- [x] Update `ARCHITECTURE.md` with helper explanation (Nov 25, 2025)
+- [x] Add section to `NEW_DEVELOPER_GUIDE.md` (Nov 25, 2025)
+- [x] Test dev build workflow (no certificate) - verified `swift build` works
+- [ ] Test release build workflow (with certificate) - requires maintainer
+- [ ] Test helper installation/upgrade flow - requires maintainer
+- [ ] Test fallback to sudo if helper unavailable - verified in code (`#if DEBUG`)
 
 ## Benefits Comparison
 
