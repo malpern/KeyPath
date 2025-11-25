@@ -285,8 +285,11 @@ Tests/KeyPathTests/     # Test files
 - Privileged helper/XPC path: implement `helperInstallBundledKanata()` (currently falls back to sudo)
 - Wizard operations factory: move Core factory to UI layer to avoid Core→UI references
 - Wizard critical surfacing: show a blocking issue when the bundled kanata binary is missing
-- ADR-012 wiring: connect driver version “Fix” button, show mismatch dialog, update required version when appropriate
 - UI help bubble: switch Core→UI call to a notification-based implementation
+- Update `requiredDriverVersionMajor` to 6 in VHIDDeviceManager.swift when kanata v1.10 is released
+
+### ✅ Recently Completed
+- ADR-012 wiring: driver version Fix button connected, mismatch dialog shows, downloads v5.0.0
 
 ### 🚫 Don't Do These
 1. **Don't check permissions directly** - Use `PermissionOracle` only

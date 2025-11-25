@@ -22,11 +22,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - feat: CLI migration (Phase 6)
 
 **⚠️ INCOMPLETE WORK (requires follow-up):**
-- ADR-012: Karabiner driver version detection implemented but NOT wired to Fix button
-- TODO: Connect VHIDDeviceManager.downloadAndInstallCorrectVersion() to WizardAutoFixer
-- TODO: Show version mismatch dialog when user clicks Fix button
-- TODO: When kanata v1.10 is released, update requiredDriverVersionMajor to 6
+- TODO: When kanata v1.10 is released, update requiredDriverVersionMajor to 6 in VHIDDeviceManager.swift
 - HELPER.md: Phase 1 complete (coordinator extraction), Phase 2-4 pending (XPC helper)
+
+**✅ ADR-012 Complete (verified Nov 24, 2025):**
+- Driver version detection: `VHIDDeviceManager.hasVersionMismatch()` → `SystemContext.components.vhidVersionMismatch`
+- Fix button wiring: `ActionDeterminer` adds `.fixDriverVersionMismatch` action
+- Dialog + download: `WizardAutoFixer.fixDriverVersionMismatch()` shows dialog and installs v5.0.0
 
 **✅ COMPLETED (Nov 24, 2025):**
 - **Strangler Fig Migration:** All 5 phases complete

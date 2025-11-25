@@ -260,11 +260,15 @@ Each page is 400-600 lines and follows a consistent pattern:
 
 ## Known Issues & Future Work
 
-### Incomplete Work (October 2025)
-- **ADR-012**: Driver version detection implemented but NOT wired to Fix button
-  - TODO: Connect `VHIDDeviceManager.downloadAndInstallCorrectVersion()` to `WizardAutoFixer`
-  - TODO: Show version mismatch dialog when user clicks Fix
-  - TODO: Update `requiredDriverVersionMajor` to 6 when kanata v1.10 is released
+### ✅ Completed (November 2025)
+- **ADR-012**: Driver version detection fully wired to Fix button
+  - Detection: `VHIDDeviceManager.hasVersionMismatch()` → `SystemContext.components.vhidVersionMismatch`
+  - Action: `ActionDeterminer` adds `.fixDriverVersionMismatch` when version mismatch detected
+  - Dialog: `WizardAutoFixer.fixDriverVersionMismatch()` shows confirmation dialog
+  - Install: Downloads and installs v5.0.0 via `PrivilegedOperationsCoordinator`
+
+### Pending Work
+- TODO: Update `requiredDriverVersionMajor` to 6 in VHIDDeviceManager.swift when kanata v1.10 is released
 
 ### Future Improvements
 - Consolidate 25 Core files into logical subdirectories (StateManagement/, Installation/, Remediation/)
