@@ -203,20 +203,20 @@
     <section>
         <h2>Overall Status</h2>
         <div class="status-banner complete">
-            <h2 style="color: var(--teal); margin-bottom: 10px;">✅ Phase 2.5 Complete — Callers Migrated</h2>
-            <p style="font-size: 1.1rem;">7 services extracted. Callers migrated from 4 files to 1. Only PrivilegedOperationsCoordinator still uses LaunchDaemonInstaller directly (complex orchestration). All osascript bypasses fixed.</p>
-            <p style="font-size: 0.95rem; margin-top: 12px; opacity: 0.8;">147 tests passing · 7 new services · 87 new unit tests · ~916 lines removed from legacy code</p>
+            <h2 style="color: var(--teal); margin-bottom: 10px;">✅ Phase 2.5 Complete — All External Callers Migrated</h2>
+            <p style="font-size: 1.1rem;">7 services extracted. ALL external callers now use InstallerEngine façade. Only PrivilegedOperationsCoordinator internal methods still use LaunchDaemonInstaller (7 calls in 1 file).</p>
+            <p style="font-size: 0.95rem; margin-top: 12px; opacity: 0.8;">147 tests passing · 7 new services · 87 new unit tests · Clean boundary for Phase 3 deletion</p>
         </div>
         <div class="grid four" style="margin-top:24px;">
             <div class="card">
                 <div class="metric" style="color: var(--teal);">1</div>
                 <div class="metric-label">Files with LaunchDaemonInstaller()</div>
-                <p>Reduced from 4 files. Only PrivilegedOperationsCoordinator remains (complex multi-service orchestration).</p>
+                <p>Reduced from 4 files. Only PrivilegedOperationsCoordinator internal methods remain.</p>
             </div>
             <div class="card">
-                <div class="metric" style="color: var(--teal);">29</div>
-                <div class="metric-label">LaunchDaemonInstaller refs</div>
-                <p>Reduced from 32. Remaining refs are mostly comments, self-references, and complex orchestration.</p>
+                <div class="metric" style="color: var(--teal);">7</div>
+                <div class="metric-label">LaunchDaemonInstaller() calls</div>
+                <p>All confined to PrivilegedOperationsCoordinator. Clean boundary for Phase 3.</p>
             </div>
             <div class="card">
                 <div class="metric" style="color: var(--teal);">7</div>
@@ -224,9 +224,9 @@
                 <p>PlistGenerator, ServiceBootstrapper, ServiceHealthChecker, KanataBinaryInstaller, PrivilegedExecutor, ConfigHotReloadService, StatePublisherService</p>
             </div>
             <div class="card">
-                <div class="metric">6</div>
+                <div class="metric">8</div>
                 <div class="metric-label">Callers migrated</div>
-                <p>WizardAutoFixer, SystemValidator, KarabinerConflictService, InstallerEngine, PrivilegedOperationsCoordinator (partial), UninstallCoordinator</p>
+                <p>WizardAutoFixer (2 paths), SystemValidator, KarabinerConflictService, InstallerEngine, UninstallCoordinator, plus RuntimeCoordinator.runFullInstall()</p>
             </div>
         </div>
     </section>
@@ -439,9 +439,9 @@
             </tbody>
         </table>
         <div class="card" style="margin-top: 24px;">
-            <p class="pill partial">75% Caller Migration Complete</p>
-            <p><strong>Completed:</strong> WizardAutoFixer, SystemValidator, KarabinerConflictService, InstallerEngine, UninstallCoordinator, PrivilegedOperationsCoordinator (partial - health checks + binary install).</p>
-            <p style="margin-top: 12px;"><strong>Remaining:</strong> PrivilegedOperationsCoordinator complex orchestration methods (createConfigureAndLoadAllServices, restartUnhealthyServices, etc.). Estimated 2-3 days for full removal.</p>
+            <p class="pill done">✅ External Caller Migration Complete</p>
+            <p><strong>Completed:</strong> ALL external callers now use InstallerEngine façade. WizardAutoFixer (both install paths), SystemValidator, KarabinerConflictService, InstallerEngine health checks, UninstallCoordinator, RuntimeCoordinator.runFullInstall().</p>
+            <p style="margin-top: 12px;"><strong>Remaining (Phase 3):</strong> 7 internal methods in PrivilegedOperationsCoordinator. These are complex orchestration (SMAppService state, legacy migration, retry logic). Estimated 1-2 days to rewrite when deleting LaunchDaemonInstaller.</p>
         </div>
     </section>
 
@@ -562,7 +562,7 @@
             </div>
             <div class="timeline-item">
                 <h3>Phase 2.5 · Caller Migration <span class="pill done">Done</span></h3>
-                <p>Migrated 6 callers from LaunchDaemonInstaller to extracted services: WizardAutoFixer, SystemValidator, KarabinerConflictService, InstallerEngine, UninstallCoordinator, PrivilegedOperationsCoordinator (partial). Fixed osascript bypass in UninstallCoordinator.</p>
+                <p>ALL external callers now use InstallerEngine façade. Added RuntimeCoordinator.runFullInstall(). WizardAutoFixer installation paths migrated. Only 7 internal PrivilegedOperationsCoordinator methods remain (clean boundary for Phase 3).</p>
             </div>
             <div class="timeline-item">
                 <h3>Phase 3 Prep · Test Harness & Readiness <span class="pill done">Done</span></h3>
@@ -574,10 +574,10 @@
             </div>
         </div>
         <div class="status-banner complete" style="margin-top: 40px;">
-            <h2 style="color: var(--teal); margin-bottom: 10px;">📊 Project Status: Phase 2.5 Complete · Phase 3 In Progress</h2>
-            <p style="font-size: 1.1rem;">7 services extracted. 6 callers migrated. Only PrivilegedOperationsCoordinator complex orchestration remains before legacy deletion.</p>
+            <h2 style="color: var(--teal); margin-bottom: 10px;">📊 Project Status: Phase 2.5 Complete · Ready for Phase 3</h2>
+            <p style="font-size: 1.1rem;">ALL external callers migrated to InstallerEngine façade. LaunchDaemonInstaller() calls confined to 1 file (7 internal methods). Clean boundary for Phase 3 deletion.</p>
             <p style="font-size: 0.95rem; margin-top: 12px; opacity: 0.8;">
-                <strong>Remaining effort:</strong> ~2-3 days to complete Phase 3 (migrate complex orchestration + delete legacy code)
+                <strong>Remaining effort:</strong> ~1-2 days to complete Phase 3 (rewrite 7 internal methods + delete LaunchDaemonInstaller)
             </p>
         </div>
     </section>
