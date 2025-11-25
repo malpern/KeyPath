@@ -175,28 +175,27 @@ class RuntimeCoordinator {
         }
     }
 
-    // MARK: - UI State Snapshot (Phase 4: MVVM)
+    // MARK: - UI State Snapshot (Phase 4: MVVM - delegates to StatePublisherService)
 
-    /// AsyncStream for UI state changes (replaces polling)
-    /// Only emits when state actually changes, dramatically reducing unnecessary UI updates
-    private var stateChangeContinuation: AsyncStream<KanataUIState>.Continuation?
+    /// State publisher for reactive ViewModel updates
+    private let statePublisher = StatePublisherService<KanataUIState>()
 
     /// Stream of UI state changes for reactive ViewModel updates
     nonisolated var stateChanges: AsyncStream<KanataUIState> {
-        AsyncStream { continuation in
-            Task { @MainActor in
-                self.stateChangeContinuation = continuation
-                // Emit initial state
-                continuation.yield(self.getCurrentUIState())
-            }
+        statePublisher.stateChanges
+    }
+
+    /// Configure state publisher (called during init)
+    private func configureStatePublisher() {
+        statePublisher.configure { [weak self] in
+            self?.buildUIState() ?? KanataUIState.empty
         }
     }
 
     /// Notify observers that state has changed
     /// Call this after any operation that modifies UI-visible state
     private func notifyStateChanged() {
-        let state = getCurrentUIState()
-        stateChangeContinuation?.yield(state)
+        statePublisher.notifyStateChanged()
     }
 
     /// Refresh process running state from system (call after service operations)
@@ -208,6 +207,11 @@ class RuntimeCoordinator {
     /// Returns a snapshot of current UI state for ViewModel synchronization
     /// This method allows KanataViewModel to read UI state without @Published properties
     func getCurrentUIState() -> KanataUIState {
+        buildUIState()
+    }
+
+    /// Build the current UI state snapshot
+    private func buildUIState() -> KanataUIState {
         // Sync diagnostics from DiagnosticsManager
         diagnostics = diagnosticsManager.getDiagnostics()
 
@@ -375,6 +379,9 @@ class RuntimeCoordinator {
         if isHeadlessMode {
             AppLogger.shared.log("🤖 [RuntimeCoordinator] Initialized in headless mode")
         }
+
+        // Configure state publisher for reactive UI updates
+        configureStatePublisher()
 
         AppLogger.shared.log(
             "🏗️ [RuntimeCoordinator] About to call bootstrapRuleCollections and startLayerMonitoring")

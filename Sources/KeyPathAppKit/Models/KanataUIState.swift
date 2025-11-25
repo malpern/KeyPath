@@ -21,6 +21,20 @@ struct KanataUIState: Sendable {
     // Validation & Save Status
     let validationError: ConfigValidationError?
     let saveStatus: SaveStatus
+
+    /// Empty state for initialization fallback
+    static let empty = KanataUIState(
+        lastError: nil,
+        keyMappings: [],
+        ruleCollections: [],
+        customRules: [],
+        currentLayerName: "base",
+        diagnostics: [],
+        lastProcessExitCode: nil,
+        lastConfigUpdate: Date(),
+        validationError: nil,
+        saveStatus: .idle
+    )
 }
 
 /// Error state for configuration validation to be handled by UI
