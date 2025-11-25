@@ -107,7 +107,23 @@ final class PrivilegedExecutor: @unchecked Sendable {
     ///
     /// - Warning: This method shows a modal admin dialog that may block the calling thread.
     ///   In production, this is called from main thread to ensure the dialog appears.
+    ///
+    /// - Note: In test mode with KEYPATH_USE_SUDO=1, this redirects to sudo instead of osascript.
     func executeWithOsascript(command: String, prompt: String) -> (success: Bool, output: String) {
+        // Guard: if running tests with sudo mode, redirect to sudo instead of showing osascript dialog
+        if TestEnvironment.useSudoForPrivilegedOps {
+            AppLogger.shared.log(
+                "🧪 [PrivilegedExecutor] executeWithOsascript redirecting to sudo (KEYPATH_USE_SUDO=1)")
+            return executeWithSudo(command: command)
+        }
+
+        // Guard: if tests should skip admin ops entirely, return mock success
+        if TestEnvironment.shouldSkipAdminOperations {
+            AppLogger.shared.log(
+                "🧪 [PrivilegedExecutor] Skipping osascript in test mode")
+            return (true, "Skipped in test mode")
+        }
+
         let escapedCommand = escapeForAppleScript(command)
         let osascriptCommand = """
         do shell script "\(escapedCommand)" with administrator privileges with prompt "\(prompt)"
