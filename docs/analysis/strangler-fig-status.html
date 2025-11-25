@@ -12,8 +12,15 @@
             --amber: #ffd60a;
             --orange: #ff9500;
             --gray: rgba(60, 60, 67, 0.6);
+            --gray-text: rgba(60, 60, 67, 0.7);
             --panel: rgba(255, 255, 255, 0.7);
             --panel-dark: rgba(28, 28, 30, 0.65);
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --gray: rgba(235, 235, 245, 0.6);
+                --gray-text: rgba(235, 235, 245, 0.7);
+            }
         }
         body {
             margin: 0;
@@ -247,13 +254,13 @@
                     </linearGradient>
                 </defs>
                 <rect x="30" y="40" width="740" height="140" rx="28" fill="url(#fade)" opacity="0.25"/>
-                <text x="60" y="80" font-size="20" font-weight="600" fill="#3c3c43b3">2019-2024 Architecture</text>
-                <text x="60" y="120" font-size="16" fill="#3c3c43b3">• Multiple launchctl wrappers</text>
-                <text x="60" y="150" font-size="16" fill="#3c3c43b3">• Wizard owned its own PID cache & SMAppService</text>
-                <text x="60" y="180" font-size="16" fill="#3c3c43b3">• CLI restart logic drifted from GUI restart logic</text>
-                <text x="380" y="120" font-size="16" fill="#3c3c43b3">• Emergency stop bypassed privilege broker</text>
-                <text x="380" y="150" font-size="16" fill="#3c3c43b3">• Settings tab directly invoked InstallerEngine</text>
-                <text x="380" y="180" font-size="16" fill="#3c3c43b3">• SimpleMods wrote config + probed health on its own</text>
+                <text x="60" y="80" font-size="20" font-weight="600" fill="currentColor">2019-2024 Architecture</text>
+                <text x="60" y="120" font-size="16" fill="currentColor" opacity="0.85">• Multiple launchctl wrappers</text>
+                <text x="60" y="150" font-size="16" fill="currentColor" opacity="0.85">• Wizard owned its own PID cache & SMAppService</text>
+                <text x="60" y="180" font-size="16" fill="currentColor" opacity="0.85">• CLI restart logic drifted from GUI restart logic</text>
+                <text x="380" y="120" font-size="16" fill="currentColor" opacity="0.85">• Emergency stop bypassed privilege broker</text>
+                <text x="380" y="150" font-size="16" fill="currentColor" opacity="0.85">• Settings tab directly invoked InstallerEngine</text>
+                <text x="380" y="180" font-size="16" fill="currentColor" opacity="0.85">• SimpleMods wrote config + probed health on its own</text>
             </svg>
         </div>
     </section>
