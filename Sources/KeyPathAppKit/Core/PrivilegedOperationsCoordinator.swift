@@ -584,37 +584,34 @@ final class PrivilegedOperationsCoordinator {
     }
 
     /// Install all LaunchDaemon services using consolidated single-prompt method
-    /// NOTE: Still uses LaunchDaemonInstaller - complex multi-service orchestration not yet extracted
+    /// Uses extracted ServiceBootstrapper for full installation orchestration
     private func sudoInstallAllServices(
         kanataBinaryPath _: String,
         kanataConfigPath _: String,
         tcpPort _: Int
     ) async throws {
-        // For now, this delegates to LaunchDaemonInstaller's existing implementation
-        // Once we extract all the logic, we'll move it here
-        let installer = LaunchDaemonInstaller()
-        let success = await installer.createConfigureAndLoadAllServices()
+        // Uses extracted ServiceBootstrapper for full installation
+        let success = await ServiceBootstrapper.shared.installAllServices()
 
         if !success {
-            throw PrivilegedOperationError.installationFailed("LaunchDaemon installation failed")
+            throw PrivilegedOperationError.installationFailed("Service installation failed")
         }
     }
 
     /// Install all LaunchDaemon services (convenience - uses PreferencesService)
+    /// Uses extracted ServiceBootstrapper
     private func sudoInstallAllServicesWithPreferences() async throws {
-        let installer = LaunchDaemonInstaller()
-        let success = await installer.createConfigureAndLoadAllServices()
+        let success = await ServiceBootstrapper.shared.installAllServices()
 
         if !success {
-            throw PrivilegedOperationError.installationFailed("LaunchDaemon installation failed")
+            throw PrivilegedOperationError.installationFailed("Service installation failed")
         }
     }
 
     /// Restart unhealthy services
-    /// NOTE: Still uses LaunchDaemonInstaller - complex health/install orchestration not yet extracted
+    /// Uses extracted ServiceBootstrapper
     private func sudoRestartServices() async throws {
-        let installer = LaunchDaemonInstaller()
-        let success = await installer.restartUnhealthyServices()
+        let success = await ServiceBootstrapper.shared.restartUnhealthyServices()
 
         if !success {
             throw PrivilegedOperationError.operationFailed("Service restart failed")
@@ -622,14 +619,13 @@ final class PrivilegedOperationsCoordinator {
     }
 
     /// Regenerate service configuration (SMAppService for Kanata)
-    /// NOTE: Still uses LaunchDaemonInstaller - complex multi-service orchestration not yet extracted
+    /// Uses extracted ServiceBootstrapper
     private func sudoRegenerateConfig() async throws {
         AppLogger.shared.log("🔧 [PrivCoordinator] Regenerating service configuration via SMAppService")
-        let installer = LaunchDaemonInstaller()
-        let success = await installer.createConfigureAndLoadAllServices()
+        let success = await ServiceBootstrapper.shared.installAllServices()
 
         if !success {
-            throw PrivilegedOperationError.operationFailed("Service regeneration via SMAppService failed")
+            throw PrivilegedOperationError.operationFailed("Service regeneration failed")
         }
     }
 

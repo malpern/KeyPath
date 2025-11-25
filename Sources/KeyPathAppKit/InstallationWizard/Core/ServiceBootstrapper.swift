@@ -477,6 +477,175 @@ final class ServiceBootstrapper {
         return FileManager.default.fileExists(atPath: plistPath)
     }
 
+    // MARK: - Restart Unhealthy Services
+
+    /// Restart unhealthy services and diagnose/fix underlying issues
+    ///
+    /// This comprehensive health fix handles:
+    /// - Service status categorization (restart vs install)
+    /// - SMAppService state management and conflict resolution
+    /// - SMAppService broken state handling with retry logic
+    /// - Conditional installation and restart
+    ///
+    /// - Returns: `true` if all services are healthy after the operation
+    @MainActor
+    func restartUnhealthyServices() async -> Bool {
+        AppLogger.shared.log("🔧 [ServiceBootstrapper] Starting comprehensive service health fix")
+
+        // Skip in test mode
+        if TestEnvironment.shouldSkipAdminOperations {
+            AppLogger.shared.log("🧪 [ServiceBootstrapper] Test mode - simulating successful restart")
+            return true
+        }
+
+        // Get initial service status
+        let initialStatus = await ServiceHealthChecker.shared.getServiceStatus()
+        var toRestart: [String] = []
+        var toInstall: [String] = []
+
+        // Categorize services by what they need
+        if initialStatus.kanataServiceLoaded, !initialStatus.kanataServiceHealthy {
+            toRestart.append(Self.kanataServiceID)
+        } else if !initialStatus.kanataServiceLoaded {
+            toInstall.append(Self.kanataServiceID)
+        }
+
+        if initialStatus.vhidDaemonServiceLoaded, !initialStatus.vhidDaemonServiceHealthy {
+            toRestart.append(Self.vhidDaemonServiceID)
+        } else if !initialStatus.vhidDaemonServiceLoaded {
+            toInstall.append(Self.vhidDaemonServiceID)
+        }
+
+        if initialStatus.vhidManagerServiceLoaded, !initialStatus.vhidManagerServiceHealthy {
+            toRestart.append(Self.vhidManagerServiceID)
+        } else if !initialStatus.vhidManagerServiceLoaded {
+            toInstall.append(Self.vhidManagerServiceID)
+        }
+
+        // Check SMAppService state
+        let state = await KanataDaemonManager.shared.refreshManagementState()
+        AppLogger.shared.log("🔍 [ServiceBootstrapper] SMAppService state: \(state.description)")
+
+        // Auto-resolve legacy/conflicted state
+        if state == .legacyActive || state == .conflicted {
+            await resolveLegacyConflict()
+        }
+
+        // Handle SMAppService broken state (common after clean uninstall)
+        let isRegisteredButBroken = await KanataDaemonManager.shared.isRegisteredButNotLoaded()
+        if isRegisteredButBroken {
+            await fixBrokenSMAppServiceState()
+        }
+
+        // Filter out Kanata from installation if SMAppService is managing it
+        if toInstall.contains(Self.kanataServiceID) {
+            if state.isSMAppServiceManaged {
+                AppLogger.shared.log("⚠️ [ServiceBootstrapper] Kanata managed by SMAppService - skipping install")
+                toInstall.removeAll { $0 == Self.kanataServiceID }
+            } else if state == .unknown {
+                let health = await ServiceHealthChecker.shared.checkKanataServiceHealth()
+                if health.isRunning {
+                    AppLogger.shared.log("⚠️ [ServiceBootstrapper] Unknown state but running - skipping install")
+                    toInstall.removeAll { $0 == Self.kanataServiceID }
+                }
+            }
+        }
+
+        // Step 1: Install missing services if needed
+        if !toInstall.isEmpty {
+            AppLogger.shared.log("🔧 [ServiceBootstrapper] Installing missing services: \(toInstall)")
+            let installSuccess = await installAllServices()
+            if !installSuccess {
+                AppLogger.shared.log("❌ [ServiceBootstrapper] Failed to install services")
+                return false
+            }
+            // Wait for installation to settle
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+        }
+
+        // Step 2: Handle unhealthy services
+        if toRestart.isEmpty {
+            AppLogger.shared.log("✅ [ServiceBootstrapper] No unhealthy services to restart")
+            return true
+        }
+
+        // Handle Kanata via SMAppService refresh (no admin prompt needed)
+        if toRestart.contains(Self.kanataServiceID) && state.isSMAppServiceManaged {
+            AppLogger.shared.log("🔧 [ServiceBootstrapper] Refreshing Kanata via SMAppService")
+            do {
+                try await KanataDaemonManager.shared.unregister()
+                try await Task.sleep(nanoseconds: 500_000_000) // 500ms
+                try await KanataDaemonManager.shared.register()
+                toRestart.removeAll { $0 == Self.kanataServiceID }
+                AppLogger.shared.log("✅ [ServiceBootstrapper] Kanata SMAppService refreshed")
+            } catch {
+                AppLogger.shared.log("⚠️ [ServiceBootstrapper] SMAppService refresh failed: \(error)")
+            }
+        }
+
+        // Restart remaining unhealthy services
+        if !toRestart.isEmpty {
+            AppLogger.shared.log("🔧 [ServiceBootstrapper] Restarting services: \(toRestart)")
+            let restartSuccess = restartServicesWithAdmin(toRestart)
+            if !restartSuccess {
+                AppLogger.shared.log("❌ [ServiceBootstrapper] Failed to restart services")
+                return false
+            }
+        }
+
+        AppLogger.shared.log("✅ [ServiceBootstrapper] Service health fix complete")
+        return true
+    }
+
+    /// Resolve legacy/conflicted SMAppService state
+    @MainActor
+    private func resolveLegacyConflict() async {
+        AppLogger.shared.log("🔄 [ServiceBootstrapper] Resolving legacy/conflicted state")
+        let legacyPlistPath = KanataDaemonManager.legacyPlistPath
+        let command = """
+        /bin/launchctl bootout system/\(Self.kanataServiceID) 2>/dev/null || true && \
+        /bin/rm -f '\(legacyPlistPath)' || true
+        """
+        let result = PrivilegedExecutor.shared.executeWithPrivileges(
+            command: command,
+            prompt: "KeyPath needs to remove the legacy service configuration."
+        )
+        if result.success {
+            AppLogger.shared.log("✅ [ServiceBootstrapper] Legacy conflict resolved")
+        } else {
+            AppLogger.shared.log("⚠️ [ServiceBootstrapper] Failed to resolve conflict: \(result.output)")
+        }
+    }
+
+    /// Fix broken SMAppService state with retry logic
+    @MainActor
+    private func fixBrokenSMAppServiceState() async {
+        AppLogger.shared.log("🔄 [ServiceBootstrapper] Fixing broken SMAppService state")
+        AppLogger.shared.log("🐛 Known macOS bug: BundleProgram path caching after uninstall/reinstall")
+
+        let maxRetries = 2
+        for attempt in 1...maxRetries {
+            do {
+                AppLogger.shared.log("🔄 Attempt \(attempt)/\(maxRetries)")
+
+                try await KanataDaemonManager.shared.unregister()
+                try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                try await KanataDaemonManager.shared.register()
+                try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+
+                let stillBroken = await KanataDaemonManager.shared.isRegisteredButNotLoaded()
+                if !stillBroken {
+                    AppLogger.shared.log("✅ [ServiceBootstrapper] Fixed SMAppService broken state")
+                    return
+                }
+            } catch {
+                AppLogger.shared.log("❌ Attempt \(attempt) failed: \(error)")
+            }
+            try? await Task.sleep(nanoseconds: 500_000_000) // 500ms before retry
+        }
+        AppLogger.shared.log("⚠️ [ServiceBootstrapper] Could not fix SMAppService state - user may need to reboot")
+    }
+
     // MARK: - VHID Service Repair
 
     /// Repair VHID daemon services
@@ -521,6 +690,102 @@ final class ServiceBootstrapper {
     }
 
     // MARK: - Service Installation (Install Only, No Load)
+
+    // MARK: - Full Service Installation (SMAppService + VHID)
+
+    /// Install all services: VirtualHID via launchctl, Kanata via SMAppService
+    ///
+    /// This is the primary installation method that combines:
+    /// 1. VirtualHID services installation via launchctl
+    /// 2. Kanata daemon registration via SMAppService
+    ///
+    /// - Returns: `true` if all services were installed successfully
+    @MainActor
+    func installAllServices() async -> Bool {
+        AppLogger.shared.log("🔧 [ServiceBootstrapper] Installing all services (VHID + Kanata)")
+
+        // Skip in test mode
+        if TestEnvironment.shouldSkipAdminOperations {
+            AppLogger.shared.log("🧪 [ServiceBootstrapper] Test mode - simulating successful installation")
+            return true
+        }
+
+        // Step 1: Install VirtualHID services
+        AppLogger.shared.log("📱 [ServiceBootstrapper] Step 1: Installing VirtualHID services via launchctl")
+        let vhidSuccess = await repairVHIDDaemonServices()
+        guard vhidSuccess else {
+            AppLogger.shared.log("❌ [ServiceBootstrapper] VirtualHID installation failed")
+            return false
+        }
+
+        // Step 2: Install Kanata via SMAppService
+        AppLogger.shared.log("📱 [ServiceBootstrapper] Step 2: Installing Kanata via SMAppService")
+        let kanataSuccess = await registerKanataWithSMAppService()
+
+        if !kanataSuccess {
+            AppLogger.shared.log("⚠️ [ServiceBootstrapper] SMAppService registration failed")
+            AppLogger.shared.log("💡 [ServiceBootstrapper] User may need to approve in System Settings")
+            return false
+        }
+
+        AppLogger.shared.info("✅ [ServiceBootstrapper] All services installed successfully")
+        return true
+    }
+
+    /// Register Kanata daemon via SMAppService
+    ///
+    /// Handles state checking, conflict resolution, and SMAppService registration.
+    ///
+    /// - Returns: `true` if registration succeeded or already registered
+    @MainActor
+    private func registerKanataWithSMAppService() async -> Bool {
+        AppLogger.shared.log("📱 [ServiceBootstrapper] Registering Kanata daemon via SMAppService")
+
+        guard #available(macOS 13, *) else {
+            AppLogger.shared.log("❌ [ServiceBootstrapper] SMAppService requires macOS 13+")
+            return false
+        }
+
+        // Check current state
+        let state = await KanataDaemonManager.shared.refreshManagementState()
+        AppLogger.shared.log("🔍 [ServiceBootstrapper] Current state: \(state.description)")
+
+        // If conflicted, auto-resolve by removing legacy plist
+        if state == .conflicted {
+            AppLogger.shared.log("⚠️ [ServiceBootstrapper] Conflicted state - auto-resolving by removing legacy")
+            let legacyPlistPath = KanataDaemonManager.legacyPlistPath
+            let command = """
+            /bin/launchctl bootout system/\(Self.kanataServiceID) 2>/dev/null || true && \
+            /bin/rm -f '\(legacyPlistPath)' || true
+            """
+            let result = PrivilegedExecutor.shared.executeWithPrivileges(
+                command: command,
+                prompt: "KeyPath needs to remove the legacy service configuration."
+            )
+            if !result.success {
+                AppLogger.shared.log("❌ [ServiceBootstrapper] Failed to resolve conflict: \(result.output)")
+                return false
+            }
+            AppLogger.shared.log("✅ [ServiceBootstrapper] Legacy plist removed, conflict resolved")
+        }
+
+        // If already managed by SMAppService, skip registration
+        if state.isSMAppServiceManaged {
+            AppLogger.shared.log("✅ [ServiceBootstrapper] Already managed by SMAppService - skipping")
+            return true
+        }
+
+        // Register with SMAppService
+        do {
+            AppLogger.shared.log("🔧 [ServiceBootstrapper] Calling KanataDaemonManager.register()...")
+            try await KanataDaemonManager.shared.register()
+            AppLogger.shared.info("✅ [ServiceBootstrapper] Kanata daemon registered via SMAppService")
+            return true
+        } catch {
+            AppLogger.shared.log("❌ [ServiceBootstrapper] SMAppService registration failed: \(error)")
+            return false
+        }
+    }
 
     /// Install all LaunchDaemon service plists without loading them
     ///

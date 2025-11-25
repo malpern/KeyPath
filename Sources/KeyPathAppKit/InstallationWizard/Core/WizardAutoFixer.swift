@@ -1253,7 +1253,7 @@ class WizardAutoFixer: AutoFixCapable {
         }
 
         AppLogger.shared.log(
-            "🔧 [AutoFixer] Step 4: LaunchDaemonInstaller.restartUnhealthyServices() returned: \(restartSuccess)"
+            "🔧 [AutoFixer] Step 4: ServiceBootstrapper.restartUnhealthyServices() returned: \(restartSuccess)"
         )
         AppLogger.shared.log("🔧 [AutoFixer] Checking final service status after restart...")
 
