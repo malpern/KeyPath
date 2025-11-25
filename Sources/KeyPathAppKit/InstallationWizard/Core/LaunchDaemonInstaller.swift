@@ -2921,14 +2921,14 @@ class LaunchDaemonInstaller {
         let systemDir = "/Library/KeyPath/bin"
 
         // Ensure bundled binary exists
+        // NOTE: This case is now surfaced as a .critical wizard issue via KanataBinaryDetector
+        // detecting .bundledMissing status and IssueGenerator creating a .bundledKanataMissing component issue
         guard FileManager.default.fileExists(atPath: bundledPath) else {
             AppLogger.shared.log(
                 "❌ [LaunchDaemon] CRITICAL: Bundled kanata binary not found at: \(bundledPath)")
             AppLogger.shared.log(
                 "❌ [LaunchDaemon] This indicates a packaging issue - the app bundle is missing the kanata binary"
             )
-            // swiftlint:disable:next todo
-            // TODO: Surface this as a wizard issue with severity .critical
             return false
         }
 

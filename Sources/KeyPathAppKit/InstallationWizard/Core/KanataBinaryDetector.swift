@@ -33,6 +33,8 @@ final class KanataBinaryDetector {
                 "Signature Issue"
             case .missing:
                 "Not Found"
+            case .bundledMissing:
+                "CRITICAL: App Bundle Corrupted"
             }
         }
 
@@ -47,6 +49,8 @@ final class KanataBinaryDetector {
                 "Kanata binary found but lacks proper Developer ID signature"
             case .missing:
                 "No kanata binary found in expected locations"
+            case .bundledMissing:
+                "CRITICAL: The kanata binary is missing from the app bundle. This indicates a packaging issue - please reinstall KeyPath from the official release."
             }
         }
     }
@@ -57,6 +61,7 @@ final class KanataBinaryDetector {
         case bundledAvailable // Available in app bundle, can be installed
         case bundledUnsigned // Available but unsigned
         case missing // Not found anywhere
+        case bundledMissing // CRITICAL: Bundled binary missing from app bundle (packaging issue)
     }
 
     // MARK: - Detection Methods
@@ -77,7 +82,20 @@ final class KanataBinaryDetector {
             return bundledResult
         }
 
-        // Priority 3: Not found
+        // Priority 3: Check if bundled binary is specifically missing (packaging issue)
+        let bundledPath = WizardSystemPaths.bundledKanataPath
+        if !FileManager.default.fileExists(atPath: bundledPath) {
+            AppLogger.shared.log("❌ [KanataBinaryDetector] CRITICAL: Bundled kanata binary missing from app bundle at: \(bundledPath)")
+            AppLogger.shared.log("❌ [KanataBinaryDetector] This indicates a packaging issue - the app was not built correctly")
+            return DetectionResult(
+                status: .bundledMissing,
+                path: bundledPath,
+                signingStatus: nil,
+                isReady: false
+            )
+        }
+
+        // Priority 4: Not found anywhere (shouldn't reach here if bundled check above works)
         AppLogger.shared.log("❌ [KanataBinaryDetector] No kanata binary found")
         return DetectionResult(
             status: .missing,
@@ -115,6 +133,8 @@ final class KanataBinaryDetector {
             return .kanataBinaryMissing // Needs proper signature
         case .missing:
             return .kanataBinaryMissing // Needs installation
+        case .bundledMissing:
+            return .bundledKanataMissing // CRITICAL: App bundle corrupted, needs reinstall
         }
     }
 
@@ -182,6 +202,8 @@ final class KanataBinaryDetector {
             return [] // No missing components
         case .bundledUnsigned, .missing:
             return [.kanataBinaryMissing]
+        case .bundledMissing:
+            return [.bundledKanataMissing] // CRITICAL: App bundle corrupted
         }
     }
 
@@ -192,7 +214,7 @@ final class KanataBinaryDetector {
         switch result.status {
         case .systemInstalled:
             return [] // Use the absence of .kanataBinaryMissing to indicate "installed"
-        case .bundledAvailable, .bundledUnsigned, .missing:
+        case .bundledAvailable, .bundledUnsigned, .missing, .bundledMissing:
             return []
         }
     }

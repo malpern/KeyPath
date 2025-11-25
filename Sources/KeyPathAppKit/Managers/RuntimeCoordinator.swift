@@ -1938,6 +1938,8 @@ class RuntimeCoordinator {
             return "⚠️ Bundled Kanata unsigned (needs Developer ID signature)"
         case .missing:
             return "❌ Not installed"
+        case .bundledMissing:
+            return "⚠️ CRITICAL: App bundle corrupted - reinstall KeyPath"
         }
     }
 

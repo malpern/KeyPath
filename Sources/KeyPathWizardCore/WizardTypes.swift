@@ -138,6 +138,7 @@ public enum ComponentRequirement: Equatable, Sendable {
     case privilegedHelper // Privileged helper for system-level operations
     case privilegedHelperUnhealthy // Helper installed but not responding/working
     case kanataBinaryMissing // Kanata binary needs to be installed to system location
+    case bundledKanataMissing // CRITICAL: Bundled kanata binary missing from app bundle (packaging issue)
     case kanataService
     case karabinerDriver
     case karabinerDaemon

@@ -202,9 +202,12 @@ class IssueGenerator {
                 "🔧 [IssueGenerator] Creating component issue: '\(componentTitle(for: component))' with autoFixAction: \(actionDescription)"
             )
 
+            // Use .critical severity for bundled kanata missing (packaging issue)
+            let severity: WizardIssue.IssueSeverity = component == .bundledKanataMissing ? .critical : .error
+
             return WizardIssue(
                 identifier: .component(component),
-                severity: .error,
+                severity: severity,
                 category: .installation,
                 title: componentTitle(for: component),
                 description: componentDescription(for: component),
@@ -318,6 +321,7 @@ class IssueGenerator {
         case .privilegedHelper: "Privileged Helper Not Installed"
         case .privilegedHelperUnhealthy: "Privileged Helper Not Working"
         case .kanataBinaryMissing: WizardConstants.Titles.kanataBinaryMissing
+        case .bundledKanataMissing: "⚠️ CRITICAL: App Bundle Corrupted"
         case .kanataService: "Kanata Service Missing"
         case .karabinerDriver: WizardConstants.Titles.karabinerDriverMissing
         case .karabinerDaemon: WizardConstants.Titles.daemonNotRunning
@@ -346,6 +350,8 @@ class IssueGenerator {
             "The privileged helper is installed but not responding. Try reinstalling it to restore functionality."
         case .kanataBinaryMissing:
             "The kanata binary needs to be installed to system location from KeyPath's bundled Developer ID signed version. This ensures proper code signing for Input Monitoring permission."
+        case .bundledKanataMissing:
+            "CRITICAL: The kanata binary is missing from the KeyPath app bundle. This indicates the app was not packaged correctly. Please download and reinstall KeyPath from the official release page."
         case .kanataService:
             "Kanata service configuration is missing."
         case .karabinerDriver:
@@ -411,8 +417,8 @@ class IssueGenerator {
 
     private func getAutoFixAction(for component: ComponentRequirement) -> AutoFixAction? {
         switch component {
-        case .karabinerDriver, .vhidDeviceManager:
-            nil // These require manual installation
+        case .karabinerDriver, .vhidDeviceManager, .bundledKanataMissing:
+            nil // These require manual intervention (bundledKanataMissing = reinstall app)
         case .vhidDeviceActivation:
             .activateVHIDDeviceManager
         case .vhidDeviceRunning:
@@ -456,6 +462,8 @@ class IssueGenerator {
             "Install Karabiner-VirtualHIDDevice from website"
         case .kanataBinaryMissing:
             "Use the Installation Wizard to install Kanata automatically"
+        case .bundledKanataMissing:
+            "Download and reinstall KeyPath from the official release page"
         case .communicationServerConfiguration:
             "Click 'Fix' to update the service with current communication settings"
         case .communicationServerNotResponding:

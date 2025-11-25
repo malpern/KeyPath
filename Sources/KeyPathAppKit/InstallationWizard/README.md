@@ -269,6 +269,7 @@ Each page is 400-600 lines and follows a consistent pattern:
 
 ### Pending Work
 - TODO: Update `requiredDriverVersionMajor` to 6 in VHIDDeviceManager.swift when kanata v1.10 is released
+- ✅ DONE: Missing bundled kanata binary now surfaces as .critical wizard issue (Nov 2025)
 
 ### Future Improvements
 - Consolidate 25 Core files into logical subdirectories (StateManagement/, Installation/, Remediation/)
