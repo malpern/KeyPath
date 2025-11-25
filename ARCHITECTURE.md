@@ -90,8 +90,70 @@ Communication between the UI and the Root Daemon happens via **TCP**.
 *   `Sources/KeyPathDaemonLifecycle`: Service management and PID logic.
 *   `Scripts/`: Build, test, and maintenance scripts.
 
+## Privileged Helper Architecture
+
+KeyPath uses a **hybrid approach** to privileged operations that supports both development and production workflows.
+
+### Runtime Detection Pattern
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     KeyPath Architecture                     │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌──────────────────────┐        ┌──────────────────────┐  │
+│  │   DEBUG BUILDS       │        │  RELEASE BUILDS      │  │
+│  │  (Contributors)      │        │  (End Users)         │  │
+│  ├──────────────────────┤        ├──────────────────────┤  │
+│  │                      │        │                      │  │
+│  │  KeyPath.app         │        │  KeyPath.app         │  │
+│  │       ↓              │        │       ↓              │  │
+│  │  Direct sudo         │        │  Privileged Helper   │  │
+│  │  (AppleScript)       │        │  (XPC + SMJobBless)  │  │
+│  │       ↓              │        │       ↓              │  │
+│  │  System Operations   │        │  System Operations   │  │
+│  │                      │        │                      │  │
+│  │  • Multiple prompts  │        │  • One-time prompt   │  │
+│  │  • No cert needed    │        │  • Signed/notarized  │  │
+│  │  • Easy testing      │        │  • Professional UX   │  │
+│  │                      │        │                      │  │
+│  └──────────────────────┘        └──────────────────────┘  │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Key Components
+
+*   **`PrivilegedOperationsCoordinator`**: Central façade that routes operations to either helper or sudo based on build mode.
+*   **`HelperManager`**: App-side XPC connection manager with async/await wrappers.
+*   **`KeyPathHelper`**: Root-privileged helper binary installed via SMJobBless.
+*   **`HelperProtocol`**: XPC interface defining 17 privileged operations.
+
+### Security Model
+
+1. **Audit-Token Validation**: Helper validates every XPC connection using `SecCodeCheckValidity`.
+2. **Code Signing Requirements**: Both app and helper must be signed with the same Developer ID certificate.
+3. **Explicit Operations Only**: No generic "execute command" API—only 17 whitelisted operations.
+4. **On-Demand Activation**: Helper runs only when needed (not always resident as root).
+
+### Build Workflows
+
+**Development (Contributors):**
+```bash
+swift build          # No certificate required
+swift test           # Uses direct sudo path
+```
+
+**Production (Releases):**
+```bash
+./build.sh           # Builds, signs, embeds helper, notarizes
+```
+
+For detailed implementation, see `docs/archive/HELPER.md`.
+
 ## Development Guidelines
 
 1.  **Logging**: Use `AppLogger`. Start logs with emojis for readability (🚀 start, ✅ success, ❌ error).
 2.  **Concurrency**: Use Swift 6 concurrency (`async`/`await`, `Actor`). Avoid completion handlers.
 3.  **Tests**: Run `./test.sh` before committing. Do not use `sudo` in tests; mock the system environment.
+4.  **Privileged Operations**: Always use `PrivilegedOperationsCoordinator`—never call `launchctl` or `sudo` directly.

@@ -418,15 +418,83 @@ swift test --filter TestClassName.testMethodName
 - LaunchDaemon installation logic (security-sensitive)
 - TCC permission flows (months of debugging went into these)
 
+## Privileged Helper Architecture
+
+KeyPath uses a **hybrid approach** for privileged operations that supports both development and production workflows.
+
+### How It Works
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                    PrivilegedOperationsCoordinator           │
+│                                                              │
+│  #if DEBUG                        #else (RELEASE)            │
+│  ┌────────────────────┐          ┌────────────────────────┐  │
+│  │  Direct sudo via   │          │  XPC to KeyPathHelper  │  │
+│  │  AppleScript       │          │  (root daemon)         │  │
+│  │  • Multiple prompts│          │  • One-time prompt     │  │
+│  │  • No cert needed  │          │  • Signed/notarized    │  │
+│  └────────────────────┘          └────────────────────────┘  │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Key Components
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| **PrivilegedOperationsCoordinator** | `Core/PrivilegedOperationsCoordinator.swift` | Routes operations to helper or sudo |
+| **HelperManager** | `Core/HelperManager.swift` | App-side XPC connection manager |
+| **KeyPathHelper** | `Sources/KeyPathHelper/` | Root-privileged helper binary |
+| **HelperProtocol** | `Core/HelperProtocol.swift` | XPC interface (17 operations) |
+
+### For Contributors
+
+**You don't need a Developer ID certificate to contribute!**
+
+In DEBUG builds (default for `swift build`), all privileged operations use direct `sudo` via AppleScript prompts. This means:
+- No certificate required
+- No helper binary needed
+- Multiple password prompts (acceptable for development)
+
+```bash
+# Development workflow - no certificate needed
+swift build
+swift test
+./run-tests.sh
+```
+
+### For Release Builds
+
+Production builds embed a signed privileged helper for a professional user experience:
+
+```bash
+# Production build - requires Developer ID certificate
+./build.sh
+```
+
+The helper provides:
+- One-time password prompt (SMJobBless)
+- Audit-token validation (rejects unauthorized XPC connections)
+- 17 explicit, whitelisted operations (no generic command execution)
+
+### Security Model
+
+1. **Code Signing**: Both app and helper must be signed with the same Developer ID
+2. **Audit-Token Validation**: Helper validates every XPC connection using `SecCodeCheckValidity`
+3. **Explicit Operations Only**: No "execute arbitrary command" API
+4. **On-Demand Activation**: Helper runs only when needed (not always resident as root)
+
+**See also:** `docs/archive/HELPER.md` for implementation details.
+
 ## Build & Deployment
 
 ### Development Build
 
 ```bash
-# Quick build for testing
+# Quick build for testing (no certificate required)
 swift build
 
-# Release build
+# Release build (still no certificate for local testing)
 swift build -c release
 ```
 

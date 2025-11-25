@@ -23,7 +23,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **⚠️ INCOMPLETE WORK (requires follow-up):**
 - TODO: When kanata v1.10 is released, update requiredDriverVersionMajor to 6 in VHIDDeviceManager.swift
-- HELPER.md: Phase 1 complete (coordinator extraction), Phase 2-4 pending (XPC helper)
+- HELPER.md: Phase 4 pending (Documentation & Testing) - Phases 1-3.5 complete
+
+**✅ Privileged Helper (Nov 2025):**
+- Phase 1: Coordinator extraction ✅
+- Phase 2A: Helper infrastructure ✅
+- Phase 2B: Caller migration ✅
+- Phase 3: Build scripts & embedding ✅
+- Phase 3.5: Security hardening ✅
+- Phase 4: Documentation & Testing (in progress)
 
 **✅ ADR-012 Complete (verified Nov 24, 2025):**
 - Driver version detection: `VHIDDeviceManager.hasVersionMismatch()` → `SystemContext.components.vhidVersionMismatch`
