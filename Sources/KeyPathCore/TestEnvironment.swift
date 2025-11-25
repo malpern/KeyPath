@@ -118,13 +118,13 @@ public enum TestEnvironment {
                 return false
             }
         }
-        
+
         // No env var set - auto-detect sudoers in test mode only
         if isRunningTests {
             // Cache the result to avoid repeated sudo checks
             _sudoDetectionLock.lock()
             defer { _sudoDetectionLock.unlock() }
-            
+
             if !_hasCheckedSudo {
                 _cachedSudoAvailable = verifySudoConfigured()
                 _hasCheckedSudo = true
@@ -132,10 +132,10 @@ public enum TestEnvironment {
                     AppLogger.shared.log("🔐 [TestEnvironment] Auto-detected sudoers config - enabling sudo mode")
                 }
             }
-            
+
             return _cachedSudoAvailable ?? false
         }
-        
+
         // Not in tests and no env var - never use sudo
         return false
     }
@@ -154,13 +154,13 @@ public enum TestEnvironment {
         do {
             try task.run()
             task.waitUntilExit()
-            
+
             // Any exit code other than 1 means sudo worked without password
             // Exit code 0 = success
             // Exit code 113 = service not found (but sudo worked)
             // Exit code 1 = sudo: a password is required (NOPASSWD not configured)
             // Exit code 126/127 = command/file not found (launchctl issue, but sudo still worked)
-            
+
             // If exit code is 1, check stderr to confirm it's a password prompt
             if task.terminationStatus == 1 {
                 let errorData = pipe.fileHandleForReading.readDataToEndOfFile()
@@ -168,7 +168,7 @@ public enum TestEnvironment {
                 // Only return false if it's specifically asking for password
                 return !stderr.contains("password is required")
             }
-            
+
             // Any other exit code means sudo worked (even if the command itself failed)
             return true
         } catch {

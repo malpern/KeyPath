@@ -380,7 +380,12 @@ final class ErrorHandlingTests: XCTestCase {
         XCTAssertFalse(status.isEmpty, "Installation status should not be empty")
 
         let validStatuses = [
-            "✅ Fully installed", "⚠️ Driver missing", "⚠️ Service & driver missing", "❌ Not installed"
+            "✅ Fully installed",
+            "⚠️ Driver missing",
+            "⚠️ Service & driver missing",
+            "⚠️ Bundled Kanata unsigned (needs Developer ID signature)",
+            "❌ Not installed",
+            "⚠️ CRITICAL: App bundle corrupted - reinstall KeyPath"
         ]
         XCTAssertTrue(
             validStatuses.contains(status), "Status should be one of the valid options: \(status)"

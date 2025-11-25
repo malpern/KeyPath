@@ -110,8 +110,8 @@ final class PrivilegedExecutor: @unchecked Sendable {
     func executeWithOsascript(command: String, prompt: String) -> (success: Bool, output: String) {
         let escapedCommand = escapeForAppleScript(command)
         let osascriptCommand = """
-            do shell script "\(escapedCommand)" with administrator privileges with prompt "\(prompt)"
-            """
+        do shell script "\(escapedCommand)" with administrator privileges with prompt "\(prompt)"
+        """
 
         AppLogger.shared.log(
             "🔐 [PrivilegedExecutor] Requesting admin privileges via osascript")
@@ -168,14 +168,14 @@ final class PrivilegedExecutor: @unchecked Sendable {
         if ProcessInfo.processInfo.environment["KEYPATH_SKIP_ADMIN_TEST"] == "1" {
             AppLogger.shared.log(
                 "⚠️ [PrivilegedExecutor] Skipping admin dialog test during startup")
-            return true  // Assume it works to avoid blocking
+            return true // Assume it works to avoid blocking
         }
 
         let testCommand = "echo 'Admin dialog test successful'"
         let result = executeWithPrivileges(
             command: testCommand,
             prompt:
-                "KeyPath Admin Dialog Test - This is a test of the admin password dialog. Please enter your password to confirm it's working."
+            "KeyPath Admin Dialog Test - This is a test of the admin password dialog. Please enter your password to confirm it's working."
         )
 
         AppLogger.shared.log(
@@ -208,8 +208,7 @@ extension PrivilegedExecutor {
     ///   - commands: Array of shell commands to execute
     ///   - prompt: The prompt to show in the admin dialog
     /// - Returns: Tuple of (success, output)
-    func executeWithPrivileges(commands: [String], prompt: String) -> (success: Bool, output: String)
-    {
+    func executeWithPrivileges(commands: [String], prompt: String) -> (success: Bool, output: String) {
         let combinedCommand = commands.joined(separator: " && ")
         return executeWithPrivileges(command: combinedCommand, prompt: prompt)
     }

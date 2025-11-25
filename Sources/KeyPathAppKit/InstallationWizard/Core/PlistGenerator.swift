@@ -4,7 +4,7 @@ import KeyPathCore
 /// Generates launchd plist XML content for KeyPath services.
 /// Pure functions with no side effects - just string generation.
 /// These plists are used to configure macOS launchd services for Kanata and VHID components.
-struct PlistGenerator {
+enum PlistGenerator {
     // MARK: - Service Identifiers
 
     /// Service identifier for the main Kanata keyboard remapping daemon

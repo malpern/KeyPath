@@ -607,7 +607,9 @@ class RuntimeCoordinator {
         diagnostics = []
     }
 
-    // MARK: - Configuration File Watching
+    // MARK: - Configuration File Watching (delegates to ConfigHotReloadService)
+
+    private let configHotReloadService = ConfigHotReloadService.shared
 
     /// Start watching the configuration file for external changes
     func startConfigFileWatching() {
@@ -616,11 +618,52 @@ class RuntimeCoordinator {
             return
         }
 
+        // Configure the hot reload service
+        configHotReloadService.configure(
+            configurationService: configurationService,
+            reloadHandler: { [weak self] in
+                guard let self else { return false }
+                let result = await triggerConfigReload()
+                return result.isSuccess
+            },
+            configParser: { [weak self] content in
+                guard let self else { return [] }
+                let parsed = try configurationService.parseConfigurationFromString(content)
+                return parsed.keyMappings
+            }
+        )
+
+        // Set up UI callbacks
+        configHotReloadService.callbacks = ConfigHotReloadService.Callbacks(
+            onDetected: {
+                SoundManager.shared.playTinkSound()
+            },
+            onValidating: { [weak self] in
+                self?.saveStatus = .saving
+            },
+            onSuccess: { [weak self] content in
+                SoundManager.shared.playGlassSound()
+                self?.saveStatus = .success
+                // Update in-memory config
+                if let mappings = self?.configHotReloadService.parseKeyMappings(from: content) {
+                    self?.applyKeyMappings(mappings)
+                }
+            },
+            onFailure: { [weak self] message in
+                SoundManager.shared.playErrorSound()
+                self?.saveStatus = .failed(message)
+            },
+            onReset: { [weak self] in
+                self?.saveStatus = .idle
+            }
+        )
+
         let configPath = configPath
         AppLogger.shared.log("📁 [FileWatcher] Starting to watch config file: \(configPath)")
 
         fileWatcher.startWatching(path: configPath) { [weak self] in
-            await self?.handleExternalConfigChange()
+            guard let self else { return }
+            _ = await configHotReloadService.handleExternalChange(configPath: configPath)
         }
     }
 
@@ -628,113 +671,6 @@ class RuntimeCoordinator {
     func stopConfigFileWatching() {
         configFileWatcher?.stopWatching()
         AppLogger.shared.log("📁 [FileWatcher] Stopped watching config file")
-    }
-
-    /// Handle external configuration file changes
-    private func handleExternalConfigChange() async {
-        AppLogger.shared.log("📝 [FileWatcher] External config file change detected")
-
-        // Play the initial sound to indicate detection
-        Task { @MainActor in SoundManager.shared.playTinkSound() }
-
-        // Show initial status message
-        await MainActor.run {
-            saveStatus = .saving
-        }
-
-        // Read the updated configuration
-        let configPath = configPath
-        guard FileManager.default.fileExists(atPath: configPath) else {
-            AppLogger.shared.error("❌ [FileWatcher] Config file no longer exists: \(configPath)")
-            Task { @MainActor in SoundManager.shared.playErrorSound() }
-            await MainActor.run {
-                saveStatus = .failed("Config file was deleted")
-            }
-            return
-        }
-
-        do {
-            let configContent = try String(contentsOfFile: configPath, encoding: .utf8)
-            AppLogger.shared.log(
-                "📁 [FileWatcher] Read \(configContent.count) characters from external file")
-
-            // Validate the configuration via CLI
-            let validationResult = await configurationService.validateConfiguration(configContent)
-            if !validationResult.isValid {
-                AppLogger.shared.error(
-                    "❌ [FileWatcher] External config validation failed: \(validationResult.errors.joined(separator: ", "))"
-                )
-                Task { @MainActor in SoundManager.shared.playErrorSound() }
-
-                await MainActor.run {
-                    saveStatus = .failed(
-                        "Invalid config from external edit: \(validationResult.errors.first ?? "Unknown error")"
-                    )
-                }
-
-                // Auto-reset status after delay
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-                    self?.saveStatus = .idle
-                }
-                return
-            }
-
-            // Trigger hot reload via TCP
-            let reloadResult = await triggerConfigReload()
-
-            if reloadResult.isSuccess {
-                AppLogger.shared.info("✅ [FileWatcher] External config successfully reloaded")
-                Task { @MainActor in SoundManager.shared.playGlassSound() }
-
-                // Update configuration service with the new conten
-                await updateInMemoryConfig(configContent)
-
-                await MainActor.run {
-                    saveStatus = .success
-                }
-
-                AppLogger.shared.log("📝 [FileWatcher] Configuration updated from external file")
-            } else {
-                let errorMessage = reloadResult.errorMessage ?? "Unknown error"
-                AppLogger.shared.error("❌ [FileWatcher] External config reload failed: \(errorMessage)")
-                Task { @MainActor in SoundManager.shared.playErrorSound() }
-
-                await MainActor.run {
-                    saveStatus = .failed("External config reload failed: \(errorMessage)")
-                }
-            }
-
-            // Auto-reset status after delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-                self?.saveStatus = .idle
-            }
-
-        } catch {
-            AppLogger.shared.error("❌ [FileWatcher] Failed to read external config: \(error)")
-            Task { @MainActor in SoundManager.shared.playErrorSound() }
-
-            await MainActor.run {
-                saveStatus = .failed("Failed to read external config: \(error.localizedDescription)")
-            }
-
-            // Auto-reset status after delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-                self?.saveStatus = .idle
-            }
-        }
-    }
-
-    /// Update in-memory configuration without saving to file (to avoid triggering file watcher)
-    private func updateInMemoryConfig(_ configContent: String) async {
-        // Parse the configuration to update key mappings in memory
-        do {
-            let parsedConfig = try configurationService.parseConfigurationFromString(configContent)
-            await MainActor.run {
-                applyKeyMappings(parsedConfig.keyMappings)
-            }
-        } catch {
-            AppLogger.shared.warn("⚠️ [FileWatcher] Failed to parse config for in-memory update: \(error)")
-        }
     }
 
     /// Attempts to recover from zombie keyboard capture when VirtualHID connection fails

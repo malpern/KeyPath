@@ -302,7 +302,13 @@ final class KeyPathTests: XCTestCase {
             if let error = manager.lastError {
                 XCTAssertFalse(error.isEmpty)
             } else {
-                XCTAssertEqual(manager.getInstallationStatus(), "❌ Not installed")
+                // In test environment, could be "Not installed" or "App bundle corrupted"
+                // depending on whether bundled binary exists
+                let status = manager.getInstallationStatus()
+                XCTAssertTrue(
+                    status.contains("Not installed") || status.contains("corrupted"),
+                    "Expected not-installed or corrupted status, got: \(status)"
+                )
             }
         }
     }
@@ -331,7 +337,9 @@ final class KeyPathTests: XCTestCase {
             "✅ Fully installed",
             "⚠️ Driver missing",
             "⚠️ Service & driver missing",
-            "❌ Not installed"
+            "⚠️ Bundled Kanata unsigned (needs Developer ID signature)",
+            "❌ Not installed",
+            "⚠️ CRITICAL: App bundle corrupted - reinstall KeyPath"
         ]
 
         XCTAssertTrue(
