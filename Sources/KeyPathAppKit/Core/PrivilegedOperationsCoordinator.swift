@@ -634,10 +634,9 @@ final class PrivilegedOperationsCoordinator {
     }
 
     /// Install log rotation service
-    /// NOTE: Still uses LaunchDaemonInstaller - log rotation not yet extracted
+    /// Uses extracted ServiceBootstrapper
     private func sudoInstallLogRotation() async throws {
-        let installer = LaunchDaemonInstaller()
-        let success = await installer.installLogRotationService()
+        let success = await ServiceBootstrapper.shared.installLogRotationService()
 
         if !success {
             throw PrivilegedOperationError.operationFailed("Log rotation installation failed")
@@ -645,10 +644,9 @@ final class PrivilegedOperationsCoordinator {
     }
 
     /// Repair VHID daemon services
-    /// NOTE: Still uses LaunchDaemonInstaller - VHID repair orchestration not yet extracted
+    /// Uses extracted ServiceBootstrapper
     private func sudoRepairVHIDServices() async throws {
-        let installer = LaunchDaemonInstaller()
-        let success = await installer.repairVHIDDaemonServices()
+        let success = await ServiceBootstrapper.shared.repairVHIDDaemonServices()
 
         if !success {
             throw PrivilegedOperationError.operationFailed("VHID daemon repair failed")
@@ -656,10 +654,10 @@ final class PrivilegedOperationsCoordinator {
     }
 
     /// Install LaunchDaemon services without loading them (for orphan adoption)
-    /// NOTE: Still uses LaunchDaemonInstaller - install-only orchestration not yet extracted
+    /// Uses extracted ServiceBootstrapper
     private func sudoInstallServicesWithoutLoading() async throws {
-        let installer = LaunchDaemonInstaller()
-        let success = await installer.createAllLaunchDaemonServicesInstallOnly()
+        let binaryPath = KanataBinaryInstaller.shared.getKanataBinaryPath()
+        let success = await ServiceBootstrapper.shared.installAllServicesWithoutLoading(binaryPath: binaryPath)
 
         if !success {
             throw PrivilegedOperationError.operationFailed("Service installation (install-only) failed")
