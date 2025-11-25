@@ -382,53 +382,60 @@
     </section>
 
     <section>
-        <h2>Phase 3: Legacy Removal (🔶 Not Started)</h2>
-        <p style="color: var(--gray); margin-bottom: 24px;">Delete legacy code once new implementations are verified.</p>
+        <h2>Phase 3: Legacy Removal (🔶 Preparation Complete)</h2>
+        <p style="color: var(--gray); margin-bottom: 24px;">Delete legacy code once new implementations are verified. Test harness and readiness checklist complete.</p>
         <table class="table">
             <thead>
                 <tr>
                     <th>Task</th>
                     <th>Blocked By</th>
                     <th>Lines to Remove</th>
-                    <th>Effort</th>
+                    <th>Status</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
+                    <td><strong>Test harness & readiness checklist</strong></td>
+                    <td>N/A</td>
+                    <td>N/A</td>
+                    <td><span class="pill done">✅ Complete</span></td>
+                </tr>
+                <tr>
                     <td><strong>Delete LaunchDaemonInstaller.swift</strong></td>
-                    <td>Phase 2 decomposition complete</td>
-                    <td>~3,000 lines</td>
-                    <td><span class="effort">~1 day</span></td>
+                    <td>Migration of direct callers + test verification</td>
+                    <td>~2,768 lines</td>
+                    <td><span class="pill pending">Pending</span></td>
                 </tr>
                 <tr>
                     <td><strong>Remove duplicate Manager classes</strong></td>
-                    <td>Consolidation in Phase 2</td>
+                    <td>Consolidation verification</td>
                     <td>~1,500 lines</td>
-                    <td><span class="effort">~1 day</span></td>
+                    <td><span class="pill pending">Pending</span></td>
                 </tr>
                 <tr>
                     <td><strong>Clean up RuntimeCoordinator</strong></td>
-                    <td>Extraction in Phase 2</td>
+                    <td>Final extraction verification</td>
                     <td>~1,000 lines</td>
-                    <td><span class="effort">~1 day</span></td>
+                    <td><span class="pill pending">Pending</span></td>
                 </tr>
                 <tr>
                     <td><strong>Archive legacy documentation</strong></td>
                     <td>Code removal complete</td>
                     <td>N/A</td>
-                    <td><span class="effort">~0.5 day</span></td>
+                    <td><span class="pill pending">Pending</span></td>
                 </tr>
                 <tr>
                     <td><strong>Final test sweep & cleanup</strong></td>
                     <td>All removal complete</td>
                     <td>N/A</td>
-                    <td><span class="effort">~1 day</span></td>
+                    <td><span class="pill pending">Pending</span></td>
                 </tr>
             </tbody>
         </table>
         <div class="card" style="margin-top: 24px;">
-            <p class="pill pending">Estimated Total: 4-5 days</p>
-            <p>Target: Remove ~5,500 lines of legacy code. Final codebase should be ~40% smaller with clearer separation of concerns.</p>
+            <p class="pill partial">Preparation complete · Ready for removal</p>
+            <p><strong>Readiness Checklist:</strong> Test harness created (`LegacyRemovalReadinessTests`), behavior equivalence verified, API coverage documented. See <code>docs/analysis/legacy-removal-readiness.md</code> for full checklist.</p>
+            <p style="margin-top: 12px;"><strong>Remaining:</strong> Migrate 9 direct callers, extract log rotation service, add integration tests. Estimated 4-5 days for full removal.</p>
         </div>
     </section>
 
@@ -540,19 +547,23 @@
                 <p>LaunchDaemonInstaller now delegates to extracted services. Removed 356 lines of duplicate code.</p>
             </div>
             <div class="timeline-item">
-                <h3>Phase 2.3 · RuntimeCoordinator Cleanup <span class="pill pending">Pending</span></h3>
-                <p>Extract concerns from RuntimeCoordinator (2,321 lines). Consolidate overlapping managers.</p>
+                <h3>Phase 2.3 · RuntimeCoordinator Cleanup <span class="pill done">Done</span></h3>
+                <p>Extracted ConfigHotReloadService, StatePublisherService. Deleted KanataConfigManager (dead code). RuntimeCoordinator reduced to 2,261 lines.</p>
+            </div>
+            <div class="timeline-item">
+                <h3>Phase 3 Prep · Test Harness & Readiness <span class="pill done">Done</span></h3>
+                <p>Created LegacyRemovalReadinessTests, behavior equivalence verification, comprehensive readiness checklist. Ready for safe legacy code removal.</p>
             </div>
             <div class="timeline-item">
                 <h3>Phase 3 · Legacy Removal <span class="pill pending">Pending</span></h3>
-                <p>Delete legacy code. Archive old documentation. Final test sweep.</p>
+                <p>Delete LaunchDaemonInstaller (~2,768 lines), migrate direct callers, remove duplicate managers. Test harness ready for verification.</p>
             </div>
         </div>
-        <div class="status-banner partial" style="margin-top: 40px;">
-            <h2 style="color: #5e5ce6; margin-bottom: 10px;">📊 Project Status: Phase 2 In Progress (67% complete)</h2>
-            <p style="font-size: 1.1rem;">5 services extracted and integrated. LaunchDaemonInstaller reduced by ~356 lines.</p>
+        <div class="status-banner complete" style="margin-top: 40px;">
+            <h2 style="color: var(--teal); margin-bottom: 10px;">📊 Project Status: Phase 2 Complete · Phase 3 Ready</h2>
+            <p style="font-size: 1.1rem;">7 services extracted. RuntimeCoordinator cleaned up. Test harness and readiness checklist complete. Ready for safe legacy code removal.</p>
             <p style="font-size: 0.95rem; margin-top: 12px; opacity: 0.8;">
-                <strong>Remaining effort:</strong> ~9-11 days to complete Phases 2-3
+                <strong>Remaining effort:</strong> ~4-5 days to complete Phase 3 (legacy removal)
             </p>
         </div>
     </section>
