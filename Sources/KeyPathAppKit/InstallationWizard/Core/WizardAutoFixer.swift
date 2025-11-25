@@ -884,18 +884,17 @@ class WizardAutoFixer: AutoFixCapable {
         }
 
         AppLogger.shared.log(
-            "🔧 [AutoFixer] Installing LaunchDaemon services using coordinator")
+            "🔧 [AutoFixer] Installing LaunchDaemon services using InstallerEngine façade")
 
-        // Use coordinator which delegates to LaunchDaemonInstaller
-        // Handles everything with a single admin prompt:
-        // - Install all LaunchDaemon plist files
-        // - Create system config directories
-        // - Copy/create system config files
-        // - Load all services into launchctl
-        do {
-            try await PrivilegedOperationsCoordinator.shared.installAllLaunchDaemonServices()
+        // Use RuntimeCoordinator.runFullInstall() which delegates to InstallerEngine
+        // Handles everything through the façade:
+        // - Inspects system state
+        // - Creates an installation plan
+        // - Executes recipes (install plists, create config, load services)
+        let report = await kanataManager.runFullInstall(reason: "WizardAutoFixer install LaunchDaemons")
+        if report.success {
             AppLogger.shared.log(
-                "✅ [AutoFixer] LaunchDaemon installation completed successfully with single admin prompt")
+                "✅ [AutoFixer] LaunchDaemon installation completed successfully via InstallerEngine")
 
             let restarted = await kanataManager.restartServiceWithFallback(
                 reason: "WizardAutoFixer launch daemon install"
@@ -907,8 +906,9 @@ class WizardAutoFixer: AutoFixCapable {
                     "⚠️ [AutoFixer] Kanata service restart failed after LaunchDaemon install (may require approval)")
             }
             return true
-        } catch {
-            AppLogger.shared.error("❌ [AutoFixer] LaunchDaemon installation failed: \(error)")
+        } else {
+            let reason = report.failureReason ?? "Unknown error"
+            AppLogger.shared.error("❌ [AutoFixer] LaunchDaemon installation failed: \(reason)")
             return false
         }
     }
@@ -1222,12 +1222,13 @@ class WizardAutoFixer: AutoFixCapable {
 
         if needsInstallation, !shouldSkipInstallation {
             AppLogger.shared.log(
-                "🔧 [AutoFixer] Step 2: Some services not loaded, installing missing LaunchDaemon services")
-            do {
-                try await PrivilegedOperationsCoordinator.shared.installAllLaunchDaemonServices()
-                AppLogger.shared.info("✅ [AutoFixer] Installed/migrated services")
-            } catch {
-                AppLogger.shared.error("❌ [AutoFixer] Failed to install/migrate services: \(error)")
+                "🔧 [AutoFixer] Step 2: Some services not loaded, installing via InstallerEngine façade")
+            let report = await kanataManager.runFullInstall(reason: "WizardAutoFixer install missing services")
+            if report.success {
+                AppLogger.shared.info("✅ [AutoFixer] Installed/migrated services via InstallerEngine")
+            } else {
+                let reason = report.failureReason ?? "Unknown error"
+                AppLogger.shared.error("❌ [AutoFixer] Failed to install/migrate services: \(reason)")
                 return false
             }
         } else {

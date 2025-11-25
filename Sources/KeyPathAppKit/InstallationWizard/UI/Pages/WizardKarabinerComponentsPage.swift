@@ -112,7 +112,8 @@ struct WizardKarabinerComponentsPage: View {
                     VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
                         // Combined row for Driver + Services
                         if showAllItems || componentStatus(for: .driver) != .completed
-                            || componentStatus(for: .backgroundServices) != .completed {
+                            || componentStatus(for: .backgroundServices) != .completed
+                        {
                             HStack(spacing: 12) {
                                 Image(
                                     systemName: combinedStatus == .completed
@@ -244,7 +245,8 @@ struct WizardKarabinerComponentsPage: View {
         }
 
         if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: issues),
-           nextPage != navigationCoordinator.currentPage {
+           nextPage != navigationCoordinator.currentPage
+        {
             navigationCoordinator.navigateToPage(nextPage)
         } else {
             navigationCoordinator.navigateToPage(.summary)

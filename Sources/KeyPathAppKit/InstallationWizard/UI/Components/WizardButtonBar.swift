@@ -121,7 +121,8 @@ struct WizardButtonBar: View {
 extension WizardButtonBar {
     /// Single primary button (most common case)
     static func primaryOnly(title: String, action: @escaping () -> Void, isLoading: Bool = false)
-        -> WizardButtonBar {
+        -> WizardButtonBar
+    {
         WizardButtonBar(
             primary: PrimaryButton(title: title, action: action, isLoading: isLoading)
         )

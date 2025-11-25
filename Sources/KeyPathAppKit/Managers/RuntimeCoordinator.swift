@@ -402,7 +402,8 @@ class RuntimeCoordinator {
         if storedCustomRules.isEmpty,
            let customIndex = storedCollections.firstIndex(where: {
                $0.id == RuleCollectionIdentifier.customMappings
-           }) {
+           })
+        {
             let legacy = storedCollections.remove(at: customIndex)
             storedCustomRules = legacy.mappings.map { mapping in
                 CustomRule(
@@ -509,7 +510,8 @@ class RuntimeCoordinator {
 
             if let act1 = candidateActivator,
                let act2 = normalizedActivator(for: other),
-               act1 == act2 {
+               act1 == act2
+            {
                 return RuleConflictInfo(source: .collection(other), keys: [act1])
             }
         }
@@ -746,7 +748,8 @@ class RuntimeCoordinator {
         // Check for zombie keyboard capture bug (exit code 6 with VirtualHID connection failure)
         if exitCode == 6,
            output.contains("connect_failed asio.system:61")
-           || output.contains("connect_failed asio.system:2") {
+           || output.contains("connect_failed asio.system:2")
+        {
             // This is the "zombie keyboard capture" bug - automatically attempt recovery
             Task {
                 AppLogger.shared.log(
@@ -1006,7 +1009,8 @@ class RuntimeCoordinator {
     func toggleRuleCollection(id: UUID, isEnabled: Bool) async {
         if isEnabled,
            let candidate = ruleCollections.first(where: { $0.id == id }),
-           let conflict = await MainActor.run(body: { self.conflictInfo(for: candidate) }) {
+           let conflict = await MainActor.run(body: { self.conflictInfo(for: candidate) })
+        {
             await MainActor.run {
                 lastError =
                     "Cannot enable \(candidate.name). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
@@ -1056,7 +1060,8 @@ class RuntimeCoordinator {
     @discardableResult
     func saveCustomRule(_ rule: CustomRule, skipReload: Bool = false) async -> Bool {
         if rule.isEnabled,
-           let conflict = await MainActor.run(body: { self.conflictInfo(for: rule) }) {
+           let conflict = await MainActor.run(body: { self.conflictInfo(for: rule) })
+        {
             await MainActor.run {
                 lastError =
                     "Cannot enable \(rule.displayTitle). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
@@ -1086,7 +1091,8 @@ class RuntimeCoordinator {
         else { return }
 
         if isEnabled,
-           let conflict = await MainActor.run(body: { self.conflictInfo(for: existing) }) {
+           let conflict = await MainActor.run(body: { self.conflictInfo(for: existing) })
+        {
             await MainActor.run {
                 lastError =
                     "Cannot enable \(existing.displayTitle). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
@@ -1257,6 +1263,13 @@ class RuntimeCoordinator {
         return await installerEngine.run(intent: .repair, using: privilegeBroker)
     }
 
+    /// Run full installation via InstallerEngine façade.
+    /// This replaces direct calls to PrivilegedOperationsCoordinator.installAllLaunchDaemonServices().
+    func runFullInstall(reason: String = "RuntimeCoordinator install request") async -> InstallerReport {
+        AppLogger.shared.log("🔧 [RuntimeCoordinator] runFullInstall invoked (\(reason))")
+        return await installerEngine.run(intent: .install, using: privilegeBroker)
+    }
+
     private func captureRecentKanataErrorMessage() -> String? {
         let stderrPath = KeyPathConstants.Logs.kanataStderr
         guard let contents = try? String(contentsOfFile: stderrPath, encoding: .utf8) else {
@@ -1386,7 +1399,8 @@ class RuntimeCoordinator {
 
     func openInputMonitoringSettings() {
         if let url = URL(
-            string: KeyPathConstants.URLs.inputMonitoringPrivacy) {
+            string: KeyPathConstants.URLs.inputMonitoringPrivacy)
+        {
             NSWorkspace.shared.open(url)
         }
     }
@@ -1394,12 +1408,14 @@ class RuntimeCoordinator {
     func openAccessibilitySettings() {
         if #available(macOS 13.0, *) {
             if let url = URL(
-                string: KeyPathConstants.URLs.accessibilityPrivacy) {
+                string: KeyPathConstants.URLs.accessibilityPrivacy)
+            {
                 NSWorkspace.shared.open(url)
             }
         } else {
             if let url = URL(
-                string: KeyPathConstants.URLs.accessibilityPrivacy) {
+                string: KeyPathConstants.URLs.accessibilityPrivacy)
+            {
                 NSWorkspace.shared.open(url)
             } else {
                 NSWorkspace.shared.open(
@@ -1786,7 +1802,8 @@ class RuntimeCoordinator {
 
     /// Schedule notification to inform user about config validation issues
     private func scheduleConfigValidationNotification(originalErrors: [String], backupPath: String)
-        async {
+        async
+    {
         AppLogger.shared.log("📢 [Config] Setting validation error state")
 
         await MainActor.run {
@@ -1801,7 +1818,8 @@ class RuntimeCoordinator {
 
     /// Show validation error dialog with options to cancel or revert to defaul
     private func showValidationErrorDialog(title: String, errors: [String], config _: String? = nil)
-        async {
+        async
+    {
         await MainActor.run {
             validationError = .saveFailed(title: title, errors: errors)
             notifyStateChanged()
@@ -2210,7 +2228,8 @@ class RuntimeCoordinator {
 
     /// Backs up a failed config and applies safe default, returning backup path
     func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
-        -> String {
+        -> String
+    {
         // Delegate to ConfigurationService for backup and safe config application
         let backupPath = try await configurationService.backupFailedConfigAndApplySafe(
             failedConfig: failedConfig,
@@ -2242,7 +2261,8 @@ class RuntimeCoordinator {
 
     /// Uses AI service to repair a corrupted Kanata config
     private func repairConfigWithClaude(config: String, errors: [String], mappings: [KeyMapping])
-        async throws -> String {
+        async throws -> String
+    {
         // Try AI repair first, fallback to rule-based repair
         do {
             return try await configRepairService.repairConfig(config: config, errors: errors, mappings: mappings)

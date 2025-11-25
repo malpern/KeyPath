@@ -301,7 +301,8 @@ final class ServiceHealthChecker: @unchecked Sendable {
                     for line in output.components(separatedBy: "\n") where line.contains("pid =") {
                         let comps = line.components(separatedBy: "=")
                         if comps.count == 2,
-                           let p = Int(comps[1].trimmingCharacters(in: .whitespaces)) {
+                           let p = Int(comps[1].trimmingCharacters(in: .whitespaces))
+                        {
                             pid = p
                             break
                         }
@@ -316,7 +317,8 @@ final class ServiceHealthChecker: @unchecked Sendable {
         // 2) TCP probe (Hello/Status)
         let tcpOK = await Task.detached { [self] in
             if let portEnv = ProcessInfo.processInfo.environment["KEYPATH_TCP_PORT"],
-               let overridePort = Int(portEnv) {
+               let overridePort = Int(portEnv)
+            {
                 return probeTCP(port: overridePort, timeoutMs: timeoutMs)
             }
             return probeTCP(port: tcpPort, timeoutMs: timeoutMs)

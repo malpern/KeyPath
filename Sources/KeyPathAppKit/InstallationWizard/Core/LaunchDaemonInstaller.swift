@@ -124,7 +124,8 @@ class LaunchDaemonInstaller {
         // Extract the shell command from the AppleScript code
         // This is for backward compatibility - ideally callers should use PrivilegedCommandRunner directly
         if let commandRange = osascriptCode.range(of: "do shell script \""),
-           let endRange = osascriptCode.range(of: "\" with administrator privileges") {
+           let endRange = osascriptCode.range(of: "\" with administrator privileges")
+        {
             let startIndex = commandRange.upperBound
             let endIndex = endRange.lowerBound
             let command = String(osascriptCode[startIndex ..< endIndex])
@@ -134,7 +135,8 @@ class LaunchDaemonInstaller {
             // Extract prompt if present
             var prompt = "KeyPath needs administrator privileges."
             if let promptRange = osascriptCode.range(of: "with prompt \""),
-               let promptEndRange = osascriptCode.range(of: "\"", range: promptRange.upperBound ..< osascriptCode.endIndex) {
+               let promptEndRange = osascriptCode.range(of: "\"", range: promptRange.upperBound ..< osascriptCode.endIndex)
+            {
                 prompt = String(osascriptCode[promptRange.upperBound ..< promptEndRange.lowerBound])
             }
 
@@ -203,7 +205,8 @@ class LaunchDaemonInstaller {
     }
 
     nonisolated static func hadRecentRestart(within seconds: TimeInterval = healthyWarmupWindow)
-        -> Bool {
+        -> Bool
+    {
         let now = Date()
         return kickstartLock.withLock { times in
             times.values.contains { now.timeIntervalSince($0) < seconds }
@@ -1024,7 +1027,8 @@ class LaunchDaemonInstaller {
 
     /// Execute LaunchDaemon installation with administrator privileges using osascript
     private func executeWithAdminPrivileges(tempPath: String, finalPath: String, serviceID: String)
-        -> Bool {
+        -> Bool
+    {
         AppLogger.shared.log("🔧 [LaunchDaemon] Requesting admin privileges to install \(serviceID)")
 
         // Create the command to copy the file and set proper permissions

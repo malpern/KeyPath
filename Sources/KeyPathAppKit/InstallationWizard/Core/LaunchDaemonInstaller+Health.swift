@@ -48,7 +48,8 @@ extension LaunchDaemonInstaller {
 
         let tcpOK = await Task.detached {
             if let portEnv = ProcessInfo.processInfo.environment["KEYPATH_TCP_PORT"],
-               let overridePort = Int(portEnv) {
+               let overridePort = Int(portEnv)
+            {
                 return self.probeTCP(port: overridePort, timeoutMs: timeoutMs)
             }
             return self.probeTCP(port: tcpPort, timeoutMs: timeoutMs)

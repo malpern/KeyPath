@@ -464,7 +464,8 @@ struct InstallationWizardView: View {
                     AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
                     navigationCoordinator.navigateToPage(.summary)
                 } else if let preferred = preferredDetailPage(for: result.state, issues: filteredIssues),
-                          navigationCoordinator.currentPage != preferred {
+                          navigationCoordinator.currentPage != preferred
+                {
                     AppLogger.shared.log("🔍 [Wizard] Deterministic routing to \(preferred) (single blocker)")
                     navigationCoordinator.navigateToPage(preferred)
                 } else if navigationCoordinator.currentPage == .summary {
@@ -828,7 +829,8 @@ struct InstallationWizardView: View {
 
         // Short-circuit service installs when Login Items approval is pending
         if action == .installLaunchDaemonServices || action == .restartUnhealthyServices,
-           await KanataDaemonManager.shared.refreshManagementState() == .smappservicePending {
+           await KanataDaemonManager.shared.refreshManagementState() == .smappservicePending
+        {
             await MainActor.run {
                 toastManager.showError(
                     "KeyPath background service needs approval in System Settings → Login Items. Enable ‘KeyPath’ then click Fix again.",
@@ -920,7 +922,8 @@ struct InstallationWizardView: View {
                 )
                 AppLogger.shared.log("🔍 [Wizard] Post-fix health check: karabinerStatus=\(karabinerStatus)")
                 if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon ||
-                    action == .installCorrectVHIDDriver || action == .repairVHIDDaemonServices {
+                    action == .installCorrectVHIDDriver || action == .repairVHIDDaemonServices
+                {
                     let smStatePost = await KanataDaemonManager.shared.refreshManagementState()
                     let vhidHealthy = await VHIDDeviceManager().detectConnectionHealth()
 
@@ -1076,7 +1079,8 @@ struct InstallationWizardView: View {
     }
 
     private func preferredDetailPage(for state: WizardSystemState, issues: [WizardIssue])
-        -> WizardPage? {
+        -> WizardPage?
+    {
         let page = navigationCoordinator.navigationEngine.determineCurrentPage(
             for: state, issues: issues
         )
@@ -1096,7 +1100,8 @@ struct InstallationWizardView: View {
     }
 
     private func sanitizedIssues(from issues: [WizardIssue], for state: WizardSystemState)
-        -> [WizardIssue] {
+        -> [WizardIssue]
+    {
         guard shouldSuppressCommunicationIssues(for: state) else {
             return issues
         }
@@ -1128,7 +1133,8 @@ struct InstallationWizardView: View {
             AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
             navigationCoordinator.navigateToPage(.summary)
         } else if let preferred = preferredDetailPage(for: result.state, issues: filteredIssues),
-                  navigationCoordinator.currentPage != preferred {
+                  navigationCoordinator.currentPage != preferred
+        {
             AppLogger.shared.log("🔄 [Wizard] Deterministic routing to \(preferred) after refresh")
             navigationCoordinator.navigateToPage(preferred)
         } else if navigationCoordinator.currentPage == .summary {
@@ -1367,7 +1373,8 @@ struct InstallationWizardView: View {
 
     /// Get detailed error message for specific auto-fix failures
     private func getDetailedErrorMessage(for action: AutoFixAction, actionDescription: String)
-        -> String {
+        -> String
+    {
         AppLogger.shared.log("🔍 [ErrorMessage] getDetailedErrorMessage called for action: \(action)")
         AppLogger.shared.log("🔍 [ErrorMessage] Action description: \(actionDescription)")
 

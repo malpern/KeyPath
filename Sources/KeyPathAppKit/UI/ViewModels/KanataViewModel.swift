@@ -192,7 +192,8 @@ class KanataViewModel: ObservableObject {
     }
 
     func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
-        -> String {
+        -> String
+    {
         try await manager.backupFailedConfigAndApplySafe(failedConfig: failedConfig, mappings: mappings)
     }
 
@@ -236,6 +237,10 @@ class KanataViewModel: ObservableObject {
 
     func runFullRepair(reason: String) async -> InstallerReport {
         await manager.runFullRepair(reason: reason)
+    }
+
+    func runFullInstall(reason: String) async -> InstallerReport {
+        await manager.runFullInstall(reason: reason)
     }
 
     // MARK: - Service Controls

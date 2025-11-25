@@ -189,7 +189,8 @@ actor LayerChangeListener {
         }
 
         if let current = json["CurrentLayerName"] as? [String: Any],
-           let name = current["name"] as? String {
+           let name = current["name"] as? String
+        {
             AppLogger.shared.debug("🌐 [LayerListener] Current layer -> \(name)")
             await handler(name)
             return
