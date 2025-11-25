@@ -141,4 +141,3 @@ final class InstallerEngineHealthCheckTests: KeyPathAsyncTestCase {
         XCTAssertNotNil(health, "Health should be valid")
     }
 }
-

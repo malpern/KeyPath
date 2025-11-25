@@ -157,7 +157,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
         // Perform multiple rapid health checks (simulating wizard behavior)
         var results: [Bool] = []
         for _ in 0 ..< 10 {
-            results.append(await mgr.detectRunning())
+            await results.append(mgr.detectRunning())
         }
 
         // All results should be consistent (all true in this case since daemon is "running")

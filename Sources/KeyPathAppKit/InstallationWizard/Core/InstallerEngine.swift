@@ -369,7 +369,7 @@ public final class InstallerEngine {
             try await broker.activateVirtualHIDManager()
             // Wait for activation to take effect
             try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-            
+
             // Verify activation
             if !vhidManager.detectActivation() {
                 AppLogger.shared.log(
@@ -378,7 +378,7 @@ public final class InstallerEngine {
                 AppLogger.shared.log("✅ [InstallerEngine] Manager activated successfully")
             }
         }
-        
+
         // Install all LaunchDaemon services
         try await broker.installAllLaunchDaemonServices()
     }
@@ -395,7 +395,7 @@ public final class InstallerEngine {
             try await broker.activateVirtualHIDManager()
             try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
         }
-        
+
         if let serviceID = recipe.serviceID, serviceID == KeyPathConstants.Bundle.daemonID {
             // Restart Karabiner daemon with verification
             let success = try await broker.restartKarabinerDaemonVerified()

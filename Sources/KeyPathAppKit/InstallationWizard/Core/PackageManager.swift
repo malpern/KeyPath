@@ -66,7 +66,6 @@ class PackageManager {
             description: "VirtualHID driver and background services required for Kanata",
             isRequired: true
         )
-
     }
 
     // MARK: - Homebrew Detection

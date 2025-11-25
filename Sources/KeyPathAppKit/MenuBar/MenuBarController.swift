@@ -108,4 +108,3 @@ final class MenuBarController: NSObject {
         quitHandler()
     }
 }
-

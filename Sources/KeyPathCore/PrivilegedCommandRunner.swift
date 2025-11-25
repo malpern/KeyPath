@@ -33,9 +33,9 @@ public enum PrivilegedCommandRunner {
     /// - Returns: Result containing success status and output
     public static func execute(command: String, prompt: String) -> Result {
         if TestEnvironment.useSudoForPrivilegedOps {
-            return executeWithSudo(command: command)
+            executeWithSudo(command: command)
         } else {
-            return executeWithOsascript(command: command, prompt: prompt)
+            executeWithOsascript(command: command, prompt: prompt)
         }
     }
 

@@ -905,7 +905,7 @@ class RuntimeCoordinator {
         let state = await kanataService.refreshStatus()
         let isRunning = state.isRunning
 
-        if restarted && isRunning {
+        if restarted, isRunning {
             AppLogger.shared.log("✅ [ServiceRestart] Kanata is running (state=\(state.description))")
             notifyStateChanged()
             return true

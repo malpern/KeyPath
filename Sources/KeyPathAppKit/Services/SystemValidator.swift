@@ -104,7 +104,7 @@ class SystemValidator {
     private func performValidation(progressCallback: @escaping @Sendable (Double) -> Void = { _ in })
         async -> SystemSnapshot {
         // Run validations in parallel - safe for concurrent execution
-        return await performValidationBody(progressCallback: progressCallback)
+        await performValidationBody(progressCallback: progressCallback)
     }
 
     private func performValidationBody(

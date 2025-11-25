@@ -5,6 +5,7 @@ import KeyPathCore
 /// Solves race condition where rapid process checks cause inconsistent conflict detection
 public actor LaunchDaemonPIDCache {
     public init() {}
+
     // MARK: - State
 
     private var cachedPID: pid_t?

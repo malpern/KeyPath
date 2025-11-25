@@ -15,17 +15,17 @@ public enum KanataServiceError: LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case .serviceNotRegistered:
-            return "Kanata service is not registered with the system."
+            "Kanata service is not registered with the system."
         case .requiresApproval:
-            return "Background item approval required in System Settings."
-        case .startFailed(let reason):
-            return "Failed to start Kanata service: \(reason)"
-        case .stopFailed(let reason):
-            return "Failed to stop Kanata service: \(reason)"
-        case .restartCooldownActive(let seconds):
-            return "Restart cooldown active. Please wait \(String(format: "%.1f", seconds)) seconds."
-        case .processConflict(let pid):
-            return "Conflicting Kanata process detected (PID \(pid))."
+            "Background item approval required in System Settings."
+        case let .startFailed(reason):
+            "Failed to start Kanata service: \(reason)"
+        case let .stopFailed(reason):
+            "Failed to stop Kanata service: \(reason)"
+        case let .restartCooldownActive(seconds):
+            "Restart cooldown active. Please wait \(String(format: "%.1f", seconds)) seconds."
+        case let .processConflict(pid):
+            "Conflicting Kanata process detected (PID \(pid))."
         }
     }
 }
@@ -78,12 +78,12 @@ public final class KanataService: ObservableObject {
 
         public var description: String {
             switch self {
-            case .running(let pid): return "Running (PID \(pid))"
-            case .stopped: return "Stopped"
-            case .failed(let reason): return "Failed: \(reason)"
-            case .maintenance: return "Maintenance Mode"
-            case .requiresApproval: return "Requires Approval"
-            case .unknown: return "Unknown"
+            case let .running(pid): "Running (PID \(pid))"
+            case .stopped: "Stopped"
+            case let .failed(reason): "Failed: \(reason)"
+            case .maintenance: "Maintenance Mode"
+            case .requiresApproval: "Requires Approval"
+            case .unknown: "Unknown"
             }
         }
     }
@@ -121,8 +121,8 @@ public final class KanataService: ObservableObject {
         statusTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 2_000_000_000) // 2s
-                if let self = self {
-                    await self.refreshStatus()
+                if let self {
+                    await refreshStatus()
                 } else {
                     break
                 }
@@ -219,7 +219,7 @@ public final class KanataService: ObservableObject {
 
         // 6. Wait for launchd
         // Give it up to 1.5 seconds to appear, checking every 0.3s
-        for _ in 0..<5 {
+        for _ in 0 ..< 5 {
             try? await Task.sleep(nanoseconds: 300_000_000) // 0.3s
             await refreshStatus()
             if case .running = state { break }
@@ -302,9 +302,9 @@ public final class KanataService: ObservableObject {
     public var isInstalled: Bool {
         switch currentDaemonStatus() {
         case .notFound:
-            return false
+            false
         default:
-            return true
+            true
         }
     }
 

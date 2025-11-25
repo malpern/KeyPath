@@ -1,7 +1,7 @@
-import XCTest
+@testable import KeyPathAppKit
 import KeyPathDaemonLifecycle
 import ServiceManagement
-@testable import KeyPathAppKit
+import XCTest
 
 /// Mock implementation of SMAppServiceProtocol for testing
 private class MockSMAppService: SMAppServiceProtocol, @unchecked Sendable {
@@ -76,7 +76,7 @@ final class KanataServiceIntegrationTests: KeyPathAsyncTestCase {
         switch state {
         case .running:
             XCTAssertTrue(true)
-        case .failed(let reason):
+        case let .failed(reason):
             XCTAssertTrue(reason.contains("process not running"), "Should fail because process mocking is hard: \(reason)")
         default:
             XCTFail("Unexpected state after start: \(state)")
@@ -125,7 +125,7 @@ final class KanataServiceIntegrationTests: KeyPathAsyncTestCase {
             try await service.start()
             XCTFail("Should have thrown error")
         } catch let error as KanataServiceError {
-            if case .startFailed(let reason) = error {
+            if case let .startFailed(reason) = error {
                 XCTAssertTrue(reason.contains("Mock error"))
             } else {
                 XCTFail("Wrong error type: \(error)")

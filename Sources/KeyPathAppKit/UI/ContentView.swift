@@ -491,18 +491,18 @@ struct ContentView: View {
         guard let capture = keyboardCapture else { return }
 
         capture.startEmergencyMonitoring { Task { @MainActor in
-                let stopped = await kanataManager.stopKanata(reason: "Emergency stop hotkey")
-                if stopped {
-                    AppLogger.shared.log("🛑 [EmergencyStop] Kanata service stopped via façade")
-                } else {
-                    AppLogger.shared.warn("⚠️ [EmergencyStop] Failed to stop Kanata service via façade")
-                }
-                kanataManager.emergencyStopActivated = true
-                showStatusMessage(message: "🚨 Emergency stop activated - Kanata stopped")
-                UserNotificationService.shared.notifyLaunchFailure(
-                    .serviceFailure("Emergency stop activated"))
-                showingEmergencyAlert = true
-            } }
+            let stopped = await kanataManager.stopKanata(reason: "Emergency stop hotkey")
+            if stopped {
+                AppLogger.shared.log("🛑 [EmergencyStop] Kanata service stopped via façade")
+            } else {
+                AppLogger.shared.warn("⚠️ [EmergencyStop] Failed to stop Kanata service via façade")
+            }
+            kanataManager.emergencyStopActivated = true
+            showStatusMessage(message: "🚨 Emergency stop activated - Kanata stopped")
+            UserNotificationService.shared.notifyLaunchFailure(
+                .serviceFailure("Emergency stop activated"))
+            showingEmergencyAlert = true
+        } }
     }
 
     // MARK: - Startup Observers

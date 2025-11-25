@@ -28,7 +28,7 @@ import ServiceManagement
 class LaunchDaemonInstaller {
     // MARK: - Constants
 
-    nonisolated private static var launchDaemonsPath: String {
+    private nonisolated static var launchDaemonsPath: String {
         LaunchDaemonInstaller.resolveLaunchDaemonsPath()
     }
 
@@ -44,18 +44,18 @@ class LaunchDaemonInstaller {
     nonisolated(unsafe) static var isTestModeOverride: Bool?
     nonisolated(unsafe) static var authorizationScriptRunnerOverride: ((String) -> Bool)?
     nonisolated static let kanataServiceID = "com.keypath.kanata"
-    nonisolated private static let vhidDaemonServiceID = "com.keypath.karabiner-vhiddaemon"
-    nonisolated private static let vhidManagerServiceID = "com.keypath.karabiner-vhidmanager"
-    nonisolated private static let logRotationServiceID = "com.keypath.logrotate"
+    private nonisolated static let vhidDaemonServiceID = "com.keypath.karabiner-vhiddaemon"
+    private nonisolated static let vhidManagerServiceID = "com.keypath.karabiner-vhidmanager"
+    private nonisolated static let logRotationServiceID = "com.keypath.logrotate"
 
     /// Path to the log rotation script
-    nonisolated private static var logRotationScriptPath: String {
+    private nonisolated static var logRotationScriptPath: String {
         WizardSystemPaths.remapSystemPath("/usr/local/bin/keypath-logrotate.sh")
     }
 
-    public struct KanataServiceHealth: Sendable {
-        public let isRunning: Bool
-        public let isResponding: Bool
+    struct KanataServiceHealth: Sendable {
+        let isRunning: Bool
+        let isResponding: Bool
     }
 
     struct InstallerReport: Sendable {
@@ -78,13 +78,13 @@ class LaunchDaemonInstaller {
     }
 
     // Use user config path following industry standard ~/.config/ pattern
-    nonisolated private static var kanataConfigPath: String {
+    private nonisolated static var kanataConfigPath: String {
         WizardSystemPaths.userConfigPath
     }
 
-    nonisolated private static let vhidDaemonPath =
+    private nonisolated static let vhidDaemonPath =
         "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon"
-    nonisolated private static let vhidManagerPath =
+    private nonisolated static let vhidManagerPath =
         "/Applications/.Karabiner-VirtualHIDDevice-Manager.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Manager"
 
     // MARK: - Initialization
@@ -124,20 +124,18 @@ class LaunchDaemonInstaller {
         // Extract the shell command from the AppleScript code
         // This is for backward compatibility - ideally callers should use PrivilegedCommandRunner directly
         if let commandRange = osascriptCode.range(of: "do shell script \""),
-           let endRange = osascriptCode.range(of: "\" with administrator privileges")
-        {
+           let endRange = osascriptCode.range(of: "\" with administrator privileges") {
             let startIndex = commandRange.upperBound
             let endIndex = endRange.lowerBound
-            let command = String(osascriptCode[startIndex..<endIndex])
+            let command = String(osascriptCode[startIndex ..< endIndex])
                 .replacingOccurrences(of: "\\\"", with: "\"")
                 .replacingOccurrences(of: "\\\\", with: "\\")
 
             // Extract prompt if present
             var prompt = "KeyPath needs administrator privileges."
             if let promptRange = osascriptCode.range(of: "with prompt \""),
-               let promptEndRange = osascriptCode.range(of: "\"", range: promptRange.upperBound..<osascriptCode.endIndex)
-            {
-                prompt = String(osascriptCode[promptRange.upperBound..<promptEndRange.lowerBound])
+               let promptEndRange = osascriptCode.range(of: "\"", range: promptRange.upperBound ..< osascriptCode.endIndex) {
+                prompt = String(osascriptCode[promptRange.upperBound ..< promptEndRange.lowerBound])
             }
 
             let result = PrivilegedCommandRunner.execute(command: command, prompt: prompt)
@@ -177,8 +175,8 @@ class LaunchDaemonInstaller {
 
     // MARK: - Warm-up tracking (to distinguish "starting" from "failed")
 
-    nonisolated private static let kickstartLock = OSAllocatedUnfairLock(initialState: [String: Date]())
-    nonisolated private static let healthyWarmupWindow: TimeInterval = 2.0
+    private nonisolated static let kickstartLock = OSAllocatedUnfairLock(initialState: [String: Date]())
+    private nonisolated static let healthyWarmupWindow: TimeInterval = 2.0
 
     private func markRestartTime(for serviceIDs: [String]) {
         let now = Date()
@@ -209,14 +207,14 @@ class LaunchDaemonInstaller {
 
     // MARK: - Env/Test helpers
 
-    nonisolated private static var isTestMode: Bool {
+    private nonisolated static var isTestMode: Bool {
         if let override = isTestModeOverride {
             return override
         }
         return ProcessInfo.processInfo.environment["KEYPATH_TEST_MODE"] == "1"
     }
 
-    nonisolated private static func resolveLaunchDaemonsPath() -> String {
+    private nonisolated static func resolveLaunchDaemonsPath() -> String {
         let env = ProcessInfo.processInfo.environment
         if let override = env["KEYPATH_LAUNCH_DAEMONS_DIR"], !override.isEmpty {
             return override
@@ -240,13 +238,12 @@ class LaunchDaemonInstaller {
     ///   - command: The shell command to execute
     ///   - prompt: The prompt to show in the admin dialog (osascript only)
     /// - Returns: Tuple of (success, output)
-    private func executeWithPrivileges(command: String, prompt: String) -> (success: Bool, output: String)
-    {
+    private func executeWithPrivileges(command: String, prompt: String) -> (success: Bool, output: String) {
         // Check if we should use sudo instead of osascript (for testing)
         if TestEnvironment.useSudoForPrivilegedOps {
-            return executeWithSudo(command: command)
+            executeWithSudo(command: command)
         } else {
-            return executeWithOsascript(command: command, prompt: prompt)
+            executeWithOsascript(command: command, prompt: prompt)
         }
     }
 
@@ -285,8 +282,7 @@ class LaunchDaemonInstaller {
     }
 
     /// Execute a command using osascript with admin privileges dialog.
-    private func executeWithOsascript(command: String, prompt: String) -> (success: Bool, output: String)
-    {
+    private func executeWithOsascript(command: String, prompt: String) -> (success: Bool, output: String) {
         let escapedCommand = escapeForAppleScript(command)
         let osascriptCommand = """
         do shell script "\(escapedCommand)" with administrator privileges with prompt "\(prompt)"
