@@ -254,8 +254,7 @@ public struct RecipeResult: Sendable, Equatable {
     }
 }
 
-/// Comprehensive execution summary
-/// Extends existing LaunchDaemonInstaller.InstallerReport
+/// Comprehensive execution summary for installation/repair operations
 public struct InstallerReport: Sendable {
     /// When execution completed
     public let timestamp: Date
@@ -303,5 +302,53 @@ public struct KanataHealthSnapshot: Sendable {
     public init(isRunning: Bool, isResponding: Bool) {
         self.isRunning = isRunning
         self.isResponding = isResponding
+    }
+}
+
+/// Status of all KeyPath LaunchDaemon services
+///
+/// Provides loaded and healthy status for Kanata, VHID Daemon, and VHID Manager services.
+public struct LaunchDaemonStatus: Sendable {
+    public let kanataServiceLoaded: Bool
+    public let vhidDaemonServiceLoaded: Bool
+    public let vhidManagerServiceLoaded: Bool
+    public let kanataServiceHealthy: Bool
+    public let vhidDaemonServiceHealthy: Bool
+    public let vhidManagerServiceHealthy: Bool
+
+    /// True if all required services are loaded
+    public var allServicesLoaded: Bool {
+        kanataServiceLoaded && vhidDaemonServiceLoaded && vhidManagerServiceLoaded
+    }
+
+    /// True if all required services are healthy (loaded and running properly)
+    public var allServicesHealthy: Bool {
+        kanataServiceHealthy && vhidDaemonServiceHealthy && vhidManagerServiceHealthy
+    }
+
+    /// Description of current status for logging/debugging
+    public var description: String {
+        """
+        LaunchDaemon Status:
+          Kanata: loaded=\(kanataServiceLoaded), healthy=\(kanataServiceHealthy)
+          VHID Daemon: loaded=\(vhidDaemonServiceLoaded), healthy=\(vhidDaemonServiceHealthy)
+          VHID Manager: loaded=\(vhidManagerServiceLoaded), healthy=\(vhidManagerServiceHealthy)
+        """
+    }
+
+    public init(
+        kanataServiceLoaded: Bool,
+        vhidDaemonServiceLoaded: Bool,
+        vhidManagerServiceLoaded: Bool,
+        kanataServiceHealthy: Bool,
+        vhidDaemonServiceHealthy: Bool,
+        vhidManagerServiceHealthy: Bool
+    ) {
+        self.kanataServiceLoaded = kanataServiceLoaded
+        self.vhidDaemonServiceLoaded = vhidDaemonServiceLoaded
+        self.vhidManagerServiceLoaded = vhidManagerServiceLoaded
+        self.kanataServiceHealthy = kanataServiceHealthy
+        self.vhidDaemonServiceHealthy = vhidDaemonServiceHealthy
+        self.vhidManagerServiceHealthy = vhidManagerServiceHealthy
     }
 }
