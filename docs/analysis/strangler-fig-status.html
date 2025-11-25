@@ -195,7 +195,7 @@
 </head>
 <body>
     <div class="hero">
-        <p class="pill done">Phase 2 Complete · November 2025</p>
+        <p class="pill done">Phase 2.5 Complete · November 2025</p>
         <h1>Kanata Service Strangler Fig</h1>
         <p class="tagline">From sprawling legacy managers to a single, testable façade.</p>
     </div>
@@ -203,20 +203,20 @@
     <section>
         <h2>Overall Status</h2>
         <div class="status-banner complete">
-            <h2 style="color: var(--teal); margin-bottom: 10px;">✅ Phase 2 Complete — All Services Extracted</h2>
-            <p style="font-size: 1.1rem;">7 services extracted. RuntimeCoordinator delegates to ConfigHotReloadService, StatePublisherService. KanataConfigManager (dead code) deleted. Diagnostics already well-factored via DiagnosticsManager.</p>
-            <p style="font-size: 0.95rem; margin-top: 12px; opacity: 0.8;">147 tests passing · 7 new services · 87 new unit tests · ~870 lines removed from legacy code</p>
+            <h2 style="color: var(--teal); margin-bottom: 10px;">✅ Phase 2.5 Complete — Callers Migrated</h2>
+            <p style="font-size: 1.1rem;">7 services extracted. Callers migrated from 4 files to 1. Only PrivilegedOperationsCoordinator still uses LaunchDaemonInstaller directly (complex orchestration). All osascript bypasses fixed.</p>
+            <p style="font-size: 0.95rem; margin-top: 12px; opacity: 0.8;">147 tests passing · 7 new services · 87 new unit tests · ~916 lines removed from legacy code</p>
         </div>
         <div class="grid four" style="margin-top:24px;">
             <div class="card">
-                <div class="metric" style="color: var(--teal);">2,772</div>
-                <div class="metric-label">LaunchDaemonInstaller lines</div>
-                <p>Reduced from 3,128. Now delegates to extracted services.</p>
+                <div class="metric" style="color: var(--teal);">1</div>
+                <div class="metric-label">Files with LaunchDaemonInstaller()</div>
+                <p>Reduced from 4 files. Only PrivilegedOperationsCoordinator remains (complex multi-service orchestration).</p>
             </div>
             <div class="card">
-                <div class="metric">2,261</div>
-                <div class="metric-label">RuntimeCoordinator lines</div>
-                <p>Now delegates to ConfigHotReloadService and StatePublisherService.</p>
+                <div class="metric" style="color: var(--teal);">29</div>
+                <div class="metric-label">LaunchDaemonInstaller refs</div>
+                <p>Reduced from 32. Remaining refs are mostly comments, self-references, and complex orchestration.</p>
             </div>
             <div class="card">
                 <div class="metric" style="color: var(--teal);">7</div>
@@ -224,9 +224,9 @@
                 <p>PlistGenerator, ServiceBootstrapper, ServiceHealthChecker, KanataBinaryInstaller, PrivilegedExecutor, ConfigHotReloadService, StatePublisherService</p>
             </div>
             <div class="card">
-                <div class="metric">1,529</div>
-                <div class="metric-label">Lines in new services</div>
-                <p>Clean, focused, testable code extracted from legacy.</p>
+                <div class="metric">6</div>
+                <div class="metric-label">Callers migrated</div>
+                <p>WizardAutoFixer, SystemValidator, KarabinerConflictService, InstallerEngine, PrivilegedOperationsCoordinator (partial), UninstallCoordinator</p>
             </div>
         </div>
     </section>
@@ -382,8 +382,8 @@
     </section>
 
     <section>
-        <h2>Phase 3: Legacy Removal (🔶 Preparation Complete)</h2>
-        <p style="color: var(--gray); margin-bottom: 24px;">Delete legacy code once new implementations are verified. Test harness and readiness checklist complete.</p>
+        <h2>Phase 3: Legacy Removal (🔶 In Progress)</h2>
+        <p style="color: var(--gray); margin-bottom: 24px;">Delete legacy code once new implementations are verified. Most callers migrated, only complex orchestration remains.</p>
         <table class="table">
             <thead>
                 <tr>
@@ -401,8 +401,26 @@
                     <td><span class="pill done">✅ Complete</span></td>
                 </tr>
                 <tr>
+                    <td><strong>Migrate simple callers</strong></td>
+                    <td>N/A</td>
+                    <td>N/A</td>
+                    <td><span class="pill done">✅ Complete (6 files)</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Fix osascript bypasses</strong></td>
+                    <td>N/A</td>
+                    <td>~46 lines</td>
+                    <td><span class="pill done">✅ Complete (UninstallCoordinator)</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Migrate PrivilegedOperationsCoordinator</strong></td>
+                    <td>Complex multi-service orchestration</td>
+                    <td>N/A</td>
+                    <td><span class="pill partial">🔶 Partial (health + binary done)</span></td>
+                </tr>
+                <tr>
                     <td><strong>Delete LaunchDaemonInstaller.swift</strong></td>
-                    <td>Migration of direct callers + test verification</td>
+                    <td>PrivilegedOperationsCoordinator migration</td>
                     <td>~2,768 lines</td>
                     <td><span class="pill pending">Pending</span></td>
                 </tr>
@@ -410,18 +428,6 @@
                     <td><strong>Remove duplicate Manager classes</strong></td>
                     <td>Consolidation verification</td>
                     <td>~1,500 lines</td>
-                    <td><span class="pill pending">Pending</span></td>
-                </tr>
-                <tr>
-                    <td><strong>Clean up RuntimeCoordinator</strong></td>
-                    <td>Final extraction verification</td>
-                    <td>~1,000 lines</td>
-                    <td><span class="pill pending">Pending</span></td>
-                </tr>
-                <tr>
-                    <td><strong>Archive legacy documentation</strong></td>
-                    <td>Code removal complete</td>
-                    <td>N/A</td>
                     <td><span class="pill pending">Pending</span></td>
                 </tr>
                 <tr>
@@ -433,9 +439,9 @@
             </tbody>
         </table>
         <div class="card" style="margin-top: 24px;">
-            <p class="pill partial">Preparation complete · Ready for removal</p>
-            <p><strong>Readiness Checklist:</strong> Test harness created (`LegacyRemovalReadinessTests`), behavior equivalence verified, API coverage documented. See <code>docs/analysis/legacy-removal-readiness.md</code> for full checklist.</p>
-            <p style="margin-top: 12px;"><strong>Remaining:</strong> Migrate 9 direct callers, extract log rotation service, add integration tests. Estimated 4-5 days for full removal.</p>
+            <p class="pill partial">75% Caller Migration Complete</p>
+            <p><strong>Completed:</strong> WizardAutoFixer, SystemValidator, KarabinerConflictService, InstallerEngine, UninstallCoordinator, PrivilegedOperationsCoordinator (partial - health checks + binary install).</p>
+            <p style="margin-top: 12px;"><strong>Remaining:</strong> PrivilegedOperationsCoordinator complex orchestration methods (createConfigureAndLoadAllServices, restartUnhealthyServices, etc.). Estimated 2-3 days for full removal.</p>
         </div>
     </section>
 
@@ -555,19 +561,23 @@
                 <p>Added comprehensive unit tests for all 7 extracted services: 87 tests covering PlistGenerator (30), StatePublisherService (11), ServiceBootstrapper (12), ConfigHotReloadService (9), KanataBinaryInstaller (6), PrivilegedExecutor (8), and ServiceHealthChecker (11).</p>
             </div>
             <div class="timeline-item">
+                <h3>Phase 2.5 · Caller Migration <span class="pill done">Done</span></h3>
+                <p>Migrated 6 callers from LaunchDaemonInstaller to extracted services: WizardAutoFixer, SystemValidator, KarabinerConflictService, InstallerEngine, UninstallCoordinator, PrivilegedOperationsCoordinator (partial). Fixed osascript bypass in UninstallCoordinator.</p>
+            </div>
+            <div class="timeline-item">
                 <h3>Phase 3 Prep · Test Harness & Readiness <span class="pill done">Done</span></h3>
                 <p>Created LegacyRemovalReadinessTests, behavior equivalence verification, comprehensive readiness checklist. Ready for safe legacy code removal.</p>
             </div>
             <div class="timeline-item">
-                <h3>Phase 3 · Legacy Removal <span class="pill pending">Pending</span></h3>
-                <p>Delete LaunchDaemonInstaller (~2,768 lines), migrate direct callers, remove duplicate managers. Test harness ready for verification.</p>
+                <h3>Phase 3 · Legacy Removal <span class="pill partial">In Progress</span></h3>
+                <p>Only PrivilegedOperationsCoordinator complex orchestration remains. Then delete LaunchDaemonInstaller (~2,768 lines) and remove duplicate managers.</p>
             </div>
         </div>
         <div class="status-banner complete" style="margin-top: 40px;">
-            <h2 style="color: var(--teal); margin-bottom: 10px;">📊 Project Status: Phase 2 Complete · Phase 3 Ready</h2>
-            <p style="font-size: 1.1rem;">7 services extracted. RuntimeCoordinator cleaned up. Test harness and readiness checklist complete. Ready for safe legacy code removal.</p>
+            <h2 style="color: var(--teal); margin-bottom: 10px;">📊 Project Status: Phase 2.5 Complete · Phase 3 In Progress</h2>
+            <p style="font-size: 1.1rem;">7 services extracted. 6 callers migrated. Only PrivilegedOperationsCoordinator complex orchestration remains before legacy deletion.</p>
             <p style="font-size: 0.95rem; margin-top: 12px; opacity: 0.8;">
-                <strong>Remaining effort:</strong> ~4-5 days to complete Phase 3 (legacy removal)
+                <strong>Remaining effort:</strong> ~2-3 days to complete Phase 3 (migrate complex orchestration + delete legacy code)
             </p>
         </div>
     </section>
