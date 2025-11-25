@@ -82,11 +82,17 @@ public enum TestEnvironment {
         return isRunningTests
     }
 
+    /// Cached result of sudo auto-detection (to avoid repeated checks)
+    private static let _sudoDetectionLock = NSLock()
+    private nonisolated(unsafe) static var _cachedSudoAvailable: Bool?
+    private nonisolated(unsafe) static var _hasCheckedSudo: Bool = false
+
     /// Check if we should use sudo instead of osascript for privileged operations.
     ///
     /// **Enabled when:**
     /// - `KEYPATH_USE_SUDO=1` environment variable is set, AND
     /// - Either running tests OR in a DEBUG build
+    /// - OR (in test mode only) auto-detects if sudoers are configured
     ///
     /// When enabled:
     /// - Privileged operations use `sudo -n` (non-interactive) instead of osascript admin prompts
@@ -95,20 +101,43 @@ public enum TestEnvironment {
     ///
     /// ⚠️ WARNING: Remove sudoers config before public release!
     public static var useSudoForPrivilegedOps: Bool {
-        // Check env var first - if not set, never use sudo
-        guard ProcessInfo.processInfo.environment["KEYPATH_USE_SUDO"] == "1" else {
-            return false
+        // Explicit env var takes precedence
+        if let envValue = ProcessInfo.processInfo.environment["KEYPATH_USE_SUDO"] {
+            if envValue == "1" {
+                // Env var explicitly set to 1 - check if we're in a valid context
+                if isRunningTests {
+                    return true
+                }
+                #if DEBUG
+                    return true
+                #else
+                    return false
+                #endif
+            } else {
+                // Explicitly set to 0 or other value - never use sudo
+                return false
+            }
         }
-        // Allow in tests (any build config)
+        
+        // No env var set - auto-detect sudoers in test mode only
         if isRunningTests {
-            return true
+            // Cache the result to avoid repeated sudo checks
+            _sudoDetectionLock.lock()
+            defer { _sudoDetectionLock.unlock() }
+            
+            if !_hasCheckedSudo {
+                _cachedSudoAvailable = verifySudoConfigured()
+                _hasCheckedSudo = true
+                if _cachedSudoAvailable == true {
+                    AppLogger.shared.log("🔐 [TestEnvironment] Auto-detected sudoers config - enabling sudo mode")
+                }
+            }
+            
+            return _cachedSudoAvailable ?? false
         }
-        // Allow in DEBUG builds for autonomous dev sessions
-        #if DEBUG
-            return true
-        #else
-            return false
-        #endif
+        
+        // Not in tests and no env var - never use sudo
+        return false
     }
 
     /// Check if sudo NOPASSWD is configured and working for launchctl

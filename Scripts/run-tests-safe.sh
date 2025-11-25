@@ -19,7 +19,19 @@ export NSUnbufferedIO=YES
 # Optional: Enable sudo mode for fully autonomous privileged operations
 # Set KEYPATH_USE_SUDO=1 to use sudo instead of osascript admin prompts
 # Requires: sudo ./Scripts/dev-setup-sudoers.sh (one-time setup)
-export KEYPATH_USE_SUDO=${KEYPATH_USE_SUDO:-0}
+# Auto-detect if sudoers are configured and enable automatically
+if [ -z "${KEYPATH_USE_SUDO:-}" ]; then
+    # Check if sudo -n works (NOPASSWD configured)
+    if sudo -n launchctl list com.keypath.kanata >/dev/null 2>&1 || \
+       sudo -n true >/dev/null 2>&1; then
+        export KEYPATH_USE_SUDO=1
+        echo "🔐 Auto-detected sudoers config - enabling KEYPATH_USE_SUDO=1"
+    else
+        export KEYPATH_USE_SUDO=0
+    fi
+else
+    export KEYPATH_USE_SUDO=${KEYPATH_USE_SUDO}
+fi
 
 echo "⏱️  Timeout: ${TIMEOUT_SECONDS}s"
 echo "🧪 SWIFT_TEST=$SWIFT_TEST | SKIP_EVENT_TAP_TESTS=$SKIP_EVENT_TAP_TESTS"
