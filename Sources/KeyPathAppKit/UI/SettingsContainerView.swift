@@ -208,16 +208,6 @@ struct AdvancedSettingsTabView: View {
 
     @State private var settingsToastManager = WizardToastManager()
 
-    // Service management state
-    @State private var activeMethod: ServiceMethod = .unknown
-    @State private var isMigrating = false
-
-    enum ServiceMethod {
-        case smappservice
-        case launchctl
-        case unknown
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Hero Section with Uninstall
@@ -325,19 +315,6 @@ struct AdvancedSettingsTabView: View {
             .padding(.horizontal, 20)
             .padding(.top, 24)
 
-            // Service Management - only show if there's an issue
-            if activeMethod != .smappservice {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Service Management")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-
-                    serviceManagementSection
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
-            }
-
             // Duplicate apps warning
             if duplicateAppCopies.count > 1 {
                 VStack(alignment: .leading, spacing: 12) {
@@ -358,7 +335,6 @@ struct AdvancedSettingsTabView: View {
         .withToasts(settingsToastManager)
         .task {
             await refreshHelperStatus()
-            await refreshServiceStatus()
             duplicateAppCopies = HelperMaintenance.shared.detectDuplicateAppCopies()
         }
         .sheet(isPresented: $showingCleanupRepair) {
@@ -450,86 +426,6 @@ struct AdvancedSettingsTabView: View {
         .padding(.vertical, 8)
     }
 
-    @ViewBuilder
-    private var serviceManagementSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                Image(systemName: activeMethodIcon)
-                    .foregroundColor(activeMethodColor)
-                    .font(.title3)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(activeMethodText)
-                        .font(.body)
-                        .fontWeight(.medium)
-
-                    Text(activeMethodDescription)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                Spacer()
-            }
-
-            // Migration button - only show if legacy is detected
-            if activeMethod == .launchctl, KanataDaemonManager.shared.hasLegacyInstallation() {
-                HStack(spacing: 8) {
-                    Button(isMigrating ? "Migrating…" : "Migrate to SMAppService") {
-                        guard !isMigrating else { return }
-                        isMigrating = true
-                        Task { @MainActor in
-                            do {
-                                try await KanataDaemonManager.shared.migrateFromLaunchctl()
-                                settingsToastManager.showSuccess("Migrated to SMAppService")
-                                await refreshServiceStatus()
-                            } catch {
-                                settingsToastManager.showError("Migration failed: \(error.localizedDescription)")
-                            }
-                            isMigrating = false
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .disabled(isMigrating)
-
-                    Spacer()
-                }
-            }
-        }
-    }
-
-    private var activeMethodIcon: String {
-        switch activeMethod {
-        case .smappservice: "checkmark.circle.fill"
-        case .launchctl: "gear.circle.fill"
-        case .unknown: "questionmark.circle.fill"
-        }
-    }
-
-    private var activeMethodColor: Color {
-        switch activeMethod {
-        case .smappservice: .green
-        case .launchctl: .orange
-        case .unknown: .gray
-        }
-    }
-
-    private var activeMethodText: String {
-        switch activeMethod {
-        case .smappservice: "Using SMAppService"
-        case .launchctl: "Using launchctl (Legacy)"
-        case .unknown: "Checking service method..."
-        }
-    }
-
-    private var activeMethodDescription: String {
-        switch activeMethod {
-        case .smappservice: "Modern service management via System Settings"
-        case .launchctl: "Traditional service management via launchctl"
-        case .unknown: "Determining active service method"
-        }
-    }
-
     // MARK: - Actions
 
     private func refreshHelperStatus() async {
@@ -614,22 +510,6 @@ struct AdvancedSettingsTabView: View {
             settingsToastManager.showInfo("Reset everything complete")
         }
     }
-
-    private func refreshServiceStatus() async {
-        let state = await KanataDaemonManager.shared.refreshManagementState()
-        await MainActor.run {
-            switch state {
-            case .legacyActive:
-                activeMethod = .launchctl
-            case .smappserviceActive, .smappservicePending:
-                activeMethod = .smappservice
-            case .conflicted:
-                activeMethod = .launchctl // Show migration section when conflicted!
-            case .unknown, .uninstalled:
-                activeMethod = .unknown
-            }
-        }
-    }
 }
 
 // MARK: - Local Components
@@ -686,24 +566,14 @@ struct VerboseLoggingToggle: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Toggle(isOn: $verboseLogging) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Verbose Kanata Logging")
-                        .font(.body)
-                        .fontWeight(.medium)
-
-                    Text("Enable comprehensive trace logging with event timing")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+            Toggle("Verbose Kanata Logging", isOn: $verboseLogging)
+                .toggleStyle(.switch)
+                .onChange(of: verboseLogging) { _, newValue in
+                    Task { @MainActor in
+                        PreferencesService.shared.verboseKanataLogging = newValue
+                        showingRestartAlert = true
+                    }
                 }
-            }
-            .toggleStyle(.switch)
-            .onChange(of: verboseLogging) { _, newValue in
-                Task { @MainActor in
-                    PreferencesService.shared.verboseKanataLogging = newValue
-                    showingRestartAlert = true
-                }
-            }
 
             if verboseLogging {
                 HStack(spacing: 8) {
