@@ -11,10 +11,6 @@ struct WizardKarabinerComponentsPage: View {
     let onRefresh: () -> Void
     let kanataManager: RuntimeCoordinator
 
-    // Track which specific issues are being fixed
-    @State private var fixingIssues: Set<UUID> = []
-    @State private var lastDriverFixNote: String?
-    @State private var lastServiceFixNote: String?
     @State private var showAllItems = false
     @State private var isCombinedFixLoading = false
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
@@ -93,7 +89,7 @@ struct WizardKarabinerComponentsPage: View {
                 .heroSectionContainer()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                // Use hero design for error state too, with blue links below
+                // Simplified error state: hero + centered Fix button
                 VStack(spacing: WizardDesign.Spacing.sectionGap) {
                     WizardHeroSection.warning(
                         icon: "keyboard.macwindow",
@@ -101,59 +97,18 @@ struct WizardKarabinerComponentsPage: View {
                         subtitle:
                         "Karabiner virtual keyboard driver needs to be installed & configured for input capture",
                         iconTapAction: {
-                            showAllItems.toggle()
                             Task {
                                 onRefresh()
                             }
                         }
                     )
 
-                    // Component details for error state
-                    VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
-                        // Combined row for Driver + Services
-                        if showAllItems || componentStatus(for: .driver) != .completed
-                            || componentStatus(for: .backgroundServices) != .completed
-                        {
-                            HStack(spacing: 12) {
-                                Image(
-                                    systemName: combinedStatus == .completed
-                                        ? "checkmark.circle.fill" : "xmark.circle.fill"
-                                )
-                                .foregroundColor(combinedStatus == .completed ? .green : .red)
-                                HStack(spacing: 0) {
-                                    Text("Karabiner Driver & Services")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-                                    Text(" - Virtual keyboard driver and Login Items")
-                                        .font(.headline)
-                                        .fontWeight(.regular)
-                                }
-                                Spacer()
-                                if combinedStatus != .completed {
-                                    Button("Fix") {
-                                        handleCombinedFix()
-                                    }
-                                    .buttonStyle(
-                                        WizardDesign.Component.SecondaryButton(isLoading: isCombinedFixLoading))
-                                    .scaleEffect(0.8)
-                                    .disabled(isCombinedFixLoading)
-                                }
-                            }
-                            .help(combinedTooltipText)
-
-                            if let note = combinedNote, combinedStatus != .completed {
-                                Text("Last fix: \(note)")
-                                    .font(.footnote)
-                                    .foregroundColor(.secondary)
-                                    .padding(.leading, 28)
-                            }
-                        }
+                    Button("Fix") {
+                        handleCombinedFix()
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(WizardDesign.Spacing.cardPadding)
-                    .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
-                    .padding(.horizontal, WizardDesign.Spacing.pageVertical)
-                    .padding(.top, WizardDesign.Spacing.sectionGap)
+                    .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isCombinedFixLoading))
+                    .disabled(isCombinedFixLoading)
+                    .padding(.top, WizardDesign.Spacing.itemGap)
                 }
                 .heroSectionContainer()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -182,48 +137,6 @@ struct WizardKarabinerComponentsPage: View {
     private var karabinerRelatedIssues: [WizardIssue] {
         // Use centralized evaluator (single source of truth)
         KarabinerComponentsStatusEvaluator.getKarabinerRelatedIssues(from: issues)
-    }
-
-    private var driverIssues: [WizardIssue] {
-        issues.filter { issue in
-            issue.category == .installation && issue.identifier.isVHIDRelated
-        }
-    }
-
-    private var backgroundServicesIssues: [WizardIssue] {
-        issues.filter { issue in
-            issue.category == .backgroundServices
-        }
-    }
-
-    private var combinedStatus: InstallationStatus {
-        // If either driver or services failed, show failed; else if any incomplete, show pending
-        let driverStatus = componentStatus(for: .driver)
-        let serviceStatus = componentStatus(for: .backgroundServices)
-
-        if driverStatus == .failed || serviceStatus == .failed {
-            return .failed
-        }
-        if driverStatus == .completed, serviceStatus == .completed {
-            return .completed
-        }
-        return .inProgress
-    }
-
-    private var combinedNote: String? {
-        // Prefer latest note (services > driver)
-        lastServiceFixNote ?? lastDriverFixNote
-    }
-
-    private var combinedTooltipText: String {
-        var parts: [String] = []
-        if !driverIssues.isEmpty {
-            parts.append("Driver: \(driverIssues.asTooltipText())")
-        }
-        if !backgroundServicesIssues.isEmpty {
-            parts.append("Services: \(backgroundServicesIssues.asTooltipText())")
-        }
-        return parts.isEmpty ? "No issues detected" : parts.joined(separator: "\n")
     }
 
     private func componentStatus(for component: KarabinerComponent) -> InstallationStatus {
@@ -321,18 +234,12 @@ struct WizardKarabinerComponentsPage: View {
             if isInstalled {
                 AppLogger.shared.log(
                     "🔧 [Karabiner Fix] Driver installed but having issues - attempting repair")
-                let ok = await performAutomaticDriverRepair()
-                if ok {
-                    lastDriverFixNote = formattedStatus(success: true)
-                } else {
-                    lastDriverFixNote = formattedStatus(success: false)
-                }
+                _ = await performAutomaticDriverRepair()
             } else {
                 AppLogger.shared.log(
                     "🔧 [Karabiner Fix] Driver not installed - attempting automatic install via helper (up to 2 attempts)"
                 )
                 let ok = await attemptAutoInstallDriver(maxAttempts: 2)
-                lastDriverFixNote = formattedStatus(success: ok)
                 if !ok {
                     toastManager.showError(
                         "Driver installation failed. Check System Settings > Privacy & Security."
@@ -344,10 +251,7 @@ struct WizardKarabinerComponentsPage: View {
             // 2) Services repair/install (only if driver succeeded or already healthy)
             let driverHealthy = componentStatus(for: .driver) == .completed
             if driverHealthy {
-                let serviceOk = await performAutomaticServiceRepair()
-                lastServiceFixNote = formattedStatus(success: serviceOk)
-            } else {
-                lastServiceFixNote = formattedStatus(success: false)
+                _ = await performAutomaticServiceRepair()
             }
 
             await refreshAndWait()
@@ -378,11 +282,6 @@ struct WizardKarabinerComponentsPage: View {
         }
 
         return false
-    }
-
-    private func formattedStatus(success: Bool) -> String {
-        let ts = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
-        return success ? "succeeded at \(ts)" : "failed at \(ts) — see Logs"
     }
 
     private func toastApprovalNeeded() {
