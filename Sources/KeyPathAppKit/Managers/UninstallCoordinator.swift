@@ -38,6 +38,54 @@ final class UninstallCoordinator: ObservableObject {
 
         defer { isRunning = false }
 
+        // Try to use the privileged helper first (no password prompt needed)
+        if await tryUninstallViaHelper(deleteConfig: deleteConfig) {
+            didSucceed = true
+            logLines.append("✅ Uninstall completed")
+            return true
+        }
+
+        // Fall back to script-based uninstall if helper isn't available
+        logLines.append("⚠️ Helper not available, falling back to admin prompt...")
+        return await uninstallViaScript(deleteConfig: deleteConfig)
+    }
+
+    /// Try to uninstall using the privileged helper (no password prompt)
+    /// Returns true if successful, false if helper isn't available or fails
+    private func tryUninstallViaHelper(deleteConfig: Bool) async -> Bool {
+        let helper = HelperManager.shared
+
+        // Check if helper is installed and functional
+        guard helper.isHelperInstalled() else {
+            logLines.append("ℹ️ Privileged helper not installed")
+            return false
+        }
+
+        guard await helper.testHelperFunctionality() else {
+            logLines.append("ℹ️ Privileged helper not responding")
+            return false
+        }
+
+        logLines.append("🔧 Using privileged helper for uninstall...")
+        if deleteConfig {
+            logLines.append("🗑️ User configuration will be deleted")
+        } else {
+            logLines.append("💾 User configuration will be preserved")
+        }
+
+        do {
+            try await helper.uninstallKeyPath(deleteConfig: deleteConfig)
+            logLines.append("✅ Services and files removed via helper")
+            return true
+        } catch {
+            logLines.append("❌ Helper uninstall failed: \(error.localizedDescription)")
+            lastError = error.localizedDescription
+            return false
+        }
+    }
+
+    /// Fallback uninstall using the shell script with admin privileges
+    private func uninstallViaScript(deleteConfig: Bool) async -> Bool {
         guard let scriptURL = resolveUninstallerURLClosure() else {
             let message = "Uninstaller script wasn't found in this build."
             logLines.append("❌ \(message)")
@@ -106,8 +154,7 @@ final class UninstallCoordinator: ObservableObject {
     }
 
     private static func defaultRunWithAdminPrivileges(scriptURL: URL, deleteConfig: Bool) async
-        -> AppleScriptResult
-    {
+        -> AppleScriptResult {
         // Use PrivilegedCommandRunner which respects TestEnvironment.useSudoForPrivilegedOps
         let configFlag = deleteConfig ? " --delete-config" : ""
         let command = "KEYPATH_UNINSTALL_ASSUME_YES=1 '\(scriptURL.path)' --assume-yes\(configFlag)"

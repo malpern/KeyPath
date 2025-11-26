@@ -290,7 +290,7 @@ class HelperService: NSObject, HelperProtocol {
     }
 
     func downloadAndInstallCorrectVHIDDriver(reply: @escaping (Bool, String?) -> Void) {
-        NSLog("[KeyPathHelper] downloadAndInstallCorrectVHIDDriver requested")
+        NSLog("[KeyPathHelper] downloadAndInstallCorrectVHIDDriver requested (deprecated - use installBundledVHIDDriver)")
         executePrivilegedOperation(
             name: "downloadAndInstallCorrectVHIDDriver",
             operation: {
@@ -308,6 +308,33 @@ class HelperService: NSObject, HelperProtocol {
                 if a.status != 0 {
                     NSLog("[KeyPathHelper] Warning: activate returned %d: %@", a.status, a.out)
                 }
+            },
+            reply: reply
+        )
+    }
+
+    func installBundledVHIDDriver(pkgPath: String, reply: @escaping (Bool, String?) -> Void) {
+        NSLog("[KeyPathHelper] installBundledVHIDDriver requested: %@", pkgPath)
+        executePrivilegedOperation(
+            name: "installBundledVHIDDriver",
+            operation: {
+                // Validate the pkg path exists and is within expected app bundle location
+                guard FileManager.default.fileExists(atPath: pkgPath) else {
+                    throw HelperError.operationFailed("Bundled VHID driver pkg not found at: \(pkgPath)")
+                }
+                // Security: Only allow .pkg files from KeyPath.app bundle
+                guard pkgPath.contains("/KeyPath.app/"), pkgPath.hasSuffix(".pkg") else {
+                    throw HelperError.operationFailed("Invalid pkg path - must be within KeyPath.app bundle")
+                }
+                NSLog("[KeyPathHelper] Installing VHID driver from bundled pkg: %@", pkgPath)
+                let i = Self.run("/usr/sbin/installer", ["-pkg", pkgPath, "-target", "/"])
+                if i.status != 0 { throw HelperError.operationFailed("Installer failed: \(i.out)") }
+                // Activate after install
+                let a = Self.run(Self.vhidManagerPath, ["activate"])
+                if a.status != 0 {
+                    NSLog("[KeyPathHelper] Warning: activate returned %d: %@", a.status, a.out)
+                }
+                NSLog("[KeyPathHelper] VHID driver installed successfully from bundled pkg")
             },
             reply: reply
         )
@@ -480,6 +507,169 @@ class HelperService: NSObject, HelperProtocol {
             },
             reply: reply
         )
+    }
+
+    // MARK: - Uninstall Operations
+
+    func uninstallKeyPath(deleteConfig: Bool, reply: @escaping (Bool, String?) -> Void) {
+        NSLog("[KeyPathHelper] uninstallKeyPath requested (deleteConfig: \(deleteConfig))")
+        executePrivilegedOperation(
+            name: "uninstallKeyPath",
+            operation: {
+                try Self.performUninstall(deleteConfig: deleteConfig)
+            },
+            reply: reply
+        )
+    }
+
+    /// Perform the full uninstall operation
+    private static func performUninstall(deleteConfig: Bool) throws {
+        NSLog("[KeyPathHelper] Starting uninstall sequence...")
+
+        // 1. Stop and unload LaunchDaemons
+        NSLog("[KeyPathHelper] Step 1: Stopping LaunchDaemons...")
+        stopAndUnloadDaemons()
+
+        // 2. Remove LaunchDaemon plist files
+        NSLog("[KeyPathHelper] Step 2: Removing LaunchDaemon plists...")
+        removeLaunchDaemonPlists()
+
+        // 3. Remove system kanata binary
+        NSLog("[KeyPathHelper] Step 3: Removing system kanata binary...")
+        removeSystemKanataBinary()
+
+        // 4. Remove /usr/local/etc/kanata config directory (legacy)
+        NSLog("[KeyPathHelper] Step 4: Removing legacy config directory...")
+        removeLegacyConfigDirectory()
+
+        // 5. Remove log files
+        NSLog("[KeyPathHelper] Step 5: Removing log files...")
+        removeLogFiles()
+
+        // 6. Remove user data (preserving or deleting config based on flag)
+        NSLog("[KeyPathHelper] Step 6: Removing user data (deleteConfig: \(deleteConfig))...")
+        removeUserData(deleteConfig: deleteConfig)
+
+        // Note: We do NOT remove /Applications/KeyPath.app here because:
+        // - The app is still running (calling this uninstall)
+        // - The user will quit the app after uninstall completes
+        // - They can drag the app to trash manually
+
+        NSLog("[KeyPathHelper] Uninstall sequence completed successfully")
+    }
+
+    private static func stopAndUnloadDaemons() {
+        let daemons = [kanataServiceID, vhidDaemonServiceID, vhidManagerServiceID]
+        for daemon in daemons {
+            // Try to stop gracefully first
+            _ = run("/bin/launchctl", ["kill", "TERM", "system/\(daemon)"])
+            usleep(500_000) // 0.5 second
+            // Bootout (unload)
+            _ = run("/bin/launchctl", ["bootout", "system/\(daemon)"])
+            NSLog("[KeyPathHelper] Stopped/unloaded: \(daemon)")
+        }
+    }
+
+    private static func removeLaunchDaemonPlists() {
+        let plists = [
+            "/Library/LaunchDaemons/\(kanataServiceID).plist",
+            "/Library/LaunchDaemons/\(vhidDaemonServiceID).plist",
+            "/Library/LaunchDaemons/\(vhidManagerServiceID).plist",
+            "/Library/LaunchDaemons/com.keypath.logrotate.plist",
+            "/Library/LaunchDaemons/com.keypath.helper.plist"
+        ]
+        for plist in plists {
+            if FileManager.default.fileExists(atPath: plist) {
+                _ = run("/bin/rm", ["-f", plist])
+                NSLog("[KeyPathHelper] Removed plist: \(plist)")
+            }
+        }
+    }
+
+    private static func removeSystemKanataBinary() {
+        let kanataPath = "/Library/KeyPath/bin/kanata"
+        if FileManager.default.fileExists(atPath: kanataPath) {
+            _ = run("/bin/rm", ["-f", kanataPath])
+            NSLog("[KeyPathHelper] Removed: \(kanataPath)")
+        }
+        // Clean up empty directories
+        _ = run("/bin/rmdir", ["/Library/KeyPath/bin"])
+        _ = run("/bin/rmdir", ["/Library/KeyPath"])
+    }
+
+    private static func removeLegacyConfigDirectory() {
+        let configDir = "/usr/local/etc/kanata"
+        if FileManager.default.fileExists(atPath: configDir) {
+            _ = run("/bin/rm", ["-rf", configDir])
+            NSLog("[KeyPathHelper] Removed legacy config: \(configDir)")
+        }
+    }
+
+    private static func removeLogFiles() {
+        let logs = [
+            "/var/log/kanata.log",
+            "/var/log/kanata.log.1",
+            "/var/log/karabiner-vhid-daemon.log",
+            "/var/log/karabiner-vhid-manager.log",
+            "/var/log/keypath-logrotate.log",
+            "/var/log/com.keypath.helper.stdout.log",
+            "/var/log/com.keypath.helper.stderr.log"
+        ]
+        for log in logs {
+            if FileManager.default.fileExists(atPath: log) {
+                _ = run("/bin/rm", ["-f", log])
+                NSLog("[KeyPathHelper] Removed log: \(log)")
+            }
+        }
+    }
+
+    private static func removeUserData(deleteConfig: Bool) {
+        guard let info = consoleUserInfo() else {
+            NSLog("[KeyPathHelper] Could not determine console user; skipping user data cleanup")
+            return
+        }
+
+        let home = info.home
+        let user = info.name
+
+        // User config (only if deleteConfig is true)
+        if deleteConfig {
+            let configPath = "\(home)/.config/keypath"
+            if FileManager.default.fileExists(atPath: configPath) {
+                _ = run("/bin/rm", ["-rf", configPath])
+                NSLog("[KeyPathHelper] Removed user config: \(configPath)")
+            }
+        } else {
+            NSLog("[KeyPathHelper] Preserving user config at \(home)/.config/keypath")
+        }
+
+        // Application Support and Logs
+        let userPaths = [
+            "\(home)/Library/Application Support/KeyPath",
+            "\(home)/Library/Logs/KeyPath"
+        ]
+        for path in userPaths {
+            if FileManager.default.fileExists(atPath: path) {
+                _ = run("/bin/rm", ["-rf", path])
+                NSLog("[KeyPathHelper] Removed: \(path)")
+            }
+        }
+
+        // Preference plists
+        let prefsDir = "\(home)/Library/Preferences"
+        let prefFiles = [
+            "\(prefsDir)/com.keypath.KeyPath.plist",
+            "\(prefsDir)/com.keypath.app.plist"
+        ]
+        for pref in prefFiles {
+            if FileManager.default.fileExists(atPath: pref) {
+                _ = run("/bin/rm", ["-f", pref])
+                NSLog("[KeyPathHelper] Removed pref: \(pref)")
+            }
+        }
+
+        // Kill cfprefsd to flush preference cache for user
+        _ = run("/usr/bin/killall", ["-u", user, "cfprefsd"])
     }
 
     // MARK: - Helper Methods
@@ -687,6 +877,9 @@ extension HelperService {
     private static let karabinerTeamID = "G43BCU2T37"
     private static let karabinerDriverBundleID =
         "org.pqrs.driver.Karabiner-DriverKit-VirtualHIDDevice"
+    // IMPORTANT: Keep in sync with WizardSystemPaths.bundledVHIDDriverVersion in KeyPathCore
+    // The helper doesn't have access to KeyPathCore, so we maintain a copy here
+    // This is only used for the deprecated download fallback path
     private static let requiredVHIDVersion = "6.0.0"
 
     private static func appBundlePathFromHelper() -> String {
@@ -734,8 +927,7 @@ extension HelperService {
     }
 
     private static func generateKanataPlist(binaryPath: String, cfgPath: String, tcpPort: Int)
-        -> String
-    {
+        -> String {
         let args = kanataArguments(binaryPath: binaryPath, cfgPath: cfgPath, tcpPort: tcpPort)
         let argsXML = args.map { "                <string>\($0)</string>" }.joined(separator: "\n")
         return """

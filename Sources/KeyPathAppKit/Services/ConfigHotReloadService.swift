@@ -154,6 +154,17 @@ final class ConfigHotReloadService {
             scheduleStatusReset()
             return .success(content: configContent)
         } else {
+            // Check if service is simply unavailable (SMAppService pending, service not running)
+            // In this case, don't show error to user - config is valid, just can't reload yet
+            let smState = await KanataDaemonManager.shared.refreshManagementState()
+            if smState == .smappservicePending || smState.needsInstallation {
+                AppLogger.shared.info("ℹ️ [ConfigHotReload] Reload skipped - service not available (config is valid)")
+                // Don't call onFailure - this isn't a real error, just service unavailability
+                // Reset status after a brief delay so UI doesn't show stale "validating" state
+                callbacks.onReset?()
+                return ReloadResult(success: true, message: "Config valid (service starting)", newContent: configContent)
+            }
+
             AppLogger.shared.error("❌ [ConfigHotReload] Hot reload failed")
             let result = ReloadResult.failure("Hot reload failed")
             callbacks.onFailure?(result.message)

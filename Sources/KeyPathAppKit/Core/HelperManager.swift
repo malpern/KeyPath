@@ -406,8 +406,7 @@ actor HelperManager {
         ]
         for path in fileCandidates {
             if FileManager.default.fileExists(atPath: path),
-               let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: path))
-            {
+               let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: path)) {
                 let data = try? handle.readToEnd()
                 let s = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
                 let lines = s.split(separator: "\n").map(String.init)
@@ -719,6 +718,12 @@ actor HelperManager {
         }
     }
 
+    func installBundledVHIDDriver(pkgPath: String) async throws {
+        try await executeXPCCall("installBundledVHIDDriver") { proxy, reply in
+            proxy.installBundledVHIDDriver(pkgPath: pkgPath, reply: reply)
+        }
+    }
+
     // MARK: - Process Management
 
     func terminateProcess(_ pid: Int32) async throws {
@@ -765,6 +770,17 @@ actor HelperManager {
     func installBundledKanataBinaryOnly() async throws {
         try await executeXPCCall("installBundledKanataBinaryOnly") { proxy, reply in
             proxy.installBundledKanataBinaryOnly(reply: reply)
+        }
+    }
+
+    // MARK: - Uninstall Operations
+
+    /// Uninstall KeyPath completely using the privileged helper
+    /// - Parameter deleteConfig: If true, also removes user configuration at ~/.config/keypath
+    /// - Throws: HelperManagerError if the operation fails
+    func uninstallKeyPath(deleteConfig: Bool) async throws {
+        try await executeXPCCall("uninstallKeyPath") { proxy, reply in
+            proxy.uninstallKeyPath(deleteConfig: deleteConfig, reply: reply)
         }
     }
 }
@@ -827,8 +843,7 @@ extension HelperManager {
         var plistRequirement: String?
         if let info = NSDictionary(contentsOfFile: bundlePath + "/Contents/Info.plist"),
            let sm = (info["SMPrivilegedExecutables"] as? NSDictionary)?[Self.helperBundleIdentifier]
-           as? String
-        {
+           as? String {
             plistRequirement = sm
             if !req.contains("com.keypath.helper") {
                 warnings.append(

@@ -32,11 +32,11 @@ final class VHIDDeviceManager: @unchecked Sendable {
     // Test seam: allow injecting installed version during unit tests
     nonisolated(unsafe) static var testInstalledVersionProvider: (() -> String?)?
 
-    // Version compatibility for kanata
+    // Version compatibility for kanata - uses bundled driver as single source of truth
     // NOTE: Kanata v1.10.0+ requires Karabiner-DriverKit-VirtualHIDDevice v6.0.0
     // Updated Nov 2025 when Kanata v1.10.0 was released
-    private static let requiredDriverVersionMajor = 6
-    static let requiredDriverVersionString = "6.0.0"
+    private static var requiredDriverVersionMajor: Int { WizardSystemPaths.bundledVHIDDriverMajorVersion }
+    static var requiredDriverVersionString: String { WizardSystemPaths.bundledVHIDDriverVersion }
     private static let currentKanataVersion = "1.10.0" // Current supported Kanata version
 
     // Driver DriverKit extension identifiers
@@ -408,7 +408,7 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
             You have Karabiner-DriverKit-VirtualHIDDevice v\(installedVersion) installed, but Kanata v\(Self.currentKanataVersion) requires v\(Self.requiredDriverVersionString).
 
-            KeyPath will automatically download and install v\(Self.requiredDriverVersionString) for you.
+            KeyPath will install the bundled v\(Self.requiredDriverVersionString) for you.
             """
         }
 
@@ -530,10 +530,11 @@ final class VHIDDeviceManager: @unchecked Sendable {
         }
     }
 
-    /// Downloads and installs the correct version of Karabiner-DriverKit-VirtualHIDDevice
+    /// Installs the correct version of Karabiner-DriverKit-VirtualHIDDevice
+    /// Prefers bundled pkg (no download required), falls back to download if missing
     func downloadAndInstallCorrectVersion() async -> Bool {
         AppLogger.shared.log(
-            "🔧 [VHIDManager] Downloading and installing v\(Self.requiredDriverVersionString)")
+            "🔧 [VHIDManager] Installing v\(Self.requiredDriverVersionString)")
 
         // Step 1: Clean up existing driver versions first
         AppLogger.shared.log("🔧 [VHIDManager] Step 1/4: Cleaning up existing driver versions...")
@@ -543,71 +544,47 @@ final class VHIDDeviceManager: @unchecked Sendable {
                 "⚠️ [VHIDManager] Cleanup had issues, but proceeding with installation...")
         }
 
-        // Download URL for v5.0.0
-        AppLogger.shared.log(
-            "🔧 [VHIDManager] Step 2/4: Downloading v\(Self.requiredDriverVersionString)...")
-        let downloadURL =
-            "https://github.com/pqrs-org/Karabiner-DriverKit-VirtualHIDDevice/releases/download/v\(Self.requiredDriverVersionString)/Karabiner-DriverKit-VirtualHIDDevice-\(Self.requiredDriverVersionString).pkg"
-        let tmpDir = FileManager.default.temporaryDirectory
-        let pkgPath = tmpDir.appendingPathComponent(
-            "Karabiner-DriverKit-VirtualHIDDevice-\(Self.requiredDriverVersionString).pkg")
-
-        // Download the package
-        AppLogger.shared.log("📥 [VHIDManager] Downloading from \(downloadURL)")
-
-        do {
-            let (localURL, response) = try await URLSession.shared.download(
-                from: URL(string: downloadURL)!)
-
-            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-                AppLogger.shared.log(
-                    "❌ [VHIDManager] Download failed - HTTP status: \((response as? HTTPURLResponse)?.statusCode ?? 0)"
-                )
-                return false
-            }
-
-            // Move downloaded file to temp location
-            try FileManager.default.moveItem(at: localURL, to: pkgPath)
-            AppLogger.shared.log("✅ [VHIDManager] Downloaded to \(pkgPath.path)")
-
-            // Install the package using installer command
-            AppLogger.shared.log("🔧 [VHIDManager] Step 3/4: Installing package...")
-
-            let installResult = await executeWithAdminPrivileges(
-                command: "/usr/sbin/installer -pkg \"\(pkgPath.path)\" -target /",
-                description:
-                "Install Karabiner-DriverKit-VirtualHIDDevice v\(Self.requiredDriverVersionString)"
+        // Step 2: Use bundled pkg (required - no download fallback)
+        let bundledPkgPath = WizardSystemPaths.bundledVHIDDriverPkgPath
+        guard WizardSystemPaths.bundledVHIDDriverPkgExists else {
+            AppLogger.shared.error(
+                "❌ [VHIDManager] Bundled VHID driver pkg not found at: \(bundledPkgPath). " +
+                    "This indicates a corrupt KeyPath installation."
             )
+            return false
+        }
+        AppLogger.shared.log("📦 [VHIDManager] Step 2/3: Using bundled VHID driver pkg")
+        let pkgPath = URL(fileURLWithPath: bundledPkgPath)
 
-            // Clean up downloaded package
-            try? FileManager.default.removeItem(at: pkgPath)
+        // Step 3: Install the package
+        AppLogger.shared.log("🔧 [VHIDManager] Step 3/3: Installing package...")
 
-            if installResult {
-                AppLogger.shared.log(
-                    "✅ [VHIDManager] Successfully installed v\(Self.requiredDriverVersionString)")
+        let installResult = await executeWithAdminPrivileges(
+            command: "/usr/sbin/installer -pkg \"\(pkgPath.path)\" -target /",
+            description:
+            "Install Karabiner-DriverKit-VirtualHIDDevice v\(Self.requiredDriverVersionString)"
+        )
 
-                // Wait for installation to complete
-                try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+        if installResult {
+            AppLogger.shared.log(
+                "✅ [VHIDManager] Successfully installed v\(Self.requiredDriverVersionString)")
 
-                // Activate the newly installed version
-                AppLogger.shared.log("🔧 [VHIDManager] Step 4/4: Activating newly installed driver...")
-                let activateResult = await activateManager()
+            // Wait for installation to complete
+            try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
 
-                if activateResult {
-                    AppLogger.shared.log("✅ [VHIDManager] Driver activated successfully")
-                    return true
-                } else {
-                    AppLogger.shared.log(
-                        "⚠️ [VHIDManager] Driver installed but activation may need user approval")
-                    return true // Still return true since installation succeeded
-                }
+            // Activate the newly installed version
+            AppLogger.shared.log("🔧 [VHIDManager] Activating newly installed driver...")
+            let activateResult = await activateManager()
+
+            if activateResult {
+                AppLogger.shared.log("✅ [VHIDManager] Driver activated successfully")
             } else {
-                AppLogger.shared.log("❌ [VHIDManager] Installation failed")
-                return false
+                AppLogger.shared.log(
+                    "⚠️ [VHIDManager] Driver installed but activation may need user approval")
             }
-
-        } catch {
-            AppLogger.shared.log("❌ [VHIDManager] Error downloading/installing: \(error)")
+            return true // Installation succeeded regardless of activation status
+        } else {
+            AppLogger.shared.log("❌ [VHIDManager] Installation failed")
             return false
         }
     }

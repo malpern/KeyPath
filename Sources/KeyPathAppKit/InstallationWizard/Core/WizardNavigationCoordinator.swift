@@ -27,11 +27,13 @@ class WizardNavigationCoordinator: ObservableObject {
 
     /// Navigate to a specific page with animation
     func navigateToPage(_ page: WizardPage) {
+        AppLogger.shared.log("🧭 [NavCoord] navigateToPage(\(page)) called, current=\(currentPage)")
         withAnimation(navigationAnimation) {
             currentPage = page
             lastPageChangeTime = Date()
             userInteractionMode = true
         }
+        AppLogger.shared.log("🧭 [NavCoord] navigateToPage(\(page)) complete, now=\(currentPage)")
     }
 
     /// Auto-navigate based on system state (if user hasn't interacted recently)

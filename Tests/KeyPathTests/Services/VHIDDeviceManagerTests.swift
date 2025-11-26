@@ -1,6 +1,7 @@
 import XCTest
 
 @testable import KeyPathAppKit
+@testable import KeyPathCore
 
 final class VHIDDeviceManagerTests: XCTestCase {
     override func tearDown() {
@@ -9,7 +10,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
         VHIDDeviceManager.testPIDProvider = nil
         VHIDDeviceManager.testShellProvider = nil
         VHIDDeviceManager.testInstalledVersionProvider = nil
-        FeatureFlags.testStartupMode = nil
+        KeyPathAppKit.FeatureFlags.testStartupMode = nil
     }
 
     // MARK: - Version Mismatch Tests
@@ -84,7 +85,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
 
     func testDetectRunning_StartupMode_DaemonRunning() async {
         // Simulate startup mode active
-        FeatureFlags.testStartupMode = true
+        KeyPathAppKit.FeatureFlags.testStartupMode = true
 
         // Mock launchctl list showing daemon is running
         VHIDDeviceManager.testShellProvider = { command in
@@ -111,7 +112,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
 
     func testDetectRunning_StartupMode_DaemonNotRunning() async {
         // Simulate startup mode active
-        FeatureFlags.testStartupMode = true
+        KeyPathAppKit.FeatureFlags.testStartupMode = true
 
         // Mock launchctl list showing daemon is NOT running (no PID field)
         VHIDDeviceManager.testShellProvider = { command in
@@ -130,7 +131,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
 
     func testEvaluateDaemonProcess_StartupMode_UsesFastCheck() async {
         // Simulate startup mode active
-        FeatureFlags.testStartupMode = true
+        KeyPathAppKit.FeatureFlags.testStartupMode = true
 
         var launchctlCalled = false
         VHIDDeviceManager.testShellProvider = { command in
@@ -153,7 +154,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
 
     func testDetectRunning_NormalMode_BypassesFastCheck() async {
         // Normal mode (startup mode not active)
-        FeatureFlags.testStartupMode = false
+        KeyPathAppKit.FeatureFlags.testStartupMode = false
 
         // Provide PID via normal test seam
         VHIDDeviceManager.testPIDProvider = { ["12345"] }
@@ -172,7 +173,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
 
     func testGetDaemonPIDs_StartupMode_ReturnsEmpty() async {
         // Simulate startup mode active
-        FeatureFlags.testStartupMode = true
+        KeyPathAppKit.FeatureFlags.testStartupMode = true
 
         // Verify PID collection is skipped in startup mode
         VHIDDeviceManager.testPIDProvider = { ["should", "not", "be", "called"] }
@@ -187,7 +188,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
         // This test verifies the fix for the race condition that caused wizard false positives
         // When startup mode is active, we should get consistent results from rapid health checks
 
-        FeatureFlags.testStartupMode = true
+        KeyPathAppKit.FeatureFlags.testStartupMode = true
         VHIDDeviceManager.testShellProvider = { command in
             if command.contains("launchctl list") {
                 return """
@@ -210,6 +211,31 @@ final class VHIDDeviceManagerTests: XCTestCase {
         // All results should be consistent (all true in this case since daemon is "running")
         XCTAssertTrue(
             results.allSatisfy { $0 == true }, "Rapid health checks should return consistent results"
+        )
+    }
+
+    // MARK: - Bundled Driver Version Tests
+
+    func testBundledDriverVersion_IsValidSemver() {
+        let version = WizardSystemPaths.bundledVHIDDriverVersion
+        let components = version.split(separator: ".")
+        XCTAssertEqual(components.count, 3, "Version should be semver format (x.y.z)")
+        XCTAssertTrue(components.allSatisfy { Int($0) != nil }, "All version components should be numeric")
+    }
+
+    func testBundledDriverMajorVersion_MatchesFullVersion() {
+        let fullVersion = WizardSystemPaths.bundledVHIDDriverVersion
+        let majorVersion = WizardSystemPaths.bundledVHIDDriverMajorVersion
+        let expectedMajor = Int(fullVersion.split(separator: ".").first ?? "0") ?? 0
+        XCTAssertEqual(majorVersion, expectedMajor, "Major version should match first component of full version")
+    }
+
+    func testRequiredDriverVersion_UsesBundledVersion() {
+        // VHIDDeviceManager.requiredDriverVersionString should match WizardSystemPaths
+        XCTAssertEqual(
+            VHIDDeviceManager.requiredDriverVersionString,
+            WizardSystemPaths.bundledVHIDDriverVersion,
+            "VHIDDeviceManager should use bundled version as single source of truth"
         )
     }
 }

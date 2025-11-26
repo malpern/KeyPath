@@ -159,6 +159,11 @@ struct StatusSettingsTabView: View {
     @State private var showingPermissionAlert = false
     @State private var refreshRetryScheduled = false
 
+    // Focus state for primary button (Enter key triggers)
+    private enum FocusField: Hashable { case wizardButton }
+    @FocusState private var focusedField: FocusField?
+    @AccessibilityFocusState private var accessibilityFocus: FocusField?
+
     private var isServiceRunning: Bool {
         systemContext?.services.kanataRunning ?? false
     }
@@ -437,18 +442,24 @@ struct StatusSettingsTabView: View {
                         )
                     }
 
-                    // Wizard button
+                    // Wizard button (primary - Enter key triggers)
                     if let snapshot = permissionSnapshot {
                         if snapshot.isSystemReady {
                             Button(action: { showingInstallationWizard = true }) {
                                 Label("Install wizard…", systemImage: "wand.and.stars.inverse")
                             }
+                            .focused($focusedField, equals: .wizardButton)
+                            .accessibilityFocused($accessibilityFocus, equals: .wizardButton)
+                            .keyboardShortcut(.defaultAction)
                             .buttonStyle(.bordered)
                             .controlSize(.small)
                         } else {
                             Button(action: { showingPermissionAlert = true }) {
                                 Label("Fix it…", systemImage: "wand.and.stars")
                             }
+                            .focused($focusedField, equals: .wizardButton)
+                            .accessibilityFocused($accessibilityFocus, equals: .wizardButton)
+                            .keyboardShortcut(.defaultAction)
                             .buttonStyle(.borderedProminent)
                             .controlSize(.small)
                         }
@@ -484,6 +495,10 @@ struct StatusSettingsTabView: View {
         .task {
             await refreshStatus()
         }
+        .onAppear {
+            focusedField = .wizardButton
+            accessibilityFocus = .wizardButton
+        }
         // Removed legacy onReceive(currentState)
         .onReceive(NotificationCenter.default.publisher(for: .wizardClosed)) { _ in
             Task {
@@ -510,8 +525,7 @@ struct StatusSettingsTabView: View {
         // If services look “starting” (daemons loaded/healthy but kanata not yet running), retry once shortly.
         if !context.services.kanataRunning,
            context.components.launchDaemonServicesHealthy || context.services.karabinerDaemonRunning,
-           refreshRetryScheduled == false
-        {
+           refreshRetryScheduled == false {
             refreshRetryScheduled = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 Task {

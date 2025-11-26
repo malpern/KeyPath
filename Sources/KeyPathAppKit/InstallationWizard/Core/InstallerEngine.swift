@@ -131,8 +131,7 @@ public final class InstallerEngine {
     /// Check if requirements are met for the given intent
     /// Returns: Blocking requirement if any, nil if all requirements met
     private func checkRequirements(for intent: InstallIntent, context: SystemContext) async
-        -> Requirement?
-    {
+        -> Requirement? {
         // For inspectOnly, no requirements needed
         if intent == .inspectOnly {
             return nil
@@ -387,8 +386,7 @@ public final class InstallerEngine {
     /// Execute restartService recipe
     /// Includes pre-check for VHID Manager activation (per Karabiner documentation)
     private func executeRestartService(_ recipe: ServiceRecipe, using broker: PrivilegeBroker)
-        async throws
-    {
+        async throws {
         // CRITICAL: Ensure VHID Manager is activated before restarting services
         let vhidManager = VHIDDeviceManager()
         if !vhidManager.detectActivation() {
@@ -412,8 +410,7 @@ public final class InstallerEngine {
 
     /// Execute installComponent recipe
     private func executeInstallComponent(_ recipe: ServiceRecipe, using broker: PrivilegeBroker)
-        async throws
-    {
+        async throws {
         // Map recipe ID to component installation method
         switch recipe.id {
         case "install-bundled-kanata":
@@ -476,8 +473,7 @@ public final class InstallerEngine {
 
     /// Execute checkRequirement recipe
     private func executeCheckRequirement(_ recipe: ServiceRecipe, using broker: PrivilegeBroker)
-        async throws
-    {
+        async throws {
         // Check requirement recipes (e.g., terminate conflicting processes)
         switch recipe.id {
         case "terminate-conflicting-processes":
@@ -577,8 +573,7 @@ public final class InstallerEngine {
     /// This is useful for GUI single-action fixes where the user clicks a specific "Fix" button
     /// Note: Some actions (like installLaunchDaemonServices) are only in install plans, not repair plans
     public func runSingleAction(_ action: AutoFixAction, using broker: PrivilegeBroker) async
-        -> InstallerReport
-    {
+        -> InstallerReport {
         AppLogger.shared.log("🔧 [InstallerEngine] runSingleAction(\(action), using:) starting")
         let context = await inspectSystem()
 

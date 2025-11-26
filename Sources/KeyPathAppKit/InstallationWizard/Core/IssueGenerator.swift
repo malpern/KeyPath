@@ -8,8 +8,7 @@ class IssueGenerator {
     // MARK: - Issue Creation
 
     func createSystemRequirementIssues(from result: SystemRequirements.ValidationResult)
-        -> [WizardIssue]
-    {
+        -> [WizardIssue] {
         var issues: [WizardIssue] = []
 
         // Create issues for each compatibility problem
@@ -83,8 +82,7 @@ class IssueGenerator {
     }
 
     private func createGroupedConflictDescription(conflictType: String, conflicts: [SystemConflict])
-        -> String
-    {
+        -> String {
         let count = conflicts.count
         let plural = count > 1 ? "es" : ""
 
@@ -371,7 +369,7 @@ class IssueGenerator {
         case .vhidDaemonMisconfigured:
             "The installed LaunchDaemon for the VirtualHID daemon points to a legacy path. It should use the DriverKit daemon path."
         case .vhidDriverVersionMismatch:
-            "The installed Karabiner-DriverKit-VirtualHIDDevice version is incompatible with the current version of Kanata. Kanata v1.10.0 requires driver v\(VHIDDeviceManager.requiredDriverVersionString), but a different version is installed. KeyPath can automatically download and install the correct version."
+            "The installed Karabiner-DriverKit-VirtualHIDDevice version is incompatible with the current version of Kanata. Kanata v1.10.0 requires driver v\(VHIDDeviceManager.requiredDriverVersionString), but a different version is installed. KeyPath includes the correct driver version and can install it for you."
         case .launchDaemonServices:
             "LaunchDaemon services are not installed or loaded. These provide reliable system-level service management for KeyPath components."
         case .launchDaemonServicesUnhealthy:

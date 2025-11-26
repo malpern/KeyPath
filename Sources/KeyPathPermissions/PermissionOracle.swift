@@ -154,8 +154,7 @@ public actor PermissionOracle {
             // Honor cache semantics in tests to keep behavior deterministic
             if let cachedTime = lastSnapshotTime,
                let cached = lastSnapshot,
-               Date().timeIntervalSince(cachedTime) < cacheTTL
-            {
+               Date().timeIntervalSince(cachedTime) < cacheTTL {
                 AppLogger.shared.log("🔮 [Oracle] (Test) Returning cached snapshot")
                 return cached
             }
@@ -178,8 +177,7 @@ public actor PermissionOracle {
         // Return cached result if fresh
         if let cachedTime = lastSnapshotTime,
            let cached = lastSnapshot,
-           Date().timeIntervalSince(cachedTime) < cacheTTL
-        {
+           Date().timeIntervalSince(cachedTime) < cacheTTL {
             AppLogger.shared.log(
                 "🔮 [Oracle] Returning cached snapshot (age: \(String(format: "%.3f", Date().timeIntervalSince(cachedTime)))s)"
             )
@@ -280,6 +278,7 @@ public actor PermissionOracle {
     }
 
     // MARK: - Kanata Permission Detection (ADR-016: TCC Database Reading)
+
     //
     // WHY TCC DATABASE READING IS NECESSARY:
     // The wizard needs to guide users through Accessibility and Input Monitoring
@@ -505,8 +504,7 @@ public actor PermissionOracle {
     // Returns an integer meaning of auth_value/allowed, or nil if not determinable.
     // Uses sqlite3 CLI tool which is available on all macOS systems.
     private func queryTCCDatabase(dbPath: String, service: String, executablePath: String) async
-        -> Int?
-    {
+        -> Int? {
         // The 'access' table schema varies. We try auth_value first, then allowed.
         // We check for client_type=1 (path) because Kanata is a CLI binary.
         let escService = escapeSQLiteLiteral(service)

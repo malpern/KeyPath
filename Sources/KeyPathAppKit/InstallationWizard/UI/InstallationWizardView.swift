@@ -55,6 +55,7 @@ struct InstallationWizardView: View {
             VStack(spacing: 0) {
                 // Always show page content - no preflight view
                 pageContent()
+                    .id(navigationCoordinator.currentPage) // Force view recreation on page change
                     .frame(maxWidth: .infinity)
                     .fixedSize(horizontal: false, vertical: true)
                     .overlay {
@@ -185,21 +186,27 @@ struct InstallationWizardView: View {
                     + "that may prevent KeyPath from working properly. Are you sure you want to close the setup wizard?"
             )
         }
-        .alert("Approve KeyPath Background Item", isPresented: $showingBackgroundApprovalPrompt) {
-            Button("Open Login Items") {
+        .alert("Enable KeyPath in Login Items", isPresented: $showingBackgroundApprovalPrompt) {
+            Button("OK") {
                 showingBackgroundApprovalPrompt = false
                 openLoginItemsSettings()
-                startLoginItemsApprovalPolling()
             }
+            .keyboardShortcut(.defaultAction)
             Button("Later", role: .cancel) {
                 showingBackgroundApprovalPrompt = false
                 stopLoginItemsApprovalPolling()
             }
         } message: {
             Text(
-                "macOS blocked the helper because KeyPath isn't yet approved in System Settings → General → Login Items & Extensions. "
-                    + "Open Login Items and enable KeyPath under Background Items to allow the helper to run."
+                "Login Items will open. Find KeyPath under Background Items and flip the switch to enable it."
             )
+        }
+        .onChange(of: showingBackgroundApprovalPrompt) { _, isShowing in
+            if isShowing {
+                // Start polling immediately when dialog appears, so approval is detected
+                // even if user enables KeyPath before clicking OK
+                startLoginItemsApprovalPolling()
+            }
         }
     }
 
@@ -467,8 +474,7 @@ struct InstallationWizardView: View {
                     AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
                     navigationCoordinator.navigateToPage(.summary)
                 } else if let preferred = preferredDetailPage(for: result.state, issues: filteredIssues),
-                          navigationCoordinator.currentPage != preferred
-                {
+                          navigationCoordinator.currentPage != preferred {
                     AppLogger.shared.log("🔍 [Wizard] Deterministic routing to \(preferred) (single blocker)")
                     navigationCoordinator.navigateToPage(preferred)
                 } else if navigationCoordinator.currentPage == .summary {
@@ -812,12 +818,12 @@ struct InstallationWizardView: View {
         }
         inFlightFixActions.insert(action)
         currentFixAction = action
+        fixInFlight = true
         defer {
             inFlightFixActions.remove(action)
             currentFixAction = nil
+            fixInFlight = false
         }
-        await MainActor.run { fixInFlight = true }
-        defer { Task { @MainActor in fixInFlight = false } }
 
         // IMMEDIATE crash-proof logging for ACTUAL Fix button
         Swift.print(
@@ -832,8 +838,7 @@ struct InstallationWizardView: View {
 
         // Short-circuit service installs when Login Items approval is pending
         if action == .installLaunchDaemonServices || action == .restartUnhealthyServices,
-           await KanataDaemonManager.shared.refreshManagementState() == .smappservicePending
-        {
+           await KanataDaemonManager.shared.refreshManagementState() == .smappservicePending {
             await MainActor.run {
                 toastManager.showError(
                     "KeyPath background service needs approval in System Settings → Login Items. Enable ‘KeyPath’ then click Fix again.",
@@ -925,8 +930,7 @@ struct InstallationWizardView: View {
                 )
                 AppLogger.shared.log("🔍 [Wizard] Post-fix health check: karabinerStatus=\(karabinerStatus)")
                 if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon ||
-                    action == .installCorrectVHIDDriver || action == .repairVHIDDaemonServices
-                {
+                    action == .installCorrectVHIDDriver || action == .repairVHIDDaemonServices {
                     let smStatePost = await KanataDaemonManager.shared.refreshManagementState()
                     let vhidHealthy = await VHIDDeviceManager().detectConnectionHealth()
 
@@ -1082,8 +1086,7 @@ struct InstallationWizardView: View {
     }
 
     private func preferredDetailPage(for state: WizardSystemState, issues: [WizardIssue])
-        -> WizardPage?
-    {
+        -> WizardPage? {
         let page = navigationCoordinator.navigationEngine.determineCurrentPage(
             for: state, issues: issues
         )
@@ -1103,8 +1106,7 @@ struct InstallationWizardView: View {
     }
 
     private func sanitizedIssues(from issues: [WizardIssue], for state: WizardSystemState)
-        -> [WizardIssue]
-    {
+        -> [WizardIssue] {
         guard shouldSuppressCommunicationIssues(for: state) else {
             return issues
         }
@@ -1136,8 +1138,7 @@ struct InstallationWizardView: View {
             AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
             navigationCoordinator.navigateToPage(.summary)
         } else if let preferred = preferredDetailPage(for: result.state, issues: filteredIssues),
-                  navigationCoordinator.currentPage != preferred
-        {
+                  navigationCoordinator.currentPage != preferred {
             AppLogger.shared.log("🔄 [Wizard] Deterministic routing to \(preferred) after refresh")
             navigationCoordinator.navigateToPage(preferred)
         } else if navigationCoordinator.currentPage == .summary {
@@ -1294,10 +1295,15 @@ struct InstallationWizardView: View {
                     AppLogger.shared.log("🔍 [LoginItems] Poll #\(attempt)/\(maxAttempts): state=\(state)")
                 }
 
-                if state == .smappserviceActive || state == .smappservicePending {
-                    // User approved! Auto-refresh and show success
+                if state == .smappserviceActive {
+                    // User approved! Dismiss dialog, refresh and show success
                     AppLogger.shared.log("✅ [LoginItems] Approval detected at poll #\(attempt)! Refreshing wizard state...")
-                    toastManager.showSuccess("KeyPath approved in Login Items")
+
+                    await MainActor.run {
+                        // Dismiss the dialog if it's still showing
+                        showingBackgroundApprovalPrompt = false
+                        toastManager.showSuccess("KeyPath approved in Login Items")
+                    }
 
                     // Refresh the wizard state
                     refreshState()
@@ -1428,8 +1434,7 @@ struct InstallationWizardView: View {
 
     /// Get detailed error message for specific auto-fix failures
     private func getDetailedErrorMessage(for action: AutoFixAction, actionDescription: String)
-        -> String
-    {
+        -> String {
         AppLogger.shared.log("🔍 [ErrorMessage] getDetailedErrorMessage called for action: \(action)")
         AppLogger.shared.log("🔍 [ErrorMessage] Action description: \(actionDescription)")
 

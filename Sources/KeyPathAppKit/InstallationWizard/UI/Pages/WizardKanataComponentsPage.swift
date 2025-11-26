@@ -286,8 +286,7 @@ struct WizardKanataComponentsPage: View {
         }
 
         if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: issues),
-           nextPage != navigationCoordinator.currentPage
-        {
+           nextPage != navigationCoordinator.currentPage {
             navigationCoordinator.navigateToPage(nextPage)
         } else {
             navigationCoordinator.navigateToPage(.summary)

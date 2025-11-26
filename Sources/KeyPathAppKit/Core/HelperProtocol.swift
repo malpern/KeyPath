@@ -69,7 +69,14 @@ import Foundation
 
     /// Detect system requirements and install the correct VHID driver version
     /// - Parameter reply: Completion handler with (success, errorMessage)
+    @available(*, deprecated, message: "Use installBundledVHIDDriver instead - no download needed")
     func downloadAndInstallCorrectVHIDDriver(reply: @escaping (Bool, String?) -> Void)
+
+    /// Install VHID driver from a bundled .pkg file (no download required)
+    /// - Parameters:
+    ///   - pkgPath: Path to the bundled .pkg file in the app bundle
+    ///   - reply: Completion handler with (success, errorMessage)
+    func installBundledVHIDDriver(pkgPath: String, reply: @escaping (Bool, String?) -> Void)
 
     // MARK: - Process Management
 
@@ -99,4 +106,12 @@ import Foundation
     /// Install only the bundled kanata binary to the system location (/Library/KeyPath/bin/kanata)
     /// - Parameter reply: Completion handler with (success, errorMessage)
     func installBundledKanataBinaryOnly(reply: @escaping (Bool, String?) -> Void)
+
+    // MARK: - Uninstall Operations
+
+    /// Uninstall KeyPath completely, removing all services, binaries, and optionally user config
+    /// - Parameters:
+    ///   - deleteConfig: If true, also removes user configuration at ~/.config/keypath
+    ///   - reply: Completion handler with (success, errorMessage)
+    func uninstallKeyPath(deleteConfig: Bool, reply: @escaping (Bool, String?) -> Void)
 }

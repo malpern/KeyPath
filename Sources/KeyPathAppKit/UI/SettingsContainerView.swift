@@ -31,7 +31,7 @@ enum SettingsTab: Hashable, CaseIterable {
 
 struct SettingsContainerView: View {
     @EnvironmentObject var kanataManager: KanataViewModel
-    @State private var selection: SettingsTab = .status
+    @State private var selection: SettingsTab = .advanced // Default to Repair/Remove for now
     @State private var canManageRules: Bool = true
 
     var body: some View {
@@ -208,6 +208,11 @@ struct AdvancedSettingsTabView: View {
 
     @State private var settingsToastManager = WizardToastManager()
 
+    // Focus state for primary button (Enter key triggers)
+    private enum FocusField: Hashable { case uninstallButton }
+    @FocusState private var focusedField: FocusField?
+    @AccessibilityFocusState private var accessibilityFocus: FocusField?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Hero Section with Uninstall
@@ -232,13 +237,16 @@ struct AdvancedSettingsTabView: View {
                         }
                     }
 
-                    // Uninstall button
+                    // Uninstall button (primary - Enter key triggers)
                     Button(role: .destructive) {
                         NotificationCenter.default.post(name: NSNotification.Name("ShowUninstall"), object: nil)
                     } label: {
                         Text("Uninstall")
                             .frame(minWidth: 100)
                     }
+                    .focused($focusedField, equals: .uninstallButton)
+                    .accessibilityFocused($accessibilityFocus, equals: .uninstallButton)
+                    .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
                 }
@@ -336,6 +344,10 @@ struct AdvancedSettingsTabView: View {
         .task {
             await refreshHelperStatus()
             duplicateAppCopies = HelperMaintenance.shared.detectDuplicateAppCopies()
+        }
+        .onAppear {
+            focusedField = .uninstallButton
+            accessibilityFocus = .uninstallButton
         }
         .sheet(isPresented: $showingCleanupRepair) {
             CleanupAndRepairView()

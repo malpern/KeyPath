@@ -29,8 +29,7 @@ public enum WizardSystemPaths {
 
     private static func resolvedHomeDirectory() -> String {
         if let override = ProcessInfo.processInfo.environment["KEYPATH_HOME_DIR_OVERRIDE"],
-           !override.isEmpty
-        {
+           !override.isEmpty {
             return override
         }
         return NSHomeDirectory()
@@ -76,8 +75,7 @@ public enum WizardSystemPaths {
             return override
         }
         if let override = ProcessInfo.processInfo.environment["KEYPATH_BUNDLED_KANATA_OVERRIDE"],
-           !override.isEmpty
-        {
+           !override.isEmpty {
             return override
         }
         return "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
@@ -209,6 +207,42 @@ public enum WizardSystemPaths {
         }
 
         return nil
+    }
+
+    // MARK: - Bundled Driver Paths
+
+    /// The bundled VHID driver version - single source of truth
+    /// Update this when bundling a new driver version
+    public static let bundledVHIDDriverVersion = "6.0.0"
+
+    /// The bundled VHID driver major version (for compatibility checks)
+    public static var bundledVHIDDriverMajorVersion: Int {
+        Int(bundledVHIDDriverVersion.split(separator: ".").first ?? "0") ?? 0
+    }
+
+    /// Bundled VHID driver package filename
+    private static var bundledVHIDDriverPkgFilename: String {
+        "Karabiner-DriverKit-VirtualHIDDevice-\(bundledVHIDDriverVersion)"
+    }
+
+    /// Bundled VHID driver package path
+    /// This is the Karabiner-DriverKit-VirtualHIDDevice .pkg bundled with KeyPath
+    /// Uses Bundle.main.url(forResource:) to work with both SPM bundles and proper app bundles
+    public static var bundledVHIDDriverPkgPath: String {
+        // Try Bundle.main first (works for both SPM and app bundles)
+        if let url = Bundle.main.url(
+            forResource: bundledVHIDDriverPkgFilename,
+            withExtension: "pkg"
+        ) {
+            return url.path
+        }
+        // Fallback to expected app bundle location
+        return "\(Bundle.main.bundlePath)/Contents/Resources/\(bundledVHIDDriverPkgFilename).pkg"
+    }
+
+    /// Checks if the bundled VHID driver package exists
+    public static var bundledVHIDDriverPkgExists: Bool {
+        FileManager.default.fileExists(atPath: bundledVHIDDriverPkgPath)
     }
 
     /// Checks if the user config file exists

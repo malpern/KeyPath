@@ -251,8 +251,7 @@ struct WizardInputMonitoringPage: View {
         }
 
         if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: allIssues),
-           nextPage != navigationCoordinator.currentPage
-        {
+           nextPage != navigationCoordinator.currentPage {
             navigationCoordinator.navigateToPage(nextPage)
         } else {
             navigationCoordinator.navigateToPage(.summary)
@@ -357,8 +356,7 @@ struct WizardInputMonitoringPage: View {
 
 private func openInputMonitoringPreferencesPanel() {
     if let url = URL(
-        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
-    {
+        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
         NSWorkspace.shared.open(url)
     }
 }

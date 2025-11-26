@@ -10,8 +10,9 @@ struct UninstallKeyPathDialog: View {
     @State private var lastError: String?
     @State private var didSucceed = false
 
-    private enum Field { case primary }
+    private enum Field: Hashable { case primary }
     @FocusState private var focusedField: Field?
+    @AccessibilityFocusState private var accessibilityFocus: Field?
 
     var body: some View {
         VStack(spacing: 20) {
@@ -30,13 +31,20 @@ struct UninstallKeyPathDialog: View {
                     .multilineTextAlignment(.center)
 
                 Button {
-                    NSApplication.shared.terminate(nil)
+                    // Must dismiss the modal sheet first, then terminate
+                    // Otherwise macOS beeps because it can't terminate with a modal active
+                    // See: https://stackoverflow.com/questions/48688574/programmatically-dismiss-modal-dialog-in-macos
+                    dismiss()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        NSApplication.shared.terminate(nil)
+                    }
                 } label: {
                     Text("Quit")
                         .frame(minWidth: 80)
                 }
                 .focused($focusedField, equals: .primary)
-                .keyboardShortcut(.return, modifiers: [])
+                .accessibilityFocused($accessibilityFocus, equals: .primary)
+                .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
             } else {
                 // Confirmation/working state
@@ -74,7 +82,8 @@ struct UninstallKeyPathDialog: View {
                             .frame(minWidth: 80)
                     }
                     .focused($focusedField, equals: .primary)
-                    .keyboardShortcut(.return, modifiers: [])
+                    .accessibilityFocused($accessibilityFocus, equals: .primary)
+                    .keyboardShortcut(.defaultAction)
                     .disabled(isRunning)
                     .buttonStyle(.borderedProminent)
                     .tint(.red)
@@ -83,7 +92,10 @@ struct UninstallKeyPathDialog: View {
         }
         .padding(32)
         .frame(width: 320)
-        .onAppear { focusedField = .primary }
+        .onAppear {
+            focusedField = .primary
+            accessibilityFocus = .primary
+        }
         .animation(.easeInOut(duration: 0.3), value: didSucceed)
     }
 

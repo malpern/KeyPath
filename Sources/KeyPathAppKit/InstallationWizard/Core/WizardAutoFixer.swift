@@ -312,7 +312,7 @@ class WizardAutoFixer: AutoFixCapable {
             alert.messageText = "Karabiner Driver Version Fix Required"
             alert.informativeText = versionMessage
             alert.alertStyle = .informational
-            alert.addButton(withTitle: "Download & Install v\(VHIDDeviceManager.requiredDriverVersionString)")
+            alert.addButton(withTitle: "Install v\(VHIDDeviceManager.requiredDriverVersionString)")
             alert.addButton(withTitle: "Cancel")
 
             AppLogger.shared.log("🔧 [AutoFixer] Calling runModal()...")
@@ -328,8 +328,8 @@ class WizardAutoFixer: AutoFixCapable {
             return false
         }
 
-        // Download and install the correct version using coordinator
-        AppLogger.shared.log("🔧 [AutoFixer] Starting driver download/install via coordinator...")
+        // Install the correct version using coordinator (bundled pkg, no download)
+        AppLogger.shared.log("🔧 [AutoFixer] Starting driver install via coordinator...")
         let session = UUID().uuidString
         let t0 = Date()
         let pre = await captureVHIDSnapshot()
@@ -391,7 +391,7 @@ class WizardAutoFixer: AutoFixCapable {
                 let alert = NSAlert()
                 alert.messageText = "Installation Failed"
                 alert.informativeText =
-                    "Failed to download or install Karabiner-DriverKit-VirtualHIDDevice v\(VHIDDeviceManager.requiredDriverVersionString). Please check your internet connection and try again."
+                    "Failed to install Karabiner-DriverKit-VirtualHIDDevice v\(VHIDDeviceManager.requiredDriverVersionString). Please try again or check the logs for details."
                 alert.alertStyle = .warning
                 alert.addButton(withTitle: "OK")
                 alert.runModal()
@@ -561,13 +561,17 @@ class WizardAutoFixer: AutoFixCapable {
         return success
     }
 
+    /// Restart VirtualHID daemon with verification
+    /// ⚠️ RELIABILITY ROLLBACK (Nov 2025): If this becomes flaky, restore the legacy fallback:
+    /// - Uncomment the legacyRestartVirtualHIDDaemon() call below
+    /// - Also increase timing constants in PrivilegedOperationsCoordinator
     private func restartVirtualHIDDaemon() async -> Bool {
         AppLogger.shared.log("🔧 [AutoFixer] Fixing VirtualHID connection health issues")
 
         // Step 1: Try to clear Kanata log to reset connection health detection
         await clearKanataLog()
 
-        // Step 2: Use proper restart that kills all duplicates first
+        // Step 2: Use proper restart that kills all duplicates first (optimized Nov 2025)
         AppLogger.shared.log("🔧 [AutoFixer] Restarting VirtualHID daemon (kill duplicates + verify)")
         let restartSuccess = await kanataManager.restartKarabinerDaemon()
 
@@ -582,21 +586,12 @@ class WizardAutoFixer: AutoFixCapable {
             return true
         } else {
             AppLogger.shared.error(
-                "❌ [AutoFixer] VirtualHID daemon restart failed or verification failed")
-            // Fall back to legacy restart
-            AppLogger.shared.warn("⚠️ [AutoFixer] Trying legacy restart as fallback")
-            let legacySuccess = await legacyRestartVirtualHIDDaemon()
-            if legacySuccess {
-                // Refresh state after legacy restart too
-                let manager = kanataManager
-                await MainActor.run {
-                    manager.refreshProcessState()
-                }
-                AppLogger.shared.info("✅ [AutoFixer] Legacy restart succeeded")
-            } else {
-                AppLogger.shared.error("❌ [AutoFixer] Legacy restart also failed")
-            }
-            return legacySuccess
+                "❌ [AutoFixer] VirtualHID daemon restart failed - user can retry via Fix button")
+            // Removed legacy fallback cascade (Nov 2025 optimization) - user can click Fix again
+            // To restore: uncomment below and increase timing constants in PrivilegedOperationsCoordinator
+            // AppLogger.shared.warn("⚠️ [AutoFixer] Trying legacy restart as fallback")
+            // return await legacyRestartVirtualHIDDaemon()
+            return false
         }
     }
 

@@ -197,8 +197,7 @@ final class PrivilegedOperationsCoordinator {
 
         let now = Date()
         if let last = Self.lastServiceInstallAttempt,
-           now.timeIntervalSince(last) < Self.serviceInstallThrottle
-        {
+           now.timeIntervalSince(last) < Self.serviceInstallThrottle {
             let remaining = Self.serviceInstallThrottle - now.timeIntervalSince(last)
             AppLogger.shared.log(
                 "\(Self.serviceGuardLogPrefix) \(context): skipping auto-install (throttled, \(String(format: "%.1f", remaining))s remaining)"
@@ -475,7 +474,15 @@ final class PrivilegedOperationsCoordinator {
     }
 
     private func helperInstallCorrectDriver() async throws {
-        try await HelperManager.shared.downloadAndInstallCorrectVHIDDriver()
+        let bundledPkgPath = WizardSystemPaths.bundledVHIDDriverPkgPath
+        guard WizardSystemPaths.bundledVHIDDriverPkgExists else {
+            AppLogger.shared.error("❌ [PrivCoordinator] Bundled VHID driver pkg not found at: \(bundledPkgPath)")
+            throw PrivilegedOperationError.operationFailed(
+                "Bundled VHID driver package not found. This indicates a corrupt KeyPath installation."
+            )
+        }
+        AppLogger.shared.log("📦 [PrivCoordinator] Installing bundled VHID driver: \(bundledPkgPath)")
+        try await HelperManager.shared.installBundledVHIDDriver(pkgPath: bundledPkgPath)
     }
 
     private func helperTerminateProcess(pid: Int32) async throws {
@@ -500,6 +507,15 @@ final class PrivilegedOperationsCoordinator {
     }
 
     // Removed: legacy helper restart. Verified path must be used.
+
+    // MARK: - VHID Restart Timing Constants
+
+    // ⚠️ RELIABILITY ROLLBACK: If VHID restart becomes flaky after optimization (Nov 2025),
+    // restore these values: verifyTimeout=3.0, verifyInterval=120ms, settleDelay=300ms
+    // The original conservative timings handle slow/loaded systems better.
+    private static let vhidVerifyTimeoutSeconds: Double = 1.5 // Was: 3.0
+    private static let vhidVerifyIntervalNanos: UInt64 = 100_000_000 // 100ms, was: 120ms
+    private static let vhidSettleDelayNanos: UInt64 = 150_000_000 // 150ms, was: 300ms
 
     private func helperRestartKarabinerDaemonVerified() async throws -> Bool {
         AppLogger.shared.log("🔐 [PrivCoordinator] Helper path: verified restart of Karabiner daemon")
@@ -529,28 +545,20 @@ final class PrivilegedOperationsCoordinator {
                 "⚠️ [PrivCoordinator] Helper restartUnhealthyServices failed: \(error.localizedDescription)")
         }
 
-        // 3) Sustain verification loop (up to 3s) using our VHID manager health check
+        // 3) Verification loop - optimized from 3s to 1.5s (Nov 2025)
         let vhidManager = VHIDDeviceManager()
         let start = Date()
-        while Date().timeIntervalSince(start) < 3.0 {
+        while Date().timeIntervalSince(start) < Self.vhidVerifyTimeoutSeconds {
             if await vhidManager.detectRunning() {
                 AppLogger.shared.log(
                     "✅ [PrivCoordinator] Verified: VirtualHIDDevice daemon healthy after helper restart")
                 return true
             }
-            try await Task.sleep(nanoseconds: 120_000_000) // 120ms
+            try await Task.sleep(nanoseconds: Self.vhidVerifyIntervalNanos)
         }
 
-        // 4) As a last resort, try a repair pass (installs/refreshes plists) then one more quick verify
-        do {
-            try await HelperManager.shared.repairVHIDDaemonServices()
-        } catch {
-            AppLogger.shared.log(
-                "ℹ️ [PrivCoordinator] repairVHIDDaemonServices errored (may be okay): \(error.localizedDescription)"
-            )
-        }
-
-        try await Task.sleep(nanoseconds: 300_000_000)
+        // 4) Single post-verify check (removed repair cascade - user can retry if needed)
+        try await Task.sleep(nanoseconds: Self.vhidSettleDelayNanos)
         let postLoaded = await ServiceHealthChecker.shared.isServiceLoaded(
             serviceID: "com.keypath.karabiner-vhiddaemon")
         let postHealth = await ServiceHealthChecker.shared.isServiceHealthy(
@@ -558,7 +566,7 @@ final class PrivilegedOperationsCoordinator {
         AppLogger.shared.log(
             "🔎 [PrivCoordinator] POST: vhiddaemon loaded=\(postLoaded), healthy=\(postHealth)")
         if await vhidManager.detectRunning() {
-            AppLogger.shared.log("✅ [PrivCoordinator] Verified after repair: daemon healthy")
+            AppLogger.shared.log("✅ [PrivCoordinator] Verified after settle: daemon healthy")
             return true
         }
 
@@ -746,6 +754,7 @@ final class PrivilegedOperationsCoordinator {
     // Removed: legacy sudo restart. Verified path must be used.
 
     /// Restart Karabiner daemon with verification (kill all + start managed if possible + sustained verify)
+    /// ⚠️ RELIABILITY ROLLBACK: See timing constants at vhidVerifyTimeoutSeconds if this becomes flaky
     private func sudoRestartKarabinerDaemonVerified() async throws -> Bool {
         let daemonPath =
             "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon"
@@ -774,11 +783,11 @@ final class PrivilegedOperationsCoordinator {
             }
         }
 
-        // Kill remaining processes (SIGTERM → SIGKILL)
+        // Kill remaining processes (SIGTERM → SIGKILL) - optimized sleep from 0.3 to 0.15
         AppLogger.shared.log("🔐 [PrivCoordinator] Killing all VirtualHIDDevice daemon processes")
         let killCommand = """
         /usr/bin/pkill -f "Karabiner-VirtualHIDDevice-Daemon" 2>/dev/null || true
-        /bin/sleep 0.3
+        /bin/sleep 0.15
         /usr/bin/pkill -9 -f "Karabiner-VirtualHIDDevice-Daemon" 2>/dev/null || true
         """
         do {
@@ -788,8 +797,8 @@ final class PrivilegedOperationsCoordinator {
                 "⚠️ [PrivCoordinator] Kill failed (may be OK if no processes running): \(error)")
         }
 
-        // Small settle
-        try await Task.sleep(nanoseconds: 300_000_000)
+        // Small settle - optimized from 300ms to 150ms
+        try await Task.sleep(nanoseconds: Self.vhidSettleDelayNanos)
 
         // Start via kickstart if service exists; otherwise start directly
         if hasService {
@@ -823,19 +832,19 @@ final class PrivilegedOperationsCoordinator {
         AppLogger.shared.log(
             "🔎 [PrivCoordinator] VHID PIDs after kill: \(afterKillPIDs.joined(separator: ", "))")
 
-        // Sustained verification: poll up to 3s for exactly one instance
+        // Verification loop - optimized from 3s to 1.5s (Nov 2025)
         let vhidManager = VHIDDeviceManager()
         let startTime = Date()
-        while Date().timeIntervalSince(startTime) < 3.0 {
+        while Date().timeIntervalSince(startTime) < Self.vhidVerifyTimeoutSeconds {
             if await vhidManager.detectRunning() {
                 AppLogger.shared.log(
                     "✅ [PrivCoordinator] Restart verified: daemon is healthy (single instance)")
                 return true
             }
-            try await Task.sleep(nanoseconds: 100_000_000)
+            try await Task.sleep(nanoseconds: Self.vhidVerifyIntervalNanos)
         }
 
-        // Final diagnostics
+        // Final diagnostics (removed repair cascade - user can retry if needed)
         let pids = Self.getDaemonPIDs()
         AppLogger.shared.log(
             "🔎 [PrivCoordinator] VHID PIDs after start: \(pids.joined(separator: ", "))")
@@ -912,8 +921,7 @@ final class PrivilegedOperationsCoordinator {
     private static func notifySMAppServiceApprovalRequired(context: String) {
         let now = Date()
         if let last = lastSMAppApprovalNotice,
-           now.timeIntervalSince(last) < smAppApprovalNoticeThrottle
-        {
+           now.timeIntervalSince(last) < smAppApprovalNoticeThrottle {
             return
         }
         lastSMAppApprovalNotice = now
