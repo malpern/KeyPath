@@ -228,9 +228,12 @@ private let connectionMaxAge: TimeInterval = 30.0
 
 | Component | Lines | Complexity | New Contributor Friendly? | Priority to Fix |
 |-----------|-------|------------|---------------------------|-----------------|
-| **KanataManager** | 2,828 (⚠️ build issue) | 🔴 Very High | ❌ No | 🔥 Critical |
-| **KarabinerConflictService** | 599 (extracted) | 🟢 Low | ✅ Yes | ⚠️ Build fix needed |
-| **UDP Client** | 369 | 🟢 Low | ✅ Yes | ✅ Good (simplified!) |
+| **RuntimeCoordinator** | 1,508 (down from 1,826) | 🟡 Medium-High | ⚠️ Improving | 🟡 Medium (making progress) |
+| **SaveCoordinator** | 333 (extracted) | 🟢 Low | ✅ Yes | ✅ Good |
+| **RuleCollectionsCoordinator** | 112 (extracted) | 🟢 Low | ✅ Yes | ✅ Good |
+| **RecoveryCoordinator** | 260 (extracted) | 🟢 Low | ✅ Yes | ✅ Good |
+| **KarabinerConflictService** | 599 (extracted) | 🟢 Low | ✅ Yes | ✅ Good |
+| **TCP Client** | 369 | 🟢 Low | ✅ Yes | ✅ Good (simplified!) |
 | **Installation Wizard** | ~600 | 🟡 Medium-High | ⚠️ Difficult | 🟢 Low (works well) |
 | **Configuration** | ~300 | 🟡 Medium | ⚠️ Fragmented | 🟡 Medium |
 | **PermissionOracle** | 400 | 🟢 Low | ✅ Yes | ✅ Good |
@@ -339,12 +342,12 @@ CONTRIBUTING.md
 
 | Metric | Current | Target for OSS | Status |
 |--------|---------|----------------|--------|
-| **Largest file** | 2,828 lines | < 1,000 lines | 🟡 282% over (improving!) |
+| **Largest file** | 1,508 lines (was 1,826) | < 1,000 lines | 🟡 151% over (improving!) |
 | **New contributor ramp-up** | < 1 hour (with guide) | < 4 hours | ✅ Good |
 | **Clear entry points** | Documented | Documented | ✅ Good (CONTRIBUTING.md) |
 | **Architecture docs** | Beginner-friendly | Beginner-friendly | ✅ Good (CONTRIBUTING.md) |
 | **Code simplicity** | Good | High | 🟡 Some refactoring remaining |
-| **Test clarity** | High | High | ✅ Good |
+| **Test clarity** | High | High | ✅ Good (some stale tests need cleanup) |
 | **Build process** | Clear | Clear | ✅ Good |
 | **CI/CD** | Excellent | Excellent | ✅ Good |
 | **Error handling** | Excellent | Excellent | ✅ Good |
@@ -395,7 +398,7 @@ The architecture is sound, documentation exists, and the path forward is clear. 
 
 ## 📅 Tracking Progress
 
-**Last Updated:** September 30, 2025
+**Last Updated:** November 25, 2025
 
 **Completed:**
 - ✅ Extracted ConfigurationService (818 lines)
@@ -403,27 +406,27 @@ The architecture is sound, documentation exists, and the path forward is clear. 
 - ✅ Extracted DiagnosticsService (537 lines)
 - ✅ Implemented MVVM (KanataViewModel)
 - ✅ Created KeyPathError hierarchy
-- ✅ Added 56 comprehensive tests
+- ✅ Added 77+ comprehensive tests
 - ✅ Updated CI for dual test frameworks
-- ✅ **Completed error migration** (all 25 throw sites migrated, all deprecated types removed)
-- ✅ **Simplified UDP Client** (773 → 369 lines, 52% reduction)
-
-**Recently Completed:**
-- ✅ **KarabinerConflictService extraction** (599 lines extracted, reduces KanataManager 3,465 → 2,828 lines, -18%)
-  - Protocol-based design with `internal` visibility
-  - All Karabiner methods delegated to service
-  - Detection: driver, extension, services, daemon status
-  - Resolution: kill grabber, disable permanently, start daemon
-- ✅ **CONTRIBUTING.md** - Beginner-friendly guide with 10-minute quick start, task index, patterns, and test examples
+- ✅ Completed error migration (all throw sites migrated)
+- ✅ Simplified TCP Client (was UDP, now TCP-only)
+- ✅ KarabinerConflictService extraction
+- ✅ CONTRIBUTING.md - Beginner-friendly guide
+- ✅ Strangler Fig Façade Migration (InstallerEngine)
+- ✅ Privileged Helper Implementation (XPC)
+- ✅ Documentation archive consolidation (104+ → ~19 files)
+- ✅ **Save pipeline extraction to SaveCoordinator** (1,826 → 1,520 lines, -306 lines / -16.7%)
+- ✅ **Rule collections management extraction to RuleCollectionsCoordinator** (1,520 → 1,527 lines, net +7 but extracted ~100 lines of logic)
+- ✅ **VirtualHID recovery logic extraction to RecoveryCoordinator** (1,527 → 1,508 lines, -19 lines + extracted ~108 lines of recovery logic)
+- ✅ **Pause/resume mappings and failure diagnosis extraction** (1,508 lines final)
 
 **Remaining:**
-- ❌ Verify KarabinerConflictService build (visibility fixed, needs confirmation)
-- ❌ Continue KanataManager reduction (2,828 → ~800 lines, ~2,000 lines to go)
+- 🚧 Continue RuntimeCoordinator reduction (~1,508 lines → ~800 lines) - making excellent progress!
 - ❌ Consolidate Configuration system
 - ❌ Add architecture diagram
-- ❌ Optional: Simplify wizard edge cases
+- ❌ Fix stale tests referencing removed LaunchDaemonInstaller type
 
-**Estimated Time to OSS-Ready:** 1 week (major blockers complete)
+**Estimated Time to OSS-Ready:** RuntimeCoordinator refactor is the last blocker (now at 1,508 lines, down from 2,285 / 1,826, **-318 lines / -17.4% reduction**)
 
 ---
 
@@ -431,8 +434,7 @@ The architecture is sound, documentation exists, and the path forward is clear. 
 
 - **CLAUDE.md** - AI assistant instructions (expert-level)
 - **ARCHITECTURE.md** - Current architecture documentation
-- **CI_UPDATE_SUMMARY.md** - Recent CI improvements
-- **CONTRIBUTING.md** - (TODO) Beginner-friendly guide
+- **CONTRIBUTING.md** - Beginner-friendly guide
 
 ---
 

@@ -90,6 +90,15 @@ Communication between the UI and the Root Daemon happens via **TCP**.
 *   `Sources/KeyPathDaemonLifecycle`: Service management and PID logic.
 *   `Scripts/`: Build, test, and maintenance scripts.
 
+## Visual Architecture Diagram
+
+For a detailed visual guide to component relationships and data flow, see:
+**[Architecture Diagram](docs/ARCHITECTURE_DIAGRAM.md)** - Mermaid diagrams showing:
+- System overview with all components
+- Data flow sequences (key mapping, installation wizard)
+- Component responsibilities
+- Entry points for common tasks
+
 ## Privileged Helper Architecture
 
 KeyPath uses a **hybrid approach** to privileged operations that supports both development and production workflows.

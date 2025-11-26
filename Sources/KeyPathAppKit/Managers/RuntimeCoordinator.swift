@@ -8,35 +8,7 @@ import KeyPathWizardCore
 import Network
 import SwiftUI
 
-/// Represents a simple key mapping from input to output
-/// Used throughout the codebase for representing user-configured key remappings
-public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
-    public let id: UUID
-    public let input: String
-    public let output: String
-
-    public init(id: UUID = UUID(), input: String, output: String) {
-        self.id = id
-        self.input = input
-        self.output = output
-    }
-
-    private enum CodingKeys: String, CodingKey { case id, input, output }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = (try? container.decode(UUID.self, forKey: .id)) ?? UUID()
-        input = try container.decode(String.self, forKey: .input)
-        output = try container.decode(String.self, forKey: .output)
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(id, forKey: .id)
-        try container.encode(input, forKey: .input)
-        try container.encode(output, forKey: .output)
-    }
-}
+// KeyMapping is now in Models/KeyMapping.swift
 
 /// Manages the Kanata process lifecycle and configuration directly.
 ///
@@ -121,31 +93,7 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
 ///
 /// All other methods are internal implementation details and may change.
 
-/// Save operation status for UI feedback
-enum SaveStatus {
-    case idle
-    case saving
-    case validating
-    case success
-    case failed(String)
-
-    var message: String {
-        switch self {
-        case .idle: ""
-        case .saving: "Saving..."
-        case .validating: "Validating..."
-        case .success: "✅ Done"
-        case let .failed(error): "❌ Config Invalid: \(error)"
-        }
-    }
-
-    var isActive: Bool {
-        switch self {
-        case .idle, .success: false
-        default: true
-        }
-    }
-}
+// SaveStatus is now in Models/KanataUIState.swift
 
 @MainActor
 class RuntimeCoordinator {
@@ -158,9 +106,17 @@ class RuntimeCoordinator {
     // Removed: isRunning
     var lastError: String?
     var keyMappings: [KeyMapping] = []
-    var ruleCollections: [RuleCollection] = []
-    var customRules: [CustomRule] = []
     var currentLayerName: String = RuleCollectionLayer.base.displayName
+
+    // Rule collections are now managed by RuleCollectionsCoordinator
+    var ruleCollections: [RuleCollection] {
+        get { ruleCollectionsCoordinator.ruleCollections }
+        set { /* Write access via coordinator methods only */ }
+    }
+    var customRules: [CustomRule] {
+        get { ruleCollectionsCoordinator.customRules }
+        set { /* Write access via coordinator methods only */ }
+    }
     var diagnostics: [KanataDiagnostic] = []
     var lastProcessExitCode: Int32?
     var lastConfigUpdate: Date = .init()
@@ -258,9 +214,15 @@ class RuntimeCoordinator {
     let reloadSafetyMonitor = ReloadSafetyMonitor() // internal for use by extensions
     private let karabinerConflictService: KarabinerConflictManaging
     private let configBackupManager: ConfigBackupManager
-    private let ruleCollectionStore: RuleCollectionStore
-    private let customRulesStore: CustomRulesStore
-    private let layerChangeListener = LayerChangeListener()
+    private let ruleCollectionsManager: RuleCollectionsManager
+    private let systemRequirementsChecker: SystemRequirementsChecker
+
+    // MARK: - Extracted Coordinators (Refactoring: Nov 2025)
+
+    private let saveCoordinator: SaveCoordinator
+    let recoveryCoordinator: RecoveryCoordinator // internal for extension access
+    private let installationCoordinator: InstallationCoordinator
+    private let ruleCollectionsCoordinator: RuleCollectionsCoordinator
 
     private var isStartingKanata = false
     var isInitializing = false
@@ -278,12 +240,7 @@ class RuntimeCoordinator {
         configurationManager.configPath
     }
 
-    deinit {
-        let listener = layerChangeListener
-        Task.detached(priority: .background) {
-            await listener.stop()
-        }
-    }
+    // Note: RuleCollectionsManager handles its own cleanup in deinit
 
     init(engineClient: EngineClient? = nil, injectedConfigurationService: ConfigurationService? = nil, configRepairService: ConfigRepairService? = nil) {
         AppLogger.shared.log("🏗️ [RuntimeCoordinator] init() called")
@@ -310,9 +267,6 @@ class RuntimeCoordinator {
         let lifecycleManager = ProcessLifecycleManager()
         processLifecycleManager = lifecycleManager
 
-        ruleCollectionStore = RuleCollectionStore.shared
-        customRulesStore = CustomRulesStore.shared
-
         // Initialize configuration file watcher for hot reload
         configFileWatcher = ConfigFileWatcher()
 
@@ -337,6 +291,24 @@ class RuntimeCoordinator {
         self.diagnosticsService = diagnosticsService
         self.karabinerConflictService = karabinerConflictService
         self.configBackupManager = configBackupManager
+
+        // Initialize RuleCollectionsManager
+        self.ruleCollectionsManager = RuleCollectionsManager(
+            configurationService: configurationService
+        )
+
+        // Initialize SystemRequirementsChecker
+        self.systemRequirementsChecker = SystemRequirementsChecker(
+            karabinerConflictService: karabinerConflictService
+        )
+
+        // Initialize extracted coordinators
+        self.saveCoordinator = SaveCoordinator(
+            configurationService: configurationService,
+            engineClient: engineClient ?? TCPEngineClient(),
+            configFileWatcher: configFileWatcher
+        )
+        self.installationCoordinator = InstallationCoordinator()
 
         // Initialize ProcessManager
         processManager = ProcessManager(
@@ -363,6 +335,14 @@ class RuntimeCoordinator {
         // Initialize EngineClien
         self.engineClient = engineClient ?? TCPEngineClient()
 
+        // Initialize RecoveryCoordinator (will be configured after all initialization)
+        self.recoveryCoordinator = RecoveryCoordinator()
+
+        // Initialize RuleCollectionsCoordinator (after all managers, before Task captures self)
+        self.ruleCollectionsCoordinator = RuleCollectionsCoordinator(
+            ruleCollectionsManager: ruleCollectionsManager
+        )
+
         // Dispatch heavy initialization work to background thread (skip during unit tests)
         // Prefer structured concurrency; a plain Task{} runs off the main actor by defaul
         if !TestEnvironment.isRunningTests {
@@ -383,218 +363,59 @@ class RuntimeCoordinator {
         // Configure state publisher for reactive UI updates
         configureStatePublisher()
 
+        // Configure RuleCollectionsCoordinator callbacks (after all initialization)
+        ruleCollectionsCoordinator.configure(
+            applyMappings: { [weak self] mappings in
+                self?.applyKeyMappings(mappings, persistCollections: false)
+            },
+            notifyStateChanged: { [weak self] in
+                self?.notifyStateChanged()
+            }
+        )
+
+        // Configure RecoveryCoordinator handlers (after all initialization)
+        recoveryCoordinator.configure(
+            killAllKanataProcesses: {
+                try await PrivilegedOperationsCoordinator.shared.killAllKanataProcesses()
+            },
+            restartKarabinerDaemon: { [weak self] in
+                await self?.restartKarabinerDaemon() ?? false
+            },
+            restartService: { [weak self] reason in
+                await self?.restartServiceWithFallback(reason: reason) ?? false
+            }
+        )
+
+        // Wire up RuleCollectionsManager callbacks
+        ruleCollectionsManager.onRulesChanged = { [weak self] in
+            guard let self else { return }
+            _ = await self.triggerConfigReload()
+            self.notifyStateChanged()
+        }
+        ruleCollectionsManager.onLayerChanged = { [weak self] layerName in
+            self?.currentLayerName = layerName
+            self?.notifyStateChanged()
+        }
+        ruleCollectionsManager.onError = { [weak self] error in
+            self?.lastError = error
+            self?.notifyStateChanged()
+        }
+
         AppLogger.shared.log(
             "🏗️ [RuntimeCoordinator] About to call bootstrapRuleCollections and startLayerMonitoring")
-        Task { await bootstrapRuleCollections() }
-        startLayerMonitoring()
+        Task { await ruleCollectionsManager.bootstrap() }
+        ruleCollectionsManager.startLayerMonitoring(port: PreferencesService.shared.tcpServerPort)
         AppLogger.shared.log("🏗️ [RuntimeCoordinator] init() completed")
     }
 
-    // MARK: - Rule Collections
-
-    private func bootstrapRuleCollections() async {
-        async let storedCollectionsTask = ruleCollectionStore.loadCollections()
-        async let storedCustomRulesTask = customRulesStore.loadRules()
-
-        var storedCollections = await storedCollectionsTask
-        var storedCustomRules = await storedCustomRulesTask
-
-        if storedCustomRules.isEmpty,
-           let customIndex = storedCollections.firstIndex(where: {
-               $0.id == RuleCollectionIdentifier.customMappings
-           })
-        {
-            let legacy = storedCollections.remove(at: customIndex)
-            storedCustomRules = legacy.mappings.map { mapping in
-                CustomRule(
-                    id: mapping.id,
-                    title: "",
-                    input: mapping.input,
-                    output: mapping.output,
-                    isEnabled: legacy.isEnabled
-                )
-            }
-            AppLogger.shared.log(
-                "♻️ [RuleCollections] Migrated \(storedCustomRules.count) legacy custom mapping(s) into CustomRulesStore"
-            )
-            do {
-                try await customRulesStore.saveRules(storedCustomRules)
-            } catch {
-                AppLogger.shared.log(
-                    "⚠️ [RuleCollections] Failed to persist migrated custom rules: \(error)")
-            }
-            do {
-                try await ruleCollectionStore.saveCollections(storedCollections)
-            } catch {
-                AppLogger.shared.log(
-                    "⚠️ [RuleCollections] Failed to persist collections after migration: \(error)")
-            }
-        }
-
-        await MainActor.run {
-            self.ruleCollections = storedCollections
-            self.customRules = storedCustomRules
-            ensureDefaultCollectionsIfNeeded()
-            refreshLayerIndicatorState()
-        }
-        await regenerateConfigFromCollections()
-    }
+    // MARK: - Rule Collections (delegates to RuleCollectionsCoordinator)
 
     func replaceRuleCollections(_ collections: [RuleCollection]) async {
-        await MainActor.run {
-            ruleCollections = collections
-            refreshLayerIndicatorState()
-        }
-        await regenerateConfigFromCollections()
+        await ruleCollectionsCoordinator.replaceRuleCollections(collections)
     }
 
     func enabledMappingsFromCollections() -> [KeyMapping] {
-        ruleCollections.enabledMappings() + customRules.enabledMappings()
-    }
-
-    @MainActor
-    private func ensureDefaultCollectionsIfNeeded() {
-        if ruleCollections.isEmpty {
-            ruleCollections = RuleCollectionCatalog().defaultCollections()
-        }
-        refreshLayerIndicatorState()
-    }
-
-    @MainActor
-    private func refreshLayerIndicatorState() {
-        let hasLayered = ruleCollections.contains { $0.isEnabled && $0.targetLayer != .base }
-        if !hasLayered {
-            updateActiveLayerName(RuleCollectionLayer.base.kanataName)
-        }
-    }
-
-    private func normalizedKeys(for collection: RuleCollection) -> Set<String> {
-        Set(collection.mappings.map { KanataKeyConverter.convertToKanataKey($0.input) })
-    }
-
-    private func normalizedActivator(for collection: RuleCollection) -> String? {
-        collection.momentaryActivator?.input.lowercased()
-    }
-
-    @MainActor
-    private struct RuleConflictInfo {
-        enum Source {
-            case collection(RuleCollection)
-            case customRule(CustomRule)
-
-            var name: String {
-                switch self {
-                case let .collection(collection): collection.name
-                case let .customRule(rule): rule.displayTitle
-                }
-            }
-        }
-
-        let source: Source
-        let keys: [String]
-
-        var displayName: String { source.name }
-    }
-
-    private func conflictInfo(for candidate: RuleCollection) -> RuleConflictInfo? {
-        let candidateKeys = normalizedKeys(for: candidate)
-        let candidateActivator = normalizedActivator(for: candidate)
-
-        for other in ruleCollections where other.isEnabled && other.id != candidate.id {
-            if candidate.targetLayer == other.targetLayer {
-                let overlap = candidateKeys.intersection(normalizedKeys(for: other))
-                if !overlap.isEmpty {
-                    return RuleConflictInfo(source: .collection(other), keys: Array(overlap))
-                }
-            }
-
-            if let act1 = candidateActivator,
-               let act2 = normalizedActivator(for: other),
-               act1 == act2
-            {
-                return RuleConflictInfo(source: .collection(other), keys: [act1])
-            }
-        }
-
-        if candidate.targetLayer == .base {
-            if let conflict = conflictWithCustomRules(candidateKeys) {
-                return conflict
-            }
-        }
-
-        return nil
-    }
-
-    private func conflictInfo(for rule: CustomRule) -> RuleConflictInfo? {
-        let normalizedKey = KanataKeyConverter.convertToKanataKey(rule.input)
-
-        for collection in ruleCollections where collection.isEnabled && collection.targetLayer == .base {
-            if normalizedKeys(for: collection).contains(normalizedKey) {
-                return RuleConflictInfo(source: .collection(collection), keys: [normalizedKey])
-            }
-        }
-
-        for other in customRules where other.isEnabled && other.id != rule.id {
-            if KanataKeyConverter.convertToKanataKey(other.input) == normalizedKey {
-                return RuleConflictInfo(source: .customRule(other), keys: [normalizedKey])
-            }
-        }
-
-        return nil
-    }
-
-    private func conflictWithCustomRules(_ keys: Set<String>) -> RuleConflictInfo? {
-        for rule in customRules where rule.isEnabled {
-            let normalized = KanataKeyConverter.convertToKanataKey(rule.input)
-            if keys.contains(normalized) {
-                return RuleConflictInfo(source: .customRule(rule), keys: [normalized])
-            }
-        }
-        return nil
-    }
-
-    private func startLayerMonitoring() {
-        AppLogger.shared.log("🌐 [RuntimeCoordinator] startLayerMonitoring() called")
-        guard !TestEnvironment.isRunningTests else {
-            AppLogger.shared.log("🌐 [RuntimeCoordinator] Skipping layer monitoring (test environment)")
-            return
-        }
-        let port = PreferencesService.shared.tcpServerPort
-        AppLogger.shared.log("🌐 [RuntimeCoordinator] Starting layer monitoring on port \(port)")
-        Task.detached(priority: .background) { [weak self] in
-            guard let self else {
-                AppLogger.shared.log("🌐 [RuntimeCoordinator] Layer monitoring task: self is nil")
-                return
-            }
-            AppLogger.shared.log("🌐 [RuntimeCoordinator] Calling layerChangeListener.start()")
-            await layerChangeListener.start(port: port) { [weak self] layer in
-                guard let self else { return }
-                await MainActor.run {
-                    self.updateActiveLayerName(layer)
-                }
-            }
-        }
-    }
-
-    @MainActor
-    private func updateActiveLayerName(_ rawName: String) {
-        let normalized = rawName.isEmpty ? RuleCollectionLayer.base.kanataName : rawName
-        let display = normalized.capitalized
-        AppLogger.shared.debug(
-            "🎯 [RuntimeCoordinator] updateActiveLayerName: raw='\(rawName)' normalized='\(normalized)' display='\(display)' current='\(currentLayerName)'"
-        )
-
-        if currentLayerName == display { return }
-
-        if display.caseInsensitiveCompare(RuleCollectionLayer.base.displayName) != .orderedSame {
-            SoundManager.shared.playTinkSound()
-        }
-
-        currentLayerName = display
-
-        // Show visual layer indicator
-        AppLogger.shared.log("🎯 [RuntimeCoordinator] Calling LayerIndicatorManager.showLayer('\(display)')")
-        LayerIndicatorManager.shared.showLayer(display)
+        ruleCollectionsCoordinator.enabledMappings()
     }
 
     @MainActor
@@ -686,19 +507,14 @@ class RuntimeCoordinator {
 
     /// Starts Kanata with VirtualHID connection validation
     func startKanataWithValidation() async {
-        // Check if VirtualHID daemon is running firs
-        if !isKarabinerDaemonRunning() {
-            AppLogger.shared.warn("⚠️ [Recovery] Karabiner daemon not running - recovery failed")
-            lastError = "Recovery failed: Karabiner daemon not available"
-            notifyStateChanged()
-            return
-        }
-
-        // Try starting Kanata normally via KanataService
-        let started = await startKanata(reason: "VirtualHID validation start")
-        if !started {
-            AppLogger.shared.error("❌ [RuntimeCoordinator] Failed to start Kanata during validation")
-        }
+        await recoveryCoordinator.startKanataWithValidation(
+            isKarabinerDaemonRunning: { isKarabinerDaemonRunning() },
+            startKanata: { await startKanata(reason: "VirtualHID validation start") },
+            onError: { [weak self] error in
+                self?.lastError = error
+                self?.notifyStateChanged()
+            }
+        )
     }
 
     /// Configuration management errors
@@ -722,79 +538,58 @@ class RuntimeCoordinator {
         }
     }
 
-    /// Config backup for rollback capability
-    private var lastGoodConfig: String?
-
     /// Backup current working config before making changes
     private func backupCurrentConfig() async {
         let config = await configurationService.current()
-        lastGoodConfig = config.content
-        AppLogger.shared.log("💾 [Backup] Current config backed up to memory successfully")
+        saveCoordinator.backupCurrentConfig(config.content)
     }
 
     /// Restore last known good config in case of validation failure
     private func restoreLastGoodConfig() async throws {
-        guard let backup = lastGoodConfig else {
-            throw KeyPathError.configuration(.backupNotFound)
-        }
-
-        try await configurationService.writeConfigurationContent(backup)
-        AppLogger.shared.info("🔄 [Restore] Restored last good config successfully")
+        try await saveCoordinator.restoreLastGoodConfig()
     }
 
     func diagnoseKanataFailure(_ exitCode: Int32, _ output: String) {
         let diagnostics = diagnosticsManager.diagnoseFailure(exitCode: exitCode, output: output)
 
-        // Check for zombie keyboard capture bug (exit code 6 with VirtualHID connection failure)
-        if exitCode == 6,
-           output.contains("connect_failed asio.system:61")
-           || output.contains("connect_failed asio.system:2")
-        {
-            // This is the "zombie keyboard capture" bug - automatically attempt recovery
-            Task {
-                AppLogger.shared.log(
-                    "🚨 [Recovery] Detected zombie keyboard capture - attempting automatic recovery")
-                await self.attemptKeyboardRecovery()
+        recoveryCoordinator.diagnoseKanataFailure(
+            exitCode: exitCode,
+            output: output,
+            diagnostics: diagnostics,
+            addDiagnostic: { [weak self] diagnostic in
+                self?.addDiagnostic(diagnostic)
+            },
+            attemptRecovery: { [weak self] in
+                await self?.attemptKeyboardRecovery()
             }
-        }
-
-        // Add all diagnostics
-        for diagnostic in diagnostics {
-            addDiagnostic(diagnostic)
-        }
+        )
     }
 
     // MARK: - Auto-Fix Capabilities
 
     func autoFixDiagnostic(_ diagnostic: KanataDiagnostic) async -> Bool {
-        guard diagnostic.canAutoFix else { return false }
-
-        switch diagnostic.category {
-        case .configuration:
-            // Reset to default config
-            do {
-                try await resetToDefaultConfig()
-                AppLogger.shared.log("🔧 [AutoFix] Reset configuration to default")
-                return true
-            } catch {
-                AppLogger.shared.error("❌ [AutoFix] Failed to reset config: \(error)")
-                return false
-            }
-
-        case .process:
-            if diagnostic.title == "Process Terminated" {
-                let restarted = await restartServiceWithFallback(
-                    reason: "AutoFix diagnostic: \(diagnostic.title)"
-                )
-                AppLogger.shared.log("🔧 [AutoFix] Attempted to restart Kanata (success=\(restarted))")
-                return restarted
-            }
-
-        default:
+        guard let action = recoveryCoordinator.autoFixActionType(diagnostic) else {
             return false
         }
 
-        return false
+        var success = false
+        switch action {
+        case .resetConfig:
+            do {
+                try await resetToDefaultConfig()
+                success = true
+            } catch {
+                success = false
+            }
+
+        case .restartService:
+            success = await restartServiceWithFallback(
+                reason: "AutoFix diagnostic: \(diagnostic.title)"
+            )
+        }
+
+        recoveryCoordinator.logAutoFixResult(action, success: success)
+        return success
     }
 
     // MARK: - Service Management Helpers
@@ -882,28 +677,7 @@ class RuntimeCoordinator {
 
     /// Check if this is a fresh install (no Kanata binary or config)
     private func isFirstTimeInstall() -> Bool {
-        // Check if Kanata binary is installed (considers SMAppService vs launchctl)
-        let detector = KanataBinaryDetector.shared
-        let isInstalled = detector.isInstalled()
-
-        if !isInstalled {
-            AppLogger.shared.log("🆕 [FreshInstall] Kanata binary not installed - fresh install detected")
-            return true
-        }
-
-        // Check for user config file
-        let configPath = KeyPathConstants.Config.mainConfigPath
-        let hasUserConfig = FileManager.default.fileExists(atPath: configPath)
-
-        if !hasUserConfig {
-            AppLogger.shared.log(
-                "🆕 [FreshInstall] No user config found at \(configPath) - fresh install detected")
-            return true
-        }
-
-        AppLogger.shared.info(
-            "✅ [FreshInstall] Both Kanata binary and user config exist - returning user")
-        return false
+        installationCoordinator.isFirstTimeInstall(configPath: KeyPathConstants.Config.mainConfigPath)
     }
 
     // Removed: checkLaunchDaemonStatus, killProcess
@@ -912,338 +686,80 @@ class RuntimeCoordinator {
     func saveGeneratedConfiguration(_ configContent: String) async throws {
         AppLogger.shared.log("💾 [RuntimeCoordinator] Saving generated configuration")
 
-        // Suppress file watcher to prevent double reload from our own write
-        configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal saveGeneratedConfiguration")
-
-        // Set saving status
-        await MainActor.run {
-            saveStatus = .saving
-        }
-
-        do {
-            // VALIDATE BEFORE SAVING - prevent writing broken configs
-            AppLogger.shared.debug("🔍 [RuntimeCoordinator] Validating generated config before save...")
-            let validation = await configurationService.validateConfiguration(configContent)
-
-            if !validation.isValid {
-                AppLogger.shared.error(
-                    "❌ [RuntimeCoordinator] Generated config validation failed: \(validation.errors.joined(separator: ", "))"
-                )
-                await MainActor.run {
-                    saveStatus = .failed("Invalid config: \(validation.errors.first ?? "Unknown error")")
-                }
-                throw KeyPathError.configuration(.validationFailed(errors: validation.errors))
+        let result = await saveCoordinator.saveGeneratedConfig(
+            content: configContent,
+            reloadHandler: { [weak self] in
+                guard let self else { return (false, "Coordinator deallocated") }
+                let reloadResult = await self.triggerConfigReload()
+                return (reloadResult.isSuccess, reloadResult.errorMessage)
             }
+        )
 
-            AppLogger.shared.info("✅ [RuntimeCoordinator] Generated config validation passed")
+        // Sync coordinator state to RuntimeCoordinator
+        saveStatus = saveCoordinator.saveStatus
 
-            // Backup current config before making changes
-            await backupCurrentConfig()
-
-            // Ensure config directory exists
-            let configDirectoryURL = URL(fileURLWithPath: configDirectory)
-            try FileManager.default.createDirectory(
-                at: configDirectoryURL, withIntermediateDirectories: true
-            )
-
-            // Write the configuration file
-            let configURL = URL(fileURLWithPath: configPath)
-            try configContent.write(to: configURL, atomically: true, encoding: .utf8)
-
-            AppLogger.shared.info("✅ [RuntimeCoordinator] Generated configuration saved to \(configPath)")
-
-            // Update last config update timestamp
+        if result.success, let mappings = result.mappings {
             lastConfigUpdate = Date()
-
-            // Parse the saved config to update key mappings (for UI display)
-            let parsedMappings = parseKanataConfig(configContent)
-            await MainActor.run {
-                applyKeyMappings(parsedMappings)
-            }
-
-            // Play tink sound asynchronously to avoid blocking save pipeline
-            Task { @MainActor in SoundManager.shared.playTinkSound() }
-
-            // Trigger hot reload via TCP
-            let reloadResult = await triggerConfigReload()
-            if reloadResult.isSuccess {
-                AppLogger.shared.info("✅ [RuntimeCoordinator] TCP reload successful, config is active")
-                // Play glass sound asynchronously to avoid blocking completion
-                Task { @MainActor in SoundManager.shared.playGlassSound() }
-                await MainActor.run {
-                    saveStatus = .success
-                }
-            } else {
-                // TCP reload failed - this is a critical error for validation-on-demand
-                let errorMessage = reloadResult.errorMessage ?? "TCP server unresponsive"
-                AppLogger.shared.error("❌ [RuntimeCoordinator] TCP reload FAILED: \(errorMessage)")
-                AppLogger.shared.error(
-                    "❌ [RuntimeCoordinator] Restoring backup since config couldn't be verified")
-
-                // Play error sound asynchronously
-                Task { @MainActor in SoundManager.shared.playErrorSound() }
-
-                // Restore backup since we can't verify the config was applied
-                try await restoreLastGoodConfig()
-
-                await MainActor.run {
-                    saveStatus = .failed("Config reload failed: \(errorMessage)")
-                }
-                throw KeyPathError.configuration(.loadFailed(reason: "Hot reload failed: \(errorMessage)"))
-            }
-
-            // Reset to idle after a delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-                self?.saveStatus = .idle
-            }
-
-        } catch {
-            await MainActor.run {
-                saveStatus = .failed(
-                    "Failed to save generated configuration: \(error.localizedDescription)")
-            }
+            applyKeyMappings(mappings)
+            notifyStateChanged()
+        } else if let error = result.error {
+            notifyStateChanged()
             throw error
         }
     }
 
-    func toggleRuleCollection(id: UUID, isEnabled: Bool) async {
-        if isEnabled,
-           let candidate = ruleCollections.first(where: { $0.id == id }),
-           let conflict = await MainActor.run(body: { self.conflictInfo(for: candidate) })
-        {
-            await MainActor.run {
-                lastError =
-                    "Cannot enable \(candidate.name). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
-            }
-            AppLogger.shared.log(
-                "⚠️ [RuleCollections] Conflict enabling \(candidate.name) vs \(conflict.displayName) on \(conflict.keys)"
-            )
-            return
-        }
+    // MARK: - Rule Collections (delegates to RuleCollectionsCoordinator)
 
-        await MainActor.run {
-            if let index = ruleCollections.firstIndex(where: { $0.id == id }) {
-                ruleCollections[index].isEnabled = isEnabled
-            }
-            refreshLayerIndicatorState()
-        }
-        await regenerateConfigFromCollections()
+    func toggleRuleCollection(id: UUID, isEnabled: Bool) async {
+        await ruleCollectionsCoordinator.toggleRuleCollection(id: id, isEnabled: isEnabled)
     }
 
     func addRuleCollection(_ collection: RuleCollection) async {
-        if let conflict = await MainActor.run(body: { self.conflictInfo(for: collection) }) {
-            await MainActor.run {
-                lastError =
-                    "Cannot enable \(collection.name). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
-            }
-            AppLogger.shared.log(
-                "⚠️ [RuleCollections] Conflict adding \(collection.name) vs \(conflict.displayName) on \(conflict.keys)"
-            )
-            return
-        }
-
-        await MainActor.run {
-            if let index = ruleCollections.firstIndex(where: { $0.id == collection.id }) {
-                ruleCollections[index].isEnabled = true
-                ruleCollections[index].summary = collection.summary
-                ruleCollections[index].mappings = collection.mappings
-                ruleCollections[index].category = collection.category
-                ruleCollections[index].icon = collection.icon
-            } else {
-                ruleCollections.append(collection)
-            }
-            refreshLayerIndicatorState()
-        }
-        await regenerateConfigFromCollections()
+        await ruleCollectionsCoordinator.addRuleCollection(collection)
     }
 
     @discardableResult
     func saveCustomRule(_ rule: CustomRule, skipReload: Bool = false) async -> Bool {
-        if rule.isEnabled,
-           let conflict = await MainActor.run(body: { self.conflictInfo(for: rule) })
-        {
-            await MainActor.run {
-                lastError =
-                    "Cannot enable \(rule.displayTitle). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
-            }
-            AppLogger.shared.log(
-                "⚠️ [CustomRules] Conflict saving \(rule.displayTitle) vs \(conflict.displayName) on \(conflict.keys)"
-            )
-            return false
-        }
-
-        await MainActor.run {
-            if let index = customRules.firstIndex(where: { $0.id == rule.id }) {
-                customRules[index] = rule
-            } else {
-                customRules.append(rule)
-            }
-        }
-        await regenerateConfigFromCollections(skipReload: skipReload)
-        return true
+        await ruleCollectionsCoordinator.saveCustomRule(rule, skipReload: skipReload)
     }
 
     func toggleCustomRule(id: UUID, isEnabled: Bool) async {
-        guard
-            let existing = await MainActor.run(body: {
-                self.customRules.first(where: { $0.id == id })
-            })
-        else { return }
-
-        if isEnabled,
-           let conflict = await MainActor.run(body: { self.conflictInfo(for: existing) })
-        {
-            await MainActor.run {
-                lastError =
-                    "Cannot enable \(existing.displayTitle). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
-            }
-            AppLogger.shared.log(
-                "⚠️ [CustomRules] Conflict enabling \(existing.displayTitle) vs \(conflict.displayName) on \(conflict.keys)"
-            )
-            return
-        }
-
-        await MainActor.run {
-            if let index = customRules.firstIndex(where: { $0.id == id }) {
-                customRules[index].isEnabled = isEnabled
-            }
-        }
-        await regenerateConfigFromCollections()
+        await ruleCollectionsCoordinator.toggleCustomRule(id: id, isEnabled: isEnabled)
     }
 
     func removeCustomRule(withID id: UUID) async {
-        await MainActor.run {
-            customRules.removeAll { $0.id == id }
-        }
-        await regenerateConfigFromCollections()
+        await ruleCollectionsCoordinator.removeCustomRule(withID: id)
     }
 
-    private func regenerateConfigFromCollections(skipReload: Bool = false) async {
-        do {
-            try await ruleCollectionStore.saveCollections(ruleCollections)
-            try await customRulesStore.saveRules(customRules)
-            try await configurationService.saveConfiguration(
-                ruleCollections: ruleCollections,
-                customRules: customRules
-            )
-            applyKeyMappings(
-                ruleCollections.enabledMappings() + customRules.enabledMappings(), persistCollections: false
-            )
-            if !skipReload {
-                _ = await triggerConfigReload()
-            }
-            notifyStateChanged()
-        } catch {
-            AppLogger.shared.log("❌ [RuleCollections] Failed to regenerate config: \(error)")
-            notifyStateChanged()
-        }
-    }
-
-    private func makeCustomRuleForSave(input: String, output: String) async -> CustomRule {
-        await MainActor.run {
-            if let existing = customRules.first(where: {
-                $0.input.caseInsensitiveCompare(input) == .orderedSame
-            }) {
-                CustomRule(
-                    id: existing.id,
-                    title: existing.title,
-                    input: input,
-                    output: output,
-                    isEnabled: true,
-                    notes: existing.notes,
-                    createdAt: existing.createdAt
-                )
-            } else {
-                CustomRule(input: input, output: output)
-            }
-        }
+    private func makeCustomRuleForSave(input: String, output: String) -> CustomRule {
+        ruleCollectionsCoordinator.makeCustomRule(input: input, output: output)
     }
 
     func saveConfiguration(input: String, output: String) async throws {
-        // Suppress file watcher to prevent double reload from our own write
-        configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal saveConfiguration")
+        AppLogger.shared.log("💾 [RuntimeCoordinator] Saving configuration mapping")
 
-        // Set saving status
-        await MainActor.run {
-            saveStatus = .saving
-        }
-
-        do {
-            let sanitizedInput = input.trimmingCharacters(in: .whitespacesAndNewlines)
-            let sanitizedOutput = output.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !sanitizedInput.isEmpty, !sanitizedOutput.isEmpty else {
-                throw KeyPathError.configuration(
-                    .validationFailed(errors: ["Input and output are required."]))
+        let result = await saveCoordinator.saveMapping(
+            input: input,
+            output: output,
+            ruleCollectionsManager: ruleCollectionsManager,
+            reloadHandler: { [weak self] in
+                guard let self else { return (false, "Coordinator deallocated") }
+                let tcpResult = await self.triggerTCPReload()
+                return (tcpResult.isSuccess, tcpResult.errorMessage)
             }
+        )
 
-            let rule = await makeCustomRuleForSave(input: sanitizedInput, output: sanitizedOutput)
+        // Sync coordinator state to RuntimeCoordinator
+        saveStatus = saveCoordinator.saveStatus
 
-            // Backup current config before making changes
-            await backupCurrentConfig()
-
-            // Persist without triggering reload (handled below)
-            let didSave = await saveCustomRule(rule, skipReload: true)
-            guard didSave else {
-                let message = await MainActor.run { lastError ?? "Unknown conflict" }
-                await MainActor.run {
-                    saveStatus = .failed(message)
-                }
-                throw KeyPathError.configuration(.validationFailed(errors: [message]))
-            }
-
-            // Play tink sound asynchronously to avoid blocking save pipeline
-            Task { @MainActor in SoundManager.shared.playTinkSound() }
-
-            // Attempt TCP reload to validate config
-            AppLogger.shared.debug("📡 [Config] Triggering TCP reload for validation")
-            let tcpResult = await triggerTCPReload()
-
-            if tcpResult.isSuccess {
-                // Reload succeeded - config is valid
-                AppLogger.shared.info("✅ [Config] Reload successful, config is valid")
-
-                // Play glass sound asynchronously to avoid blocking completion
-                Task { @MainActor in SoundManager.shared.playGlassSound() }
-
-                await MainActor.run {
-                    saveStatus = .success
-                }
-            } else {
-                // TCP reload failed - this is a critical error for validation-on-demand
-                let errorMessage = tcpResult.errorMessage ?? "TCP server unresponsive"
-                AppLogger.shared.error("❌ [Config] TCP reload FAILED: \(errorMessage)")
-                AppLogger.shared.error(
-                    "❌ [Config] TCP server is required for validation-on-demand - restoring backup")
-
-                // Play error sound asynchronously
-                Task { @MainActor in SoundManager.shared.playErrorSound() }
-
-                // Restore backup since we can't verify the config was applied
-                try await restoreLastGoodConfig()
-
-                // Set error status
-                await MainActor.run {
-                    saveStatus = .failed("TCP server reload failed: \(errorMessage)")
-                }
-                throw KeyPathError.configuration(
-                    .loadFailed(
-                        reason: "TCP server required for validation-on-demand failed: \(errorMessage)"))
-            }
-
-            // Reset to idle after a delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-                self?.saveStatus = .idle
-            }
-
-        } catch {
-            // Handle any errors
-            await MainActor.run {
-                saveStatus = .failed(error.localizedDescription)
-            }
+        if result.success, let mappings = result.mappings {
+            applyKeyMappings(mappings, persistCollections: false)
+            notifyStateChanged()
+            AppLogger.shared.log("⚡ [Config] Validation-on-demand save completed")
+        } else if let error = result.error {
+            notifyStateChanged()
             throw error
         }
-
-        AppLogger.shared.log("⚡ [Config] Validation-on-demand save completed")
     }
 
     func updateStatus() async {
@@ -1321,252 +837,107 @@ class RuntimeCoordinator {
         return !conflicts.externalProcesses.isEmpty
     }
 
-    // MARK: - Installation and Permissions
+    // MARK: - Installation and Permissions (delegates to SystemRequirementsChecker)
 
     func isInstalled() -> Bool {
-        // Use KanataBinaryDetector for consistent detection across wizard and UI
-        // This accepts both system installation AND bundled binary (for SMAppService)
-        // Note: This is a synchronous wrapper, but KanataBinaryDetector uses fast filesystem checks
-        KanataBinaryDetector.shared.isInstalled()
+        systemRequirementsChecker.isInstalled()
     }
 
     func isCompletelyInstalled() -> Bool {
-        isInstalled() && isServiceInstalled()
+        systemRequirementsChecker.isCompletelyInstalled(isServiceInstalled: isServiceInstalled)
     }
 
-    // Compatibility wrappers for legacy tests - using Oracle
     func hasInputMonitoringPermission() async -> Bool {
-        let snapshot = await PermissionOracle.shared.currentSnapshot()
-        return snapshot.keyPath.inputMonitoring.isReady
+        await systemRequirementsChecker.hasInputMonitoringPermission()
     }
 
     func hasAccessibilityPermission() async -> Bool {
-        let snapshot = await PermissionOracle.shared.currentSnapshot()
-        return snapshot.keyPath.accessibility.isReady
+        await systemRequirementsChecker.hasAccessibilityPermission()
     }
 
     func checkBothAppsHavePermissions() async -> (
         keyPathHasPermission: Bool, kanataHasPermission: Bool, permissionDetails: String
     ) {
-        let snapshot = await PermissionOracle.shared.currentSnapshot()
-
-        let keyPathPath = Bundle.main.bundlePath
-        let kanataPath = WizardSystemPaths.kanataActiveBinary
-
-        let keyPathHasInputMonitoring = snapshot.keyPath.inputMonitoring.isReady
-        let keyPathHasAccessibility = snapshot.keyPath.accessibility.isReady
-        let kanataHasInputMonitoring = snapshot.kanata.inputMonitoring.isReady
-        let kanataHasAccessibility = snapshot.kanata.accessibility.isReady
-
-        let keyPathOverall = keyPathHasInputMonitoring && keyPathHasAccessibility
-        let kanataOverall = kanataHasInputMonitoring && kanataHasAccessibility
-
-        let details = """
-        KeyPath.app (\(keyPathPath)):
-        - Input Monitoring: \(keyPathHasInputMonitoring ? "✅" : "❌")
-        - Accessibility: \(keyPathHasAccessibility ? "✅" : "❌")
-
-        kanata (\(kanataPath)):
-        - Input Monitoring: \(kanataHasInputMonitoring ? "✅" : "❌")
-        - Accessibility: \(kanataHasAccessibility ? "✅" : "❌")
-        """
-
-        return (keyPathOverall, kanataOverall, details)
+        await systemRequirementsChecker.checkBothAppsHavePermissions()
     }
 
     func hasAllRequiredPermissions() async -> Bool {
-        let snapshot = await PermissionOracle.shared.currentSnapshot()
-        return snapshot.keyPath.hasAllPermissions
+        await systemRequirementsChecker.hasAllRequiredPermissions()
     }
 
     func hasAllSystemRequirements() async -> Bool {
-        let hasPermissions = await hasAllRequiredPermissions()
-        return isInstalled() && hasPermissions && isKarabinerDriverInstalled()
-            && isKarabinerDaemonRunning()
+        await systemRequirementsChecker.hasAllSystemRequirements(isServiceInstalled: isServiceInstalled)
     }
 
     func getSystemRequirementsStatus() async -> (
         installed: Bool, permissions: Bool, driver: Bool, daemon: Bool
     ) {
-        let permissions = await hasAllRequiredPermissions()
-        return (
-            installed: isInstalled(),
-            permissions: permissions,
-            driver: isKarabinerDriverInstalled(),
-            daemon: isKarabinerDaemonRunning()
-        )
+        await systemRequirementsChecker.getSystemRequirementsStatus(isServiceInstalled: isServiceInstalled)
     }
 
     func openInputMonitoringSettings() {
-        if let url = URL(
-            string: KeyPathConstants.URLs.inputMonitoringPrivacy)
-        {
-            NSWorkspace.shared.open(url)
-        }
+        systemRequirementsChecker.openInputMonitoringSettings()
     }
 
     func openAccessibilitySettings() {
-        if #available(macOS 13.0, *) {
-            if let url = URL(
-                string: KeyPathConstants.URLs.accessibilityPrivacy)
-            {
-                NSWorkspace.shared.open(url)
-            }
-        } else {
-            if let url = URL(
-                string: KeyPathConstants.URLs.accessibilityPrivacy)
-            {
-                NSWorkspace.shared.open(url)
-            } else {
-                NSWorkspace.shared.open(
-                    URL(fileURLWithPath: KeyPathConstants.System.securityPrefPane))
-            }
-        }
+        systemRequirementsChecker.openAccessibilitySettings()
     }
 
-    /// Reveal the canonical kanata binary in Finder to assist drag-and-drop into permissions
     func revealKanataInFinder() {
-        let kanataPath = WizardSystemPaths.kanataActiveBinary
-        let folderPath = (kanataPath as NSString).deletingLastPathComponent
-
-        let script = """
-        tell application "Finder"
-            activate
-            set targetFolder to POSIX file "\(folderPath)" as alias
-            set targetWindow to make new Finder window to targetFolder
-            set current view of targetWindow to icon view
-            set arrangement of icon view options of targetWindow to arranged by name
-            set bounds of targetWindow to {200, 140, 900, 800}
-            select POSIX file "\(kanataPath)" as alias
-            delay 0.5
-        end tell
-        """
-
-        var error: NSDictionary?
-        if let appleScript = NSAppleScript(source: script) {
-            appleScript.executeAndReturnError(&error)
-            if let error {
-                AppLogger.shared.error("❌ [Finder] AppleScript error revealing kanata: \(error)")
-            } else {
-                AppLogger.shared.info("✅ [Finder] Revealed kanata in Finder: \(kanataPath)")
-                // Show guide bubble slightly below the icon (fallback if we cannot resolve exact AX position)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    self.showDragAndDropHelpBubble()
-                }
-            }
-        } else {
-            AppLogger.shared.error("❌ [Finder] Could not create AppleScript to reveal kanata.")
-        }
-    }
-
-    /// Show floating help bubble near the Finder selection, with fallback positioning
-    private func showDragAndDropHelpBubble() {
-        // Note: Post a notification for the UI layer to show a contextual help bubble
-        // Core library cannot directly call UI components
-        AppLogger.shared.log(
-            "ℹ️ [Bubble] Help bubble would be shown here (needs notification-based implementation)")
+        systemRequirementsChecker.revealKanataInFinder(onRevealed: {
+            // Note: Post a notification for the UI layer to show a contextual help bubble
+            // Core library cannot directly call UI components
+            AppLogger.shared.log(
+                "ℹ️ [Bubble] Help bubble would be shown here (needs notification-based implementation)")
+        })
     }
 
     func isKarabinerDriverInstalled() -> Bool {
-        karabinerConflictService.isKarabinerDriverInstalled()
+        systemRequirementsChecker.isKarabinerDriverInstalled()
     }
 
     func isKarabinerDriverExtensionEnabled() -> Bool {
-        karabinerConflictService.isKarabinerDriverExtensionEnabled()
+        systemRequirementsChecker.isKarabinerDriverExtensionEnabled()
     }
 
     func areKarabinerBackgroundServicesEnabled() -> Bool {
-        karabinerConflictService.areKarabinerBackgroundServicesEnabled()
+        systemRequirementsChecker.areKarabinerBackgroundServicesEnabled()
     }
 
     func isKarabinerElementsRunning() -> Bool {
-        karabinerConflictService.isKarabinerElementsRunning()
+        systemRequirementsChecker.isKarabinerElementsRunning()
     }
 
-    /// Permanently disable all Karabiner Elements services with user permission
     func disableKarabinerElementsPermanently() async -> Bool {
-        await karabinerConflictService.disableKarabinerElementsPermanently()
+        await systemRequirementsChecker.disableKarabinerElementsPermanently()
     }
 
     func killKarabinerGrabber() async -> Bool {
-        await karabinerConflictService.killKarabinerGrabber()
+        await systemRequirementsChecker.killKarabinerGrabber()
     }
 
     func isKarabinerDaemonRunning() -> Bool {
-        karabinerConflictService.isKarabinerDaemonRunning()
+        systemRequirementsChecker.isKarabinerDaemonRunning()
     }
 
     func startKarabinerDaemon() async -> Bool {
-        await karabinerConflictService.startKarabinerDaemon()
+        await systemRequirementsChecker.startKarabinerDaemon()
     }
 
     func restartKarabinerDaemon() async -> Bool {
-        await karabinerConflictService.restartKarabinerDaemon()
+        await systemRequirementsChecker.restartKarabinerDaemon()
     }
 
-    /// Diagnostic summary explaining why VirtualHID service is considered broken
-    /// Used to surface a helpful error toast in the wizard
     func getVirtualHIDBreakageSummary() -> String {
-        // Gather low-level daemon state via DiagnosticsService
-        let status = diagnosticsService.virtualHIDDaemonStatus()
-
-        // Driver extension + version
-        let driverEnabled = isKarabinerDriverExtensionEnabled()
-        let vhid = VHIDDeviceManager()
-        let installedVersion = vhid.getInstalledVersion() ?? "unknown"
-        let hasMismatch = vhid.hasVersionMismatch()
-
-        let summary = Self.makeVirtualHIDBreakageSummary(
-            status: status,
-            driverEnabled: driverEnabled,
-            installedVersion: installedVersion,
-            hasMismatch: hasMismatch
+        let summary = systemRequirementsChecker.getVirtualHIDBreakageSummary(
+            diagnosticsService: diagnosticsService
         )
         AppLogger.shared.log("🔎 [VHID-DIAG] Diagnostic summary:\n\(summary)")
-        AppLogger.shared.log(
-            "🔎 [RestartOutcome] \(status.pids.count == 1 ? "single-owner" : (status.pids.isEmpty ? "not-running" : "duplicate")) PIDs=\(status.pids.joined(separator: ", "))"
-        )
         return summary
     }
 
-    // Extracted for testability
-    static func makeVirtualHIDBreakageSummary(
-        status: VirtualHIDDaemonStatus,
-        driverEnabled: Bool,
-        installedVersion: String,
-        hasMismatch: Bool
-    ) -> String {
-        var lines: [String] = []
-        if status.pids.count > 1 {
-            lines.append("Reason: Multiple VirtualHID daemons detected (\(status.pids.count)).")
-            lines.append("PIDs: \(status.pids.joined(separator: ", "))")
-            if !status.owners.isEmpty {
-                lines.append("Owners:\n\(status.owners.joined(separator: "\n"))")
-            }
-        } else if status.pids.isEmpty {
-            lines.append("Reason: VirtualHID daemon not running.")
-        } else {
-            // Single PID present
-            let serviceHealth = status.serviceHealthy
-            if serviceHealth == false {
-                lines.append(
-                    "Reason: Daemon running (PID \(status.pids[0])) but launchctl health check failed.")
-                lines.append(
-                    "This often indicates a stale service registration, but the driver may still work.")
-            } else {
-                lines.append("Daemon running (PID \(status.pids[0])) and launchctl reports healthy.")
-                lines.append("If the wizard still shows red, click Fix to resync status.")
-            }
-            lines.append("PID: \(status.pids[0])")
-            if !status.owners.isEmpty { lines.append("Owner:\n\(status.owners.joined(separator: "\n"))") }
-        }
-        let launchState = status.serviceInstalled ? "installed" : "not installed"
-        let launchSuffix = status.serviceInstalled ? ", \(status.serviceState)" : ""
-        lines.append("LaunchDaemon: \(launchState)\(launchSuffix)")
-        lines.append("Driver extension: \(driverEnabled ? "enabled" : "disabled")")
-        let versionSuffix = hasMismatch ? " (incompatible with current Kanata)" : ""
-        lines.append("Driver version: \(installedVersion)\(versionSuffix)")
-        return lines.joined(separator: "\n")
+    func getInstallationStatus() -> String {
+        systemRequirementsChecker.getInstallationStatus(isServiceInstalled: isServiceInstalled)
     }
 
     func performTransparentInstallation() async -> Bool {
@@ -1576,300 +947,57 @@ class RuntimeCoordinator {
         var stepsFailed = 0
         let totalSteps = 5
 
-        // 1. Ensure Kanata binary exists - install if missing
-        AppLogger.shared.log(
-            "🔧 [Installation] Step 1/\(totalSteps): Checking/installing Kanata binary...")
-
-        // Use KanataBinaryDetector for consistent detection logic
-        let detector = KanataBinaryDetector.shared
-
-        // With SMAppService, bundled Kanata is sufficient - no system installation needed
-        if detector.isInstalled() {
-            AppLogger.shared.log(
-                "✅ [Installation] Step 1 SUCCESS: Kanata binary ready (SMAppService uses bundled path)")
+        // 1. Check Kanata binary
+        let step1 = installationCoordinator.checkKanataBinary(stepNumber: 1, totalSteps: totalSteps)
+        if step1.success {
             stepsCompleted += 1
         } else {
-            AppLogger.shared.log(
-                "⚠️ [Installation] Step 1 WARNING: Kanata binary not found in bundle (SMAppService mode)")
             stepsFailed += 1
         }
 
-        // 2. Check if Karabiner driver is installed
-        AppLogger.shared.log("🔧 [Installation] Step 2/\(totalSteps): Checking Karabiner driver...")
-        let driverPath = KeyPathConstants.VirtualHID.driverPath
-        if !FileManager.default.fileExists(atPath: driverPath) {
-            AppLogger.shared.log(
-                "⚠️ [Installation] Step 2 WARNING: Karabiner driver not found at \(driverPath)")
-            AppLogger.shared.log("ℹ️ [Installation] User should install Karabiner-Elements first")
-            // Don't fail installation for this - just warn
-        } else {
-            AppLogger.shared.log(
-                "✅ [Installation] Step 2 SUCCESS: Karabiner driver verified at \(driverPath)")
-        }
+        // 2. Check Karabiner driver
+        _ = installationCoordinator.checkKarabinerDriver(stepNumber: 2, totalSteps: totalSteps)
+        stepsCompleted += 1 // Always counts as completed (warning-only)
+
+        // 3. Prepare daemon directories
+        installationCoordinator.logDaemonDirectoriesStep(stepNumber: 3, totalSteps: totalSteps)
+        await installationCoordinator.prepareDaemonDirectories()
+        installationCoordinator.logDaemonDirectoriesSuccess(stepNumber: 3, totalSteps: totalSteps)
         stepsCompleted += 1
 
-        // 3. Prepare Karabiner daemon directories
-        AppLogger.shared.log("🔧 [Installation] Step 3/\(totalSteps): Preparing daemon directories...")
-        await prepareDaemonDirectories()
-        AppLogger.shared.info("✅ [Installation] Step 3 SUCCESS: Daemon directories prepared")
-        stepsCompleted += 1
-
-        // 4. Create initial config if needed
-        AppLogger.shared.log("🔧 [Installation] Step 4/\(totalSteps): Creating user configuration...")
+        // 4. Create initial config
         await createInitialConfigIfNeeded()
-        if FileManager.default.fileExists(atPath: configPath) {
-            AppLogger.shared.log(
-                "✅ [Installation] Step 4 SUCCESS: User config available at \(configPath)")
+        let step4 = installationCoordinator.checkConfigFile(configPath: configPath, stepNumber: 4, totalSteps: totalSteps)
+        if step4.success {
             stepsCompleted += 1
         } else {
-            AppLogger.shared.error("❌ [Installation] Step 4 FAILED: User config missing at \(configPath)")
             stepsFailed += 1
         }
 
-        // 5. No longer needed - LaunchDaemon reads user config directly
-        AppLogger.shared.log(
-            "🔧 [Installation] Step 5/\(totalSteps): System config step skipped - LaunchDaemon uses user config directly"
-        )
-        AppLogger.shared.info("✅ [Installation] Step 5 SUCCESS: Using ~/.config/keypath path directly")
+        // 5. System config step (skipped in new architecture)
+        installationCoordinator.logSystemConfigSkipped(stepNumber: 5, totalSteps: totalSteps)
         stepsCompleted += 1
 
-        let success = stepsCompleted >= 4 // Require at least user config + binary + directories
-        if success {
-            AppLogger.shared.log(
-                "✅ [Installation] Installation completed successfully (\(stepsCompleted)/\(totalSteps) steps completed)"
-            )
-        } else {
-            AppLogger.shared.log(
-                "❌ [Installation] Installation failed (\(stepsFailed) steps failed, only \(stepsCompleted)/\(totalSteps) completed)"
-            )
-        }
-
-        return success
+        return installationCoordinator.logInstallationResult(
+            stepsCompleted: stepsCompleted,
+            stepsFailed: stepsFailed,
+            totalSteps: totalSteps
+        )
     }
 
     private func prepareDaemonDirectories() async {
-        AppLogger.shared.log("🔧 [Daemon] Preparing Karabiner daemon directories...")
-
-        // The daemon needs access to rootOnlyTmp
-        // We'll create this directory with proper permissions during installation
-        let rootOnlyPath = KeyPathConstants.VirtualHID.rootOnlyTmp
-        let tmpPath = KeyPathConstants.VirtualHID.tmpDir
-
-        // Use AppleScript to run commands with admin privileges
-        let createDirScript = """
-        do shell script "mkdir -p '\(rootOnlyPath)' && chown -R \(NSUserName()) '\(tmpPath)' && chmod -R 755 '\(tmpPath)'"
-        with administrator privileges
-        with prompt "KeyPath needs to prepare system directories for the virtual keyboard."
-        """
-
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: KeyPathConstants.System.osascript)
-        task.arguments = ["-e", createDirScript]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            if task.terminationStatus == 0 {
-                AppLogger.shared.info("✅ [Daemon] Successfully prepared daemon directories")
-
-                // Also ensure log directory exists and is accessible
-                let karabinerLogDir = KeyPathConstants.Logs.karabinerDir
-                let logDirScript =
-                    "do shell script \"mkdir -p '\(karabinerLogDir)' && chmod 755 '\(karabinerLogDir)'\" with administrator privileges with prompt \"KeyPath needs to create system log directories.\""
-
-                let logTask = Process()
-                logTask.executableURL = URL(fileURLWithPath: KeyPathConstants.System.osascript)
-                logTask.arguments = ["-e", logDirScript]
-
-                try logTask.run()
-                logTask.waitUntilExit()
-
-                if logTask.terminationStatus == 0 {
-                    AppLogger.shared.info("✅ [Daemon] Log directory permissions set")
-                } else {
-                    AppLogger.shared.warn("⚠️ [Daemon] Could not set log directory permissions")
-                }
-            } else {
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                let output = String(data: data, encoding: .utf8) ?? ""
-                AppLogger.shared.error("❌ [Daemon] Failed to prepare directories: \(output)")
-            }
-        } catch {
-            AppLogger.shared.error("❌ [Daemon] Error preparing daemon directories: \(error)")
-        }
+        await installationCoordinator.prepareDaemonDirectories()
     }
 
-    // MARK: - Configuration Managemen
+    // MARK: - Configuration Management
 
-    /// Load and strictly validate existing configuration with fallback to defaul
-    private func loadExistingMappings() async {
-        AppLogger.shared.log("📂 [Validation] ========== STARTUP CONFIG VALIDATION BEGIN ==========")
-        await MainActor.run {
-            applyKeyMappings([], persistCollections: false)
-        }
-
-        guard FileManager.default.fileExists(atPath: configPath) else {
-            AppLogger.shared.log("ℹ️ [Validation] No existing config file found at: \(configPath)")
-            AppLogger.shared.log("ℹ️ [Validation] Starting with empty mappings")
-            AppLogger.shared.log("📂 [Validation] ========== STARTUP CONFIG VALIDATION END ==========")
-            return
-        }
-
-        do {
-            AppLogger.shared.log("📖 [Validation] Reading config file from: \(configPath)")
-            let configContent = try String(contentsOfFile: configPath, encoding: .utf8)
-            AppLogger.shared.log("📖 [Validation] Config file size: \(configContent.count) characters")
-
-            // Strict CLI validation to match engine behavior on startup
-            AppLogger.shared.log("🔍 [Validation] Running CLI validation of existing configuration...")
-            let cli = configurationService.validateConfigViaFile()
-            if cli.isValid {
-                AppLogger.shared.log("✅ [Validation] CLI validation PASSED")
-                let config = try await configurationService.reload()
-                await MainActor.run {
-                    applyKeyMappings(config.keyMappings)
-                }
-                AppLogger.shared.log(
-                    "✅ [Validation] Successfully loaded \(config.keyMappings.count) existing mappings")
-            } else {
-                AppLogger.shared.log("❌ [Validation] CLI validation FAILED with \(cli.errors.count) errors")
-                await handleInvalidStartupConfig(configContent: configContent, errors: cli.errors)
-            }
-        } catch {
-            AppLogger.shared.error("❌ [Validation] Failed to load existing config: \(error)")
-            AppLogger.shared.error("❌ [Validation] Error type: \(type(of: error))")
-            await MainActor.run {
-                applyKeyMappings([], persistCollections: false)
-            }
-        }
-
-        AppLogger.shared.log("📂 [Validation] ========== STARTUP CONFIG VALIDATION END ==========")
-    }
-
-    /// Handle invalid startup configuration with backup and fallback
-    private func handleInvalidStartupConfig(configContent: String, errors: [String]) async {
-        AppLogger.shared.log("🛡️ [Validation] Handling invalid startup configuration...")
-
-        // Create backup of invalid config
-        let timestamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(
-            of: ":", with: "-"
-        )
-        let backupPath = "\(configDirectory)/invalid-config-backup-\(timestamp).kbd"
-
-        AppLogger.shared.log("💾 [Validation] Creating backup of invalid config...")
-        do {
-            try configContent.write(toFile: backupPath, atomically: true, encoding: .utf8)
-            AppLogger.shared.log("💾 [Validation] Successfully backed up invalid config to: \(backupPath)")
-            AppLogger.shared.log("💾 [Validation] Backup file size: \(configContent.count) characters")
-        } catch {
-            AppLogger.shared.error("❌ [Validation] Failed to backup invalid config: \(error)")
-            AppLogger.shared.error("❌ [Validation] Backup path attempted: \(backupPath)")
-        }
-
-        // Generate default configuration
-        AppLogger.shared.log("🔧 [Validation] Generating default fallback configuration...")
-        let defaultMapping = KeyMapping(input: "caps", output: "esc")
-        let defaultConfig = generateKanataConfigWithMappings([defaultMapping])
-        AppLogger.shared.log("🔧 [Validation] Default config generated with mapping: caps → esc")
-
-        do {
-            AppLogger.shared.log("📝 [Validation] Writing default config to: \(configPath)")
-            try defaultConfig.write(toFile: configPath, atomically: true, encoding: .utf8)
-            await MainActor.run {
-                applyKeyMappings([defaultMapping])
-            }
-            AppLogger.shared.info("✅ [Validation] Successfully replaced invalid config with default")
-            AppLogger.shared.info("✅ [Validation] New config has 1 mapping")
-
-            // Schedule user notification about the fallback
-            AppLogger.shared.log("📢 [Validation] Scheduling user notification about config fallback...")
-            await scheduleConfigValidationNotification(originalErrors: errors, backupPath: backupPath)
-        } catch {
-            AppLogger.shared.error("❌ [Validation] Failed to write default config: \(error)")
-            AppLogger.shared.error("❌ [Validation] Config path: \(configPath)")
-            await MainActor.run {
-                applyKeyMappings([], persistCollections: false)
-            }
-        }
-
-        AppLogger.shared.log("🛡️ [Validation] Invalid startup config handling complete")
-    }
-
-    /// Schedule notification to inform user about config validation issues
-    private func scheduleConfigValidationNotification(originalErrors: [String], backupPath: String)
-        async
-    {
-        AppLogger.shared.log("📢 [Config] Setting validation error state")
-
-        await MainActor.run {
-            if TestEnvironment.isRunningTests {
-                AppLogger.shared.debug("🧪 [Config] Suppressing validation alert in test environment")
-                return
-            }
-            validationError = .invalidStartup(errors: originalErrors, backupPath: backupPath)
-            notifyStateChanged()
-        }
-    }
-
-    /// Show validation error dialog with options to cancel or revert to defaul
-    private func showValidationErrorDialog(title: String, errors: [String], config _: String? = nil)
-        async
-    {
-        await MainActor.run {
-            validationError = .saveFailed(title: title, errors: errors)
-            notifyStateChanged()
-        }
-    }
+    // Logic moved to ConfigurationManager
 
     func clearValidationError() {
         validationError = nil
         notifyStateChanged()
     }
 
-    /// Revert to a safe default configuration
-    private func revertToDefaultConfig() async {
-        AppLogger.shared.info("🔄 [Config] Reverting to default configuration")
-
-        let defaultMapping = KeyMapping(input: "caps", output: "esc")
-        let defaultConfig = generateKanataConfigWithMappings([defaultMapping])
-
-        do {
-            try defaultConfig.write(toFile: configPath, atomically: true, encoding: .utf8)
-            await MainActor.run {
-                applyKeyMappings([defaultMapping])
-            }
-            AppLogger.shared.info("✅ [Config] Successfully reverted to default configuration")
-        } catch {
-            AppLogger.shared.error("❌ [Config] Failed to revert to default configuration: \(error)")
-        }
-    }
-
-    private func parseKanataConfig(_ configContent: String) -> [KeyMapping] {
-        // Delegate to ConfigurationService for parsing
-        do {
-            let config = try configurationService.parseConfigurationFromString(configContent)
-            return config.keyMappings
-        } catch {
-            AppLogger.shared.warn("⚠️ [Parse] Failed to parse config: \(error)")
-            return []
-        }
-    }
-
-    private func generateKanataConfigWithMappings(_ mappings: [KeyMapping]) -> String {
-        // Delegate to KanataConfiguration utility
-        guard !mappings.isEmpty else {
-            // Return default config with caps->esc if no mappings
-            let defaultMapping = KeyMapping(input: "caps", output: "escape")
-            return KanataConfiguration.generateFromMappings([defaultMapping])
-        }
-
-        return KanataConfiguration.generateFromMappings(mappings)
-    }
 
     // MARK: - Methods Expected by Tests
 
@@ -1883,24 +1011,6 @@ class RuntimeCoordinator {
             return false
         default:
             return true
-        }
-    }
-
-    func getInstallationStatus() -> String {
-        let detector = KanataBinaryDetector.shared
-        let detection = detector.detectCurrentStatus()
-        let driverInstalled = isKarabinerDriverInstalled()
-
-        // With SMAppService, bundled Kanata is sufficient
-        switch detection.status {
-        case .bundledAvailable, .systemInstalled:
-            return driverInstalled ? "✅ Fully installed" : "⚠️ Driver missing"
-        case .bundledUnsigned:
-            return "⚠️ Bundled Kanata unsigned (needs Developer ID signature)"
-        case .missing:
-            return "❌ Not installed"
-        case .bundledMissing:
-            return "⚠️ CRITICAL: App bundle corrupted - reinstall KeyPath"
         }
     }
 
@@ -1956,16 +1066,11 @@ class RuntimeCoordinator {
         AppLogger.shared.log("💾 [Config] Reset to default configuration (macOS Function Keys only)")
 
         // Update the stores to reflect the reset state
-        try await ruleCollectionStore.saveCollections(defaultCollections)
-        try await customRulesStore.saveRules([]) // Clear custom rules
+        try await RuleCollectionStore.shared.saveCollections(defaultCollections)
+        try await CustomRulesStore.shared.saveRules([]) // Clear custom rules
 
-        // Update manager properties so UI reflects the reset state
-        await MainActor.run {
-            self.ruleCollections = defaultCollections
-            self.customRules = []
-            ensureDefaultCollectionsIfNeeded()
-            refreshLayerIndicatorState()
-        }
+        // Re-bootstrap the manager to pick up the changes
+        await ruleCollectionsManager.bootstrap()
 
         AppLogger.shared.log("🔄 [Reset] Updated stores and manager properties to match default state")
 
@@ -2002,39 +1107,16 @@ class RuntimeCoordinator {
         }
     }
 
-    // MARK: - Pause/Resume Mappings for Recording
+    // MARK: - Pause/Resume Mappings for Recording (delegates to RecoveryCoordinator)
 
     /// Temporarily pause mappings (for raw key capture during recording)
     func pauseMappings() async -> Bool {
-        AppLogger.shared.log("⏸️ [Mappings] Attempting to pause mappings for recording...")
-
-        // Preferred: use privileged helper to kill Kanata processes (no admin prompt)
-        do {
-            try await PrivilegedOperationsCoordinator.shared.killAllKanataProcesses()
-            // Small settle to ensure processes exi
-            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
-            AppLogger.shared.log("🛑 [Mappings] Paused by killing Kanata processes via helper")
-            return true
-        } catch {
-            AppLogger.shared.warn("⚠️ [Mappings] Helper killAllKanataProcesses failed: \(error)")
-            return false
-        }
+        await recoveryCoordinator.pauseMappings()
     }
 
     /// Resume mappings after recording
     func resumeMappings() async -> Bool {
-        AppLogger.shared.log("▶️ [Mappings] Attempting to resume mappings after recording...")
-
-        do {
-            try await PrivilegedOperationsCoordinator.shared.restartUnhealthyServices()
-            // Give it a brief moment to come up
-            try? await Task.sleep(nanoseconds: 200_000_000)
-            AppLogger.shared.info("🚀 [Mappings] Resumed by restarting unhealthy services via helper")
-            return true
-        } catch {
-            AppLogger.shared.warn("⚠️ [Mappings] Helper restartUnhealthyServices failed: \(error)")
-            return false
-        }
+        await recoveryCoordinator.resumeMappings()
     }
 
     func convertToKanataKey(_ key: String) -> String {
@@ -2088,161 +1170,20 @@ class RuntimeCoordinator {
 
     /// Trigger VirtualHID recovery when connection failures are detected
     private func triggerVirtualHIDRecovery() async {
-        AppLogger.shared.log("🚨 [Recovery] VirtualHID connection failure detected in real-time")
-
-        // Create diagnostic for the UI
-        let diagnostic = KanataDiagnostic(
-            timestamp: Date(),
-            severity: .error,
-            category: .conflict,
-            title: "VirtualHID Connection Failed",
-            description:
-            "Real-time monitoring detected repeated VirtualHID connection failures. Keyboard remapping is not functioning.",
-            technicalDetails:
-            "Detected multiple consecutive asio.system connection failures",
-            suggestedAction:
-            "KeyPath will attempt automatic recovery. If issues persist, restart the application.",
-            canAutoFix: true
+        await recoveryCoordinator.triggerVirtualHIDRecovery(
+            addDiagnostic: { [weak self] diagnostic in
+                self?.addDiagnostic(diagnostic)
+            },
+            attemptRecovery: { [weak self] in
+                await self?.attemptKeyboardRecovery()
+            }
         )
-
-        await MainActor.run {
-            addDiagnostic(diagnostic)
-        }
-
-        // Attempt automatic recovery
-        await attemptKeyboardRecovery()
     }
 
     // MARK: - Enhanced Config Validation and Recovery
 
-    /// Validates a generated config string using Kanata's --check command
-    private func validateGeneratedConfig(_ config: String) async -> (isValid: Bool, errors: [String]) {
-        // Delegate to ConfigurationService for combined TCP+CLI validation
-        await configurationService.validateConfiguration(config)
-    }
+    // Logic moved to ConfigurationManager
 
-    /// Saves a validated config to disk
-    private func saveValidatedConfig(_ config: String) async throws {
-        // DEBUG: Log detailed file save information
-        AppLogger.shared.debug("🔍 [DEBUG] saveValidatedConfig called")
-        AppLogger.shared.debug("🔍 [DEBUG] Target config path: \(configPath)")
-        AppLogger.shared.debug("🔍 [DEBUG] Config size: \(config.count) characters")
-
-        // Config validation is performed by caller before reaching here
-        AppLogger.shared.debug("📡 [SaveConfig] Saving validated config (TCP-only mode)")
-
-        let configDir = URL(fileURLWithPath: configDirectory)
-        try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
-        AppLogger.shared.debug("🔍 [DEBUG] Config directory created/verified: \(configDirectory)")
-
-        let configURL = URL(fileURLWithPath: configPath)
-
-        // Check if file exists before writing
-        let fileExists = FileManager.default.fileExists(atPath: configPath)
-        AppLogger.shared.debug("🔍 [DEBUG] Config file exists before write: \(fileExists)")
-
-        // Get modification time before write (if file exists)
-        var beforeModTime: Date?
-        if fileExists {
-            let beforeAttributes = try? FileManager.default.attributesOfItem(atPath: configPath)
-            beforeModTime = beforeAttributes?[.modificationDate] as? Date
-            AppLogger.shared.log(
-                "🔍 [DEBUG] Modification time before write: \(beforeModTime?.description ?? "unknown")")
-        }
-
-        // Write the config
-        try config.write(to: configURL, atomically: true, encoding: .utf8)
-        AppLogger.shared.info("✅ [DEBUG] Config written to file successfully")
-
-        // Note: File watcher delay removed - we use TCP reload commands instead of --watch
-
-        // Get modification time after write
-        let afterAttributes = try FileManager.default.attributesOfItem(atPath: configPath)
-        let afterModTime = afterAttributes[.modificationDate] as? Date
-        let fileSize = afterAttributes[.size] as? Int ?? 0
-
-        AppLogger.shared.log(
-            "🔍 [DEBUG] Modification time after write: \(afterModTime?.description ?? "unknown")")
-        AppLogger.shared.debug("🔍 [DEBUG] File size after write: \(fileSize) bytes")
-
-        // Calculate time difference if we have both times
-        if let before = beforeModTime, let after = afterModTime {
-            let timeDiff = after.timeIntervalSince(before)
-            AppLogger.shared.debug("🔍 [DEBUG] File modification time changed by: \(timeDiff) seconds")
-        }
-
-        // Post-save validation: verify the file was saved correctly
-        await MainActor.run {
-            saveStatus = .validating
-        }
-
-        AppLogger.shared.debug(
-            "🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION BEGIN ==========")
-        AppLogger.shared.debug("🔍 [Validation-PostSave] Validating saved config at: \(configPath)")
-        do {
-            let savedContent = try String(contentsOfFile: configPath, encoding: .utf8)
-            AppLogger.shared.log(
-                "📖 [Validation-PostSave] Successfully read saved file (\(savedContent.count) characters)")
-
-            let postSaveStart = Date()
-            let postSaveValidation = await validateGeneratedConfig(savedContent)
-            let postSaveDuration = Date().timeIntervalSince(postSaveStart)
-            AppLogger.shared.log(
-                "⏱️ [Validation-PostSave] Validation completed in \(String(format: "%.3f", postSaveDuration)) seconds"
-            )
-
-            if postSaveValidation.isValid {
-                AppLogger.shared.info("✅ [Validation-PostSave] Post-save validation PASSED")
-                AppLogger.shared.info("✅ [Validation-PostSave] Config saved and verified successfully")
-            } else {
-                AppLogger.shared.error("❌ [Validation-PostSave] Post-save validation FAILED")
-                AppLogger.shared.error(
-                    "❌ [Validation-PostSave] Found \(postSaveValidation.errors.count) errors:")
-                for (index, error) in postSaveValidation.errors.enumerated() {
-                    AppLogger.shared.log("   Error \(index + 1): \(error)")
-                }
-                AppLogger.shared.log("🎭 [Validation-PostSave] Showing error dialog to user...")
-                await showValidationErrorDialog(
-                    title: "Save Verification Failed", errors: postSaveValidation.errors
-                )
-                AppLogger.shared.debug(
-                    "🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END ==========")
-                throw KeyPathError.configuration(.validationFailed(errors: postSaveValidation.errors))
-            }
-        } catch {
-            AppLogger.shared.error("❌ [Validation-PostSave] Failed to read saved config: \(error)")
-            AppLogger.shared.error("❌ [Validation-PostSave] Error type: \(type(of: error))")
-            AppLogger.shared.debug(
-                "🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END ==========")
-            throw error
-        }
-
-        AppLogger.shared.debug("🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END ==========")
-
-        // Notify UI that config was updated
-        lastConfigUpdate = Date()
-        AppLogger.shared.debug("🔍 [DEBUG] lastConfigUpdate timestamp set to: \(lastConfigUpdate)")
-    }
-
-    // Synchronize config to system path for Kanata --watch compatibility
-
-    /// Backs up a failed config and applies safe default, returning backup path
-    func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
-        -> String
-    {
-        // Delegate to ConfigurationService for backup and safe config application
-        let backupPath = try await configurationService.backupFailedConfigAndApplySafe(
-            failedConfig: failedConfig,
-            mappings: mappings
-        )
-
-        // Update in-memory mappings to reflect the safe state
-        await MainActor.run {
-            applyKeyMappings([KeyMapping(input: "caps", output: "escape")])
-        }
-
-        return backupPath
-    }
 
     /// Opens a file in Zed editor with fallback options
     func openFileInZed(_ filePath: String) {
@@ -2251,34 +1192,11 @@ class RuntimeCoordinator {
 
     // MARK: - Kanata Arguments Builder
 
-    /// Builds Kanata command line arguments including TCP port when enabled
-    func buildKanataArguments(configPath _: String, checkOnly: Bool = false) -> [String] {
-        // Delegate to ConfigurationManager
-        configurationManager.buildKanataArguments(checkOnly: checkOnly)
-    }
+    // Logic moved to ConfigurationManager
+
 
     // MARK: - AI Configuration Repair
 
-    /// Uses AI service to repair a corrupted Kanata config
-    private func repairConfigWithClaude(config: String, errors: [String], mappings: [KeyMapping])
-        async throws -> String
-    {
-        // Try AI repair first, fallback to rule-based repair
-        do {
-            return try await configRepairService.repairConfig(config: config, errors: errors, mappings: mappings)
-        } catch {
-            AppLogger.shared.warn(
-                "⚠️ [RuntimeCoordinator] AI repair failed: \(error), falling back to rule-based repair")
-            // For now, use rule-based repair as fallback
-            return try await performRuleBasedRepair(config: config, errors: errors, mappings: mappings)
-        }
-    }
+    // Logic moved to ConfigRepairService
 
-    /// Fallback rule-based repair when AI is not available
-    private func performRuleBasedRepair(config: String, errors: [String], mappings: [KeyMapping]) async throws -> String {
-        // Delegate to ConfigurationService for rule-based repair
-        try await configurationService.repairConfiguration(
-            config: config, errors: errors, mappings: mappings
-        )
-    }
 }

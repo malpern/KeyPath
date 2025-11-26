@@ -57,38 +57,10 @@ extension RuntimeCoordinator {
         }
     }
 
-    // MARK: - Recovery Operations
+    // MARK: - Recovery Operations (delegates to RecoveryCoordinator)
 
     func attemptKeyboardRecovery() async {
-        AppLogger.shared.log("🔧 [Recovery] Starting keyboard recovery process...")
-
-        // Step 1: Ensure all Kanata processes are killed
-        AppLogger.shared.log("🔧 [Recovery] Step 1: Killing any remaining Kanata processes")
-        await killAllKanataProcesses()
-
-        // Step 2: Wait for system to release keyboard control
-        AppLogger.shared.log("🔧 [Recovery] Step 2: Waiting 2 seconds for keyboard release...")
-        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-
-        // Step 3: Restart VirtualHID daemon (uses new verified restart)
-        AppLogger.shared.log("🔧 [Recovery] Step 3: Attempting to restart Karabiner daemon...")
-        let restartSuccess = await restartKarabinerDaemon()
-        if restartSuccess {
-            AppLogger.shared.info("✅ [Recovery] Karabiner daemon restart verified")
-        } else {
-            AppLogger.shared.warn("⚠️ [Recovery] Karabiner daemon restart failed or not verified")
-        }
-
-        // Step 4: Wait before retry
-        AppLogger.shared.log("🔧 [Recovery] Step 4: Waiting 3 seconds before retry...")
-        try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
-
-        // Step 5: Try restarting Kanata via KanataService (fallback to InstallerEngine on failure)
-        AppLogger.shared.log(
-            "🔧 [Recovery] Step 5: Attempting to restart Kanata with VirtualHID validation...")
-        _ = await restartServiceWithFallback(reason: "Keyboard recovery")
-
-        AppLogger.shared.log("🔧 [Recovery] Keyboard recovery process complete")
+        await recoveryCoordinator.attemptKeyboardRecovery()
     }
 
     func killAllKanataProcesses() async {

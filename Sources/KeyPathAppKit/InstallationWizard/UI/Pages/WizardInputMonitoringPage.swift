@@ -18,6 +18,7 @@ struct WizardInputMonitoringPage: View {
     @State private var showingStaleEntryCleanup = false
     @State private var staleEntryDetails: [String] = []
     @State private var permissionPollingTask: Task<Void, Never>?
+    @State private var showingKanataInstructions = false
 
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
@@ -141,14 +142,9 @@ struct WizardInputMonitoringPage: View {
                             }
                             Spacer()
                             if kanataInputMonitoringStatus != .completed {
-                                Button("Add + Turn On") {
-                                    AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Kanata Add + Turn On clicked")
-                                    // Open System Settings → Input Monitoring, reveal kanata, copy path for Go To Folder
-                                    openInputMonitoringPreferencesPanel()
-                                    copyKanataPathToClipboard()
-                                    revealKanataInFinder()
-                                    // Begin polling for permission grant
-                                    startPermissionPolling(for: .inputMonitoring)
+                                Button("Fix") {
+                                    AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Kanata Fix clicked - showing instructions")
+                                    showingKanataInstructions = true
                                 }
                                 .buttonStyle(WizardDesign.Component.SecondaryButton())
                                 .scaleEffect(0.8)
@@ -177,6 +173,19 @@ struct WizardInputMonitoringPage: View {
         .onDisappear {
             permissionPollingTask?.cancel()
             permissionPollingTask = nil
+        }
+        .sheet(isPresented: $showingKanataInstructions) {
+            KanataPermissionInstructionsSheet(
+                onOpenSettings: {
+                    showingKanataInstructions = false
+                    openInputMonitoringPreferencesPanel()
+                    copyKanataPathToClipboard()
+                    startPermissionPolling(for: .inputMonitoring)
+                },
+                onCancel: {
+                    showingKanataInstructions = false
+                }
+            )
         }
     }
 
@@ -469,6 +478,101 @@ struct CleanupStep: View {
             Text(text)
                 .font(.caption)
                 .foregroundColor(.primary)
+        }
+    }
+}
+
+// MARK: - Kanata Permission Instructions Sheet
+
+struct KanataPermissionInstructionsSheet: View {
+    let onOpenSettings: () -> Void
+    let onCancel: () -> Void
+
+    private var kanataPath: String {
+        "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            VStack(spacing: 12) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 48))
+                    .foregroundColor(.accentColor)
+
+                Text("Add kanata to Input Monitoring")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+            }
+            .padding(.top, 24)
+            .padding(.bottom, 20)
+
+            // Instructions
+            VStack(alignment: .leading, spacing: 16) {
+                InstructionRow(number: 1, text: "Click the + button in System Settings")
+                InstructionRow(number: 2, text: "Press ⌘⇧G and paste the path (already copied)")
+                InstructionRow(number: 3, text: "Select kanata and click Open")
+                InstructionRow(number: 4, text: "Toggle the switch to enable it")
+            }
+            .padding(.horizontal, 24)
+
+            // Path display
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Path to kanata:")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Text(kanataPath)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.secondary.opacity(0.1))
+                    .cornerRadius(6)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 20)
+
+            Spacer()
+
+            // Buttons
+            HStack(spacing: 12) {
+                Button("Cancel") {
+                    onCancel()
+                }
+                .buttonStyle(.bordered)
+
+                Button("Open System Settings") {
+                    onOpenSettings()
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 24)
+        }
+        .frame(width: 400, height: 380)
+    }
+}
+
+private struct InstructionRow: View {
+    let number: Int
+    let text: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Text("\(number)")
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
+                .frame(width: 24, height: 24)
+                .background(Color.accentColor)
+                .clipShape(Circle())
+
+            Text(text)
+                .font(.body)
+                .foregroundColor(.primary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }

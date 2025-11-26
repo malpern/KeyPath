@@ -46,6 +46,12 @@ protocol ConfigurationManaging: Sendable {
 
     /// Generate config from mappings
     func generateConfig(mappings: [KeyMapping]) -> String
+
+    /// Ensure valid startup config, handling invalid configs by backing them up and resetting to default
+    func ensureValidStartupConfig() async -> (mappings: [KeyMapping], validationError: ConfigValidationError?)
+
+    /// Backup failed config and apply safe default
+    func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws -> String
 }
 
 /// Manages Kanata configuration files and operations
@@ -175,15 +181,62 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
         AppLogger.shared.log(
             "🔍 [ConfigManager] Modification time after write: \(afterModTime?.description ?? "unknown")")
         AppLogger.shared.log("🔍 [ConfigManager] File size: \(fileSize) bytes")
+
+        // Post-save validation: verify the file was saved correctly
+        AppLogger.shared.log("🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION BEGIN ==========")
+        AppLogger.shared.log("🔍 [Validation-PostSave] Validating saved config at: \(configPath)")
+        
+        do {
+            let savedContent = try String(contentsOfFile: configPath, encoding: .utf8)
+            AppLogger.shared.log(
+                "📖 [Validation-PostSave] Successfully read saved file (\(savedContent.count) characters)")
+
+            let postSaveStart = Date()
+            let postSaveValidation = await validateConfiguration(savedContent)
+            let postSaveDuration = Date().timeIntervalSince(postSaveStart)
+            AppLogger.shared.log(
+                "⏱️ [Validation-PostSave] Validation completed in \(String(format: "%.3f", postSaveDuration)) seconds"
+            )
+
+            if postSaveValidation.isValid {
+                AppLogger.shared.info("✅ [Validation-PostSave] Post-save validation PASSED")
+                AppLogger.shared.info("✅ [Validation-PostSave] Config saved and verified successfully")
+            } else {
+                AppLogger.shared.error("❌ [Validation-PostSave] Post-save validation FAILED")
+                AppLogger.shared.error(
+                    "❌ [Validation-PostSave] Found \(postSaveValidation.errors.count) errors:")
+                for (index, error) in postSaveValidation.errors.enumerated() {
+                    AppLogger.shared.log("   Error \(index + 1): \(error)")
+                }
+                AppLogger.shared.debug(
+                    "🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END ==========")
+                throw KeyPathError.configuration(.validationFailed(errors: postSaveValidation.errors))
+            }
+        } catch {
+            AppLogger.shared.error("❌ [Validation-PostSave] Failed to read saved config: \(error)")
+            AppLogger.shared.error("❌ [Validation-PostSave] Error type: \(type(of: error))")
+            AppLogger.shared.debug(
+                "🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END ==========")
+            throw error
+        }
+
+        AppLogger.shared.debug("🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END ==========")
     }
 
     func loadExistingMappings() async -> [KeyMapping] {
-        AppLogger.shared.log("📂 [ConfigManager] Loading existing mappings")
+        // Deprecated: Use ensureValidStartupConfig instead
+        let result = await ensureValidStartupConfig()
+        return result.mappings
+    }
+    
+    /// Ensures a valid configuration exists on startup, handling invalid configs by backing them up and resetting to default
+    func ensureValidStartupConfig() async -> (mappings: [KeyMapping], validationError: ConfigValidationError?) {
+        AppLogger.shared.log("📂 [ConfigManager] Ensuring valid startup configuration")
 
         guard FileManager.default.fileExists(atPath: configPath) else {
             AppLogger.shared.log("ℹ️ [ConfigManager] No existing config file found at: \(configPath)")
             AppLogger.shared.log("ℹ️ [ConfigManager] Starting with empty mappings")
-            return []
+            return ([], nil)
         }
 
         do {
@@ -199,17 +252,59 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
                 let config = try await configurationService.reload()
                 AppLogger.shared.log(
                     "✅ [ConfigManager] Successfully loaded \(config.keyMappings.count) existing mappings")
-                return config.keyMappings
+                return (config.keyMappings, nil)
             } else {
                 AppLogger.shared.log(
                     "❌ [ConfigManager] CLI validation FAILED with \(cli.errors.count) errors")
-                return []
+                
+                // Handle invalid startup config
+                let backupPath = await handleInvalidStartupConfig(configContent: configContent, errors: cli.errors)
+                
+                // Return default mapping (caps->esc) and the validation error for UI
+                let defaultMapping = KeyMapping(input: "caps", output: "esc")
+                return ([defaultMapping], .invalidStartup(errors: cli.errors, backupPath: backupPath))
             }
         } catch {
             AppLogger.shared.log("❌ [ConfigManager] Failed to load existing config: \(error)")
             AppLogger.shared.log("❌ [ConfigManager] Error type: \(type(of: error))")
-            return []
+            return ([], nil)
         }
+    }
+    
+    /// Handle invalid startup configuration with backup and fallback
+    private func handleInvalidStartupConfig(configContent: String, errors: [String]) async -> String {
+        AppLogger.shared.log("🛡️ [ConfigManager] Handling invalid startup configuration...")
+
+        // Create backup of invalid config
+        let timestamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(
+            of: ":", with: "-"
+        )
+        let backupPath = "\(configDirectory)/invalid-config-backup-\(timestamp).kbd"
+
+        AppLogger.shared.log("💾 [ConfigManager] Creating backup of invalid config...")
+        do {
+            try configContent.write(toFile: backupPath, atomically: true, encoding: .utf8)
+            AppLogger.shared.log("💾 [ConfigManager] Successfully backed up invalid config to: \(backupPath)")
+        } catch {
+            AppLogger.shared.error("❌ [ConfigManager] Failed to backup invalid config: \(error)")
+        }
+
+        // Generate default configuration
+        AppLogger.shared.log("🔧 [ConfigManager] Generating default fallback configuration...")
+        let defaultMapping = KeyMapping(input: "caps", output: "esc")
+        let defaultConfig = generateConfig(mappings: [defaultMapping])
+        AppLogger.shared.log("🔧 [ConfigManager] Default config generated with mapping: caps → esc")
+
+        do {
+            AppLogger.shared.log("📝 [ConfigManager] Writing default config to: \(configPath)")
+            try defaultConfig.write(toFile: configPath, atomically: true, encoding: .utf8)
+            AppLogger.shared.info("✅ [ConfigManager] Successfully replaced invalid config with default")
+        } catch {
+            AppLogger.shared.error("❌ [ConfigManager] Failed to write default config: \(error)")
+        }
+
+        AppLogger.shared.log("🛡️ [ConfigManager] Invalid startup config handling complete")
+        return backupPath
     }
 
     func saveConfiguration(mappings: [KeyMapping]) async throws {
@@ -230,6 +325,14 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
     func backupCurrentConfig() async {
         AppLogger.shared.log("💾 [ConfigManager] Creating backup of current config")
         _ = configBackupManager.createPreEditBackup()
+    }
+    
+    func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws -> String {
+        // Delegate to ConfigurationService for backup and safe config application
+        return try await configurationService.backupFailedConfigAndApplySafe(
+            failedConfig: failedConfig,
+            mappings: mappings
+        )
     }
 
     func restoreLastGoodConfig() async throws {

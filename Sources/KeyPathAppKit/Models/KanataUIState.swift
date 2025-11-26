@@ -2,6 +2,32 @@ import Foundation
 import KeyPathDaemonLifecycle
 import KeyPathWizardCore
 
+/// Save operation status for UI feedback
+enum SaveStatus: Equatable, Sendable {
+    case idle
+    case saving
+    case validating
+    case success
+    case failed(String)
+
+    var message: String {
+        switch self {
+        case .idle: ""
+        case .saving: "Saving..."
+        case .validating: "Validating..."
+        case .success: "✅ Done"
+        case let .failed(error): "❌ Config Invalid: \(error)"
+        }
+    }
+
+    var isActive: Bool {
+        switch self {
+        case .idle, .success: false
+        default: true
+        }
+    }
+}
+
 /// Snapshot of RuntimeCoordinator state for UI updates
 struct KanataUIState: Sendable {
     // Core Status

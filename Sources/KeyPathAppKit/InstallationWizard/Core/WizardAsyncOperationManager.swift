@@ -505,7 +505,7 @@ struct WizardError: LocalizedError {
     ) {
         switch operation {
         case let op where op.contains("Auto Fix: Terminate Conflicting Processes"):
-            (
+            return (
                 "Unable to stop conflicting keyboard apps",
                 [
                     "Manually quit Karabiner-Elements from the menu bar",
@@ -515,7 +515,7 @@ struct WizardError: LocalizedError {
             )
 
         case let op where op.contains("Auto Fix: Install Missing Components"):
-            (
+            return (
                 "Failed to install required keyboard remapping components",
                 [
                     "Check your internet connection",
@@ -525,27 +525,27 @@ struct WizardError: LocalizedError {
             )
 
         case let op where op.contains("Auto Fix: Start Kanata Service"):
-            (
+            return (
                 "The keyboard remapping service won't start",
                 [
-                    "Grant necessary permissions in System Preferences",
+                    "Grant necessary permissions in System Settings",
                     "Check that no conflicting keyboard apps are running",
                     "Try restarting your Mac"
                 ]
             )
 
         case let op where op.contains("Auto Fix: Activating Driver Extensions"):
-            (
+            return (
                 "Driver extensions need manual approval for security",
                 [
-                    "Open System Preferences → Privacy & Security → Driver Extensions",
+                    "Open System Settings → Privacy & Security → Driver Extensions",
                     "Find 'Karabiner-VirtualHIDDevice-Manager.app' and enable it",
                     "You may need to restart your Mac after enabling"
                 ]
             )
 
         case let op where op.contains("System State Detection"):
-            (
+            return (
                 "Unable to check your system's current setup",
                 [
                     "Check that KeyPath has the necessary permissions",
@@ -555,23 +555,47 @@ struct WizardError: LocalizedError {
             )
 
         case let op where op.contains("Grant Permission"):
-            (
+            return (
                 "KeyPath needs additional system permissions to work properly",
                 [
-                    "Open System Preferences → Privacy & Security",
+                    "Open System Settings → Privacy & Security",
                     "Find 'Input Monitoring' and 'Accessibility' sections",
                     "Make sure KeyPath and Kanata are both enabled"
                 ]
             )
 
+        case let op where op.contains("Privileged Helper"):
+            return (
+                "Couldn't install the background helper",
+                [
+                    "Open System Settings → General → Login Items & Extensions",
+                    "Make sure KeyPath's background item is enabled",
+                    "Try clicking Fix again"
+                ]
+            )
+
+        case let op where op.contains("Karabiner"):
+            return (
+                "Couldn't configure the Karabiner driver",
+                [
+                    "Make sure Karabiner VirtualHIDDevice is installed",
+                    "Check System Settings → Privacy & Security for approval prompts",
+                    "Try restarting your Mac"
+                ]
+            )
+
         default:
-            // Generic fallback with more helpful language
-            (
-                "Something went wrong during setup",
+            // Extract action name for more helpful message
+            let actionName = operation
+                .replacingOccurrences(of: "Auto Fix: ", with: "")
+                .replacingOccurrences(of: "auto_fix_", with: "")
+            let displayAction = actionName.isEmpty ? "setup step" : actionName.lowercased()
+            return (
+                "Couldn't complete \(displayAction)",
                 [
                     "Try the operation again",
                     "Check that you have administrator privileges",
-                    "Make sure no antivirus software is blocking KeyPath"
+                    "Restart KeyPath if the problem persists"
                 ]
             )
         }
@@ -580,32 +604,67 @@ struct WizardError: LocalizedError {
     private static func createTimeoutMessage(for operation: String) -> (String, [String]) {
         switch operation {
         case let op where op.contains("Permission"):
-            (
-                "The permission setup is taking longer than expected",
+            return (
+                "Waiting for permission grant timed out",
                 [
-                    "Open System Preferences manually and grant the required permissions",
+                    "Open System Settings manually and grant the required permissions",
                     "Make sure to enable permissions for both KeyPath and Kanata",
                     "Close and reopen KeyPath after granting permissions"
                 ]
             )
 
-        case let op where op.contains("Service"):
-            (
-                "The keyboard service is taking too long to start",
+        case let op where op.contains("Start Kanata Service"):
+            return (
+                "Couldn't start the keyboard service",
                 [
-                    "Check Activity Monitor for any hung processes",
-                    "Make sure all required permissions are granted",
+                    "Check that all required permissions are granted",
+                    "Look for error messages in the wizard",
                     "Try restarting your Mac if the problem persists"
                 ]
             )
 
+        case let op where op.contains("Restart Virtual HID"):
+            return (
+                "Couldn't restart the virtual keyboard driver",
+                [
+                    "The Karabiner driver may need to be reinstalled",
+                    "Try clicking Fix again",
+                    "Restart your Mac if the problem persists"
+                ]
+            )
+
+        case let op where op.contains("Install"):
+            return (
+                "Installation is taking longer than expected",
+                [
+                    "Check your internet connection",
+                    "Try the operation again",
+                    "Restart KeyPath if the problem persists"
+                ]
+            )
+
+        case let op where op.contains("Terminate"):
+            return (
+                "Couldn't stop conflicting apps",
+                [
+                    "Manually quit Karabiner-Elements from the menu bar",
+                    "Check Activity Monitor for remaining processes",
+                    "Try again after quitting the apps manually"
+                ]
+            )
+
         default:
-            (
-                "The operation took longer than expected",
+            // Extract action name from "Auto Fix: ActionName" format
+            let actionName = operation
+                .replacingOccurrences(of: "Auto Fix: ", with: "")
+                .replacingOccurrences(of: "auto_fix_", with: "")
+            let displayAction = actionName.isEmpty ? "operation" : actionName.lowercased()
+            return (
+                "The \(displayAction) timed out",
                 [
                     "Try the operation again",
                     "Check that your system isn't overloaded",
-                    "Consider restarting KeyPath if problems persist"
+                    "Restart KeyPath if the problem persists"
                 ]
             )
         }
