@@ -1270,11 +1270,11 @@ struct InstallationWizardView: View {
     private func startLoginItemsApprovalPolling() {
         stopLoginItemsApprovalPolling() // Cancel any existing polling
 
-        AppLogger.shared.log("🔍 [LoginItems] Starting approval polling...")
+        AppLogger.shared.log("🔍 [LoginItems] Starting approval polling (3 min timeout)...")
 
         loginItemsPollingTask = Task { @MainActor in
-            // Poll every 1.5 seconds for up to 2 minutes
-            let maxAttempts = 80
+            // Poll every 2 seconds for up to 3 minutes (90 attempts)
+            let maxAttempts = 90
             for attempt in 1 ... maxAttempts {
                 guard !Task.isCancelled else {
                     AppLogger.shared.log("🔍 [LoginItems] Polling cancelled")
@@ -1283,11 +1283,14 @@ struct InstallationWizardView: View {
 
                 // Check SMAppService status
                 let state = await KanataDaemonManager.shared.refreshManagementState()
-                AppLogger.shared.log("🔍 [LoginItems] Poll #\(attempt): state=\(state)")
+                // Only log every 10th attempt to reduce noise
+                if attempt % 10 == 1 {
+                    AppLogger.shared.log("🔍 [LoginItems] Poll #\(attempt)/\(maxAttempts): state=\(state)")
+                }
 
                 if state == .smappserviceActive || state == .smappservicePending {
                     // User approved! Auto-refresh and show success
-                    AppLogger.shared.log("✅ [LoginItems] Approval detected! Refreshing wizard state...")
+                    AppLogger.shared.log("✅ [LoginItems] Approval detected at poll #\(attempt)! Refreshing wizard state...")
                     toastManager.showSuccess("KeyPath approved in Login Items")
 
                     // Refresh the wizard state
@@ -1297,10 +1300,11 @@ struct InstallationWizardView: View {
                 }
 
                 // Wait before next poll
-                try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+                try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
             }
 
-            AppLogger.shared.log("⏰ [LoginItems] Polling timed out after 2 minutes")
+            AppLogger.shared.log("⏰ [LoginItems] Polling timed out after 3 minutes")
+            toastManager.showInfo("Login Items check timed out. Click refresh to check again.")
         }
     }
 
