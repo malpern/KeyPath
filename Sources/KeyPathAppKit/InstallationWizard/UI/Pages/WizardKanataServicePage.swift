@@ -68,7 +68,7 @@ struct WizardKanataServicePage: View {
                 iconColor: serviceStatus.color,
                 overlayIcon: serviceStatus.icon,
                 overlayColor: serviceStatus.color,
-                overlaySize: .small,
+                overlaySize: .large,
                 title: "Kanata Service",
                 subtitle: statusMessage,
                 iconTapAction: { refreshStatus() }

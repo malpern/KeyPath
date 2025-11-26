@@ -91,7 +91,7 @@ struct WizardKarabinerComponentsPage: View {
             } else {
                 // Simplified error state: hero + centered Fix button
                 VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                    WizardHeroSection.warning(
+                    WizardHeroSection.error(
                         icon: "keyboard.macwindow",
                         title: "Karabiner Driver Required",
                         subtitle:
