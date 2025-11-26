@@ -162,14 +162,6 @@ struct ContentView: View {
                 )
             }
 
-            // Legacy Error Section (only show if there's an error)
-            if let error = kanataManager.lastError {
-                ErrorSection(
-                    kanataManager: kanataManager, showingInstallationWizard: $showingInstallationWizard,
-                    error: error
-                )
-            }
-
             // Diagnostic Summary (show critical issues)
             if !kanataManager.diagnostics.isEmpty {
                 let criticalIssues = kanataManager.diagnostics.filter {

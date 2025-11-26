@@ -373,8 +373,7 @@ struct WizardSystemStatusOverview: View {
                 id: "kanata-service",
                 icon: "app.badge.checkmark",
                 title: "Kanata Service",
-                subtitle: serviceStatus == .failed
-                    ? "Fix permissions to enable service" : (kanataIsRunning ? "Running" : nil),
+                subtitle: kanataIsRunning ? "Running" : nil,
                 status: serviceStatus,
                 isNavigable: true,
                 targetPage: serviceNavigation.page,

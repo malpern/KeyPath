@@ -257,12 +257,37 @@ class MainAppStateController: ObservableObject {
             return
         }
 
-        // Avoid TCP validation/reload spam while Kanata is still starting
-        let serviceStatus = await InstallerEngine().getServiceStatus()
+        // Check service status with startup grace period
+        // Give Kanata up to 3 seconds to finish starting before reporting an error
+        let startupGracePeriod: TimeInterval = 3.0
+        let checkInterval: TimeInterval = 0.5
+        let maxChecks = Int(startupGracePeriod / checkInterval)
+
+        var serviceStatus = await InstallerEngine().getServiceStatus()
+        var checksPerformed = 0
+
+        while !serviceStatus.kanataServiceHealthy && checksPerformed < maxChecks {
+            checksPerformed += 1
+            AppLogger.shared.debug(
+                "⏳ [MainAppStateController] Waiting for Kanata service... (\(checksPerformed)/\(maxChecks))")
+            try? await Task.sleep(nanoseconds: UInt64(checkInterval * 1_000_000_000))
+            serviceStatus = await InstallerEngine().getServiceStatus()
+        }
+
         if !serviceStatus.kanataServiceHealthy {
             AppLogger.shared.warn(
-                "⚠️ [MainAppStateController] Skipping validation - Kanata service not healthy yet")
-            validationState = nil
+                "⚠️ [MainAppStateController] Kanata service not healthy after \(startupGracePeriod)s - showing error state")
+            // Set failed state so System indicator shows red X instead of spinning forever
+            validationState = .failed(blockingCount: 1, totalCount: 1)
+            issues = [WizardIssue(
+                identifier: .component(.kanataService),
+                severity: .error,
+                category: .daemon,
+                title: "Kanata service not running",
+                description: "The Kanata service failed to start or is not healthy.",
+                autoFixAction: .restartUnhealthyServices,
+                userAction: "Click System to open the setup wizard and diagnose the issue."
+            )]
             return
         }
 

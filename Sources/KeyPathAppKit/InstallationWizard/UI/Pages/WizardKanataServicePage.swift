@@ -15,7 +15,6 @@ struct WizardKanataServicePage: View {
     }
 
     @State private var isPerformingAction = false
-    @State private var lastError: String?
     @State private var serviceStatus: ServiceStatus = .unknown
     @State private var refreshTimer: Timer?
 
@@ -87,22 +86,6 @@ struct WizardKanataServicePage: View {
             if isPerformingAction {
                 ProgressView()
                     .padding(.top, WizardDesign.Spacing.itemGap)
-            }
-
-            if let lastError {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Last Error")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text(lastError)
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.leading)
-                        .textSelection(.enabled)
-                }
-                .padding()
-                .background(Color.secondary.opacity(0.08))
-                .cornerRadius(10)
             }
 
             if shouldShowNextStepButton {
@@ -212,14 +195,9 @@ struct WizardKanataServicePage: View {
     private func startService() {
         isPerformingAction = true
         serviceStatus = .starting
-        lastError = nil
 
         Task { @MainActor in
-            let success = await kanataManager.startKanata(reason: "Wizard service start button")
-            if !success {
-                lastError = kanataManager.lastError
-            }
-
+            _ = await kanataManager.startKanata(reason: "Wizard service start button")
             isPerformingAction = false
             await refreshStatusAsync()
             evaluateServiceCompletion(target: .running, actionName: "Kanata start")
@@ -229,14 +207,9 @@ struct WizardKanataServicePage: View {
     private func restartService() {
         isPerformingAction = true
         serviceStatus = .stopping
-        lastError = nil
 
         Task { @MainActor in
-            let success = await kanataManager.restartServiceWithFallback(reason: "Wizard service restart button")
-            if !success {
-                lastError = kanataManager.lastError
-            }
-
+            _ = await kanataManager.restartServiceWithFallback(reason: "Wizard service restart button")
             isPerformingAction = false
             await refreshStatusAsync()
             evaluateServiceCompletion(target: .running, actionName: "Kanata restart")
@@ -246,14 +219,9 @@ struct WizardKanataServicePage: View {
     private func stopService() {
         isPerformingAction = true
         serviceStatus = .stopping
-        lastError = nil
 
         Task { @MainActor in
-            let success = await kanataManager.stopKanata(reason: "Wizard service stop button")
-            if !success {
-                lastError = kanataManager.lastError
-            }
-
+            _ = await kanataManager.stopKanata(reason: "Wizard service stop button")
             isPerformingAction = false
             await refreshStatusAsync()
             evaluateServiceCompletion(target: .stopped, actionName: "Kanata stop")
@@ -288,7 +256,6 @@ struct WizardKanataServicePage: View {
         processStatus: ServiceProcessStatus
     ) {
         var derivedStatus: ServiceStatus
-        var derivedError: String?
 
         switch serviceState {
         case .running:
@@ -297,13 +264,11 @@ struct WizardKanataServicePage: View {
             derivedStatus = .stopped
         case let .failed(reason):
             derivedStatus = .crashed(error: reason)
-            derivedError = reason
         case .maintenance:
             derivedStatus = .starting
         case .requiresApproval:
             let message = "Approval required in System Settings ▸ Privacy & Security"
             derivedStatus = .crashed(error: message)
-            derivedError = message
         case .unknown:
             derivedStatus = .unknown
         }
@@ -314,7 +279,6 @@ struct WizardKanataServicePage: View {
         case let .failed(message):
             let errorMessage = message ?? "Permission or service issue detected"
             derivedStatus = .crashed(error: errorMessage)
-            derivedError = errorMessage
         case .stopped:
             // If we previously thought it was running, align with evaluator
             if derivedStatus == .running {
@@ -335,7 +299,6 @@ struct WizardKanataServicePage: View {
         }
 
         serviceStatus = derivedStatus
-        lastError = derivedError
     }
 
     private func checkForCrash() {
@@ -349,7 +312,6 @@ struct WizardKanataServicePage: View {
             for line in recentLines.reversed() {
                 if line.contains("ERROR") || line.contains("FATAL") || line.contains("panic") {
                     serviceStatus = .crashed(error: extractErrorMessage(from: line))
-                    lastError = line
                     return
                 }
             }
