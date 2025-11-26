@@ -88,6 +88,7 @@ class KanataViewModel: ObservableObject {
         keyMappings = state.keyMappings
         ruleCollections = state.ruleCollections
         customRules = state.customRules
+        currentLayerName = state.currentLayerName
         diagnostics = state.diagnostics
         lastProcessExitCode = state.lastProcessExitCode
         lastConfigUpdate = state.lastConfigUpdate
