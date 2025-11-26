@@ -10,58 +10,81 @@ struct UninstallKeyPathDialog: View {
     @State private var lastError: String?
     @State private var didSucceed = false
 
-    private enum Field { case uninstall }
+    private enum Field { case primary }
     @FocusState private var focusedField: Field?
 
     var body: some View {
         VStack(spacing: 20) {
-            // Icon and title
-            Image(systemName: "trash.circle.fill")
-                .font(.system(size: 48))
-                .foregroundColor(.red)
-
-            Text("Uninstall KeyPath?")
-                .font(.title2.bold())
-
-            Text("This will remove all services, helpers, and the app.\nYour configuration file will be preserved.")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-
-            // Status
-            if isRunning {
-                ProgressView()
-                    .scaleEffect(0.8)
-            } else if let error = lastError {
-                Label(error, systemImage: "exclamationmark.triangle")
-                    .foregroundColor(.orange)
-                    .font(.caption)
-            } else if didSucceed {
-                Label("Uninstall complete", systemImage: "checkmark.circle")
+            if didSucceed {
+                // Success state
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 48))
                     .foregroundColor(.green)
-            }
 
-            // Buttons
-            HStack(spacing: 12) {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.escape, modifiers: [])
+                Text("Uninstall Complete")
+                    .font(.title2.bold())
 
-                Button(role: .destructive) {
-                    Task { await performUninstall() }
+                Text("KeyPath has been successfully uninstalled. Your configuration file has been preserved.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+
+                Button {
+                    NSApplication.shared.terminate(nil)
                 } label: {
-                    Text(isRunning ? "Working…" : "Uninstall")
+                    Text("Quit")
                         .frame(minWidth: 80)
                 }
-                .focused($focusedField, equals: .uninstall)
+                .focused($focusedField, equals: .primary)
                 .keyboardShortcut(.return, modifiers: [])
-                .disabled(isRunning)
                 .buttonStyle(.borderedProminent)
-                .tint(.red)
+            } else {
+                // Confirmation/working state
+                Image(systemName: "trash.circle.fill")
+                    .font(.system(size: 48))
+                    .foregroundColor(.red)
+
+                Text("Uninstall KeyPath?")
+                    .font(.title2.bold())
+
+                Text("This will remove all services, helpers, and the app. Your configuration file will be preserved.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+
+                // Status
+                if isRunning {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                } else if let error = lastError {
+                    Label(error, systemImage: "exclamationmark.triangle")
+                        .foregroundColor(.orange)
+                        .font(.caption)
+                }
+
+                // Buttons
+                HStack(spacing: 12) {
+                    Button("Cancel") { dismiss() }
+                        .keyboardShortcut(.escape, modifiers: [])
+
+                    Button(role: .destructive) {
+                        Task { await performUninstall() }
+                    } label: {
+                        Text(isRunning ? "Working…" : "Uninstall")
+                            .frame(minWidth: 80)
+                    }
+                    .focused($focusedField, equals: .primary)
+                    .keyboardShortcut(.return, modifiers: [])
+                    .disabled(isRunning)
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+                }
             }
         }
         .padding(32)
         .frame(width: 320)
-        .onAppear { focusedField = .uninstall }
+        .onAppear { focusedField = .primary }
+        .animation(.easeInOut(duration: 0.3), value: didSucceed)
     }
 
     // MARK: - Actions
@@ -81,19 +104,6 @@ struct UninstallKeyPathDialog: View {
             isRunning = false
             didSucceed = report.success
             lastError = report.failureReason
-
-            if report.success {
-                // Show success alert, then quit app when user clicks OK
-                let alert = NSAlert()
-                alert.messageText = "Uninstall Complete"
-                alert.informativeText = "KeyPath has been successfully uninstalled.\n\nYour configuration file has been preserved for future reinstalls.\n\nThe app will now quit."
-                alert.alertStyle = .informational
-                alert.addButton(withTitle: "OK")
-                alert.runModal()
-
-                // Quit the app
-                NSApplication.shared.terminate(nil)
-            }
         }
     }
 }
