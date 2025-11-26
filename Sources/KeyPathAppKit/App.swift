@@ -494,6 +494,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 NotificationCenter.default.post(name: NSNotification.Name("ShowUninstall"), object: nil)
             },
             quitHandler: {
+                // Close all windows first to avoid beep from modal blocking
+                for window in NSApplication.shared.windows {
+                    window.close()
+                }
                 NSApplication.shared.terminate(nil)
             }
         )

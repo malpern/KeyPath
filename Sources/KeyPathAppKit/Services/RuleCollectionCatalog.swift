@@ -98,8 +98,8 @@ struct RuleCollectionCatalog {
                 KeyMapping(input: "u", output: "C-M-z"), // Undo (Cmd-Z)
                 KeyMapping(input: "C-r", output: "C-M-S-z") // Redo (Cmd-Shift-Z)
             ],
-            isEnabled: false,
-            isSystemDefault: false,
+            isEnabled: true,
+            isSystemDefault: true,
             icon: "text:VIM",
             tags: ["vim", "navigation", "editing", "selection"],
             targetLayer: .navigation,
