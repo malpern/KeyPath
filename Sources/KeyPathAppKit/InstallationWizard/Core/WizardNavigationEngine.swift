@@ -31,7 +31,22 @@ class WizardNavigationEngine: WizardNavigating {
             return .conflicts
         }
 
-        // 2. Permission Issues - navigate to first missing permission
+        // 2. Privileged Helper - BLOCKING: must be approved before other steps
+        // The helper enables passwordless system operations. Without Login Items approval,
+        // the helper cannot run, which blocks service management and other privileged operations.
+        let helperNeedsApproval = HelperManager.shared.helperNeedsLoginItemsApproval()
+        let helperInstalled = HelperManager.shared.isHelperInstalled()
+        if helperNeedsApproval {
+            AppLogger.shared.log(
+                "🔍 [NavigationEngine] → .helper (BLOCKING: Login Items approval required)")
+            return .helper
+        }
+        if !helperInstalled {
+            AppLogger.shared.log("🔍 [NavigationEngine] → .helper (helper not installed)")
+            return .helper
+        }
+
+        // 3. Permission Issues - navigate to first missing permission
         let inputMonitoringIssues = issues.contains { issue in
             if case let .permission(permissionType) = issue.identifier {
                 return permissionType == .keyPathInputMonitoring || permissionType == .kanataInputMonitoring
@@ -54,7 +69,7 @@ class WizardNavigationEngine: WizardNavigating {
             return .accessibility
         }
 
-        // 3. Communication Server Configuration Issues (critical for permission detection)
+        // 4. Communication Server Configuration Issues (critical for permission detection)
         let hasCommunicationIssues = issues.contains { issue in
             if issue.category == .installation {
                 switch issue.identifier {
@@ -76,7 +91,7 @@ class WizardNavigationEngine: WizardNavigating {
             return .communication
         }
 
-        // 4. Karabiner Components - driver, VirtualHID, background services
+        // 5. Karabiner Components - driver, VirtualHID, background services
         let hasKarabinerIssues = issues.contains { issue in
             // Installation issues related to Karabiner
             if issue.category == .installation {
@@ -104,7 +119,7 @@ class WizardNavigationEngine: WizardNavigating {
             return .karabinerComponents
         }
 
-        // 5. Kanata Components - binary and service
+        // 6. Kanata Components - binary and service
         let hasKanataIssues = issues.contains { issue in
             if issue.category == .installation {
                 switch issue.identifier {
@@ -123,15 +138,7 @@ class WizardNavigationEngine: WizardNavigating {
             return .kanataComponents
         }
 
-        // 6. Privileged Helper — recommend installing before service management to avoid repeated prompts
-        // Only surface this step if the helper isn’t installed yet. This is non-blocking but improves UX.
-        let helperInstalled = HelperManager.shared.isHelperInstalled()
-        if !helperInstalled {
-            AppLogger.shared.log("🔍 [NavigationEngine] → .helper (helper not installed)")
-            return .helper
-        }
-
-        // 6. Service state check (directly from WizardSystemState)
+        // 7. Service state check (directly from WizardSystemState)
         switch state {
         case .serviceNotRunning:
             AppLogger.shared.log("🔍 [NavigationEngine] → .service (service not running)")
@@ -144,7 +151,7 @@ class WizardNavigationEngine: WizardNavigating {
             break
         }
 
-        // 7. Full Disk Access (optional but helpful - show once when no blocking issues)
+        // 8. Full Disk Access (optional but helpful - show once when no blocking issues)
         // If we reach here, all blocking issues (conflicts, permissions, components, service) have been checked
         // Show FDA page if we haven't shown it yet AND system is not already active
         if !hasShownFullDiskAccessPage, state != .active {
@@ -154,7 +161,7 @@ class WizardNavigationEngine: WizardNavigating {
             return .fullDiskAccess
         }
 
-        // 8. If no issues and service is running, go to summary
+        // 9. If no issues and service is running, go to summary
         AppLogger.shared.log("🔍 [NavigationEngine] → .summary (no issues found)")
         return .summary
     }
@@ -237,21 +244,25 @@ class WizardNavigationEngine: WizardNavigating {
     func isBlockingPage(_ page: WizardPage) -> Bool {
         switch page {
         case .conflicts:
-            true // Cannot proceed with conflicts
+            return true // Cannot proceed with conflicts
         case .karabinerComponents, .kanataComponents:
-            true // Cannot use without components
+            return true // Cannot use without components
         case .helper:
-            false // Optional but recommended to avoid prompts
+            // Helper is blocking if Login Items approval is required OR helper is not installed
+            // Without the helper, privileged operations require repeated password prompts
+            let needsApproval = HelperManager.shared.helperNeedsLoginItemsApproval()
+            let notInstalled = !HelperManager.shared.isHelperInstalled()
+            return needsApproval || notInstalled
         case .inputMonitoring, .accessibility:
-            false // Can proceed but functionality limited
+            return false // Can proceed but functionality limited
         case .service:
-            false // Can manage service state
+            return false // Can manage service state
         case .fullDiskAccess:
-            false // Optional, not blocking
+            return false // Optional, not blocking
         case .communication:
-            false // Optional, not blocking
+            return false // Optional, not blocking
         case .summary:
-            false // Final state
+            return false // Final state
         }
     }
 

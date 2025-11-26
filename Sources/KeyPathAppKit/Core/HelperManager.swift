@@ -168,6 +168,16 @@ actor HelperManager {
 
     // MARK: - Helper Status
 
+    /// Check if the privileged helper needs Login Items approval in System Settings
+    /// - Returns: true if SMAppService reports `.requiresApproval`
+    ///
+    /// This is a synchronous check used by the wizard navigation engine to prioritize
+    /// Login Items approval as a blocking dependency before other setup steps.
+    nonisolated func helperNeedsLoginItemsApproval() -> Bool {
+        let svc = Self.smServiceFactory(Self.helperPlistName)
+        return svc.status == .requiresApproval
+    }
+
     /// Check if the privileged helper is installed and registered (SMAppService path)
     /// - Returns: true if SMAppService reports `.enabled` OR launchctl has the job
     ///
@@ -623,6 +633,7 @@ actor HelperManager {
     /// - Throws: HelperError if the operation fails
     private func executeXPCCall(
         _ name: String,
+        timeout: TimeInterval = 30.0,
         _ call: @escaping @Sendable (HelperProtocol, @escaping (Bool, String?) -> Void) -> Void
     ) async throws {
         // Detect concurrent XPC calls (indicates a bug in caller logic)
@@ -640,8 +651,30 @@ actor HelperManager {
 
         let proxy = try getRemoteProxy { _ in }
 
-        return try await withCheckedThrowingContinuation { continuation in
+        // Execute with timeout to prevent infinite hangs when XPC connection is interrupted
+        // Use DispatchQueue for the timeout since we can't easily make Task work with non-Sendable proxy
+        let completed = UnsafeMutablePointer<Bool>.allocate(capacity: 1)
+        completed.initialize(to: false)
+        defer {
+            completed.deinitialize(count: 1)
+            completed.deallocate()
+        }
+
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            // Set up timeout
+            DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
+                if !completed.pointee {
+                    completed.pointee = true
+                    AppLogger.shared.log("⏱️ [HelperManager] \(name) timed out after \(Int(timeout))s")
+                    continuation.resume(throwing: HelperManagerError.operationFailed("XPC call '\(name)' timed out after \(Int(timeout))s"))
+                }
+            }
+
+            // Execute the XPC call
             call(proxy) { success, errorMessage in
+                guard !completed.pointee else { return } // Ignore if already timed out
+                completed.pointee = true
+
                 if success {
                     AppLogger.shared.info("✅ [HelperManager] \(name) succeeded")
                     continuation.resume()
@@ -779,7 +812,8 @@ actor HelperManager {
     /// - Parameter deleteConfig: If true, also removes user configuration at ~/.config/keypath
     /// - Throws: HelperManagerError if the operation fails
     func uninstallKeyPath(deleteConfig: Bool) async throws {
-        try await executeXPCCall("uninstallKeyPath") { proxy, reply in
+        // Use shorter timeout for uninstall - if it hangs, we want to fallback quickly
+        try await executeXPCCall("uninstallKeyPath", timeout: 10.0) { proxy, reply in
             proxy.uninstallKeyPath(deleteConfig: deleteConfig, reply: reply)
         }
     }

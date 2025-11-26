@@ -10,7 +10,7 @@ class HelperService: NSObject, HelperProtocol {
     // MARK: - Constants
 
     /// Helper version (must match app version for compatibility)
-    private static let version = "1.0.0"
+    private static let version = "1.1.0"
     private let logger = Logger(subsystem: "com.keypath.helper", category: "service")
 
     // MARK: - Version Management

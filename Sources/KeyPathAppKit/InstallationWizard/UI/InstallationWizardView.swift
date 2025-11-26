@@ -119,6 +119,9 @@ struct InstallationWizardView: View {
         .onChange(of: showAllSummaryItems) { _, showAll in
             navigationCoordinator.customSequence = showAll ? nil : navSequence
         }
+        .onChange(of: navigationCoordinator.currentPage) { oldPage, newPage in
+            AppLogger.shared.log("🧭 [Wizard] View detected page change: \(oldPage) → \(newPage)")
+        }
         .onChange(of: navSequence) { _, newSeq in
             if !showAllSummaryItems {
                 navigationCoordinator.customSequence = newSeq

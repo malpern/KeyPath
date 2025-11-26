@@ -1,17 +1,48 @@
 import KeyPathWizardCore
+import ServiceManagement
 import XCTest
 
 @testable import KeyPathAppKit
 
+// Mock SMAppService that reports helper as installed and enabled
+private struct MockEnabledSMAppService: SMAppServiceProtocol {
+    var status: SMAppService.Status { .enabled }
+    func register() throws {}
+    func unregister() async throws {}
+}
+
+// Mock SMAppService that reports helper needs Login Items approval
+private struct MockRequiresApprovalSMAppService: SMAppServiceProtocol {
+    var status: SMAppService.Status { .requiresApproval }
+    func register() throws {}
+    func unregister() async throws {}
+}
+
+// Mock SMAppService that reports helper is not registered
+private struct MockNotRegisteredSMAppService: SMAppServiceProtocol {
+    var status: SMAppService.Status { .notRegistered }
+    func register() throws {}
+    func unregister() async throws {}
+}
+
 class WizardNavigationEngineTests: XCTestCase {
     var engine: WizardNavigationEngine!
+    var originalSMServiceFactory: ((String) -> SMAppServiceProtocol)!
 
     override func setUp() {
         super.setUp()
         engine = WizardNavigationEngine()
+
+        // Save original factory and inject mock that reports helper as enabled
+        // This prevents tests from routing to .helper page unexpectedly
+        originalSMServiceFactory = HelperManager.smServiceFactory
+        HelperManager.smServiceFactory = { _ in MockEnabledSMAppService() }
     }
 
     override func tearDown() {
+        // Restore original factory
+        HelperManager.smServiceFactory = originalSMServiceFactory
+        originalSMServiceFactory = nil
         engine = nil
         super.tearDown()
     }
@@ -31,8 +62,11 @@ class WizardNavigationEngineTests: XCTestCase {
         XCTAssertEqual(page, .conflicts, "Conflicts should have highest priority")
     }
 
-    func testNavigationPriorityInstallationSecond() {
-        // Given: System has component issues but no conflicts
+    func testNavigationPriorityHelperSecond() {
+        // Given: Helper needs approval (mock returns requiresApproval)
+        // Temporarily override to simulate approval needed
+        HelperManager.smServiceFactory = { _ in MockRequiresApprovalSMAppService() }
+
         let componentIssue = createTestIssue(
             category: .installation,
             title: "Kanata Binary Missing",
@@ -44,8 +78,28 @@ class WizardNavigationEngineTests: XCTestCase {
         // When: Determining current page
         let page = engine.determineCurrentPage(for: .missingComponents(missing: []), issues: issues)
 
-        // Then: Should navigate to installation second
-        XCTAssertEqual(page, .kanataComponents, "Installation should have second highest priority")
+        // Then: Should navigate to helper first (blocks other steps)
+        XCTAssertEqual(page, .helper, "Helper should have second highest priority when approval needed")
+
+        // Restore enabled mock
+        HelperManager.smServiceFactory = { _ in MockEnabledSMAppService() }
+    }
+
+    func testNavigationPriorityInstallationAfterHelper() {
+        // Given: Helper is enabled (from setUp), system has component issues but no conflicts
+        let componentIssue = createTestIssue(
+            category: .installation,
+            title: "Kanata Binary Missing",
+            identifier: .component(.kanataBinaryMissing)
+        )
+        let permissionIssue = createTestIssue(category: .permissions, title: "Test Permission")
+        let issues = [componentIssue, permissionIssue]
+
+        // When: Determining current page (helper is mocked as enabled)
+        let page = engine.determineCurrentPage(for: .missingComponents(missing: []), issues: issues)
+
+        // Then: Should navigate to kanata components (helper is satisfied)
+        XCTAssertEqual(page, .kanataComponents, "Installation should be shown when helper is satisfied")
     }
 
     func testNavigationPriorityInputMonitoringThird() {
@@ -161,11 +215,12 @@ class WizardNavigationEngineTests: XCTestCase {
     // MARK: - Blocking Page Tests
 
     func testBlockingPages() {
-        // Given: Navigation engine
+        // Given: Navigation engine with helper mocked as enabled (from setUp)
 
         // When: Checking if pages are blocking
         let conflictsBlocking = engine.isBlockingPage(.conflicts)
         let installationBlocking = engine.isBlockingPage(.kanataComponents)
+        let helperBlockingWhenEnabled = engine.isBlockingPage(.helper) // Should NOT block when enabled
         let permissionsBlocking = engine.isBlockingPage(.inputMonitoring)
         let backgroundServicesBlocking = engine.isBlockingPage(.service)
         let serviceBlocking = engine.isBlockingPage(.service)
@@ -174,10 +229,39 @@ class WizardNavigationEngineTests: XCTestCase {
         // Then: Should correctly identify blocking pages
         XCTAssertTrue(conflictsBlocking, "Conflicts should be blocking")
         XCTAssertTrue(installationBlocking, "Installation should be blocking")
+        XCTAssertFalse(helperBlockingWhenEnabled, "Helper should NOT be blocking when enabled")
         XCTAssertFalse(permissionsBlocking, "Permissions should not be blocking")
         XCTAssertFalse(backgroundServicesBlocking, "Background services should not be blocking")
         XCTAssertFalse(serviceBlocking, "Service should not be blocking")
         XCTAssertFalse(summaryBlocking, "Summary should not be blocking")
+    }
+
+    func testHelperBlockingWhenApprovalNeeded() {
+        // Given: Helper needs Login Items approval
+        HelperManager.smServiceFactory = { _ in MockRequiresApprovalSMAppService() }
+
+        // When: Checking if helper page is blocking
+        let helperBlocking = engine.isBlockingPage(.helper)
+
+        // Then: Helper should be blocking when approval is needed
+        XCTAssertTrue(helperBlocking, "Helper should be blocking when Login Items approval required")
+
+        // Restore
+        HelperManager.smServiceFactory = { _ in MockEnabledSMAppService() }
+    }
+
+    func testHelperBlockingWhenNotInstalled() {
+        // Given: Helper is not registered
+        HelperManager.smServiceFactory = { _ in MockNotRegisteredSMAppService() }
+
+        // When: Checking if helper page is blocking
+        let helperBlocking = engine.isBlockingPage(.helper)
+
+        // Then: Helper should be blocking when not installed
+        XCTAssertTrue(helperBlocking, "Helper should be blocking when not installed")
+
+        // Restore
+        HelperManager.smServiceFactory = { _ in MockEnabledSMAppService() }
     }
 
     // MARK: - Progress Calculation Tests

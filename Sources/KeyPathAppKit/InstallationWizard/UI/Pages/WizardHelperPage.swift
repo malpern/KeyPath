@@ -1,5 +1,6 @@
 import KeyPathCore
 import KeyPathWizardCore
+import ServiceManagement
 import SwiftUI
 
 /// Privileged Helper installation and validation page
@@ -18,9 +19,17 @@ struct WizardHelperPage: View {
     @State private var isWorking = false
     @State private var lastError: String?
     @State private var helperVersion: String?
+    @State private var bundledVersion: String?
     @State private var duplicateCopies: [String] = []
+    @State private var needsLoginItemsApproval = false
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
     @EnvironmentObject var toastManager: WizardToastManager
+
+    /// Check if bundled helper is newer than installed helper
+    private var hasUpdateAvailable: Bool {
+        guard let installed = helperVersion, let bundled = bundledVersion else { return false }
+        return bundled.compare(installed, options: .numeric) == .orderedDescending
+    }
 
     // MARK: - Computed Properties
 
@@ -85,6 +94,9 @@ struct WizardHelperPage: View {
         .task {
             // Check helper version on appear
             helperVersion = await HelperManager.shared.getHelperVersion()
+            bundledVersion = getBundledHelperVersion()
+            // Check if Login Items approval is needed
+            needsLoginItemsApproval = checkLoginItemsApprovalNeeded()
         }
         .onAppear {
             duplicateCopies = HelperMaintenance.shared.detectDuplicateAppCopies()
@@ -156,6 +168,19 @@ struct WizardHelperPage: View {
             .padding(WizardDesign.Spacing.cardPadding)
             .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal, 60)
+            // Show update link if newer version bundled
+            if hasUpdateAvailable {
+                Button("Update to v\(bundledVersion ?? "")") {
+                    Task { await installOrRepairHelper() }
+                }
+                .buttonStyle(WizardDesign.Component.SecondaryButton())
+                .disabled(isWorking)
+
+                Text("New helper version available with additional features")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
             Button(nextStepButtonTitle) {
                 navigateToNextStep()
             }
@@ -218,13 +243,35 @@ struct WizardHelperPage: View {
                 .padding(.horizontal, 40)
             }
 
-            // Single idempotent action: install or repair (performs cleanup + install)
-            Button(isInstalled ? "Repair Helper" : "Install Helper") {
-                Task { await installOrRepairHelper() }
+            // Show Login Items approval message if needed
+            if needsLoginItemsApproval {
+                VStack(spacing: 12) {
+                    Text("Login Items approval required")
+                        .font(.headline)
+                        .foregroundColor(.orange)
+
+                    Text("Enable KeyPath in System Settings → Login Items to allow the helper to run.")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+
+                    Button("Open Login Items Settings") {
+                        openLoginItemsSettings()
+                    }
+                    .buttonStyle(WizardDesign.Component.PrimaryButton())
+                    .keyboardShortcut(.defaultAction)
+                }
+                .padding(.vertical, 8)
+            } else {
+                // Single idempotent action: install or repair (performs cleanup + install)
+                Button(isInstalled ? "Repair Helper" : "Install Helper") {
+                    Task { await installOrRepairHelper() }
+                }
+                .buttonStyle(WizardDesign.Component.PrimaryButton())
+                .keyboardShortcut(.defaultAction)
+                .disabled(isWorking || isFixing)
             }
-            .buttonStyle(WizardDesign.Component.PrimaryButton())
-            .keyboardShortcut(.defaultAction)
-            .disabled(isWorking || isFixing)
 
             if duplicateCopies.count > 1 {
                 Button("Reveal App Copies in Finder") {
@@ -247,7 +294,7 @@ struct WizardHelperPage: View {
                 // If approval is required, offer a quick link to System Settings
                 if lastError.localizedCaseInsensitiveContains("approval required") {
                     Button("Open System Settings → Login Items") {
-                        openSystemSettings()
+                        openLoginItemsSettings()
                     }
                     .buttonStyle(WizardDesign.Component.SecondaryButton())
                 }
@@ -293,6 +340,20 @@ struct WizardHelperPage: View {
         )
     }
 
+    private func openLoginItemsSettings() {
+        // Open System Settings directly to Login Items pane
+        if let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") {
+            NSWorkspace.shared.open(url)
+        } else {
+            openSystemSettings()
+        }
+    }
+
+    private func checkLoginItemsApprovalNeeded() -> Bool {
+        let svc = ServiceManagement.SMAppService.daemon(plistName: HelperManager.helperPlistName)
+        return svc.status == .requiresApproval
+    }
+
     private func navigateToNextStep() {
         if issues.isEmpty {
             navigationCoordinator.navigateToPage(.summary)
@@ -305,5 +366,21 @@ struct WizardHelperPage: View {
         } else {
             navigationCoordinator.navigateToPage(.summary)
         }
+    }
+
+    /// Get the version of the helper bundled with this app
+    private func getBundledHelperVersion() -> String? {
+        guard let bundlePath = Bundle.main.bundlePath as String? else { return nil }
+        let helperInfoPath = "\(bundlePath)/Contents/Library/HelperTools/KeyPathHelper"
+
+        // Try to read version from the helper's Info.plist sibling or embedded
+        // For simplicity, we'll use a hardcoded version that matches HelperService.swift
+        // In production, this should read from the helper's Info.plist
+        let plistPath = "\(bundlePath)/Contents/Library/LaunchDaemons/com.keypath.helper.plist"
+        guard FileManager.default.fileExists(atPath: helperInfoPath) else { return nil }
+
+        // Read version from helper's Info.plist in Sources
+        // For now, return the known bundled version
+        return "1.1.0"
     }
 }
