@@ -160,6 +160,7 @@ struct WizardHelperPage: View {
                 navigateToNextStep()
             }
             .buttonStyle(WizardDesign.Component.PrimaryButton())
+            .keyboardShortcut(.defaultAction)
             .padding(.top, WizardDesign.Spacing.sectionGap)
         }
         .heroSectionContainer()
@@ -222,6 +223,7 @@ struct WizardHelperPage: View {
                 Task { await installOrRepairHelper() }
             }
             .buttonStyle(WizardDesign.Component.PrimaryButton())
+            .keyboardShortcut(.defaultAction)
             .disabled(isWorking || isFixing)
 
             if duplicateCopies.count > 1 {
@@ -298,7 +300,8 @@ struct WizardHelperPage: View {
         }
 
         if let next = navigationCoordinator.getNextPage(for: systemState, issues: issues),
-           next != navigationCoordinator.currentPage {
+           next != navigationCoordinator.currentPage
+        {
             navigationCoordinator.navigateToPage(next)
         } else {
             navigationCoordinator.navigateToPage(.summary)

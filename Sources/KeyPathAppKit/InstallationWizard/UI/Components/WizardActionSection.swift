@@ -105,14 +105,14 @@ struct WizardActionSection: View {
     private var actionButton: some View {
         // Only show "Close Setup" if EVERYTHING is fully configured
         if systemState == .active, isFullyConfigured {
-            WizardButton("Close Setup", style: .primary) {
+            WizardButton("Close Setup", style: .primary, isDefaultAction: true) {
                 onDismiss()
             }
         } else {
             // Handle other cases based on systemState
             switch systemState {
             case .serviceNotRunning, .ready:
-                WizardButton("Start Kanata Service", style: .primary) {
+                WizardButton("Start Kanata Service", style: .primary, isDefaultAction: true) {
                     onStartService()
                 }
 

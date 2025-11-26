@@ -712,6 +712,7 @@ struct WizardButton: View {
     let title: String
     let style: ButtonStyle
     let isLoading: Bool
+    let isDefaultAction: Bool
     let action: () async -> Void
 
     enum ButtonStyle {
@@ -720,11 +721,13 @@ struct WizardButton: View {
 
     init(
         _ title: String, style: ButtonStyle = .primary, isLoading: Bool = false,
+        isDefaultAction: Bool = false,
         action: @escaping () async -> Void
     ) {
         self.title = title
         self.style = style
         self.isLoading = isLoading
+        self.isDefaultAction = isDefaultAction
         self.action = action
     }
 
@@ -739,6 +742,7 @@ struct WizardButton: View {
             .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isLoading))
             .accessibilityLabel(isLoading ? "Loading, \(title)" : title)
             .accessibilityHint(isLoading ? "Operation in progress" : "Tap to \(title.lowercased())")
+            .if(isDefaultAction) { $0.keyboardShortcut(.defaultAction) }
         case .secondary:
             Button(title) {
                 Task {
@@ -1034,5 +1038,15 @@ extension View {
     /// Wraps content in a standardized hero section container with Spacer() and padding
     func heroSectionContainer() -> some View {
         modifier(WizardDesign.HeroSectionContainer())
+    }
+
+    /// Conditionally apply a modifier
+    @ViewBuilder
+    func `if`(_ condition: Bool, transform: (Self) -> some View) -> some View {
+        if condition {
+            transform(self)
+        } else {
+            self
+        }
     }
 }

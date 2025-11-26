@@ -101,7 +101,8 @@ class MainAppStateController: ObservableObject {
            let plist = try? PropertyListSerialization.propertyList(
                from: plistData, options: [], format: nil
            ) as? [String: Any],
-           let args = plist["ProgramArguments"] as? [String] {
+           let args = plist["ProgramArguments"] as? [String]
+        {
             let hasTCPPort = args.contains("--port")
             guard hasTCPPort else {
                 AppLogger.shared.warn(
@@ -132,7 +133,8 @@ class MainAppStateController: ObservableObject {
 
         // Optimization: Skip validation if recently completed (prevents redundant work on rapid restarts)
         if let lastTime = lastValidationTime,
-           Date().timeIntervalSince(lastTime) < validationCooldown {
+           Date().timeIntervalSince(lastTime) < validationCooldown
+        {
             let timeSince = Int(Date().timeIntervalSince(lastTime))
             AppLogger.shared.log(
                 "⏭️ [MainAppStateController] Skipping validation - completed \(timeSince)s ago (cooldown: \(Int(validationCooldown))s)"

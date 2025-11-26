@@ -77,6 +77,7 @@ struct WizardCommunicationPage: View {
                         navigateToNextStep()
                     }
                     .buttonStyle(WizardDesign.Component.PrimaryButton())
+                    .keyboardShortcut(.defaultAction)
                     .padding(.top, WizardDesign.Spacing.sectionGap)
                 }
                 .heroSectionContainer()
@@ -403,7 +404,8 @@ struct WizardCommunicationPage: View {
         }
 
         if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: issues),
-           nextPage != navigationCoordinator.currentPage {
+           nextPage != navigationCoordinator.currentPage
+        {
             navigationCoordinator.navigateToPage(nextPage)
         } else {
             navigationCoordinator.navigateToPage(.summary)

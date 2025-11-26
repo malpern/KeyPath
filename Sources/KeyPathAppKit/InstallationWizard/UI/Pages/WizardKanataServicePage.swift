@@ -93,6 +93,7 @@ struct WizardKanataServicePage: View {
                     navigateToNextStep()
                 }
                 .buttonStyle(WizardDesign.Component.PrimaryButton())
+                .keyboardShortcut(.defaultAction)
                 .padding(.top, WizardDesign.Spacing.sectionGap)
             }
 
@@ -328,7 +329,8 @@ struct WizardKanataServicePage: View {
         }
 
         if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: issues),
-           nextPage != navigationCoordinator.currentPage {
+           nextPage != navigationCoordinator.currentPage
+        {
             navigationCoordinator.navigateToPage(nextPage)
         } else {
             navigationCoordinator.navigateToPage(.summary)
@@ -336,7 +338,8 @@ struct WizardKanataServicePage: View {
     }
 
     private var primaryCTAConfiguration:
-        (label: String, action: () -> Void, tint: Color?, disabled: Bool)? {
+        (label: String, action: () -> Void, tint: Color?, disabled: Bool)?
+    {
         switch serviceStatus {
         case .running:
             nil

@@ -94,7 +94,8 @@ final class RuleCollectionsManager {
         if storedCustomRules.isEmpty,
            let customIndex = storedCollections.firstIndex(where: {
                $0.id == RuleCollectionIdentifier.customMappings
-           }) {
+           })
+        {
             let legacy = storedCollections.remove(at: customIndex)
             storedCustomRules = legacy.mappings.map { mapping in
                 CustomRule(
@@ -169,7 +170,8 @@ final class RuleCollectionsManager {
     func toggleCollection(id: UUID, isEnabled: Bool) async {
         if isEnabled,
            let candidate = ruleCollections.first(where: { $0.id == id }),
-           let conflict = conflictInfo(for: candidate) {
+           let conflict = conflictInfo(for: candidate)
+        {
             onError?(
                 "Cannot enable \(candidate.name). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
             )
@@ -215,7 +217,8 @@ final class RuleCollectionsManager {
     @discardableResult
     func saveCustomRule(_ rule: CustomRule, skipReload: Bool = false) async -> Bool {
         if rule.isEnabled,
-           let conflict = conflictInfo(for: rule) {
+           let conflict = conflictInfo(for: rule)
+        {
             onError?(
                 "Cannot enable \(rule.displayTitle). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
             )
@@ -239,7 +242,8 @@ final class RuleCollectionsManager {
         guard let existing = customRules.first(where: { $0.id == id }) else { return }
 
         if isEnabled,
-           let conflict = conflictInfo(for: existing) {
+           let conflict = conflictInfo(for: existing)
+        {
             onError?(
                 "Cannot enable \(existing.displayTitle). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
             )
@@ -355,7 +359,8 @@ final class RuleCollectionsManager {
 
             if let act1 = candidateActivator,
                let act2 = normalizedActivator(for: other),
-               act1 == act2 {
+               act1 == act2
+            {
                 return RuleConflictInfo(source: .collection(other), keys: [act1])
             }
         }

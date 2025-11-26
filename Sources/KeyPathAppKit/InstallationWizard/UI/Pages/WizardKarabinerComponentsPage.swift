@@ -84,6 +84,7 @@ struct WizardKarabinerComponentsPage: View {
                         navigateToNextStep()
                     }
                     .buttonStyle(WizardDesign.Component.PrimaryButton())
+                    .keyboardShortcut(.defaultAction)
                     .padding(.top, WizardDesign.Spacing.sectionGap)
                 }
                 .heroSectionContainer()
@@ -107,6 +108,7 @@ struct WizardKarabinerComponentsPage: View {
                         handleCombinedFix()
                     }
                     .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isCombinedFixLoading))
+                    .keyboardShortcut(.defaultAction)
                     .disabled(isCombinedFixLoading)
                     .frame(minHeight: 44) // Prevent height change when loading spinner appears
                     .padding(.top, WizardDesign.Spacing.itemGap)
@@ -159,7 +161,8 @@ struct WizardKarabinerComponentsPage: View {
         }
 
         if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: issues),
-           nextPage != navigationCoordinator.currentPage {
+           nextPage != navigationCoordinator.currentPage
+        {
             navigationCoordinator.navigateToPage(nextPage)
         } else {
             navigationCoordinator.navigateToPage(.summary)
