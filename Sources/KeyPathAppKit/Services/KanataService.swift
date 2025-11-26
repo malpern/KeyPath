@@ -371,11 +371,42 @@ public final class KanataService: ObservableObject {
         let oldState = state
         state = newStatus
 
+        // Track PID for crash loop detection
+        if case let .running(pid) = newStatus {
+            Task {
+                let isCrashLoop = await healthMonitor.recordPIDObservation(pid)
+                if isCrashLoop {
+                    await handleCrashLoopDetected()
+                }
+            }
+        }
+
         if oldState.isRunning, case .running = newStatus {
             Task {
                 let status = await evaluateStatus()
                 publishStatus(status)
             }
+        }
+    }
+
+    /// Handle detected crash loop by stopping the service and notifying user
+    private func handleCrashLoopDetected() async {
+        AppLogger.shared.error("🚨 [KanataService] Crash loop detected - stopping service to protect keyboard")
+
+        // Stop the service immediately
+        do {
+            try await unregisterDaemon()
+            state = .failed(reason: "Crash loop detected - service stopped. Open Setup Wizard to diagnose.")
+            AppLogger.shared.info("✅ [KanataService] Service stopped due to crash loop")
+
+            // Post notification for UI to show alert
+            NotificationCenter.default.post(
+                name: .kanataCrashLoopDetected,
+                object: nil,
+                userInfo: ["reason": "Kanata was crash-looping and has been stopped to protect your keyboard."]
+            )
+        } catch {
+            AppLogger.shared.error("❌ [KanataService] Failed to stop crash-looping service: \(error)")
         }
     }
 }

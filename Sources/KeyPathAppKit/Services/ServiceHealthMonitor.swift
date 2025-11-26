@@ -133,6 +133,20 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
     // FIX #2: Shared TCP client for health checks to avoid creating new connections repeatedly
     private var healthCheckClient: KanataTCPClient?
 
+    // MARK: - Crash Loop Detection
+
+    /// Tracks recent PID observations for crash loop detection
+    private var recentPIDObservations: [(pid: Int, timestamp: Date)] = []
+
+    /// Time window for crash loop detection (multiple PID changes within this window = crash loop)
+    private let crashLoopWindowSeconds: TimeInterval = 15.0
+
+    /// Minimum PID changes within window to declare a crash loop
+    private let crashLoopThreshold = 3
+
+    /// Callback triggered when crash loop is detected
+    var onCrashLoopDetected: (() async -> Void)?
+
     // MARK: - Initialization
 
     init(processLifecycle: ProcessLifecycleManager) {
@@ -312,6 +326,71 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
         )
     }
 
+    // MARK: - Crash Loop Detection
+
+    /// Record a PID observation and check for crash loop.
+    ///
+    /// A crash loop is detected when we see multiple different PIDs within a short time window,
+    /// indicating the service is repeatedly crashing and restarting.
+    ///
+    /// - Parameter pid: The observed PID (nil if process not running)
+    /// - Returns: true if a crash loop was detected
+    func recordPIDObservation(_ pid: Int?) async -> Bool {
+        let now = Date()
+
+        // Remove observations outside the window
+        recentPIDObservations.removeAll { now.timeIntervalSince($0.timestamp) > crashLoopWindowSeconds }
+
+        // Add current observation if we have a PID
+        if let pid = pid {
+            // Check if this is a NEW PID (different from the most recent)
+            let isNewPID = recentPIDObservations.last.map { $0.pid != pid } ?? true
+
+            if isNewPID {
+                recentPIDObservations.append((pid: pid, timestamp: now))
+                AppLogger.shared.debug(
+                    "[HealthMonitor] New PID observed: \(pid) (total in window: \(recentPIDObservations.count))"
+                )
+            }
+        }
+
+        // Check for crash loop: multiple different PIDs in the window
+        let uniquePIDs = Set(recentPIDObservations.map { $0.pid })
+        let isCrashLoop = uniquePIDs.count >= crashLoopThreshold
+
+        if isCrashLoop {
+            AppLogger.shared.error(
+                "[HealthMonitor] CRASH LOOP DETECTED: \(uniquePIDs.count) different PIDs in \(crashLoopWindowSeconds)s window"
+            )
+            AppLogger.shared.error(
+                "[HealthMonitor] PIDs observed: \(uniquePIDs.sorted())"
+            )
+
+            // Trigger callback if set
+            if let callback = onCrashLoopDetected {
+                await callback()
+            }
+        }
+
+        return isCrashLoop
+    }
+
+    /// Check if we're currently in a crash loop state
+    var isInCrashLoop: Bool {
+        let now = Date()
+        let recentObservations = recentPIDObservations.filter {
+            now.timeIntervalSince($0.timestamp) <= crashLoopWindowSeconds
+        }
+        let uniquePIDs = Set(recentObservations.map { $0.pid })
+        return uniquePIDs.count >= crashLoopThreshold
+    }
+
+    /// Clear crash loop detection state (e.g., after successful recovery)
+    func clearCrashLoopState() async {
+        recentPIDObservations.removeAll()
+        AppLogger.shared.info("[HealthMonitor] Cleared crash loop detection state")
+    }
+
     // MARK: - Connection Failure Tracking
 
     func recordConnectionFailure() async -> Bool {
@@ -385,6 +464,7 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
         startAttemptCount = 0
         retryAttemptCount = 0
         lastHealthCheckResult = nil
+        recentPIDObservations.removeAll()
 
         // FIX #2: Clean up shared health check client
         if let client = healthCheckClient {
@@ -393,6 +473,6 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
             AppLogger.shared.debug("[HealthMonitor] Closed shared TCP health check client")
         }
 
-        AppLogger.shared.info("[HealthMonitor] Reset all monitoring state")
+        AppLogger.shared.info("[HealthMonitor] Reset all monitoring state (including crash loop detection)")
     }
 }

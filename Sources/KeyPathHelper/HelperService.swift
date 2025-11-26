@@ -687,7 +687,7 @@ extension HelperService {
     private static let karabinerTeamID = "G43BCU2T37"
     private static let karabinerDriverBundleID =
         "org.pqrs.driver.Karabiner-DriverKit-VirtualHIDDevice"
-    private static let requiredVHIDVersion = "5.0.0"
+    private static let requiredVHIDVersion = "6.0.0"
 
     private static func appBundlePathFromHelper() -> String {
         let exe =

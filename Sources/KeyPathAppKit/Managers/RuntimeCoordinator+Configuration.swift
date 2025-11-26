@@ -31,6 +31,15 @@ extension RuntimeCoordinator {
         await configurationManager.validateConfigFile()
     }
 
+    func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
+        -> String
+    {
+        try await configurationManager.backupFailedConfigAndApplySafe(
+            failedConfig: failedConfig,
+            mappings: mappings
+        )
+    }
+
     // MARK: - Hot Reload via TCP
 
     /// Main reload method using TCP protocol

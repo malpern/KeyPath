@@ -31,6 +31,9 @@ extension Notification.Name {
     static let smAppServiceApprovalRequired = Notification.Name(
         "KeyPath.SMAppService.ApprovalRequired")
 
+    // Kanata service health
+    static let kanataCrashLoopDetected = Notification.Name("KeyPath.Kanata.CrashLoopDetected")
+
     // Uninstall flow
     static let keyPathUninstallCompleted = Notification.Name("KeyPath.Uninstall.Completed")
 

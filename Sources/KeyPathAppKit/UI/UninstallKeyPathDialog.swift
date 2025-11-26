@@ -23,7 +23,7 @@ struct UninstallKeyPathDialog: View {
             Text("Uninstall KeyPath?")
                 .font(.title2.bold())
 
-            Text("This will remove all services, helpers, and the app.")
+            Text("This will remove all services, helpers, and the app.\nYour configuration file will be preserved.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -75,8 +75,7 @@ struct UninstallKeyPathDialog: View {
             lastError = nil
         }
 
-        // Always delete config for simplicity - user can reinstall fresh
-        let report = await kanataManager.uninstall(deleteConfig: true)
+        let report = await kanataManager.uninstall(deleteConfig: false)
 
         await MainActor.run {
             isRunning = false
@@ -84,8 +83,16 @@ struct UninstallKeyPathDialog: View {
             lastError = report.failureReason
 
             if report.success {
-                NotificationCenter.default.post(name: .keyPathUninstallCompleted, object: nil)
-                dismiss()
+                // Show success alert, then quit app when user clicks OK
+                let alert = NSAlert()
+                alert.messageText = "Uninstall Complete"
+                alert.informativeText = "KeyPath has been successfully uninstalled.\n\nYour configuration file has been preserved for future reinstalls.\n\nThe app will now quit."
+                alert.alertStyle = .informational
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+
+                // Quit the app
+                NSApplication.shared.terminate(nil)
             }
         }
     }

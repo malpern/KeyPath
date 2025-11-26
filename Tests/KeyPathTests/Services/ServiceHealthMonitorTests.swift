@@ -307,4 +307,120 @@ class ServiceHealthMonitorTests: XCTestCase {
         let cooldownState = await monitor.canRestartService()
         XCTAssertEqual(cooldownState.attemptsSinceLastSuccess, 0, "Should reset after success")
     }
+
+    // MARK: - Crash Loop Detection Tests
+
+    func testRecordPIDObservation_SinglePID_NoCrashLoop() async {
+        // Observing the same PID multiple times should not trigger crash loop
+        let isCrashLoop1 = await monitor.recordPIDObservation(1234)
+        XCTAssertFalse(isCrashLoop1, "Single PID should not be crash loop")
+
+        let isCrashLoop2 = await monitor.recordPIDObservation(1234)
+        XCTAssertFalse(isCrashLoop2, "Same PID repeated should not be crash loop")
+
+        let isCrashLoop3 = await monitor.recordPIDObservation(1234)
+        XCTAssertFalse(isCrashLoop3, "Same PID repeated should not be crash loop")
+
+        XCTAssertFalse(monitor.isInCrashLoop, "Should not be in crash loop with single PID")
+    }
+
+    func testRecordPIDObservation_TwoPIDs_NoCrashLoop() async {
+        // Two different PIDs within window should not trigger crash loop (threshold is 3)
+        let isCrashLoop1 = await monitor.recordPIDObservation(1234)
+        XCTAssertFalse(isCrashLoop1, "First PID should not be crash loop")
+
+        let isCrashLoop2 = await monitor.recordPIDObservation(5678)
+        XCTAssertFalse(isCrashLoop2, "Two PIDs should not be crash loop")
+
+        XCTAssertFalse(monitor.isInCrashLoop, "Should not be in crash loop with only 2 PIDs")
+    }
+
+    func testRecordPIDObservation_ThreePIDs_TriggersCrashLoop() async {
+        // Three different PIDs within window should trigger crash loop
+        let isCrashLoop1 = await monitor.recordPIDObservation(1000)
+        XCTAssertFalse(isCrashLoop1, "First PID should not be crash loop")
+
+        let isCrashLoop2 = await monitor.recordPIDObservation(2000)
+        XCTAssertFalse(isCrashLoop2, "Second PID should not be crash loop")
+
+        let isCrashLoop3 = await monitor.recordPIDObservation(3000)
+        XCTAssertTrue(isCrashLoop3, "Third different PID should trigger crash loop")
+
+        XCTAssertTrue(monitor.isInCrashLoop, "Should be in crash loop with 3 different PIDs")
+    }
+
+    func testRecordPIDObservation_NilPID_Ignored() async {
+        // nil PID should be ignored
+        let isCrashLoop1 = await monitor.recordPIDObservation(nil)
+        XCTAssertFalse(isCrashLoop1, "nil PID should not trigger crash loop")
+
+        let isCrashLoop2 = await monitor.recordPIDObservation(1234)
+        XCTAssertFalse(isCrashLoop2, "Single valid PID should not trigger crash loop")
+
+        let isCrashLoop3 = await monitor.recordPIDObservation(nil)
+        XCTAssertFalse(isCrashLoop3, "nil PID should be ignored")
+
+        XCTAssertFalse(monitor.isInCrashLoop, "Should not be in crash loop")
+    }
+
+    func testClearCrashLoopState_ResetsDetection() async {
+        // First trigger a crash loop
+        _ = await monitor.recordPIDObservation(1000)
+        _ = await monitor.recordPIDObservation(2000)
+        _ = await monitor.recordPIDObservation(3000)
+
+        XCTAssertTrue(monitor.isInCrashLoop, "Should be in crash loop before clear")
+
+        // Clear the state
+        await monitor.clearCrashLoopState()
+
+        XCTAssertFalse(monitor.isInCrashLoop, "Should not be in crash loop after clear")
+
+        // New observations should start fresh
+        let isCrashLoop = await monitor.recordPIDObservation(4000)
+        XCTAssertFalse(isCrashLoop, "Should not trigger crash loop after clear")
+    }
+
+    func testResetMonitoringState_ClearsCrashLoopState() async {
+        // Trigger a crash loop
+        _ = await monitor.recordPIDObservation(1000)
+        _ = await monitor.recordPIDObservation(2000)
+        _ = await monitor.recordPIDObservation(3000)
+
+        XCTAssertTrue(monitor.isInCrashLoop, "Should be in crash loop before reset")
+
+        // Reset all monitoring state
+        await monitor.resetMonitoringState()
+
+        XCTAssertFalse(monitor.isInCrashLoop, "Should not be in crash loop after reset")
+    }
+
+    func testCrashLoopCallback_InvokedOnDetection() async {
+        var callbackInvoked = false
+
+        monitor.onCrashLoopDetected = {
+            callbackInvoked = true
+        }
+
+        // Trigger crash loop
+        _ = await monitor.recordPIDObservation(1000)
+        _ = await monitor.recordPIDObservation(2000)
+        _ = await monitor.recordPIDObservation(3000)
+
+        XCTAssertTrue(callbackInvoked, "Callback should be invoked when crash loop detected")
+    }
+
+    func testCrashLoopCallback_NotInvokedBelowThreshold() async {
+        var callbackInvoked = false
+
+        monitor.onCrashLoopDetected = {
+            callbackInvoked = true
+        }
+
+        // Only two PIDs - below threshold
+        _ = await monitor.recordPIDObservation(1000)
+        _ = await monitor.recordPIDObservation(2000)
+
+        XCTAssertFalse(callbackInvoked, "Callback should not be invoked below threshold")
+    }
 }

@@ -597,6 +597,17 @@ class RuntimeCoordinator {
     @discardableResult
     func startKanata(reason: String = "Manual start") async -> Bool {
         AppLogger.shared.log("🚀 [Service] Starting Kanata (\(reason))")
+
+        // CRITICAL: Check VHID daemon health before starting Kanata
+        // If Kanata starts without a healthy VHID daemon, it will grab keyboard input
+        // but have nowhere to output keystrokes, freezing the keyboard
+        if !isKarabinerDaemonRunning() {
+            AppLogger.shared.error("❌ [Service] Cannot start Kanata - VirtualHID daemon is not running")
+            lastError = "Cannot start: Karabiner VirtualHID daemon is not running. Please complete the setup wizard."
+            notifyStateChanged()
+            return false
+        }
+
         do {
             try await kanataService.start()
             await kanataService.refreshStatus()

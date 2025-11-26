@@ -29,11 +29,14 @@ final class VHIDDeviceManager: @unchecked Sendable {
     // Test seam: allow mocking shell command results during unit tests
     nonisolated(unsafe) static var testShellProvider: ((String) -> String)?
 
+    // Test seam: allow injecting installed version during unit tests
+    nonisolated(unsafe) static var testInstalledVersionProvider: (() -> String?)?
+
     // Version compatibility for kanata
     // NOTE: Kanata v1.10.0+ requires Karabiner-DriverKit-VirtualHIDDevice v6.0.0
     // Updated Nov 2025 when Kanata v1.10.0 was released
     private static let requiredDriverVersionMajor = 6
-    private static let requiredDriverVersionString = "6.0.0"
+    static let requiredDriverVersionString = "6.0.0"
     private static let currentKanataVersion = "1.10.0" // Current supported Kanata version
 
     // Driver DriverKit extension identifiers
@@ -330,6 +333,11 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
     /// Gets the installed VirtualHIDDevice daemon version
     func getInstalledVersion() -> String? {
+        // Test seam: allow injecting version during tests
+        if let testProvider = Self.testInstalledVersionProvider {
+            return testProvider()
+        }
+
         guard FileManager.default.fileExists(atPath: Self.vhidDeviceDaemonInfoPlistPath) else {
             AppLogger.shared.log(
                 "🔍 [VHIDManager] Info.plist not found at \(Self.vhidDeviceDaemonInfoPlistPath)")

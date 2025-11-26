@@ -24,8 +24,15 @@
     <key>RunAtLoad</key>
     <true/>
     
+    <!-- KeepAlive with SuccessfulExit: false means:
+         - Restart if Kanata crashes (exit != 0)
+         - Do NOT restart if Kanata exits cleanly (exit == 0)
+         This allows the launcher to stop crash loops by exiting cleanly after N failures -->
     <key>KeepAlive</key>
-    <true/>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
     
     <key>StandardOutPath</key>
     <string>/var/log/com.keypath.kanata.stdout.log</string>

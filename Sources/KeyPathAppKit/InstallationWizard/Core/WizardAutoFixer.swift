@@ -303,18 +303,25 @@ class WizardAutoFixer: AutoFixCapable {
             return false
         }
 
+        AppLogger.shared.log("🔧 [AutoFixer] Got version message, showing dialog...")
+
         // Show user-facing dialog on main thread
         let userConfirmed = await MainActor.run {
+            AppLogger.shared.log("🔧 [AutoFixer] Creating NSAlert on MainActor...")
             let alert = NSAlert()
             alert.messageText = "Karabiner Driver Version Fix Required"
             alert.informativeText = versionMessage
             alert.alertStyle = .informational
-            alert.addButton(withTitle: "Download & Install v5.0.0")
+            alert.addButton(withTitle: "Download & Install v\(VHIDDeviceManager.requiredDriverVersionString)")
             alert.addButton(withTitle: "Cancel")
 
+            AppLogger.shared.log("🔧 [AutoFixer] Calling runModal()...")
             let response = alert.runModal()
+            AppLogger.shared.log("🔧 [AutoFixer] runModal() returned: \(response.rawValue)")
             return response == .alertFirstButtonReturn
         }
+
+        AppLogger.shared.log("🔧 [AutoFixer] User confirmed: \(userConfirmed)")
 
         guard userConfirmed else {
             AppLogger.shared.log("ℹ️ [AutoFixer] User cancelled driver version fix")
@@ -322,12 +329,14 @@ class WizardAutoFixer: AutoFixCapable {
         }
 
         // Download and install the correct version using coordinator
+        AppLogger.shared.log("🔧 [AutoFixer] Starting driver download/install via coordinator...")
         let session = UUID().uuidString
         let t0 = Date()
         let pre = await captureVHIDSnapshot()
         let success: Bool
         do {
             try await PrivilegedOperationsCoordinator.shared.downloadAndInstallCorrectVHIDDriver()
+            AppLogger.shared.log("🔧 [AutoFixer] Coordinator call completed successfully")
             success = true
         } catch {
             AppLogger.shared.error("❌ [AutoFixer] Coordinator failed to install driver: \(error)")
@@ -335,29 +344,40 @@ class WizardAutoFixer: AutoFixCapable {
         }
 
         if success {
-            AppLogger.shared.info("✅ [AutoFixer] Successfully fixed driver version mismatch")
+            AppLogger.shared.info("✅ [AutoFixer] Successfully installed driver v\(VHIDDeviceManager.requiredDriverVersionString)")
 
-            // Try to force macOS to reload the driver by restarting VHID daemon processes
-            AppLogger.shared.info("🔄 [AutoFixer] Restarting VirtualHID processes to reload driver...")
-            let killTask = Process()
-            killTask.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-            killTask.arguments = ["/usr/bin/pkill", "-9", "Karabiner-VirtualHIDDevice"]
-            try? killTask.run()
-            killTask.waitUntilExit()
-            AppLogger.shared.info("🔄 [AutoFixer] VirtualHID processes restarted")
+            // Now start the Karabiner daemon services so the driver is actually usable
+            AppLogger.shared.info("🔄 [AutoFixer] Starting Karabiner daemon services...")
+            do {
+                _ = try await PrivilegedOperationsCoordinator.shared.restartKarabinerDaemonVerified()
+                AppLogger.shared.info("✅ [AutoFixer] Karabiner daemon started successfully")
+            } catch {
+                AppLogger.shared.error("⚠️ [AutoFixer] Failed to start Karabiner daemon: \(error)")
+            }
+
+            // Also ensure the VHID services are installed and running
+            AppLogger.shared.info("🔄 [AutoFixer] Ensuring VHID services are running...")
+            do {
+                try await PrivilegedOperationsCoordinator.shared.restartUnhealthyServices()
+                AppLogger.shared.info("✅ [AutoFixer] VHID services started successfully")
+            } catch {
+                AppLogger.shared.error("⚠️ [AutoFixer] Failed to restart VHID services: \(error)")
+            }
+
+            // Give services a moment to fully initialize
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
 
             // Show success message
             await MainActor.run {
                 let alert = NSAlert()
                 alert.messageText = "Driver Version Fixed"
                 alert.informativeText = """
-                Karabiner-DriverKit-VirtualHIDDevice v5.0.0 has been installed successfully.
+                Karabiner-DriverKit-VirtualHIDDevice v\(VHIDDeviceManager.requiredDriverVersionString) has been installed and started successfully.
 
-                ✓ Removed all existing driver versions
-                ✓ Installed v5.0.0
-                ✓ Restarted VirtualHID processes
+                ✓ Installed v\(VHIDDeviceManager.requiredDriverVersionString)
+                ✓ Started Karabiner daemon services
 
-                If the driver still shows as unhealthy after checking status, you may need to restart your Mac for the new driver version to fully activate.
+                KeyPath is now ready to use.
                 """
                 alert.alertStyle = .informational
                 alert.addButton(withTitle: "OK")
@@ -371,7 +391,7 @@ class WizardAutoFixer: AutoFixCapable {
                 let alert = NSAlert()
                 alert.messageText = "Installation Failed"
                 alert.informativeText =
-                    "Failed to download or install Karabiner-DriverKit-VirtualHIDDevice v5.0.0. Please check your internet connection and try again."
+                    "Failed to download or install Karabiner-DriverKit-VirtualHIDDevice v\(VHIDDeviceManager.requiredDriverVersionString). Please check your internet connection and try again."
                 alert.alertStyle = .warning
                 alert.addButton(withTitle: "OK")
                 alert.runModal()
