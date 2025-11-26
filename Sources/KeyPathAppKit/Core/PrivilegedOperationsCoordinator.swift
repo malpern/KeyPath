@@ -105,10 +105,21 @@ final class PrivilegedOperationsCoordinator {
     /// Install all LaunchDaemon services (convenience overload - uses PreferencesService for config)
     func installAllLaunchDaemonServices() async throws {
         AppLogger.shared.log(
-            "🔐 [PrivCoordinator] Installing all LaunchDaemon services (using preferences) via SMAppService"
+            "🔐 [PrivCoordinator] Installing all LaunchDaemon services (using preferences)"
         )
-        // Always use SMAppService path for Kanata
-        try await sudoInstallAllServicesWithPreferences()
+
+        switch Self.operationMode {
+        case .privilegedHelper:
+            do {
+                try await HelperManager.shared.installLaunchDaemonServicesWithoutLoading()
+                AppLogger.shared.log("✅ [PrivCoordinator] Helper successfully installed services")
+            } catch {
+                AppLogger.shared.log("⚠️ [PrivCoordinator] Helper failed (\(error)), falling back to sudo")
+                try await sudoInstallAllServicesWithPreferences()
+            }
+        case .directSudo:
+            try await sudoInstallAllServicesWithPreferences()
+        }
     }
 
     private func currentServiceState() async -> KanataDaemonManager.ServiceManagementState {
@@ -141,7 +152,18 @@ final class PrivilegedOperationsCoordinator {
             return
         }
 
-        try await sudoRestartServices()
+        switch Self.operationMode {
+        case .privilegedHelper:
+            do {
+                try await HelperManager.shared.restartUnhealthyServices()
+                AppLogger.shared.log("✅ [PrivCoordinator] Helper successfully restarted services")
+            } catch {
+                AppLogger.shared.log("⚠️ [PrivCoordinator] Helper failed (\(error)), falling back to sudo")
+                try await sudoRestartServices()
+            }
+        case .directSudo:
+            try await sudoRestartServices()
+        }
 
         // Double-check after restart – helper path cannot install SMAppService jobs.
         if try await installServicesIfUninstalled(context: "post-restart") {
