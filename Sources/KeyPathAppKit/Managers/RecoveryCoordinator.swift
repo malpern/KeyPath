@@ -19,9 +19,9 @@ final class RecoveryCoordinator {
 
     init() {
         // Initialize with no-ops, will be configured after RuntimeCoordinator is fully initialized
-        self.killAllKanataProcesses = { throw KeyPathError.process(.notRunning) }
-        self.restartKarabinerDaemon = { false }
-        self.restartService = { _ in false }
+        killAllKanataProcesses = { throw KeyPathError.process(.notRunning) }
+        restartKarabinerDaemon = { false }
+        restartService = { _ in false }
     }
 
     /// Configure recovery handlers (called after RuntimeCoordinator initialization)
@@ -133,11 +133,11 @@ final class RecoveryCoordinator {
             category: .conflict,
             title: "VirtualHID Connection Failed",
             description:
-                "Real-time monitoring detected repeated VirtualHID connection failures. Keyboard remapping is not functioning.",
+            "Real-time monitoring detected repeated VirtualHID connection failures. Keyboard remapping is not functioning.",
             technicalDetails:
-                "Detected multiple consecutive asio.system connection failures",
+            "Detected multiple consecutive asio.system connection failures",
             suggestedAction:
-                "KeyPath will attempt automatic recovery. If issues persist, restart the application.",
+            "KeyPath will attempt automatic recovery. If issues persist, restart the application.",
             canAutoFix: true
         )
     }
@@ -236,8 +236,7 @@ final class RecoveryCoordinator {
         // Check for zombie keyboard capture bug (exit code 6 with VirtualHID connection failure)
         if exitCode == 6,
            output.contains("connect_failed asio.system:61")
-           || output.contains("connect_failed asio.system:2")
-        {
+           || output.contains("connect_failed asio.system:2") {
             // This is the "zombie keyboard capture" bug - automatically attempt recovery
             Task {
                 AppLogger.shared.log(

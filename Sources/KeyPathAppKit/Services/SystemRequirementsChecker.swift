@@ -38,7 +38,7 @@ final class SystemRequirementsChecker {
     }
 
     /// Get installation status string for UI display
-    func getInstallationStatus(isServiceInstalled: () -> Bool) -> String {
+    func getInstallationStatus(isServiceInstalled _: () -> Bool) -> String {
         let detector = KanataBinaryDetector.shared
         let detection = detector.detectCurrentStatus()
         let driverInstalled = isKarabinerDriverInstalled()
@@ -109,14 +109,14 @@ final class SystemRequirementsChecker {
     // MARK: - System Requirements
 
     /// Check if all system requirements are met
-    func hasAllSystemRequirements(isServiceInstalled: () -> Bool) async -> Bool {
+    func hasAllSystemRequirements(isServiceInstalled _: () -> Bool) async -> Bool {
         let hasPermissions = await hasAllRequiredPermissions()
         return isInstalled() && hasPermissions && isKarabinerDriverInstalled()
             && isKarabinerDaemonRunning()
     }
 
     /// Get detailed system requirements status
-    func getSystemRequirementsStatus(isServiceInstalled: () -> Bool) async -> (
+    func getSystemRequirementsStatus(isServiceInstalled _: () -> Bool) async -> (
         installed: Bool, permissions: Bool, driver: Bool, daemon: Bool
     ) {
         let permissions = await hasAllRequiredPermissions()

@@ -298,8 +298,7 @@ struct WizardHelperPage: View {
         }
 
         if let next = navigationCoordinator.getNextPage(for: systemState, issues: issues),
-           next != navigationCoordinator.currentPage
-        {
+           next != navigationCoordinator.currentPage {
             navigationCoordinator.navigateToPage(next)
         } else {
             navigationCoordinator.navigateToPage(.summary)

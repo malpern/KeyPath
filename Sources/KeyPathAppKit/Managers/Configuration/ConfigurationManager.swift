@@ -185,7 +185,7 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
         // Post-save validation: verify the file was saved correctly
         AppLogger.shared.log("🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION BEGIN ==========")
         AppLogger.shared.log("🔍 [Validation-PostSave] Validating saved config at: \(configPath)")
-        
+
         do {
             let savedContent = try String(contentsOfFile: configPath, encoding: .utf8)
             AppLogger.shared.log(
@@ -228,7 +228,7 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
         let result = await ensureValidStartupConfig()
         return result.mappings
     }
-    
+
     /// Ensures a valid configuration exists on startup, handling invalid configs by backing them up and resetting to default
     func ensureValidStartupConfig() async -> (mappings: [KeyMapping], validationError: ConfigValidationError?) {
         AppLogger.shared.log("📂 [ConfigManager] Ensuring valid startup configuration")
@@ -256,10 +256,10 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
             } else {
                 AppLogger.shared.log(
                     "❌ [ConfigManager] CLI validation FAILED with \(cli.errors.count) errors")
-                
+
                 // Handle invalid startup config
                 let backupPath = await handleInvalidStartupConfig(configContent: configContent, errors: cli.errors)
-                
+
                 // Return default mapping (caps->esc) and the validation error for UI
                 let defaultMapping = KeyMapping(input: "caps", output: "esc")
                 return ([defaultMapping], .invalidStartup(errors: cli.errors, backupPath: backupPath))
@@ -270,9 +270,9 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
             return ([], nil)
         }
     }
-    
+
     /// Handle invalid startup configuration with backup and fallback
-    private func handleInvalidStartupConfig(configContent: String, errors: [String]) async -> String {
+    private func handleInvalidStartupConfig(configContent: String, errors _: [String]) async -> String {
         AppLogger.shared.log("🛡️ [ConfigManager] Handling invalid startup configuration...")
 
         // Create backup of invalid config
@@ -326,10 +326,10 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
         AppLogger.shared.log("💾 [ConfigManager] Creating backup of current config")
         _ = configBackupManager.createPreEditBackup()
     }
-    
+
     func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws -> String {
         // Delegate to ConfigurationService for backup and safe config application
-        return try await configurationService.backupFailedConfigAndApplySafe(
+        try await configurationService.backupFailedConfigAndApplySafe(
             failedConfig: failedConfig,
             mappings: mappings
         )

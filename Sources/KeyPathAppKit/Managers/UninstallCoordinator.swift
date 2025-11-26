@@ -106,8 +106,7 @@ final class UninstallCoordinator: ObservableObject {
     }
 
     private static func defaultRunWithAdminPrivileges(scriptURL: URL, deleteConfig: Bool) async
-        -> AppleScriptResult
-    {
+        -> AppleScriptResult {
         // Use PrivilegedCommandRunner which respects TestEnvironment.useSudoForPrivilegedOps
         let configFlag = deleteConfig ? " --delete-config" : ""
         let command = "KEYPATH_UNINSTALL_ASSUME_YES=1 '\(scriptURL.path)' --assume-yes\(configFlag)"

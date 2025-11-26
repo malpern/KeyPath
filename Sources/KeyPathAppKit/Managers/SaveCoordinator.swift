@@ -96,7 +96,8 @@ final class SaveCoordinator {
         do {
             // Step 1: Validate input/output
             let (sanitizedInput, sanitizedOutput) = try validateInputOutput(
-                input: input, output: output)
+                input: input, output: output
+            )
 
             // Step 2: Backup current config
             let currentConfig = await configurationService.current()
@@ -104,7 +105,8 @@ final class SaveCoordinator {
 
             // Step 3: Create and save custom rule
             let rule = ruleCollectionsManager.makeCustomRule(
-                input: sanitizedInput, output: sanitizedOutput)
+                input: sanitizedInput, output: sanitizedOutput
+            )
             let didSave = await ruleCollectionsManager.saveCustomRule(rule, skipReload: true)
 
             guard didSave else {
@@ -143,7 +145,7 @@ final class SaveCoordinator {
                     KeyPathError.configuration(
                         .loadFailed(
                             reason:
-                                "TCP server required for validation-on-demand failed: \(errorMessage)"
+                            "TCP server required for validation-on-demand failed: \(errorMessage)"
                         )))
             }
 
@@ -195,7 +197,8 @@ final class SaveCoordinator {
 
             let configDirURL = URL(fileURLWithPath: configDir)
             try FileManager.default.createDirectory(
-                at: configDirURL, withIntermediateDirectories: true)
+                at: configDirURL, withIntermediateDirectories: true
+            )
 
             let configURL = URL(fileURLWithPath: configPath)
             try content.write(to: configURL, atomically: true, encoding: .utf8)

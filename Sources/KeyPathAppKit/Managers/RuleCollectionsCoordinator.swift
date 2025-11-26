@@ -26,8 +26,8 @@ final class RuleCollectionsCoordinator {
     init(ruleCollectionsManager: RuleCollectionsManager) {
         self.ruleCollectionsManager = ruleCollectionsManager
         // Initialize with no-ops, will be set after RuntimeCoordinator is fully initialized
-        self.applyMappings = { _ in }
-        self.notifyStateChanged = {}
+        applyMappings = { _ in }
+        notifyStateChanged = {}
     }
 
     /// Configure callbacks (called after RuntimeCoordinator initialization)
@@ -109,4 +109,3 @@ final class RuleCollectionsCoordinator {
         ruleCollectionsManager.customRules
     }
 }
-

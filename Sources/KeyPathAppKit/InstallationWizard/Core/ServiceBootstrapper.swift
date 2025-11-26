@@ -74,8 +74,7 @@ final class ServiceBootstrapper {
     /// - Parameter within: Time window in seconds (default: 2.0)
     /// - Returns: `true` if any service was restarted within the window
     nonisolated static func hadRecentRestart(within seconds: TimeInterval = healthyWarmupWindow)
-        -> Bool
-    {
+        -> Bool {
         let now = Date()
         return restartTimeLock.withLock { times in
             times.values.contains { now.timeIntervalSince($0) < seconds }
@@ -279,8 +278,7 @@ final class ServiceBootstrapper {
     private func getLaunchctlPath() -> String {
         // Allow override for testing
         if let override = ProcessInfo.processInfo.environment["KEYPATH_LAUNCHCTL_PATH"],
-           !override.isEmpty
-        {
+           !override.isEmpty {
             return override
         }
         return "/bin/launchctl"
@@ -570,7 +568,7 @@ final class ServiceBootstrapper {
         }
 
         // Handle Kanata via SMAppService refresh (no admin prompt needed)
-        if toRestart.contains(Self.kanataServiceID) && state.isSMAppServiceManaged {
+        if toRestart.contains(Self.kanataServiceID), state.isSMAppServiceManaged {
             AppLogger.shared.log("🔧 [ServiceBootstrapper] Refreshing Kanata via SMAppService")
             do {
                 try await KanataDaemonManager.shared.unregister()
@@ -624,7 +622,7 @@ final class ServiceBootstrapper {
         AppLogger.shared.log("🐛 Known macOS bug: BundleProgram path caching after uninstall/reinstall")
 
         let maxRetries = 2
-        for attempt in 1...maxRetries {
+        for attempt in 1 ... maxRetries {
             do {
                 AppLogger.shared.log("🔄 Attempt \(attempt)/\(maxRetries)")
 

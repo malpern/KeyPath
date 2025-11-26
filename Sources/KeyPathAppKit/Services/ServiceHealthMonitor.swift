@@ -342,7 +342,7 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
         recentPIDObservations.removeAll { now.timeIntervalSince($0.timestamp) > crashLoopWindowSeconds }
 
         // Add current observation if we have a PID
-        if let pid = pid {
+        if let pid {
             // Check if this is a NEW PID (different from the most recent)
             let isNewPID = recentPIDObservations.last.map { $0.pid != pid } ?? true
 
@@ -355,7 +355,7 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
         }
 
         // Check for crash loop: multiple different PIDs in the window
-        let uniquePIDs = Set(recentPIDObservations.map { $0.pid })
+        let uniquePIDs = Set(recentPIDObservations.map(\.pid))
         let isCrashLoop = uniquePIDs.count >= crashLoopThreshold
 
         if isCrashLoop {
@@ -381,7 +381,7 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
         let recentObservations = recentPIDObservations.filter {
             now.timeIntervalSince($0.timestamp) <= crashLoopWindowSeconds
         }
-        let uniquePIDs = Set(recentObservations.map { $0.pid })
+        let uniquePIDs = Set(recentObservations.map(\.pid))
         return uniquePIDs.count >= crashLoopThreshold
     }
 

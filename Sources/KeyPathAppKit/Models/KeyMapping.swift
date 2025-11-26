@@ -29,5 +29,3 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
         try container.encode(output, forKey: .output)
     }
 }
-
-

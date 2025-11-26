@@ -77,7 +77,7 @@ final class InstallationCoordinator {
         AppLogger.shared.log("🔧 [Installation] Step \(stepNumber)/\(totalSteps): Preparing daemon directories...")
     }
 
-    func logDaemonDirectoriesSuccess(stepNumber: Int = 3, totalSteps: Int = 5) {
+    func logDaemonDirectoriesSuccess(stepNumber: Int = 3, totalSteps _: Int = 5) {
         AppLogger.shared.info("✅ [Installation] Step \(stepNumber) SUCCESS: Daemon directories prepared")
     }
 

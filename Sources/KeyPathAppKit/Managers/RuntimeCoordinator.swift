@@ -113,10 +113,12 @@ class RuntimeCoordinator {
         get { ruleCollectionsCoordinator.ruleCollections }
         set { /* Write access via coordinator methods only */ }
     }
+
     var customRules: [CustomRule] {
         get { ruleCollectionsCoordinator.customRules }
         set { /* Write access via coordinator methods only */ }
     }
+
     var diagnostics: [KanataDiagnostic] = []
     var lastProcessExitCode: Int32?
     var lastConfigUpdate: Date = .init()
@@ -293,22 +295,22 @@ class RuntimeCoordinator {
         self.configBackupManager = configBackupManager
 
         // Initialize RuleCollectionsManager
-        self.ruleCollectionsManager = RuleCollectionsManager(
+        ruleCollectionsManager = RuleCollectionsManager(
             configurationService: configurationService
         )
 
         // Initialize SystemRequirementsChecker
-        self.systemRequirementsChecker = SystemRequirementsChecker(
+        systemRequirementsChecker = SystemRequirementsChecker(
             karabinerConflictService: karabinerConflictService
         )
 
         // Initialize extracted coordinators
-        self.saveCoordinator = SaveCoordinator(
+        saveCoordinator = SaveCoordinator(
             configurationService: configurationService,
             engineClient: engineClient ?? TCPEngineClient(),
             configFileWatcher: configFileWatcher
         )
-        self.installationCoordinator = InstallationCoordinator()
+        installationCoordinator = InstallationCoordinator()
 
         // Initialize ProcessManager
         processManager = ProcessManager(
@@ -336,10 +338,10 @@ class RuntimeCoordinator {
         self.engineClient = engineClient ?? TCPEngineClient()
 
         // Initialize RecoveryCoordinator (will be configured after all initialization)
-        self.recoveryCoordinator = RecoveryCoordinator()
+        recoveryCoordinator = RecoveryCoordinator()
 
         // Initialize RuleCollectionsCoordinator (after all managers, before Task captures self)
-        self.ruleCollectionsCoordinator = RuleCollectionsCoordinator(
+        ruleCollectionsCoordinator = RuleCollectionsCoordinator(
             ruleCollectionsManager: ruleCollectionsManager
         )
 
@@ -389,8 +391,8 @@ class RuntimeCoordinator {
         // Wire up RuleCollectionsManager callbacks
         ruleCollectionsManager.onRulesChanged = { [weak self] in
             guard let self else { return }
-            _ = await self.triggerConfigReload()
-            self.notifyStateChanged()
+            _ = await triggerConfigReload()
+            notifyStateChanged()
         }
         ruleCollectionsManager.onLayerChanged = { [weak self] layerName in
             self?.currentLayerName = layerName
@@ -701,7 +703,7 @@ class RuntimeCoordinator {
             content: configContent,
             reloadHandler: { [weak self] in
                 guard let self else { return (false, "Coordinator deallocated") }
-                let reloadResult = await self.triggerConfigReload()
+                let reloadResult = await triggerConfigReload()
                 return (reloadResult.isSuccess, reloadResult.errorMessage)
             }
         )
@@ -755,7 +757,7 @@ class RuntimeCoordinator {
             ruleCollectionsManager: ruleCollectionsManager,
             reloadHandler: { [weak self] in
                 guard let self else { return (false, "Coordinator deallocated") }
-                let tcpResult = await self.triggerTCPReload()
+                let tcpResult = await triggerTCPReload()
                 return (tcpResult.isSuccess, tcpResult.errorMessage)
             }
         )
@@ -1009,7 +1011,6 @@ class RuntimeCoordinator {
         notifyStateChanged()
     }
 
-
     // MARK: - Methods Expected by Tests
 
     func isServiceInstalled() -> Bool {
@@ -1195,7 +1196,6 @@ class RuntimeCoordinator {
 
     // Logic moved to ConfigurationManager
 
-
     /// Opens a file in Zed editor with fallback options
     func openFileInZed(_ filePath: String) {
         configurationManager.openInEditor(filePath)
@@ -1205,9 +1205,7 @@ class RuntimeCoordinator {
 
     // Logic moved to ConfigurationManager
 
-
     // MARK: - AI Configuration Repair
 
     // Logic moved to ConfigRepairService
-
 }

@@ -98,8 +98,7 @@ struct WizardSystemStatusOverview: View {
             // Aggressively disable focus ring on underlying NSView
             DispatchQueue.main.async {
                 if let window = NSApp.keyWindow,
-                   let contentView = window.contentView
-                {
+                   let contentView = window.contentView {
                     disableFocusRings(in: contentView)
                 }
             }
@@ -534,8 +533,7 @@ struct WizardSystemStatusOverview: View {
     // MARK: - Filtering helper (shared with tests)
 
     static func filteredDisplayItems(_ items: [StatusItemModel], showAllItems: Bool)
-        -> [StatusItemModel]
-    {
+        -> [StatusItemModel] {
         if showAllItems { return items }
         // Show all incomplete items, even if their prerequisites are still pending; ordering is preserved.
         return items.filter { $0.status != .completed }
@@ -556,8 +554,7 @@ struct WizardSystemStatusOverview: View {
             if let data = try? Data(
                 contentsOf: URL(fileURLWithPath: systemTCCPath), options: .mappedIfSafe
             ),
-                !data.isEmpty
-            {
+                !data.isEmpty {
                 granted = true
             }
         }
@@ -847,8 +844,7 @@ private func probeTCPHelloRequiresStatus(port: Int, timeoutMs: Int) -> Bool {
                     // Skip unsolicited broadcasts (LayerChange, ConfigFileReload, etc.)
                     if line.contains("\"LayerChange\"") || line.contains("\"ConfigFileReload\"")
                         || line.contains("\"MessagePush\"") || line.contains("\"Ready\"")
-                        || line.contains("\"ConfigError\"")
-                    {
+                        || line.contains("\"ConfigError\"") {
                         continue // Skip this line, read next
                     }
 
@@ -858,8 +854,7 @@ private func probeTCPHelloRequiresStatus(port: Int, timeoutMs: Int) -> Bool {
                        let json = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any],
                        let helloObj = json["HelloOk"] as? [String: Any],
                        let caps = helloObj["capabilities"] as? [String],
-                       caps.contains("status")
-                    {
+                       caps.contains("status") {
                         return true
                     }
 
