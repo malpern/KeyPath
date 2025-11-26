@@ -41,6 +41,7 @@ struct InstallationWizardView: View {
     // Task management for race condition prevention
     @State private var refreshTask: Task<Void, Never>?
     @State private var isForceClosing = false // Prevent new operations after nuclear close
+    @State private var loginItemsPollingTask: Task<Void, Never>? // Polls for Login Items approval
 
     // Focus management for reliable ESC key handling
     @FocusState private var hasKeyboardFocus: Bool
@@ -188,9 +189,11 @@ struct InstallationWizardView: View {
             Button("Open Login Items") {
                 showingBackgroundApprovalPrompt = false
                 openLoginItemsSettings()
+                startLoginItemsApprovalPolling()
             }
             Button("Later", role: .cancel) {
                 showingBackgroundApprovalPrompt = false
+                stopLoginItemsApprovalPolling()
             }
         } message: {
             Text(
@@ -1230,6 +1233,9 @@ struct InstallationWizardView: View {
 
     /// Dismiss wizard and trigger main screen validation refresh
     private func dismissAndRefreshMainScreen() {
+        // Cancel any Login Items polling before dismissing
+        stopLoginItemsApprovalPolling()
+
         // Use DispatchQueue to ensure immediate execution
         DispatchQueue.main.async {
             // Trigger StartupValidator refresh before dismissing
@@ -1260,6 +1266,50 @@ struct InstallationWizardView: View {
         }
     }
 
+    /// Start polling for Login Items approval status change
+    private func startLoginItemsApprovalPolling() {
+        stopLoginItemsApprovalPolling() // Cancel any existing polling
+
+        AppLogger.shared.log("🔍 [LoginItems] Starting approval polling...")
+
+        loginItemsPollingTask = Task { @MainActor in
+            // Poll every 1.5 seconds for up to 2 minutes
+            let maxAttempts = 80
+            for attempt in 1 ... maxAttempts {
+                guard !Task.isCancelled else {
+                    AppLogger.shared.log("🔍 [LoginItems] Polling cancelled")
+                    return
+                }
+
+                // Check SMAppService status
+                let state = await KanataDaemonManager.shared.refreshManagementState()
+                AppLogger.shared.log("🔍 [LoginItems] Poll #\(attempt): state=\(state)")
+
+                if state == .smappserviceActive || state == .smappservicePending {
+                    // User approved! Auto-refresh and show success
+                    AppLogger.shared.log("✅ [LoginItems] Approval detected! Refreshing wizard state...")
+                    toastManager.showSuccess("KeyPath approved in Login Items")
+
+                    // Refresh the wizard state
+                    refreshState()
+
+                    return
+                }
+
+                // Wait before next poll
+                try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+            }
+
+            AppLogger.shared.log("⏰ [LoginItems] Polling timed out after 2 minutes")
+        }
+    }
+
+    /// Stop polling for Login Items approval
+    private func stopLoginItemsApprovalPolling() {
+        loginItemsPollingTask?.cancel()
+        loginItemsPollingTask = nil
+    }
+
     /// Nuclear option: Force wizard closed immediately, bypass all operations and confirmations
     private func forciblyCloseWizard() {
         AppLogger.shared.log("🔴 [FORCE-CLOSE] Starting nuclear shutdown at \(Date())")
@@ -1279,10 +1329,11 @@ struct InstallationWizardView: View {
             AppLogger.shared.flushBuffer()
         }
 
-        // Cancel monitoring task
+        // Cancel monitoring tasks
         AppLogger.shared.log("🔴 [FORCE-CLOSE] Cancelling refresh task...")
         refreshTask?.cancel()
-        AppLogger.shared.log("🔴 [FORCE-CLOSE] Refresh task cancelled")
+        stopLoginItemsApprovalPolling()
+        AppLogger.shared.log("🔴 [FORCE-CLOSE] Refresh and polling tasks cancelled")
 
         // Force immediate dismissal - no confirmation, no state checks, no waiting
         AppLogger.shared.log("🔴 [FORCE-CLOSE] Calling dismiss()...")

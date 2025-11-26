@@ -109,10 +109,7 @@ struct WizardCommunicationPage: View {
                             }
                             .frame(width: 60, height: 60)
                         }
-                        .frame(
-                            width: WizardDesign.Layout.statusCircleSize,
-                            height: WizardDesign.Layout.statusCircleSize
-                        )
+                        .frame(width: 130, height: 130)
 
                         // Title
                         Text("TCP Communication")

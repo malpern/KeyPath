@@ -108,6 +108,7 @@ struct WizardKarabinerComponentsPage: View {
                     }
                     .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isCombinedFixLoading))
                     .disabled(isCombinedFixLoading)
+                    .frame(minHeight: 44) // Prevent height change when loading spinner appears
                     .padding(.top, WizardDesign.Spacing.itemGap)
                 }
                 .heroSectionContainer()
