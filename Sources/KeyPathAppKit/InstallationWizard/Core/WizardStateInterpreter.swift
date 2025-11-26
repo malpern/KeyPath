@@ -167,6 +167,20 @@ struct WizardStateInterpreter {
                 // Include daemon and background services issues
                 return issue.category == .daemon || issue.category == .backgroundServices
             }
+        case .kanataComponents:
+            // Kanata-related components
+            issues.filter { issue in
+                if issue.category == .installation {
+                    switch issue.identifier {
+                    case .component(.kanataBinaryMissing),
+                         .component(.kanataService):
+                        return true
+                    default:
+                        return false
+                    }
+                }
+                return false
+            }
         case .helper:
             [] // Helper page shows helper status/actions directly
         case .communication:

@@ -201,7 +201,11 @@ class WizardStateMachine: ObservableObject {
             return .service
 
         case .karabinerComponents:
-            // After Karabiner, go to service
+            // After Karabiner, check Kanata
+            return .kanataComponents
+
+        case .kanataComponents:
+            // After all components, go to service
             return .service
 
         case .communication:
@@ -231,10 +235,12 @@ class WizardStateMachine: ObservableObject {
             .inputMonitoring
         case .karabinerComponents:
             .accessibility
-        case .communication:
+        case .kanataComponents:
             .karabinerComponents
+        case .communication:
+            .kanataComponents
         case .service:
-            .karabinerComponents // Service comes after all components
+            .kanataComponents // Service comes after all components
         }
     }
 

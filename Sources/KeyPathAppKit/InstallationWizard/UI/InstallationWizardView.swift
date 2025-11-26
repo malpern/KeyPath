@@ -274,6 +274,15 @@ struct InstallationWizardView: View {
                     onRefresh: { refreshState() },
                     kanataManager: kanataManager
                 )
+            case .kanataComponents:
+                WizardKanataComponentsPage(
+                    systemState: systemState,
+                    issues: currentIssues,
+                    isFixing: asyncOperationManager.hasRunningOperations,
+                    onAutoFix: performAutoFix,
+                    onRefresh: { refreshState() },
+                    kanataManager: kanataManager
+                )
             case .helper:
                 WizardHelperPage(
                     systemState: systemState,
@@ -1410,7 +1419,7 @@ struct InstallationWizardView: View {
         guard navigationCoordinator.currentPage != .summary else { return }
         let defaultSequence: [WizardPage] = [
             .fullDiskAccess, .conflicts, .inputMonitoring, .accessibility,
-            .karabinerComponents, .service, .communication
+            .karabinerComponents, .kanataComponents, .service, .communication
         ]
         let sequence = navSequence.isEmpty ? defaultSequence : navSequence
         guard let idx = sequence.firstIndex(of: navigationCoordinator.currentPage), idx > 0 else {
@@ -1426,7 +1435,7 @@ struct InstallationWizardView: View {
         guard navigationCoordinator.currentPage != .summary else { return }
         let defaultSequence: [WizardPage] = [
             .fullDiskAccess, .conflicts, .inputMonitoring, .accessibility,
-            .karabinerComponents, .service, .communication
+            .karabinerComponents, .kanataComponents, .service, .communication
         ]
         let sequence = navSequence.isEmpty ? defaultSequence : navSequence
         guard let idx = sequence.firstIndex(of: navigationCoordinator.currentPage),

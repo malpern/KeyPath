@@ -13,6 +13,7 @@ public enum WizardPage: String, CaseIterable {
     case inputMonitoring = "Input Monitoring"
     case accessibility = "Accessibility"
     case karabinerComponents = "Karabiner Components"
+    case kanataComponents = "Kanata Components"
     case service = "Start Service"
     case communication = "Communication"
 
@@ -26,6 +27,7 @@ public enum WizardPage: String, CaseIterable {
         case .inputMonitoring: "Input Monitoring Permission"
         case .accessibility: "Accessibility Permission"
         case .karabinerComponents: "Karabiner Driver Setup"
+        case .kanataComponents: "Kanata Engine Setup"
         case .communication: "Communication Protocol"
         case .service: "Start Keyboard Service"
         }
@@ -40,6 +42,7 @@ public enum WizardPage: String, CaseIterable {
         case .inputMonitoring: "input-monitoring"
         case .accessibility: "accessibility"
         case .karabinerComponents: "karabiner-components"
+        case .kanataComponents: "kanata-components"
         case .helper: "privileged-helper"
         case .communication: "communication"
         case .service: "service"
@@ -59,6 +62,7 @@ public extension WizardPage {
         .accessibility,
         .inputMonitoring,
         .karabinerComponents,
+        .kanataComponents,
         .service,
         .communication
     ]
