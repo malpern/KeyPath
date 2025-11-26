@@ -696,8 +696,9 @@ public final class ConfigurationService: FileConfigurationProviding {
     private func validateConfigWithCLI(_ config: String) async -> (isValid: Bool, errors: [String]) {
         AppLogger.shared.log("🖥️ [Validation-CLI] Starting CLI validation process...")
 
-        // Write config to a temporary file for validation
-        let tempConfigPath = "\(configDirectory)/temp_validation.kbd"
+        // Write config to a unique temporary file for validation (UUID prevents race conditions)
+        let uniqueID = UUID().uuidString.prefix(8)
+        let tempConfigPath = "\(configDirectory)/temp_validation_\(uniqueID).kbd"
         AppLogger.shared.log("📝 [Validation-CLI] Creating temp config file: \(tempConfigPath)")
 
         do {

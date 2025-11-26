@@ -1086,6 +1086,9 @@ class RuntimeCoordinator {
 
         AppLogger.shared.log("🔄 [Reset] Updated stores and manager properties to match default state")
 
+        // Notify ViewModel of state change so UI updates
+        notifyStateChanged()
+
         // Apply changes immediately via TCP reload if service is running
         let serviceState = await kanataService.refreshStatus()
         if serviceState.isRunning {
