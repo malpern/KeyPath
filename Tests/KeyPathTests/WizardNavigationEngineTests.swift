@@ -31,12 +31,12 @@ class WizardNavigationEngineTests: XCTestCase {
         XCTAssertEqual(page, .conflicts, "Conflicts should have highest priority")
     }
 
-    func testNavigationPriorityInstallationSecond() {
-        // Given: System has component issues but no conflicts
+    func testNavigationPriorityKarabinerSecond() {
+        // Given: System has Karabiner component issues but no conflicts
         let componentIssue = createTestIssue(
             category: .installation,
-            title: "Kanata Binary Missing",
-            identifier: .component(.kanataBinaryMissing)
+            title: "VirtualHID Device Missing",
+            identifier: .component(.vhidDeviceManager)
         )
         let permissionIssue = createTestIssue(category: .permissions, title: "Test Permission")
         let issues = [componentIssue, permissionIssue]
@@ -44,8 +44,8 @@ class WizardNavigationEngineTests: XCTestCase {
         // When: Determining current page
         let page = engine.determineCurrentPage(for: .missingComponents(missing: []), issues: issues)
 
-        // Then: Should navigate to installation second
-        XCTAssertEqual(page, .kanataComponents, "Installation should have second highest priority")
+        // Then: Should navigate to Karabiner components
+        XCTAssertEqual(page, .karabinerComponents, "Karabiner components should have second highest priority")
     }
 
     func testNavigationPriorityInputMonitoringThird() {
@@ -132,7 +132,6 @@ class WizardNavigationEngineTests: XCTestCase {
             .accessibility, // Accessibility permission
             .inputMonitoring, // Input Monitoring permission
             .karabinerComponents, // Karabiner driver and VirtualHID setup
-            .kanataComponents, // Kanata binary and service setup
             .service, // Start keyboard service
             .communication // Optional TCP/communication verification
         ]
@@ -155,7 +154,7 @@ class WizardNavigationEngineTests: XCTestCase {
         // Then: Should return correct indices
         XCTAssertEqual(summaryIndex, 0, "Summary should be first (index 0)")
         XCTAssertEqual(conflictsIndex, 3, "Conflicts should be at index 3")
-        XCTAssertEqual(serviceIndex, 8, "Service should be index 8 in the expanded flow")
+        XCTAssertEqual(serviceIndex, 7, "Service should be index 7 in the expanded flow")
     }
 
     // MARK: - Blocking Page Tests
@@ -165,7 +164,7 @@ class WizardNavigationEngineTests: XCTestCase {
 
         // When: Checking if pages are blocking
         let conflictsBlocking = engine.isBlockingPage(.conflicts)
-        let installationBlocking = engine.isBlockingPage(.kanataComponents)
+        let installationBlocking = engine.isBlockingPage(.karabinerComponents)
         let permissionsBlocking = engine.isBlockingPage(.inputMonitoring)
         let backgroundServicesBlocking = engine.isBlockingPage(.service)
         let serviceBlocking = engine.isBlockingPage(.service)
@@ -228,7 +227,6 @@ class WizardNavigationEngineTests: XCTestCase {
             (.inputMonitoring, "Open System Settings"),
             (.accessibility, "Open System Settings"),
             (.karabinerComponents, "Install Karabiner Components"),
-            (.kanataComponents, "Install Kanata Components"),
             (.service, "Start Keyboard Service")
         ]
 
@@ -287,8 +285,8 @@ class WizardNavigationEngineTests: XCTestCase {
         let issues = [
             createTestIssue(
                 category: .installation,
-                title: "Kanata Binary Missing",
-                identifier: .component(.kanataBinaryMissing)
+                title: "VirtualHID Device Missing",
+                identifier: .component(.vhidDeviceManager)
             )
         ]
         let systemState = WizardSystemState.missingComponents(missing: [])
@@ -297,17 +295,17 @@ class WizardNavigationEngineTests: XCTestCase {
         let nextPage = engine.nextPage(from: currentPage, given: systemState, issues: issues)
 
         // Then: Should return the target page based on current issues
-        XCTAssertEqual(nextPage, .kanataComponents, "Next page should be installation based on issues")
+        XCTAssertEqual(nextPage, .karabinerComponents, "Next page should be karabiner based on issues")
     }
 
     func testNextPageWhenAlreadyOnTarget() {
         // Given: Already on the target page but want to continue sequentially
-        let currentPage = WizardPage.kanataComponents
+        let currentPage = WizardPage.karabinerComponents
         let issues = [
             createTestIssue(
                 category: .installation,
-                title: "Kanata Binary Missing",
-                identifier: .component(.kanataBinaryMissing)
+                title: "VirtualHID Device Missing",
+                identifier: .component(.vhidDeviceManager)
             )
         ]
         let systemState = WizardSystemState.missingComponents(missing: [])
@@ -315,7 +313,7 @@ class WizardNavigationEngineTests: XCTestCase {
         // When: Getting next page
         let nextPage = engine.nextPage(from: currentPage, given: systemState, issues: issues)
 
-        // Then: Should continue to next page in sequence (.service comes after .kanataComponents)
+        // Then: Should continue to next page in sequence (.service comes after .karabinerComponents)
         XCTAssertEqual(nextPage, .service, "Should continue to next page in sequence")
     }
 

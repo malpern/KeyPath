@@ -104,26 +104,7 @@ class WizardNavigationEngine: WizardNavigating {
             return .karabinerComponents
         }
 
-        // 5. Kanata Components - binary and service
-        let hasKanataIssues = issues.contains { issue in
-            if issue.category == .installation {
-                switch issue.identifier {
-                case .component(.kanataBinaryMissing),
-                     .component(.kanataService):
-                    return true
-                default:
-                    return false
-                }
-            }
-            return false
-        }
-
-        if hasKanataIssues {
-            AppLogger.shared.log("🔍 [NavigationEngine] → .kanataComponents (found Kanata-related issues)")
-            return .kanataComponents
-        }
-
-        // 6. Privileged Helper — recommend installing before service management to avoid repeated prompts
+        // 5. Privileged Helper — recommend installing before service management to avoid repeated prompts
         // Only surface this step if the helper isn’t installed yet. This is non-blocking but improves UX.
         let helperInstalled = HelperManager.shared.isHelperInstalled()
         if !helperInstalled {
@@ -239,7 +220,7 @@ class WizardNavigationEngine: WizardNavigating {
         switch page {
         case .conflicts:
             true // Cannot proceed with conflicts
-        case .karabinerComponents, .kanataComponents:
+        case .karabinerComponents:
             true // Cannot use without components
         case .helper:
             false // Optional but recommended to avoid prompts
@@ -287,8 +268,6 @@ class WizardNavigationEngine: WizardNavigating {
             "Open System Settings"
         case .karabinerComponents:
             "Install Karabiner Components"
-        case .kanataComponents:
-            "Install Kanata Components"
         case .helper:
             HelperManager.shared.isHelperInstalled() ? "Manage Helper" : "Install Helper"
         case .communication:
@@ -325,7 +304,7 @@ class WizardNavigationEngine: WizardNavigating {
             return false
         case .inputMonitoring, .accessibility:
             return true // Can always open settings
-        case .karabinerComponents, .kanataComponents:
+        case .karabinerComponents:
             if case let .missingComponents(missing) = state {
                 return !missing.isEmpty
             }
