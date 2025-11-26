@@ -279,16 +279,31 @@ public actor PermissionOracle {
         )
     }
 
-    // MARK: - Kanata Permission Detection (GUI Context - ARCHITECTURE.md Current Workaround)
+    // MARK: - Kanata Permission Detection (ADR-016: TCC Database Reading)
+    //
+    // WHY TCC DATABASE READING IS NECESSARY:
+    // The wizard needs to guide users through Accessibility and Input Monitoring
+    // permissions sequentially (one at a time). Without pre-flight detection:
+    // - Starting Kanata triggers BOTH system permission dialogs simultaneously
+    // - Users get confused by two overlapping prompts
+    // - If they dismiss one, they don't know which permission is missing
+    //
+    // WHY ALTERNATIVES DON'T WORK:
+    // - IOHIDCheckAccess() only works for the CALLING process (KeyPath), not Kanata
+    // - PR #1759 to Kanata proved daemon-level checking fails (false negatives for root)
+    // - Kanata maintainer has no macOS devices; upstream changes unlikely
+    //
+    // THIS IS ACCEPTABLE BECAUSE:
+    // - Read-only operation (Apple's concern is TCC WRITES/bypasses)
+    // - Graceful degradation: Falls back to .unknown if TCC read fails
+    // - GUI context: Runs in user session, not daemon
+    // - UX requirement: Sequential prompts are essential for comprehension
 
     private func checkKanataPermissions() async -> PermissionSet {
         let kanataPath = resolveKanataExecutablePath()
 
-        // IMPORTANT: IOHIDCheckAccess() reflects the calling process only and
-        // cannot be used to check another binary's Input Monitoring permission.
-        // For Kanata, use TCC for both AX and IM.
-
-        AppLogger.shared.log("🔮 [Oracle] Checking TCC database for Kanata (AX + IM)")
+        // See ADR-016 for why TCC database reading is the correct approach here
+        AppLogger.shared.log("🔮 [Oracle] Checking TCC database for Kanata (AX + IM) - see ADR-016")
         let (tccAX, tccIM) = await checkTCCForKanata(executablePath: kanataPath)
 
         let accessibility: Status = tccAX ?? .unknown

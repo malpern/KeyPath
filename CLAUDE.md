@@ -168,6 +168,24 @@ Used for localhost IPC. No auth supported by Kanata 1.9.0 TCP server.
 ### ADR-014: XPC Signature Mismatch Prevention ✅
 Robust app restart logic to prevent mismatched helpers.
 
+### ADR-016: TCC Database Reading for Sequential Permission Flow ✅
+**Context**: The wizard needs to guide users through Accessibility and Input Monitoring permissions one at a time. Without pre-flight detection, starting Kanata would trigger both system permission dialogs simultaneously, creating a confusing UX.
+
+**Decision**: Read the TCC database (`~/Library/Application Support/com.apple.TCC/TCC.db`) to detect Kanata's permission state before prompting. This is a read-only operation used as a UX optimization.
+
+**Why not "try and see"?**
+- `IOHIDCheckAccess()` only works for the calling process (KeyPath), not for checking another binary (Kanata)
+- Starting Kanata to probe permissions triggers simultaneous AX+IM prompts
+- PR #1759 to Kanata proved daemon-level permission checking is unreliable (false negatives for root processes)
+
+**Why this is acceptable:**
+- Read-only (not modifying TCC) - Apple's guidance is primarily about preventing TCC writes/bypasses
+- Graceful degradation: Falls back to `.unknown` if TCC read fails (no FDA)
+- GUI context: Runs in KeyPath app (user session), not daemon
+- UX requirement: Sequential permission prompts are essential for user comprehension
+
+**Alternative considered**: Contributing `--check-permissions` to Kanata upstream. Rejected because maintainer has no macOS devices and the API (`IOHIDCheckAccess`) doesn't work correctly from daemon context anyway.
+
 ## Build Commands
 
 ```bash
