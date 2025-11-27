@@ -65,6 +65,28 @@ actor SubprocessRunnerFake: SubprocessRunning {
         executedCommands.removeAll()
     }
 
+    // MARK: - Test Configuration Helpers
+
+    func configureRunResult(_ provider: @escaping (String, [String]) -> ProcessResult) {
+        runResultProvider = provider
+    }
+
+    func configurePgrepResult(_ provider: @escaping (String) -> [pid_t]) {
+        pgrepResultProvider = provider
+    }
+
+    func configureLaunchctlResult(_ provider: @escaping (String, [String]) -> ProcessResult) {
+        launchctlResultProvider = provider
+    }
+
+    func setShouldTimeout(_ value: Bool) {
+        shouldTimeout = value
+    }
+
+    func setShouldFailLaunch(_ value: Bool) {
+        shouldFailLaunch = value
+    }
+
     // MARK: - SubprocessRunning Implementation
 
     func run(

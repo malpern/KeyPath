@@ -1,7 +1,7 @@
 # Architecture Decision: MainActor Subprocess Blocking
 
 **Date:** November 26, 2025
-**Status:** Seeking Review
+**Status:** ✅ Implemented (November 2025)
 **Author:** Claude (with direction from @malpern)
 
 ## Executive Summary
@@ -193,54 +193,78 @@ final class SystemOperationsService {
 4. **Testable:** Actor can be mocked for tests
 5. **Observable:** Centralized logging shows subprocess durations
 
-### Implementation Sketch
+## Implementation ✅
+
+**Location:** `Sources/KeyPathCore/SubprocessRunner.swift`
+
+The `SubprocessRunner` actor has been implemented and all high-priority files have been migrated.
+
+### Canonical Pattern
+
+**✅ DO: Use SubprocessRunner for all subprocess execution**
 
 ```swift
-// Sources/KeyPathCore/SubprocessRunner.swift
-actor SubprocessRunner {
-    static let shared = SubprocessRunner()
-
-    struct ProcessResult {
-        let exitCode: Int32
-        let stdout: String
-        let stderr: String
-        let duration: TimeInterval
-    }
-
-    func run(
-        _ executable: String,
-        args: [String],
-        timeout: TimeInterval = 30
-    ) async throws -> ProcessResult {
-        let start = Date()
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: executable)
-        task.arguments = args
-
-        let stdoutPipe = Pipe()
-        let stderrPipe = Pipe()
-        task.standardOutput = stdoutPipe
-        task.standardError = stderrPipe
-
-        try task.run()
-        task.waitUntilExit()  // Safe - we're on actor's executor, not MainActor
-
-        let duration = Date().timeIntervalSince(start)
-        AppLogger.shared.log("⚡ [Subprocess] \(executable) completed in \(String(format: "%.2f", duration))s")
-
-        return ProcessResult(
-            exitCode: task.terminationStatus,
-            stdout: String(data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "",
-            stderr: String(data: stderrPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "",
-            duration: duration
+// From @MainActor context - automatically yields MainActor during execution
+@MainActor class MyService {
+    func checkSomething() async {
+        // ✅ Correct: Use SubprocessRunner.shared
+        let result = try await SubprocessRunner.shared.run(
+            "/usr/bin/pgrep",
+            args: ["-f", "kanata"],
+            timeout: 5
         )
+        
+        if result.exitCode == 0 {
+            // Process stdout
+            let output = result.stdout
+        }
+        
+        // ✅ Convenience methods available
+        let pids = await SubprocessRunner.shared.pgrep("kanata.*--cfg")
+        let launchctlResult = try await SubprocessRunner.shared.launchctl("print", ["system/com.keypath.kanata"])
     }
-
-    // Convenience methods
-    func pgrep(_ pattern: String) async -> [pid_t] { ... }
-    func launchctl(_ subcommand: String, _ args: [String]) async throws -> ProcessResult { ... }
 }
 ```
+
+**❌ DON'T: Use Process() directly**
+
+```swift
+// ❌ Wrong: Blocks MainActor
+@MainActor class MyService {
+    func checkSomething() {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        task.arguments = ["-f", "kanata"]
+        try task.run()
+        task.waitUntilExit()  // BLOCKS MAIN THREAD
+    }
+}
+```
+
+### Key Features
+
+1. **Actor Isolation:** All subprocess work runs on the actor's executor, never on MainActor
+2. **Timeout Support:** Default 30s timeout, configurable per call
+3. **Automatic Logging:** Logs execution time, warns on >5s operations
+4. **Error Handling:** Throws `SubprocessError` for timeouts and launch failures
+5. **Convenience Methods:** `pgrep()` and `launchctl()` helpers for common operations
+
+### Migration Status
+
+**✅ Completed (High Priority):**
+- `WizardAutoFixer.swift` - All Process() calls migrated
+- `KarabinerConflictService.swift` - All Process() calls migrated
+- `KanataDaemonManager.swift` - All Process() calls migrated
+- `HelperManager.swift` - All Process() calls migrated
+- `ServiceBootstrapper.swift` - All Process() calls migrated
+- `KanataBinaryInstaller.swift` - All Process() calls migrated
+- `ConfigurationManager.swift` - All Process() calls migrated
+- `InstallationCoordinator.swift` - All Process() calls migrated
+
+**Remaining (Lower Priority):**
+- `VHIDDeviceManager.swift` - Some Process() calls remain (non-MainActor context)
+- `DiagnosticsService.swift` - Some Process() calls remain
+- Other utility files - Can be migrated incrementally
 
 ## Questions for Senior Engineer
 

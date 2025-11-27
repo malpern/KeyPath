@@ -49,20 +49,20 @@ class WizardNavigationEngineTests: XCTestCase {
 
     // MARK: - Navigation Priority Tests
 
-    func testNavigationPriorityConflictsFirst() {
+    func testNavigationPriorityConflictsFirst() async {
         // Given: System has conflicts and other issues
         let conflictIssue = createTestIssue(category: .conflicts, title: "Test Conflict")
         let permissionIssue = createTestIssue(category: .permissions, title: "Test Permission")
         let issues = [conflictIssue, permissionIssue]
 
         // When: Determining current page
-        let page = engine.determineCurrentPage(for: .conflictsDetected(conflicts: []), issues: issues)
+        let page = await engine.determineCurrentPage(for: .conflictsDetected(conflicts: []), issues: issues)
 
         // Then: Should navigate to conflicts first
         XCTAssertEqual(page, .conflicts, "Conflicts should have highest priority")
     }
 
-    func testNavigationPriorityHelperSecond() {
+    func testNavigationPriorityHelperSecond() async {
         // Given: Helper needs approval (mock returns requiresApproval)
         // Temporarily override to simulate approval needed
         HelperManager.smServiceFactory = { _ in MockRequiresApprovalSMAppService() }
@@ -76,7 +76,7 @@ class WizardNavigationEngineTests: XCTestCase {
         let issues = [componentIssue, permissionIssue]
 
         // When: Determining current page
-        let page = engine.determineCurrentPage(for: .missingComponents(missing: []), issues: issues)
+        let page = await engine.determineCurrentPage(for: .missingComponents(missing: []), issues: issues)
 
         // Then: Should navigate to helper first (blocks other steps)
         XCTAssertEqual(page, .helper, "Helper should have second highest priority when approval needed")
@@ -85,7 +85,7 @@ class WizardNavigationEngineTests: XCTestCase {
         HelperManager.smServiceFactory = { _ in MockEnabledSMAppService() }
     }
 
-    func testNavigationPriorityInstallationAfterHelper() {
+    func testNavigationPriorityInstallationAfterHelper() async {
         // Given: Helper is enabled (from setUp), system has component issues but no conflicts
         let componentIssue = createTestIssue(
             category: .installation,
@@ -96,13 +96,13 @@ class WizardNavigationEngineTests: XCTestCase {
         let issues = [componentIssue, permissionIssue]
 
         // When: Determining current page (helper is mocked as enabled)
-        let page = engine.determineCurrentPage(for: .missingComponents(missing: []), issues: issues)
+        let page = await engine.determineCurrentPage(for: .missingComponents(missing: []), issues: issues)
 
         // Then: Should navigate to kanata components (helper is satisfied)
         XCTAssertEqual(page, .kanataComponents, "Installation should be shown when helper is satisfied")
     }
 
-    func testNavigationPriorityInputMonitoringThird() {
+    func testNavigationPriorityInputMonitoringThird() async {
         // Given: System has input monitoring issues but no conflicts or installation issues
         let inputMonitoringIssue = createTestIssue(
             category: .permissions,
@@ -117,13 +117,13 @@ class WizardNavigationEngineTests: XCTestCase {
         let issues = [inputMonitoringIssue, accessibilityIssue]
 
         // When: Determining current page
-        let page = engine.determineCurrentPage(for: .missingPermissions(missing: []), issues: issues)
+        let page = await engine.determineCurrentPage(for: .missingPermissions(missing: []), issues: issues)
 
         // Then: Should navigate to input monitoring before accessibility
         XCTAssertEqual(page, .inputMonitoring, "Input monitoring should come before accessibility")
     }
 
-    func testNavigationPriorityAccessibilityFourth() {
+    func testNavigationPriorityAccessibilityFourth() async {
         // Given: System has accessibility issues but no input monitoring issues
         let accessibilityIssue = createTestIssue(
             category: .permissions,
@@ -133,7 +133,7 @@ class WizardNavigationEngineTests: XCTestCase {
         let issues = [accessibilityIssue]
 
         // When: Determining current page
-        let page = engine.determineCurrentPage(for: .missingPermissions(missing: []), issues: issues)
+        let page = await engine.determineCurrentPage(for: .missingPermissions(missing: []), issues: issues)
 
         // Then: Should navigate to accessibility
         XCTAssertEqual(
@@ -141,34 +141,34 @@ class WizardNavigationEngineTests: XCTestCase {
         )
     }
 
-    func testNavigationServiceNotRunning() {
+    func testNavigationServiceNotRunning() async {
         // Given: System is ready but service not running
         let issues: [WizardIssue] = []
 
         // When: Determining current page with service not running state
-        let page = engine.determineCurrentPage(for: .serviceNotRunning, issues: issues)
+        let page = await engine.determineCurrentPage(for: .serviceNotRunning, issues: issues)
 
         // Then: Should navigate to service page
         XCTAssertEqual(page, .service, "Should navigate to service page when service not running")
     }
 
-    func testNavigationReadyState() {
+    func testNavigationReadyState() async {
         // Given: System is ready (all components installed, service not started)
         let issues: [WizardIssue] = []
 
         // When: Determining current page with ready state
-        let page = engine.determineCurrentPage(for: .ready, issues: issues)
+        let page = await engine.determineCurrentPage(for: .ready, issues: issues)
 
         // Then: Should navigate to service page
         XCTAssertEqual(page, .service, "Should navigate to service page when ready to start service")
     }
 
-    func testNavigationNoIssues() {
+    func testNavigationNoIssues() async {
         // Given: No issues and active state
         let issues: [WizardIssue] = []
 
         // When: Determining current page
-        let page = engine.determineCurrentPage(for: .active, issues: issues)
+        let page = await engine.determineCurrentPage(for: .active, issues: issues)
 
         // Then: Should navigate to summary
         XCTAssertEqual(page, .summary, "Should navigate to summary when no issues")
@@ -176,7 +176,7 @@ class WizardNavigationEngineTests: XCTestCase {
 
     // MARK: - Page Order Tests
 
-    func testPageOrder() {
+    func testPageOrder() async {
         // Given: Navigation engine
         let expectedOrder: [WizardPage] = [
             .summary, // Overview
@@ -192,19 +192,19 @@ class WizardNavigationEngineTests: XCTestCase {
         ]
 
         // When: Getting page order
-        let actualOrder = engine.getPageOrder()
+        let actualOrder = await engine.getPageOrder()
 
         // Then: Should match expected order
         XCTAssertEqual(actualOrder, expectedOrder, "Page order should follow expected flow")
     }
 
-    func testPageIndex() {
+    func testPageIndex() async {
         // Given: Navigation engine
 
         // When: Getting page indices
-        let summaryIndex = engine.pageIndex(.summary)
-        let conflictsIndex = engine.pageIndex(.conflicts)
-        let serviceIndex = engine.pageIndex(.service)
+        let summaryIndex = await engine.pageIndex(.summary)
+        let conflictsIndex = await engine.pageIndex(.conflicts)
+        let serviceIndex = await engine.pageIndex(.service)
 
         // Then: Should return correct indices
         XCTAssertEqual(summaryIndex, 0, "Summary should be first (index 0)")
@@ -214,17 +214,17 @@ class WizardNavigationEngineTests: XCTestCase {
 
     // MARK: - Blocking Page Tests
 
-    func testBlockingPages() {
+    func testBlockingPages() async {
         // Given: Navigation engine with helper mocked as enabled (from setUp)
 
         // When: Checking if pages are blocking
-        let conflictsBlocking = engine.isBlockingPage(.conflicts)
-        let installationBlocking = engine.isBlockingPage(.kanataComponents)
-        let helperBlockingWhenEnabled = engine.isBlockingPage(.helper) // Should NOT block when enabled
-        let permissionsBlocking = engine.isBlockingPage(.inputMonitoring)
-        let backgroundServicesBlocking = engine.isBlockingPage(.service)
-        let serviceBlocking = engine.isBlockingPage(.service)
-        let summaryBlocking = engine.isBlockingPage(.summary)
+        let conflictsBlocking = await engine.isBlockingPage(.conflicts)
+        let installationBlocking = await engine.isBlockingPage(.kanataComponents)
+        let helperBlockingWhenEnabled = await engine.isBlockingPage(.helper) // Should NOT block when enabled
+        let permissionsBlocking = await engine.isBlockingPage(.inputMonitoring)
+        let backgroundServicesBlocking = await engine.isBlockingPage(.service)
+        let serviceBlocking = await engine.isBlockingPage(.service)
+        let summaryBlocking = await engine.isBlockingPage(.summary)
 
         // Then: Should correctly identify blocking pages
         XCTAssertTrue(conflictsBlocking, "Conflicts should be blocking")
@@ -236,12 +236,12 @@ class WizardNavigationEngineTests: XCTestCase {
         XCTAssertFalse(summaryBlocking, "Summary should not be blocking")
     }
 
-    func testHelperBlockingWhenApprovalNeeded() {
+    func testHelperBlockingWhenApprovalNeeded() async {
         // Given: Helper needs Login Items approval
         HelperManager.smServiceFactory = { _ in MockRequiresApprovalSMAppService() }
 
         // When: Checking if helper page is blocking
-        let helperBlocking = engine.isBlockingPage(.helper)
+        let helperBlocking = await engine.isBlockingPage(.helper)
 
         // Then: Helper should be blocking when approval is needed
         XCTAssertTrue(helperBlocking, "Helper should be blocking when Login Items approval required")
@@ -250,12 +250,12 @@ class WizardNavigationEngineTests: XCTestCase {
         HelperManager.smServiceFactory = { _ in MockEnabledSMAppService() }
     }
 
-    func testHelperBlockingWhenNotInstalled() {
+    func testHelperBlockingWhenNotInstalled() async {
         // Given: Helper is not registered
         HelperManager.smServiceFactory = { _ in MockNotRegisteredSMAppService() }
 
         // When: Checking if helper page is blocking
-        let helperBlocking = engine.isBlockingPage(.helper)
+        let helperBlocking = await engine.isBlockingPage(.helper)
 
         // Then: Helper should be blocking when not installed
         XCTAssertTrue(helperBlocking, "Helper should be blocking when not installed")
@@ -266,12 +266,12 @@ class WizardNavigationEngineTests: XCTestCase {
 
     // MARK: - Progress Calculation Tests
 
-    func testProgressCalculation() {
+    func testProgressCalculation() async {
         // Given: Different system states
-        let initializingProgress = engine.calculateProgress(for: .initializing)
-        let conflictsProgress = engine.calculateProgress(for: .conflictsDetected(conflicts: []))
-        let readyProgress = engine.calculateProgress(for: .ready)
-        let activeProgress = engine.calculateProgress(for: .active)
+        let initializingProgress = await engine.calculateProgress(for: .initializing)
+        let conflictsProgress = await engine.calculateProgress(for: .conflictsDetected(conflicts: []))
+        let readyProgress = await engine.calculateProgress(for: .ready)
+        let activeProgress = await engine.calculateProgress(for: .active)
 
         // Then: Progress should increase appropriately
         XCTAssertEqual(initializingProgress, 0.0, "Initializing should be 0% progress")
@@ -285,7 +285,7 @@ class WizardNavigationEngineTests: XCTestCase {
         XCTAssertLessThan(readyProgress, activeProgress)
     }
 
-    func testProgressDescription() {
+    func testProgressDescription() async {
         // Given: Different system states
         let descriptions: [(WizardSystemState, String)] = [
             (.initializing, "Checking system..."),
@@ -296,7 +296,7 @@ class WizardNavigationEngineTests: XCTestCase {
 
         // When/Then: Each state should have appropriate description
         for (state, expectedDescription) in descriptions {
-            let actualDescription = engine.progressDescription(for: state)
+            let actualDescription = await engine.progressDescription(for: state)
             XCTAssertEqual(
                 actualDescription, expectedDescription, "Description for \(state) should match"
             )
@@ -305,7 +305,7 @@ class WizardNavigationEngineTests: XCTestCase {
 
     // MARK: - Button State Tests
 
-    func testPrimaryButtonText() {
+    func testPrimaryButtonText() async {
         // Given: Different pages
         let buttonTexts: [(WizardPage, String)] = [
             (.conflicts, "Resolve Conflicts"),
@@ -318,18 +318,18 @@ class WizardNavigationEngineTests: XCTestCase {
 
         // When/Then: Each page should have appropriate button text
         for (page, expectedText) in buttonTexts {
-            let actualText = engine.primaryButtonText(for: page, state: .initializing)
+            let actualText = await engine.primaryButtonText(for: page, state: .initializing)
             XCTAssertEqual(actualText, expectedText, "Button text for \(page) should match")
         }
     }
 
-    func testSummaryButtonTextVariation() {
+    func testSummaryButtonTextVariation() async {
         // Given: Summary page with different states
-        let activeButtonText = engine.primaryButtonText(for: .summary, state: .active)
-        let serviceNotRunningButtonText = engine.primaryButtonText(
+        let activeButtonText = await engine.primaryButtonText(for: .summary, state: .active)
+        let serviceNotRunningButtonText = await engine.primaryButtonText(
             for: .summary, state: .serviceNotRunning
         )
-        let readyButtonText = engine.primaryButtonText(for: .summary, state: .ready)
+        let readyButtonText = await engine.primaryButtonText(for: .summary, state: .ready)
 
         // Then: Button text should vary based on state
         XCTAssertEqual(activeButtonText, "Close Setup", "Active state should show 'Close Setup'")
@@ -344,14 +344,14 @@ class WizardNavigationEngineTests: XCTestCase {
 
     // MARK: - Navigation State Tests
 
-    func testNavigationStateCreation() {
+    func testNavigationStateCreation() async {
         // Given: Current page and system state
         let currentPage = WizardPage.conflicts
         let systemState = WizardSystemState.conflictsDetected(conflicts: [])
         let issues = [createTestIssue(category: .conflicts, title: "Test Conflict")]
 
         // When: Creating navigation state
-        let navState = engine.createNavigationState(
+        let navState = await engine.createNavigationState(
             currentPage: currentPage,
             systemState: systemState,
             issues: issues
@@ -365,7 +365,7 @@ class WizardNavigationEngineTests: XCTestCase {
 
     // MARK: - Next Page Logic Tests
 
-    func testNextPageLogic() {
+    func testNextPageLogic() async {
         // Given: Current page and system state with issues
         let currentPage = WizardPage.conflicts
         let issues = [
@@ -378,13 +378,13 @@ class WizardNavigationEngineTests: XCTestCase {
         let systemState = WizardSystemState.missingComponents(missing: [])
 
         // When: Getting next page
-        let nextPage = engine.nextPage(from: currentPage, given: systemState, issues: issues)
+        let nextPage = await engine.nextPage(from: currentPage, given: systemState, issues: issues)
 
         // Then: Should return the target page based on current issues
         XCTAssertEqual(nextPage, .kanataComponents, "Next page should be installation based on issues")
     }
 
-    func testNextPageWhenAlreadyOnTarget() {
+    func testNextPageWhenAlreadyOnTarget() async {
         // Given: Already on the target page but want to continue sequentially
         let currentPage = WizardPage.kanataComponents
         let issues = [
@@ -397,20 +397,20 @@ class WizardNavigationEngineTests: XCTestCase {
         let systemState = WizardSystemState.missingComponents(missing: [])
 
         // When: Getting next page
-        let nextPage = engine.nextPage(from: currentPage, given: systemState, issues: issues)
+        let nextPage = await engine.nextPage(from: currentPage, given: systemState, issues: issues)
 
         // Then: Should continue to next page in sequence (.service comes after .kanataComponents)
         XCTAssertEqual(nextPage, .service, "Should continue to next page in sequence")
     }
 
-    func testNextPageNoIssuesSequentialProgression() {
+    func testNextPageNoIssuesSequentialProgression() async {
         // Given: On Input Monitoring page with no issues
         let currentPage = WizardPage.inputMonitoring
         let issues: [WizardIssue] = []
         let systemState = WizardSystemState.active
 
         // When: Getting next page
-        let nextPage = engine.nextPage(from: currentPage, given: systemState, issues: issues)
+        let nextPage = await engine.nextPage(from: currentPage, given: systemState, issues: issues)
 
         // Then: Should advance to next page (Karabiner components now follow input monitoring)
         XCTAssertEqual(nextPage, .karabinerComponents, "Should advance to karabiner components page")

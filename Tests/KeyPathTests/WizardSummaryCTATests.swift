@@ -3,15 +3,15 @@ import XCTest
 @testable import KeyPathAppKit
 
 final class WizardSummaryCTATests: XCTestCase {
-    func testHelperCTAVisibleWhenHelperMissing() {
+    func testHelperCTAVisibleWhenHelperMissing() async {
         let interpreter = WizardStateInterpreter()
-        let show = interpreter.shouldShowHelperCTA(helperInstalledProvider: { false })
+        let show = await interpreter.shouldShowHelperCTA(helperInstalledProvider: { false })
         XCTAssertTrue(show)
     }
 
-    func testHelperCTAHiddenWhenHelperInstalled() {
+    func testHelperCTAHiddenWhenHelperInstalled() async {
         let interpreter = WizardStateInterpreter()
-        let show = interpreter.shouldShowHelperCTA(helperInstalledProvider: { true })
+        let show = await interpreter.shouldShowHelperCTA(helperInstalledProvider: { true })
         XCTAssertFalse(show)
     }
 }

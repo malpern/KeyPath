@@ -298,7 +298,7 @@ public struct WizardIssue: Identifiable, Sendable {
 }
 
 /// Navigation state for the wizard
-public struct WizardNavigationState {
+public struct WizardNavigationState: Sendable {
     public let currentPage: WizardPage
     public let availablePages: [WizardPage]
     public let canNavigateNext: Bool

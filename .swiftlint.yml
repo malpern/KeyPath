@@ -51,3 +51,18 @@ disabled_rules:
 
 # Custom reporter for CI
 reporter: "github-actions-logging"
+
+# Custom rules
+custom_rules:
+  # Flag direct Process() usage outside SubprocessRunner
+  # All subprocess execution should go through SubprocessRunner.shared to prevent MainActor blocking
+  no_direct_process:
+    name: "Direct Process() Usage"
+    regex: '(?<!SubprocessRunner\.shared\.run\([^)]*\)|SubprocessRunner\.shared\.pgrep\([^)]*\)|SubprocessRunner\.shared\.launchctl\([^)]*\)|SubprocessRunnerFake|ProcessResult|ProcessError)\bProcess\s*\(\s*\)'
+    message: "Direct Process() usage detected. Use SubprocessRunner.shared.run() instead to prevent MainActor blocking."
+    severity: warning
+    excluded:
+      - "**/SubprocessRunner.swift"  # Allow Process() in SubprocessRunner itself
+      - "**/SubprocessRunnerFake.swift"  # Allow Process() in test fakes
+      - "**/*Test*.swift"  # Allow Process() in tests (they may need to test Process directly)
+      - "dev-tools/**"  # Allow Process() in dev tools
