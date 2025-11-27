@@ -443,11 +443,11 @@ class ConfigurationServiceTests: XCTestCase {
         XCTAssertEqual(result.errors.first, "Configuration content is empty")
     }
 
-    func testValidateConfigViaFileSkipsBinaryInTestMode() {
+    func testValidateConfigViaFileSkipsBinaryInTestMode() async {
         TestEnvironment.forceTestMode = true
         defer { TestEnvironment.forceTestMode = false }
 
-        let (isValid, errors) = configService.validateConfigViaFile()
+        let (isValid, errors) = await configService.validateConfigViaFile()
         XCTAssertTrue(isValid)
         XCTAssertTrue(errors.isEmpty)
     }

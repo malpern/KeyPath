@@ -218,4 +218,3 @@ final class SubprocessRunnerTests: XCTestCase {
         }
     }
 }
-

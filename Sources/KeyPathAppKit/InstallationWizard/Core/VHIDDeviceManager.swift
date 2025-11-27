@@ -86,7 +86,7 @@ final class VHIDDeviceManager: @unchecked Sendable {
                 return false
             case .timeout:
                 // Treat timeout as inconclusive; use fallback launchctl check before giving up
-                if Self.fastLaunchctlCheck() { return true }
+                if await Self.fastLaunchctlCheck() { return true }
                 if attempt < maxAttempts {
                     AppLogger.shared.log(
                         "⏳ [VHIDManager] Timeout while checking daemon; retrying to avoid false negatives"
@@ -172,7 +172,7 @@ final class VHIDDeviceManager: @unchecked Sendable {
                 } catch is TimeoutError {
                     task.terminate()
                     // Fallback to a fast launchctl check so we don't flip the wizard red on a hung pgrep
-                    let launchctlRunning = Self.fastLaunchctlCheck()
+                    let launchctlRunning = await Self.fastLaunchctlCheck()
                     AppLogger.shared.log(
                         "⚠️ [VHIDManager] VHIDDevice process check timed out after 3s - fallback launchctl says running=\(launchctlRunning)"
                     )
@@ -216,21 +216,10 @@ final class VHIDDeviceManager: @unchecked Sendable {
     }
 
     /// Extremely fast check using launchctl list; used as a fallback when pgrep stalls.
-    private static func fastLaunchctlCheck() -> Bool {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-        task.arguments = ["list", "com.keypath.karabiner-vhiddaemon"]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
+    private static func fastLaunchctlCheck() async -> Bool {
         do {
-            try task.run()
-            task.waitUntilExit()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            return output.contains("\"PID\"")
+            let result = try await SubprocessRunner.shared.launchctl("list", ["com.keypath.karabiner-vhiddaemon"])
+            return result.stdout.contains("\"PID\"")
         } catch {
             AppLogger.shared.log("❌ [VHIDManager] fastLaunchctlCheck failed: \(error)")
             return false
@@ -239,7 +228,7 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
     /// Get actual PIDs of running VirtualHID daemon processes
     /// Returns array of PID strings, empty if no processes found
-    func getDaemonPIDs() -> [String] {
+    func getDaemonPIDs() async -> [String] {
         // Skip during startup to prevent blocking
         if FeatureFlags.shared.startupModeActive {
             return []
@@ -250,62 +239,26 @@ final class VHIDDeviceManager: @unchecked Sendable {
             return provider().filter { !$0.isEmpty }
         }
 
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        task.arguments = ["-f", Self.vhidDeviceRunningCheck]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = Pipe()
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            guard task.terminationStatus == 0 else {
-                return []
-            }
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            let pids = output.trimmingCharacters(in: .whitespacesAndNewlines)
-                .components(separatedBy: .newlines)
-                .filter { !$0.isEmpty }
-
-            return pids
-        } catch {
-            AppLogger.shared.log("❌ [VHIDManager] Error getting daemon PIDs: \(error)")
-            return []
-        }
+        let pids = await SubprocessRunner.shared.pgrep(Self.vhidDeviceRunningCheck)
+        return pids.map { String($0) }
     }
 
     /// Lightweight health check using launchctl. Returns:
     /// - true if launchctl print succeeds,
     /// - false if launchctl reports the service but unhealthy,
     /// - nil if the call fails (permission/lookup).
-    func checkLaunchctlHealth() -> Bool? {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-        task.arguments = ["print", "system/com.keypath.karabiner-vhiddaemon"]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
+    func checkLaunchctlHealth() async -> Bool? {
         do {
-            try task.run()
-            task.waitUntilExit()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
+            let result = try await SubprocessRunner.shared.launchctl("print", ["system/com.keypath.karabiner-vhiddaemon"])
 
-            guard task.terminationStatus == 0 else {
+            guard result.exitCode == 0 else {
                 AppLogger.shared.log(
-                    "⚠️ [VHIDManager] launchctl health check exit=\(task.terminationStatus)")
+                    "⚠️ [VHIDManager] launchctl health check exit=\(result.exitCode)")
                 return false
             }
 
             // Consider it healthy if a PID line exists
-            let healthy = output.contains("pid =") || output.contains("\"PID\"")
+            let healthy = result.stdout.contains("pid =") || result.stdout.contains("\"PID\"")
             AppLogger.shared.log(
                 "🔍 [VHIDManager] launchctl health check healthy=\(healthy)")
             return healthy
@@ -474,23 +427,15 @@ final class VHIDDeviceManager: @unchecked Sendable {
         AppLogger.shared.log("🧹 [VHIDManager] Uninstalling all existing driver versions...")
 
         // First, check if there are any DriverKit extensions to uninstall
-        let listTask = Process()
-        listTask.executableURL = URL(fileURLWithPath: "/usr/bin/systemextensionsctl")
-        listTask.arguments = ["list"]
-
-        let listPipe = Pipe()
-        listTask.standardOutput = listPipe
-        listTask.standardError = listPipe
-
         do {
-            try listTask.run()
-            listTask.waitUntilExit()
-
-            let data = listPipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
+            let listResult = try await SubprocessRunner.shared.run(
+                "/usr/bin/systemextensionsctl",
+                args: ["list"],
+                timeout: 10
+            )
 
             // Check if our driver extension is listed
-            let hasKarabinerDriver = output.contains("Karabiner-DriverKit-VirtualHIDDevice")
+            let hasKarabinerDriver = listResult.stdout.contains("Karabiner-DriverKit-VirtualHIDDevice")
 
             if !hasKarabinerDriver {
                 AppLogger.shared.log(
@@ -606,37 +551,23 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
     // MARK: - Helper Functions
 
-    /// Fast shell command execution for startup mode health checks
-    /// Uses Process instead of capturing stdout for better performance
-    private func shell(_ command: String) -> String {
+    /// Fast shell command execution using SubprocessRunner
+    private func shellAsync(_ command: String) async -> String {
         // Test seam: use mock shell results in tests
         if TestEnvironment.isRunningTests, let provider = Self.testShellProvider {
             return provider(command)
         }
 
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/sh")
-        task.arguments = ["-c", command]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
         do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            return String(data: data, encoding: .utf8) ?? ""
+            let result = try await SubprocessRunner.shared.run(
+                "/bin/sh",
+                args: ["-c", command],
+                timeout: 10
+            )
+            return result.stdout
         } catch {
             return ""
         }
-    }
-
-    private func shellAsync(_ command: String) async -> String {
-        await Task.detached {
-            self.shell(command)
-        }.value
     }
 }
 

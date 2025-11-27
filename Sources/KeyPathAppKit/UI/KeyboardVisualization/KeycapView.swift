@@ -27,17 +27,17 @@ struct KeycapView: View {
 
     private var keycapColor: Color {
         if isPressed {
-            return Color(white: 0.7)  // Brighter when pressed
+            Color(white: 0.7) // Brighter when pressed
         } else {
-            return Color(white: 0.95)  // Light gray default
+            Color(white: 0.95) // Light gray default
         }
     }
 
     private var borderColor: Color {
         if isPressed {
-            return Color(white: 0.4)  // Darker border when pressed
+            Color(white: 0.4) // Darker border when pressed
         } else {
-            return Color(white: 0.8)  // Light border default
+            Color(white: 0.8) // Light border default
         }
     }
 
@@ -47,9 +47,9 @@ struct KeycapView: View {
 
     private var labelColor: Color {
         if isPressed {
-            return .black
+            .black
         } else {
-            return Color(white: 0.3)
+            Color(white: 0.3)
         }
     }
 
@@ -65,4 +65,3 @@ struct KeycapView: View {
         }
     }
 }
-

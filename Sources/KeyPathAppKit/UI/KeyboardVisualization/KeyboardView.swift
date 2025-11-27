@@ -56,4 +56,3 @@ struct KeyboardView: View {
         .padding(16)
     }
 }
-

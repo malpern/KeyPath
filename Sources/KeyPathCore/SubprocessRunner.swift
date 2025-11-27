@@ -108,23 +108,23 @@ public actor SubprocessRunner: SubprocessRunning {
                 }
 
                 // Set up timeout task
-        runContext.timeoutTask = Task {
-            do {
-                try await Task.sleep(nanoseconds: UInt64(timeoutInterval * 1_000_000_000))
-            } catch {
-                // Task cancelled (process finished or parent cancelled)
-                return
-            }
+                runContext.timeoutTask = Task {
+                    do {
+                        try await Task.sleep(nanoseconds: UInt64(timeoutInterval * 1_000_000_000))
+                    } catch {
+                        // Task cancelled (process finished or parent cancelled)
+                        return
+                    }
 
-            task.terminate()
-            if runContext.resume(
-                with: .failure(SubprocessError.timeout(executable: executable, timeout: timeoutInterval))
-            ) {
-                AppLogger.shared.warn(
-                    "⏱️ [SubprocessRunner] \(executable) timed out after \(String(format: "%.2f", timeoutInterval))s - terminated"
-                )
-            }
-        }
+                    task.terminate()
+                    if runContext.resume(
+                        with: .failure(SubprocessError.timeout(executable: executable, timeout: timeoutInterval))
+                    ) {
+                        AppLogger.shared.warn(
+                            "⏱️ [SubprocessRunner] \(executable) timed out after \(String(format: "%.2f", timeoutInterval))s - terminated"
+                        )
+                    }
+                }
 
                 // Launch process
                 do {
@@ -222,12 +222,11 @@ public enum SubprocessError: Error, Sendable {
     var localizedDescription: String {
         switch self {
         case let .timeout(executable, timeout):
-            return "Subprocess '\(executable)' timed out after \(timeout)s"
+            "Subprocess '\(executable)' timed out after \(timeout)s"
         case let .launchFailed(executable, error):
-            return "Failed to launch '\(executable)': \(error.localizedDescription)"
+            "Failed to launch '\(executable)': \(error.localizedDescription)"
         case let .nonZeroExit(exitCode):
-            return "Process exited with non-zero code: \(exitCode)"
+            "Process exited with non-zero code: \(exitCode)"
         }
     }
 }
-

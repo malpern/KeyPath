@@ -68,9 +68,6 @@ class KeyboardVisualizationWindow: NSWindow {
     }
 }
 
-import Combine
-
-/// Manager for the keyboard visualization window
 @MainActor
 class KeyboardVisualizationManager: ObservableObject {
     static let shared = KeyboardVisualizationManager()
@@ -87,7 +84,7 @@ class KeyboardVisualizationManager: ObservableObject {
 
     func show() {
         // Check if system is green before showing
-        if let stateController = stateController,
+        if let stateController,
            let validationState = stateController.validationState,
            !validationState.isSuccess {
             // System is not green - show toast and don't show window
@@ -127,7 +124,7 @@ class KeyboardVisualizationManager: ObservableObject {
     // MARK: - System State Observation
 
     private func observeSystemState() {
-        guard let stateController = stateController else {
+        guard let stateController else {
             return
         }
 
@@ -144,16 +141,15 @@ class KeyboardVisualizationManager: ObservableObject {
     }
 
     private func handleStateChange(validationState: MainAppStateController.ValidationState?) {
-        let isGreen: Bool
-        if let state = validationState {
-            isGreen = state.isSuccess
+        let isGreen: Bool = if let state = validationState {
+            state.isSuccess
         } else {
             // Not yet validated - treat as not green
-            isGreen = false
+            false
         }
 
         // If system goes red and window is visible, close it and show toast
-        if !isGreen, let window = window, window.isVisible {
+        if !isGreen, let window, window.isVisible {
             wasVisibleBeforeStateChange = true
             hide()
             UserFeedbackService.show(
@@ -163,4 +159,3 @@ class KeyboardVisualizationManager: ObservableObject {
         }
     }
 }
-

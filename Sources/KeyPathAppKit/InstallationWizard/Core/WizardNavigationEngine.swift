@@ -252,7 +252,7 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
             // Helper is blocking if Login Items approval is required OR helper is not installed
             // Without the helper, privileged operations require repeated password prompts
             let needsApproval = HelperManager.shared.helperNeedsLoginItemsApproval()
-            let notInstalled = !(await HelperManager.shared.isHelperInstalled())
+            let notInstalled = await !(HelperManager.shared.isHelperInstalled())
             return needsApproval || notInstalled
         case .inputMonitoring, .accessibility:
             return false // Can proceed but functionality limited

@@ -143,4 +143,3 @@ actor SubprocessRunnerFake: SubprocessRunning {
         return defaultLaunchctlResult
     }
 }
-

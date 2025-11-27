@@ -74,7 +74,7 @@ protocol DiagnosticsServiceProtocol: Sendable {
     /// Analyze log file for issues
     func analyzeLogFile(path: String) async -> [KanataDiagnostic]
     /// VirtualHID daemon low-level status (used for summaries)
-    func virtualHIDDaemonStatus() -> VirtualHIDDaemonStatus
+    func virtualHIDDaemonStatus() async -> VirtualHIDDaemonStatus
     /// Parse a log chunk into high-level events
     func analyzeKanataLogChunk(_ chunk: String) -> [DiagnosticsLogEvent]
 }
@@ -89,13 +89,13 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         self.processLifecycleManager = processLifecycleManager
     }
 
-    nonisolated func virtualHIDDaemonStatus() -> VirtualHIDDaemonStatus {
+    nonisolated func virtualHIDDaemonStatus() async -> VirtualHIDDaemonStatus {
         // Get actual VirtualHID daemon status with real PIDs
         let vhid = VHIDDeviceManager()
-        let pids = vhid.getDaemonPIDs() // Get real PIDs instead of placeholder
+        let pids = await vhid.getDaemonPIDs() // Get real PIDs instead of placeholder
         let installed = vhid.detectActivation()
         let running = !pids.isEmpty
-        let health = vhid.checkLaunchctlHealth()
+        let health = await vhid.checkLaunchctlHealth()
 
         return VirtualHIDDaemonStatus(
             pids: pids, // Real PIDs from pgrep
@@ -289,7 +289,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         // We don't duplicate permission diagnostics here to avoid confusion
 
         // Check for conflicts
-        if isKarabinerElementsRunning() {
+        if await isKarabinerElementsRunning() {
             diagnostics.append(
                 KanataDiagnostic(
                     timestamp: Date(),
@@ -316,7 +316,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                     suggestedAction: "Install Karabiner-Elements to get the VirtualHID driver",
                     canAutoFix: false
                 ))
-        } else if !isKarabinerDaemonRunning() {
+        } else if await !isKarabinerDaemonRunning() {
             diagnostics.append(
                 KanataDiagnostic(
                     timestamp: Date(),
@@ -331,7 +331,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         }
 
         // Check for karabiner_grabber conflict
-        if isKarabinerElementsRunning() {
+        if await isKarabinerElementsRunning() {
             diagnostics.append(
                 KanataDiagnostic(
                     timestamp: Date(),
@@ -350,7 +350,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         diagnostics.append(contentsOf: processConflicts)
 
         // Check driver extension status
-        if isKarabinerDriverInstalled(), !isKarabinerDriverExtensionEnabled() {
+        if isKarabinerDriverInstalled(), await !isKarabinerDriverExtensionEnabled() {
             diagnostics.append(
                 KanataDiagnostic(
                     timestamp: Date(),
@@ -366,7 +366,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
 
         // Karabiner background services
         // If they are disabled, that's OK for KeyPath (it avoids conflicts). Downgrade to info.
-        if !areKarabinerBackgroundServicesEnabled() {
+        if await !areKarabinerBackgroundServicesEnabled() {
             diagnostics.append(
                 KanataDiagnostic(
                     timestamp: Date(),
@@ -575,21 +575,19 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         FileManager.default.fileExists(atPath: WizardSystemPaths.kanataActiveBinary)
     }
 
-    private func isKarabinerElementsRunning() -> Bool {
+    private func isKarabinerElementsRunning() async -> Bool {
         // Skip process checks in test mode
         if TestEnvironment.isRunningTests { return false }
 
-        let process = Process()
-        let pipe = Pipe()
-
-        process.launchPath = "/usr/bin/pgrep"
-        process.arguments = ["-x", "karabiner_grabber"]
-        process.standardOutput = pipe
-
+        // Use -x for exact match (not pattern match)
         do {
-            try process.run()
-            process.waitUntilExit()
-            return process.terminationStatus == 0
+            let result = try await SubprocessRunner.shared.run(
+                "/usr/bin/pgrep",
+                args: ["-x", "karabiner_grabber"],
+                timeout: 5
+            )
+            // pgrep returns exit code 0 when processes found, 1 when not found
+            return result.exitCode == 0
         } catch {
             return false
         }
@@ -600,74 +598,44 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
             atPath: "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice")
     }
 
-    private func isKarabinerDaemonRunning() -> Bool {
+    private func isKarabinerDaemonRunning() async -> Bool {
         // Skip process checks in test mode
         if TestEnvironment.isRunningTests { return false }
 
-        let process = Process()
-        let pipe = Pipe()
+        let pids = await SubprocessRunner.shared.pgrep("Karabiner-VirtualHIDDevice")
+        return !pids.isEmpty
+    }
 
-        process.launchPath = "/usr/bin/pgrep"
-        process.arguments = ["-f", "Karabiner-VirtualHIDDevice"]
-        process.standardOutput = pipe
+    private func isKarabinerDriverExtensionEnabled() async -> Bool {
+        // Skip process checks in test mode
+        if TestEnvironment.isRunningTests { return true }
 
         do {
-            try process.run()
-            process.waitUntilExit()
-            return process.terminationStatus == 0
+            let result = try await SubprocessRunner.shared.run(
+                "/usr/bin/systemextensionsctl",
+                args: ["list"],
+                timeout: 10
+            )
+            let output = result.stdout + result.stderr
+            return output.contains("org.pqrs.Karabiner-DriverKit-VirtualHIDDevice")
+                && (output.contains("[activated enabled]") || output.contains("enabled"))
         } catch {
+            AppLogger.shared.log("⚠️ [Diagnostics] Failed to check driver extension status: \(error)")
             return false
         }
     }
 
-    private func isKarabinerDriverExtensionEnabled() -> Bool {
-        // Skip process checks in test mode
-        if TestEnvironment.isRunningTests { return true }
-
-        let process = Process()
-        let pipe = Pipe()
-
-        process.launchPath = "/usr/bin/systemextensionsctl"
-        process.arguments = ["list"]
-        process.standardOutput = pipe
-        process.standardError = pipe
-
-        do {
-            try process.run()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            if let output = String(data: data, encoding: .utf8) {
-                return output.contains("org.pqrs.Karabiner-DriverKit-VirtualHIDDevice")
-                    && (output.contains("[activated enabled]") || output.contains("enabled"))
-            }
-        } catch {
-            AppLogger.shared.log("⚠️ [Diagnostics] Failed to check driver extension status: \(error)")
-        }
-
-        return false
-    }
-
-    private func areKarabinerBackgroundServicesEnabled() -> Bool {
+    private func areKarabinerBackgroundServicesEnabled() async -> Bool {
         // Skip launchctl checks in test mode
         if TestEnvironment.isRunningTests { return true }
 
-        let process = Process()
-        let pipe = Pipe()
-
-        process.launchPath = "/bin/launchctl"
-        process.arguments = ["list"]
-        process.standardOutput = pipe
-
         do {
-            try process.run()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            if let output = String(data: data, encoding: .utf8) {
-                return output.contains("org.pqrs.karabiner")
-            }
+            let result = try await SubprocessRunner.shared.launchctl("list", [])
+            return result.stdout.contains("org.pqrs.karabiner")
         } catch {
             AppLogger.shared.log("⚠️ [Diagnostics] Failed to check background services: \(error)")
+            return false
         }
-
-        return false
     }
 
     // MARK: - TCP helpers (best-effort)

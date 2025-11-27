@@ -96,7 +96,7 @@ final class RecoveryCoordinator {
         onError: (String) -> Void
     ) async {
         // Check if VirtualHID daemon is running first
-        if !(await isKarabinerDaemonRunning()) {
+        if await !isKarabinerDaemonRunning() {
             AppLogger.shared.warn("⚠️ [Recovery] Karabiner daemon not running - recovery failed")
             onError("Recovery failed: Karabiner daemon not available")
             return

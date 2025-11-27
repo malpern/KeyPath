@@ -46,10 +46,12 @@ class BundledRuntimeCoordinator {
     }
 
     /// Get information about the current system kanata installation
-    func getSystemKanataInfo() -> KanataInstallationInfo? {
+    func getSystemKanataInfo() async -> KanataInstallationInfo? {
         guard let systemPath = findSystemKanataPath() else { return nil }
 
-        let installationInfo = packageManager.detectKanataInstallation()
+        // Create a local PackageManager to avoid Sendable issues with @MainActor
+        let localPackageManager = PackageManager()
+        let installationInfo = await localPackageManager.detectKanataInstallation()
 
         if installationInfo.isInstalled, installationInfo.path == systemPath {
             return installationInfo

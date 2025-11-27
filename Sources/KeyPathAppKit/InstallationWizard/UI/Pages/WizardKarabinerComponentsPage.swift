@@ -447,5 +447,4 @@ struct WizardKarabinerComponentsPage: View {
         let totalElapsed = String(format: "%.2f", Date().timeIntervalSince(t0))
         AppLogger.shared.log("✅ [Karabiner Fix] refreshAndWait() completed (elapsed=\(totalElapsed)s) - restart running in background")
     }
-
 }

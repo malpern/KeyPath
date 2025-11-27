@@ -27,21 +27,19 @@ struct SystemContextBuilder {
 
         let helper = HelperStatus(isInstalled: helperReady, version: "1.0", isWorking: helperReady)
 
-        let components: ComponentStatus = {
-            if componentsInstalled {
-                return ComponentStatus(
-                    kanataBinaryInstalled: true,
-                    karabinerDriverInstalled: true,
-                    karabinerDaemonRunning: servicesHealthy,
-                    vhidDeviceInstalled: true,
-                    vhidDeviceHealthy: servicesHealthy,
-                    launchDaemonServicesHealthy: servicesHealthy,
-                    vhidVersionMismatch: false
-                )
-            } else {
-                return .empty
-            }
-        }()
+        let components: ComponentStatus = if componentsInstalled {
+            ComponentStatus(
+                kanataBinaryInstalled: true,
+                karabinerDriverInstalled: true,
+                karabinerDaemonRunning: servicesHealthy,
+                vhidDeviceInstalled: true,
+                vhidDeviceHealthy: servicesHealthy,
+                launchDaemonServicesHealthy: servicesHealthy,
+                vhidVersionMismatch: false
+            )
+        } else {
+            .empty
+        }
 
         let services = servicesHealthy
             ? HealthStatus(kanataRunning: true, karabinerDaemonRunning: true, vhidHealthy: true)

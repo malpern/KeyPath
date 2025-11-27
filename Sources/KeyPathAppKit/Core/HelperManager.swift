@@ -848,42 +848,42 @@ extension HelperManager {
                 return
             }
 
-        // Minimal checks
-        var warnings: [String] = []
-        if !req.contains("identifier \"com.keypath.helper\"") {
-            warnings.append("missing identifier 'com.keypath.helper'")
-        }
-        if !req.contains("1.2.840.113635.100.6.2.6") { // Developer ID CA
-            warnings.append("missing Developer ID CA marker")
-        }
-        if !req.contains("1.2.840.113635.100.6.1.13") { // Developer ID Application
-            warnings.append("missing Developer ID Application marker")
-        }
-
-        // Compare with SMPrivilegedExecutables requirement (if present)
-        var plistRequirement: String?
-        if let info = NSDictionary(contentsOfFile: bundlePath + "/Contents/Info.plist"),
-           let sm = (info["SMPrivilegedExecutables"] as? NSDictionary)?[Self.helperBundleIdentifier]
-           as? String {
-            plistRequirement = sm
-            if !req.contains("com.keypath.helper") {
-                warnings.append(
-                    "helper req does not show expected identifier, while Info.plist declares it")
+            // Minimal checks
+            var warnings: [String] = []
+            if !req.contains("identifier \"com.keypath.helper\"") {
+                warnings.append("missing identifier 'com.keypath.helper'")
             }
-        }
+            if !req.contains("1.2.840.113635.100.6.2.6") { // Developer ID CA
+                warnings.append("missing Developer ID CA marker")
+            }
+            if !req.contains("1.2.840.113635.100.6.1.13") { // Developer ID Application
+                warnings.append("missing Developer ID Application marker")
+            }
 
-        if warnings.isEmpty {
-            AppLogger.shared.log("🔒 [HelperManager] Embedded helper signature looks valid")
-        } else {
-            AppLogger.shared.log(
-                "⚠️ [HelperManager] Embedded helper signature warnings: \(warnings.joined(separator: "; "))")
-            if let plistRequirement {
+            // Compare with SMPrivilegedExecutables requirement (if present)
+            var plistRequirement: String?
+            if let info = NSDictionary(contentsOfFile: bundlePath + "/Contents/Info.plist"),
+               let sm = (info["SMPrivilegedExecutables"] as? NSDictionary)?[Self.helperBundleIdentifier]
+               as? String {
+                plistRequirement = sm
+                if !req.contains("com.keypath.helper") {
+                    warnings.append(
+                        "helper req does not show expected identifier, while Info.plist declares it")
+                }
+            }
+
+            if warnings.isEmpty {
+                AppLogger.shared.log("🔒 [HelperManager] Embedded helper signature looks valid")
+            } else {
                 AppLogger.shared.log(
-                    "ℹ️ [HelperManager] App Info.plist SMPrivilegedExecutables[\(Self.helperBundleIdentifier)] = \(plistRequirement)"
-                )
+                    "⚠️ [HelperManager] Embedded helper signature warnings: \(warnings.joined(separator: "; "))")
+                if let plistRequirement {
+                    AppLogger.shared.log(
+                        "ℹ️ [HelperManager] App Info.plist SMPrivilegedExecutables[\(Self.helperBundleIdentifier)] = \(plistRequirement)"
+                    )
+                }
+                AppLogger.shared.log("ℹ️ [HelperManager] codesign designated => \(req)")
             }
-            AppLogger.shared.log("ℹ️ [HelperManager] codesign designated => \(req)")
-        }
         } catch {
             AppLogger.shared.log(
                 "⚠️ [HelperManager] Could not run codesign: \(error.localizedDescription)")

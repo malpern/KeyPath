@@ -179,7 +179,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
         VHIDDeviceManager.testPIDProvider = { ["should", "not", "be", "called"] }
 
         let mgr = VHIDDeviceManager()
-        let pids = mgr.getDaemonPIDs()
+        let pids = await mgr.getDaemonPIDs()
 
         XCTAssertTrue(pids.isEmpty, "Startup mode should skip PID collection and return empty array")
     }

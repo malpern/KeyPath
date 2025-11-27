@@ -900,7 +900,6 @@ struct InstallationWizardView: View {
                     toastManager.showSuccess("\(actionDescription) completed successfully", duration: 5.0)
                 }
             } else {
-
                 toastManager.showError(errorMessage, duration: 7.0)
             }
         }

@@ -560,24 +560,34 @@ final class PrivilegedOperationsCoordinator {
         }
 
         // 2) Ask helper to restart unhealthy services or install if missing
+        AppLogger.shared.log("🔎 [PrivCoordinator] Calling restartUnhealthyServices helper...")
         do {
             try await HelperManager.shared.restartUnhealthyServices()
+            AppLogger.shared.log("🔎 [PrivCoordinator] restartUnhealthyServices completed successfully")
         } catch {
             AppLogger.shared.log(
                 "⚠️ [PrivCoordinator] Helper restartUnhealthyServices failed: \(error.localizedDescription)")
         }
 
         // 3) Verification loop - optimized from 3s to 1.5s (Nov 2025)
+        AppLogger.shared.log("🔎 [PrivCoordinator] About to start verification loop...")
+        AppLogger.shared.log("🔎 [PrivCoordinator] Starting verification loop (timeout=\(Self.vhidVerifyTimeoutSeconds)s)")
         let vhidManager = VHIDDeviceManager()
         let start = Date()
+        var loopCount = 0
         while Date().timeIntervalSince(start) < Self.vhidVerifyTimeoutSeconds {
-            if await vhidManager.detectRunning() {
+            loopCount += 1
+            AppLogger.shared.log("🔎 [PrivCoordinator] Verification loop iteration \(loopCount), calling detectRunning()...")
+            let isRunning = await vhidManager.detectRunning()
+            AppLogger.shared.log("🔎 [PrivCoordinator] detectRunning() returned: \(isRunning)")
+            if isRunning {
                 AppLogger.shared.log(
                     "✅ [PrivCoordinator] Verified: VirtualHIDDevice daemon healthy after helper restart")
                 return true
             }
             try await Task.sleep(nanoseconds: Self.vhidVerifyIntervalNanos)
         }
+        AppLogger.shared.log("🔎 [PrivCoordinator] Verification loop completed after \(loopCount) iterations, timed out")
 
         // 4) Single post-verify check (removed repair cascade - user can retry if needed)
         try await Task.sleep(nanoseconds: Self.vhidSettleDelayNanos)
@@ -788,7 +798,7 @@ final class PrivilegedOperationsCoordinator {
         AppLogger.shared.log("🔐 [PrivCoordinator] VHID LaunchDaemon installed: \(hasService)")
 
         // Log current PIDs before any action (for diagnostics)
-        let beforePIDs = Self.getDaemonPIDs()
+        let beforePIDs = await Self.getDaemonPIDs()
         AppLogger.shared.log(
             "🔎 [PrivCoordinator] VHID PIDs before restart: \(beforePIDs.joined(separator: ", "))")
 
@@ -850,7 +860,7 @@ final class PrivilegedOperationsCoordinator {
         }
 
         // Log PIDs after kill, before start (for diagnostics)
-        let afterKillPIDs = Self.getDaemonPIDs()
+        let afterKillPIDs = await Self.getDaemonPIDs()
         AppLogger.shared.log(
             "🔎 [PrivCoordinator] VHID PIDs after kill: \(afterKillPIDs.joined(separator: ", "))")
 
@@ -867,7 +877,7 @@ final class PrivilegedOperationsCoordinator {
         }
 
         // Final diagnostics (removed repair cascade - user can retry if needed)
-        let pids = Self.getDaemonPIDs()
+        let pids = await Self.getDaemonPIDs()
         AppLogger.shared.log(
             "🔎 [PrivCoordinator] VHID PIDs after start: \(pids.joined(separator: ", "))")
         if pids.isEmpty {
@@ -922,22 +932,9 @@ final class PrivilegedOperationsCoordinator {
     }
 
     /// Helper: current VHID daemon PIDs (best-effort, no throw)
-    private static func getDaemonPIDs() -> [String] {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        task.arguments = ["-f", "Karabiner-VirtualHIDDevice-Daemon"]
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        do {
-            try task.run()
-            task.waitUntilExit()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            return output.split(separator: "\n").map { String($0).trimmingCharacters(in: .whitespaces) }
-                .filter { !$0.isEmpty }
-        } catch {
-            return []
-        }
+    private static func getDaemonPIDs() async -> [String] {
+        let pids = await SubprocessRunner.shared.pgrep("Karabiner-VirtualHIDDevice-Daemon")
+        return pids.map { String($0) }
     }
 
     private static func notifySMAppServiceApprovalRequired(context: String) {

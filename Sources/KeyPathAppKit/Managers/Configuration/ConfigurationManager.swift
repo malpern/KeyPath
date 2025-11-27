@@ -112,7 +112,7 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
 
         // Use CLI validation (TCP-only mode)
         AppLogger.shared.log("📄 [ConfigManager] Using file-based validation")
-        return configurationService.validateConfigViaFile()
+        return await configurationService.validateConfigViaFile()
     }
 
     func validateConfiguration(_ content: String) async -> (isValid: Bool, errors: [String]) {
@@ -246,7 +246,7 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
 
             // Strict CLI validation to match engine behavior on startup
             AppLogger.shared.log("🔍 [ConfigManager] Running CLI validation of existing configuration...")
-            let cli = configurationService.validateConfigViaFile()
+            let cli = await configurationService.validateConfigViaFile()
             if cli.isValid {
                 AppLogger.shared.log("✅ [ConfigManager] CLI validation PASSED")
                 let config = try await configurationService.reload()

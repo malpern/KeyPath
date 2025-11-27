@@ -196,7 +196,7 @@ final class KanataBinaryInstaller {
     private func verifyCodeSigning(at path: String) async {
         AppLogger.shared.log("🔍 [KanataBinaryInstaller] Verifying code signing and trust...")
         let verifyCommand = "spctl -a '\(path)' 2>&1"
-        
+
         do {
             let result = try await SubprocessRunner.shared.run(
                 "/bin/bash",
@@ -218,7 +218,7 @@ final class KanataBinaryInstaller {
     /// Run smoke test to verify the binary can actually execute
     private func runSmokeTest(at path: String) async {
         AppLogger.shared.log("🔍 [KanataBinaryInstaller] Running smoke test to verify binary execution...")
-        
+
         do {
             let result = try await SubprocessRunner.shared.run(
                 path,

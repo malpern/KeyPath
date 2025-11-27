@@ -259,6 +259,6 @@ struct WizardStateInterpreter {
     func shouldShowHelperCTA(
         helperInstalledProvider: () async -> Bool = { await HelperManager.shared.isHelperInstalled() }
     ) async -> Bool {
-        !(await helperInstalledProvider())
+        await !helperInstalledProvider()
     }
 }

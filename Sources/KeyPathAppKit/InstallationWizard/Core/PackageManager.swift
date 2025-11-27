@@ -120,7 +120,7 @@ class PackageManager {
     // MARK: - Package Detection
 
     /// Checks if Kanata is installed via any method
-    func detectKanataInstallation() -> KanataInstallationInfo {
+    func detectKanataInstallation() async -> KanataInstallationInfo {
         let possiblePaths = [
             WizardSystemPaths.kanataSystemInstallPath, // System-installed kanata (highest priority)
             WizardSystemPaths.bundledKanataPath, // Bundled kanata (preferred for detection)
@@ -136,7 +136,7 @@ class PackageManager {
                 "✅ [PackageManager] Kanata found at: \(path) (\(installationType)), signing: \(codeSigningStatus)"
             )
 
-            return KanataInstallationInfo(
+            return await KanataInstallationInfo(
                 isInstalled: true,
                 path: path,
                 installationType: installationType,
@@ -295,28 +295,15 @@ class PackageManager {
         }
     }
 
-    private func getKanataVersion(at path: String) -> String? {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: path)
-        task.arguments = ["--version"]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
+    private func getKanataVersion(at path: String) async -> String? {
         do {
-            try task.run()
-            task.waitUntilExit()
-
-            if task.terminationStatus == 0 {
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                let output = String(data: data, encoding: .utf8) ?? ""
-                return output.trimmingCharacters(in: .whitespacesAndNewlines)
+            let result = try await SubprocessRunner.shared.run(path, args: ["--version"], timeout: 10)
+            if result.exitCode == 0 {
+                return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
             }
         } catch {
             AppLogger.shared.log("⚠️ [PackageManager] Could not get Kanata version: \(error)")
         }
-
         return nil
     }
 
@@ -329,7 +316,7 @@ class PackageManager {
         // Pre-installation validation
         guard checkHomebrewInstallation() else {
             AppLogger.shared.log("❌ [PackageManager] Homebrew not available")
-            detectCommonIssues() // Log what might be wrong
+            await detectCommonIssues() // Log what might be wrong
             return .homebrewNotAvailable
         }
 
@@ -339,7 +326,7 @@ class PackageManager {
         }
 
         // Check if Kanata is already installed to avoid unnecessary work
-        let existingInstallation = detectKanataInstallation()
+        let existingInstallation = await detectKanataInstallation()
         if existingInstallation.isInstalled {
             AppLogger.shared.log(
                 "ℹ️ [PackageManager] Kanata already installed: \(existingInstallation.description)")
@@ -348,7 +335,7 @@ class PackageManager {
 
         // Pre-check if formula is available
         AppLogger.shared.log("🔍 [PackageManager] Checking if Kanata formula is available...")
-        if !checkBrewFormulaAvailability(formula: "kanata") {
+        if await !checkBrewFormulaAvailability(formula: "kanata") {
             AppLogger.shared.log(
                 "❌ [PackageManager] Kanata formula not found - may need 'brew update' first")
             return .packageNotFound
@@ -356,28 +343,22 @@ class PackageManager {
 
         AppLogger.shared.log("🔧 [PackageManager] Starting Kanata installation using: \(brewPath)")
 
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: brewPath)
-        task.arguments = ["install", "kanata"]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
         do {
-            try task.run()
-            task.waitUntilExit()
+            // Homebrew install can take a while, use longer timeout (5 minutes)
+            let result = try await SubprocessRunner.shared.run(
+                brewPath,
+                args: ["install", "kanata"],
+                timeout: 300
+            )
+            let output = result.stdout + result.stderr
 
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            if task.terminationStatus == 0 {
+            if result.exitCode == 0 {
                 AppLogger.shared.log("✅ [PackageManager] Homebrew installation completed successfully")
                 AppLogger.shared.log("📝 [PackageManager] Installation output: \(output)")
 
                 // Post-installation verification
                 AppLogger.shared.log("🔍 [PackageManager] Verifying Kanata installation...")
-                let verificationResult = detectKanataInstallation()
+                let verificationResult = await detectKanataInstallation()
 
                 if verificationResult.isInstalled {
                     AppLogger.shared.log(
@@ -386,18 +367,18 @@ class PackageManager {
                 } else {
                     AppLogger.shared.log(
                         "❌ [PackageManager] Installation completed but Kanata binary not detected")
-                    detectCommonIssues() // Log potential issues
+                    await detectCommonIssues() // Log potential issues
                     return .failure(
                         reason:
                         "Installation completed but binary not found - possible PATH or installation issue")
                 }
             } else {
                 AppLogger.shared.log(
-                    "❌ [PackageManager] Homebrew installation failed with status \(task.terminationStatus)")
+                    "❌ [PackageManager] Homebrew installation failed with status \(result.exitCode)")
                 AppLogger.shared.log("📝 [PackageManager] Error output: \(output)")
 
                 // Analyze common installation failures
-                analyzeInstallationFailure(output: output, exitCode: task.terminationStatus)
+                analyzeInstallationFailure(output: output, exitCode: result.exitCode)
 
                 return .failure(reason: "Homebrew installation failed: \(output)")
             }
@@ -408,27 +389,19 @@ class PackageManager {
     }
 
     /// Checks if a Homebrew formula is available
-    func checkBrewFormulaAvailability(formula: String) -> Bool {
+    func checkBrewFormulaAvailability(formula: String) async -> Bool {
         guard let brewPath = getHomebrewPath() else {
             return false
         }
 
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: brewPath)
-        task.arguments = ["search", formula]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
         do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            let isAvailable = task.terminationStatus == 0 && output.contains(formula)
+            let result = try await SubprocessRunner.shared.run(
+                brewPath,
+                args: ["search", formula],
+                timeout: 30
+            )
+            let output = result.stdout + result.stderr
+            let isAvailable = result.exitCode == 0 && output.contains(formula)
             AppLogger.shared.log("🔍 [PackageManager] Formula '\(formula)' available: \(isAvailable)")
             return isAvailable
         } catch {
@@ -440,13 +413,13 @@ class PackageManager {
     // MARK: - System Information
 
     /// Gets comprehensive package manager information
-    func getPackageManagerInfo() -> PackageManagerInfo {
+    func getPackageManagerInfo() async -> PackageManagerInfo {
         AppLogger.shared.log("🔍 [PackageManager] Gathering package manager information")
 
         let homebrewAvailable = checkHomebrewInstallation()
         let homebrewPath = getHomebrewPath()
         let homebrewBinPath = getHomebrewBinPath()
-        let kanataInfo = detectKanataInstallation()
+        let kanataInfo = await detectKanataInstallation()
 
         // Log potential issues
         if !homebrewAvailable {
@@ -458,7 +431,7 @@ class PackageManager {
             AppLogger.shared.log("⚠️ [PackageManager] Kanata binary not detected in any standard location")
 
             // Check for common installation issues
-            detectCommonIssues()
+            await detectCommonIssues()
         }
 
         AppLogger.shared.log(
@@ -475,7 +448,7 @@ class PackageManager {
     }
 
     /// Detects common package management issues and logs them
-    private func detectCommonIssues() {
+    private func detectCommonIssues() async {
         AppLogger.shared.log("🔍 [PackageManager] Detecting common installation issues")
 
         // Check for common PATH issues
@@ -508,7 +481,7 @@ class PackageManager {
         }
 
         // Check for Homebrew but no Kanata formula
-        if checkHomebrewInstallation(), !checkBrewFormulaAvailability(formula: "kanata") {
+        if checkHomebrewInstallation(), await !checkBrewFormulaAvailability(formula: "kanata") {
             AppLogger.shared.log(
                 "⚠️ [PackageManager] Homebrew available but Kanata formula not found - may need tap update")
         }
@@ -558,10 +531,10 @@ class PackageManager {
     }
 
     /// Gets installation recommendations based on current system state
-    func getInstallationRecommendations() -> [InstallationRecommendation] {
+    func getInstallationRecommendations() async -> [InstallationRecommendation] {
         var recommendations: [InstallationRecommendation] = []
 
-        let kanataInfo = detectKanataInstallation()
+        let kanataInfo = await detectKanataInstallation()
 
         // Kanata recommendations
         if !kanataInfo.isInstalled {

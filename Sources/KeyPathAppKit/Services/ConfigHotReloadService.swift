@@ -167,7 +167,7 @@ final class ConfigHotReloadService {
 
             if smState == .smappservicePending || smState.needsInstallation || !isProcessRunning {
                 let reason = !isProcessRunning ? "process not running" :
-                             (smState == .smappservicePending ? "pending approval" : "needs installation")
+                    (smState == .smappservicePending ? "pending approval" : "needs installation")
                 AppLogger.shared.info("ℹ️ [ConfigHotReload] Reload skipped - service not available (\(reason)), config is valid")
                 // Don't call onFailure - this isn't a real error, just service unavailability
                 // Reset status after a brief delay so UI doesn't show stale "validating" state

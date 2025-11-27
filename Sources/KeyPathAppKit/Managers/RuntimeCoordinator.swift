@@ -603,7 +603,7 @@ class RuntimeCoordinator {
         // CRITICAL: Check VHID daemon health before starting Kanata
         // If Kanata starts without a healthy VHID daemon, it will grab keyboard input
         // but have nowhere to output keystrokes, freezing the keyboard
-        if !(await isKarabinerDaemonRunning()) {
+        if await !isKarabinerDaemonRunning() {
             AppLogger.shared.error("❌ [Service] Cannot start Kanata - VirtualHID daemon is not running")
             lastError = "Cannot start: Karabiner VirtualHID daemon is not running. Please complete the setup wizard."
             notifyStateChanged()

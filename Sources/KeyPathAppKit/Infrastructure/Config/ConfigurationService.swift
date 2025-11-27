@@ -568,7 +568,7 @@ public final class ConfigurationService: FileConfigurationProviding {
     // MARK: - Validation
 
     /// Validate configuration via file-based check
-    public func validateConfigViaFile() -> (isValid: Bool, errors: [String]) {
+    public func validateConfigViaFile() async -> (isValid: Bool, errors: [String]) {
         if TestEnvironment.isTestMode {
             AppLogger.shared.log("🧪 [ConfigService] Test mode: Skipping file validation")
             return (true, [])
@@ -581,24 +581,17 @@ public final class ConfigurationService: FileConfigurationProviding {
             return (false, [message])
         }
 
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: binaryPath)
-        task.arguments = buildKanataArguments(checkOnly: true)
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
         var errors: [String] = []
 
         do {
-            try task.run()
-            task.waitUntilExit()
+            let result = try await SubprocessRunner.shared.run(
+                binaryPath,
+                args: buildKanataArguments(checkOnly: true),
+                timeout: 30
+            )
+            let output = result.stdout + result.stderr
 
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            if task.terminationStatus == 0 {
+            if result.exitCode == 0 {
                 AppLogger.shared.log("✅ [ConfigService] File validation passed")
                 return (true, [])
             } else {
@@ -609,7 +602,7 @@ public final class ConfigurationService: FileConfigurationProviding {
                 }
 
                 if errors.isEmpty {
-                    errors.append("Configuration validation failed (exit code: \(task.terminationStatus))")
+                    errors.append("Configuration validation failed (exit code: \(result.exitCode))")
                 }
 
                 AppLogger.shared.log("❌ [ConfigService] File validation failed: \(errors)")
@@ -723,29 +716,24 @@ public final class ConfigurationService: FileConfigurationProviding {
                 return (false, [message])
             }
 
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: kanataBinary)
             let arguments = ["--cfg", tempConfigPath, "--check"]
-            task.arguments = arguments
             AppLogger.shared.log(
                 "🔧 [Validation-CLI] Command: \(kanataBinary) \(arguments.joined(separator: " "))")
 
-            let pipe = Pipe()
-            task.standardOutput = pipe
-            task.standardError = pipe
-
             let cliStart = Date()
-            try task.run()
-            task.waitUntilExit()
+            let result = try await SubprocessRunner.shared.run(
+                kanataBinary,
+                args: arguments,
+                timeout: 30
+            )
             let cliDuration = Date().timeIntervalSince(cliStart)
             AppLogger.shared.log(
                 "⏱️ [Validation-CLI] CLI validation completed in \(String(format: "%.3f", cliDuration)) seconds"
             )
 
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
+            let output = result.stdout + result.stderr
 
-            AppLogger.shared.log("📋 [Validation-CLI] Exit code: \(task.terminationStatus)")
+            AppLogger.shared.log("📋 [Validation-CLI] Exit code: \(result.exitCode)")
             if !output.isEmpty {
                 AppLogger.shared.log("📋 [Validation-CLI] Output: \(output.prefix(500))...")
             }
@@ -754,7 +742,7 @@ public final class ConfigurationService: FileConfigurationProviding {
             try? FileManager.default.removeItem(at: tempConfigURL)
             AppLogger.shared.log("🗑️ [Validation-CLI] Temp file cleaned up")
 
-            if task.terminationStatus == 0 {
+            if result.exitCode == 0 {
                 AppLogger.shared.log("✅ [Validation-CLI] CLI validation PASSED")
                 return (true, [])
             } else {

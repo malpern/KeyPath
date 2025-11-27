@@ -120,11 +120,11 @@ final class SystemRequirementsChecker {
         installed: Bool, permissions: Bool, driver: Bool, daemon: Bool
     ) {
         let permissions = await hasAllRequiredPermissions()
-        return (
+        return await (
             installed: isInstalled(),
             permissions: permissions,
             driver: isKarabinerDriverInstalled(),
-            daemon: await isKarabinerDaemonRunning()
+            daemon: isKarabinerDaemonRunning()
         )
     }
 
@@ -234,7 +234,7 @@ final class SystemRequirementsChecker {
     /// Used to surface a helpful error toast in the wizard
     func getVirtualHIDBreakageSummary(diagnosticsService: DiagnosticsServiceProtocol) async -> String {
         // Gather low-level daemon state via DiagnosticsService
-        let status = diagnosticsService.virtualHIDDaemonStatus()
+        let status = await diagnosticsService.virtualHIDDaemonStatus()
 
         // Driver extension + version
         let driverEnabled = await isKarabinerDriverExtensionEnabled()

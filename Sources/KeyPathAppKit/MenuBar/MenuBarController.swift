@@ -78,7 +78,7 @@ final class MenuBarController: NSObject {
             mapImage.isTemplate = true
             keymapItem.image = mapImage
         }
-        self.keymapMenuItem = keymapItem
+        keymapMenuItem = keymapItem
         menu.addItem(keymapItem)
 
         let wizardItem = NSMenuItem(
@@ -138,7 +138,7 @@ final class MenuBarController: NSObject {
     // MARK: - System State Observation
 
     private func observeSystemState() {
-        guard let stateController = stateController else {
+        guard let stateController else {
             // If no state controller provided, keep menu item disabled
             keymapMenuItem?.isEnabled = false
             return
@@ -157,12 +157,11 @@ final class MenuBarController: NSObject {
     }
 
     private func updateKeymapMenuItemState(validationState: MainAppStateController.ValidationState?) {
-        let isEnabled: Bool
-        if let state = validationState {
-            isEnabled = state.isSuccess
+        let isEnabled: Bool = if let state = validationState {
+            state.isSuccess
         } else {
             // Not yet validated - keep disabled
-            isEnabled = false
+            false
         }
 
         keymapMenuItem?.isEnabled = isEnabled

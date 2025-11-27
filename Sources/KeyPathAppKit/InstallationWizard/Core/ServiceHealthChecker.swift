@@ -98,28 +98,17 @@ final class ServiceHealthChecker: @unchecked Sendable {
             return exists
         }
 
-        return await Task.detached {
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-            task.arguments = ["print", "system/\(serviceID)"]
-
-            let pipe = Pipe()
-            task.standardOutput = pipe
-            task.standardError = pipe
-
-            do {
-                try task.run()
-                task.waitUntilExit()
-                let isLoaded = task.terminationStatus == 0
-                AppLogger.shared.log(
-                    "🔍 [ServiceHealthChecker] (system) Service \(serviceID) loaded: \(isLoaded)")
-                return isLoaded
-            } catch {
-                AppLogger.shared.log(
-                    "❌ [ServiceHealthChecker] Error checking service \(serviceID): \(error)")
-                return false
-            }
-        }.value
+        do {
+            let result = try await SubprocessRunner.shared.launchctl("print", ["system/\(serviceID)"])
+            let isLoaded = result.exitCode == 0
+            AppLogger.shared.log(
+                "🔍 [ServiceHealthChecker] (system) Service \(serviceID) loaded: \(isLoaded)")
+            return isLoaded
+        } catch {
+            AppLogger.shared.log(
+                "❌ [ServiceHealthChecker] Error checking service \(serviceID): \(error)")
+            return false
+        }
     }
 
     // MARK: - Service Health Check
@@ -142,84 +131,72 @@ final class ServiceHealthChecker: @unchecked Sendable {
             return exists
         }
 
-        return await Task.detached {
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-            task.arguments = ["print", "system/\(serviceID)"]
+        do {
+            let result = try await SubprocessRunner.shared.launchctl("print", ["system/\(serviceID)"])
 
-            let pipe = Pipe()
-            task.standardOutput = pipe
-            task.standardError = pipe
-
-            do {
-                try task.run()
-                task.waitUntilExit()
-
-                guard task.terminationStatus == 0 else {
-                    AppLogger.shared.log(
-                        "🔍 [ServiceHealthChecker] \(serviceID) not found in system domain")
-                    return false
-                }
-
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                let output = String(data: data, encoding: .utf8) ?? ""
-
-                // Extract details from 'launchctl print' output
-                let state = output.firstMatchString(pattern: #"state\s*=\s*([A-Za-z]+)"#)?.lowercased()
-                let pid =
-                    output.firstMatchInt(pattern: #"\bpid\s*=\s*([0-9]+)"#)
-                        ?? output.firstMatchInt(pattern: #""PID"\s*=\s*([0-9]+)"#)
-                let lastExit =
-                    output.firstMatchInt(pattern: #"last exit (?:status|code)\s*=\s*(-?\d+)"#)
-                        ?? output.firstMatchInt(pattern: #""LastExitStatus"\s*=\s*(-?\d+)"#)
-
-                let isOneShot = (serviceID == Self.vhidManagerServiceID)
-                let isRunningLike = (state == "running" || state == "launching")
-                let hasPID = (pid != nil)
-                let inWarmup = ServiceBootstrapper.wasRecentlyRestarted(serviceID)
-
-                var healthy = false
-                if isOneShot {
-                    // One-shot services run once and exit - this is normal behavior
-                    if let lastExit {
-                        // If we have exit status, it must be clean (0)
-                        healthy = (lastExit == 0)
-                    } else if isRunningLike || hasPID || inWarmup {
-                        // Service currently running or starting up
-                        healthy = true
-                    } else {
-                        // No exit status and not running - assume it ran successfully
-                        // This is normal for one-shot services that run at boot
-                        AppLogger.shared.log(
-                            "🔍 [ServiceHealthChecker] One-shot service \(serviceID) not running (normal) - assuming healthy"
-                        )
-                        healthy = true
-                    }
-                } else {
-                    // KeepAlive jobs should be running. Allow starting states or warm-up.
-                    if isRunningLike || hasPID {
-                        healthy = true
-                    } else if inWarmup {
-                        healthy = true
-                    } // starting up
-                    else {
-                        healthy = false
-                    }
-                }
-
-                AppLogger.shared.log("🔍 [ServiceHealthChecker] HEALTH ANALYSIS \(serviceID):")
-                AppLogger.shared
-                    .log(
-                        "    state=\(state ?? "nil"), pid=\(pid?.description ?? "nil"), lastExit=\(lastExit?.description ?? "nil"), oneShot=\(isOneShot), warmup=\(inWarmup), healthy=\(healthy)"
-                    )
-
-                return healthy
-            } catch {
+            guard result.exitCode == 0 else {
                 AppLogger.shared.log(
-                    "❌ [ServiceHealthChecker] Error checking service health \(serviceID): \(error)")
+                    "🔍 [ServiceHealthChecker] \(serviceID) not found in system domain")
                 return false
             }
-        }.value
+
+            let output = result.stdout
+
+            // Extract details from 'launchctl print' output
+            let state = output.firstMatchString(pattern: #"state\s*=\s*([A-Za-z]+)"#)?.lowercased()
+            let pid =
+                output.firstMatchInt(pattern: #"\bpid\s*=\s*([0-9]+)"#)
+                    ?? output.firstMatchInt(pattern: #""PID"\s*=\s*([0-9]+)"#)
+            let lastExit =
+                output.firstMatchInt(pattern: #"last exit (?:status|code)\s*=\s*(-?\d+)"#)
+                    ?? output.firstMatchInt(pattern: #""LastExitStatus"\s*=\s*(-?\d+)"#)
+
+            let isOneShot = (serviceID == Self.vhidManagerServiceID)
+            let isRunningLike = (state == "running" || state == "launching")
+            let hasPID = (pid != nil)
+            let inWarmup = ServiceBootstrapper.wasRecentlyRestarted(serviceID)
+
+            var healthy = false
+            if isOneShot {
+                // One-shot services run once and exit - this is normal behavior
+                if let lastExit {
+                    // If we have exit status, it must be clean (0)
+                    healthy = (lastExit == 0)
+                } else if isRunningLike || hasPID || inWarmup {
+                    // Service currently running or starting up
+                    healthy = true
+                } else {
+                    // No exit status and not running - assume it ran successfully
+                    // This is normal for one-shot services that run at boot
+                    AppLogger.shared.log(
+                        "🔍 [ServiceHealthChecker] One-shot service \(serviceID) not running (normal) - assuming healthy"
+                    )
+                    healthy = true
+                }
+            } else {
+                // KeepAlive jobs should be running. Allow starting states or warm-up.
+                if isRunningLike || hasPID {
+                    healthy = true
+                } else if inWarmup {
+                    healthy = true
+                } // starting up
+                else {
+                    healthy = false
+                }
+            }
+
+            AppLogger.shared.log("🔍 [ServiceHealthChecker] HEALTH ANALYSIS \(serviceID):")
+            AppLogger.shared
+                .log(
+                    "    state=\(state ?? "nil"), pid=\(pid?.description ?? "nil"), lastExit=\(lastExit?.description ?? "nil"), oneShot=\(isOneShot), warmup=\(inWarmup), healthy=\(healthy)"
+                )
+
+            return healthy
+        } catch {
+            AppLogger.shared.log(
+                "❌ [ServiceHealthChecker] Error checking service health \(serviceID): \(error)")
+            return false
+        }
     }
 
     // MARK: - Comprehensive Status
@@ -281,39 +258,33 @@ final class ServiceHealthChecker: @unchecked Sendable {
         tcpPort: Int = 37001,
         timeoutMs: Int = 300
     ) async -> KanataHealthSnapshot {
-        let isRunning = await Task.detached {
-            // 1) launchctl check for PID
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-            task.arguments = ["print", "system/\(Self.kanataServiceID)"]
-
-            let pipe = Pipe()
-            task.standardOutput = pipe
-            task.standardError = pipe
-
-            var pid: Int?
-            do {
-                try task.run()
-                task.waitUntilExit()
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                let output = String(data: data, encoding: .utf8) ?? ""
-                if task.terminationStatus == 0 {
-                    for line in output.components(separatedBy: "\n") where line.contains("pid =") {
-                        let comps = line.components(separatedBy: "=")
-                        if comps.count == 2,
-                           let p = Int(comps[1].trimmingCharacters(in: .whitespaces)) {
-                            pid = p
-                            break
-                        }
+        // 1) launchctl check for PID using SubprocessRunner
+        let isRunning: Bool
+        do {
+            let result = try await SubprocessRunner.shared.launchctl(
+                "print", ["system/\(Self.kanataServiceID)"]
+            )
+            if result.exitCode == 0 {
+                // Look for pid = in the output
+                var foundPid = false
+                for line in result.stdout.components(separatedBy: "\n") where line.contains("pid =") {
+                    let comps = line.components(separatedBy: "=")
+                    if comps.count == 2,
+                       Int(comps[1].trimmingCharacters(in: .whitespaces)) != nil {
+                        foundPid = true
+                        break
                     }
                 }
-            } catch {
-                AppLogger.shared.warn("⚠️ [ServiceHealthChecker] launchctl check failed: \(error)")
+                isRunning = foundPid
+            } else {
+                isRunning = false
             }
-            return pid != nil
-        }.value
+        } catch {
+            AppLogger.shared.warn("⚠️ [ServiceHealthChecker] launchctl check failed: \(error)")
+            isRunning = false
+        }
 
-        // 2) TCP probe (Hello/Status)
+        // 2) TCP probe (Hello/Status) - runs off MainActor via Task.detached for blocking socket ops
         let tcpOK = await Task.detached { [self] in
             if let portEnv = ProcessInfo.processInfo.environment["KEYPATH_TCP_PORT"],
                let overridePort = Int(portEnv) {

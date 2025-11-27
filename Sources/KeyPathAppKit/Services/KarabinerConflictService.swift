@@ -44,7 +44,7 @@ final class KarabinerConflictService: KarabinerConflictManaging {
     }
 
     func isKarabinerDriverExtensionEnabled() async -> Bool {
-        return await withCheckedContinuation { continuation in
+        await withCheckedContinuation { continuation in
             Task {
                 do {
                     let result = try await SubprocessRunner.shared.run(
@@ -78,7 +78,7 @@ final class KarabinerConflictService: KarabinerConflictManaging {
     }
 
     func areKarabinerBackgroundServicesEnabled() async -> Bool {
-        return await withCheckedContinuation { continuation in
+        await withCheckedContinuation { continuation in
             Task {
                 do {
                     let result = try await SubprocessRunner.shared.launchctl("list", [])
@@ -309,7 +309,7 @@ final class KarabinerConflictService: KarabinerConflictManaging {
     }
 
     private func executeScriptWithSudo(script: String, description: String) async -> Bool {
-        return await withCheckedContinuation { continuation in
+        await withCheckedContinuation { continuation in
             Task.detached {
                 let tempDir = NSTemporaryDirectory()
                 let scriptPath = "\(tempDir)disable_karabiner_\(UUID().uuidString).sh"
