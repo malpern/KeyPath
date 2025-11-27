@@ -25,7 +25,7 @@ struct WizardKanataServicePage: View {
         case unknown
         case running
         case stopped
-        case crashed(error: String)
+        case failed(error: String)
         case starting
         case stopping
 
@@ -33,7 +33,7 @@ struct WizardKanataServicePage: View {
             switch self {
             case .running: .green
             case .stopped: .orange
-            case .crashed: .red
+            case .failed: .red
             case .starting, .stopping: .blue
             case .unknown: .gray
             }
@@ -43,7 +43,7 @@ struct WizardKanataServicePage: View {
             switch self {
             case .running: "checkmark.circle.fill"
             case .stopped: "stop.circle.fill"
-            case .crashed: "exclamationmark.triangle.fill"
+            case .failed: "exclamationmark.triangle.fill"
             case .starting, .stopping: "arrow.clockwise.circle.fill"
             case .unknown: "questionmark.circle.fill"
             }
@@ -52,8 +52,8 @@ struct WizardKanataServicePage: View {
         var description: String {
             switch self {
             case .running: "Service is running"
-            case .stopped: "Service is stopped"
-            case let .crashed(error): "Service crashed: \(error)"
+            case .stopped: "Service is not running"
+            case let .failed(error): "Service error: \(error)"
             case .starting: "Service is starting..."
             case .stopping: "Service is stopping..."
             case .unknown: "Checking service status..."
@@ -77,14 +77,10 @@ struct WizardKanataServicePage: View {
 
             if let cta = primaryCTAConfiguration {
                 Button(cta.label, action: cta.action)
-                    .buttonStyle(.borderedProminent)
-                    .tint(cta.tint)
+                    .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isPerformingAction))
+                    .keyboardShortcut(.defaultAction)
                     .disabled(cta.disabled)
-                    .padding(.top, WizardDesign.Spacing.itemGap)
-            }
-
-            if isPerformingAction {
-                ProgressView()
+                    .frame(minHeight: 44)
                     .padding(.top, WizardDesign.Spacing.itemGap)
             }
 
@@ -125,7 +121,7 @@ struct WizardKanataServicePage: View {
             switch serviceStatus {
             case .running:
                 toastManager.showSuccess("\(actionName) succeeded")
-            case let .crashed(error):
+            case let .failed(error):
                 toastManager.showError("\(actionName) failed: \(error)")
             default:
                 toastManager.showError(
@@ -135,7 +131,7 @@ struct WizardKanataServicePage: View {
             switch serviceStatus {
             case .stopped:
                 toastManager.showSuccess("\(actionName) succeeded")
-            case let .crashed(error):
+            case let .failed(error):
                 toastManager.showError("\(actionName) encountered an error: \(error)")
             default:
                 toastManager.showError(
@@ -150,7 +146,7 @@ struct WizardKanataServicePage: View {
         switch serviceStatus {
         case .running: .success
         case .stopped, .unknown: .info
-        case .crashed: .error
+        case .failed: .error
         case .starting, .stopping: .warning
         }
     }
@@ -158,11 +154,11 @@ struct WizardKanataServicePage: View {
     private var statusTitle: String {
         switch serviceStatus {
         case .running: "Service Running"
-        case .stopped: "Service Stopped"
-        case .crashed: "Service Crashed"
+        case .stopped: "Service Not Running"
+        case .failed: "Service Error"
         case .starting: "Starting Service"
         case .stopping: "Stopping Service"
-        case .unknown: "Unknown Status"
+        case .unknown: "Checking Status"
         }
     }
 
@@ -171,9 +167,9 @@ struct WizardKanataServicePage: View {
         case .running:
             "Kanata is running and ready to process keyboard events."
         case .stopped:
-            "Kanata service is stopped. Start it to enable keyboard remapping."
-        case let .crashed(error):
-            "Kanata service crashed: \(error)"
+            "Kanata service is not running. Click Fix to start it."
+        case let .failed(error):
+            "Kanata service encountered an error: \(error)"
         case .starting:
             "Starting Kanata service…"
         case .stopping:
@@ -264,12 +260,12 @@ struct WizardKanataServicePage: View {
         case .stopped:
             derivedStatus = .stopped
         case let .failed(reason):
-            derivedStatus = .crashed(error: reason)
+            derivedStatus = .failed(error: reason)
         case .maintenance:
             derivedStatus = .starting
         case .requiresApproval:
             let message = "Approval required in System Settings ▸ Privacy & Security"
-            derivedStatus = .crashed(error: message)
+            derivedStatus = .failed(error: message)
         case .unknown:
             derivedStatus = .unknown
         }
@@ -279,7 +275,7 @@ struct WizardKanataServicePage: View {
             break
         case let .failed(message):
             let errorMessage = message ?? "Permission or service issue detected"
-            derivedStatus = .crashed(error: errorMessage)
+            derivedStatus = .failed(error: errorMessage)
         case .stopped:
             // If we previously thought it was running, align with evaluator
             if derivedStatus == .running {
@@ -295,7 +291,7 @@ struct WizardKanataServicePage: View {
 
         if case .running = derivedStatus {
             AppLogger.shared.log("✅ [ServiceStatus] Service confirmed functional via shared evaluator")
-        } else if case let .crashed(error) = derivedStatus {
+        } else if case let .failed(error) = derivedStatus {
             AppLogger.shared.log("⚠️ [ServiceStatus] Service failed: \(error)")
         }
 
@@ -303,7 +299,7 @@ struct WizardKanataServicePage: View {
     }
 
     private func checkForCrash() {
-        // Check log file for recent crash indicators
+        // Check log file for recent error indicators
         let logPath = WizardSystemPaths.kanataLogFile
 
         if let logData = try? String(contentsOfFile: logPath, encoding: .utf8) {
@@ -312,13 +308,13 @@ struct WizardKanataServicePage: View {
 
             for line in recentLines.reversed() {
                 if line.contains("ERROR") || line.contains("FATAL") || line.contains("panic") {
-                    serviceStatus = .crashed(error: extractErrorMessage(from: line))
+                    serviceStatus = .failed(error: extractErrorMessage(from: line))
                     return
                 }
             }
         }
 
-        // No crash detected, just stopped
+        // No error detected, just not running
         serviceStatus = .stopped
     }
 
@@ -339,7 +335,7 @@ struct WizardKanataServicePage: View {
     }
 
     private var primaryCTAConfiguration:
-        (label: String, action: () -> Void, tint: Color?, disabled: Bool)? {
+        (label: String, action: () -> Void, disabled: Bool)? {
         switch serviceStatus {
         case .running:
             nil
@@ -351,14 +347,12 @@ struct WizardKanataServicePage: View {
             (
                 label: "Fix",
                 action: startService,
-                tint: nil,
                 disabled: isPerformingAction
             )
-        case .crashed:
+        case .failed:
             (
                 label: "Fix",
                 action: restartService,
-                tint: nil,
                 disabled: isPerformingAction
             )
         }

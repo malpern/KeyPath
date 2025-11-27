@@ -96,7 +96,7 @@ import SwiftUI
 // SaveStatus is now in Models/KanataUIState.swift
 
 @MainActor
-class RuntimeCoordinator {
+class RuntimeCoordinator: SaveCoordinatorDelegate {
     // MARK: - Internal State Properties
 
     // Note: These are internal (not private) to allow extensions to access them
@@ -131,6 +131,16 @@ class RuntimeCoordinator {
         didSet {
             notifyStateChanged()
         }
+    }
+
+    // MARK: - SaveCoordinatorDelegate
+
+    func saveStatusDidChange(_ status: SaveStatus) {
+        saveStatus = status
+    }
+
+    func configDidUpdate(mappings: [KeyMapping]) {
+        applyKeyMappings(mappings)
     }
 
     // MARK: - UI State Snapshot (Phase 4: MVVM - delegates to StatePublisherService)
@@ -364,6 +374,9 @@ class RuntimeCoordinator {
 
         // Configure state publisher for reactive UI updates
         configureStatePublisher()
+
+        // Wire up SaveCoordinator delegate for status change notifications
+        saveCoordinator.delegate = self
 
         // Configure RuleCollectionsCoordinator callbacks (after all initialization)
         ruleCollectionsCoordinator.configure(
