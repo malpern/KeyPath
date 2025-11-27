@@ -12,10 +12,38 @@ final class WizardAutoFixerFacadeTests: XCTestCase {
             installerEngine: mockEngine
         )
 
-        let success = await fixer.performAutoFix(.installBundledKanata)
+        let actions: [AutoFixAction] = [
+            .installPrivilegedHelper,
+            .reinstallPrivilegedHelper,
+            .terminateConflictingProcesses,
+            .startKarabinerDaemon,
+            .restartVirtualHIDDaemon,
+            .installMissingComponents,
+            .createConfigDirectories,
+            .activateVHIDDeviceManager,
+            .installLaunchDaemonServices,
+            .installBundledKanata,
+            .repairVHIDDaemonServices,
+            .synchronizeConfigPaths,
+            .restartUnhealthyServices,
+            .adoptOrphanedProcess,
+            .replaceOrphanedProcess,
+            .installLogRotation,
+            .replaceKanataWithBundled,
+            .enableTCPServer,
+            .setupTCPAuthentication,
+            .regenerateCommServiceConfiguration,
+            .restartCommServer,
+            .fixDriverVersionMismatch,
+            .installCorrectVHIDDriver
+        ]
 
-        XCTAssertTrue(success)
-        XCTAssertEqual(mockEngine.actions, [.installBundledKanata])
+        for action in actions {
+            let success = await fixer.performAutoFix(action)
+            XCTAssertTrue(success, "Action \(action) should succeed via façade")
+        }
+
+        XCTAssertEqual(mockEngine.actions, actions)
     }
 }
 
