@@ -26,7 +26,7 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
 
         let filtered = filteredDisplayItems(items, showAllItems: false)
 
-        XCTAssertEqual(filtered.map { $0.id }, ["privileged-helper", "kanata-service"])
+        XCTAssertEqual(filtered.map(\.id), ["privileged-helper", "kanata-service"])
         XCTAssertEqual(filtered.count, 2, "Dependent rows should remain visible in filtered view")
     }
 

@@ -21,6 +21,7 @@ protocol PrivilegedOperationsCoordinating: AnyObject {
     func killAllKanataProcesses() async throws
     func restartKarabinerDaemonVerified() async throws -> Bool
     func uninstallVirtualHIDDrivers() async throws
+    func disableKarabinerGrabber() async throws
     func sudoExecuteCommand(_ command: String, description: String) async throws
 }
 

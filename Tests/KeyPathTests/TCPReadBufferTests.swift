@@ -6,7 +6,6 @@ import XCTest
 /// These tests verify the critical line-splitting logic that prevents hangs
 /// when Kanata sends multiple JSON lines in a single TCP packet.
 final class TCPReadBufferTests: XCTestCase {
-
     // MARK: - extractFirstLine Tests
 
     func testExtractFirstLine_SingleLine() async {

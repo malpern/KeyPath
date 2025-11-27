@@ -144,10 +144,34 @@ public final class KanataService: ObservableObject {
         makeSMService().status
     }
 
-    private func ensureDaemonRegistered() throws {
+    private func ensureDaemonRegistered() async throws {
         let service = makeSMService()
         switch service.status {
         case .enabled:
+            // Check for stale registration: SMAppService says enabled but plist doesn't exist
+            // This can happen if uninstall used launchctl/rm instead of SMAppService.unregister()
+            let plistPath = "/Library/LaunchDaemons/\(Constants.daemonPlistName)"
+            if !FileManager.default.fileExists(atPath: plistPath) {
+                AppLogger.shared.log(
+                    "⚠️ [KanataService] Stale SMAppService registration detected - " +
+                        "status=enabled but plist missing. Clearing and re-registering..."
+                )
+                // Clear the stale registration, then re-register
+                do {
+                    try await service.unregister()
+                } catch {
+                    AppLogger.shared.log(
+                        "⚠️ [KanataService] Failed to unregister stale service: \(error.localizedDescription)"
+                    )
+                    // Continue anyway - register() might still work
+                }
+                do {
+                    try service.register()
+                    AppLogger.shared.log("✅ [KanataService] Re-registered after clearing stale state")
+                } catch {
+                    throw KanataServiceError.startFailed(reason: error.localizedDescription)
+                }
+            }
             return
         case .requiresApproval:
             throw KanataServiceError.requiresApproval
@@ -208,11 +232,9 @@ public final class KanataService: ObservableObject {
             throw KanataServiceError.restartCooldownActive(seconds: cooldown.remainingCooldown)
         }
 
-        // 4. Attempt registration if needed
-        if currentDaemonStatus() != .enabled {
-            AppLogger.shared.log("🔧 [KanataService] Registering service...")
-            try ensureDaemonRegistered()
-        }
+        // 4. Ensure daemon is properly registered (also handles stale registrations)
+        AppLogger.shared.log("🔧 [KanataService] Ensuring service registration...")
+        try await ensureDaemonRegistered()
 
         // 5. Record start attempt
         await healthMonitor.recordStartAttempt(timestamp: Date())

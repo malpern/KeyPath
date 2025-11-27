@@ -86,6 +86,7 @@ actor KanataTCPClient {
     private var isConnecting = false
 
     // MARK: - Read Buffer (Critical for Two-Line Protocol)
+
     //
     // **WHY THIS EXISTS:**
     // Kanata's TCP protocol sends TWO lines for Hello/Validate/Reload commands:

@@ -86,6 +86,10 @@ final class StubPrivilegedOperationsCoordinator: PrivilegedOperationsCoordinatin
         try record("uninstallVirtualHIDDrivers")
     }
 
+    func disableKarabinerGrabber() async throws {
+        try record("disableKarabinerGrabber")
+    }
+
     func sudoExecuteCommand(_ command: String, description _: String) async throws {
         try record("sudoExecuteCommand:\(command)")
     }

@@ -4,6 +4,13 @@ import KeyPathDaemonLifecycle
 import KeyPathPermissions
 import KeyPathWizardCore
 
+// Protocol for privileged routing used by Services to allow test stubs
+public protocol InstallerEnginePrivilegedRouting: AnyObject {
+    func uninstallVirtualHIDDrivers(using broker: PrivilegeBroker) async throws
+    func disableKarabinerGrabber(using broker: PrivilegeBroker) async throws
+    func restartKarabinerDaemon(using broker: PrivilegeBroker) async throws -> Bool
+}
+
 /// Façade for installer operations.
 ///
 /// - Provides a stable, unified API for install/repair/uninstall flows.
@@ -629,7 +636,43 @@ public final class InstallerEngine {
         )
         return report
     }
+
+    // MARK: - Direct Broker Operations (for operations without AutoFixAction mapping)
+
+    /// Uninstall VirtualHID drivers (removes VHID daemon plists)
+    /// Routes via InstallerEngine per AGENTS.md
+    public func uninstallVirtualHIDDrivers(using broker: PrivilegeBroker) async throws {
+        AppLogger.shared.log("🗑️ [InstallerEngine] Uninstalling VirtualHID drivers")
+        try await broker.uninstallVirtualHIDDrivers()
+    }
+
+    /// Disable Karabiner grabber (stops conflicting processes)
+    /// Routes via InstallerEngine per AGENTS.md
+    public func disableKarabinerGrabber(using broker: PrivilegeBroker) async throws {
+        AppLogger.shared.log("🔧 [InstallerEngine] Disabling Karabiner grabber")
+        try await broker.disableKarabinerGrabber()
+    }
+
+    /// Restart Karabiner daemon with verification
+    /// Routes via InstallerEngine per AGENTS.md
+    public func restartKarabinerDaemon(using broker: PrivilegeBroker) async throws -> Bool {
+        AppLogger.shared.log("🔄 [InstallerEngine] Restarting Karabiner daemon")
+        return try await broker.restartKarabinerDaemonVerified()
+    }
+
+    /// Execute a privileged command via sudo/osascript
+    /// Routes via InstallerEngine per AGENTS.md
+    public func sudoExecuteCommand(
+        _ command: String,
+        description: String,
+        using broker: PrivilegeBroker
+    ) async throws {
+        AppLogger.shared.log("🔐 [InstallerEngine] Executing privileged command: \(description)")
+        try await broker.sudoExecuteCommand(command, description: description)
+    }
 }
+
+extension InstallerEngine: InstallerEnginePrivilegedRouting {}
 
 // MARK: - Installer Errors
 

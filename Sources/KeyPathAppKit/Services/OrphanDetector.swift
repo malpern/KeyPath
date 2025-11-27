@@ -6,9 +6,22 @@ import KeyPathCore
 /// but user data and support files remain
 @MainActor
 final class OrphanDetector {
+    // MARK: - Dependencies
+
+    private let engineFactory: () -> (any InstallerEnginePrivilegedRouting)
+    private let brokerFactory: () -> PrivilegeBroker
+
+    // MARK: - Singleton
+
     static let shared = OrphanDetector()
 
-    private init() {}
+    init(
+        engineFactory: @escaping () -> (any InstallerEnginePrivilegedRouting) = { InstallerEngine() },
+        brokerFactory: @escaping () -> PrivilegeBroker = { PrivilegeBroker() }
+    ) {
+        self.engineFactory = engineFactory
+        self.brokerFactory = brokerFactory
+    }
 
     /// User defaults key to track if we've shown the orphan cleanup alert
     private static let hasShownOrphanAlertKey = "HasShownOrphanCleanupAlert"
@@ -164,10 +177,13 @@ final class OrphanDetector {
         }
 
         // Clean VHID daemons (requires privileges)
+        // Routing via InstallerEngine per AGENTS.md
         if cleanDaemons {
             do {
                 AppLogger.shared.log("🧹 [OrphanDetector] Attempting to remove VHID system daemons...")
-                try await PrivilegedOperationsCoordinator.shared.uninstallVirtualHIDDrivers()
+                let engine = engineFactory()
+                let broker = brokerFactory()
+                try await engine.uninstallVirtualHIDDrivers(using: broker)
                 daemonsCleaned = true
                 AppLogger.shared.log("✅ [OrphanDetector] Successfully removed VHID system daemons")
             } catch {

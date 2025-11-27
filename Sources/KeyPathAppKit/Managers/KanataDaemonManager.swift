@@ -535,15 +535,18 @@ class KanataDaemonManager {
         AppLogger.shared.log("🛑 [KanataDaemonManager] Stopping legacy service and removing plist...")
         let legacyPlistPath = Self.legacyPlistPath
 
-        // Use PrivilegedOperationsCoordinator to execute privileged commands
+        // Routing via InstallerEngine per AGENTS.md
         let command = """
         /bin/launchctl bootout system/\(Self.kanataServiceID) 2>/dev/null || true && \
         /bin/rm -f '\(legacyPlistPath)' || true
         """
 
-        try await PrivilegedOperationsCoordinator.shared.sudoExecuteCommand(
+        let engine = InstallerEngine()
+        let broker = PrivilegeBroker()
+        try await engine.sudoExecuteCommand(
             command,
-            description: "Stop legacy service and remove plist"
+            description: "Stop legacy service and remove plist",
+            using: broker
         )
 
         // 3. Register via SMAppService

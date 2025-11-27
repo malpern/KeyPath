@@ -77,21 +77,28 @@ The status appears as an animated row below the subtitle:
 
 ### 4. Migration Strategy
 
-#### Phase 1: Add Infrastructure
-- [ ] Add `statusMessage` and `statusType` to `WizardHeroSection`
-- [ ] Create `ActionStatus` enum in a shared location
-- [ ] Add status animation/transition support
+#### Phase 1: Add Infrastructure ✅ COMPLETE
+- [x] Add `statusMessage` and `statusType` to `WizardHeroSection`
+- [x] Create `ActionStatus` enum in a shared location (`WizardDesign.ActionStatus`)
+- [x] Add status animation/transition support
+- [x] Create `InlineStatusView` component in `WizardHeroSection.swift`
 
-#### Phase 2: Migrate Page by Page
-- [ ] `WizardKanataServicePage` - Replace toasts with inline status
-- [ ] `WizardKarabinerComponentsPage` - Replace toasts with inline status
-- [ ] `WizardHelperPage` - Replace toasts with inline status
-- [ ] `InstallationWizardView` main actions - Replace toasts with inline status
+#### Phase 2: Migrate Page by Page ✅ COMPLETE (pages only)
+- [x] `WizardKanataServicePage` - Replace toasts with inline status
+- [x] `WizardKarabinerComponentsPage` - Replace toasts with inline status
+- [x] `WizardHelperPage` - Replace toasts with inline status
+- [N/A] `InstallationWizardView` main actions - KEEP AS TOASTS (global/cross-page notifications)
 
-#### Phase 3: Cleanup
-- [ ] Remove `toastManager` from pages that no longer use it
+#### Phase 3: Cleanup (OPTIONAL)
+- [x] Remove `toastManager` parameter from migrated pages
 - [ ] Consider removing `WizardToastManager` entirely if unused
 - [ ] Update any remaining edge cases
+
+**Note:** InstallationWizardView toasts were intentionally kept as they handle:
+- Global auto-fix operations spanning multiple pages
+- Cross-page notifications (service recovery, Login Items approval)
+- "Fix already running" guards at container level
+These match the "Keep toasts for" criteria in the design considerations.
 
 ### 5. Design Considerations
 

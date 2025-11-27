@@ -1,7 +1,7 @@
-import XCTest
 @testable import KeyPathAppKit
-import KeyPathWizardCore
 import KeyPathCore
+import KeyPathWizardCore
+import XCTest
 
 @MainActor
 final class WizardAutoFixerFacadeTests: XCTestCase {
@@ -68,7 +68,7 @@ private final class MockInstallerEngine: WizardInstallerEngineProtocol {
     private let result: Bool
 
     init(success: Bool = true) {
-        self.result = success
+        result = success
     }
 
     func runSingleAction(_ action: AutoFixAction, using _: PrivilegeBroker) async -> InstallerReport {

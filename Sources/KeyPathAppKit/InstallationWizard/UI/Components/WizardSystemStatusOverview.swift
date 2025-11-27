@@ -1,8 +1,8 @@
 import AppKit
 import KeyPathCore
+import KeyPathPermissions
 import KeyPathWizardCore
 import SwiftUI
-import KeyPathPermissions
 
 /// Simplified system status overview component for the summary page
 struct WizardSystemStatusOverview: View {
@@ -540,44 +540,44 @@ struct WizardSystemStatusOverview: View {
         return items.filter { $0.status != .completed }
     }
 
-// MARK: - Status Item Model
+    // MARK: - Status Item Model
 
-public struct StatusItemModel {
-    let id: String
-    let icon: String
-    let title: String
-    let subtitle: String?
-    let status: InstallationStatus
-    let isNavigable: Bool
-    let targetPage: WizardPage
-    let subItems: [StatusItemModel]
-    let relatedIssues: [WizardIssue]
+    struct StatusItemModel {
+        let id: String
+        let icon: String
+        let title: String
+        let subtitle: String?
+        let status: InstallationStatus
+        let isNavigable: Bool
+        let targetPage: WizardPage
+        let subItems: [StatusItemModel]
+        let relatedIssues: [WizardIssue]
 
-    init(
-        id: String,
-        icon: String,
-        title: String,
-        subtitle: String? = nil,
-        status: InstallationStatus,
-        isNavigable: Bool = false,
-        targetPage: WizardPage = .summary,
-        subItems: [StatusItemModel] = [],
-        relatedIssues: [WizardIssue] = []
-    ) {
-        self.id = id
-        self.icon = icon
-        self.title = title
-        self.subtitle = subtitle
-        self.status = status
-        self.isNavigable = isNavigable
-        self.targetPage = targetPage
-        self.subItems = subItems
-        self.relatedIssues = relatedIssues
+        init(
+            id: String,
+            icon: String,
+            title: String,
+            subtitle: String? = nil,
+            status: InstallationStatus,
+            isNavigable: Bool = false,
+            targetPage: WizardPage = .summary,
+            subItems: [StatusItemModel] = [],
+            relatedIssues: [WizardIssue] = []
+        ) {
+            self.id = id
+            self.icon = icon
+            self.title = title
+            self.subtitle = subtitle
+            self.status = status
+            self.isNavigable = isNavigable
+            self.targetPage = targetPage
+            self.subItems = subItems
+            self.relatedIssues = relatedIssues
+        }
     }
-}
 
-/// Public alias for tests and other modules.
-public typealias WizardStatusItemModel = StatusItemModel
+    /// Public alias for tests and other modules.
+    typealias WizardStatusItemModel = StatusItemModel
 
     // MARK: - Status Helpers
 

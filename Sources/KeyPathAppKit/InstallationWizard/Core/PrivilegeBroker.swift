@@ -95,4 +95,19 @@ public struct PrivilegeBroker {
     public func restartKarabinerDaemonVerified() async throws -> Bool {
         try await coordinator.restartKarabinerDaemonVerified()
     }
+
+    /// Uninstall VirtualHID drivers (removes VHID daemon plists)
+    public func uninstallVirtualHIDDrivers() async throws {
+        try await coordinator.uninstallVirtualHIDDrivers()
+    }
+
+    /// Disable Karabiner grabber (stops conflicting processes)
+    public func disableKarabinerGrabber() async throws {
+        try await coordinator.disableKarabinerGrabber()
+    }
+
+    /// Execute a privileged command via sudo/osascript
+    public func sudoExecuteCommand(_ command: String, description: String) async throws {
+        try await coordinator.sudoExecuteCommand(command, description: description)
+    }
 }

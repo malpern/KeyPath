@@ -183,6 +183,7 @@ Robust app restart logic to prevent mismatched helpers.
 - Graceful degradation: Falls back to `.unknown` if TCC read fails (no FDA)
 - GUI context: Runs in KeyPath app (user session), not daemon
 - UX requirement: Sequential permission prompts are essential for user comprehension
+- Apple policy: macOS protects TCC.db with Full Disk Access; read access with user-granted FDA is allowed, while writes require Apple-only entitlements and are effectively blocked. Our usage is read-only.
 
 **Alternative considered**: Contributing `--check-permissions` to Kanata upstream. Rejected because maintainer has no macOS devices and the API (`IOHIDCheckAccess`) doesn't work correctly from daemon context anyway.
 

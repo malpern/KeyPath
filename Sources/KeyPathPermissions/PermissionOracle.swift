@@ -298,6 +298,12 @@ public actor PermissionOracle {
     // - GUI context: Runs in user session, not daemon
     // - UX requirement: Sequential prompts are essential for comprehension
 
+    // NOTE: ADR-016 documents an approved exception to AGENTS.md’s
+    // “never read TCC directly” rule. We must read the TCC DB *read‑only*
+    // to know Kanata’s AX/IM state without launching the root-managed
+    // daemon (which cannot report its own TCC reliably). This keeps the
+    // wizard’s sequential permission flow predictable. Do not remove
+    // without revisiting ADR-016.
     private func checkKanataPermissions() async -> PermissionSet {
         let kanataPath = resolveKanataExecutablePath()
 
@@ -503,6 +509,8 @@ public actor PermissionOracle {
     // Run a minimal sqlite query with a short timeout.
     // Returns an integer meaning of auth_value/allowed, or nil if not determinable.
     // Uses sqlite3 CLI tool which is available on all macOS systems.
+    // Approved read-only TCC lookup (see ADR-016). This must remain
+    // best-effort, side-effect free, and resilient to failure (no FDA).
     private func queryTCCDatabase(dbPath: String, service: String, executablePath: String) async
         -> Int? {
         // The 'access' table schema varies. We try auth_value first, then allowed.

@@ -40,6 +40,12 @@ struct WizardKarabinerComponentsPage: View {
                         }
                     )
 
+                    // Inline action status (immediately after hero for visual consistency)
+                    if actionStatus.isActive, let message = actionStatus.message {
+                        InlineStatusView(status: actionStatus, message: message)
+                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                    }
+
                     // Component details card below the subheading - horizontally centered
                     HStack {
                         Spacer()
@@ -87,12 +93,6 @@ struct WizardKarabinerComponentsPage: View {
                         .padding(.top, WizardDesign.Spacing.sectionGap)
                     }
 
-                    // Inline action status
-                    if actionStatus.isActive, let message = actionStatus.message {
-                        InlineStatusView(status: actionStatus, message: message)
-                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                    }
-
                     Button(nextStepButtonTitle) {
                         navigateToNextStep()
                     }
@@ -118,6 +118,12 @@ struct WizardKarabinerComponentsPage: View {
                         }
                     )
 
+                    // Inline action status (immediately after hero for visual consistency)
+                    if actionStatus.isActive, let message = actionStatus.message {
+                        InlineStatusView(status: actionStatus, message: message)
+                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                    }
+
                     Button("Fix") {
                         handleCombinedFix()
                     }
@@ -126,12 +132,6 @@ struct WizardKarabinerComponentsPage: View {
                     .disabled(isCombinedFixLoading)
                     .frame(minHeight: 44) // Prevent height change when loading spinner appears
                     .padding(.top, WizardDesign.Spacing.itemGap)
-
-                    // Inline action status
-                    if actionStatus.isActive, let message = actionStatus.message {
-                        InlineStatusView(status: actionStatus, message: message)
-                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                    }
                 }
                 .animation(WizardDesign.Animation.statusTransition, value: actionStatus)
                 .heroSectionContainer()
@@ -254,6 +254,7 @@ struct WizardKarabinerComponentsPage: View {
         }
         AppLogger.shared.log("🔧 [Karabiner Fix] handleCombinedFix() START")
         isCombinedFixLoading = true
+        actionStatus = .inProgress(message: "Fixing Karabiner driver…")
         let isInstalled = kanataManager.isKarabinerDriverInstalled()
         AppLogger.shared.log("🔧 [Karabiner Fix] isKarabinerDriverInstalled=\(isInstalled)")
 
@@ -278,8 +279,8 @@ struct WizardKarabinerComponentsPage: View {
                 let ok = await attemptAutoInstallDriver(maxAttempts: 2)
                 AppLogger.shared.log("🔧 [Karabiner Fix] attemptAutoInstallDriver() returned \(ok)")
                 if !ok {
-                    toastManager.showError(
-                        "Driver installation failed. Check System Settings > Privacy & Security."
+                    actionStatus = .error(
+                        message: "Driver installation failed. Check System Settings > Privacy & Security."
                     )
                     AppLogger.shared.log("🔧 [Karabiner Fix] Install failed - returning early")
                     return
@@ -381,12 +382,22 @@ struct WizardKarabinerComponentsPage: View {
         if success {
             // Run a fresh validation before leaving the page to avoid stale summary red states.
             await refreshAndWait(fixSucceeded: true)
+            actionStatus = .success(message: "Driver repair succeeded")
+            scheduleStatusClear()
         } else {
-            toastManager.showError(
-                "Driver repair failed. Try restarting your Mac."
-            )
+            actionStatus = .error(message: "Driver repair failed. Try restarting your Mac.")
         }
         return success
+    }
+
+    /// Auto-clear success status after 3 seconds
+    private func scheduleStatusClear() {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(3))
+            if case .success = actionStatus {
+                actionStatus = .idle
+            }
+        }
     }
 
     /// Attempts automatic repair of background services
@@ -397,8 +408,11 @@ struct WizardKarabinerComponentsPage: View {
         if success {
             AppLogger.shared.log("✅ [Service Repair] Service repair succeeded")
             await refreshAndWait(fixSucceeded: true)
+            actionStatus = .success(message: "Service repair succeeded")
+            scheduleStatusClear()
         } else {
             AppLogger.shared.log("❌ [Service Repair] Service repair failed - opening system settings")
+            actionStatus = .error(message: "Service repair failed. Opening System Settings…")
             openLoginItemsSettings()
         }
         return success

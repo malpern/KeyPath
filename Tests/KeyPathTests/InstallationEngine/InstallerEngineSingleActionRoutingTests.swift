@@ -1,6 +1,6 @@
-import XCTest
 @testable import KeyPathAppKit
 @testable import KeyPathWizardCore
+import XCTest
 
 @MainActor
 final class InstallerEngineSingleActionRoutingTests: KeyPathAsyncTestCase {

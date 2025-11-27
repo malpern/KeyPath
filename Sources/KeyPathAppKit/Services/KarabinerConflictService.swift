@@ -26,6 +26,19 @@ protocol KarabinerConflictManaging: AnyObject {
 /// Manages detection and resolution of conflicts with Karabiner-Elements
 @MainActor
 final class KarabinerConflictService: KarabinerConflictManaging {
+    // MARK: - Dependencies
+
+    private let engineFactory: () -> (any InstallerEnginePrivilegedRouting)
+    private let brokerFactory: () -> PrivilegeBroker
+
+    init(
+        engineFactory: @escaping () -> (any InstallerEnginePrivilegedRouting) = { InstallerEngine() },
+        brokerFactory: @escaping () -> PrivilegeBroker = { PrivilegeBroker() }
+    ) {
+        self.engineFactory = engineFactory
+        self.brokerFactory = brokerFactory
+    }
+
     // MARK: - Constants
 
     private let driverPath =
@@ -171,9 +184,11 @@ final class KarabinerConflictService: KarabinerConflictManaging {
     // MARK: - Resolution Methods
 
     func killKarabinerGrabber() async -> Bool {
-        AppLogger.shared.log("🔧 [Conflict] Stopping Karabiner conflicting services via helper")
+        AppLogger.shared.log("🔧 [Conflict] Stopping Karabiner conflicting services via InstallerEngine")
         do {
-            try await PrivilegedOperationsCoordinator.shared.disableKarabinerGrabber()
+            let engine = engineFactory()
+            let broker = brokerFactory()
+            try await engine.disableKarabinerGrabber(using: broker)
             // Verify no conflicting processes remain
             try? await Task.sleep(nanoseconds: 500_000_000)
             let success = await verifyConflictingProcessesStopped()
@@ -184,7 +199,7 @@ final class KarabinerConflictService: KarabinerConflictManaging {
             }
             return success
         } catch {
-            AppLogger.shared.log("❌ [Conflict] Helper disable failed: \(error)")
+            AppLogger.shared.log("❌ [Conflict] Disable failed: \(error)")
             return false
         }
     }
@@ -200,48 +215,53 @@ final class KarabinerConflictService: KarabinerConflictManaging {
         }
 
         do {
-            try await PrivilegedOperationsCoordinator.shared.disableKarabinerGrabber()
+            let engine = engineFactory()
+            let broker = brokerFactory()
+            try await engine.disableKarabinerGrabber(using: broker)
             await verifyKarabinerGrabberRemoval()
             return true
         } catch {
-            AppLogger.shared.log("❌ [Karabiner] Helper-based disable failed: \(error)")
+            AppLogger.shared.log("❌ [Karabiner] Disable failed: \(error)")
             return false
         }
     }
 
     /// Restarts the Karabiner daemon with verified kill + start + health check
-    /// Routes through PrivilegedOperationsCoordinator for unified privilege handling (helper-first, sudo fallback)
+    /// Routes through InstallerEngine per AGENTS.md
     func restartKarabinerDaemon() async -> Bool {
-        AppLogger.shared.log("🔄 [Daemon] Restarting VirtualHIDDevice daemon (via coordinator)")
+        AppLogger.shared.log("🔄 [Daemon] Restarting VirtualHIDDevice daemon (via InstallerEngine)")
 
         do {
-            let success = try await PrivilegedOperationsCoordinator.shared
-                .restartKarabinerDaemonVerified()
+            let engine = engineFactory()
+            let broker = brokerFactory()
+            let success = try await engine.restartKarabinerDaemon(using: broker)
             if success {
-                AppLogger.shared.log("✅ [Daemon] Restart verified via coordinator")
+                AppLogger.shared.log("✅ [Daemon] Restart verified via InstallerEngine")
             } else {
-                AppLogger.shared.log("❌ [Daemon] Restart verification failed via coordinator")
+                AppLogger.shared.log("❌ [Daemon] Restart verification failed via InstallerEngine")
             }
             return success
         } catch {
-            AppLogger.shared.log("❌ [Daemon] Coordinator restart failed: \(error)")
+            AppLogger.shared.log("❌ [Daemon] Restart failed: \(error)")
             return false
         }
     }
 
     func startKarabinerDaemon() async -> Bool {
-        // Route through coordinator to prefer the privileged helper in RELEASE builds
-        AppLogger.shared.log("🔄 [Daemon] Starting VHID daemon via coordinator (helper-first)")
+        // Route through InstallerEngine per AGENTS.md
+        AppLogger.shared.log("🔄 [Daemon] Starting VHID daemon via InstallerEngine")
         do {
-            let ok = try await PrivilegedOperationsCoordinator.shared.restartKarabinerDaemonVerified()
+            let engine = engineFactory()
+            let broker = brokerFactory()
+            let ok = try await engine.restartKarabinerDaemon(using: broker)
             if ok {
-                AppLogger.shared.log("✅ [Daemon] VHID daemon start verified via coordinator")
+                AppLogger.shared.log("✅ [Daemon] VHID daemon start verified via InstallerEngine")
             } else {
                 AppLogger.shared.log("❌ [Daemon] VHID daemon start failed verification")
             }
             return ok
         } catch {
-            AppLogger.shared.log("❌ [Daemon] Coordinator error: \(error)")
+            AppLogger.shared.log("❌ [Daemon] Start failed: \(error)")
             return false
         }
     }

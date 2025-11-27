@@ -134,4 +134,38 @@ final class KanataServiceIntegrationTests: KeyPathAsyncTestCase {
             XCTFail("Wrong error type: \(error)")
         }
     }
+
+    func testStartService_WhenStaleRegistration_ShouldUnregisterAndReregister() async throws {
+        // Given: Mock that reports .enabled but plist doesn't exist (stale registration)
+        // This simulates the case where uninstall used launchctl/rm instead of SMAppService.unregister()
+        class StaleMockSM: SMAppServiceProtocol, @unchecked Sendable {
+            var status: SMAppService.Status = .enabled // Reports enabled...
+            var unregisterCalled = false
+            var registerCalled = false
+
+            func register() throws {
+                registerCalled = true
+                status = .enabled
+            }
+
+            func unregister() async throws {
+                unregisterCalled = true
+                status = .notRegistered
+            }
+        }
+
+        let staleMock = StaleMockSM()
+        KanataService.smServiceFactory = { _ in staleMock }
+        service = KanataService()
+
+        // The plist path checked is /Library/LaunchDaemons/com.keypath.kanata.plist
+        // In test environment, this file doesn't exist, so the stale detection should trigger
+
+        // When: Start is called
+        try await service.start()
+
+        // Then: Should have called unregister (to clear stale) and register (to re-register)
+        XCTAssertTrue(staleMock.unregisterCalled, "Should unregister stale registration")
+        XCTAssertTrue(staleMock.registerCalled, "Should re-register after clearing stale state")
+    }
 }

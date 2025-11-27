@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import KeyPathCore
+import ServiceManagement
 
 @MainActor
 final class UninstallCoordinator: ObservableObject {
@@ -37,6 +38,10 @@ final class UninstallCoordinator: ObservableObject {
         logLines = ["🗑️ Starting KeyPath uninstall..."]
 
         defer { isRunning = false }
+
+        // IMPORTANT: Unregister SMAppService daemons BEFORE helper/script cleanup
+        // This clears the internal registration database that helper/script can't access
+        await unregisterSMAppServiceDaemons()
 
         // Try to use the privileged helper first (no password prompt needed)
         if await tryUninstallViaHelper(deleteConfig: deleteConfig) {
@@ -135,6 +140,34 @@ final class UninstallCoordinator: ObservableObject {
     func revealUninstallerInFinder() {
         guard let scriptURL = resolveUninstallerURLClosure() else { return }
         NSWorkspace.shared.activateFileViewerSelecting([scriptURL])
+    }
+
+    // MARK: - SMAppService Cleanup
+
+    /// Unregister all KeyPath daemons via SMAppService API before helper/script cleanup.
+    /// This is necessary because helper and shell script can only use launchctl/rm,
+    /// which leaves stale entries in SMAppService's internal registration database.
+    private func unregisterSMAppServiceDaemons() async {
+        let daemonPlists = [
+            "com.keypath.kanata.plist"
+            // Note: Karabiner VirtualHID daemons are managed separately and don't use SMAppService
+        ]
+
+        for plistName in daemonPlists {
+            let service = SMAppService.daemon(plistName: plistName)
+            guard service.status == .enabled else {
+                logLines.append("ℹ️ SMAppService \(plistName): not registered, skipping")
+                continue
+            }
+
+            do {
+                try await service.unregister()
+                logLines.append("✅ SMAppService \(plistName): unregistered")
+            } catch {
+                // Log but continue - the helper/script will still clean up files
+                logLines.append("⚠️ SMAppService \(plistName): unregister failed - \(error.localizedDescription)")
+            }
+        }
     }
 
     // MARK: - Helpers
