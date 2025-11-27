@@ -349,16 +349,16 @@ struct WizardKanataServicePage: View {
             nil
         case .stopped:
             (
-                label: "Start Service",
+                label: "Fix",
                 action: startService,
                 tint: nil,
                 disabled: isPerformingAction
             )
         case .crashed:
             (
-                label: "Restart Service",
+                label: "Fix",
                 action: restartService,
-                tint: .orange,
+                tint: nil,
                 disabled: isPerformingAction
             )
         }
