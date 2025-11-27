@@ -15,6 +15,10 @@ import SwiftUI
 /// - SystemValidator defensive assertions active
 @MainActor
 class MainAppStateController: ObservableObject {
+    // MARK: - Shared Instance
+
+    static let shared = MainAppStateController()
+
     // MARK: - Published State (Compatible with existing UI)
 
     @Published var validationState: ValidationState? // nil = not yet validated, show nothing

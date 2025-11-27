@@ -293,6 +293,7 @@ struct ContentViewSystemStatus: View {
 struct SystemStatusIndicator_Previews: PreviewProvider {
     static var previews: some View {
         // 🎯 Phase 3: Updated previews for MainAppStateController
+        // Note: Using separate instances for previews (shared instance would conflict)
         let validatorChecking = MainAppStateController()
         validatorChecking.validationState = .checking
 

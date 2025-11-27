@@ -36,7 +36,7 @@ struct ContentView: View {
     @State private var keyboardCapture: KeyboardCapture?
     @EnvironmentObject var kanataManager: KanataViewModel // Phase 4: MVVM
     @Environment(\.permissionSnapshotProvider) private var permissionSnapshotProvider
-    @StateObject private var stateController = MainAppStateController() // 🎯 Phase 3: New controller
+    @StateObject private var stateController = MainAppStateController.shared // 🎯 Phase 3: Shared controller
     @StateObject private var recordingCoordinator = RecordingCoordinator()
     @State private var showingInstallationWizard = false {
         didSet {

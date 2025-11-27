@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 
 @MainActor
 final class MenuBarController: NSObject {
@@ -10,17 +11,22 @@ final class MenuBarController: NSObject {
     private let uninstallHandler: Handler
     private let quitHandler: Handler
     private let menu: NSMenu
+    private var keymapMenuItem: NSMenuItem?
+    private var stateController: MainAppStateController?
+    private var cancellables = Set<AnyCancellable>()
 
     init(
         bringToFrontHandler: @escaping Handler,
         showWizardHandler: @escaping Handler,
         uninstallHandler: @escaping Handler,
-        quitHandler: @escaping Handler
+        quitHandler: @escaping Handler,
+        stateController: MainAppStateController? = nil
     ) {
         self.bringToFrontHandler = bringToFrontHandler
         self.showWizardHandler = showWizardHandler
         self.uninstallHandler = uninstallHandler
         self.quitHandler = quitHandler
+        self.stateController = stateController
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         menu = NSMenu()
 
@@ -28,6 +34,7 @@ final class MenuBarController: NSObject {
 
         configureButton()
         configureMenu()
+        observeSystemState()
     }
 
     private func configureButton() {
@@ -66,10 +73,12 @@ final class MenuBarController: NSObject {
         )
         keymapItem.keyEquivalentModifierMask = .command
         keymapItem.target = self
+        keymapItem.isEnabled = false // Disabled by default until system is green
         if let mapImage = NSImage(systemSymbolName: "map", accessibilityDescription: "Keymap") {
             mapImage.isTemplate = true
             keymapItem.image = mapImage
         }
+        self.keymapMenuItem = keymapItem
         menu.addItem(keymapItem)
 
         let wizardItem = NSMenuItem(
@@ -124,5 +133,49 @@ final class MenuBarController: NSObject {
     @objc
     private func handleQuit() {
         quitHandler()
+    }
+
+    // MARK: - System State Observation
+
+    private func observeSystemState() {
+        guard let stateController = stateController else {
+            // If no state controller provided, keep menu item disabled
+            keymapMenuItem?.isEnabled = false
+            return
+        }
+
+        // Observe validation state changes
+        stateController.$validationState
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] validationState in
+                self?.updateKeymapMenuItemState(validationState: validationState)
+            }
+            .store(in: &cancellables)
+
+        // Initial state update
+        updateKeymapMenuItemState(validationState: stateController.validationState)
+    }
+
+    private func updateKeymapMenuItemState(validationState: MainAppStateController.ValidationState?) {
+        let isEnabled: Bool
+        if let state = validationState {
+            isEnabled = state.isSuccess
+        } else {
+            // Not yet validated - keep disabled
+            isEnabled = false
+        }
+
+        keymapMenuItem?.isEnabled = isEnabled
+
+        if !isEnabled {
+            // If disabled and user tries to show visualization, close any open windows
+            KeyboardVisualizationManager.shared.hide()
+        }
+    }
+
+    /// Update the state controller reference (called when MainAppStateController is available)
+    func setStateController(_ stateController: MainAppStateController) {
+        self.stateController = stateController
+        observeSystemState()
     }
 }

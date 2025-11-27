@@ -176,6 +176,7 @@ public struct KeyPathApp: App {
                     }
                 )
                 .keyboardShortcut("k", modifiers: .command)
+                .disabled(!(MainAppStateController.shared.validationState?.isSuccess ?? false))
 
                 Divider()
 
@@ -367,6 +368,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         if !isHeadlessMode {
             setupMenuBarController()
+            // Connect state controller to menu bar and visualization manager
+            Task { @MainActor in
+                menuBarController?.setStateController(MainAppStateController.shared)
+                KeyboardVisualizationManager.shared.setStateController(MainAppStateController.shared)
+            }
         }
 
         // Legacy LaunchAgent support removed
