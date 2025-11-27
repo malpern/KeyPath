@@ -85,6 +85,26 @@ actor KanataTCPClient {
     private var connection: NWConnection?
     private var isConnecting = false
 
+    // MARK: - Read Buffer (Critical for Two-Line Protocol)
+    //
+    // **WHY THIS EXISTS:**
+    // Kanata's TCP protocol sends TWO lines for Hello/Validate/Reload commands:
+    //   Line 1: {"status":"Ok"}\n
+    //   Line 2: {"HelloOk":...}\n or {"ValidationResult":...}\n or {"ReloadResult":...}\n
+    //
+    // These lines can arrive in a single TCP packet. Without buffering, the first
+    // readUntilNewline() call would consume BOTH lines, then the second read would
+    // hang forever waiting for data that was already discarded.
+    //
+    // **HOW IT WORKS:**
+    // - readUntilNewline() always returns exactly ONE line (up to \n)
+    // - Leftover data stays in readBuffer for subsequent calls
+    // - Buffer is cleared when connection closes
+    //
+    // **TEST:** If you modify this, verify with: KEYPATH_ENABLE_TCP_TESTS=1 swift test
+    // and manually test saving a key mapping (2→3) in the UI.
+    private var readBuffer = Data()
+
     // Handshake cache
     private var cachedHello: TcpHelloOk?
 
@@ -247,6 +267,7 @@ actor KanataTCPClient {
 
         connection?.cancel()
         connection = nil
+        readBuffer.removeAll() // Clear buffered data when connection closes
     }
 
     /// Cancel any ongoing operations and close connection
@@ -713,7 +734,9 @@ actor KanataTCPClient {
     }
 
     /// Read newline-delimited data from connection
-    /// Accumulates data until we have at least one complete line (ending with \n)
+    /// Returns exactly ONE complete line (ending with \n) from the connection.
+    /// Uses a persistent buffer to handle cases where Kanata sends multiple
+    /// lines in a single TCP packet.
     private func readUntilNewline(on connection: NWConnection) async throws -> Data {
         // Validate connection is ready before attempting read
         guard connection.state == .ready else {
@@ -721,13 +744,25 @@ actor KanataTCPClient {
             throw KeyPathError.communication(.connectionFailed(reason: "Connection not ready: \(connection.state)"))
         }
 
-        final class Accumulator: @unchecked Sendable {
-            var data = Data()
-        }
-
-        let accumulator = Accumulator()
         let maxLength = 65536
 
+        // Check if we already have a complete line in the buffer
+        if let (line, remaining) = extractFirstLine(from: readBuffer) {
+            readBuffer = remaining
+            AppLogger.shared.debug("🔌 [TCP] Returning buffered line (\(line.count) bytes, \(remaining.count) bytes remaining)")
+            return line
+        }
+
+        // Thread-safe accumulator for use in NWConnection callback
+        final class Accumulator: @unchecked Sendable {
+            var data: Data
+            init(initial: Data) { data = initial }
+        }
+
+        // Start with existing buffer contents
+        let accumulator = Accumulator(initial: readBuffer)
+
+        // No complete line in buffer, need to read from connection
         while true {
             try await withCheckedThrowingContinuation {
                 (continuation: CheckedContinuation<Void, Error>) in
@@ -742,8 +777,8 @@ actor KanataTCPClient {
 
                     if let content {
                         accumulator.data.append(content)
-                        // Check if we have at least one complete line (ending with \n)
-                        if accumulator.data.contains(0x0A) { // 0x0A is \n
+                        // Check if we now have at least one complete line (ending with \n)
+                        if accumulator.data.contains(0x0A) {
                             continuation.resume()
                             return
                         }
@@ -767,9 +802,12 @@ actor KanataTCPClient {
                 }
             }
 
-            // Check if we have complete line(s) now
-            if accumulator.data.contains(0x0A) {
-                break
+            // Check if we have a complete line now
+            if let (line, remaining) = extractFirstLine(from: accumulator.data) {
+                // Store remaining data back in the persistent buffer
+                readBuffer = remaining
+                AppLogger.shared.debug("🔌 [TCP] Returning line (\(line.count) bytes, \(remaining.count) bytes remaining in buffer)")
+                return line
             }
 
             // If we've accumulated too much without a newline, something is wrong
@@ -778,8 +816,19 @@ actor KanataTCPClient {
                     .connectionFailed(reason: "Response too large or malformed"))
             }
         }
+    }
 
-        return accumulator.data
+    /// Extract the first complete line (up to and including \n) from data.
+    /// Returns the line and the remaining data, or nil if no complete line exists.
+    /// Internal visibility for unit testing.
+    nonisolated func extractFirstLine(from data: Data) -> (line: Data, remaining: Data)? {
+        guard let newlineIndex = data.firstIndex(of: 0x0A) else {
+            return nil
+        }
+        let lineEndIndex = data.index(after: newlineIndex)
+        let line = Data(data.prefix(upTo: lineEndIndex))
+        let remaining = Data(data.suffix(from: lineEndIndex))
+        return (line, remaining)
     }
 
     /// Check if a JSON message is an unsolicited broadcast event (not a command response)
