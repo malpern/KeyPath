@@ -156,6 +156,9 @@ public struct ComponentStatus: Sendable {
     public let vhidDeviceInstalled: Bool
     public let vhidDeviceHealthy: Bool
     public let launchDaemonServicesHealthy: Bool
+    /// VHID services health (daemon + manager) independent of Kanata service
+    /// Use for Karabiner Components page which should only care about VHID, not Kanata
+    public let vhidServicesHealthy: Bool
     public let vhidVersionMismatch: Bool
 
     public init(
@@ -165,6 +168,7 @@ public struct ComponentStatus: Sendable {
         vhidDeviceInstalled: Bool,
         vhidDeviceHealthy: Bool,
         launchDaemonServicesHealthy: Bool,
+        vhidServicesHealthy: Bool,
         vhidVersionMismatch: Bool
     ) {
         self.kanataBinaryInstalled = kanataBinaryInstalled
@@ -173,6 +177,7 @@ public struct ComponentStatus: Sendable {
         self.vhidDeviceInstalled = vhidDeviceInstalled
         self.vhidDeviceHealthy = vhidDeviceHealthy
         self.launchDaemonServicesHealthy = launchDaemonServicesHealthy
+        self.vhidServicesHealthy = vhidServicesHealthy
         self.vhidVersionMismatch = vhidVersionMismatch
     }
 
@@ -190,6 +195,7 @@ public struct ComponentStatus: Sendable {
             vhidDeviceInstalled: false,
             vhidDeviceHealthy: false,
             launchDaemonServicesHealthy: false,
+            vhidServicesHealthy: false,
             vhidVersionMismatch: false
         )
     }

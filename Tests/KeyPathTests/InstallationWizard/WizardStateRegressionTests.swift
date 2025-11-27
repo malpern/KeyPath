@@ -36,6 +36,7 @@ final class WizardStateRegressionTests: XCTestCase {
             vhidDeviceInstalled: true,
             vhidDeviceHealthy: true,
             launchDaemonServicesHealthy: true,
+            vhidServicesHealthy: true,
             vhidVersionMismatch: false
         )
 

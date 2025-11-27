@@ -133,6 +133,7 @@ struct SystemValidatorTests {
                 vhidDeviceInstalled: false,
                 vhidDeviceHealthy: false,
                 launchDaemonServicesHealthy: false,
+                vhidServicesHealthy: false,
                 vhidVersionMismatch: false
             ),
             conflicts: ConflictStatus(conflicts: [], canAutoResolve: false),

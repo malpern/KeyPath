@@ -110,7 +110,9 @@ struct SystemContextAdapter {
         if !context.components.vhidDeviceHealthy {
             missing.append(.vhidDeviceRunning)
         }
-        if !context.components.launchDaemonServicesHealthy {
+        // Use vhidServicesHealthy for Karabiner-related missing components
+        // (Kanata service health is checked separately on the Kanata Components page)
+        if !context.components.vhidServicesHealthy {
             missing.append(.launchDaemonServices)
         }
 
@@ -219,14 +221,16 @@ struct SystemContextAdapter {
                     userAction: nil
                 ))
         }
-        if !context.components.launchDaemonServicesHealthy {
+        // Use vhidServicesHealthy for the issue shown on Karabiner Components page
+        // (Kanata service health is handled separately - see kanataService issue below)
+        if !context.components.vhidServicesHealthy {
             issues.append(
                 WizardIssue(
                     identifier: .component(.launchDaemonServices),
                     severity: .error,
                     category: .installation,
-                    title: "LaunchDaemon Services Unhealthy",
-                    description: "LaunchDaemon services are not healthy",
+                    title: "VHID Services Unhealthy",
+                    description: "Karabiner VirtualHID services (daemon and manager) are not healthy",
                     autoFixAction: .installLaunchDaemonServices,
                     userAction: nil
                 ))
@@ -271,6 +275,22 @@ struct SystemContextAdapter {
                     title: "Services Unhealthy",
                     description: "Some services are not healthy",
                     autoFixAction: .restartUnhealthyServices,
+                    userAction: nil
+                ))
+        }
+
+        // Kanata service health issue - separate from VHID services (shown on Kanata Components page)
+        if !context.services.kanataRunning, context.components.vhidServicesHealthy {
+            // Only show if VHID is healthy but Kanata isn't running
+            // (if VHID is unhealthy, that's the primary issue to fix first)
+            issues.append(
+                WizardIssue(
+                    identifier: .component(.kanataService),
+                    severity: .error,
+                    category: .daemon,
+                    title: "Kanata Service Not Running",
+                    description: "Kanata keyboard remapping service is not running",
+                    autoFixAction: .installLaunchDaemonServices,
                     userAction: nil
                 ))
         }

@@ -35,6 +35,7 @@ struct SystemContextBuilder {
                 vhidDeviceInstalled: true,
                 vhidDeviceHealthy: servicesHealthy,
                 launchDaemonServicesHealthy: servicesHealthy,
+                vhidServicesHealthy: servicesHealthy,
                 vhidVersionMismatch: false
             )
         } else {

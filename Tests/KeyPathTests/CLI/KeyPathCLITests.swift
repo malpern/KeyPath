@@ -86,6 +86,7 @@ private func makeSystemContext(
                 vhidDeviceInstalled: true,
                 vhidDeviceHealthy: true,
                 launchDaemonServicesHealthy: true,
+                vhidServicesHealthy: true,
                 vhidVersionMismatch: false
             )
             : ComponentStatus.empty

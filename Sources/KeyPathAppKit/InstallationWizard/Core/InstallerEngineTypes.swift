@@ -326,6 +326,12 @@ public struct LaunchDaemonStatus: Sendable {
         kanataServiceHealthy && vhidDaemonServiceHealthy && vhidManagerServiceHealthy
     }
 
+    /// True if VHID services (daemon + manager) are healthy
+    /// Use this for Karabiner driver health, independent of Kanata service status
+    public var vhidServicesHealthy: Bool {
+        vhidDaemonServiceHealthy && vhidManagerServiceHealthy
+    }
+
     /// Description of current status for logging/debugging
     public var description: String {
         """

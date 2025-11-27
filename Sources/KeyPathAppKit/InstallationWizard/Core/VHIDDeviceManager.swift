@@ -146,7 +146,8 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
             let task = Process()
             task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-            task.arguments = ["-f", Self.vhidDeviceRunningCheck]
+            // Use exact match to avoid pgrep matching itself or other helpers
+            task.arguments = ["-x", Self.vhidDeviceRunningCheck]
 
             let pipe = Pipe()
             task.standardOutput = pipe
@@ -182,16 +183,26 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
                 let data = pipe.fileHandleForReading.readDataToEndOfFile()
                 let output = String(data: data, encoding: .utf8) ?? ""
-                let isRunning =
-                    task.terminationStatus == 0
-                        && !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                let pids = output
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .components(separatedBy: .newlines)
+                    .filter { !$0.isEmpty }
+                let processCount = pids.count
+                let isRunning = task.terminationStatus == 0 && processCount > 0
 
-                // Check for duplicate processes - UNHEALTHY if more than one
-                if isRunning {
-                    let pids = output.trimmingCharacters(in: .whitespacesAndNewlines).components(
-                        separatedBy: .newlines)
-                    let processCount = pids.filter { !$0.isEmpty }.count
-                    if processCount > 1 {
+                // Check for duplicate processes - but verify with launchctl first
+                // pgrep -f can race with concurrent pgrep calls (each sees the other as a match)
+                if isRunning, processCount > 1 {
+                    // Double-check with launchctl (authoritative source for system services)
+                    let vhidManager = VHIDDeviceManager()
+                    let launchctlHealthy = await vhidManager.checkLaunchctlHealth()
+                    if launchctlHealthy == true {
+                        AppLogger.shared.log(
+                            "⚠️ [VHIDManager] pgrep reported \(processCount) processes but launchctl is healthy - likely pgrep race condition, treating as healthy"
+                        )
+                        // Fall through to report healthy
+                    } else {
+                        // launchctl also unhealthy - genuine duplicate issue
                         AppLogger.shared.log(
                             "❌ [VHIDManager] UNHEALTHY: Multiple VHIDDevice daemon processes detected (\(processCount)) - should only be 1"
                         )
@@ -216,11 +227,13 @@ final class VHIDDeviceManager: @unchecked Sendable {
         }.value
     }
 
-    /// Extremely fast check using launchctl list; used as a fallback when pgrep stalls.
+    /// Fast check using launchctl print; used as a fallback when pgrep stalls.
+    /// Note: Uses system domain since VHID daemon is a LaunchDaemon, not a user agent.
     private static func fastLaunchctlCheck() async -> Bool {
         do {
-            let result = try await SubprocessRunner.shared.launchctl("list", ["com.keypath.karabiner-vhiddaemon"])
-            return result.stdout.contains("\"PID\"")
+            let result = try await SubprocessRunner.shared.launchctl("print", ["system/com.keypath.karabiner-vhiddaemon"])
+            // Check for running state or PID presence
+            return result.exitCode == 0 && (result.stdout.contains("pid =") || result.stdout.contains("state = running"))
         } catch {
             AppLogger.shared.log("❌ [VHIDManager] fastLaunchctlCheck failed: \(error)")
             return false

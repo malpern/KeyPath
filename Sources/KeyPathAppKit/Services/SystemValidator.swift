@@ -395,10 +395,11 @@ class SystemValidator {
         // Check LaunchDaemon services via ServiceHealthChecker
         let daemonStatus = await ServiceHealthChecker.shared.getServiceStatus()
         let launchDaemonServicesHealthy = daemonStatus.allServicesHealthy
+        let vhidServicesHealthy = daemonStatus.vhidServicesHealthy
 
         AppLogger.shared
             .log(
-                "🔍 [SystemValidator] Components: kanata=\(kanataBinaryInstalled), driver=\(karabinerDriverInstalled), daemon=\(karabinerDaemonRunning), vhid=\(vhidHealthy), vhidVersionMismatch=\(vhidVersionMismatch)"
+                "🔍 [SystemValidator] Components: kanata=\(kanataBinaryInstalled), driver=\(karabinerDriverInstalled), daemon=\(karabinerDaemonRunning), vhid=\(vhidHealthy), vhidServices=\(vhidServicesHealthy), vhidVersionMismatch=\(vhidVersionMismatch)"
             )
 
         return ComponentStatus(
@@ -408,6 +409,7 @@ class SystemValidator {
             vhidDeviceInstalled: vhidInstalled,
             vhidDeviceHealthy: vhidHealthy,
             launchDaemonServicesHealthy: launchDaemonServicesHealthy,
+            vhidServicesHealthy: vhidServicesHealthy,
             vhidVersionMismatch: vhidVersionMismatch
         )
     }
@@ -540,6 +542,7 @@ class SystemValidator {
                 vhidDeviceInstalled: true,
                 vhidDeviceHealthy: true,
                 launchDaemonServicesHealthy: true,
+                vhidServicesHealthy: true,
                 vhidVersionMismatch: false
             ),
             conflicts: ConflictStatus(conflicts: [], canAutoResolve: false),
@@ -570,6 +573,7 @@ class SystemValidator {
                 vhidDeviceInstalled: false,
                 vhidDeviceHealthy: false,
                 launchDaemonServicesHealthy: false,
+                vhidServicesHealthy: false,
                 vhidVersionMismatch: false
             ),
             conflicts: ConflictStatus(conflicts: [], canAutoResolve: false),
