@@ -205,8 +205,31 @@ struct ContentView: View {
             .animation(.easeInOut(duration: 0.25), value: showStatusMessage)
         }
         .sheet(isPresented: $showingInstallationWizard) {
-            // Determine initial page if we're returning from permission granting
+            // Determine initial page if we're returning from permission granting or app restart
             let initialPage: WizardPage? = {
+                // Check for FDA restart restore point (used when app restarts for Full Disk Access)
+                if let restorePoint = UserDefaults.standard.string(forKey: "KeyPath.WizardRestorePoint") {
+                    let restoreTime = UserDefaults.standard.double(forKey: "KeyPath.WizardRestoreTime")
+                    let timeSinceRestore = Date().timeIntervalSince1970 - restoreTime
+
+                    // Clear the restore point immediately
+                    UserDefaults.standard.removeObject(forKey: "KeyPath.WizardRestorePoint")
+                    UserDefaults.standard.removeObject(forKey: "KeyPath.WizardRestoreTime")
+
+                    // Only restore if within 5 minutes
+                    if timeSinceRestore < 300 {
+                        // Map string identifier to WizardPage
+                        let page = WizardPage.allCases.first { $0.rawValue == restorePoint }
+                            ?? WizardPage.allCases.first { String(describing: $0) == restorePoint }
+                        if let page {
+                            AppLogger.shared.log("🔄 [ContentView] Restoring wizard to \(page.displayName) after app restart")
+                            return page
+                        }
+                    } else {
+                        AppLogger.shared.log("⏱️ [ContentView] Wizard restore point expired (\(Int(timeSinceRestore))s old)")
+                    }
+                }
+
                 if UserDefaults.standard.bool(forKey: "wizard_return_to_summary") {
                     UserDefaults.standard.removeObject(forKey: "wizard_return_to_summary")
                     AppLogger.shared.log("✅ [ContentView] Permissions granted - returning to Summary")
@@ -278,6 +301,19 @@ struct ContentView: View {
 
             // Check if we're returning from permission granting (Input Monitoring settings)
             let isReturningFromPermissionGrant = checkForPendingPermissionGrant()
+
+            // Check if we're returning from an app restart for FDA permission
+            if let restorePoint = UserDefaults.standard.string(forKey: "KeyPath.WizardRestorePoint") {
+                let restoreTime = UserDefaults.standard.double(forKey: "KeyPath.WizardRestoreTime")
+                let timeSinceRestore = Date().timeIntervalSince1970 - restoreTime
+                if timeSinceRestore < 300 { // Within 5 minutes
+                    AppLogger.shared.log("🔄 [ContentView] Found wizard restore point '\(restorePoint)' - auto-opening wizard")
+                    // Delay slightly to ensure UI is ready
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        showingInstallationWizard = true
+                    }
+                }
+            }
 
             // Set up notification handlers for recovery actions
             setupRecoveryActionHandlers()

@@ -30,6 +30,7 @@ struct WizardFullDiskAccessPage: View {
 
     // Modal states for System Settings flow
     @State private var showingSystemSettingsWait = false
+    @State private var showingRestartRequired = false
     @State private var systemSettingsDetectionAttempts = 0
     private let maxDetectionAttempts = 4 // 8 seconds total (2 sec intervals)
 
@@ -148,9 +149,13 @@ struct WizardFullDiskAccessPage: View {
                     AppLogger.shared.log("✅ [Wizard] FDA detected during System Settings wait")
                 },
                 onTimeout: {
-                    // Couldn't detect after 8 seconds, just close the modal
+                    // Couldn't detect after 8 seconds - FDA requires app restart
                     showingSystemSettingsWait = false
-                    AppLogger.shared.log("⏱️ [Wizard] FDA detection timed out")
+                    AppLogger.shared.log("⏱️ [Wizard] FDA detection timed out - showing restart prompt")
+                    // Show restart required modal after a brief delay
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        showingRestartRequired = true
+                    }
                 },
                 onCancel: {
                     // User cancelled the wait
@@ -174,6 +179,18 @@ struct WizardFullDiskAccessPage: View {
             if !newValue {
                 isChecking = false
             }
+        }
+        .sheet(isPresented: $showingRestartRequired) {
+            RestartRequiredView(
+                onRestart: {
+                    AppLogger.shared.log("🔄 [Wizard] User requested restart for FDA")
+                    AppRestarter.restartForWizard(at: "fullDiskAccess")
+                },
+                onCancel: {
+                    showingRestartRequired = false
+                    AppLogger.shared.log("❌ [Wizard] User cancelled FDA restart")
+                }
+            )
         }
     }
 
