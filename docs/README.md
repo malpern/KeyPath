@@ -25,3 +25,4 @@ This directory contains all documentation for the KeyPath project.
 - Update debug scripts to call `InstallerEngine` instead of ad-hoc `LaunchDaemonInstaller` logic.
 - Drop `Scripts/archive/deprecated-tests` from active suite or delete the folder.
 - Refresh or delete stale lint artifacts (`swiftlint-report.txt`, `lint_issues.json`).
+- Add lint: block `SubprocessRunner`/`PrivilegedOperationsCoordinator` in `WizardAutoFixer.swift` (script: `Scripts/lint-no-subprocess-in-autofixer.sh`).
