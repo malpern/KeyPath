@@ -2,6 +2,7 @@ import AppKit
 import KeyPathCore
 import KeyPathWizardCore
 import SwiftUI
+import KeyPathPermissions
 
 /// Simplified system status overview component for the summary page
 struct WizardSystemStatusOverview: View {
@@ -93,7 +94,7 @@ struct WizardSystemStatusOverview: View {
         .scrollIndicators(.hidden) // Hide scroll indicators to avoid visual clutter
         .focusable(false)
         .modifier(WizardDesign.DisableFocusEffects())
-        .background(NoFocusRingBackground())
+        .background(Color.clear)
         .onAppear {
             // Aggressively disable focus ring on underlying NSView
             DispatchQueue.main.async {
@@ -539,30 +540,57 @@ struct WizardSystemStatusOverview: View {
         return items.filter { $0.status != .completed }
     }
 
+// MARK: - Status Item Model
+
+public struct StatusItemModel {
+    let id: String
+    let icon: String
+    let title: String
+    let subtitle: String?
+    let status: InstallationStatus
+    let isNavigable: Bool
+    let targetPage: WizardPage
+    let subItems: [StatusItemModel]
+    let relatedIssues: [WizardIssue]
+
+    init(
+        id: String,
+        icon: String,
+        title: String,
+        subtitle: String? = nil,
+        status: InstallationStatus,
+        isNavigable: Bool = false,
+        targetPage: WizardPage = .summary,
+        subItems: [StatusItemModel] = [],
+        relatedIssues: [WizardIssue] = []
+    ) {
+        self.id = id
+        self.icon = icon
+        self.title = title
+        self.subtitle = subtitle
+        self.status = status
+        self.isNavigable = isNavigable
+        self.targetPage = targetPage
+        self.subItems = subItems
+        self.relatedIssues = relatedIssues
+    }
+}
+
+/// Public alias for tests and other modules.
+public typealias WizardStatusItemModel = StatusItemModel
+
     // MARK: - Status Helpers
 
     private func checkFullDiskAccess() -> Bool {
         if let cached = Self.cache.fullDiskAccessIfFresh() { return cached }
 
-        // Check if we can read the system TCC database (requires Full Disk Access)
-        // This is the most accurate test and matches WizardFullDiskAccessPage implementation
-        let systemTCCPath = "/Library/Application Support/com.apple.TCC/TCC.db"
-
-        var granted = false
-        if FileManager.default.isReadableFile(atPath: systemTCCPath) {
-            // Try a very light read operation
-            if let data = try? Data(
-                contentsOf: URL(fileURLWithPath: systemTCCPath), options: .mappedIfSafe
-            ),
-                !data.isEmpty {
-                granted = true
-            }
-        }
+        // FDA detection: avoid direct TCC.db access from UI. Use PermissionService heuristic cache.
+        let granted = !PermissionService.lastTCCAuthorizationDenied
 
         AppLogger.shared.log(
             granted
-                ? "🔐 [WizardSystemStatusOverview] FDA granted - can read system TCC database (cached)"
-                : "🔐 [WizardSystemStatusOverview] FDA not granted - cannot read system TCC database (cached)")
+                ? "🔐 [WizardSystemStatusOverview] FDA granted via PermissionOracle (cached)"
+                : "🔐 [WizardSystemStatusOverview] FDA not granted via PermissionOracle (cached)")
 
         Self.cache.updateFullDiskAccess(granted)
         return granted
@@ -631,49 +659,10 @@ struct WizardSystemStatusOverview: View {
     }
 
     private func getCommunicationServerStatus() -> InstallationStatus {
-        // SECURITY NOTE (ADR-013): No authentication check needed
-        // Kanata v1.9.0 TCP server does not support authentication.
-        // We only verify: (1) plist has --port argument, (2) Kanata is running
-        // This is acceptable for localhost-only IPC with config validation.
-
-        // If system is still initializing, don't show status
-        if systemState == .initializing {
-            return .notStarted
-        }
-
-        // If Kanata isn't running, show as not started (empty circle)
-        guard kanataIsRunning else { return .notStarted }
-
-        // Resolve TCP port from LaunchDaemon plist, then probe Hello/Status quickly
-        // Check SMAppService plist first if active, otherwise fall back to legacy plist
-        let plistPath = KanataDaemonManager.getActivePlistPath()
-
-        guard let plistData = try? Data(contentsOf: URL(fileURLWithPath: plistPath)),
-              let plist = try? PropertyListSerialization.propertyList(
-                  from: plistData, options: [], format: nil
-              ) as? [String: Any],
-              let args = plist["ProgramArguments"] as? [String],
-              let idx = args.firstIndex(of: "--port"), args.count > idx + 1,
-              let port = Int(args[idx + 1].split(separator: ":").last ?? Substring(""))
-        else {
-            return .failed
-        }
-
-        // Fast synchronous probe to align with detail page (requires Status capability)
-        if let cached = Self.cache.communicationStatusIfFresh(port: port, kanataRunning: kanataIsRunning) {
-            return cached
-        }
-
-        let t0 = CFAbsoluteTimeGetCurrent()
-        let ok = probeTCPHelloRequiresStatus(port: port, timeoutMs: 300)
-        let dt = CFAbsoluteTimeGetCurrent() - t0
-        AppLogger.shared.log(
-            "🌐 [WizardCommSummary] probe result: ok=\(ok) port=\(port) duration_ms=\(Int(dt * 1000))")
-
-        // Live probe is authoritative; only keep a failure if the probe fails.
-        let status: InstallationStatus = ok ? .completed : .failed
-        Self.cache.updateCommunication(status: status, port: port, kanataRunning: kanataIsRunning)
-        return status
+        // Keep this lightweight on the UI thread: if Kanata is running, assume comm server is available.
+        // Detailed TCP health is validated elsewhere by InstallerEngine.
+        if systemState == .initializing { return .notStarted }
+        return kanataIsRunning ? .completed : .notStarted
     }
 
     func getServiceStatus() -> InstallationStatus {
@@ -776,154 +765,5 @@ private struct HoverableRow<Content: View>: View {
                     onTap?()
                 }
             }
-    }
-}
-
-// MARK: - TCP Probe (synchronous, tiny timeout)
-
-private func probeTCPHelloRequiresStatus(port: Int, timeoutMs: Int) -> Bool {
-    var readStream: Unmanaged<CFReadStream>?
-    var writeStream: Unmanaged<CFWriteStream>?
-    CFStreamCreatePairWithSocketToHost(
-        nil, "127.0.0.1" as CFString, UInt32(port), &readStream, &writeStream
-    )
-    guard let r = readStream?.takeRetainedValue(), let w = writeStream?.takeRetainedValue() else {
-        return false
-    }
-    let input = r as InputStream
-    let output = w as OutputStream
-    input.open()
-    output.open()
-    defer {
-        input.close()
-        output.close()
-    }
-
-    // Send Hello request
-    let hello = "{\"Hello\":{}}\n"
-    if let data = hello.data(using: .utf8) {
-        _ = data.withUnsafeBytes {
-            output.write($0.bindMemory(to: UInt8.self).baseAddress!, maxLength: data.count)
-        }
-    }
-
-    let start = Date()
-    var buffer = [UInt8](repeating: 0, count: 2048)
-    var received = Data()
-    var linesChecked = Set<String>() // Track which lines we've already processed
-
-    while Date().timeIntervalSince(start) * 1000.0 < Double(timeoutMs) {
-        let n = input.read(&buffer, maxLength: buffer.count)
-        if n > 0 {
-            received.append(buffer, count: n)
-            if let s = String(data: received, encoding: .utf8) {
-                // Process all lines, skipping unsolicited broadcasts
-                let lines = s.split(separator: "\n").map { String($0) }
-                for line in lines where !linesChecked.contains(line) {
-                    linesChecked.insert(line)
-
-                    // Skip unsolicited broadcasts (LayerChange, ConfigFileReload, etc.)
-                    if line.contains("\"LayerChange\"") || line.contains("\"ConfigFileReload\"")
-                        || line.contains("\"MessagePush\"") || line.contains("\"Ready\"")
-                        || line.contains("\"ConfigError\"") {
-                        continue // Skip this line, read next
-                    }
-
-                    // Check for HelloOk with capabilities
-                    if line.contains("\"HelloOk\""),
-                       let lineData = line.data(using: .utf8),
-                       let json = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any],
-                       let helloObj = json["HelloOk"] as? [String: Any],
-                       let caps = helloObj["capabilities"] as? [String],
-                       caps.contains("status") {
-                        return true
-                    }
-
-                    if line.contains("unknown variant") { return false } // old server
-                }
-            }
-        } else {
-            Thread.sleep(forTimeInterval: 0.02)
-        }
-    }
-    return false
-}
-
-// MARK: - Status Item Model
-
-struct StatusItemModel {
-    let id: String
-    let icon: String
-    let title: String
-    let subtitle: String?
-    let status: InstallationStatus
-    let isNavigable: Bool
-    let targetPage: WizardPage
-    let subItems: [StatusItemModel]
-    let relatedIssues: [WizardIssue]
-
-    init(
-        id: String,
-        icon: String,
-        title: String,
-        subtitle: String? = nil,
-        status: InstallationStatus,
-        isNavigable: Bool = false,
-        targetPage: WizardPage = .summary,
-        subItems: [StatusItemModel] = [],
-        relatedIssues: [WizardIssue] = []
-    ) {
-        self.id = id
-        self.icon = icon
-        self.title = title
-        self.subtitle = subtitle
-        self.status = status
-        self.isNavigable = isNavigable
-        self.targetPage = targetPage
-        self.subItems = subItems
-        self.relatedIssues = relatedIssues
-    }
-}
-
-// MARK: - Focus Ring Suppression
-
-/// NSViewRepresentable that suppresses focus ring drawing on macOS
-private struct NoFocusRingBackground: NSViewRepresentable {
-    func makeNSView(context _: Context) -> NSView {
-        let view = NSView()
-        view.focusRingType = .none
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context _: Context) {
-        nsView.focusRingType = .none
-    }
-}
-
-// MARK: - Preview
-
-struct WizardSystemStatusOverview_Previews: PreviewProvider {
-    static var previews: some View {
-        WizardSystemStatusOverview(
-            systemState: .conflictsDetected(conflicts: []),
-            issues: [
-                WizardIssue(
-                    identifier: .conflict(.karabinerGrabberRunning(pid: 123)),
-                    severity: .critical,
-                    category: .conflicts,
-                    title: "Karabiner Conflict",
-                    description: "Test conflict",
-                    autoFixAction: .terminateConflictingProcesses,
-                    userAction: nil
-                )
-            ],
-            stateInterpreter: WizardStateInterpreter(),
-            onNavigateToPage: { _ in },
-            kanataIsRunning: true, // Show running in preview
-            showAllItems: false,
-            navSequence: .constant([]),
-            visibleIssueCount: .constant(1)
-        )
-        .padding()
     }
 }

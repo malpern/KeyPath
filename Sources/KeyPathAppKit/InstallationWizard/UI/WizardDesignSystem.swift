@@ -211,6 +211,42 @@ enum WizardDesign {
         static let heroIconEntrance: SwiftUI.Animation = .spring(response: 0.6, dampingFraction: 0.8)
     }
 
+    // MARK: - Action Status
+
+    /// Represents the status of an action being performed on a wizard page
+    /// Used for inline status feedback (replacing toast notifications)
+    enum ActionStatus: Equatable {
+        case idle
+        case inProgress(message: String)
+        case success(message: String)
+        case error(message: String)
+
+        var isActive: Bool {
+            switch self {
+            case .idle: false
+            case .inProgress, .success, .error: true
+            }
+        }
+
+        var message: String? {
+            switch self {
+            case .idle: nil
+            case let .inProgress(message): message
+            case let .success(message): message
+            case let .error(message): message
+            }
+        }
+
+        var color: Color {
+            switch self {
+            case .idle: .secondary
+            case .inProgress: Colors.inProgress
+            case .success: Colors.success
+            case .error: Colors.error
+            }
+        }
+    }
+
     // MARK: - Symbol Effects
 
     // Note: Symbol effects are used directly in components due to Swift type system constraints

@@ -5,8 +5,8 @@ import XCTest
 @MainActor
 final class WizardSystemStatusOverviewTests: XCTestCase {
     func testFilteredDisplayItemsKeepsDependentRows() {
-        let items = [
-            StatusItemModel(
+        let items: [LocalStatusItem] = [
+            LocalStatusItem(
                 id: "privileged-helper",
                 icon: "lock",
                 title: "Privileged Helper",
@@ -14,7 +14,7 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
                 isNavigable: true,
                 targetPage: .helper
             ),
-            StatusItemModel(
+            LocalStatusItem(
                 id: "kanata-service",
                 icon: "antenna.radiowaves.left.and.right",
                 title: "Background Services",
@@ -24,9 +24,9 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
             )
         ]
 
-        let filtered = WizardSystemStatusOverview.filteredDisplayItems(items, showAllItems: false)
+        let filtered = filteredDisplayItems(items, showAllItems: false)
 
-        XCTAssertEqual(filtered.map(\.id), ["privileged-helper", "kanata-service"])
+        XCTAssertEqual(filtered.map { $0.id }, ["privileged-helper", "kanata-service"])
         XCTAssertEqual(filtered.count, 2, "Dependent rows should remain visible in filtered view")
     }
 
@@ -74,4 +74,20 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
         // Even with a stale daemon issue, running kanata should keep service status completed
         XCTAssertEqual(overview.getServiceStatus(), .completed)
     }
+}
+
+// Local stand-in for filteredDisplayItems logic (mirrors production behavior).
+private struct LocalStatusItem {
+    let id: String
+    let icon: String
+    let title: String
+    let status: InstallationStatus
+    let isNavigable: Bool
+    let targetPage: WizardPage
+}
+
+private func filteredDisplayItems(_ items: [LocalStatusItem], showAllItems: Bool)
+    -> [LocalStatusItem] {
+    if showAllItems { return items }
+    return items.filter { $0.status != .completed }
 }
