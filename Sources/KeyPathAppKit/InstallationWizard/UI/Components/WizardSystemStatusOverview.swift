@@ -22,6 +22,8 @@ struct WizardSystemStatusOverview: View {
     @State private var contentHeight: CGFloat = 0
     @State private var containerHeight: CGFloat = 0
     @State private var duplicateCopies: [String] = []
+    @State private var fullDiskAccessGranted: Bool = false
+    @State private var communicationServerReady: Bool = false
     // Cache heavy probes so SwiftUI re-renders don’t hammer the filesystem/network
     private static var cache = ProbeCache()
 
@@ -128,10 +130,19 @@ struct WizardSystemStatusOverview: View {
         .onAppear {
             duplicateCopies = HelperMaintenance.shared.detectDuplicateAppCopies()
             updateNavSequence()
+            // Check FDA and communication status asynchronously to avoid blocking UI
+            Task {
+                await checkFullDiskAccessAsync()
+                await checkCommunicationServerAsync()
+            }
         }
         .onChange(of: showAllItems) { _, _ in updateNavSequence() }
         .onChange(of: issues.count) { _, _ in updateNavSequence() }
         .onChange(of: systemState) { _, _ in updateNavSequence() }
+        .onChange(of: kanataIsRunning) { _, _ in
+            // Recheck communication when service state changes
+            Task { await checkCommunicationServerAsync() }
+        }
         .overlay(alignment: .top) {
             if canShowTopFade {
                 LinearGradient(
@@ -270,12 +281,12 @@ struct WizardSystemStatusOverview: View {
             ))
 
         // 3. Full Disk Access (Optional but recommended)
-        let hasFullDiskAccess = checkFullDiskAccess()
+        // Use cached state updated asynchronously to avoid blocking UI
         let fullDiskAccessStatus: InstallationStatus = {
             if systemState == .initializing {
                 return .notStarted
             }
-            return hasFullDiskAccess ? .completed : .notStarted
+            return fullDiskAccessGranted ? .completed : .notStarted
         }()
         items.append(
             StatusItemModel(
@@ -541,31 +552,47 @@ struct WizardSystemStatusOverview: View {
 
     // MARK: - Status Helpers
 
-    private func checkFullDiskAccess() -> Bool {
-        if let cached = Self.cache.fullDiskAccessIfFresh() { return cached }
-
-        // Check if we can read the system TCC database (requires Full Disk Access)
-        // This is the most accurate test and matches WizardFullDiskAccessPage implementation
-        let systemTCCPath = "/Library/Application Support/com.apple.TCC/TCC.db"
-
-        var granted = false
-        if FileManager.default.isReadableFile(atPath: systemTCCPath) {
-            // Try a very light read operation
-            if let data = try? Data(
-                contentsOf: URL(fileURLWithPath: systemTCCPath), options: .mappedIfSafe
-            ),
-                !data.isEmpty {
-                granted = true
+    /// Asynchronously check Full Disk Access without blocking the UI
+    /// This replaces the synchronous TCC.db read to comply with AGENTS.md guidance
+    private func checkFullDiskAccessAsync() async {
+        // Check cache first
+        if let cached = Self.cache.fullDiskAccessIfFresh() {
+            await MainActor.run {
+                fullDiskAccessGranted = cached
             }
+            return
         }
 
-        AppLogger.shared.log(
-            granted
-                ? "🔐 [WizardSystemStatusOverview] FDA granted - can read system TCC database (cached)"
-                : "🔐 [WizardSystemStatusOverview] FDA not granted - cannot read system TCC database (cached)")
+        // Perform the check on a background thread to avoid UI blocking
+        let granted = await Task.detached(priority: .utility) {
+            // Check if we can read the system TCC database (requires Full Disk Access)
+            // This is the most accurate test and matches WizardFullDiskAccessPage implementation
+            let systemTCCPath = "/Library/Application Support/com.apple.TCC/TCC.db"
 
+            var granted = false
+            if FileManager.default.isReadableFile(atPath: systemTCCPath) {
+                // Try a very light read operation
+                if let data = try? Data(
+                    contentsOf: URL(fileURLWithPath: systemTCCPath), options: .mappedIfSafe
+                ),
+                    !data.isEmpty {
+                    granted = true
+                }
+            }
+
+            AppLogger.shared.log(
+                granted
+                    ? "🔐 [WizardSystemStatusOverview] FDA granted - can read system TCC database (cached)"
+                    : "🔐 [WizardSystemStatusOverview] FDA not granted - cannot read system TCC database (cached)")
+
+            return granted
+        }.value
+
+        // Update cache and state
         Self.cache.updateFullDiskAccess(granted)
-        return granted
+        await MainActor.run {
+            fullDiskAccessGranted = granted
+        }
     }
 
     private func getInputMonitoringStatus() -> InstallationStatus {
@@ -644,8 +671,22 @@ struct WizardSystemStatusOverview: View {
         // If Kanata isn't running, show as not started (empty circle)
         guard kanataIsRunning else { return .notStarted }
 
-        // Resolve TCP port from LaunchDaemon plist, then probe Hello/Status quickly
-        // Check SMAppService plist first if active, otherwise fall back to legacy plist
+        // Use cached state updated asynchronously to avoid blocking UI
+        return communicationServerReady ? .completed : .failed
+    }
+
+    /// Asynchronously check communication server without blocking UI
+    /// This replaces the synchronous TCP probe to comply with AGENTS.md guidance
+    private func checkCommunicationServerAsync() async {
+        // If Kanata isn't running, no need to check
+        guard kanataIsRunning else {
+            await MainActor.run {
+                communicationServerReady = false
+            }
+            return
+        }
+
+        // Resolve TCP port from LaunchDaemon plist
         let plistPath = KanataDaemonManager.getActivePlistPath()
 
         guard let plistData = try? Data(contentsOf: URL(fileURLWithPath: plistPath)),
@@ -656,24 +697,33 @@ struct WizardSystemStatusOverview: View {
               let idx = args.firstIndex(of: "--port"), args.count > idx + 1,
               let port = Int(args[idx + 1].split(separator: ":").last ?? Substring(""))
         else {
-            return .failed
+            await MainActor.run {
+                communicationServerReady = false
+            }
+            return
         }
 
-        // Fast synchronous probe to align with detail page (requires Status capability)
+        // Check cache first
         if let cached = Self.cache.communicationStatusIfFresh(port: port, kanataRunning: kanataIsRunning) {
-            return cached
+            await MainActor.run {
+                communicationServerReady = (cached == .completed)
+            }
+            return
         }
 
+        // Perform async TCP probe
         let t0 = CFAbsoluteTimeGetCurrent()
-        let ok = probeTCPHelloRequiresStatus(port: port, timeoutMs: 300)
+        let ok = await probeTCPHelloRequiresStatus(port: port, timeoutMs: 300)
         let dt = CFAbsoluteTimeGetCurrent() - t0
         AppLogger.shared.log(
             "🌐 [WizardCommSummary] probe result: ok=\(ok) port=\(port) duration_ms=\(Int(dt * 1000))")
 
-        // Live probe is authoritative; only keep a failure if the probe fails.
+        // Update cache and state
         let status: InstallationStatus = ok ? .completed : .failed
         Self.cache.updateCommunication(status: status, port: port, kanataRunning: kanataIsRunning)
-        return status
+        await MainActor.run {
+            communicationServerReady = ok
+        }
     }
 
     func getServiceStatus() -> InstallationStatus {
@@ -779,74 +829,79 @@ private struct HoverableRow<Content: View>: View {
     }
 }
 
-// MARK: - TCP Probe (synchronous, tiny timeout)
+// MARK: - TCP Probe (async, no Thread.sleep)
 
-private func probeTCPHelloRequiresStatus(port: Int, timeoutMs: Int) -> Bool {
-    var readStream: Unmanaged<CFReadStream>?
-    var writeStream: Unmanaged<CFWriteStream>?
-    CFStreamCreatePairWithSocketToHost(
-        nil, "127.0.0.1" as CFString, UInt32(port), &readStream, &writeStream
-    )
-    guard let r = readStream?.takeRetainedValue(), let w = writeStream?.takeRetainedValue() else {
-        return false
-    }
-    let input = r as InputStream
-    let output = w as OutputStream
-    input.open()
-    output.open()
-    defer {
-        input.close()
-        output.close()
-    }
-
-    // Send Hello request
-    let hello = "{\"Hello\":{}}\n"
-    if let data = hello.data(using: .utf8) {
-        _ = data.withUnsafeBytes {
-            output.write($0.bindMemory(to: UInt8.self).baseAddress!, maxLength: data.count)
+/// Async TCP probe that doesn't block UI thread
+/// Replaces synchronous version with Thread.sleep per AGENTS.md guidance
+private func probeTCPHelloRequiresStatus(port: Int, timeoutMs: Int) async -> Bool {
+    await Task.detached(priority: .utility) {
+        var readStream: Unmanaged<CFReadStream>?
+        var writeStream: Unmanaged<CFWriteStream>?
+        CFStreamCreatePairWithSocketToHost(
+            nil, "127.0.0.1" as CFString, UInt32(port), &readStream, &writeStream
+        )
+        guard let r = readStream?.takeRetainedValue(), let w = writeStream?.takeRetainedValue() else {
+            return false
         }
-    }
+        let input = r as InputStream
+        let output = w as OutputStream
+        input.open()
+        output.open()
+        defer {
+            input.close()
+            output.close()
+        }
 
-    let start = Date()
-    var buffer = [UInt8](repeating: 0, count: 2048)
-    var received = Data()
-    var linesChecked = Set<String>() // Track which lines we've already processed
-
-    while Date().timeIntervalSince(start) * 1000.0 < Double(timeoutMs) {
-        let n = input.read(&buffer, maxLength: buffer.count)
-        if n > 0 {
-            received.append(buffer, count: n)
-            if let s = String(data: received, encoding: .utf8) {
-                // Process all lines, skipping unsolicited broadcasts
-                let lines = s.split(separator: "\n").map { String($0) }
-                for line in lines where !linesChecked.contains(line) {
-                    linesChecked.insert(line)
-
-                    // Skip unsolicited broadcasts (LayerChange, ConfigFileReload, etc.)
-                    if line.contains("\"LayerChange\"") || line.contains("\"ConfigFileReload\"")
-                        || line.contains("\"MessagePush\"") || line.contains("\"Ready\"")
-                        || line.contains("\"ConfigError\"") {
-                        continue // Skip this line, read next
-                    }
-
-                    // Check for HelloOk with capabilities
-                    if line.contains("\"HelloOk\""),
-                       let lineData = line.data(using: .utf8),
-                       let json = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any],
-                       let helloObj = json["HelloOk"] as? [String: Any],
-                       let caps = helloObj["capabilities"] as? [String],
-                       caps.contains("status") {
-                        return true
-                    }
-
-                    if line.contains("unknown variant") { return false } // old server
-                }
+        // Send Hello request
+        let hello = "{\"Hello\":{}}\n"
+        if let data = hello.data(using: .utf8) {
+            _ = data.withUnsafeBytes {
+                output.write($0.bindMemory(to: UInt8.self).baseAddress!, maxLength: data.count)
             }
-        } else {
-            Thread.sleep(forTimeInterval: 0.02)
         }
-    }
-    return false
+
+        let start = Date()
+        var buffer = [UInt8](repeating: 0, count: 2048)
+        var received = Data()
+        var linesChecked = Set<String>() // Track which lines we've already processed
+
+        while Date().timeIntervalSince(start) * 1000.0 < Double(timeoutMs) {
+            let n = input.read(&buffer, maxLength: buffer.count)
+            if n > 0 {
+                received.append(buffer, count: n)
+                if let s = String(data: received, encoding: .utf8) {
+                    // Process all lines, skipping unsolicited broadcasts
+                    let lines = s.split(separator: "\n").map { String($0) }
+                    for line in lines where !linesChecked.contains(line) {
+                        linesChecked.insert(line)
+
+                        // Skip unsolicited broadcasts (LayerChange, ConfigFileReload, etc.)
+                        if line.contains("\"LayerChange\"") || line.contains("\"ConfigFileReload\"")
+                            || line.contains("\"MessagePush\"") || line.contains("\"Ready\"")
+                            || line.contains("\"ConfigError\"") {
+                            continue // Skip this line, read next
+                        }
+
+                        // Check for HelloOk with capabilities
+                        if line.contains("\"HelloOk\""),
+                           let lineData = line.data(using: .utf8),
+                           let json = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any],
+                           let helloObj = json["HelloOk"] as? [String: Any],
+                           let caps = helloObj["capabilities"] as? [String],
+                           caps.contains("status") {
+                            return true
+                        }
+
+                        if line.contains("unknown variant") { return false } // old server
+                    }
+                }
+            } else {
+                // Use async Task.sleep instead of Thread.sleep to avoid blocking
+                try? await Task.sleep(nanoseconds: 20_000_000) // 0.02s = 20ms
+            }
+        }
+        return false
+    }.value
 }
 
 // MARK: - Status Item Model
