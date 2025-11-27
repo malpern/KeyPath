@@ -423,6 +423,15 @@ struct InstallationWizardView: View {
             toastManager: toastManager,
             statusReporter: { message in
                 showStatusBanner(message)
+                Task { await WizardTelemetry.shared.record(
+                    WizardEvent(
+                        timestamp: Date(),
+                        category: .statusBanner,
+                        name: "banner",
+                        result: nil,
+                        details: ["message": message]
+                    )
+                ) }
             }
         )
 

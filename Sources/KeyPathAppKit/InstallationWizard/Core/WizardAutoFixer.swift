@@ -378,6 +378,23 @@ class WizardAutoFixer: AutoFixCapable {
         AppLogger.shared.log(
             "🔧 [VHIDInstall:\(session)] COMPLETE [\(elapsed())]: success=\(success ? "✅" : "❌") (restart=\(restartOk), healthy=\(vhidHealthy), version=\(versionMatches))")
 
+        Task {
+            await WizardTelemetry.shared.record(
+                WizardEvent(
+                    timestamp: Date(),
+                    category: .autofixer,
+                    name: "installCorrectVHIDDriver",
+                    result: success ? "success" : "fail",
+                    details: [
+                        "installedVersion": post.driverVersion ?? "nil",
+                        "requiredVersion": VHIDDeviceManager.requiredDriverVersionString,
+                        "vhidHealthy": "\(vhidHealthy)",
+                        "restartOk": "\(restartOk)"
+                    ]
+                )
+            )
+        }
+
         logFixSessionSummary(
             session: String(session), action: "installCorrectVHIDDriver", success: success, start: t0, pre: pre,
             post: post
@@ -461,6 +478,22 @@ class WizardAutoFixer: AutoFixCapable {
                 AppLogger.shared.warn("⚠️ [VHIDFix:\(session)] Driver version still mismatched after fix")
             }
             success = success && vhidHealthy && versionMatches
+
+            Task {
+                await WizardTelemetry.shared.record(
+                    WizardEvent(
+                        timestamp: Date(),
+                        category: .autofixer,
+                        name: "fixDriverVersionMismatch",
+                        result: success ? "success" : "fail",
+                        details: [
+                            "installedVersion": installedVersion ?? "nil",
+                            "requiredVersion": VHIDDeviceManager.requiredDriverVersionString,
+                            "vhidHealthy": "\(vhidHealthy)"
+                        ]
+                    )
+                )
+            }
 
             await statusReporter(
                 "Driver v\(VHIDDeviceManager.requiredDriverVersionString) installed and services restarted."

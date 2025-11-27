@@ -100,8 +100,7 @@ final class KarabinerComponentsStatusEvaluatorTests: XCTestCase {
         // (that's what the Karabiner page looks for)
         let karabinerRelatedIssues = result.issues.filter { issue in
             if case .component(.launchDaemonServices) = issue.identifier,
-               issue.category == WizardIssue.IssueCategory.installation
-            {
+               issue.category == WizardIssue.IssueCategory.installation {
                 return true
             }
             return false
@@ -175,8 +174,7 @@ final class KarabinerComponentsStatusEvaluatorTests: XCTestCase {
         // Should have a launchDaemonServices issue when VHID is unhealthy
         let vhidIssues = result.issues.filter { issue in
             if case .component(.launchDaemonServices) = issue.identifier,
-               issue.category == WizardIssue.IssueCategory.installation
-            {
+               issue.category == WizardIssue.IssueCategory.installation {
                 return true
             }
             return false
