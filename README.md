@@ -108,6 +108,11 @@ cd KeyPath
 ./build.sh
 ```
 
+**Troubleshooting builds locally**
+- To skip notarization during local iteration: `SKIP_NOTARIZE=1 ./build.sh`
+- To dry-run signing/notary invocations without touching Apple services: set `KP_SIGN_DRY_RUN=1` (used in CI smoke tests too)
+
+
 The build script automatically:
 - Compiles the Swift package
 - Signs all components with Developer ID

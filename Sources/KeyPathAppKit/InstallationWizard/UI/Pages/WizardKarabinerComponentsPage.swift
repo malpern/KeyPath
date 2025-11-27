@@ -355,7 +355,7 @@ struct WizardKarabinerComponentsPage: View {
         success = success || restartOk
 
         // Post-repair diagnostic
-        let detail = kanataManager.getVirtualHIDBreakageSummary()
+        let detail = await kanataManager.getVirtualHIDBreakageSummary()
         AppLogger.shared.log("🧭 [FIX-VHID \(session)] Diagnostic after repair:\n\(detail)")
 
         let elapsed = String(format: "%.3f", Date().timeIntervalSince(t0))

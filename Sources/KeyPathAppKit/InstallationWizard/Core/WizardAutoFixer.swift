@@ -412,14 +412,17 @@ class WizardAutoFixer: AutoFixCapable {
         AppLogger.shared.log("💣 [AutoFixer] RESET EVERYTHING - Nuclear option activated")
 
         // 1. Kill ALL kanata processes (owned or not)
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-        task.arguments = ["/usr/bin/pkill", "-9", "-f", "kanata"]
-
         do {
-            try task.run()
-            task.waitUntilExit()
-            AppLogger.shared.log("💥 [AutoFixer] Killed all kanata processes")
+            let result = try await SubprocessRunner.shared.run(
+                "/usr/bin/sudo",
+                args: ["/usr/bin/pkill", "-9", "-f", "kanata"],
+                timeout: 10
+            )
+            if result.exitCode == 0 {
+                AppLogger.shared.log("💥 [AutoFixer] Killed all kanata processes")
+            } else {
+                AppLogger.shared.warn("⚠️ [AutoFixer] pkill exited with code \(result.exitCode)")
+            }
         } catch {
             AppLogger.shared.warn("⚠️ [AutoFixer] Failed to kill processes: \(error)")
         }
@@ -502,7 +505,7 @@ class WizardAutoFixer: AutoFixCapable {
 
         // Verify exit
         try? await Task.sleep(nanoseconds: 400_000_000)
-        let still = runCommand("/bin/kill", ["-0", String(pid)]) == 0
+        let still = await runCommand("/bin/kill", ["-0", String(pid)]) == 0
         if still {
             AppLogger.shared.warn("⚠️ [AutoFixer] PID=\(pid) still appears alive after helper termination")
             return false
@@ -512,15 +515,12 @@ class WizardAutoFixer: AutoFixCapable {
         }
     }
 
-    private func runCommand(_ path: String, _ args: [String]) -> Int32 {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: path)
-        task.arguments = args
+    private func runCommand(_ path: String, _ args: [String]) async -> Int32 {
         do {
-            try task.run()
-            task.waitUntilExit()
-            return task.terminationStatus
+            let result = try await SubprocessRunner.shared.run(path, args: args, timeout: 30)
+            return result.exitCode
         } catch {
+            AppLogger.shared.warn("⚠️ [AutoFixer] Command failed: \(path) \(args.joined(separator: " ")) - \(error)")
             return -1
         }
     }
@@ -614,15 +614,14 @@ class WizardAutoFixer: AutoFixCapable {
         let logPath = "/var/log/kanata.log"
 
         // Try to truncate the log file
-        let truncateTask = Process()
-        truncateTask.executableURL = URL(fileURLWithPath: "/usr/bin/truncate")
-        truncateTask.arguments = ["-s", "0", logPath]
-
         do {
-            try truncateTask.run()
-            truncateTask.waitUntilExit()
+            let result = try await SubprocessRunner.shared.run(
+                "/usr/bin/truncate",
+                args: ["-s", "0", logPath],
+                timeout: 5
+            )
 
-            if truncateTask.terminationStatus == 0 {
+            if result.exitCode == 0 {
                 AppLogger.shared.info("✅ [AutoFixer] Successfully cleared Kanata log")
             } else {
                 AppLogger.shared.log(
@@ -645,80 +644,25 @@ class WizardAutoFixer: AutoFixCapable {
             return false
         }
 
-        return await withCheckedContinuation { continuation in
-            let activateTask = Process()
-            activateTask.executableURL = URL(fileURLWithPath: managerPath)
-            activateTask.arguments = ["forceActivate"]
+        do {
+            let result = try await SubprocessRunner.shared.run(
+                managerPath,
+                args: ["forceActivate"],
+                timeout: 10
+            )
 
-            // Thread-safe guard using actor isolation
-            let guardQueue = DispatchQueue(label: "vhid-activate-guard")
-            let hasResumed = OSAllocatedUnfairLock(initialState: false)
-
-            // Set up timeout task
-            let timeoutTask = Task {
-                try? await Task.sleep(nanoseconds: 10_000_000_000) // 10 second timeout
-                guardQueue.async {
-                    let shouldResume = hasResumed.withLock { resumed in
-                        if !resumed {
-                            resumed = true
-                            return true
-                        }
-                        return false
-                    }
-
-                    if shouldResume {
-                        AppLogger.shared.log(
-                            "⚠️ [AutoFixer] VirtualHID Manager activation timed out after 10 seconds")
-                        activateTask.terminate()
-                        continuation.resume(returning: false)
-                    }
-                }
+            let success = result.exitCode == 0
+            if success {
+                AppLogger.shared.info("✅ [AutoFixer] VirtualHID Manager force activation completed")
+            } else {
+                AppLogger.shared.log(
+                    "❌ [AutoFixer] VirtualHID Manager force activation failed with status: \(result.exitCode)"
+                )
             }
-
-            activateTask.terminationHandler = { process in
-                timeoutTask.cancel()
-                guardQueue.async {
-                    let shouldResume = hasResumed.withLock { resumed in
-                        if !resumed {
-                            resumed = true
-                            return true
-                        }
-                        return false
-                    }
-
-                    if shouldResume {
-                        let success = process.terminationStatus == 0
-                        if success {
-                            AppLogger.shared.info("✅ [AutoFixer] VirtualHID Manager force activation completed")
-                        } else {
-                            AppLogger.shared.log(
-                                "❌ [AutoFixer] VirtualHID Manager force activation failed with status: \(process.terminationStatus)"
-                            )
-                        }
-                        continuation.resume(returning: success)
-                    }
-                }
-            }
-
-            do {
-                try activateTask.run()
-            } catch {
-                timeoutTask.cancel()
-                guardQueue.async {
-                    let shouldResume = hasResumed.withLock { resumed in
-                        if !resumed {
-                            resumed = true
-                            return true
-                        }
-                        return false
-                    }
-
-                    if shouldResume {
-                        AppLogger.shared.error("❌ [AutoFixer] Error starting VirtualHID Manager: \(error)")
-                        continuation.resume(returning: false)
-                    }
-                }
-            }
+            return success
+        } catch {
+            AppLogger.shared.error("❌ [AutoFixer] Error starting VirtualHID Manager: \(error)")
+            return false
         }
     }
 
@@ -727,13 +671,12 @@ class WizardAutoFixer: AutoFixCapable {
         AppLogger.shared.log("🔧 [AutoFixer] Using legacy VirtualHID daemon restart")
 
         // Kill existing daemon
-        let killTask = Process()
-        killTask.executableURL = URL(fileURLWithPath: "/usr/bin/pkill")
-        killTask.arguments = ["-f", "Karabiner-VirtualHIDDevice-Daemon"]
-
         do {
-            try killTask.run()
-            killTask.waitUntilExit()
+            _ = try await SubprocessRunner.shared.run(
+                "/usr/bin/pkill",
+                args: ["-f", "Karabiner-VirtualHIDDevice-Daemon"],
+                timeout: 5
+            )
 
             // Wait for process to terminate
             try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
@@ -748,7 +691,6 @@ class WizardAutoFixer: AutoFixCapable {
             }
 
             return startSuccess
-
         } catch {
             AppLogger.shared.error("❌ [AutoFixer] Error in legacy VirtualHID daemon restart: \(error)")
             return false
@@ -975,27 +917,25 @@ class WizardAutoFixer: AutoFixCapable {
     private func terminateProcess(pid: Int) async -> Bool {
         AppLogger.shared.log("🔧 [AutoFixer] Terminating process PID: \(pid)")
 
-        let killTask = Process()
-        killTask.executableURL = URL(fileURLWithPath: "/bin/kill")
-        killTask.arguments = ["-TERM", String(pid)]
-
         do {
-            try killTask.run()
-            killTask.waitUntilExit()
+            let result = try await SubprocessRunner.shared.run(
+                "/bin/kill",
+                args: ["-TERM", String(pid)],
+                timeout: 5
+            )
 
-            if killTask.terminationStatus == 0 {
+            if result.exitCode == 0 {
                 // Wait a bit for graceful termination
                 try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
 
                 // Check if process is still running
-                let checkTask = Process()
-                checkTask.executableURL = URL(fileURLWithPath: "/bin/kill")
-                checkTask.arguments = ["-0", String(pid)]
+                let checkResult = try await SubprocessRunner.shared.run(
+                    "/bin/kill",
+                    args: ["-0", String(pid)],
+                    timeout: 2
+                )
 
-                try checkTask.run()
-                checkTask.waitUntilExit()
-
-                if checkTask.terminationStatus != 0 {
+                if checkResult.exitCode != 0 {
                     // Process is gone
                     AppLogger.shared.info("✅ [AutoFixer] Process \(pid) terminated gracefully")
                     return true
@@ -1016,22 +956,20 @@ class WizardAutoFixer: AutoFixCapable {
 
     /// Force terminates a process using SIGKILL
     private func forceTerminateProcess(pid: Int) async -> Bool {
-        let killTask = Process()
-        killTask.executableURL = URL(fileURLWithPath: "/bin/kill")
-        killTask.arguments = ["-9", String(pid)]
-
         do {
-            try killTask.run()
-            killTask.waitUntilExit()
+            let result = try await SubprocessRunner.shared.run(
+                "/bin/kill",
+                args: ["-9", String(pid)],
+                timeout: 5
+            )
 
-            let success = killTask.terminationStatus == 0
+            let success = result.exitCode == 0
             if success {
                 AppLogger.shared.info("✅ [AutoFixer] Force terminated process \(pid)")
             } else {
                 AppLogger.shared.error("❌ [AutoFixer] Failed to force terminate process \(pid)")
             }
             return success
-
         } catch {
             AppLogger.shared.error("❌ [AutoFixer] Error force terminating process \(pid): \(error)")
             return false

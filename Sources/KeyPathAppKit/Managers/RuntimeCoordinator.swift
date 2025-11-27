@@ -510,7 +510,7 @@ class RuntimeCoordinator {
     /// Starts Kanata with VirtualHID connection validation
     func startKanataWithValidation() async {
         await recoveryCoordinator.startKanataWithValidation(
-            isKarabinerDaemonRunning: { isKarabinerDaemonRunning() },
+            isKarabinerDaemonRunning: { await isKarabinerDaemonRunning() },
             startKanata: { await startKanata(reason: "VirtualHID validation start") },
             onError: { [weak self] error in
                 self?.lastError = error
@@ -603,7 +603,7 @@ class RuntimeCoordinator {
         // CRITICAL: Check VHID daemon health before starting Kanata
         // If Kanata starts without a healthy VHID daemon, it will grab keyboard input
         // but have nowhere to output keystrokes, freezing the keyboard
-        if !isKarabinerDaemonRunning() {
+        if !(await isKarabinerDaemonRunning()) {
             AppLogger.shared.error("❌ [Service] Cannot start Kanata - VirtualHID daemon is not running")
             lastError = "Cannot start: Karabiner VirtualHID daemon is not running. Please complete the setup wizard."
             notifyStateChanged()
@@ -909,16 +909,16 @@ class RuntimeCoordinator {
         systemRequirementsChecker.isKarabinerDriverInstalled()
     }
 
-    func isKarabinerDriverExtensionEnabled() -> Bool {
-        systemRequirementsChecker.isKarabinerDriverExtensionEnabled()
+    func isKarabinerDriverExtensionEnabled() async -> Bool {
+        await systemRequirementsChecker.isKarabinerDriverExtensionEnabled()
     }
 
-    func areKarabinerBackgroundServicesEnabled() -> Bool {
-        systemRequirementsChecker.areKarabinerBackgroundServicesEnabled()
+    func areKarabinerBackgroundServicesEnabled() async -> Bool {
+        await systemRequirementsChecker.areKarabinerBackgroundServicesEnabled()
     }
 
-    func isKarabinerElementsRunning() -> Bool {
-        systemRequirementsChecker.isKarabinerElementsRunning()
+    func isKarabinerElementsRunning() async -> Bool {
+        await systemRequirementsChecker.isKarabinerElementsRunning()
     }
 
     func disableKarabinerElementsPermanently() async -> Bool {
@@ -929,8 +929,8 @@ class RuntimeCoordinator {
         await systemRequirementsChecker.killKarabinerGrabber()
     }
 
-    func isKarabinerDaemonRunning() -> Bool {
-        systemRequirementsChecker.isKarabinerDaemonRunning()
+    func isKarabinerDaemonRunning() async -> Bool {
+        await systemRequirementsChecker.isKarabinerDaemonRunning()
     }
 
     func startKarabinerDaemon() async -> Bool {
@@ -941,8 +941,8 @@ class RuntimeCoordinator {
         await systemRequirementsChecker.restartKarabinerDaemon()
     }
 
-    func getVirtualHIDBreakageSummary() -> String {
-        let summary = systemRequirementsChecker.getVirtualHIDBreakageSummary(
+    func getVirtualHIDBreakageSummary() async -> String {
+        let summary = await systemRequirementsChecker.getVirtualHIDBreakageSummary(
             diagnosticsService: diagnosticsService
         )
         AppLogger.shared.log("🔎 [VHID-DIAG] Diagnostic summary:\n\(summary)")

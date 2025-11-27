@@ -10,10 +10,6 @@ struct UninstallKeyPathDialog: View {
     @State private var lastError: String?
     @State private var didSucceed = false
 
-    private enum Field: Hashable { case primary }
-    @FocusState private var focusedField: Field?
-    @AccessibilityFocusState private var accessibilityFocus: Field?
-
     var body: some View {
         VStack(spacing: 20) {
             if didSucceed {
@@ -42,8 +38,6 @@ struct UninstallKeyPathDialog: View {
                     Text("Quit")
                         .frame(minWidth: 80)
                 }
-                .focused($focusedField, equals: .primary)
-                .accessibilityFocused($accessibilityFocus, equals: .primary)
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
             } else {
@@ -81,8 +75,6 @@ struct UninstallKeyPathDialog: View {
                         Text(isRunning ? "Working…" : "Uninstall")
                             .frame(minWidth: 80)
                     }
-                    .focused($focusedField, equals: .primary)
-                    .accessibilityFocused($accessibilityFocus, equals: .primary)
                     .keyboardShortcut(.defaultAction)
                     .disabled(isRunning)
                     .buttonStyle(.borderedProminent)
@@ -92,10 +84,6 @@ struct UninstallKeyPathDialog: View {
         }
         .padding(32)
         .frame(width: 320)
-        .onAppear {
-            focusedField = .primary
-            accessibilityFocus = .primary
-        }
         .animation(.easeInOut(duration: 0.3), value: didSucceed)
     }
 

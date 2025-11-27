@@ -6,7 +6,7 @@ import Foundation
 @MainActor
 public struct PrivilegeBroker {
     /// Coordinator instance (singleton)
-    private let coordinator: PrivilegedOperationsCoordinator
+    private let coordinator: PrivilegedOperationsCoordinating
 
     /// Create a broker using the shared coordinator
     public init() {
@@ -14,7 +14,7 @@ public struct PrivilegeBroker {
     }
 
     /// Internal initializer for tests that need custom coordinators
-    init(coordinator: PrivilegedOperationsCoordinator) {
+    init(coordinator: PrivilegedOperationsCoordinating) {
         self.coordinator = coordinator
     }
 

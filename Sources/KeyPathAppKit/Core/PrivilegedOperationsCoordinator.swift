@@ -2,6 +2,28 @@ import AppKit
 import Foundation
 import KeyPathCore
 
+@MainActor
+protocol PrivilegedOperationsCoordinating: AnyObject {
+    func installLaunchDaemon(plistPath: String, serviceID: String) async throws
+    func cleanupPrivilegedHelper() async throws
+    func installAllLaunchDaemonServices(kanataBinaryPath: String, kanataConfigPath: String, tcpPort: Int) async throws
+    func installAllLaunchDaemonServices() async throws
+    func restartUnhealthyServices() async throws
+    func installServicesIfUninstalled(context: String) async throws -> Bool
+    func installLaunchDaemonServicesWithoutLoading() async throws
+    func installLogRotation() async throws
+    func regenerateServiceConfiguration() async throws
+    func repairVHIDDaemonServices() async throws
+    func downloadAndInstallCorrectVHIDDriver() async throws
+    func installBundledKanata() async throws
+    func activateVirtualHIDManager() async throws
+    func terminateProcess(pid: Int32) async throws
+    func killAllKanataProcesses() async throws
+    func restartKarabinerDaemonVerified() async throws -> Bool
+    func uninstallVirtualHIDDrivers() async throws
+    func sudoExecuteCommand(_ command: String, description: String) async throws
+}
+
 /// Coordinates all privileged operations with hybrid approach (helper vs direct sudo)
 ///
 /// **Architecture:** This coordinator implements the hybrid strategy from HELPER.md
@@ -945,6 +967,8 @@ final class PrivilegedOperationsCoordinator {
         }
     }
 #endif
+
+extension PrivilegedOperationsCoordinator: PrivilegedOperationsCoordinating {}
 
 // MARK: - Error Types
 

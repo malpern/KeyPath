@@ -91,12 +91,12 @@ final class RecoveryCoordinator {
     ///   - startKanata: Handler to start Kanata service
     ///   - onError: Callback to set error state
     func startKanataWithValidation(
-        isKarabinerDaemonRunning: () -> Bool,
+        isKarabinerDaemonRunning: () async -> Bool,
         startKanata: () async -> Bool,
         onError: (String) -> Void
     ) async {
         // Check if VirtualHID daemon is running first
-        if !isKarabinerDaemonRunning() {
+        if !(await isKarabinerDaemonRunning()) {
             AppLogger.shared.warn("⚠️ [Recovery] Karabiner daemon not running - recovery failed")
             onError("Recovery failed: Karabiner daemon not available")
             return

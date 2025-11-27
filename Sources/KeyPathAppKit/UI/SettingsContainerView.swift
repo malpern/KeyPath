@@ -208,11 +208,6 @@ struct AdvancedSettingsTabView: View {
 
     @State private var settingsToastManager = WizardToastManager()
 
-    // Focus state for primary button (Enter key triggers)
-    private enum FocusField: Hashable { case uninstallButton }
-    @FocusState private var focusedField: FocusField?
-    @AccessibilityFocusState private var accessibilityFocus: FocusField?
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Hero Section with Uninstall
@@ -244,8 +239,6 @@ struct AdvancedSettingsTabView: View {
                         Text("Uninstall")
                             .frame(minWidth: 100)
                     }
-                    .focused($focusedField, equals: .uninstallButton)
-                    .accessibilityFocused($accessibilityFocus, equals: .uninstallButton)
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
@@ -344,10 +337,6 @@ struct AdvancedSettingsTabView: View {
         .task {
             await refreshHelperStatus()
             duplicateAppCopies = HelperMaintenance.shared.detectDuplicateAppCopies()
-        }
-        .onAppear {
-            focusedField = .uninstallButton
-            accessibilityFocus = .uninstallButton
         }
         .sheet(isPresented: $showingCleanupRepair) {
             CleanupAndRepairView()

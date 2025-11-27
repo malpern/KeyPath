@@ -652,28 +652,34 @@ actor HelperManager {
         let proxy = try getRemoteProxy { _ in }
 
         // Execute with timeout to prevent infinite hangs when XPC connection is interrupted
-        // Use DispatchQueue for the timeout since we can't easily make Task work with non-Sendable proxy
-        let completed = UnsafeMutablePointer<Bool>.allocate(capacity: 1)
-        completed.initialize(to: false)
-        defer {
-            completed.deinitialize(count: 1)
-            completed.deallocate()
+        // Use a class with lock for thread-safe completion tracking
+        final class CompletionState: @unchecked Sendable {
+            private var _completed = false
+            private let lock = NSLock()
+
+            /// Atomically try to mark as completed. Returns true if this call won the race.
+            func tryComplete() -> Bool {
+                lock.lock()
+                defer { lock.unlock() }
+                if _completed { return false }
+                _completed = true
+                return true
+            }
         }
+
+        let completionState = CompletionState()
 
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             // Set up timeout
             DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
-                if !completed.pointee {
-                    completed.pointee = true
-                    AppLogger.shared.log("⏱️ [HelperManager] \(name) timed out after \(Int(timeout))s")
-                    continuation.resume(throwing: HelperManagerError.operationFailed("XPC call '\(name)' timed out after \(Int(timeout))s"))
-                }
+                guard completionState.tryComplete() else { return } // Already completed by XPC callback
+                AppLogger.shared.log("⏱️ [HelperManager] \(name) timed out after \(Int(timeout))s")
+                continuation.resume(throwing: HelperManagerError.operationFailed("XPC call '\(name)' timed out after \(Int(timeout))s"))
             }
 
             // Execute the XPC call
             call(proxy) { success, errorMessage in
-                guard !completed.pointee else { return } // Ignore if already timed out
-                completed.pointee = true
+                guard completionState.tryComplete() else { return } // Already timed out
 
                 if success {
                     AppLogger.shared.info("✅ [HelperManager] \(name) succeeded")

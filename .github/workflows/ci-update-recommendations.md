@@ -170,3 +170,16 @@ To:
 **After:** ~106 tests (50 XCTest + 56 Swift Testing) running in CI
 
 This represents a **112% increase in test coverage** for CI builds.
+
+## New: Signing + Installer Smoke (added)
+
+The CI workflow now runs two fast smoke suites after the build:
+- `swift test --filter SigningPipelineTests` with `KP_SIGN_DRY_RUN=1` to ensure the codesign/notary wrappers surface failures even when tools are overridden.
+- `swift test --filter InstallerEngineEndToEndTests` to verify the InstallerEngine executes a plan and stops on the first broker failure using an injectable coordinator.
+
+These add <1s each and catch the highest-risk regression areas (distribution + system setup) without needing Apple notary services or root operations in CI.
+
+## Optional Pre-Release on Real Mac
+- Run `KEYPATH_E2E_DEVICE=1 swift test --filter InstallerDeviceTests` (non-destructive installer smoke against real permissions/launchd surfaces).
+- Or `KEYPATH_E2E_DEVICE=1 ./Scripts/test-installer-device.sh` (wrapper script).
+- Keep `KEYPATH_ALLOW_PRIV=1` unset unless you explicitly want privileged repair/install (not run by default).

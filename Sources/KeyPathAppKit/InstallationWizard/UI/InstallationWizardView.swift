@@ -727,7 +727,7 @@ struct InstallationWizardView: View {
                     AppLogger.shared.log(
                         "🔍 [Wizard] Post-repair health check: karabinerStatus=\(karabinerStatus)")
                     if karabinerStatus != .completed {
-                        let detail = kanataManager.getVirtualHIDBreakageSummary()
+                        let detail = await kanataManager.getVirtualHIDBreakageSummary()
                         AppLogger.shared.log(
                             "❌ [Wizard] Post-repair health check failed; showing diagnostic toast")
                         await MainActor.run {
@@ -886,6 +886,11 @@ struct InstallationWizardView: View {
             return false
         }
 
+        let errorMessage = success ? "" : await getDetailedErrorMessage(for: action, actionDescription: actionDescription)
+        let finalErrorMessage = (!success && smState == .smappservicePending) ?
+            "KeyPath background service needs approval in System Settings → Login Items. Enable 'KeyPath' and click Fix again."
+            : errorMessage
+
         await MainActor.run {
             if success {
                 if deferSuccessToast {
@@ -895,12 +900,6 @@ struct InstallationWizardView: View {
                     toastManager.showSuccess("\(actionDescription) completed successfully", duration: 5.0)
                 }
             } else {
-                var errorMessage = getDetailedErrorMessage(for: action, actionDescription: actionDescription)
-
-                if smState == .smappservicePending {
-                    errorMessage =
-                        "KeyPath background service needs approval in System Settings → Login Items. Enable ‘KeyPath’ and click Fix again."
-                }
 
                 toastManager.showError(errorMessage, duration: 7.0)
             }
@@ -936,7 +935,10 @@ struct InstallationWizardView: View {
                 if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon ||
                     action == .installCorrectVHIDDriver || action == .repairVHIDDaemonServices {
                     let smStatePost = await KanataDaemonManager.shared.refreshManagementState()
-                    let vhidHealthy = await VHIDDeviceManager().detectConnectionHealth()
+                    // IMPORTANT: Run off MainActor to avoid blocking UI - detectConnectionHealth spawns pgrep subprocesses
+                    let vhidHealthy = await Task.detached {
+                        await VHIDDeviceManager().detectConnectionHealth()
+                    }.value
 
                     if karabinerStatus == .completed || vhidHealthy {
                         if successToastPending {
@@ -947,7 +949,7 @@ struct InstallationWizardView: View {
                             }
                         }
                     } else {
-                        let detail = kanataManager.getVirtualHIDBreakageSummary()
+                        let detail = await kanataManager.getVirtualHIDBreakageSummary()
                         AppLogger.shared.log(
                             "❌ [Wizard] Post-fix health check failed; will show diagnostic toast")
                         await MainActor.run {
@@ -1439,7 +1441,7 @@ struct InstallationWizardView: View {
 
     /// Get detailed error message for specific auto-fix failures
     private func getDetailedErrorMessage(for action: AutoFixAction, actionDescription: String)
-        -> String {
+        async -> String {
         AppLogger.shared.log("🔍 [ErrorMessage] getDetailedErrorMessage called for action: \(action)")
         AppLogger.shared.log("🔍 [ErrorMessage] Action description: \(actionDescription)")
 
@@ -1467,7 +1469,7 @@ struct InstallationWizardView: View {
 
         // Enrich daemon-related errors with a succinct diagnosis
         if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon {
-            let detail = kanataManager.getVirtualHIDBreakageSummary()
+            let detail = await kanataManager.getVirtualHIDBreakageSummary()
             if !detail.isEmpty {
                 message += "\n\n" + detail
             }

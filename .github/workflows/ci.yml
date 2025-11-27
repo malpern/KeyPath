@@ -38,6 +38,13 @@ jobs:
         swift build
         echo "✅ Build completed successfully"
 
+    - name: Smoke: Signing and Installer Engine
+      run: |
+        echo "🧪 Running signing/notarization wrappers and installer E2E smoke tests"
+        export KP_SIGN_DRY_RUN=1
+        swift test --filter SigningPipelineTests
+        swift test --filter InstallerEngineEndToEndTests
+
     - name: Verify SMAppService plist wrapper
       run: |
         echo "🔍 Verifying com.keypath.kanata.plist points at kanata-launcher"

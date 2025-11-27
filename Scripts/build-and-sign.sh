@@ -5,6 +5,9 @@
 
 set -e  # Exit on any error
 
+SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
+source "$SCRIPT_DIR/lib/signing.sh"
+
 echo "🦀 Building bundled kanata..."
 # Build kanata from source (required for proper signing)
 ./Scripts/build-kanata.sh
@@ -132,27 +135,27 @@ SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X
 
 # Sign privileged helper (bundle-local binary)
 HELPER_ENTITLEMENTS="Sources/KeyPathHelper/KeyPathHelper.entitlements"
-codesign --force --options=runtime \
+kp_sign "$HELPER_TOOLS/KeyPathHelper" \
+    --force --options=runtime \
     --identifier "com.keypath.helper" \
     --entitlements "$HELPER_ENTITLEMENTS" \
-    --sign "$SIGNING_IDENTITY" \
-    "$HELPER_TOOLS/KeyPathHelper"
+    --sign "$SIGNING_IDENTITY"
 
 # Sign bundled kanata binary (already signed in build-kanata.sh, but ensure consistency)
-codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$CONTENTS/Library/KeyPath/kanata"
+kp_sign "$CONTENTS/Library/KeyPath/kanata" --force --options=runtime --sign "$SIGNING_IDENTITY"
 
 # Sign main app WITH entitlements
 ENTITLEMENTS_FILE="KeyPath.entitlements"
 if [ -f "$ENTITLEMENTS_FILE" ]; then
     echo "Applying entitlements from $ENTITLEMENTS_FILE..."
-    codesign --force --options=runtime --entitlements "$ENTITLEMENTS_FILE" --sign "$SIGNING_IDENTITY" "$APP_BUNDLE"
+    kp_sign "$APP_BUNDLE" --force --options=runtime --entitlements "$ENTITLEMENTS_FILE" --sign "$SIGNING_IDENTITY"
 else
     echo "⚠️ WARNING: No entitlements file found - admin operations may fail"
-    codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE"
+    kp_sign "$APP_BUNDLE" --force --options=runtime --sign "$SIGNING_IDENTITY"
 fi
 
 echo "✅ Verifying signatures..."
-codesign -dvvv "$APP_BUNDLE"
+kp_verify_signature "$APP_BUNDLE"
 
 if [ "${SKIP_NOTARIZE:-}" = "1" ]; then
     echo "⏭️  Skipping notarization (SKIP_NOTARIZE=1)"
@@ -166,19 +169,17 @@ else
 
     echo "📋 Submitting for notarization..."
     NOTARY_PROFILE="${NOTARY_PROFILE:-KeyPath-Profile}"
-    xcrun notarytool submit "${DIST_DIR}/${APP_NAME}.zip" \
-        --keychain-profile "$NOTARY_PROFILE" \
-        --wait
+    kp_notarize_zip "${DIST_DIR}/${APP_NAME}.zip" "$NOTARY_PROFILE"
 
     echo "🔖 Stapling notarization..."
-    xcrun stapler staple "$APP_BUNDLE"
+    kp_staple "$APP_BUNDLE"
 
     echo "🎉 Build complete!"
     echo "📍 Signed app: $APP_BUNDLE"
     echo "📦 Distribution zip: ${DIST_DIR}/${APP_NAME}.zip"
 
     echo "🔍 Final verification..."
-    spctl -a -vvv "$APP_BUNDLE"
+    kp_spctl_assess "$APP_BUNDLE"
 
     echo "✨ Ready for distribution!"
 fi

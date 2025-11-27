@@ -111,8 +111,8 @@ final class SystemRequirementsChecker {
     /// Check if all system requirements are met
     func hasAllSystemRequirements(isServiceInstalled _: () -> Bool) async -> Bool {
         let hasPermissions = await hasAllRequiredPermissions()
-        return isInstalled() && hasPermissions && isKarabinerDriverInstalled()
-            && isKarabinerDaemonRunning()
+        let daemonRunning = await isKarabinerDaemonRunning()
+        return isInstalled() && hasPermissions && isKarabinerDriverInstalled() && daemonRunning
     }
 
     /// Get detailed system requirements status
@@ -124,7 +124,7 @@ final class SystemRequirementsChecker {
             installed: isInstalled(),
             permissions: permissions,
             driver: isKarabinerDriverInstalled(),
-            daemon: isKarabinerDaemonRunning()
+            daemon: await isKarabinerDaemonRunning()
         )
     }
 
@@ -196,16 +196,16 @@ final class SystemRequirementsChecker {
         karabinerConflictService.isKarabinerDriverInstalled()
     }
 
-    func isKarabinerDriverExtensionEnabled() -> Bool {
-        karabinerConflictService.isKarabinerDriverExtensionEnabled()
+    func isKarabinerDriverExtensionEnabled() async -> Bool {
+        await karabinerConflictService.isKarabinerDriverExtensionEnabled()
     }
 
-    func areKarabinerBackgroundServicesEnabled() -> Bool {
-        karabinerConflictService.areKarabinerBackgroundServicesEnabled()
+    func areKarabinerBackgroundServicesEnabled() async -> Bool {
+        await karabinerConflictService.areKarabinerBackgroundServicesEnabled()
     }
 
-    func isKarabinerElementsRunning() -> Bool {
-        karabinerConflictService.isKarabinerElementsRunning()
+    func isKarabinerElementsRunning() async -> Bool {
+        await karabinerConflictService.isKarabinerElementsRunning()
     }
 
     func disableKarabinerElementsPermanently() async -> Bool {
@@ -216,8 +216,8 @@ final class SystemRequirementsChecker {
         await karabinerConflictService.killKarabinerGrabber()
     }
 
-    func isKarabinerDaemonRunning() -> Bool {
-        karabinerConflictService.isKarabinerDaemonRunning()
+    func isKarabinerDaemonRunning() async -> Bool {
+        await karabinerConflictService.isKarabinerDaemonRunning()
     }
 
     func startKarabinerDaemon() async -> Bool {
@@ -232,12 +232,12 @@ final class SystemRequirementsChecker {
 
     /// Diagnostic summary explaining why VirtualHID service is considered broken
     /// Used to surface a helpful error toast in the wizard
-    func getVirtualHIDBreakageSummary(diagnosticsService: DiagnosticsServiceProtocol) -> String {
+    func getVirtualHIDBreakageSummary(diagnosticsService: DiagnosticsServiceProtocol) async -> String {
         // Gather low-level daemon state via DiagnosticsService
         let status = diagnosticsService.virtualHIDDaemonStatus()
 
         // Driver extension + version
-        let driverEnabled = isKarabinerDriverExtensionEnabled()
+        let driverEnabled = await isKarabinerDriverExtensionEnabled()
         let vhid = VHIDDeviceManager()
         let installedVersion = vhid.getInstalledVersion() ?? "unknown"
         let hasMismatch = vhid.hasVersionMismatch()

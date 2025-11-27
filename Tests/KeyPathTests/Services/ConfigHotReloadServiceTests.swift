@@ -117,7 +117,10 @@ final class ConfigHotReloadServiceTests: XCTestCase {
         }
     }
 
-    func testHandleExternalChangeFailsWhenReloadHandlerFails() async throws {
+    func testHandleExternalChangeSucceedsWhenReloadHandlerFailsButServiceUnavailable() async throws {
+        // When reload handler fails but service is unavailable (process not running),
+        // we should return success because the config is valid - just can't reload yet.
+        // This is the expected behavior during wizard fix operations.
         reloadHandlerResult = false
         let validConfig = """
         (defcfg)
@@ -128,9 +131,11 @@ final class ConfigHotReloadServiceTests: XCTestCase {
 
         let result = await service.handleExternalChange(configPath: tempFile.path)
 
-        // If validation succeeds but reload fails, should fail
+        // In test environment, Kanata process is never running, so reload failure
+        // is treated as "service unavailable" (soft success - config is valid)
         if reloadHandlerCalled {
-            XCTAssertFalse(result.success, "Should fail when reload handler fails")
+            XCTAssertTrue(result.success, "Should succeed when service is unavailable (process not running)")
+            XCTAssertEqual(result.message, "Config valid (service starting)")
         }
     }
 
@@ -166,8 +171,9 @@ final class ConfigHotReloadServiceTests: XCTestCase {
         XCTAssertTrue(resetCalled, "onReset should be called after delay")
     }
 
-    func testCallbacksInvokedOnFailure() async throws {
-        // Force reload handler to fail to trigger failure callback
+    func testCallbacksInvokedOnServiceUnavailable() async throws {
+        // Force reload handler to fail - in test environment this triggers
+        // "service unavailable" path (process not running) which calls onReset
         reloadHandlerResult = false
         let validConfig = """
         (defcfg)
@@ -177,11 +183,9 @@ final class ConfigHotReloadServiceTests: XCTestCase {
         let tempFile = createTempConfigFile(content: validConfig)
 
         var detectedCalled = false
-        var failureCalled = false
         var resetCalled = false
 
         service.callbacks.onDetected = { detectedCalled = true }
-        service.callbacks.onFailure = { _ in failureCalled = true }
         service.callbacks.onReset = { resetCalled = true }
 
         let result = await service.handleExternalChange(configPath: tempFile.path)
@@ -190,11 +194,10 @@ final class ConfigHotReloadServiceTests: XCTestCase {
         try? await Task.sleep(nanoseconds: 2_100_000_000) // 2.1 seconds
 
         XCTAssertTrue(detectedCalled, "onDetected should be called")
-        // Failure callback should be called if reload fails (even with valid config)
-        if !result.success {
-            XCTAssertTrue(failureCalled, "onFailure should be called when reload fails")
-        }
-        XCTAssertTrue(resetCalled, "onReset should be called after delay")
+        // In test environment, service is unavailable (process not running)
+        // so result is success (config valid) and onReset is called
+        XCTAssertTrue(result.success, "Should succeed when service unavailable")
+        XCTAssertTrue(resetCalled, "onReset should be called for service unavailable")
     }
 
     // MARK: - Parser Tests

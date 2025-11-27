@@ -78,6 +78,7 @@ swift test --filter "IntegrationTests|TCPTests|UIAutomationTests"
 2. **Component integration** → Add to `CoreTestSuite.swift`  
 3. **Complex workflows** → Add to `BasicIntegrationTestSuite.swift`
 4. **Admin/manual tests** → Use separate test files (not in CI)
+   - Example: `InstallerDeviceTests` (opt-in, gated by `KEYPATH_E2E_DEVICE=1`; non-destructive real-surface installer smoke)
 
 ### Test Environment
 All core tests use `MockSystemEnvironment` for:

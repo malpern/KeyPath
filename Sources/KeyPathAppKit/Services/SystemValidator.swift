@@ -386,7 +386,7 @@ class SystemValidator {
         // Treat the driver as installed if either the extension is enabled or a VHID device is present.
         // This avoids false negatives when launchd state is stale but the driver is already active.
         let karabinerDriverInstalled =
-            (kanataManager?.isKarabinerDriverExtensionEnabled() ?? false)
+            (await kanataManager?.isKarabinerDriverExtensionEnabled() ?? false)
                 || vhidInstalled || vhidHealthy
         // Use launchctl-based check instead of unreliable pgrep (same as checkHealth)
         let karabinerDaemonRunning = await ServiceHealthChecker.shared.isServiceHealthy(
@@ -428,7 +428,7 @@ class SystemValidator {
 
         // Check for Karabiner-Elements conflicts
         if let manager = kanataManager {
-            let karabinerRunning = manager.isKarabinerElementsRunning()
+            let karabinerRunning = await manager.isKarabinerElementsRunning()
             if karabinerRunning {
                 AppLogger.shared.log(
                     "⚠️ [SystemValidator] Karabiner-Elements grabber is running - conflicts with Kanata")

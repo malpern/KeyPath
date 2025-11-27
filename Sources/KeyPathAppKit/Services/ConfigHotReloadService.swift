@@ -154,11 +154,21 @@ final class ConfigHotReloadService {
             scheduleStatusReset()
             return .success(content: configContent)
         } else {
-            // Check if service is simply unavailable (SMAppService pending, service not running)
+            // Check if service is simply unavailable (SMAppService pending, service not running, or process not started)
             // In this case, don't show error to user - config is valid, just can't reload yet
             let smState = await KanataDaemonManager.shared.refreshManagementState()
-            if smState == .smappservicePending || smState.needsInstallation {
-                AppLogger.shared.info("ℹ️ [ConfigHotReload] Reload skipped - service not available (config is valid)")
+
+            // Also check if Kanata process is actually running - if service is "active" but
+            // process isn't running yet, we shouldn't show an error.
+            // IMPORTANT: Run this off MainActor to avoid blocking UI - InstallerEngine spawns subprocesses.
+            let isProcessRunning = await Task.detached {
+                await InstallerEngine().checkKanataServiceHealth().isRunning
+            }.value
+
+            if smState == .smappservicePending || smState.needsInstallation || !isProcessRunning {
+                let reason = !isProcessRunning ? "process not running" :
+                             (smState == .smappservicePending ? "pending approval" : "needs installation")
+                AppLogger.shared.info("ℹ️ [ConfigHotReload] Reload skipped - service not available (\(reason)), config is valid")
                 // Don't call onFailure - this isn't a real error, just service unavailability
                 // Reset status after a brief delay so UI doesn't show stale "validating" state
                 callbacks.onReset?()

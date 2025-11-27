@@ -9,10 +9,10 @@ import KeyPathCore
 protocol KarabinerConflictManaging: AnyObject {
     // Detection
     func isKarabinerDriverInstalled() -> Bool
-    func isKarabinerDriverExtensionEnabled() -> Bool
-    func areKarabinerBackgroundServicesEnabled() -> Bool
-    func isKarabinerElementsRunning() -> Bool
-    func isKarabinerDaemonRunning() -> Bool
+    func isKarabinerDriverExtensionEnabled() async -> Bool
+    func areKarabinerBackgroundServicesEnabled() async -> Bool
+    func isKarabinerElementsRunning() async -> Bool
+    func isKarabinerDaemonRunning() async -> Bool
 
     // Resolution
     func killKarabinerGrabber() async -> Bool
@@ -43,76 +43,68 @@ final class KarabinerConflictService: KarabinerConflictManaging {
         FileManager.default.fileExists(atPath: driverPath)
     }
 
-    func isKarabinerDriverExtensionEnabled() -> Bool {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/systemextensionsctl")
-        task.arguments = ["list"]
+    func isKarabinerDriverExtensionEnabled() async -> Bool {
+        return await withCheckedContinuation { continuation in
+            Task {
+                do {
+                    let result = try await SubprocessRunner.shared.run(
+                        "/usr/bin/systemextensionsctl",
+                        args: ["list"],
+                        timeout: 5
+                    )
 
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
+                    let output = result.stdout
 
-        do {
-            try task.run()
-            task.waitUntilExit()
+                    // Look for Karabiner driver with [activated enabled] status
+                    let lines = output.components(separatedBy: .newlines)
+                    for line in lines {
+                        if line.contains("org.pqrs.Karabiner-DriverKit-VirtualHIDDevice"),
+                           line.contains("[activated enabled]") {
+                            AppLogger.shared.log("✅ [Driver] Karabiner driver extension is enabled")
+                            continuation.resume(returning: true)
+                            return
+                        }
+                    }
 
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            // Look for Karabiner driver with [activated enabled] status
-            let lines = output.components(separatedBy: .newlines)
-            for line in lines {
-                if line.contains("org.pqrs.Karabiner-DriverKit-VirtualHIDDevice"),
-                   line.contains("[activated enabled]") {
-                    AppLogger.shared.log("✅ [Driver] Karabiner driver extension is enabled")
-                    return true
+                    AppLogger.shared.log("⚠️ [Driver] Karabiner driver extension not enabled or not found")
+                    AppLogger.shared.log("⚠️ [Driver] systemextensionsctl output:\n\(output)")
+                    continuation.resume(returning: false)
+                } catch {
+                    AppLogger.shared.log("❌ [Driver] Error checking driver extension status: \(error)")
+                    continuation.resume(returning: false)
                 }
             }
-
-            AppLogger.shared.log("⚠️ [Driver] Karabiner driver extension not enabled or not found")
-            AppLogger.shared.log("⚠️ [Driver] systemextensionsctl output:\n\(output)")
-            return false
-        } catch {
-            AppLogger.shared.log("❌ [Driver] Error checking driver extension status: \(error)")
-            return false
         }
     }
 
-    func areKarabinerBackgroundServicesEnabled() -> Bool {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-        task.arguments = ["list"]
+    func areKarabinerBackgroundServicesEnabled() async -> Bool {
+        return await withCheckedContinuation { continuation in
+            Task {
+                do {
+                    let result = try await SubprocessRunner.shared.launchctl("list", [])
+                    let output = result.stdout
 
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
+                    // Check for Karabiner services in the user's launchctl list
+                    let hasServices = output.contains("org.pqrs.service.agent.karabiner")
 
-        do {
-            try task.run()
-            task.waitUntilExit()
+                    if hasServices {
+                        AppLogger.shared.log("✅ [Services] Karabiner background services detected")
+                    } else {
+                        AppLogger.shared.log(
+                            "⚠️ [Services] Karabiner background services not found - may not be enabled in Login Items"
+                        )
+                    }
 
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            // Check for Karabiner services in the user's launchctl list
-            let hasServices = output.contains("org.pqrs.service.agent.karabiner")
-
-            if hasServices {
-                AppLogger.shared.log("✅ [Services] Karabiner background services detected")
-            } else {
-                AppLogger.shared.log(
-                    "⚠️ [Services] Karabiner background services not found - may not be enabled in Login Items"
-                )
+                    continuation.resume(returning: hasServices)
+                } catch {
+                    AppLogger.shared.log("❌ [Services] Error checking background services: \(error)")
+                    continuation.resume(returning: false)
+                }
             }
-
-            return hasServices
-        } catch {
-            AppLogger.shared.log("❌ [Services] Error checking background services: \(error)")
-            return false
         }
     }
 
-    func isKarabinerElementsRunning() -> Bool {
+    func isKarabinerElementsRunning() async -> Bool {
         // First check if we've permanently disabled the grabber
         if FileManager.default.fileExists(atPath: disabledMarkerPath) {
             AppLogger.shared.log(
@@ -122,41 +114,28 @@ final class KarabinerConflictService: KarabinerConflictManaging {
         }
 
         // Check if Karabiner-Elements grabber is running (conflicts with Kanata)
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        task.arguments = ["-f", "karabiner_grabber"]
+        return await withCheckedContinuation { continuation in
+            Task {
+                let pids = await SubprocessRunner.shared.pgrep("karabiner_grabber")
+                let isRunning = !pids.isEmpty
 
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
+                if isRunning {
+                    AppLogger.shared.log(
+                        "⚠️ [Conflict] karabiner_grabber is running - will conflict with Kanata"
+                    )
+                    AppLogger.shared.log(
+                        "⚠️ [Conflict] This causes 'exclusive access' errors when starting Kanata"
+                    )
+                } else {
+                    AppLogger.shared.log("✅ [Conflict] No karabiner_grabber detected")
+                }
 
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            let isRunning = !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-
-            if isRunning {
-                AppLogger.shared.log(
-                    "⚠️ [Conflict] karabiner_grabber is running - will conflict with Kanata"
-                )
-                AppLogger.shared.log(
-                    "⚠️ [Conflict] This causes 'exclusive access' errors when starting Kanata"
-                )
-            } else {
-                AppLogger.shared.log("✅ [Conflict] No karabiner_grabber detected")
+                continuation.resume(returning: isRunning)
             }
-
-            return isRunning
-        } catch {
-            AppLogger.shared.log("❌ [Conflict] Error checking karabiner_grabber: \(error)")
-            return false
         }
     }
 
-    func isKarabinerDaemonRunning() -> Bool {
+    func isKarabinerDaemonRunning() async -> Bool {
         // Skip daemon check during startup to prevent blocking
         if FeatureFlags.shared.startupModeActive {
             AppLogger.shared.log(
@@ -174,48 +153,18 @@ final class KarabinerConflictService: KarabinerConflictManaging {
             return true
         }
 
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        task.arguments = ["-f", "VirtualHIDDevice-Daemon"]
+        return await withCheckedContinuation { continuation in
+            Task {
+                let startTime = CFAbsoluteTimeGetCurrent()
+                let pids = await SubprocessRunner.shared.pgrep("VirtualHIDDevice-Daemon")
+                let isRunning = !pids.isEmpty
 
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            let startTime = CFAbsoluteTimeGetCurrent()
-            try task.run()
-
-            // Use DispatchGroup to implement timeout
-            let group = DispatchGroup()
-            group.enter()
-
-            DispatchQueue.global().async {
-                task.waitUntilExit()
-                group.leave()
-            }
-
-            let timeoutResult = group.wait(timeout: .now() + 2.0)
-            if timeoutResult == .timedOut {
-                task.terminate()
+                let duration = CFAbsoluteTimeGetCurrent() - startTime
                 AppLogger.shared.log(
-                    "⚠️ [Daemon] VirtualHIDDevice-Daemon check timed out after 2s - assuming not running"
+                    "🔍 [Daemon] Karabiner VirtualHIDDevice-Daemon running: \(isRunning) (took \(String(format: "%.3f", duration))s)"
                 )
-                return false
+                continuation.resume(returning: isRunning)
             }
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            let isRunning = !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-
-            let duration = CFAbsoluteTimeGetCurrent() - startTime
-            AppLogger.shared.log(
-                "🔍 [Daemon] Karabiner VirtualHIDDevice-Daemon running: \(isRunning) (took \(String(format: "%.3f", duration))s)"
-            )
-            return isRunning
-        } catch {
-            AppLogger.shared.log("❌ [Daemon] Error checking VirtualHIDDevice-Daemon: \(error)")
-            return false
         }
     }
 
@@ -360,8 +309,8 @@ final class KarabinerConflictService: KarabinerConflictManaging {
     }
 
     private func executeScriptWithSudo(script: String, description: String) async -> Bool {
-        await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
+        return await withCheckedContinuation { continuation in
+            Task.detached {
                 let tempDir = NSTemporaryDirectory()
                 let scriptPath = "\(tempDir)disable_karabiner_\(UUID().uuidString).sh"
 
@@ -370,11 +319,11 @@ final class KarabinerConflictService: KarabinerConflictManaging {
                     try script.write(toFile: scriptPath, atomically: true, encoding: .utf8)
 
                     // Make script executable
-                    let chmodTask = Process()
-                    chmodTask.executableURL = URL(fileURLWithPath: "/bin/chmod")
-                    chmodTask.arguments = ["+x", scriptPath]
-                    try chmodTask.run()
-                    chmodTask.waitUntilExit()
+                    _ = try await SubprocessRunner.shared.run(
+                        "/bin/chmod",
+                        args: ["+x", scriptPath],
+                        timeout: 5
+                    )
 
                     // Execute script with admin privileges (uses sudo if KEYPATH_USE_SUDO=1, otherwise osascript)
                     let result = PrivilegedCommandRunner.execute(
@@ -416,7 +365,7 @@ final class KarabinerConflictService: KarabinerConflictManaging {
         AppLogger.shared.log("🔍 [Karabiner] Performing post-disable verification...")
 
         // Check if process is still running
-        let isStillRunning = isKarabinerElementsRunning()
+        let isStillRunning = await isKarabinerElementsRunning()
         if isStillRunning {
             AppLogger.shared.log(
                 "⚠️ [Karabiner] WARNING: karabiner_grabber still detected after disable attempt"
@@ -426,20 +375,9 @@ final class KarabinerConflictService: KarabinerConflictManaging {
         }
 
         // Check if service is still in launchctl list
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-        task.arguments = ["list"]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
         do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
+            let result = try await SubprocessRunner.shared.launchctl("list", [])
+            let output = result.stdout
 
             if output.contains("org.pqrs.service.agent.karabiner_grabber") {
                 AppLogger.shared.log(
@@ -485,34 +423,17 @@ final class KarabinerConflictService: KarabinerConflictManaging {
     }
 
     private func checkProcessStopped(pattern: String, processName: String) async -> Bool {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        task.arguments = ["-f", pattern]
+        let pids = await SubprocessRunner.shared.pgrep(pattern)
+        let isStopped = pids.isEmpty // pgrep returns empty array if no processes found
 
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let isStopped = task.terminationStatus != 0 // pgrep returns 1 if no processes found
-
-            if isStopped {
-                AppLogger.shared.log("✅ [Conflict] \(processName) successfully stopped")
-            } else {
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                let output = String(data: data, encoding: .utf8) ?? ""
-                AppLogger.shared.log(
-                    "⚠️ [Conflict] \(processName) still running: \(output.trimmingCharacters(in: .whitespacesAndNewlines))"
-                )
-            }
-
-            return isStopped
-        } catch {
-            AppLogger.shared.log("❌ [Conflict] Error checking \(processName): \(error)")
-            return false
+        if isStopped {
+            AppLogger.shared.log("✅ [Conflict] \(processName) successfully stopped")
+        } else {
+            AppLogger.shared.log(
+                "⚠️ [Conflict] \(processName) still running: PIDs \(pids.map { String($0) }.joined(separator: ", "))"
+            )
         }
+
+        return isStopped
     }
 }
