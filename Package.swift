@@ -7,6 +7,26 @@ let package = Package(
         .macOS(.v15)
     ],
     products: [
+        .library(
+            name: "KeyPathCore",
+            targets: ["KeyPathCore"]
+        ),
+        .library(
+            name: "KeyPathPermissions",
+            targets: ["KeyPathPermissions"]
+        ),
+        .library(
+            name: "KeyPathDaemonLifecycle",
+            targets: ["KeyPathDaemonLifecycle"]
+        ),
+        .library(
+            name: "KeyPathWizardCore",
+            targets: ["KeyPathWizardCore"]
+        ),
+        .library(
+            name: "KeyPathAppKit",
+            targets: ["KeyPathAppKit"]
+        ),
         .executable(
             name: "KeyPath",
             targets: ["KeyPath"]
@@ -150,7 +170,13 @@ let package = Package(
         // Tests
         .testTarget(
             name: "KeyPathTests",
-            dependencies: ["KeyPath", "KeyPathAppKit", "KeyPathCore", "KeyPathPermissions", "KeyPathDaemonLifecycle", "KeyPathWizardCore"],
+            dependencies: [
+                "KeyPathAppKit",
+                "KeyPathCore",
+                "KeyPathPermissions",
+                "KeyPathDaemonLifecycle",
+                "KeyPathWizardCore"
+            ],
             path: "Tests/KeyPathTests",
             swiftSettings: [
                 .swiftLanguageMode(.v6),
