@@ -22,6 +22,7 @@ struct WizardHelperPage: View {
     @State private var duplicateCopies: [String] = []
     @State private var needsLoginItemsApproval = false
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
+    @State private var approvalPollingTimer: Timer?
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
     /// Check if bundled helper is newer than installed helper
@@ -108,9 +109,16 @@ struct WizardHelperPage: View {
             bundledVersion = getBundledHelperVersion()
             // Check if Login Items approval is needed
             needsLoginItemsApproval = checkLoginItemsApprovalNeeded()
+            // Start polling if awaiting approval
+            if needsLoginItemsApproval {
+                startApprovalPolling()
+            }
         }
         .onAppear {
             duplicateCopies = HelperMaintenance.shared.detectDuplicateAppCopies()
+        }
+        .onDisappear {
+            stopApprovalPolling()
         }
     }
 
@@ -318,6 +326,8 @@ struct WizardHelperPage: View {
             } else if approvalNeeded {
                 // Registration succeeded but needs Login Items approval
                 actionStatus = .inProgress(message: "Awaiting Login Items approval…")
+                // Start polling for approval status changes
+                startApprovalPolling()
             } else {
                 // Surface the last maintenance log line as a hint
                 let hint = HelperMaintenance.shared.logLines.last
@@ -365,6 +375,44 @@ struct WizardHelperPage: View {
     private func checkLoginItemsApprovalNeeded() -> Bool {
         let svc = ServiceManagement.SMAppService.daemon(plistName: HelperManager.helperPlistName)
         return svc.status == .requiresApproval
+    }
+
+    // MARK: - Approval Polling
+
+    private func startApprovalPolling() {
+        stopApprovalPolling()
+        approvalPollingTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+            Task { @MainActor in
+                await checkApprovalStatus()
+            }
+        }
+    }
+
+    private func stopApprovalPolling() {
+        approvalPollingTimer?.invalidate()
+        approvalPollingTimer = nil
+    }
+
+    private func checkApprovalStatus() async {
+        let svc = ServiceManagement.SMAppService.daemon(plistName: HelperManager.helperPlistName)
+
+        // If no longer requires approval, check if helper is now healthy
+        if svc.status != .requiresApproval {
+            let healthy = await HelperManager.shared.testHelperFunctionality()
+            if healthy {
+                // Success! Helper is approved and responding
+                stopApprovalPolling()
+                needsLoginItemsApproval = false
+                actionStatus = .success(message: "Helper approved and ready!")
+                helperVersion = await HelperManager.shared.getHelperVersion()
+                scheduleStatusClear()
+                onRefresh() // Trigger parent refresh to update issues
+            } else if svc.status == .enabled {
+                // Approved but not responding yet - give it a moment
+                needsLoginItemsApproval = false
+                actionStatus = .inProgress(message: "Helper approved, connecting…")
+            }
+        }
     }
 
     private func navigateToNextStep() {
