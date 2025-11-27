@@ -36,55 +36,6 @@ class WizardAutoFixer {
         self.statusReporter = statusReporter
     }
 
-    // MARK: - Readiness helpers (still used by UI/status flows)
-
-    private func awaitServiceHealthy(
-        _ serviceID: String,
-        timeoutSeconds: Double = 5.0,
-        pollMs: Int = 200
-    ) async -> Bool {
-        let deadline = Date().addingTimeInterval(timeoutSeconds)
-        while Date() < deadline {
-            if await ServiceHealthChecker.shared.isServiceHealthy(serviceID: serviceID) {
-                return true
-            }
-            _ = await WizardSleep.ms(pollMs)
-        }
-        return false
-    }
-
-    private func awaitTCPReady(
-        port: Int,
-        timeoutMs: Int = 3000,
-        pollMs: Int = 200
-    ) async -> Bool {
-        let start = Date()
-        let client = KanataTCPClient(port: port, timeout: Double(pollMs) / 1000.0)
-        defer { Task { await client.cancelInflightAndCloseConnection() } }
-
-        while Date().timeIntervalSince(start) * 1000 < Double(timeoutMs) {
-            if await client.checkServerStatus() {
-                return true
-            }
-            _ = await WizardSleep.ms(pollMs)
-        }
-        return false
-    }
-
-    private func awaitVHIDHealthy(
-        timeoutSeconds: Double = 4.0,
-        pollMs: Int = 200
-    ) async -> Bool {
-        let deadline = Date().addingTimeInterval(timeoutSeconds)
-        while Date() < deadline {
-            if await vhidDeviceManager.detectConnectionHealth() {
-                return true
-            }
-            _ = await WizardSleep.ms(pollMs)
-        }
-        return false
-    }
-
     // MARK: - Error Analysis (retained)
 
     @MainActor
