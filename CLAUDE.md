@@ -237,6 +237,33 @@ Two approaches for detecting running processes, each for different scenarios:
 
 **Do not migrate remaining pgrep usages** - they exist for scenarios where launchctl cannot help.
 
+### ADR-021: Conservative Timing for VHID Driver Installation ✅
+The "fix Karabiner driver" operation takes ~11 seconds. This is intentional.
+
+**Timing breakdown in `VHIDDeviceManager.downloadAndInstallCorrectVersion()`:**
+| Step | Operation | Sleep | Purpose |
+|------|-----------|-------|---------|
+| 1 | `systemextensionsctl uninstall` | 2s | Wait for DriverKit extension removal |
+| 2 | `installer -pkg` (admin prompt) | 2s | Wait for pkg postinstall scripts |
+| 3 | Post-install settle | 3s | Allow DriverKit extension registration |
+| 4 | `activate` command | 2s | Wait for manager activation |
+
+**Why not optimize?**
+1. **Rare operation**: Driver install happens once per machine, or on Kanata major version upgrades (yearly)
+2. **Reliability over speed**: DriverKit extension loading is asynchronous and timing varies by:
+   - SSD speed (especially on older Macs or VMs)
+   - System load (Spotlight indexing, Time Machine, etc.)
+   - macOS version (DriverKit behavior differs across versions)
+3. **No reliable completion signal**: `systemextensionsctl` and `installer` return before async work completes
+4. **Failure cost is high**: A race condition here leaves the user with a broken driver requiring manual intervention
+
+**Alternatives considered and rejected:**
+- **Poll-based verification**: DriverKit activation has no reliable API to poll; `detectActivation()` checks file presence, not extension loading state
+- **Reduce sleeps by 50%**: Tested; caused intermittent failures on slower machines
+- **Skip uninstall for same version**: Doesn't help upgrade cases; risks corrupted state
+
+**Decision**: Keep conservative 9s of sleeps + ~2s command execution. User sees progress UI during this time. The 11 seconds ensures reliability across all supported hardware configurations.
+
 ## Build Commands
 
 ```bash

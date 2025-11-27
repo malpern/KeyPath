@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import KeyPathCore
 import KeyPathWizardCore
@@ -21,6 +22,7 @@ struct WizardKarabinerComponentsPage: View {
     @State private var showAllItems = false
     @State private var isCombinedFixLoading = false
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
+    @State private var stepProgressCancellable: AnyCancellable?
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
     var body: some View {
@@ -254,12 +256,22 @@ struct WizardKarabinerComponentsPage: View {
         }
         AppLogger.shared.log("🔧 [Karabiner Fix] handleCombinedFix() START")
         isCombinedFixLoading = true
-        actionStatus = .inProgress(message: "Fixing Karabiner driver…")
+        actionStatus = .inProgress(message: "Preparing...")
+
+        // Subscribe to step progress updates from VHIDDeviceManager
+        stepProgressCancellable = VHIDDeviceManager.stepProgress
+            .receive(on: DispatchQueue.main)
+            .sink { [self] step in
+                actionStatus = .inProgress(message: step)
+            }
+
         let isInstalled = kanataManager.isKarabinerDriverInstalled()
         AppLogger.shared.log("🔧 [Karabiner Fix] isKarabinerDriverInstalled=\(isInstalled)")
 
         Task { @MainActor in
             defer {
+                stepProgressCancellable?.cancel()
+                stepProgressCancellable = nil
                 isCombinedFixLoading = false
                 AppLogger.shared.log("🔧 [Karabiner Fix] handleCombinedFix() END - spinner released")
             }

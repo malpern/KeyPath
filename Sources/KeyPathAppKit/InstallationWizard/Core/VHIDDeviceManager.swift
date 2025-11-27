@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import KeyPathCore
 
@@ -31,6 +32,21 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
     // Test seam: allow injecting installed version during unit tests
     nonisolated(unsafe) static var testInstalledVersionProvider: (() -> String?)?
+
+    // MARK: - Step Progress Reporting
+
+    /// Publisher for UI to observe installation step progress.
+    /// Publishes step descriptions like "Removing old driver...", "Installing driver...", etc.
+    /// Thread-safe: reportStep() dispatches to main thread before publishing.
+    nonisolated(unsafe) static let stepProgress = PassthroughSubject<String, Never>()
+
+    /// Publish a step update (thread-safe, dispatches to main for UI)
+    private static func reportStep(_ step: String) {
+        AppLogger.shared.log("📊 [VHIDManager] Step: \(step)")
+        DispatchQueue.main.async {
+            stepProgress.send(step)
+        }
+    }
 
     // Version compatibility for kanata - uses bundled driver as single source of truth
     // NOTE: Kanata v1.10.0+ requires Karabiner-DriverKit-VirtualHIDDevice v6.0.0
@@ -493,11 +509,16 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
     /// Installs the correct version of Karabiner-DriverKit-VirtualHIDDevice
     /// Prefers bundled pkg (no download required), falls back to download if missing
+    ///
+    /// **Timing Note (ADR-021):** This operation takes ~11 seconds due to conservative
+    /// sleeps between steps. This is intentional - DriverKit extension loading is
+    /// asynchronous with no reliable completion signal. See CLAUDE.md ADR-021.
     func downloadAndInstallCorrectVersion() async -> Bool {
         AppLogger.shared.log(
             "🔧 [VHIDManager] Installing v\(Self.requiredDriverVersionString)")
 
         // Step 1: Clean up existing driver versions first
+        Self.reportStep("Removing old driver...")
         AppLogger.shared.log("🔧 [VHIDManager] Step 1/4: Cleaning up existing driver versions...")
         let uninstallSuccess = await uninstallAllDriverVersions()
         if !uninstallSuccess {
@@ -518,6 +539,7 @@ final class VHIDDeviceManager: @unchecked Sendable {
         let pkgPath = URL(fileURLWithPath: bundledPkgPath)
 
         // Step 3: Install the package
+        Self.reportStep("Installing driver (authenticate if prompted)...")
         AppLogger.shared.log("🔧 [VHIDManager] Step 3/3: Installing package...")
 
         let installResult = await executeWithAdminPrivileges(
@@ -531,10 +553,12 @@ final class VHIDDeviceManager: @unchecked Sendable {
                 "✅ [VHIDManager] Successfully installed v\(Self.requiredDriverVersionString)")
 
             // Wait for installation to complete
+            Self.reportStep("Finalizing installation...")
             let clock = ContinuousClock()
             try? await clock.sleep(for: .seconds(3)) // 3 seconds
 
             // Activate the newly installed version
+            Self.reportStep("Activating driver...")
             AppLogger.shared.log("🔧 [VHIDManager] Activating newly installed driver...")
             let activateResult = await activateManager()
 
