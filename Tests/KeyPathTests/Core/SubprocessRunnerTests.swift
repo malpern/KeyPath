@@ -195,5 +195,27 @@ final class SubprocessRunnerTests: XCTestCase {
         // Should return empty array for non-matching pattern
         XCTAssertTrue(pids.isEmpty)
     }
+
+    func testRunCancellationTerminatesProcess() async {
+        let longRunningTask = Task {
+            try await SubprocessRunner.shared.run(
+                "/bin/sleep",
+                args: ["5"],
+                timeout: 30
+            )
+        }
+
+        // Allow the process to start
+        try? await Task.sleep(nanoseconds: 200_000_000)
+
+        longRunningTask.cancel()
+
+        do {
+            _ = try await longRunningTask.value
+            XCTFail("Expected cancellation to throw")
+        } catch {
+            XCTAssertTrue(error is CancellationError, "Expected CancellationError, got \(error)")
+        }
+    }
 }
 

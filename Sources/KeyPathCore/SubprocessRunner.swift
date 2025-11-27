@@ -69,91 +69,79 @@ public actor SubprocessRunner: SubprocessRunning {
         task.standardOutput = stdoutPipe
         task.standardError = stderrPipe
 
-        // Use continuation-based async pattern instead of waitUntilExit()
-        // Continuations are thread-safe and can only be resumed once, so we use a simple flag
-        return try await withCheckedThrowingContinuation { continuation in
-            // Thread-safe flag using serial queue
-            let resumeQueue = DispatchQueue(label: "com.keypath.subprocess.resume")
-            nonisolated(unsafe) var hasResumed = false
-            let resumeOnce: @Sendable (Result<ProcessResult, Error>) -> Void = { result in
-                resumeQueue.sync {
-                    guard !hasResumed else { return }
-                    hasResumed = true
-                    continuation.resume(with: result)
-                }
-            }
+        let runContext = RunContext()
 
-            // Set up termination handler (must be set before launching)
-            task.terminationHandler = { process in
-                let duration = Date().timeIntervalSince(startTime)
-                let exitCode = process.terminationStatus
+        return try await withTaskCancellationHandler(operation: {
+            try await withCheckedThrowingContinuation { continuation in
+                runContext.setContinuation(continuation)
 
-                // Read output
-                let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-                let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
-                let stdout = String(data: stdoutData, encoding: .utf8) ?? ""
-                let stderr = String(data: stderrData, encoding: .utf8) ?? ""
+                // Set up termination handler (must be set before launching)
+                task.terminationHandler = { process in
+                    runContext.timeoutTask?.cancel()
 
-                let result = ProcessResult(
-                    exitCode: exitCode,
-                    stdout: stdout,
-                    stderr: stderr,
-                    duration: duration
-                )
+                    let duration = Date().timeIntervalSince(startTime)
+                    let exitCode = process.terminationStatus
+                    let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+                    let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+                    let stdout = String(data: stdoutData, encoding: .utf8) ?? ""
+                    let stderr = String(data: stderrData, encoding: .utf8) ?? ""
 
-                // Log completion
-                if duration > 5.0 {
-                    AppLogger.shared.warn(
-                        "⚠️ [SubprocessRunner] \(executable) took \(String(format: "%.2f", duration))s (>5s threshold)"
+                    let result = ProcessResult(
+                        exitCode: exitCode,
+                        stdout: stdout,
+                        stderr: stderr,
+                        duration: duration
                     )
-                } else {
-                    AppLogger.shared.log(
-                        "✅ [SubprocessRunner] \(executable) completed in \(String(format: "%.2f", duration))s (exit: \(exitCode))"
-                    )
-                }
 
-                resumeOnce(.success(result))
-            }
-
-            // Set up timeout task
-            let timeoutTask = Task {
-                try? await Task.sleep(nanoseconds: UInt64(timeoutInterval * 1_000_000_000))
-                let shouldTerminate = resumeQueue.sync { !hasResumed }
-
-                if shouldTerminate {
-                    task.terminate()
-                    AppLogger.shared.warn(
-                        "⏱️ [SubprocessRunner] \(executable) timed out after \(String(format: "%.2f", timeoutInterval))s - terminated"
-                    )
-                    resumeOnce(.failure(SubprocessError.timeout(executable: executable, timeout: timeoutInterval)))
-                }
-            }
-
-            // Launch process
-            do {
-                try task.run()
-
-                // Monitor for completion to cancel timeout
-                Task {
-                    // Wait for process to finish (terminationHandler will fire)
-                    // We can't directly await terminationStatus, so we poll briefly
-                    // The terminationHandler will handle the actual completion
-                    var checkCount = 0
-                    while checkCount < 100 { // Max 10 seconds of polling
-                        if !task.isRunning {
-                            timeoutTask.cancel()
-                            break
-                        }
-                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
-                        checkCount += 1
+                    // Log completion
+                    if duration > 5.0 {
+                        AppLogger.shared.warn(
+                            "⚠️ [SubprocessRunner] \(executable) took \(String(format: "%.2f", duration))s (>5s threshold)"
+                        )
+                    } else {
+                        AppLogger.shared.log(
+                            "✅ [SubprocessRunner] \(executable) completed in \(String(format: "%.2f", duration))s (exit: \(exitCode))"
+                        )
                     }
+
+                    runContext.resume(with: .success(result))
                 }
+
+                // Set up timeout task
+        runContext.timeoutTask = Task {
+            do {
+                try await Task.sleep(nanoseconds: UInt64(timeoutInterval * 1_000_000_000))
             } catch {
-                timeoutTask.cancel()
-                AppLogger.shared.error("❌ [SubprocessRunner] Failed to launch \(executable): \(error)")
-                resumeOnce(.failure(SubprocessError.launchFailed(executable: executable, error: error)))
+                // Task cancelled (process finished or parent cancelled)
+                return
+            }
+
+            task.terminate()
+            if runContext.resume(
+                with: .failure(SubprocessError.timeout(executable: executable, timeout: timeoutInterval))
+            ) {
+                AppLogger.shared.warn(
+                    "⏱️ [SubprocessRunner] \(executable) timed out after \(String(format: "%.2f", timeoutInterval))s - terminated"
+                )
             }
         }
+
+                // Launch process
+                do {
+                    try task.run()
+                } catch {
+                    runContext.timeoutTask?.cancel()
+                    AppLogger.shared.error("❌ [SubprocessRunner] Failed to launch \(executable): \(error)")
+                    runContext.resume(
+                        with: .failure(SubprocessError.launchFailed(executable: executable, error: error))
+                    )
+                }
+            }
+        }, onCancel: {
+            task.terminate()
+            runContext.timeoutTask?.cancel()
+            runContext.resume(with: .failure(CancellationError()))
+        })
     }
 
     /// Run pgrep to find processes matching a pattern
@@ -194,6 +182,33 @@ public actor SubprocessRunner: SubprocessRunning {
         var allArgs = [subcommand]
         allArgs.append(contentsOf: args)
         return try await run("/bin/launchctl", args: allArgs, timeout: 10)
+    }
+}
+
+// MARK: - Run Context
+
+private final class RunContext: @unchecked Sendable {
+    private let resumeQueue = DispatchQueue(label: "com.keypath.subprocess.resume")
+    private var hasResumed = false
+    private var continuation: CheckedContinuation<ProcessResult, Error>?
+
+    var timeoutTask: Task<Void, Never>?
+
+    func setContinuation(_ continuation: CheckedContinuation<ProcessResult, Error>) {
+        resumeQueue.sync {
+            self.continuation = continuation
+        }
+    }
+
+    @discardableResult
+    func resume(with result: Result<ProcessResult, Error>) -> Bool {
+        resumeQueue.sync {
+            guard !hasResumed else { return false }
+            hasResumed = true
+            continuation?.resume(with: result)
+            continuation = nil
+            return true
+        }
     }
 }
 

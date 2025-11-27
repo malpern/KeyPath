@@ -62,6 +62,16 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
 **Integration point:** Reuse `KeyboardCapture` in listen-only mode (already supports this via `CaptureMode`).
 
+### Event Capture Ownership (Critical)
+
+We cannot spin up a second `KeyboardCapture` instance from the visualization window without destabilizing the existing recording/wizard flows—`KeyboardCapture` owns the global event tap and prompts for Input Monitoring permission when it starts. To avoid dueling taps and repeated permission prompts:
+
+1. **Introduce a single capture coordinator** (e.g., `KeyboardCaptureCoordinator`) that owns the event tap and publishes key up/down events via Combine/AsyncSequence.
+2. **Recording, wizard diagnostics, and the visualization view model all subscribe** to this coordinator. The coordinator reference-counts subscribers and only tears down the tap when the last subscriber unsubscribes.
+3. **Visualization stays listen-only**: it subscribes to the shared event stream but never toggles tap state itself, so we do not interrupt the daemon or existing UI flows.
+
+This shared-ownership approach keeps the MVP safe (no new permission prompts, no risk of pausing the main service) and creates the extensibility we need for future visual tooling.
+
 ## Layer 3: SwiftUI Views
 
 **New files in** `Sources/KeyPathAppKit/UI/KeyboardVisualization/`:
@@ -156,17 +166,33 @@ Based on macOS CGEvent key codes (verify against actual hardware):
    - Use `CGEvent.keyDown` and `CGEvent.keyUp` event types
 4. Connect to view
 
-**Event Handling:**
-- Extend `KeyboardCapture` to support keyUp events (currently only handles keyDown)
-- Or create a separate event tap that listens for both keyDown and keyUp
+**Event Handling Architecture (CRITICAL):**
+
+**⚠️ IMPORTANT:** `KeyboardCapture` is currently owned by `RecordingCoordinator` and manages global event tap state. Creating a second "listen-only" tap from the visualization window will:
+- Race with wizard/recording flows
+- Potentially tear down the active tap the service depends on
+- Re-trigger Input Monitoring permission prompts
+
+**Recommended Approach: Shared Event Pipeline (Option 1)**
+
+Refactor `KeyboardCapture` into a singleton publisher that supports multiple subscribers:
+- Single event tap started once (no duplicate permission prompts)
+- Multiple subscribers: recording, visualization, wizard
+- Visualization subscribes to keyDown/keyUp events without touching main capture service
+- Benefits: Centralizes capture logic, reduces bugs, improves testability
+
+**Alternative Approaches:**
+- **Option 2:** Dedicated visualization tap - Isolates feature but duplicates capture logic and risks double prompts
+- **Option 3:** Query daemon state via IPC - Requires daemon changes, medium reward
+
+**Implementation Requirements:**
+- Single owner: `KeyboardCaptureCoordinator` (or similar)
+- Document how to avoid interrupting main tap
+- Ensure visualization never modifies global tap state
+- Handle keyDown/keyUp events (currently only keyDown is processed)
 - Add keyCode to `pressedKeyCodes` on keyDown
 - Remove keyCode from `pressedKeyCodes` on keyUp
 - Handle autorepeat suppression (already handled by `KeyboardCapture`)
-
-**Implementation Note:** `KeyboardCapture` currently only processes `.keyDown` events. For visualization, we need both keyDown and keyUp. Options:
-1. Extend `KeyboardCapture` to support keyUp callbacks
-2. Create a lightweight event tap specifically for visualization (listen-only mode)
-3. Use `NSEvent.addGlobalMonitorForEvents` for keyUp detection (may have limitations)
 
 ### Phase 4: Floating Window
 

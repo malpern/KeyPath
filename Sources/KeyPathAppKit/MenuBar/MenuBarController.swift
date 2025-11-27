@@ -59,6 +59,19 @@ final class MenuBarController: NSObject {
         showItem.target = self
         menu.addItem(showItem)
 
+        let keymapItem = NSMenuItem(
+            title: "See Keymap…",
+            action: #selector(handleShowKeymap),
+            keyEquivalent: "k"
+        )
+        keymapItem.keyEquivalentModifierMask = .command
+        keymapItem.target = self
+        if let mapImage = NSImage(systemSymbolName: "map", accessibilityDescription: "Keymap") {
+            mapImage.isTemplate = true
+            keymapItem.image = mapImage
+        }
+        menu.addItem(keymapItem)
+
         let wizardItem = NSMenuItem(
             title: "Open Install Wizard…",
             action: #selector(handleShowWizard),
@@ -91,6 +104,11 @@ final class MenuBarController: NSObject {
     @objc
     private func handleShowKeyPath() {
         bringToFrontHandler()
+    }
+
+    @objc
+    private func handleShowKeymap() {
+        KeyboardVisualizationManager.shared.toggle()
     }
 
     @objc

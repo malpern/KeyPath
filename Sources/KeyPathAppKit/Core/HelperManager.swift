@@ -31,6 +31,9 @@ actor HelperManager {
 
     nonisolated(unsafe) static var testHelperFunctionalityOverride: (() async -> Bool)?
     nonisolated(unsafe) static var testInstallHelperOverride: (() async throws -> Void)?
+    nonisolated(unsafe) static var subprocessRunnerFactory: () -> SubprocessRunning = {
+        SubprocessRunner.shared
+    }
 
     // MARK: - Singleton
 
@@ -189,8 +192,10 @@ actor HelperManager {
         if svc.status == .enabled { return true }
 
         // Best-effort check: does launchd know about the job?
+        let runner = Self.subprocessRunnerFactory()
+
         do {
-            let result = try await SubprocessRunner.shared.launchctl("print", ["system/\(Self.helperBundleIdentifier)"])
+            let result = try await runner.launchctl("print", ["system/\(Self.helperBundleIdentifier)"])
             if result.exitCode == 0 {
                 let s = result.stdout
                 if s.contains("program") || s.contains("state =") || s.contains("pid =") {
@@ -340,9 +345,11 @@ actor HelperManager {
     /// Fetch the last N helper log messages (message text only)
     /// Uses `log show` with a tight window to avoid heavy queries.
     nonisolated func lastHelperLogs(count: Int = 3, windowSeconds: Int = 300) async -> [String] {
+        let runner = Self.subprocessRunnerFactory()
+
         // First: if launchctl has no record of the job, surface that clearly.
         do {
-            let result = try await SubprocessRunner.shared.launchctl("print", ["system/com.keypath.helper"])
+            let result = try await runner.launchctl("print", ["system/com.keypath.helper"])
             if result.exitCode != 0 {
                 let errStr = result.stderr
                 if errStr.contains("Could not find service") || errStr.contains("Bad request") {
@@ -357,7 +364,7 @@ actor HelperManager {
         }
         func fetch(_ seconds: Int) async -> [String] {
             do {
-                let result = try await SubprocessRunner.shared.run(
+                let result = try await runner.run(
                     "/usr/bin/log",
                     args: [
                         "show",
@@ -825,8 +832,9 @@ extension HelperManager {
         }
 
         // Extract designated requirement using codesign
+        let runner = Self.subprocessRunnerFactory()
         do {
-            let result = try await SubprocessRunner.shared.run(
+            let result = try await runner.run(
                 "/usr/bin/codesign",
                 args: ["-d", "-r-", helperPath],
                 timeout: 10

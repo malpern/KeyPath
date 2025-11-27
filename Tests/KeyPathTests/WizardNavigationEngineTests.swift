@@ -1,3 +1,4 @@
+import KeyPathCore
 import KeyPathWizardCore
 import ServiceManagement
 import XCTest
@@ -28,23 +29,30 @@ private struct MockNotRegisteredSMAppService: SMAppServiceProtocol {
 class WizardNavigationEngineTests: XCTestCase {
     var engine: WizardNavigationEngine!
     var originalSMServiceFactory: ((String) -> SMAppServiceProtocol)!
+    var originalRunnerFactory: (() -> SubprocessRunning)!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         engine = WizardNavigationEngine()
 
         // Save original factory and inject mock that reports helper as enabled
         // This prevents tests from routing to .helper page unexpectedly
         originalSMServiceFactory = HelperManager.smServiceFactory
         HelperManager.smServiceFactory = { _ in MockEnabledSMAppService() }
+
+        originalRunnerFactory = HelperManager.subprocessRunnerFactory
+        HelperManager.subprocessRunnerFactory = { SubprocessRunnerFake.shared }
+        await SubprocessRunnerFake.shared.reset()
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         // Restore original factory
         HelperManager.smServiceFactory = originalSMServiceFactory
         originalSMServiceFactory = nil
+        HelperManager.subprocessRunnerFactory = originalRunnerFactory
+        originalRunnerFactory = nil
         engine = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Navigation Priority Tests
@@ -253,6 +261,14 @@ class WizardNavigationEngineTests: XCTestCase {
     func testHelperBlockingWhenNotInstalled() async {
         // Given: Helper is not registered
         HelperManager.smServiceFactory = { _ in MockNotRegisteredSMAppService() }
+        await SubprocessRunnerFake.shared.configureLaunchctlResult { _, _ in
+            ProcessResult(
+                exitCode: 1,
+                stdout: "",
+                stderr: "Could not find service",
+                duration: 0.01
+            )
+        }
 
         // When: Checking if helper page is blocking
         let helperBlocking = await engine.isBlockingPage(.helper)
@@ -262,6 +278,8 @@ class WizardNavigationEngineTests: XCTestCase {
 
         // Restore
         HelperManager.smServiceFactory = { _ in MockEnabledSMAppService() }
+        await SubprocessRunnerFake.shared.reset()
+        HelperManager.subprocessRunnerFactory = { SubprocessRunnerFake.shared }
     }
 
     // MARK: - Progress Calculation Tests

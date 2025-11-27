@@ -63,7 +63,7 @@ KeyPath is a **complete macOS integration layer** that:
 Your remapping is active immediately—no restart, no manual service management, no file editing.
 
 ### ⚡ Instant & Reliable
-- **Hot reload** - Changes apply instantly via UDP communication
+- **Hot reload** - Changes apply instantly via localhost TCP (JSON; default port 37001)
 - **System integration** - Runs as LaunchDaemon, works at boot time
 - **Crash recovery** - Automatic service restart and conflict resolution
 - **Health monitoring** - Real-time status checks and diagnostics
@@ -167,7 +167,7 @@ The wizard handles all technical setup automatically and provides one-click fixe
 | Feature | Description |
 |---------|-------------|
 | **Complex Mappings** | Chain multiple actions from a single trigger |
-| **Hot Reload** | Edit config files directly, changes apply instantly via UDP |
+| **Hot Reload** | Edit config files directly, changes apply instantly via TCP (localhost, default 37001) |
 | **System Integration** | Runs as LaunchDaemon at startup, works everywhere |
 | **Extensive Logging** | Debug issues with detailed logs and diagnostics |
 | **Full Kanata Power** | Access to all of Kanata's remapping capabilities |
@@ -223,7 +223,8 @@ KeyPath isn't just a wrapper around Kanata—it's a **complete macOS integration
 - LaunchDaemon architecture ensures remappings work at boot time
 - Automatic crash recovery and conflict resolution
 - Health monitoring with real-time status checks
-- Hot reload via UDP for instant configuration updates
+- Hot reload via TCP for instant configuration updates
+- Localhost-only TCP (port 37001); Kanata's TCP server currently has no auth—future releases may add token-based TCP authentication
 - SMAppService-managed Kanata daemon with a packaged launcher guarantees absolute config paths and Login Items approval flow
 
 #### 5. **Comprehensive Diagnostics**
@@ -256,6 +257,12 @@ KeyPath needs two macOS permissions to work:
 2. **Accessibility** - To send remapped keys
 
 The setup wizard guides you through granting these permissions with one-click access to System Settings.
+
+### TCP Security
+
+- IPC runs over localhost TCP (default port 37001); Kanata's TCP server currently ignores authentication messages.
+- Threat model: any local process could trigger reloads/status calls; scope is limited to config reload + diagnostics (no arbitrary code execution).
+- Future: plan to add token-based TCP authentication when upstream Kanata exposes it (mirroring the UDP auth flow).
 
 ### Kanata binary location (LaunchDaemon)
 For stable TCC permissions, LaunchDaemon services use the system-installed kanata binary:

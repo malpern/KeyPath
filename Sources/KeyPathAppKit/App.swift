@@ -167,6 +167,18 @@ public struct KeyPathApp: App {
 
                 Divider()
 
+                Button(
+                    action: {
+                        KeyboardVisualizationManager.shared.toggle()
+                    },
+                    label: {
+                        Label("See Keymap…", systemImage: "map")
+                    }
+                )
+                .keyboardShortcut("k", modifiers: .command)
+
+                Divider()
+
                 Button("How to Emergency Stop") {
                     // Emergency stop dialog will be handled by main window controller
                     NotificationCenter.default.post(

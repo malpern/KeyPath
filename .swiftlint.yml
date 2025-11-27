@@ -58,11 +58,12 @@ custom_rules:
   # All subprocess execution should go through SubprocessRunner.shared to prevent MainActor blocking
   no_direct_process:
     name: "Direct Process() Usage"
-    regex: '(?<!SubprocessRunner\.shared\.run\([^)]*\)|SubprocessRunner\.shared\.pgrep\([^)]*\)|SubprocessRunner\.shared\.launchctl\([^)]*\)|SubprocessRunnerFake|ProcessResult|ProcessError)\bProcess\s*\(\s*\)'
+    regex: '\bProcess\s*\('
     message: "Direct Process() usage detected. Use SubprocessRunner.shared.run() instead to prevent MainActor blocking."
     severity: warning
     excluded:
       - "**/SubprocessRunner.swift"  # Allow Process() in SubprocessRunner itself
       - "**/SubprocessRunnerFake.swift"  # Allow Process() in test fakes
       - "**/*Test*.swift"  # Allow Process() in tests (they may need to test Process directly)
+      - "Sources/**/ProcessLifecycleManager.swift"  # Legacy lifecycle utility (monitored separately)
       - "dev-tools/**"  # Allow Process() in dev tools
