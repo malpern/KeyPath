@@ -16,6 +16,10 @@ class WizardStateManager: ObservableObject {
     // Cache for the last known wizard state
     var lastWizardSnapshot: WizardSnapshotRecord?
 
+    /// Monotonically increasing version counter, bumped each time state detection completes.
+    /// Used by callers to detect when a refresh has finished.
+    @Published private(set) var stateVersion: Int = 0
+
     func configure(kanataManager: RuntimeCoordinator) {
         self.kanataManager = kanataManager
         AppLogger.shared.log("🎯 [WizardStateManager] Configured with RuntimeCoordinator façade")
@@ -32,5 +36,11 @@ class WizardStateManager: ObservableObject {
             let context = await InstallerEngine().inspectSystem()
             return SystemContextAdapter.adapt(context)
         }
+    }
+
+    /// Bump the state version to signal that a refresh cycle has completed.
+    /// Called by InstallationWizardView after applying state results.
+    func markRefreshComplete() {
+        stateVersion += 1
     }
 }

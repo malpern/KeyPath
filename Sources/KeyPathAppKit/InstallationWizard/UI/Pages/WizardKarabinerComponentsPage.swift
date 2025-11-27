@@ -2,6 +2,11 @@ import KeyPathCore
 import KeyPathWizardCore
 import SwiftUI
 
+// MARK: - Constants
+
+/// Maximum time to wait for state refresh to complete.
+private let stateRefreshTimeoutSeconds: TimeInterval = 2
+
 /// Karabiner driver and virtual HID components setup page
 struct WizardKarabinerComponentsPage: View {
     let systemState: WizardSystemState
@@ -10,6 +15,7 @@ struct WizardKarabinerComponentsPage: View {
     let onAutoFix: (AutoFixAction) async -> Bool
     let onRefresh: () -> Void
     let kanataManager: RuntimeCoordinator
+    let stateManager: WizardStateManager
 
     @State private var showAllItems = false
     @State private var isCombinedFixLoading = false
@@ -225,38 +231,55 @@ struct WizardKarabinerComponentsPage: View {
     /// Smart handler for Karabiner Driver Fix button
     /// Detects if Karabiner is installed vs needs installation
     private func handleCombinedFix() {
-        guard !isCombinedFixLoading else { return }
+        guard !isCombinedFixLoading else {
+            AppLogger.shared.log("⚠️ [Karabiner Fix] handleCombinedFix() skipped - already loading")
+            return
+        }
+        AppLogger.shared.log("🔧 [Karabiner Fix] handleCombinedFix() START")
         isCombinedFixLoading = true
         let isInstalled = kanataManager.isKarabinerDriverInstalled()
+        AppLogger.shared.log("🔧 [Karabiner Fix] isKarabinerDriverInstalled=\(isInstalled)")
 
         Task { @MainActor in
-            defer { isCombinedFixLoading = false }
+            defer {
+                isCombinedFixLoading = false
+                AppLogger.shared.log("🔧 [Karabiner Fix] handleCombinedFix() END - spinner released")
+            }
 
             // 1) Driver install/repair (always if missing, repair if unhealthy)
             if isInstalled {
                 AppLogger.shared.log(
                     "🔧 [Karabiner Fix] Driver installed but having issues - attempting repair")
+                AppLogger.shared.log("🔧 [Karabiner Fix] Calling performAutomaticDriverRepair()...")
                 _ = await performAutomaticDriverRepair()
+                AppLogger.shared.log("🔧 [Karabiner Fix] performAutomaticDriverRepair() returned")
             } else {
                 AppLogger.shared.log(
                     "🔧 [Karabiner Fix] Driver not installed - attempting automatic install via helper (up to 2 attempts)"
                 )
+                AppLogger.shared.log("🔧 [Karabiner Fix] Calling attemptAutoInstallDriver()...")
                 let ok = await attemptAutoInstallDriver(maxAttempts: 2)
+                AppLogger.shared.log("🔧 [Karabiner Fix] attemptAutoInstallDriver() returned \(ok)")
                 if !ok {
                     toastManager.showError(
                         "Driver installation failed. Check System Settings > Privacy & Security."
                     )
+                    AppLogger.shared.log("🔧 [Karabiner Fix] Install failed - returning early")
                     return
                 }
             }
 
             // 2) Services repair/install (only if driver succeeded or already healthy)
             let driverHealthy = componentStatus(for: .driver) == .completed
+            AppLogger.shared.log("🔧 [Karabiner Fix] driverHealthy=\(driverHealthy), checking service repair...")
             if driverHealthy {
+                AppLogger.shared.log("🔧 [Karabiner Fix] Calling performAutomaticServiceRepair()...")
                 _ = await performAutomaticServiceRepair()
+                AppLogger.shared.log("🔧 [Karabiner Fix] performAutomaticServiceRepair() returned")
             }
-
-            await refreshAndWait()
+            AppLogger.shared.log("🔧 [Karabiner Fix] All fix steps complete, defer will release spinner")
+            // Note: Both performAutomaticDriverRepair() and performAutomaticServiceRepair()
+            // call refreshAndWait() internally, so we don't need to call it again here.
         }
     }
 
@@ -339,10 +362,8 @@ struct WizardKarabinerComponentsPage: View {
         AppLogger.shared.log("🧭 [FIX-VHID \(session)] END (success=\(success)) in \(elapsed)s")
 
         if success {
-            // Run a fresh validation synchronously before leaving the page to avoid stale summary red states.
-            Task {
-                await refreshAndWait()
-            }
+            // Run a fresh validation before leaving the page to avoid stale summary red states.
+            await refreshAndWait(fixSucceeded: true)
         } else {
             toastManager.showError(
                 "Driver repair failed. Try restarting your Mac."
@@ -358,7 +379,7 @@ struct WizardKarabinerComponentsPage: View {
 
         if success {
             AppLogger.shared.log("✅ [Service Repair] Service repair succeeded")
-            await refreshAndWait()
+            await refreshAndWait(fixSucceeded: true)
         } else {
             AppLogger.shared.log("❌ [Service Repair] Service repair failed - opening system settings")
             openLoginItemsSettings()
@@ -372,28 +393,57 @@ struct WizardKarabinerComponentsPage: View {
     }
 
     /// Refresh wizard state and wait for completion before returning control to caller UI.
+    /// - Parameter fixSucceeded: Whether the preceding fix operation succeeded. Service restart
+    ///   is only attempted if this is true, to avoid masking failures.
     @MainActor
-    private func refreshAndWait() async {
-        // Bridge the existing synchronous callback into an async confirmation by invoking and then
-        // yielding to the runloop briefly. The underlying refresh path updates wizard state via
-        // WizardStateManager → InstallerEngine → SystemValidator.
-        onRefresh()
-        // Give the refresh task a short window to complete before the user is bounced to summary.
-        // This avoids showing stale red items when the fix actually succeeded.
-        try? await Task.sleep(nanoseconds: 150_000_000) // 150ms
+    private func refreshAndWait(fixSucceeded: Bool) async {
+        let t0 = Date()
+        AppLogger.shared.log("🔄 [Karabiner Fix] refreshAndWait() starting (fixSucceeded=\(fixSucceeded))")
 
-        // If everything else is healthy but the service isn’t running yet, try to start it now so
-        // the summary doesn’t bounce back with a “Start Kanata Service” error.
+        // Trigger async state detection via the wizard's refresh callback.
+        let versionBefore = stateManager.stateVersion
+        onRefresh()
+
+        // Wait for state detection to complete by polling stateVersion.
+        // This is more deterministic than an arbitrary sleep.
+        let refreshDeadline = Date().addingTimeInterval(stateRefreshTimeoutSeconds)
+        while stateManager.stateVersion == versionBefore, Date() < refreshDeadline {
+            await Task.yield()
+            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms polling interval
+        }
+
+        let refreshElapsed = String(format: "%.2f", Date().timeIntervalSince(t0))
+        let refreshCompleted = stateManager.stateVersion != versionBefore
+        AppLogger.shared.log("🔄 [Karabiner Fix] State refresh \(refreshCompleted ? "completed" : "timed out") after \(refreshElapsed)s")
+
+        // Check if service is already running - if so, we're done.
         let serviceState = await kanataManager.currentServiceState()
-        guard !serviceState.isRunning else {
+        if serviceState.isRunning {
+            let totalElapsed = String(format: "%.2f", Date().timeIntervalSince(t0))
+            AppLogger.shared.log("🔄 [Karabiner Fix] refreshAndWait() completed - service already running (elapsed=\(totalElapsed)s)")
             return
         }
 
-        AppLogger.shared.log("🔄 [Karabiner Fix] Post-fix: Kanata not running, attempting restart via KanataService")
-        let restarted = await kanataManager.restartServiceWithFallback(reason: "Wizard driver/service repair follow-up")
-
-        if !restarted {
-            AppLogger.shared.warn("⚠️ [Karabiner Fix] Post-fix restart failed - service may still be inactive")
+        // Only attempt restart if the preceding fix succeeded.
+        // This avoids masking failures by trying to restart a broken installation.
+        guard fixSucceeded else {
+            let totalElapsed = String(format: "%.2f", Date().timeIntervalSince(t0))
+            AppLogger.shared.log("🔄 [Karabiner Fix] refreshAndWait() skipping restart - fix did not succeed (elapsed=\(totalElapsed)s)")
+            return
         }
+
+        // Fire-and-forget the restart - don't wait for it.
+        // The wizard will re-evaluate state on the next refresh cycle anyway.
+        // IMPORTANT: Use Task.detached to run completely off the main thread.
+        // A regular Task would inherit MainActor and still block the UI when it runs.
+        AppLogger.shared.log("🔄 [Karabiner Fix] Post-fix: Kanata not running, firing restart (fire-and-forget, detached)")
+        Task.detached { [kanataManager] in
+            let restarted = await kanataManager.restartServiceWithFallback(reason: "Wizard driver/service repair follow-up")
+            AppLogger.shared.log("🔄 [Karabiner Fix] Background restart completed: \(restarted ? "success" : "failed")")
+        }
+
+        let totalElapsed = String(format: "%.2f", Date().timeIntervalSince(t0))
+        AppLogger.shared.log("✅ [Karabiner Fix] refreshAndWait() completed (elapsed=\(totalElapsed)s) - restart running in background")
     }
+
 }

@@ -285,7 +285,8 @@ struct InstallationWizardView: View {
                     isFixing: asyncOperationManager.hasRunningOperations,
                     onAutoFix: performAutoFix,
                     onRefresh: { refreshState() },
-                    kanataManager: kanataManager
+                    kanataManager: kanataManager,
+                    stateManager: stateManager
                 )
             case .kanataComponents:
                 WizardKanataComponentsPage(
@@ -1132,6 +1133,7 @@ struct InstallationWizardView: View {
             state: result.state,
             issues: filteredIssues
         )
+        stateManager.markRefreshComplete()
 
         if shouldNavigateToSummary(
             currentPage: navigationCoordinator.currentPage,
