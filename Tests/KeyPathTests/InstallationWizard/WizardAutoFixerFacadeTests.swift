@@ -45,6 +45,19 @@ final class WizardAutoFixerFacadeTests: XCTestCase {
 
         XCTAssertEqual(mockEngine.actions, actions)
     }
+
+    func testPerformAutoFixPropagatesFailure() async {
+        let failingEngine = MockInstallerEngine(success: false)
+        let fixer = WizardAutoFixer(
+            kanataManager: RuntimeCoordinator(),
+            installerEngine: failingEngine
+        )
+
+        let success = await fixer.performAutoFix(.installBundledKanata)
+
+        XCTAssertFalse(success, "Should surface failure from InstallerEngine")
+        XCTAssertEqual(failingEngine.actions, [.installBundledKanata])
+    }
 }
 
 // MARK: - Test Doubles
@@ -52,9 +65,14 @@ final class WizardAutoFixerFacadeTests: XCTestCase {
 @MainActor
 private final class MockInstallerEngine: WizardInstallerEngineProtocol {
     private(set) var actions: [AutoFixAction] = []
+    private let result: Bool
+
+    init(success: Bool = true) {
+        self.result = success
+    }
 
     func runSingleAction(_ action: AutoFixAction, using _: PrivilegeBroker) async -> InstallerReport {
         actions.append(action)
-        return InstallerReport(success: true, failureReason: nil, executedRecipes: [], logs: [])
+        return InstallerReport(success: result, failureReason: result ? nil : "mock failure", executedRecipes: [], logs: [])
     }
 }
