@@ -5,13 +5,22 @@ import KeyPathDaemonLifecycle
 import KeyPathWizardCore
 import os
 
+// MARK: - InstallerEngine abstraction for WizardAutoFixer
+
+protocol WizardInstallerEngineProtocol: AnyObject, Sendable {
+    func runSingleAction(_ action: AutoFixAction, using broker: PrivilegeBroker) async -> InstallerReport
+}
+
+extension InstallerEngine: WizardInstallerEngineProtocol {}
+
 /// Handles automatic fixing of detected issues - pure action logic
-class WizardAutoFixer: AutoFixCapable {
+class WizardAutoFixer {
     private let kanataManager: RuntimeCoordinator
     private let vhidDeviceManager: VHIDDeviceManager
     // NOTE: launchDaemonInstaller removed - health checks migrated to ServiceHealthChecker
     private let packageManager: PackageManager
     private let bundledRuntimeCoordinator: BundledRuntimeCoordinator
+    private let installerEngine: WizardInstallerEngineProtocol
     private let statusReporter: @MainActor (String) -> Void
     // REMOVED: toastManager was unused and created architecture violation (Core → UI dependency)
     // REMOVED: ProcessSynchronizationActor - no longer needed
@@ -21,12 +30,14 @@ class WizardAutoFixer: AutoFixCapable {
         vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(),
         packageManager: PackageManager = PackageManager(),
         bundledRuntimeCoordinator: BundledRuntimeCoordinator = BundledRuntimeCoordinator(),
+        installerEngine: WizardInstallerEngineProtocol = InstallerEngine(),
         statusReporter: @escaping @MainActor (String) -> Void = { _ in }
     ) {
         self.kanataManager = kanataManager
         self.vhidDeviceManager = vhidDeviceManager
         self.packageManager = packageManager
         self.bundledRuntimeCoordinator = bundledRuntimeCoordinator
+        self.installerEngine = installerEngine
         self.statusReporter = statusReporter
     }
 
@@ -185,62 +196,24 @@ class WizardAutoFixer: AutoFixCapable {
         }
     }
 
+    @MainActor
     func performAutoFix(_ action: AutoFixAction) async -> Bool {
         // Execute directly on MainActor
         await _performAutoFix(action)
     }
 
+    @MainActor
     private func _performAutoFix(_ action: AutoFixAction) async -> Bool {
         AppLogger.shared.log("🔧 [AutoFixer] Attempting auto-fix: \(action)")
 
-        switch action {
-        case .installPrivilegedHelper:
-            return await installPrivilegedHelper()
-        case .reinstallPrivilegedHelper:
-            return await reinstallPrivilegedHelper()
-        case .terminateConflictingProcesses:
-            return await terminateConflictingProcesses()
-        case .startKarabinerDaemon:
-            return await startKarabinerDaemon()
-        case .restartVirtualHIDDaemon:
-            return await restartVirtualHIDDaemon()
-        case .installMissingComponents:
-            return await installMissingComponents()
-        case .createConfigDirectories:
-            return await createConfigDirectories()
-        case .activateVHIDDeviceManager:
-            return await activateVHIDDeviceManager()
-        case .installLaunchDaemonServices:
-            return await installLaunchDaemonServices()
-        case .installBundledKanata:
-            return await installBundledKanata()
-        case .repairVHIDDaemonServices:
-            return await repairVHIDDaemonServices()
-        case .synchronizeConfigPaths:
-            return await synchronizeConfigPaths()
-        case .restartUnhealthyServices:
-            return await restartUnhealthyServices()
-        case .adoptOrphanedProcess:
-            return await adoptOrphanedProcess()
-        case .replaceOrphanedProcess:
-            return await replaceOrphanedProcess()
-        case .installLogRotation:
-            return await installLogRotation()
-        case .replaceKanataWithBundled:
-            return await replaceKanataWithBundled()
-        case .enableTCPServer:
-            return await enableTCPServer()
-        case .setupTCPAuthentication:
-            return await setupTCPAuthentication()
-        case .regenerateCommServiceConfiguration:
-            return await regenerateCommServiceConfiguration()
-        case .restartCommServer:
-            return await restartCommServer()
-        case .fixDriverVersionMismatch:
-            return await fixDriverVersionMismatch()
-        case .installCorrectVHIDDriver:
-            return await installCorrectVHIDDriver()
-        }
+        // Route all AutoFixActions through InstallerEngine façade
+        return await runViaInstallerEngine(action)
+    }
+
+    @MainActor
+    private func runViaInstallerEngine(_ action: AutoFixAction) async -> Bool {
+        let report = await installerEngine.runSingleAction(action, using: PrivilegeBroker())
+        return report.success
     }
 
     // MARK: - Privileged Helper Management
@@ -1469,3 +1442,7 @@ class WizardAutoFixer: AutoFixCapable {
         }
     }
 }
+
+// MARK: - AutoFixCapable Conformance
+
+extension WizardAutoFixer: AutoFixCapable {}
