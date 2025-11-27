@@ -304,12 +304,20 @@ struct WizardHelperPage: View {
 
         let ok = await HelperMaintenance.shared.runCleanupAndRepair(useAppleScriptFallback: true)
 
+        // Re-check approval status after install attempt
+        let approvalNeeded = checkLoginItemsApprovalNeeded()
+
         await MainActor.run {
             isWorking = false
+            needsLoginItemsApproval = approvalNeeded
+
             if ok {
                 helperVersion = nil // Will be refreshed
                 actionStatus = .success(message: "Helper installed successfully")
                 scheduleStatusClear()
+            } else if approvalNeeded {
+                // Registration succeeded but needs Login Items approval
+                actionStatus = .inProgress(message: "Awaiting Login Items approval…")
             } else {
                 // Surface the last maintenance log line as a hint
                 let hint = HelperMaintenance.shared.logLines.last
