@@ -1206,6 +1206,10 @@ struct InstallationWizardView: View {
         )
         stateManager.markRefreshComplete()
 
+        // Only auto-navigate if user hasn't been interacting with the wizard
+        // This prevents jarring navigation away from a page after a fix completes
+        let shouldAutoNavigate = !navigationCoordinator.userInteractionMode
+
         if shouldNavigateToSummary(
             currentPage: navigationCoordinator.currentPage,
             state: result.state,
@@ -1213,7 +1217,7 @@ struct InstallationWizardView: View {
         ) {
             AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
             navigationCoordinator.navigateToPage(.summary)
-        } else {
+        } else if shouldAutoNavigate {
             Task {
                 if let preferred = await preferredDetailPage(for: result.state, issues: filteredIssues),
                    navigationCoordinator.currentPage != preferred {
@@ -1222,7 +1226,7 @@ struct InstallationWizardView: View {
                 }
             }
         }
-        if navigationCoordinator.currentPage == .summary {
+        if navigationCoordinator.currentPage == .summary, shouldAutoNavigate {
             Task { @MainActor in
                 _ = await WizardSleep.ms(50) // 50ms
                 autoNavigateIfSingleIssue(in: filteredIssues, state: result.state)
