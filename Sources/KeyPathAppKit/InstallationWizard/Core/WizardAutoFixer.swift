@@ -649,10 +649,6 @@ class WizardAutoFixer: AutoFixCapable {
         } else {
             AppLogger.shared.error(
                 "❌ [AutoFixer] VirtualHID daemon restart failed - user can retry via Fix button")
-            if FeatureFlags.useLegacyVHIDRestartFallback {
-                AppLogger.shared.warn("⚠️ [AutoFixer] Trying legacy restart fallback (flag enabled)")
-                return await legacyRestartVirtualHIDDaemon()
-            }
             return false
         }
     }
@@ -724,37 +720,6 @@ class WizardAutoFixer: AutoFixCapable {
             return success
         } catch {
             AppLogger.shared.error("❌ [AutoFixer] Error starting VirtualHID Manager: \(error)")
-            return false
-        }
-    }
-
-    /// Legacy daemon restart method (fallback)
-    private func legacyRestartVirtualHIDDaemon() async -> Bool {
-        AppLogger.shared.log("🔧 [AutoFixer] Using legacy VirtualHID daemon restart")
-
-        // Kill existing daemon
-        do {
-            _ = try await SubprocessRunner.shared.run(
-                "/usr/bin/pkill",
-                args: ["-f", "Karabiner-VirtualHIDDevice-Daemon"],
-                timeout: 5
-            )
-
-            // Wait for process to terminate
-            _ = await WizardSleep.ms(500) // 0.5 seconds
-
-            // Start daemon again
-            let startSuccess = await startKarabinerDaemon()
-
-            if startSuccess {
-                AppLogger.shared.info("✅ [AutoFixer] Legacy VirtualHID daemon restart completed")
-            } else {
-                AppLogger.shared.error("❌ [AutoFixer] Legacy VirtualHID daemon restart failed")
-            }
-
-            return startSuccess
-        } catch {
-            AppLogger.shared.error("❌ [AutoFixer] Error in legacy VirtualHID daemon restart: \(error)")
             return false
         }
     }

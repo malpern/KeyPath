@@ -70,7 +70,6 @@ extension FeatureFlags {
     private static let useJustInTimePermissionRequestsKey = "USE_JIT_PERMISSION_REQUESTS"
     private static let allowOptionalWizardKey = "ALLOW_OPTIONAL_WIZARD"
     private static let useUnifiedWizardRouterKey = "USE_UNIFIED_WIZARD_ROUTER"
-    private static let useLegacyVHIDRestartFallbackKey = "USE_LEGACY_VHID_RESTART_FALLBACK"
 
     static var captureListenOnlyEnabled: Bool {
         if UserDefaults.standard.object(forKey: captureListenOnlyKey) == nil {
@@ -171,18 +170,5 @@ extension FeatureFlags {
 
     static func setUseUnifiedWizardRouter(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: useUnifiedWizardRouterKey)
-    }
-
-    /// Enable the legacy VHID restart fallback path in AutoFixer (default OFF).
-    /// Keeps a rollback path for one release while confidence builds in the new flow.
-    static var useLegacyVHIDRestartFallback: Bool {
-        if UserDefaults.standard.object(forKey: useLegacyVHIDRestartFallbackKey) == nil {
-            return false // default OFF
-        }
-        return UserDefaults.standard.bool(forKey: useLegacyVHIDRestartFallbackKey)
-    }
-
-    static func setUseLegacyVHIDRestartFallback(_ enabled: Bool) {
-        UserDefaults.standard.set(enabled, forKey: useLegacyVHIDRestartFallbackKey)
     }
 }
