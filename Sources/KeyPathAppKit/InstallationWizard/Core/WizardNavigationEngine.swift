@@ -4,7 +4,8 @@ import KeyPathWizardCore
 import OSLog
 
 /// Handles wizard navigation logic based on system state
-class WizardNavigationEngine: WizardNavigating {
+@MainActor
+final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
     // Track if we've shown the FDA page
     private var hasShownFullDiskAccessPage = false
 
@@ -18,7 +19,7 @@ class WizardNavigationEngine: WizardNavigating {
     /// Primary navigation method - determines the current page based on system state and issues
     /// This is the preferred method as it uses structured issue identifiers for type-safe navigation
 
-    func determineCurrentPage(for state: WizardSystemState, issues: [WizardIssue]) -> WizardPage {
+    func determineCurrentPage(for state: WizardSystemState, issues: [WizardIssue]) async -> WizardPage {
         // First check for blocking issues in priority order
         AppLogger.shared.log("🔍 [NavigationEngine] Determining page for \(issues.count) issues:")
         for issue in issues {
@@ -35,7 +36,7 @@ class WizardNavigationEngine: WizardNavigating {
         // The helper enables passwordless system operations. Without Login Items approval,
         // the helper cannot run, which blocks service management and other privileged operations.
         let helperNeedsApproval = HelperManager.shared.helperNeedsLoginItemsApproval()
-        let helperInstalled = HelperManager.shared.isHelperInstalled()
+        let helperInstalled = await HelperManager.shared.isHelperInstalled()
         if helperNeedsApproval {
             AppLogger.shared.log(
                 "🔍 [NavigationEngine] → .helper (BLOCKING: Login Items approval required)")
@@ -174,7 +175,7 @@ class WizardNavigationEngine: WizardNavigating {
 
     func nextPage(
         from current: WizardPage, given state: WizardSystemState, issues: [WizardIssue] = []
-    ) -> WizardPage? {
+    ) async -> WizardPage? {
         // Get the logical page order
         let pageOrder = getPageOrder()
         guard let currentIndex = pageOrder.firstIndex(of: current) else {
@@ -182,10 +183,10 @@ class WizardNavigationEngine: WizardNavigating {
         }
 
         // Check if there are blocking issues that require going to a specific page
-        let targetPage = determineCurrentPage(for: state, issues: issues)
+        let targetPage = await determineCurrentPage(for: state, issues: issues)
 
         // If the target is a blocking page and we're not on it, jump there immediately
-        if isBlockingPage(targetPage), targetPage != current {
+        if await isBlockingPage(targetPage), targetPage != current {
             return targetPage
         }
 
@@ -211,8 +212,8 @@ class WizardNavigationEngine: WizardNavigating {
 
     func createNavigationState(
         currentPage: WizardPage, systemState: WizardSystemState, issues: [WizardIssue] = []
-    ) -> WizardNavigationState {
-        let targetPage = determineCurrentPage(for: systemState, issues: issues)
+    ) async -> WizardNavigationState {
+        let targetPage = await determineCurrentPage(for: systemState, issues: issues)
         let shouldAutoNavigate = currentPage != targetPage
 
         return WizardNavigationState(
@@ -241,7 +242,7 @@ class WizardNavigationEngine: WizardNavigating {
     }
 
     /// Determines if a page represents a "blocking" issue that must be resolved
-    func isBlockingPage(_ page: WizardPage) -> Bool {
+    func isBlockingPage(_ page: WizardPage) async -> Bool {
         switch page {
         case .conflicts:
             return true // Cannot proceed with conflicts
@@ -251,7 +252,7 @@ class WizardNavigationEngine: WizardNavigating {
             // Helper is blocking if Login Items approval is required OR helper is not installed
             // Without the helper, privileged operations require repeated password prompts
             let needsApproval = HelperManager.shared.helperNeedsLoginItemsApproval()
-            let notInstalled = !HelperManager.shared.isHelperInstalled()
+            let notInstalled = !(await HelperManager.shared.isHelperInstalled())
             return needsApproval || notInstalled
         case .inputMonitoring, .accessibility:
             return false // Can proceed but functionality limited
@@ -271,8 +272,8 @@ class WizardNavigationEngine: WizardNavigating {
     /// Determines if the wizard should show a "Next" button on the given page
     func shouldShowNextButton(
         for page: WizardPage, state: WizardSystemState, issues: [WizardIssue] = []
-    ) -> Bool {
-        let targetPage = determineCurrentPage(for: state, issues: issues)
+    ) async -> Bool {
+        let targetPage = await determineCurrentPage(for: state, issues: issues)
         let currentIndex = pageIndex(page)
         let targetIndex = pageIndex(targetPage)
 
@@ -287,7 +288,7 @@ class WizardNavigationEngine: WizardNavigating {
     }
 
     /// Determines the appropriate button text for the current page and state
-    func primaryButtonText(for page: WizardPage, state: WizardSystemState) -> String {
+    func primaryButtonText(for page: WizardPage, state: WizardSystemState) async -> String {
         switch page {
         case .conflicts:
             "Resolve Conflicts"
@@ -300,7 +301,7 @@ class WizardNavigationEngine: WizardNavigating {
         case .kanataComponents:
             "Install Kanata Components"
         case .helper:
-            HelperManager.shared.isHelperInstalled() ? "Manage Helper" : "Install Helper"
+            await HelperManager.shared.isHelperInstalled() ? "Manage Helper" : "Install Helper"
         case .communication:
             "Check TCP Server"
         case .service:

@@ -5,7 +5,7 @@ import SwiftUI
 // MARK: - Core Types
 
 /// Represents the current page in the installation wizard
-public enum WizardPage: String, CaseIterable {
+public enum WizardPage: String, CaseIterable, Sendable {
     case summary = "Summary"
     case helper = "Privileged Helper"
     case fullDiskAccess = "Full Disk Access"
@@ -475,12 +475,13 @@ public protocol AutoFixCapable {
 }
 
 /// Protocol for wizard navigation management
+@MainActor
 public protocol WizardNavigating {
     /// Primary navigation method using structured issue identifiers for type-safe navigation
-    func determineCurrentPage(for state: WizardSystemState, issues: [WizardIssue]) -> WizardPage
+    func determineCurrentPage(for state: WizardSystemState, issues: [WizardIssue]) async -> WizardPage
     func canNavigate(from: WizardPage, to: WizardPage, given state: WizardSystemState) -> Bool
     func nextPage(from current: WizardPage, given state: WizardSystemState, issues: [WizardIssue])
-        -> WizardPage?
+        async -> WizardPage?
 }
 
 // MARK: - Helper Extensions

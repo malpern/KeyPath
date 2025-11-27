@@ -56,7 +56,7 @@ final class UninstallCoordinator: ObservableObject {
         let helper = HelperManager.shared
 
         // Check if helper is installed and functional
-        guard helper.isHelperInstalled() else {
+        guard await helper.isHelperInstalled() else {
             logLines.append("ℹ️ Privileged helper not installed")
             return false
         }

@@ -282,10 +282,9 @@ struct PageDotsIndicator: View {
 
     var body: some View {
         let pages = WizardPage.orderedPages
-        let helperInstalled = HelperManager.shared.isHelperInstalled()
         HStack(spacing: WizardDesign.Spacing.labelGap) {
             ForEach(Array(pages.enumerated()), id: \.1) { index, page in
-                let deemphasized = (page == .helper && helperInstalled)
+                let deemphasized = false // Helper status checked elsewhere
                 PageDot(
                     isCurrent: currentPage == page,
                     isDeemphasized: deemphasized,

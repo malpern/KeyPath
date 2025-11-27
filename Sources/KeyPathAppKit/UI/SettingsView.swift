@@ -477,8 +477,7 @@ struct StatusSettingsTabView: View {
         .settingsBackground()
         .withToasts(settingsToastManager)
         .sheet(isPresented: $showingInstallationWizard) {
-            let startPage: WizardPage? = HelperManager.shared.isHelperInstalled() ? nil : .helper
-            InstallationWizardView(initialPage: startPage)
+            InstallationWizardView(initialPage: nil)
                 .customizeSheetWindow()
                 .environmentObject(kanataManager)
         }

@@ -41,8 +41,8 @@ final class KanataDaemonManagerTests: XCTestCase {
         XCTAssertNotNil(hasLegacy)
     }
 
-    func testIsInstalled() {
-        let isInstalled = manager.isInstalled()
+    func testIsInstalled() async {
+        let isInstalled = await manager.isInstalled()
         // Should return boolean without crashing
         XCTAssertNotNil(isInstalled)
     }

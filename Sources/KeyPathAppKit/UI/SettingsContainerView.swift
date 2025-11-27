@@ -194,7 +194,7 @@ private struct RulesDisabledView: View {
 struct AdvancedSettingsTabView: View {
     @EnvironmentObject var kanataManager: KanataViewModel
 
-    @State private var helperInstalled: Bool = HelperManager.shared.isHelperInstalled()
+    @State private var helperInstalled: Bool = false
     @State private var helperVersion: String?
     @State private var helperInProgress = false
     @State private var helperMessage: String?
@@ -430,8 +430,9 @@ struct AdvancedSettingsTabView: View {
     // MARK: - Actions
 
     private func refreshHelperStatus() async {
+        let installed = await HelperManager.shared.isHelperInstalled()
         await MainActor.run {
-            helperInstalled = HelperManager.shared.isHelperInstalled()
+            helperInstalled = installed
         }
         let version = await HelperManager.shared.getHelperVersion()
         await MainActor.run { helperVersion = version }

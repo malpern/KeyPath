@@ -360,11 +360,13 @@ struct WizardHelperPage: View {
             return
         }
 
-        if let next = navigationCoordinator.getNextPage(for: systemState, issues: issues),
-           next != navigationCoordinator.currentPage {
-            navigationCoordinator.navigateToPage(next)
-        } else {
-            navigationCoordinator.navigateToPage(.summary)
+        Task {
+            if let next = await navigationCoordinator.getNextPage(for: systemState, issues: issues),
+               next != navigationCoordinator.currentPage {
+                navigationCoordinator.navigateToPage(next)
+            } else {
+                navigationCoordinator.navigateToPage(.summary)
+            }
         }
     }
 

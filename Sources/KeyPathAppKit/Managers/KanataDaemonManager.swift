@@ -178,24 +178,8 @@ class KanataDaemonManager {
     /// Helper function to check if Kanata process is running
     /// This is used as a fallback when state is ambiguous
     private nonisolated static func pgrepKanataProcessAsync() async -> Bool {
-        await Task.detached {
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-            task.arguments = ["-f", "kanata.*--cfg"]
-
-            let pipe = Pipe()
-            task.standardOutput = pipe
-            task.standardError = pipe
-
-            do {
-                try task.run()
-                task.waitUntilExit()
-                let isRunning = task.terminationStatus == 0
-                return isRunning
-            } catch {
-                return false
-            }
-        }.value
+        let pids = await SubprocessRunner.shared.pgrep("kanata.*--cfg")
+        return !pids.isEmpty
     }
 
     /// Legacy synchronous helper (deprecated)
@@ -206,24 +190,15 @@ class KanataDaemonManager {
 
     /// Check if Kanata daemon is installed and registered via SMAppService
     /// - Returns: true if SMAppService reports `.enabled` OR launchctl has the job
-    nonisolated func isInstalled() -> Bool {
+    nonisolated func isInstalled() async -> Bool {
         let svc = Self.smServiceFactory(Self.kanataPlistName)
         if svc.status == .enabled { return true }
 
         // Best-effort check: does launchd know about the job?
         do {
-            let p = Process()
-            p.launchPath = "/bin/launchctl"
-            p.arguments = ["print", "system/\(Self.kanataServiceID)"]
-            let out = Pipe()
-            p.standardOutput = out
-            let err = Pipe()
-            p.standardError = err
-            try p.run()
-            p.waitUntilExit()
-            if p.terminationStatus == 0 {
-                let data = out.fileHandleForReading.readDataToEndOfFile()
-                let s = String(data: data, encoding: .utf8) ?? ""
+            let result = try await SubprocessRunner.shared.launchctl("print", ["system/\(Self.kanataServiceID)"])
+            if result.exitCode == 0 {
+                let s = result.stdout
                 if s.contains("program") || s.contains("state =") || s.contains("pid =") {
                     AppLogger.shared.log(
                         "ℹ️ [KanataDaemonManager] launchctl reports daemon present while SMAppService status=\(svc.status)"
@@ -292,22 +267,8 @@ class KanataDaemonManager {
             // 2. Check launchd state
             let launchctlOutput: String
             do {
-                let p = Process()
-                p.launchPath = "/bin/launchctl"
-                p.arguments = ["print", "system/\(Self.kanataServiceID)"]
-                let out = Pipe()
-                p.standardOutput = out
-                let err = Pipe()
-                p.standardError = err
-                try p.run()
-                p.waitUntilExit()
-
-                if p.terminationStatus == 0 {
-                    let data = out.fileHandleForReading.readDataToEndOfFile()
-                    launchctlOutput = String(data: data, encoding: .utf8) ?? ""
-                } else {
-                    launchctlOutput = ""
-                }
+                let result = try await SubprocessRunner.shared.launchctl("print", ["system/\(Self.kanataServiceID)"])
+                launchctlOutput = result.exitCode == 0 ? result.stdout : ""
             } catch {
                 launchctlOutput = ""
             }
@@ -648,7 +609,7 @@ class KanataDaemonManager {
         }
 
         // If status is .notFound or .notRegistered, check if process is running anyway
-        if isInstalled() {
+        if await isInstalled() {
             AppLogger.shared.log(
                 "⚠️ [KanataDaemonManager] SMAppService status is \(finalStatus) but service is running")
             AppLogger.shared.log(

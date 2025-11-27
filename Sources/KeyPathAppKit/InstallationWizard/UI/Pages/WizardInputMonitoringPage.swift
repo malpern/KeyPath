@@ -250,11 +250,13 @@ struct WizardInputMonitoringPage: View {
             return
         }
 
-        if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: allIssues),
-           nextPage != navigationCoordinator.currentPage {
-            navigationCoordinator.navigateToPage(nextPage)
-        } else {
-            navigationCoordinator.navigateToPage(.summary)
+        Task {
+            if let nextPage = await navigationCoordinator.getNextPage(for: systemState, issues: allIssues),
+               nextPage != navigationCoordinator.currentPage {
+                navigationCoordinator.navigateToPage(nextPage)
+            } else {
+                navigationCoordinator.navigateToPage(.summary)
+            }
         }
     }
 

@@ -107,7 +107,7 @@ struct InstallationWizardView: View {
         }
         .onAppear {
             hasKeyboardFocus = true
-            setupWizard()
+            Task { await setupWizard() }
         }
         .onChange(of: asyncOperationManager.hasRunningOperations) { _, newValue in
             // When overlays disappear, reclaim focus for ESC key
@@ -358,7 +358,7 @@ struct InstallationWizardView: View {
 
     // MARK: - State Management
 
-    private func setupWizard() {
+    private func setupWizard() async {
         AppLogger.shared.log("🔍 [Wizard] Setting up wizard with new architecture")
 
         // Always reset navigation state for fresh run
@@ -370,7 +370,7 @@ struct InstallationWizardView: View {
 
         // Show summary page immediately with validation state
         // Determine initial page based on cached system snapshot (if available)
-        let preferredPage = cachedPreferredPage()
+        let preferredPage = await cachedPreferredPage()
         if let preferredPage, initialPage == nil {
             AppLogger.shared.log("🔍 [Wizard] Preferring cached page: \(preferredPage)")
             navigationCoordinator.navigateToPage(preferredPage)
@@ -477,7 +477,7 @@ struct InstallationWizardView: View {
                 ) {
                     AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
                     navigationCoordinator.navigateToPage(.summary)
-                } else if let preferred = preferredDetailPage(for: result.state, issues: filteredIssues),
+                } else if let preferred = await preferredDetailPage(for: result.state, issues: filteredIssues),
                           navigationCoordinator.currentPage != preferred {
                     AppLogger.shared.log("🔍 [Wizard] Deterministic routing to \(preferred) (single blocker)")
                     navigationCoordinator.navigateToPage(preferred)
@@ -488,8 +488,8 @@ struct InstallationWizardView: View {
                 }
             }
 
-            // Targeted auto-navigation: if helper isn’t installed, go to Helper page first
-            let recommended = navigationCoordinator.navigationEngine
+            // Targeted auto-navigation: if helper isn't installed, go to Helper page first
+            let recommended = await navigationCoordinator.navigationEngine
                 .determineCurrentPage(for: result.state, issues: filteredIssues)
             if recommended == .helper, navigationCoordinator.currentPage == .summary {
                 AppLogger.shared.log("🔍 [Wizard] Auto-navigating to Helper page (helper missing)")
@@ -1092,8 +1092,8 @@ struct InstallationWizardView: View {
     }
 
     private func preferredDetailPage(for state: WizardSystemState, issues: [WizardIssue])
-        -> WizardPage? {
-        let page = navigationCoordinator.navigationEngine.determineCurrentPage(
+        async -> WizardPage? {
+        let page = await navigationCoordinator.navigationEngine.determineCurrentPage(
             for: state, issues: issues
         )
         guard page != .summary else { return nil }
@@ -1103,12 +1103,12 @@ struct InstallationWizardView: View {
         return (hasExactlyOneIssue || serviceOnly) ? page : nil
     }
 
-    private func cachedPreferredPage() -> WizardPage? {
+    private func cachedPreferredPage() async -> WizardPage? {
         // Use last known system state from WizardStateManager if available
         guard let cachedState = stateManager.lastWizardSnapshot else { return nil }
         let adaptedIssues = cachedState.issues
         let adaptedState = cachedState.state
-        return preferredDetailPage(for: adaptedState, issues: adaptedIssues)
+        return await preferredDetailPage(for: adaptedState, issues: adaptedIssues)
     }
 
     private func sanitizedIssues(from issues: [WizardIssue], for state: WizardSystemState)
@@ -1144,11 +1144,16 @@ struct InstallationWizardView: View {
         ) {
             AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
             navigationCoordinator.navigateToPage(.summary)
-        } else if let preferred = preferredDetailPage(for: result.state, issues: filteredIssues),
-                  navigationCoordinator.currentPage != preferred {
-            AppLogger.shared.log("🔄 [Wizard] Deterministic routing to \(preferred) after refresh")
-            navigationCoordinator.navigateToPage(preferred)
-        } else if navigationCoordinator.currentPage == .summary {
+        } else {
+            Task {
+                if let preferred = await preferredDetailPage(for: result.state, issues: filteredIssues),
+                   navigationCoordinator.currentPage != preferred {
+                    AppLogger.shared.log("🔄 [Wizard] Deterministic routing to \(preferred) after refresh")
+                    navigationCoordinator.navigateToPage(preferred)
+                }
+            }
+        }
+        if navigationCoordinator.currentPage == .summary {
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
                 autoNavigateIfSingleIssue(in: filteredIssues, state: result.state)

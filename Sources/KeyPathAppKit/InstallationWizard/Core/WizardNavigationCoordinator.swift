@@ -37,11 +37,11 @@ class WizardNavigationCoordinator: ObservableObject {
     }
 
     /// Auto-navigate based on system state (if user hasn't interacted recently)
-    func autoNavigateIfNeeded(for state: WizardSystemState, issues: [WizardIssue]) {
+    func autoNavigateIfNeeded(for state: WizardSystemState, issues: [WizardIssue]) async {
         // Don't auto-navigate if user has recently interacted
         guard !isInUserInteractionMode() else { return }
 
-        let recommendedPage = navigationEngine.determineCurrentPage(for: state, issues: issues)
+        let recommendedPage = await navigationEngine.determineCurrentPage(for: state, issues: issues)
 
         // Only navigate if it's different from current page
         guard recommendedPage != currentPage else { return }
@@ -58,8 +58,8 @@ class WizardNavigationCoordinator: ObservableObject {
     }
 
     /// Get the next logical page in the wizard flow
-    func getNextPage(for state: WizardSystemState, issues: [WizardIssue]) -> WizardPage? {
-        navigationEngine.nextPage(from: currentPage, given: state, issues: issues)
+    func getNextPage(for state: WizardSystemState, issues: [WizardIssue]) async -> WizardPage? {
+        await navigationEngine.nextPage(from: currentPage, given: state, issues: issues)
     }
 
     /// Reset navigation state (typically called when wizard starts)

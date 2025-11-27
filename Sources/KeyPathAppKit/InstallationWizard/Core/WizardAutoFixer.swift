@@ -207,7 +207,7 @@ class WizardAutoFixer: AutoFixCapable {
         AppLogger.shared.log("🔧 [AutoFixer] Reinstalling privileged helper")
 
         // First unregister if installed
-        if HelperManager.shared.isHelperInstalled() {
+        if await HelperManager.shared.isHelperInstalled() {
             AppLogger.shared.log("ℹ️ [AutoFixer] Unregistering existing helper first")
             await HelperManager.shared.disconnect()
         }

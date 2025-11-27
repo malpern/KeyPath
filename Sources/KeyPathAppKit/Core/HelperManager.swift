@@ -75,7 +75,7 @@ actor HelperManager {
     /// Get or create the XPC connection to the helper
     /// - Returns: The active XPC connection
     /// - Throws: HelperError if connection cannot be established
-    private func getConnection() throws -> NSXPCConnection {
+    private func getConnection() async throws -> NSXPCConnection {
         // Check if existing connection is still valid
         if let existingConnection = connection {
             // Verify connection is still alive by checking if we can get process identifier
@@ -100,7 +100,7 @@ actor HelperManager {
         }
 
         // Best-effort: verify embedded helper signature/requirement before connecting
-        verifyEmbeddedHelperSignature()
+        await verifyEmbeddedHelperSignature()
 
         // Create new connection
         AppLogger.shared.log(
@@ -184,24 +184,15 @@ actor HelperManager {
     /// On macOS 13+, the helper binary remains embedded inside the app bundle and is
     /// invoked via `BundleProgram` in the plist; there is no binary at
     /// `/Library/PrivilegedHelperTools` as with legacy SMJobBless.
-    nonisolated func isHelperInstalled() -> Bool {
+    nonisolated func isHelperInstalled() async -> Bool {
         let svc = Self.smServiceFactory(Self.helperPlistName)
         if svc.status == .enabled { return true }
 
         // Best-effort check: does launchd know about the job?
         do {
-            let p = Process()
-            p.launchPath = "/bin/launchctl"
-            p.arguments = ["print", "system/\(Self.helperBundleIdentifier)"]
-            let out = Pipe()
-            p.standardOutput = out
-            let err = Pipe()
-            p.standardError = err
-            try p.run()
-            p.waitUntilExit()
-            if p.terminationStatus == 0 {
-                let data = out.fileHandleForReading.readDataToEndOfFile()
-                let s = String(data: data, encoding: .utf8) ?? ""
+            let result = try await SubprocessRunner.shared.launchctl("print", ["system/\(Self.helperBundleIdentifier)"])
+            if result.exitCode == 0 {
+                let s = result.stdout
                 if s.contains("program") || s.contains("state =") || s.contains("pid =") {
                     AppLogger.shared.debug(
                         "[HelperManager] launchctl reports helper present while SMAppService status=\(svc.status)"
@@ -230,13 +221,13 @@ actor HelperManager {
         }
 
         // Query version from helper
-        guard isHelperInstalled() else {
+        guard await isHelperInstalled() else {
             AppLogger.shared.log("⚠️ [HelperManager] Helper not installed, cannot get version")
             return nil
         }
 
         do {
-            let proxy = try getRemoteProxy { _ in /* proxy error handled by timeout path */ }
+            let proxy = try await getRemoteProxy { _ in /* proxy error handled by timeout path */ }
             return await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
                 let sema = DispatchSemaphore(value: 0)
                 final class VersionHolder: @unchecked Sendable {
@@ -320,7 +311,7 @@ actor HelperManager {
         AppLogger.shared.log("🧪 [HelperManager] Testing helper functionality via XPC ping")
 
         // Pre-flight check: Must be installed first
-        guard isHelperInstalled() else {
+        guard await isHelperInstalled() else {
             AppLogger.shared.log("❌ [HelperManager] Functionality test failed: Not installed")
             return false
         }
@@ -348,55 +339,46 @@ actor HelperManager {
 
     /// Fetch the last N helper log messages (message text only)
     /// Uses `log show` with a tight window to avoid heavy queries.
-    nonisolated func lastHelperLogs(count: Int = 3, windowSeconds: Int = 300) -> [String] {
+    nonisolated func lastHelperLogs(count: Int = 3, windowSeconds: Int = 300) async -> [String] {
         // First: if launchctl has no record of the job, surface that clearly.
         do {
-            let p = Process()
-            p.launchPath = "/bin/launchctl"
-            p.arguments = ["print", "system/com.keypath.helper"]
-            let out = Pipe()
-            p.standardOutput = out
-            let err = Pipe()
-            p.standardError = err
-            try p.run()
-            p.waitUntilExit()
-            if p.terminationStatus != 0 {
-                let errData = err.fileHandleForReading.readDataToEndOfFile()
-                let errStr = String(data: errData, encoding: .utf8) ?? ""
+            let result = try await SubprocessRunner.shared.launchctl("print", ["system/com.keypath.helper"])
+            if result.exitCode != 0 {
+                let errStr = result.stderr
                 if errStr.contains("Could not find service") || errStr.contains("Bad request") {
                     return [
                         "Helper not registered: launchctl has no job 'system/com.keypath.helper'",
-                        "Click ‘Install Helper’, then Test XPC again."
+                        "Click 'Install Helper', then Test XPC again."
                     ]
                 }
             }
         } catch {
             // Ignore; fall through to unified-log path
         }
-        func fetch(_ seconds: Int) -> [String] {
-            let p = Process()
-            p.launchPath = "/usr/bin/log"
-            p.arguments = [
-                "show",
-                "--last", "\(seconds)s",
-                "--style", "syslog",
-                "--predicate",
-                "process == 'KeyPathHelper' OR processImagePath CONTAINS[c] 'KeyPathHelper'"
-            ]
-            let out = Pipe()
-            p.standardOutput = out
-            p.standardError = Pipe()
-            do { try p.run() } catch { return [] }
-            p.waitUntilExit()
-            let data = out.fileHandleForReading.readDataToEndOfFile()
-            guard let s = String(data: data, encoding: .utf8), !s.isEmpty else { return [] }
-            return s.split(separator: "\n").map(String.init)
+        func fetch(_ seconds: Int) async -> [String] {
+            do {
+                let result = try await SubprocessRunner.shared.run(
+                    "/usr/bin/log",
+                    args: [
+                        "show",
+                        "--last", "\(seconds)s",
+                        "--style", "syslog",
+                        "--predicate",
+                        "process == 'KeyPathHelper' OR processImagePath CONTAINS[c] 'KeyPathHelper'"
+                    ],
+                    timeout: 10
+                )
+                guard !result.stdout.isEmpty else { return [] }
+                return result.stdout.split(separator: "\n").map(String.init)
+            } catch {
+                return []
+            }
         }
         // Try progressively larger windows
         let windows = [max(60, windowSeconds), 1800, 86400]
         var collected: [String] = []
         for w in windows {
-            let lines = fetch(w)
+            let lines = await fetch(w)
             // Extract message part after the first ': '
             let messages = lines.compactMap { line -> String? in
                 guard let range = line.range(of: ": ") else { return nil }
@@ -429,7 +411,7 @@ actor HelperManager {
     /// Check if helper needs upgrade (installed but wrong version)
     /// - Returns: true if upgrade needed, false otherwise
     func needsHelperUpgrade() async -> Bool {
-        guard isHelperInstalled() else {
+        guard await isHelperInstalled() else {
             return false // Not installed, not an upgrade case
         }
 
@@ -559,7 +541,7 @@ actor HelperManager {
             return .requiresApproval("Approval required in System Settings → Login Items.")
         }
 
-        let installed = isHelperInstalled()
+        let installed = await isHelperInstalled()
         if !installed {
             return .notInstalled
         }
@@ -589,8 +571,8 @@ actor HelperManager {
     // MARK: - XPC Protocol Wrappers
 
     /// Get the remote object proxy with a per-call error handler so callers can resume awaits
-    private func getRemoteProxy(errorHandler: @escaping (Error) -> Void) throws -> HelperProtocol {
-        let connection = try getConnection()
+    private func getRemoteProxy(errorHandler: @escaping (Error) -> Void) async throws -> HelperProtocol {
+        let connection = try await getConnection()
         guard
             let proxy = connection.remoteObjectProxyWithErrorHandler({ err in
                 AppLogger.shared.log("❌ [HelperManager] XPC proxy error: \(err.localizedDescription)")
@@ -649,7 +631,7 @@ actor HelperManager {
 
         AppLogger.shared.log("📤 [HelperManager] Calling \(name)")
 
-        let proxy = try getRemoteProxy { _ in }
+        let proxy = try await getRemoteProxy { _ in }
 
         // Execute with timeout to prevent infinite hangs when XPC connection is interrupted
         // Use a class with lock for thread-safe completion tracking
@@ -768,7 +750,7 @@ actor HelperManager {
     func terminateProcess(_ pid: Int32) async throws {
         AppLogger.shared.log("📤 [HelperManager] Calling terminateProcess(\(pid))")
 
-        let proxy = try getRemoteProxy { _ in }
+        let proxy = try await getRemoteProxy { _ in }
 
         return try await withCheckedThrowingContinuation { continuation in
             proxy.terminateProcess(pid) { success, errorMessage in
@@ -830,7 +812,7 @@ actor HelperManager {
 extension HelperManager {
     /// Verify the embedded helper's designated requirement roughly matches expectations.
     /// Logs warnings on mismatch; does not block connection (to avoid false positives during dev).
-    private nonisolated func verifyEmbeddedHelperSignature() {
+    private nonisolated func verifyEmbeddedHelperSignature() async {
         let fm = FileManager.default
         // Use the production app path (like SignatureHealthCheck does)
         // Bundle.main.bundlePath can be wrong when launched via Xcode tools
@@ -843,29 +825,20 @@ extension HelperManager {
         }
 
         // Extract designated requirement using codesign
-        let cs = Process()
-        cs.launchPath = "/usr/bin/codesign"
-        cs.arguments = ["-d", "-r-", helperPath]
-        let out = Pipe()
-        let err = Pipe()
-        cs.standardOutput = out
-        cs.standardError = err
-        do { try cs.run() } catch {
-            AppLogger.shared.log(
-                "⚠️ [HelperManager] Could not run codesign: \(error.localizedDescription)")
-            return
-        }
-        cs.waitUntilExit()
-        let outStr = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        let errStr = String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        let combined = outStr + "\n" + errStr
-        guard
-            let req = combined.components(separatedBy: "designated =>").last?.trimmingCharacters(
-                in: .whitespacesAndNewlines), !req.isEmpty
-        else {
-            AppLogger.shared.log("⚠️ [HelperManager] Could not parse helper designated requirement")
-            return
-        }
+        do {
+            let result = try await SubprocessRunner.shared.run(
+                "/usr/bin/codesign",
+                args: ["-d", "-r-", helperPath],
+                timeout: 10
+            )
+            let combined = result.stdout + "\n" + result.stderr
+            guard
+                let req = combined.components(separatedBy: "designated =>").last?.trimmingCharacters(
+                    in: .whitespacesAndNewlines), !req.isEmpty
+            else {
+                AppLogger.shared.log("⚠️ [HelperManager] Could not parse helper designated requirement")
+                return
+            }
 
         // Minimal checks
         var warnings: [String] = []
@@ -902,6 +875,10 @@ extension HelperManager {
                 )
             }
             AppLogger.shared.log("ℹ️ [HelperManager] codesign designated => \(req)")
+        }
+        } catch {
+            AppLogger.shared.log(
+                "⚠️ [HelperManager] Could not run codesign: \(error.localizedDescription)")
         }
     }
 }

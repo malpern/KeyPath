@@ -257,8 +257,8 @@ struct WizardStateInterpreter {
     /// Whether we should surface the Helper CTA on Summary.
     /// Extracted for testability; default provider checks real helper install state.
     func shouldShowHelperCTA(
-        helperInstalledProvider: () -> Bool = { HelperManager.shared.isHelperInstalled() }
-    ) -> Bool {
-        !helperInstalledProvider()
+        helperInstalledProvider: () async -> Bool = { await HelperManager.shared.isHelperInstalled() }
+    ) async -> Bool {
+        !(await helperInstalledProvider())
     }
 }

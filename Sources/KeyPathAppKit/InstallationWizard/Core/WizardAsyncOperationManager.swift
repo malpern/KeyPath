@@ -35,7 +35,7 @@ class WizardAsyncOperationManager {
     func execute<T: Sendable>(
         operation: AsyncOperation<T>,
         timeout: TimeInterval? = nil,
-        onSuccess: @escaping @MainActor (T) -> Void = { _ in },
+        onSuccess: @escaping @MainActor (T) async -> Void = { _ in },
         onFailure: @escaping @MainActor (WizardError) -> Void = { _ in }
     ) {
         let operationId = operation.id
@@ -107,9 +107,7 @@ class WizardAsyncOperationManager {
                 AppLogger.shared.debug("✅ [AsyncOp] Operation completed: \(opName)")
 
                 // Call success handler on main thread
-                await MainActor.run {
-                    onSuccess(result)
-                }
+                await onSuccess(result)
 
             } catch {
                 // Check if this was a cancellation
