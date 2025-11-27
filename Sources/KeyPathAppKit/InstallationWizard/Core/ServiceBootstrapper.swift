@@ -714,11 +714,12 @@ final class ServiceBootstrapper {
             return true
         }
 
-        // Step 1: Install VirtualHID services
-        AppLogger.shared.log("📱 [ServiceBootstrapper] Step 1: Installing VirtualHID services via launchctl")
-        let vhidSuccess = await repairVHIDDaemonServices()
-        guard vhidSuccess else {
-            AppLogger.shared.log("❌ [ServiceBootstrapper] VirtualHID installation failed")
+        // Step 1: Install VirtualHID services (helper-first, falls back to osascript)
+        AppLogger.shared.log("📱 [ServiceBootstrapper] Step 1: Installing VirtualHID services via PrivilegedOperationsCoordinator")
+        do {
+            try await PrivilegedOperationsCoordinator.shared.repairVHIDDaemonServices()
+        } catch {
+            AppLogger.shared.log("❌ [ServiceBootstrapper] VirtualHID installation failed: \(error.localizedDescription)")
             return false
         }
 

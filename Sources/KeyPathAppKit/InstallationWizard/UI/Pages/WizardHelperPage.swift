@@ -64,16 +64,28 @@ struct WizardHelperPage: View {
         !hasNotInstalledIssue
     }
 
-    private var versionText: String {
-        if let helperVersion {
-            "Helper is installed and working (v\(helperVersion))"
+    private var nextStepButtonTitle: String {
+        issues.isEmpty ? "Return to Summary" : "Next Issue"
+    }
+
+    /// Contextual headline for the setup view - adapts to current state
+    private var contextualHeadline: String {
+        if needsLoginItemsApproval {
+            "Login Items Approval Required"
+        } else if isInstalled {
+            "Privileged Helper Not Responding"
         } else {
-            "Helper is installed and working"
+            "Privileged Helper Not Installed"
         }
     }
 
-    private var nextStepButtonTitle: String {
-        issues.isEmpty ? "Return to Summary" : "Next Issue"
+    /// Contextual description for the setup view - adapts to current state
+    private var contextualDescription: String {
+        if needsLoginItemsApproval {
+            "Enable KeyPath in System Settings → Login Items."
+        } else {
+            "Enables system operations without repeated password prompts."
+        }
     }
 
     // MARK: - Body
@@ -130,15 +142,15 @@ struct WizardHelperPage: View {
                 .frame(width: 115, height: 115)
             }
 
-            // Headline
-            Text("Privileged Helper")
+            // Contextual Headline
+            Text("Privileged Helper Ready")
                 .font(.system(size: 23, weight: .semibold, design: .default))
                 .foregroundColor(.primary)
                 .multilineTextAlignment(.center)
 
-            // Subtitle
-            Text(versionText)
-                .font(.system(size: 17, weight: .regular))
+            // Description
+            Text(helperVersion != nil ? "Version \(helperVersion!) — system operations available" : "System operations available without password prompts.")
+                .font(.system(size: 15, weight: .regular))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
 
@@ -180,10 +192,6 @@ struct WizardHelperPage: View {
                 }
                 .buttonStyle(WizardDesign.Component.SecondaryButton())
                 .disabled(isWorking)
-
-                Text("New helper version available with additional features")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
             }
 
             Button(nextStepButtonTitle) {
@@ -226,17 +234,18 @@ struct WizardHelperPage: View {
                 .frame(width: 115, height: 115)
             }
 
-            // Headline
-            Text("Privileged Helper")
+            // Contextual Headline
+            Text(contextualHeadline)
                 .font(.system(size: 23, weight: .semibold, design: .default))
                 .foregroundColor(.primary)
                 .multilineTextAlignment(.center)
 
-            // Subtitle
-            Text(isInstalled ? "Helper is installed but not responding" : "Helper is not installed")
-                .font(.system(size: 17, weight: .regular))
+            // Description
+            Text(contextualDescription)
+                .font(.system(size: 15, weight: .regular))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
 
             // Inline action status
             if actionStatus.isActive, let message = actionStatus.message {
@@ -244,37 +253,13 @@ struct WizardHelperPage: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
 
-            // Description (show only when not installed; suppress for 'installed but not responding')
-            if !isInstalled {
-                Text(
-                    "The privileged helper enables system operations without repeated admin password prompts."
-                )
-                .font(.system(size: 15, weight: .regular))
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
-            }
-
-            // Show Login Items approval message if needed
+            // Show Login Items approval button if needed
             if needsLoginItemsApproval {
-                VStack(spacing: 12) {
-                    Text("Login Items approval required")
-                        .font(.headline)
-                        .foregroundColor(.orange)
-
-                    Text("Enable KeyPath in System Settings → Login Items to allow the helper to run.")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 20)
-
-                    Button("Open Login Items Settings") {
-                        openLoginItemsSettings()
-                    }
-                    .buttonStyle(WizardDesign.Component.PrimaryButton())
-                    .keyboardShortcut(.defaultAction)
+                Button("Open Login Items Settings") {
+                    openLoginItemsSettings()
                 }
-                .padding(.vertical, 8)
+                .buttonStyle(WizardDesign.Component.PrimaryButton())
+                .keyboardShortcut(.defaultAction)
             } else {
                 // Single idempotent action: install or repair (performs cleanup + install)
                 Button(isInstalled ? "Repair Helper" : "Install Helper") {

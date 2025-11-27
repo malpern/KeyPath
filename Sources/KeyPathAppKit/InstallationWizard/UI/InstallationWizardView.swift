@@ -896,15 +896,6 @@ struct InstallationWizardView: View {
             fixInFlight = false
         }
 
-        // IMMEDIATE crash-proof logging for ACTUAL Fix button
-        Swift.print(
-            "*** IMMEDIATE DEBUG *** ACTUAL Fix button clicked for action: \(action) at \(Date())")
-        try? "*** IMMEDIATE DEBUG *** ACTUAL Fix button clicked for action: \(action) at \(Date())\n"
-            .write(
-                to: URL(fileURLWithPath: NSHomeDirectory() + "/actual-fix-button-debug.txt"),
-                atomically: true, encoding: .utf8
-            )
-
         AppLogger.shared.log("🔧 [Wizard] Auto-fix for specific action: \(action)")
 
         // Short-circuit service installs when Login Items approval is pending

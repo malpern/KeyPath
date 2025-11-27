@@ -187,6 +187,56 @@ Robust app restart logic to prevent mismatched helpers.
 
 **Alternative considered**: Contributing `--check-permissions` to Kanata upstream. Rejected because maintainer has no macOS devices and the API (`IOHIDCheckAccess`) doesn't work correctly from daemon context anyway.
 
+### ADR-017: InstallerEngine Protocol Segregation (ISP) ✅
+Three separate protocols exist for InstallerEngine - this is intentional Interface Segregation:
+- `InstallerEngineProtocol` (4 methods) - CLI layer, @MainActor
+- `WizardInstallerEngineProtocol` (1 method) - Wizard layer, Sendable for concurrency
+- `InstallerEnginePrivilegedRouting` (3 methods) - Services layer, throws
+
+**Why separate:** Zero method overlap. Each consumer gets exactly what it needs. Different Sendable/throwing requirements. Smaller test mocks. **Do not consolidate.**
+
+### ADR-018: HelperProtocol XPC Duplication ✅
+`HelperProtocol.swift` exists as identical copies in two locations:
+- `Sources/KeyPathAppKit/Core/HelperProtocol.swift`
+- `Sources/KeyPathHelper/HelperProtocol.swift`
+
+**Why duplicated:** XPC architecture requires the protocol compiled into both app and helper separately - they cannot share a module at runtime. The helper is a standalone Mach-O binary.
+
+**Risk:** If files diverge, XPC calls fail at runtime with selector-not-found errors.
+
+**Mitigation:** `HelperProtocolSyncTests` validates both files are identical. CI will fail if they diverge.
+
+**When modifying:** Update BOTH files, then run `swift test --filter HelperProtocolSyncTests`.
+
+### ADR-019: Test Seams via TestEnvironment Checks ✅
+Production code uses `TestEnvironment.isRunningTests` checks (37 occurrences) to disable side effects during testing.
+
+**What's protected:** Process spawning (`pgrep`), CGEvent taps, sound playback, TCP connections, modal alerts, Notification Center, file watchers.
+
+**Why not full DI:** Would require injecting SoundManager, NotificationService, EventTapController, SafetyAlertPresenter, shell runners, TCP clients, etc. - massive refactoring for marginal benefit.
+
+**Why this is safe:** These checks guard **side effects**, not business logic. Core logic still executes and is tested.
+
+**Escape hatches:** `KEYPATH_FORCE_REAL_VALIDATION=1` forces real behavior when needed.
+
+**For new code:** Prefer injectable seams (like `VHIDDeviceManager.testPIDProvider`) over environment checks where practical. Use `TestEnvironment.isRunningTests` for UI/system side effects that would disrupt test execution.
+
+### ADR-020: Process Detection Strategy (pgrep vs launchctl) ✅
+Two approaches for detecting running processes, each for different scenarios:
+
+**Use `launchctl` (preferred for our services):**
+- Checking if `com.keypath.kanata` or `com.keypath.karabiner-vhiddaemon` is running
+- Fast, reliable, no subprocess spawning race conditions
+- Already migrated in `SystemValidator`, `ServiceHealthChecker`
+
+**Use `pgrep` (required for these cases):**
+- **External processes** (Karabiner's `karabiner_grabber`, `VirtualHIDDevice-Daemon`) - not our launchd services
+- **Orphan detection** - finding kanata processes NOT managed by launchd
+- **Post-kill verification** - checking if process died after `pkill`
+- **Diagnostics** - enumerating ALL matching processes
+
+**Do not migrate remaining pgrep usages** - they exist for scenarios where launchctl cannot help.
+
 ## Build Commands
 
 ```bash
