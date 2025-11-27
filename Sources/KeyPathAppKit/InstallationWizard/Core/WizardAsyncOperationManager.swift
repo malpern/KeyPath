@@ -87,7 +87,8 @@ class WizardAsyncOperationManager {
 
                     // Timeout task
                     group.addTask {
-                        try await Task.sleep(nanoseconds: UInt64(timeoutDuration * 1_000_000_000))
+                        let clock = ContinuousClock()
+                        try await clock.sleep(for: .seconds(timeoutDuration))
                         throw TimeoutError(operation: opName, timeout: timeoutDuration)
                     }
 
@@ -256,24 +257,6 @@ struct AsyncOperation<T> {
 // MARK: - Operation Factory
 
 enum WizardOperations {
-    // COMMENTED OUT: WizardStateManager is in UI target, cannot be referenced from Core target
-    // This factory method should be moved to UI layer since it's only used there
-    // swiftlint:disable:next todo
-    // TODO: Move this to InstallationWizardView.swift or create a UI-layer WizardOperations extension
-    /*
-     /// State detection operation
-     static func stateDetection(stateManager: WizardStateManager) -> AsyncOperation<SystemStateResult> {
-         AsyncOperation<SystemStateResult>(
-             id: "state_detection",
-             name: "System State Detection"
-         ) { progressCallback in
-             progressCallback(0.1)
-             let result = await stateManager.detectCurrentState()
-             progressCallback(1.0)
-             return result
-         }
-     }
-     */
 
     /// Auto-fix operation with detailed progress tracking
     static func autoFix(
@@ -295,7 +278,8 @@ enum WizardOperations {
                 progressCallback(0.8)
 
                 // Brief pause to show completion
-                try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+                let clock = ContinuousClock()
+                try await clock.sleep(for: .milliseconds(500)) // 0.5 seconds
                 progressCallback(1.0)
                 return success
 
@@ -304,14 +288,15 @@ enum WizardOperations {
                 progressCallback(0.15)
 
                 // Simulate preparation phase
-                try await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
+                let clock = ContinuousClock()
+                try await clock.sleep(for: .milliseconds(200)) // 0.2 seconds
                 progressCallback(0.25)
 
                 let success = await autoFixer.performAutoFix(action)
                 progressCallback(0.85)
 
                 // Brief pause for verification
-                try await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
+                try await clock.sleep(for: .milliseconds(300)) // 0.3 seconds
                 progressCallback(1.0)
                 return success
 
@@ -322,7 +307,8 @@ enum WizardOperations {
                 progressCallback(0.9)
 
                 // Allow time for driver activation to complete
-                try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                let clock = ContinuousClock()
+                try await clock.sleep(for: .seconds(1)) // 1 second
                 progressCallback(1.0)
                 return success
 
@@ -333,7 +319,8 @@ enum WizardOperations {
                 progressCallback(0.9)
 
                 // Brief completion pause
-                try await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
+                let clock = ContinuousClock()
+                try await clock.sleep(for: .milliseconds(300)) // 0.3 seconds
                 progressCallback(1.0)
                 return success
             }
@@ -356,7 +343,8 @@ enum WizardOperations {
 
             if restarted {
                 // Give the service a short window to settle so the summary screen doesn’t flicker.
-                try await Task.sleep(nanoseconds: 1_000_000_000)
+                let clock = ContinuousClock()
+                try await clock.sleep(for: .seconds(1))
                 await kanataManager.updateStatus()
             }
 
@@ -392,7 +380,8 @@ enum WizardOperations {
             let maxAttempts = 30 // 30 seconds max
 
             while attempts < maxAttempts {
-                try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                let clock = ContinuousClock()
+                try await clock.sleep(for: .seconds(1)) // 1 second
                 attempts += 1
                 progressCallback(0.3 + (Double(attempts) / Double(maxAttempts)) * 0.7)
 

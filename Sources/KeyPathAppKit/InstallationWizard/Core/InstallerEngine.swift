@@ -368,7 +368,7 @@ public final class InstallerEngine {
                 "⚠️ [InstallerEngine] VirtualHID Manager not activated - activating before daemon install")
             try await broker.activateVirtualHIDManager()
             // Wait for activation to take effect
-            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+            _ = await WizardSleep.ms(1_000) // 1 second
 
             // Verify activation
             if !vhidManager.detectActivation() {
@@ -393,7 +393,7 @@ public final class InstallerEngine {
             AppLogger.shared.log(
                 "⚠️ [InstallerEngine] VirtualHID Manager not activated - activating before restart")
             try await broker.activateVirtualHIDManager()
-            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+            _ = await WizardSleep.ms(1_000) // 1 second
         }
 
         if let serviceID = recipe.serviceID, serviceID == KeyPathConstants.Bundle.daemonID {

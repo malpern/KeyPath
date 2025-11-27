@@ -1,3 +1,4 @@
+import Foundation
 import KeyPathCore
 import KeyPathWizardCore
 import SwiftUI
@@ -294,7 +295,7 @@ struct WizardKarabinerComponentsPage: View {
             let ok = await performAutoFix(.installCorrectVHIDDriver)
             if ok { return true }
             // Small delay before retry to allow systemextensionsctl to settle
-            try? await Task.sleep(nanoseconds: 400_000_000)
+            _ = await WizardSleep.ms(200)
         }
 
         // If installation failed but SMAppService is merely awaiting approval, prompt the user
@@ -411,7 +412,7 @@ struct WizardKarabinerComponentsPage: View {
         let refreshDeadline = Date().addingTimeInterval(stateRefreshTimeoutSeconds)
         while stateManager.stateVersion == versionBefore, Date() < refreshDeadline {
             await Task.yield()
-            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms polling interval
+            _ = await WizardSleep.ms(20) // 20ms polling interval
         }
 
         let refreshElapsed = String(format: "%.2f", Date().timeIntervalSince(t0))

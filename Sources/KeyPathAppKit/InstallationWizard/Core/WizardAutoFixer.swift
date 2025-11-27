@@ -27,6 +27,58 @@ class WizardAutoFixer: AutoFixCapable {
         self.bundledRuntimeCoordinator = bundledRuntimeCoordinator
     }
 
+    // MARK: - Readiness helpers
+
+    /// Wait for a launchd service to report healthy.
+    private func awaitServiceHealthy(
+        _ serviceID: String,
+        timeoutSeconds: Double = 5.0,
+        pollMs: Int = 200
+    ) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeoutSeconds)
+        while Date() < deadline {
+            if await ServiceHealthChecker.shared.isServiceHealthy(serviceID: serviceID) {
+                return true
+            }
+            _ = await WizardSleep.ms(pollMs)
+        }
+        return false
+    }
+
+    /// Wait for TCP server readiness using a short-lived client.
+    private func awaitTCPReady(
+        port: Int,
+        timeoutMs: Int = 3_000,
+        pollMs: Int = 200
+    ) async -> Bool {
+        let start = Date()
+        let client = KanataTCPClient(port: port, timeout: Double(pollMs) / 1000.0)
+        defer { Task { await client.cancelInflightAndCloseConnection() } }
+
+        while Date().timeIntervalSince(start) * 1000 < Double(timeoutMs) {
+            if await client.checkServerStatus() {
+                return true
+            }
+            _ = await WizardSleep.ms(pollMs)
+        }
+        return false
+    }
+
+    /// Wait for VHID health (daemon running + connection healthy).
+    private func awaitVHIDHealthy(
+        timeoutSeconds: Double = 4.0,
+        pollMs: Int = 200
+    ) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeoutSeconds)
+        while Date() < deadline {
+            if await vhidDeviceManager.detectConnectionHealth() {
+                return true
+            }
+            _ = await WizardSleep.ms(pollMs)
+        }
+        return false
+    }
+
     // MARK: - Error Analysis
 
     /// Analyze a kanata startup error and provide guidance
@@ -286,12 +338,14 @@ class WizardAutoFixer: AutoFixCapable {
 
         let restartOk = await restartVirtualHIDDaemon()
         AppLogger.shared.log("🔧 [AutoFixer] Post-install restart verified: \(restartOk)")
+        let vhidHealthy = await awaitVHIDHealthy()
+        AppLogger.shared.log("🔧 [AutoFixer] VHID health after install: \(vhidHealthy)")
         let post = await captureVHIDSnapshot()
         logFixSessionSummary(
-            session: session, action: "installCorrectVHIDDriver", success: restartOk, start: t0, pre: pre,
+            session: session, action: "installCorrectVHIDDriver", success: restartOk && vhidHealthy, start: t0, pre: pre,
             post: post
         )
-        return true
+        return restartOk && vhidHealthy
     }
 
     private func fixDriverVersionMismatch() async -> Bool {
@@ -333,7 +387,7 @@ class WizardAutoFixer: AutoFixCapable {
         let session = UUID().uuidString
         let t0 = Date()
         let pre = await captureVHIDSnapshot()
-        let success: Bool
+        var success: Bool
         do {
             try await PrivilegedOperationsCoordinator.shared.downloadAndInstallCorrectVHIDDriver()
             AppLogger.shared.log("🔧 [AutoFixer] Coordinator call completed successfully")
@@ -364,8 +418,13 @@ class WizardAutoFixer: AutoFixCapable {
                 AppLogger.shared.error("⚠️ [AutoFixer] Failed to restart VHID services: \(error)")
             }
 
-            // Give services a moment to fully initialize
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+            // Verify VHID is healthy instead of sleeping
+            let vhidHealthy = await awaitVHIDHealthy()
+            AppLogger.shared.log("🔍 [AutoFixer] VHID health after version fix: \(vhidHealthy)")
+            if !vhidHealthy {
+                AppLogger.shared.warn("⚠️ [AutoFixer] VHID still not healthy after version fix")
+            }
+            success = success && vhidHealthy
 
             // Show success message
             await MainActor.run {
@@ -448,7 +507,7 @@ class WizardAutoFixer: AutoFixCapable {
         }
 
         // 5. Wait for system to settle
-        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+        _ = await WizardSleep.seconds(2) // 2 seconds
 
         AppLogger.shared.info("✅ [AutoFixer] Reset complete - system should be in clean state")
         return true
@@ -476,7 +535,7 @@ class WizardAutoFixer: AutoFixCapable {
         }
 
         // Give the system a moment to settle, then re-check
-        try? await Task.sleep(nanoseconds: 800_000_000)
+        _ = await WizardSleep.ms(800)
         let after = await processManager.detectConflicts()
         let remaining = after.externalProcesses.count
 
@@ -504,7 +563,7 @@ class WizardAutoFixer: AutoFixCapable {
         }
 
         // Verify exit
-        try? await Task.sleep(nanoseconds: 400_000_000)
+        _ = await WizardSleep.ms(400)
         let still = await runCommand("/bin/kill", ["-0", String(pid)]) == 0
         if still {
             AppLogger.shared.warn("⚠️ [AutoFixer] PID=\(pid) still appears alive after helper termination")
@@ -554,6 +613,9 @@ class WizardAutoFixer: AutoFixCapable {
 
         if success {
             AppLogger.shared.info("✅ [AutoFixer] Successfully started Karabiner daemon")
+            // Confirm health to avoid false positives
+            let healthy = await awaitServiceHealthy(ServiceBootstrapper.kanataServiceID)
+            AppLogger.shared.log("🔍 [AutoFixer] Kanata daemon health after start: \(healthy)")
         } else {
             AppLogger.shared.error("❌ [AutoFixer] Failed to start Karabiner daemon")
         }
@@ -587,10 +649,10 @@ class WizardAutoFixer: AutoFixCapable {
         } else {
             AppLogger.shared.error(
                 "❌ [AutoFixer] VirtualHID daemon restart failed - user can retry via Fix button")
-            // Removed legacy fallback cascade (Nov 2025 optimization) - user can click Fix again
-            // To restore: uncomment below and increase timing constants in PrivilegedOperationsCoordinator
-            // AppLogger.shared.warn("⚠️ [AutoFixer] Trying legacy restart as fallback")
-            // return await legacyRestartVirtualHIDDaemon()
+            if FeatureFlags.useLegacyVHIDRestartFallback {
+                AppLogger.shared.warn("⚠️ [AutoFixer] Trying legacy restart fallback (flag enabled)")
+                return await legacyRestartVirtualHIDDaemon()
+            }
             return false
         }
     }
@@ -679,7 +741,7 @@ class WizardAutoFixer: AutoFixCapable {
             )
 
             // Wait for process to terminate
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+            _ = await WizardSleep.ms(500) // 0.5 seconds
 
             // Start daemon again
             let startSuccess = await startKarabinerDaemon()
@@ -761,7 +823,7 @@ class WizardAutoFixer: AutoFixCapable {
             }
 
             // Wait a moment for user to potentially complete the action
-            try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+            _ = await WizardSleep.seconds(2) // 2 seconds
 
             // Check if activation succeeded after user intervention
             let manualSuccess = vhidDeviceManager.detectActivation()
@@ -926,7 +988,7 @@ class WizardAutoFixer: AutoFixCapable {
 
             if result.exitCode == 0 {
                 // Wait a bit for graceful termination
-                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+                _ = await WizardSleep.ms(500) // 0.5 seconds
 
                 // Check if process is still running
                 let checkResult = try await SubprocessRunner.shared.run(
@@ -1155,14 +1217,15 @@ class WizardAutoFixer: AutoFixCapable {
                 try await KanataDaemonManager.shared.unregister()
 
                 // Wait briefly for unregistration to complete
-                try await Task.sleep(nanoseconds: 500_000_000) // 500ms
+                let clock = ContinuousClock()
+                try await clock.sleep(for: .milliseconds(500)) // 500ms
 
                 // Re-register to force launchd to load
                 AppLogger.shared.log("📝 [AutoFixer] Re-registering service...")
                 try await KanataDaemonManager.shared.register()
 
                 // Wait for launchd to load the service
-                try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+                try await clock.sleep(for: .seconds(2)) // 2 seconds
 
                 AppLogger.shared.info(
                     "✅ [AutoFixer] Successfully fixed registered-but-not-loaded state")
@@ -1225,6 +1288,13 @@ class WizardAutoFixer: AutoFixCapable {
 
         if restartSuccess {
             AppLogger.shared.info("✅ [AutoFixer] Successfully fixed unhealthy LaunchDaemon services")
+            // Validate health post-restart
+            let kanataHealthy = await awaitServiceHealthy(ServiceBootstrapper.kanataServiceID)
+            let vhidDaemonHealthy = await awaitServiceHealthy(ServiceBootstrapper.vhidDaemonServiceID)
+            let vhidManagerHealthy = await awaitServiceHealthy(ServiceBootstrapper.vhidManagerServiceID)
+            AppLogger.shared.log(
+                "🔍 [AutoFixer] Post-restart health: kanata=\(kanataHealthy), vhidDaemon=\(vhidDaemonHealthy), vhidManager=\(vhidManagerHealthy)"
+            )
         } else {
             AppLogger.shared.error("❌ [AutoFixer] Failed to fix unhealthy services - analyzing cause...")
             AppLogger.shared.error("❌ [AutoFixer] This usually means:")
@@ -1404,7 +1474,10 @@ class WizardAutoFixer: AutoFixCapable {
         do {
             try await PrivilegedOperationsCoordinator.shared.restartUnhealthyServices()
             AppLogger.shared.info("✅ [AutoFixer] Successfully restarted communication server")
-            return true
+            let port = await MainActor.run { PreferencesService.shared.tcpServerPort }
+            let ready = await awaitTCPReady(port: port)
+            AppLogger.shared.log("🔍 [AutoFixer] TCP readiness after restart: \(ready)")
+            return ready
         } catch {
             AppLogger.shared.error("❌ [AutoFixer] Failed to restart communication server: \(error)")
             return false

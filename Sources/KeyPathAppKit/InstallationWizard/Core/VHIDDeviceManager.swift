@@ -80,7 +80,7 @@ final class VHIDDeviceManager: @unchecked Sendable {
                     AppLogger.shared.log(
                         "⏳ [VHIDManager] Daemon reported not running; retrying shortly to avoid false positives"
                     )
-                    try? await Task.sleep(nanoseconds: retryDelay)
+                    _ = await WizardSleep.ms(Int(retryDelay / 1_000_000))
                     continue
                 }
                 return false
@@ -91,7 +91,7 @@ final class VHIDDeviceManager: @unchecked Sendable {
                     AppLogger.shared.log(
                         "⏳ [VHIDManager] Timeout while checking daemon; retrying to avoid false negatives"
                     )
-                    try? await Task.sleep(nanoseconds: retryDelay)
+                    _ = await WizardSleep.ms(Int(retryDelay / 1_000_000))
                     continue
                 }
                 return false
@@ -163,7 +163,8 @@ final class VHIDDeviceManager: @unchecked Sendable {
                             task.waitUntilExit()
                         }
                         group.addTask {
-                            try await Task.sleep(nanoseconds: 3_000_000_000) // 3s
+                            let clock = ContinuousClock()
+                            try await clock.sleep(for: .seconds(3)) // 3s
                             throw TimeoutError()
                         }
                         try await group.next()
@@ -404,7 +405,8 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
                     // Wait a moment for the activation to take effect
                     Task {
-                        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+                        let clock = ContinuousClock()
+                        try? await clock.sleep(for: .seconds(2)) // 2 seconds
 
                         // Verify activation worked
                         let activated = self.detectActivation()
@@ -458,7 +460,8 @@ final class VHIDDeviceManager: @unchecked Sendable {
                 AppLogger.shared.log("✅ [VHIDManager] Successfully uninstalled existing driver version(s)")
 
                 // Wait for uninstallation to complete
-                try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+                let clock = ContinuousClock()
+                try? await clock.sleep(for: .seconds(2)) // 2 seconds
 
                 return true
             } else {
@@ -515,7 +518,8 @@ final class VHIDDeviceManager: @unchecked Sendable {
                 "✅ [VHIDManager] Successfully installed v\(Self.requiredDriverVersionString)")
 
             // Wait for installation to complete
-            try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+            let clock = ContinuousClock()
+            try? await clock.sleep(for: .seconds(3)) // 3 seconds
 
             // Activate the newly installed version
             AppLogger.shared.log("🔧 [VHIDManager] Activating newly installed driver...")

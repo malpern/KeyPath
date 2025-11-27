@@ -9,6 +9,7 @@ struct UninstallKeyPathDialog: View {
     @State private var isRunning = false
     @State private var lastError: String?
     @State private var didSucceed = false
+    @State private var hasScheduledQuit = false
 
     var body: some View {
         VStack(spacing: 20) {
@@ -25,21 +26,6 @@ struct UninstallKeyPathDialog: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
-
-                Button {
-                    // Must dismiss the modal sheet first, then terminate
-                    // Otherwise macOS beeps because it can't terminate with a modal active
-                    // See: https://stackoverflow.com/questions/48688574/programmatically-dismiss-modal-dialog-in-macos
-                    dismiss()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        NSApplication.shared.terminate(nil)
-                    }
-                } label: {
-                    Text("Quit")
-                        .frame(minWidth: 80)
-                }
-                .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
             } else {
                 // Confirmation/working state
                 Image(systemName: "trash.circle.fill")
@@ -85,6 +71,12 @@ struct UninstallKeyPathDialog: View {
         .padding(32)
         .frame(width: 320)
         .animation(.easeInOut(duration: 0.3), value: didSucceed)
+        .onChange(of: didSucceed) { _, newValue in
+            if newValue { scheduleQuit() }
+        }
+        .onAppear {
+            if didSucceed { scheduleQuit() }
+        }
     }
 
     // MARK: - Actions
@@ -104,6 +96,16 @@ struct UninstallKeyPathDialog: View {
             isRunning = false
             didSucceed = report.success
             lastError = report.failureReason
+        }
+    }
+
+    private func scheduleQuit() {
+        guard !hasScheduledQuit else { return }
+        hasScheduledQuit = true
+        // Must dismiss the modal sheet first, then terminate to avoid the NSBeep.
+        dismiss()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            NSApplication.shared.terminate(nil)
         }
     }
 }

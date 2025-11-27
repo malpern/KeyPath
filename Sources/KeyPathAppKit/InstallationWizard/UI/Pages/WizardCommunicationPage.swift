@@ -295,7 +295,14 @@ struct WizardCommunicationPage: View {
 
                 // Timeout task (15 seconds total)
                 group.addTask {
-                    try await Task.sleep(nanoseconds: 15_000_000_000)
+                        // Poll for up to 15s at 250ms to detect service recovery
+                        let clock = ContinuousClock()
+                        for _ in 0..<60 {
+                            try await clock.sleep(for: .milliseconds(250))
+                            if await isCommunicationResponding() {
+                                break
+                            }
+                        }
                     throw TimeoutError()
                 }
 
@@ -339,6 +346,14 @@ struct WizardCommunicationPage: View {
         }
     }
 
+    /// Lightweight TCP readiness check used by polling loops.
+    private func isCommunicationResponding() async -> Bool {
+        let client = KanataTCPClient(port: preferences.tcpServerPort, timeout: 2.0)
+        let ok = await client.checkServerStatus()
+        await client.cancelInflightAndCloseConnection()
+        return ok
+    }
+
     // MARK: - Auto Fix
 
     private func performAutoFix() async {
@@ -359,7 +374,14 @@ struct WizardCommunicationPage: View {
             if success {
                 // Wait for TCP server to start
                 AppLogger.shared.log("⏳ [WizardComm] Waiting for TCP server to be ready...")
-                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    // Poll up to 3s at 200ms for the service to come up
+                    let clock = ContinuousClock()
+                    for _ in 0..<15 {
+                        try? await clock.sleep(for: .milliseconds(200))
+                        if await isCommunicationResponding() {
+                            break
+                        }
+                    }
             } else {
                 AppLogger.shared.log("❌ [WizardComm] Failed to restart service after regeneration")
             }
@@ -375,7 +397,13 @@ struct WizardCommunicationPage: View {
 
         if success {
             // Recheck status after successful fix
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            let clock = ContinuousClock()
+            for _ in 0..<10 {
+                try? await clock.sleep(for: .milliseconds(100))
+                if await isCommunicationResponding() {
+                    break
+                }
+            }
             await checkCommunicationStatus()
         }
     }

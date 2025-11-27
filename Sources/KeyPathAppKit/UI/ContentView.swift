@@ -408,7 +408,7 @@ struct ContentView: View {
             Button("OK") { showingRepairFailedAlert = false }
             Button("Open Failed Config in Zed") {
                 showingRepairFailedAlert = false
-                Task { await kanataManager.openFileInZed(failedConfigBackupPath) }
+                Task { kanataManager.openFileInZed(failedConfigBackupPath) }
             }
             Button("View Diagnostics") {
                 showingRepairFailedAlert = false

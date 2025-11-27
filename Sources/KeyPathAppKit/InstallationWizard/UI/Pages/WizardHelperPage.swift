@@ -378,7 +378,6 @@ struct WizardHelperPage: View {
         // Try to read version from the helper's Info.plist sibling or embedded
         // For simplicity, we'll use a hardcoded version that matches HelperService.swift
         // In production, this should read from the helper's Info.plist
-        let plistPath = "\(bundlePath)/Contents/Library/LaunchDaemons/com.keypath.helper.plist"
         guard FileManager.default.fileExists(atPath: helperInfoPath) else { return nil }
 
         // Read version from helper's Info.plist in Sources

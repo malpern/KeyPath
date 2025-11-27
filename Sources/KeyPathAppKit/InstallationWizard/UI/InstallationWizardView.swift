@@ -18,6 +18,7 @@ struct InstallationWizardView: View {
 
     // New architecture components
     @StateObject private var stateManager = WizardStateManager()
+    @StateObject private var stateMachine = WizardStateMachine()
     @StateObject private var autoFixer = WizardAutoFixerManager()
     private let stateInterpreter = WizardStateInterpreter()
     @StateObject private var navigationCoordinator = WizardNavigationCoordinator()
@@ -364,8 +365,14 @@ struct InstallationWizardView: View {
         // Always reset navigation state for fresh run
         navigationCoordinator.navigationEngine.resetNavigationState()
 
-        // Configure state manager
+        // Configure state providers
         stateManager.configure(kanataManager: kanataManager)
+        if FeatureFlags.useUnifiedWizardRouter {
+            stateMachine.configure(kanataManager: kanataManager)
+            AppLogger.shared.log("🔍 [Wizard] Unified router/state-machine ENABLED (flag on)")
+        } else {
+            AppLogger.shared.log("🔍 [Wizard] Legacy navigation stack ACTIVE (flag off)")
+        }
         autoFixer.configure(kanataManager: kanataManager, toastManager: toastManager)
 
         // Show summary page immediately with validation state
@@ -394,7 +401,7 @@ struct InstallationWizardView: View {
             }
 
             // Small delay to ensure UI is ready before starting heavy checks
-            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms delay
+            _ = await WizardSleep.ms(100) // 100ms delay
 
             guard !Task.isCancelled else { return }
             await performInitialStateCheck()
@@ -418,7 +425,8 @@ struct InstallationWizardView: View {
         AppLogger.shared.log("⏱️ [TIMING] Wizard validation START")
 
         let operation = WizardOperations.stateDetection(
-            stateManager: stateManager,
+            stateManager: FeatureFlags.useUnifiedWizardRouter ? nil : stateManager,
+            stateMachine: FeatureFlags.useUnifiedWizardRouter ? stateMachine : nil,
             progressCallback: { progress in
                 // Update progress on MainActor (callback may be called from background)
                 Task { @MainActor in
@@ -483,7 +491,7 @@ struct InstallationWizardView: View {
                     navigationCoordinator.navigateToPage(preferred)
                 } else if navigationCoordinator.currentPage == .summary {
                     // Wait a tick for navSequence to be updated by WizardSystemStatusOverview's onChange handlers
-                    try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+                    _ = await WizardSleep.ms(50) // 50ms
                     autoNavigateIfSingleIssue(in: filteredIssues, state: result.state)
                 }
             }
@@ -503,7 +511,7 @@ struct InstallationWizardView: View {
 
         // Smart monitoring: Only poll when needed, much less frequently
         while !Task.isCancelled {
-            try? await Task.sleep(nanoseconds: 60_000_000_000) // 60 seconds instead of 10
+            _ = await WizardSleep.seconds(60) // 60 seconds instead of 10
 
             // Skip state detection if async operations are running to avoid conflicts
             guard !asyncOperationManager.hasRunningOperations else {
@@ -541,7 +549,8 @@ struct InstallationWizardView: View {
         case .summary:
             // Full check only for summary page
             let operation = WizardOperations.stateDetection(
-                stateManager: stateManager,
+                stateManager: FeatureFlags.useUnifiedWizardRouter ? nil : stateManager,
+                stateMachine: FeatureFlags.useUnifiedWizardRouter ? stateMachine : nil,
                 progressCallback: { _ in }
             )
             asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
@@ -713,7 +722,7 @@ struct InstallationWizardView: View {
                 return false
             }) {
                 Task {
-                    try? await Task.sleep(nanoseconds: 2_000_000_000) // allow services to settle
+                    _ = await WizardSleep.seconds(2) // allow services to settle
                     let latestResult = await stateManager.detectCurrentState()
                     let filteredIssues = sanitizedIssues(from: latestResult.issues, for: latestResult.state)
                     await MainActor.run {
@@ -887,9 +896,6 @@ struct InstallationWizardView: View {
         }
 
         let errorMessage = success ? "" : await getDetailedErrorMessage(for: action, actionDescription: actionDescription)
-        let finalErrorMessage = (!success && smState == .smappservicePending) ?
-            "KeyPath background service needs approval in System Settings → Login Items. Enable 'KeyPath' and click Fix again."
-            : errorMessage
 
         await MainActor.run {
             if success {
@@ -900,7 +906,10 @@ struct InstallationWizardView: View {
                     toastManager.showSuccess("\(actionDescription) completed successfully", duration: 5.0)
                 }
             } else {
-                toastManager.showError(errorMessage, duration: 7.0)
+                let message = (!success && smState == .smappservicePending) ?
+                    "KeyPath background service needs approval in System Settings → Login Items. Enable 'KeyPath' and click Fix again."
+                    : errorMessage
+                toastManager.showError(message, duration: 7.0)
             }
         }
 
@@ -909,7 +918,7 @@ struct InstallationWizardView: View {
         // Refresh system state after auto-fix
         Task {
             // Shorter delay - we have warm-up window to handle startup
-            try? await Task.sleep(nanoseconds: 1_000_000_000) // allow services to start
+            _ = await WizardSleep.seconds(1) // allow services to start
             refreshState()
 
             // Notify StartupValidator to refresh main screen status
@@ -919,7 +928,7 @@ struct InstallationWizardView: View {
 
             // Schedule a follow-up health check; if still red, show a diagnostic error toast
             Task {
-                try? await Task.sleep(nanoseconds: 2_000_000_000) // allow additional settle time
+                _ = await WizardSleep.seconds(2) // allow additional settle time
                 let latestResult = await stateManager.detectCurrentState()
                 let filteredIssues = sanitizedIssues(from: latestResult.issues, for: latestResult.state)
                 await MainActor.run {
@@ -1053,7 +1062,8 @@ struct InstallationWizardView: View {
 
         // Use async operation manager for non-blocking refresh
         let operation = WizardOperations.stateDetection(
-            stateManager: stateManager,
+            stateManager: FeatureFlags.useUnifiedWizardRouter ? nil : stateManager,
+            stateMachine: FeatureFlags.useUnifiedWizardRouter ? stateMachine : nil,
             progressCallback: { _ in }
         )
 
@@ -1154,7 +1164,7 @@ struct InstallationWizardView: View {
         }
         if navigationCoordinator.currentPage == .summary {
             Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+                _ = await WizardSleep.ms(50) // 50ms
                 autoNavigateIfSingleIssue(in: filteredIssues, state: result.state)
             }
         }
@@ -1323,7 +1333,7 @@ struct InstallationWizardView: View {
                 }
 
                 // Wait before next poll
-                try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+                _ = await WizardSleep.seconds(2) // 2 seconds
             }
 
             AppLogger.shared.log("⏰ [LoginItems] Polling timed out after 3 minutes")
@@ -1545,7 +1555,8 @@ private func runWithTimeout<T: Sendable>(
     try await withThrowingTaskGroup(of: T.self) { group in
         group.addTask { await operation() }
         group.addTask {
-            try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            let clock = ContinuousClock()
+            try await clock.sleep(for: .seconds(seconds))
             throw AutoFixTimeoutError()
         }
         let result = try await group.next()!
@@ -1629,7 +1640,8 @@ struct KeyboardNavigationModifier: ViewModifier {
 extension WizardOperations {
     /// State detection operation (UI-layer only - uses WizardStateManager from UI target)
     static func stateDetection(
-        stateManager: WizardStateManager,
+        stateManager: WizardStateManager?,
+        stateMachine: WizardStateMachine?,
         progressCallback: @escaping @Sendable (Double) -> Void = { _ in }
     ) -> AsyncOperation<SystemStateResult> {
         AsyncOperation<SystemStateResult>(
@@ -1637,13 +1649,45 @@ extension WizardOperations {
             name: "System State Detection"
         ) { operationProgressCallback in
             // Forward progress from SystemValidator to the operation callback
-            let result = await stateManager.detectCurrentState { progress in
-                progressCallback(progress)
-                operationProgressCallback(progress)
+            if FeatureFlags.useUnifiedWizardRouter, let machine = stateMachine {
+                progressCallback(0.1)
+                await machine.refresh()
+                progressCallback(1.0)
+                operationProgressCallback(1.0)
+                // Adapt snapshot on the main actor
+                return await MainActor.run {
+                    if let snapshot = machine.systemSnapshot {
+                        let context = SystemContext(
+                            permissions: snapshot.permissions,
+                            services: snapshot.health,
+                            conflicts: snapshot.conflicts,
+                            components: snapshot.components,
+                            helper: snapshot.helper,
+                            system: EngineSystemInfo(macOSVersion: "unknown", driverCompatible: true),
+                            timestamp: snapshot.timestamp
+                        )
+                        return SystemContextAdapter.adapt(context)
+                    } else {
+                        return SystemStateResult(
+                            state: .initializing, issues: [], autoFixActions: [], detectionTimestamp: Date()
+                        )
+                    }
+                }
+            } else if let manager = stateManager {
+                let result = await manager.detectCurrentState { progress in
+                    progressCallback(progress)
+                    operationProgressCallback(progress)
+                }
+                progressCallback(1.0)
+                operationProgressCallback(1.0)
+                return result
+            } else {
+                progressCallback(1.0)
+                operationProgressCallback(1.0)
+                return SystemStateResult(
+                    state: .initializing, issues: [], autoFixActions: [], detectionTimestamp: Date()
+                )
             }
-            progressCallback(1.0)
-            operationProgressCallback(1.0)
-            return result
         }
     }
 }

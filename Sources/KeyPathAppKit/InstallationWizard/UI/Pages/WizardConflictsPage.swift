@@ -40,7 +40,12 @@ struct WizardConflictsPage: View {
                             onRefresh()
                             // Keep spinner visible for a moment so user sees the action
                             Task {
-                                try? await Task.sleep(nanoseconds: 500_000_000)
+                            for _ in 0..<5 { // up to ~0.5s at 100ms intervals
+                                _ = await WizardSleep.ms(100)
+                                if await kanataManager.isKarabinerElementsRunning() == false {
+                                    break
+                                }
+                            }
                                 isScanning = false
                             }
                         }
@@ -71,7 +76,12 @@ struct WizardConflictsPage: View {
                             onRefresh()
                             // Keep spinner visible for a moment so user sees the action
                             Task {
-                                try? await Task.sleep(nanoseconds: 500_000_000)
+                                for _ in 0..<5 {
+                                    _ = await WizardSleep.ms(100)
+                                    if await kanataManager.isKarabinerElementsRunning() == false {
+                                        break
+                                    }
+                                }
                                 isScanning = false
                             }
                         }
@@ -197,7 +207,12 @@ struct CleanConflictsCard: View {
                                 showSuccessMessage = true
 
                                 // Give user feedback that permanent fix succeeded
-                                try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+                                for _ in 0..<15 { // ~1.5s at 100ms
+                                    _ = await WizardSleep.ms(100)
+                                    if await kanataManager.isKarabinerElementsRunning() == false {
+                                        break
+                                    }
+                                }
 
                                 // Trigger a refresh to update the conflict state
                                 onRefresh()

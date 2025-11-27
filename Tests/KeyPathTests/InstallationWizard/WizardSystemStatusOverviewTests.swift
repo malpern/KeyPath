@@ -31,8 +31,8 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
     }
 
     func testServiceStatusStaysCompletedWhenKanataRunning() {
-        var nav: [WizardPage] = []
-        var visible = 0
+        let nav: [WizardPage] = []
+        let visible = 0
         let overview = WizardSystemStatusOverview(
             systemState: .active,
             issues: [],
@@ -58,8 +58,8 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
             userAction: ""
         )
 
-        var nav: [WizardPage] = []
-        var visible = 0
+        let nav: [WizardPage] = []
+        let visible = 0
         let overview = WizardSystemStatusOverview(
             systemState: .active,
             issues: [staleIssue],

@@ -261,7 +261,14 @@ jobs:
           exit 0
         }
         echo "✅ SwiftFormat check completed"
-    
+
+    - name: Wizard Sleep Lint
+      run: |
+        echo "⏱️ Ensuring wizard code has no Task.sleep calls..."
+        chmod +x ./Scripts/lint-no-sleep.sh
+        ./Scripts/lint-no-sleep.sh
+        echo "✅ Wizard sleep lint passed"
+
     - name: Critical Pattern Analysis
       run: |
         echo "🔍 Running critical code pattern checks (moved from pre-commit)..."

@@ -644,26 +644,6 @@ struct WizardSystemStatusOverview: View {
         // If Kanata isn't running, show as not started (empty circle)
         guard kanataIsRunning else { return .notStarted }
 
-        // Check for communication server issues in the shared issues array first
-        let hasCommServerIssues = issues.contains { issue in
-            if case let .component(component) = issue.identifier {
-                switch component {
-                case .kanataTCPServer,
-                     .communicationServerConfiguration, .communicationServerNotResponding,
-                     .tcpServerConfiguration, .tcpServerNotResponding:
-                    return true
-                default:
-                    return false
-                }
-            }
-            return false
-        }
-
-        // If there are detected issues in the shared state, show as failed
-        if hasCommServerIssues {
-            return .failed
-        }
-
         // Resolve TCP port from LaunchDaemon plist, then probe Hello/Status quickly
         // Check SMAppService plist first if active, otherwise fall back to legacy plist
         let plistPath = KanataDaemonManager.getActivePlistPath()
@@ -690,6 +670,7 @@ struct WizardSystemStatusOverview: View {
         AppLogger.shared.log(
             "🌐 [WizardCommSummary] probe result: ok=\(ok) port=\(port) duration_ms=\(Int(dt * 1000))")
 
+        // Live probe is authoritative; only keep a failure if the probe fails.
         let status: InstallationStatus = ok ? .completed : .failed
         Self.cache.updateCommunication(status: status, port: port, kanataRunning: kanataIsRunning)
         return status

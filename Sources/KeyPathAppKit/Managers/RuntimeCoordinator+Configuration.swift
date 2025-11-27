@@ -127,7 +127,7 @@ extension RuntimeCoordinator {
         }
 
         // Check reload safety first
-        let currentPID = await processLifecycleManager.ownedPID
+        let currentPID = processLifecycleManager.ownedPID
         let safetyCheck = await reloadSafetyMonitor.checkReloadSafety(
             currentPID: currentPID.map { Int($0) })
 

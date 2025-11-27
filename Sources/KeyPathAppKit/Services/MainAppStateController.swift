@@ -171,13 +171,8 @@ class MainAppStateController: ObservableObject {
                 "⏱️ [MainAppStateController] Service wait completed in \(String(format: "%.3f", serviceWaitDuration))s (ready: \(isReady))"
             )
 
-            if !isReady {
-                AppLogger.shared.log(
-                    "⏱️ [MainAppStateController] Service did not become ready within timeout")
-            } else {
-                AppLogger.shared.info(
-                    "✅ [MainAppStateController] Service is ready, proceeding with validation")
-            }
+            AppLogger.shared.info(
+                "✅ [MainAppStateController] Service is ready, proceeding with validation")
 
             // Clear startup mode flag now that services are ready
             // This ensures Oracle runs full permission checks for accurate results

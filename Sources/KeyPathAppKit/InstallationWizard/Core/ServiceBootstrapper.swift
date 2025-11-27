@@ -537,7 +537,13 @@ final class ServiceBootstrapper {
                 return false
             }
             // Wait for installation to settle
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            // Poll for launchctl to report loaded within warm-up window
+            for _ in 0..<10 { // ~2s with 200ms steps
+                if await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.kanataServiceID) {
+                    break
+                }
+                _ = await WizardSleep.ms(200) // 200ms poll interval
+            }
         }
 
         // Step 2: Handle unhealthy services
@@ -551,7 +557,13 @@ final class ServiceBootstrapper {
             AppLogger.shared.log("🔧 [ServiceBootstrapper] Refreshing Kanata via SMAppService")
             do {
                 try await KanataDaemonManager.shared.unregister()
-                try await Task.sleep(nanoseconds: 500_000_000) // 500ms
+                // Poll for service readiness with a short wait, instead of fixed sleep
+                for _ in 0..<6 { // ~0.6s
+                    if await ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID) {
+                        break
+                    }
+                    _ = await WizardSleep.ms(100)
+                }
                 try await KanataDaemonManager.shared.register()
                 toRestart.removeAll { $0 == Self.kanataServiceID }
                 AppLogger.shared.log("✅ [ServiceBootstrapper] Kanata SMAppService refreshed")
@@ -606,9 +618,19 @@ final class ServiceBootstrapper {
                 AppLogger.shared.log("🔄 Attempt \(attempt)/\(maxRetries)")
 
                 try await KanataDaemonManager.shared.unregister()
-                try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                for _ in 0..<10 { // ~1s
+                    if await ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID) {
+                        break
+                    }
+                    _ = await WizardSleep.ms(100)
+                }
                 try await KanataDaemonManager.shared.register()
-                try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+                for _ in 0..<20 { // ~2s
+                    if await ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID) {
+                        break
+                    }
+                    _ = await WizardSleep.ms(100)
+                }
 
                 let stillBroken = await KanataDaemonManager.shared.isRegisteredButNotLoaded()
                 if !stillBroken {
@@ -618,7 +640,12 @@ final class ServiceBootstrapper {
             } catch {
                 AppLogger.shared.log("❌ Attempt \(attempt) failed: \(error)")
             }
-            try? await Task.sleep(nanoseconds: 500_000_000) // 500ms before retry
+            for _ in 0..<5 {
+                if await ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID) {
+                    break
+                }
+                _ = await WizardSleep.ms(100)
+            }
         }
         AppLogger.shared.log("⚠️ [ServiceBootstrapper] Could not fix SMAppService state - user may need to reboot")
     }

@@ -144,7 +144,7 @@ final class WizardStateMachineDeterminismTests: XCTestCase {
             components: allComponentsReady
         )
         machine.nextPage()
-        XCTAssertEqual(machine.currentPage, .accessibility)
+        XCTAssertEqual(machine.currentPage, .inputMonitoring)
 
         // 5) Permissions ok, components missing -> karabinerComponents page
         machine.currentPage = .summary

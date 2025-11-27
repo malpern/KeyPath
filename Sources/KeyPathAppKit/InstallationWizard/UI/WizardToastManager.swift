@@ -75,8 +75,10 @@ class WizardToastManager: ToastPresenting, ObservableObject {
 
         // Auto-dismiss after duration
         toastTask = Task {
-            try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
-
+            let deadline = Date().addingTimeInterval(duration)
+            while Date() < deadline {
+                _ = await WizardSleep.ms(100) // 100ms tick, cancellable
+            }
             guard !Task.isCancelled else { return }
             currentToast = nil
         }

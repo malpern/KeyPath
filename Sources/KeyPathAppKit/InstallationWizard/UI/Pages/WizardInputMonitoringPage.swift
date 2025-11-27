@@ -286,9 +286,9 @@ struct WizardInputMonitoringPage: View {
         permissionPollingTask?.cancel()
         permissionPollingTask = Task { [onRefresh] in
             var attempts = 0
-            let maxAttempts = 30 // 30 seconds
+            let maxAttempts = 20 // ~5s at 250ms intervals
             while attempts < maxAttempts {
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                _ = await WizardSleep.ms(250)
                 attempts += 1
                 let snapshot = await PermissionOracle.shared.currentSnapshot()
                 let hasPermission: Bool =
@@ -325,15 +325,16 @@ struct WizardInputMonitoringPage: View {
 
             // Fallback: if still not granted shortly after, open System Settings panel
             Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5s
-                let snapshot = await PermissionOracle.shared.currentSnapshot()
-                let granted =
-                    snapshot.keyPath.inputMonitoring.isReady && snapshot.kanata.inputMonitoring.isReady
-                if !granted {
-                    AppLogger.shared.info(
-                        "ℹ️ [WizardInputMonitoringPage] Opening System Settings (fallback) for Input Monitoring")
-                    openInputMonitoringPreferencesPanel()
+                for _ in 0..<6 { // ~1.5s at 250ms
+                    _ = await WizardSleep.ms(250)
+                    let snapshot = await PermissionOracle.shared.currentSnapshot()
+                    let granted =
+                        snapshot.keyPath.inputMonitoring.isReady && snapshot.kanata.inputMonitoring.isReady
+                    if granted { return }
                 }
+                AppLogger.shared.info(
+                    "ℹ️ [WizardInputMonitoringPage] Opening System Settings (fallback) for Input Monitoring")
+                openInputMonitoringPreferencesPanel()
             }
         } else {
             // Fallback: manual System Settings flow

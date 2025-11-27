@@ -151,9 +151,7 @@ class KanataViewModel: ObservableObject {
     }
 
     private func clearValidationError() {
-        Task {
-            await manager.clearValidationError()
-        }
+        manager.clearValidationError()
     }
 
     // MARK: - Action Delegation to RuntimeCoordinator

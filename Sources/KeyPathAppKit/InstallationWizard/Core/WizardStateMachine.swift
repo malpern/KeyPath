@@ -131,91 +131,38 @@ class WizardStateMachine: ObservableObject {
     // MARK: - Navigation Logic
 
     private func determineNextPage(from current: WizardPage, state: SystemSnapshot) -> WizardPage {
-        // Simple linear flow with intelligent skipping
-        // NOTE: Helper ALWAYS checked first after summary (required for privileged operations)
-        switch current {
-        case .summary:
-            // Check helper first - it's required for system operations
-            if !state.helper.isReady {
-                return .helper
-            }
-            // Then check for conflicts
-            if state.conflicts.hasConflicts {
-                return .conflicts
-            }
-            // Then check KeyPath permissions
-            if !state.permissions.keyPath.hasAllPermissions {
-                return .inputMonitoring
-            }
-            // Then Kanata permissions
-            if !state.permissions.kanata.hasAllPermissions {
-                return .accessibility
-            }
-            // Then components
-            if !state.components.hasAllRequired {
-                return .karabinerComponents
-            }
-            // All checks passed, go to service
-            return .service
-
-        case .helper:
-            // After helper, check conflicts
-            if state.conflicts.hasConflicts {
-                return .conflicts
-            }
-            // Then permissions
-            if !state.permissions.keyPath.hasAllPermissions {
-                return .inputMonitoring
-            }
-            return .accessibility
-
-        case .fullDiskAccess:
-            // FDA is optional, proceed to conflicts
-            if state.conflicts.hasConflicts {
-                return .conflicts
-            }
-            return .inputMonitoring
-
-        case .conflicts:
-            // After resolving conflicts, check permissions
-            if !state.permissions.keyPath.hasAllPermissions {
-                return .inputMonitoring
-            }
-            return .accessibility
-
-        case .inputMonitoring:
-            // KeyPath IM → KeyPath AX → Kanata permissions
-            if !state.permissions.keyPath.accessibility.isReady {
-                return .accessibility
-            }
-            if !state.permissions.kanata.hasAllPermissions {
-                return .accessibility
-            }
-            return .karabinerComponents
-
-        case .accessibility:
-            // After permissions, check components
-            if !state.components.hasAllRequired {
-                return .karabinerComponents
-            }
-            return .service
-
-        case .karabinerComponents:
-            // After Karabiner, check Kanata
-            return .kanataComponents
-
-        case .kanataComponents:
-            // After all components, go to service
-            return .service
-
-        case .communication:
-            // Communication → Service
-            return .service
-
-        case .service:
-            // Service is the last page
-            return .service
+        // Use the shared pure router to choose target page based on latest snapshot.
+        // Adapt SystemSnapshot to SystemContext so we can reuse existing adapter logic.
+        let placeholderSystem = EngineSystemInfo(macOSVersion: "unknown", driverCompatible: true)
+        let context = SystemContext(
+            permissions: state.permissions,
+            services: state.health,
+            conflicts: state.conflicts,
+            components: state.components,
+            helper: state.helper,
+            system: placeholderSystem,
+            timestamp: state.timestamp
+        )
+        let adapted = SystemContextAdapter.adapt(context)
+        let target: WizardPage
+        if FeatureFlags.useUnifiedWizardRouter {
+            target = WizardRouter.route(
+                state: adapted.state,
+                issues: adapted.issues,
+                helperInstalled: state.helper.isInstalled,
+                helperNeedsApproval: HelperManager.shared.helperNeedsLoginItemsApproval()
+            )
+        } else {
+            target = WizardRouter.route(
+                state: adapted.state,
+                issues: adapted.issues,
+                helperInstalled: state.helper.isInstalled,
+                helperNeedsApproval: HelperManager.shared.helperNeedsLoginItemsApproval()
+            )
         }
+
+        // If the router says stay, remain on the current page; otherwise move to target.
+        return target == current ? current : target
     }
 
     private func determinePreviousPage(from current: WizardPage) -> WizardPage {
