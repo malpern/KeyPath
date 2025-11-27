@@ -435,17 +435,7 @@ struct WizardKarabinerComponentsPage: View {
             return
         }
 
-        // Fire-and-forget the restart - don't wait for it.
-        // The wizard will re-evaluate state on the next refresh cycle anyway.
-        // IMPORTANT: Use Task.detached to run completely off the main thread.
-        // A regular Task would inherit MainActor and still block the UI when it runs.
-        AppLogger.shared.log("🔄 [Karabiner Fix] Post-fix: Kanata not running, firing restart (fire-and-forget, detached)")
-        Task.detached { [kanataManager] in
-            let restarted = await kanataManager.restartServiceWithFallback(reason: "Wizard driver/service repair follow-up")
-            AppLogger.shared.log("🔄 [Karabiner Fix] Background restart completed: \(restarted ? "success" : "failed")")
-        }
-
         let totalElapsed = String(format: "%.2f", Date().timeIntervalSince(t0))
-        AppLogger.shared.log("✅ [Karabiner Fix] refreshAndWait() completed (elapsed=\(totalElapsed)s) - restart running in background")
+        AppLogger.shared.log("✅ [Karabiner Fix] refreshAndWait() completed (elapsed=\(totalElapsed)s)")
     }
 }
