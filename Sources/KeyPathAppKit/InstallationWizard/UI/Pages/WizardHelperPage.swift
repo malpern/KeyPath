@@ -17,13 +17,12 @@ struct WizardHelperPage: View {
     // MARK: - State
 
     @State private var isWorking = false
-    @State private var lastError: String?
     @State private var helperVersion: String?
     @State private var bundledVersion: String?
     @State private var duplicateCopies: [String] = []
     @State private var needsLoginItemsApproval = false
+    @State private var actionStatus: WizardDesign.ActionStatus = .idle
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
-    @EnvironmentObject var toastManager: WizardToastManager
 
     /// Check if bundled helper is newer than installed helper
     private var hasUpdateAvailable: Bool {
@@ -143,6 +142,12 @@ struct WizardHelperPage: View {
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
 
+            // Inline action status
+            if actionStatus.isActive, let message = actionStatus.message {
+                InlineStatusView(status: actionStatus, message: message)
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
+
             // Details card
             HStack {
                 Spacer()
@@ -188,6 +193,7 @@ struct WizardHelperPage: View {
             .keyboardShortcut(.defaultAction)
             .padding(.top, WizardDesign.Spacing.sectionGap)
         }
+        .animation(WizardDesign.Animation.statusTransition, value: actionStatus)
         .heroSectionContainer()
     }
 
@@ -231,6 +237,12 @@ struct WizardHelperPage: View {
                 .font(.system(size: 17, weight: .regular))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
+
+            // Inline action status
+            if actionStatus.isActive, let message = actionStatus.message {
+                InlineStatusView(status: actionStatus, message: message)
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
 
             // Description (show only when not installed; suppress for 'installed but not responding')
             if !isInstalled {
@@ -283,23 +295,16 @@ struct WizardHelperPage: View {
                 .buttonStyle(WizardDesign.Component.SecondaryButton())
             }
 
-            // Error message if present
-            if let lastError {
-                Text(lastError)
-                    .font(.caption)
-                    .foregroundColor(lastError.localizedCaseInsensitiveContains("success")
-                        ? .green : .orange)
-                    .padding(.horizontal, 40)
-                    .multilineTextAlignment(.center)
-                // If approval is required, offer a quick link to System Settings
-                if lastError.localizedCaseInsensitiveContains("approval required") {
-                    Button("Open System Settings → Login Items") {
-                        openLoginItemsSettings()
-                    }
-                    .buttonStyle(WizardDesign.Component.SecondaryButton())
+            // If approval is required, offer a quick link to System Settings
+            if case let .error(message) = actionStatus,
+               message.localizedCaseInsensitiveContains("approval required") {
+                Button("Open System Settings → Login Items") {
+                    openLoginItemsSettings()
                 }
+                .buttonStyle(WizardDesign.Component.SecondaryButton())
             }
         }
+        .animation(WizardDesign.Animation.statusTransition, value: actionStatus)
         .padding(.horizontal, 60)
         .heroSectionContainer()
     }
@@ -307,29 +312,44 @@ struct WizardHelperPage: View {
     // MARK: - Actions
 
     private func installOrRepairHelper() async {
-        await withWorking {
-            let ok = await HelperMaintenance.shared.runCleanupAndRepair(useAppleScriptFallback: true)
+        await MainActor.run {
+            isWorking = true
+            actionStatus = .inProgress(message: "Installing helper…")
+        }
+
+        let ok = await HelperMaintenance.shared.runCleanupAndRepair(useAppleScriptFallback: true)
+
+        await MainActor.run {
+            isWorking = false
             if ok {
-                lastError = "Helper installed and responding"
-                helperVersion = await HelperManager.shared.getHelperVersion()
+                helperVersion = nil // Will be refreshed
+                actionStatus = .success(message: "Helper installed successfully")
+                scheduleStatusClear()
             } else {
                 // Surface the last maintenance log line as a hint
                 let hint = HelperMaintenance.shared.logLines.last
                     ?? "Unknown error (helper XPC not reachable)"
-                lastError = "Helper install/repair failed:\n\(hint)"
-                toastManager.showError(lastError ?? "Helper install failed", duration: 6.0)
+                actionStatus = .error(message: "Install failed: \(hint)")
             }
-            onRefresh()
         }
+
+        // Refresh version asynchronously
+        if ok {
+            let version = await HelperManager.shared.getHelperVersion()
+            await MainActor.run { helperVersion = version }
+        }
+
+        onRefresh()
     }
 
-    private func withWorking(_ body: @escaping () async -> Void) async {
-        await MainActor.run {
-            isWorking = true
-            lastError = nil
+    /// Auto-clear success status after 3 seconds
+    private func scheduleStatusClear() {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(3))
+            if case .success = actionStatus {
+                actionStatus = .idle
+            }
         }
-        defer { Task { await MainActor.run { isWorking = false } } }
-        await body()
     }
 
     private func openSystemSettings() {

@@ -215,3 +215,51 @@ extension WizardHeroSection {
         )
     }
 }
+
+// MARK: - Inline Status View
+
+/// Displays inline status feedback below content
+/// Used as a replacement for toast notifications
+struct InlineStatusView: View {
+    let status: WizardDesign.ActionStatus
+    let message: String
+
+    var body: some View {
+        HStack(spacing: WizardDesign.Spacing.elementGap) {
+            // Status indicator (spinner or icon)
+            Group {
+                switch status {
+                case .inProgress:
+                    ProgressView()
+                        .scaleEffect(0.7)
+                        .frame(width: 16, height: 16)
+
+                case .success:
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(WizardDesign.Colors.success)
+
+                case .error:
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(WizardDesign.Colors.error)
+
+                case .idle:
+                    EmptyView()
+                }
+            }
+
+            // Status message
+            Text(message)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(status.color)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.horizontal, WizardDesign.Spacing.cardPadding)
+        .padding(.vertical, WizardDesign.Spacing.elementGap)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(status.color.opacity(0.1))
+        )
+    }
+}

@@ -352,7 +352,6 @@ struct InstallationWizardView: View {
                     onRefresh: { refreshState() },
                     kanataManager: kanataManager
                 )
-                .environmentObject(toastManager)
             case .communication:
                 WizardCommunicationPage(
                     systemState: systemState,

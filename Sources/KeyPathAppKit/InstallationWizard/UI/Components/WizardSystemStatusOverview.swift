@@ -584,8 +584,8 @@ public typealias WizardStatusItemModel = StatusItemModel
     private func checkFullDiskAccess() -> Bool {
         if let cached = Self.cache.fullDiskAccessIfFresh() { return cached }
 
-        // FDA detection: avoid direct TCC.db access from UI. Best-effort, default to false when uncertain.
-        let granted = PermissionService.lastTCCAuthorizationDenied == false
+        // FDA detection: avoid direct TCC.db access from UI. Use PermissionService heuristic cache.
+        let granted = !PermissionService.lastTCCAuthorizationDenied
 
         AppLogger.shared.log(
             granted
