@@ -129,25 +129,18 @@ final class InstallationCoordinator {
         with prompt "KeyPath needs to prepare system directories for the virtual keyboard."
         """
 
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: KeyPathConstants.System.osascript)
-        task.arguments = ["-e", createDirScript]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
         do {
-            try task.run()
-            task.waitUntilExit()
+            let result = try await SubprocessRunner.shared.run(
+                KeyPathConstants.System.osascript,
+                args: ["-e", createDirScript],
+                timeout: 30
+            )
 
-            if task.terminationStatus == 0 {
+            if result.exitCode == 0 {
                 AppLogger.shared.info("✅ [InstallCoordinator] Successfully prepared daemon directories")
                 await prepareLogDirectories()
             } else {
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                let output = String(data: data, encoding: .utf8) ?? ""
-                AppLogger.shared.error("❌ [InstallCoordinator] Failed to prepare directories: \(output)")
+                AppLogger.shared.error("❌ [InstallCoordinator] Failed to prepare directories: \(result.stderr)")
             }
         } catch {
             AppLogger.shared.error("❌ [InstallCoordinator] Error preparing daemon directories: \(error)")
@@ -159,15 +152,14 @@ final class InstallationCoordinator {
         let logDirScript =
             "do shell script \"mkdir -p '\(karabinerLogDir)' && chmod 755 '\(karabinerLogDir)'\" with administrator privileges with prompt \"KeyPath needs to create system log directories.\""
 
-        let logTask = Process()
-        logTask.executableURL = URL(fileURLWithPath: KeyPathConstants.System.osascript)
-        logTask.arguments = ["-e", logDirScript]
-
         do {
-            try logTask.run()
-            logTask.waitUntilExit()
+            let result = try await SubprocessRunner.shared.run(
+                KeyPathConstants.System.osascript,
+                args: ["-e", logDirScript],
+                timeout: 30
+            )
 
-            if logTask.terminationStatus == 0 {
+            if result.exitCode == 0 {
                 AppLogger.shared.info("✅ [InstallCoordinator] Log directory permissions set")
             } else {
                 AppLogger.shared.warn("⚠️ [InstallCoordinator] Could not set log directory permissions")

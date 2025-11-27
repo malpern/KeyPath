@@ -1200,8 +1200,8 @@ class RuntimeCoordinator {
     // Logic moved to ConfigurationManager
 
     /// Opens a file in Zed editor with fallback options
-    func openFileInZed(_ filePath: String) {
-        configurationManager.openInEditor(filePath)
+    func openFileInZed(_ filePath: String) async {
+        await configurationManager.openInEditor(filePath)
     }
 
     // MARK: - Kanata Arguments Builder

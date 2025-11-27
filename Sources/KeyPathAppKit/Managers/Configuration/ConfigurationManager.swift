@@ -39,7 +39,7 @@ protocol ConfigurationManaging: Sendable {
     func createDefaultIfMissing() async -> Bool
 
     /// Open config file in editor
-    func openInEditor(_ path: String)
+    func openInEditor(_ path: String) async
 
     /// Parse config content to mappings
     func parseConfig(_ content: String) -> [KeyMapping]
@@ -362,28 +362,28 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
         return exists
     }
 
-    func openInEditor(_ path: String) {
+    func openInEditor(_ path: String) async {
         let filePath = (path as NSString).expandingTildeInPath
         AppLogger.shared.log("📝 [ConfigManager] Opening file in editor: \(filePath)")
 
         if !TestEnvironment.isRunningTests {
             // Try to open with Zed editor first (if available)
-            let zedProcess = Process()
-            zedProcess.executableURL = URL(fileURLWithPath: "/usr/local/bin/zed")
-            zedProcess.arguments = [filePath]
-
             do {
-                try zedProcess.run()
+                _ = try await SubprocessRunner.shared.run(
+                    "/usr/local/bin/zed",
+                    args: [filePath],
+                    timeout: 5
+                )
                 AppLogger.shared.log("📝 [ConfigManager] Opened file in Zed: \(filePath)")
                 return
             } catch {
                 // Fallback: Try to open with default text editor
-                let fallbackProcess = Process()
-                fallbackProcess.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-                fallbackProcess.arguments = ["-t", filePath]
-
                 do {
-                    try fallbackProcess.run()
+                    _ = try await SubprocessRunner.shared.run(
+                        "/usr/bin/open",
+                        args: ["-t", filePath],
+                        timeout: 5
+                    )
                     AppLogger.shared.log("📝 [ConfigManager] Opened file in default text editor: \(filePath)")
                 } catch {
                     // Last resort: Open containing folder

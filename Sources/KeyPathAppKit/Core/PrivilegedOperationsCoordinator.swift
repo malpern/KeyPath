@@ -882,7 +882,7 @@ final class PrivilegedOperationsCoordinator {
 
     /// Install bundled Kanata binary using KanataBinaryInstaller
     private func sudoInstallBundledKanata() async throws {
-        let success = KanataBinaryInstaller.shared.installBundledKanata()
+        let success = await KanataBinaryInstaller.shared.installBundledKanata()
 
         if !success {
             throw PrivilegedOperationError.operationFailed("Bundled Kanata installation failed")

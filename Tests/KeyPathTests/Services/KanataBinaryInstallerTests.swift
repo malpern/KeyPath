@@ -45,22 +45,22 @@ final class KanataBinaryInstallerTests: XCTestCase {
 
     // MARK: - Version Checking Tests
 
-    func testGetKanataVersionAtPathWithInvalidPath() {
-        let version = installer.getKanataVersionAtPath("/nonexistent/path/kanata")
+    func testGetKanataVersionAtPathWithInvalidPath() async {
+        let version = await installer.getKanataVersionAtPath("/nonexistent/path/kanata")
         XCTAssertNil(version, "Should return nil for invalid path")
     }
 
-    func testShouldUpgradeKanata() {
+    func testShouldUpgradeKanata() async {
         // In test mode, this may return false or check file existence
-        let shouldUpgrade = installer.shouldUpgradeKanata()
+        let shouldUpgrade = await installer.shouldUpgradeKanata()
         XCTAssertTrue(shouldUpgrade == true || shouldUpgrade == false, "Should return boolean")
     }
 
     // MARK: - Installation Tests (Test Mode)
 
-    func testInstallBundledKanataInTestMode() {
+    func testInstallBundledKanataInTestMode() async {
         // In test mode, should check file existence without actual installation
-        let result = installer.installBundledKanata()
+        let result = await installer.installBundledKanata()
 
         // Should return true if bundled binary exists, false otherwise
         XCTAssertTrue(result == true || result == false, "Should return boolean result")

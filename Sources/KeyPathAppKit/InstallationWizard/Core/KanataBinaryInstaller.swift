@@ -16,7 +16,7 @@ final class KanataBinaryInstaller {
 
     /// Install bundled Kanata binary to system location (/Library/KeyPath/bin/kanata)
     /// Returns true if installation succeeded or binary already exists
-    func installBundledKanata() -> Bool {
+    func installBundledKanata() async -> Bool {
         AppLogger.shared.log("🔧 [KanataBinaryInstaller] Installing bundled kanata binary to system location")
 
         let bundledPath = WizardSystemPaths.bundledKanataPath
@@ -71,11 +71,11 @@ final class KanataBinaryInstaller {
                 "✅ [KanataBinaryInstaller] Bundled kanata binary installed successfully to \(systemPath)")
 
             // Verify code signing and trust
-            verifyCodeSigning(at: systemPath)
+            await verifyCodeSigning(at: systemPath)
 
             // Smoke test: verify the binary can actually execute (skip in test mode)
             if !TestEnvironment.shouldSkipAdminOperations {
-                runSmokeTest(at: systemPath)
+                await runSmokeTest(at: systemPath)
             }
 
             // Verify the installation using detector
@@ -95,7 +95,7 @@ final class KanataBinaryInstaller {
 
     /// Check if bundled Kanata should upgrade the system installation
     /// Returns true if an upgrade is needed
-    func shouldUpgradeKanata() -> Bool {
+    func shouldUpgradeKanata() async -> Bool {
         let systemPath = WizardSystemPaths.kanataSystemInstallPath
         let bundledPath = WizardSystemPaths.bundledKanataPath
 
@@ -111,8 +111,8 @@ final class KanataBinaryInstaller {
             return false
         }
 
-        let systemVersion = getKanataVersionAtPath(systemPath)
-        let bundledVersion = getKanataVersionAtPath(bundledPath)
+        let systemVersion = await getKanataVersionAtPath(systemPath)
+        let bundledVersion = await getKanataVersionAtPath(bundledPath)
 
         AppLogger.shared.log(
             "🔄 [KanataBinaryInstaller] Version check: System=\(systemVersion ?? "unknown"), Bundled=\(bundledVersion ?? "unknown")"
@@ -136,24 +136,16 @@ final class KanataBinaryInstaller {
     }
 
     /// Extract version string from Kanata binary at path
-    func getKanataVersionAtPath(_ path: String) -> String? {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: path)
-        task.arguments = ["--version"]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
+    func getKanataVersionAtPath(_ path: String) async -> String? {
         do {
-            try task.run()
-            task.waitUntilExit()
+            let result = try await SubprocessRunner.shared.run(
+                path,
+                args: ["--version"],
+                timeout: 5
+            )
 
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8)?.trimmingCharacters(
-                in: .whitespacesAndNewlines)
-
-            return output
+            let output = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+            return output.isEmpty ? nil : output
         } catch {
             AppLogger.shared.log("❌ [KanataBinaryInstaller] Failed to get kanata version at \(path): \(error)")
             return nil
@@ -201,28 +193,21 @@ final class KanataBinaryInstaller {
     // MARK: - Private Helpers
 
     /// Verify code signing and trust for the installed binary
-    private func verifyCodeSigning(at path: String) {
+    private func verifyCodeSigning(at path: String) async {
         AppLogger.shared.log("🔍 [KanataBinaryInstaller] Verifying code signing and trust...")
         let verifyCommand = "spctl -a '\(path)' 2>&1"
-        let verifyTask = Process()
-        verifyTask.executableURL = URL(fileURLWithPath: "/bin/bash")
-        verifyTask.arguments = ["-c", verifyCommand]
-
-        let pipe = Pipe()
-        verifyTask.standardOutput = pipe
-        verifyTask.standardError = pipe
-
+        
         do {
-            try verifyTask.run()
-            verifyTask.waitUntilExit()
+            let result = try await SubprocessRunner.shared.run(
+                "/bin/bash",
+                args: ["-c", verifyCommand],
+                timeout: 10
+            )
 
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            if verifyTask.terminationStatus == 0 {
+            if result.exitCode == 0 {
                 AppLogger.shared.log("✅ [KanataBinaryInstaller] Binary passed Gatekeeper verification")
-            } else if output.contains("rejected") || output.contains("not accepted") {
-                AppLogger.shared.log("⚠️ [KanataBinaryInstaller] Binary failed Gatekeeper verification: \(output)")
+            } else if result.stderr.contains("rejected") || result.stderr.contains("not accepted") {
+                AppLogger.shared.log("⚠️ [KanataBinaryInstaller] Binary failed Gatekeeper verification: \(result.stderr)")
                 // Continue anyway - the binary is installed and quarantine removed
             }
         } catch {
@@ -231,30 +216,24 @@ final class KanataBinaryInstaller {
     }
 
     /// Run smoke test to verify the binary can actually execute
-    private func runSmokeTest(at path: String) {
+    private func runSmokeTest(at path: String) async {
         AppLogger.shared.log("🔍 [KanataBinaryInstaller] Running smoke test to verify binary execution...")
-        let smokeTest = Process()
-        smokeTest.executableURL = URL(fileURLWithPath: path)
-        smokeTest.arguments = ["--version"]
-
-        let smokePipe = Pipe()
-        smokeTest.standardOutput = smokePipe
-        smokeTest.standardError = smokePipe
-
+        
         do {
-            try smokeTest.run()
-            smokeTest.waitUntilExit()
+            let result = try await SubprocessRunner.shared.run(
+                path,
+                args: ["--version"],
+                timeout: 5
+            )
 
-            let smokeData = smokePipe.fileHandleForReading.readDataToEndOfFile()
-            let smokeOutput = String(data: smokeData, encoding: .utf8) ?? ""
-
-            if smokeTest.terminationStatus == 0 {
+            if result.exitCode == 0 {
+                let smokeOutput = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
                 AppLogger.shared.log(
-                    "✅ [KanataBinaryInstaller] Kanata binary executes successfully (--version): \(smokeOutput.trimmingCharacters(in: .whitespacesAndNewlines))"
+                    "✅ [KanataBinaryInstaller] Kanata binary executes successfully (--version): \(smokeOutput)"
                 )
             } else {
                 AppLogger.shared.log(
-                    "⚠️ [KanataBinaryInstaller] Kanata exec smoke test failed with exit code \(smokeTest.terminationStatus): \(smokeOutput)"
+                    "⚠️ [KanataBinaryInstaller] Kanata exec smoke test failed with exit code \(result.exitCode): \(result.stderr)"
                 )
                 // Continue anyway - the binary is installed
             }

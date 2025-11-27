@@ -102,29 +102,21 @@ final class ServiceBootstrapper {
         let launchctlPath = getLaunchctlPath()
         let plistPath = getPlistPath(for: serviceID)
 
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: launchctlPath)
-        task.arguments = ["load", "-w", plistPath]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
         do {
-            try task.run()
-            task.waitUntilExit()
+            let result = try await SubprocessRunner.shared.run(
+                launchctlPath,
+                args: ["load", "-w", plistPath],
+                timeout: 10
+            )
 
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            if task.terminationStatus == 0 {
+            if result.exitCode == 0 {
                 AppLogger.shared.log("✅ [ServiceBootstrapper] Successfully loaded service: \(serviceID)")
                 // Loading triggers program start; mark warm-up
                 markRestartTime(for: [serviceID])
                 return true
             } else {
                 AppLogger.shared.log(
-                    "❌ [ServiceBootstrapper] Failed to load service \(serviceID): \(output)")
+                    "❌ [ServiceBootstrapper] Failed to load service \(serviceID): \(result.stderr)")
                 return false
             }
         } catch {
@@ -170,27 +162,15 @@ final class ServiceBootstrapper {
 
         let plistPath = getPlistPath(for: serviceID)
 
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-        task.arguments = ["unload", plistPath]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
         do {
-            try task.run()
-            task.waitUntilExit()
+            let result = try await SubprocessRunner.shared.launchctl("unload", [plistPath])
 
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            if task.terminationStatus == 0 {
+            if result.exitCode == 0 {
                 AppLogger.shared.log("✅ [ServiceBootstrapper] Successfully unloaded service: \(serviceID)")
                 return true
             } else {
                 AppLogger.shared.log(
-                    "⚠️ [ServiceBootstrapper] Service \(serviceID) may not have been loaded: \(output)")
+                    "⚠️ [ServiceBootstrapper] Service \(serviceID) may not have been loaded: \(result.stderr)")
                 // Not an error if it wasn't loaded
                 return true
             }
@@ -402,7 +382,7 @@ final class ServiceBootstrapper {
             let success = result.success
             if success {
                 AppLogger.shared.log("✅ [ServiceBootstrapper] Log rotation service installed successfully")
-                rotateCurrentLogs()
+                await rotateCurrentLogs()
             } else {
                 AppLogger.shared.log("❌ [ServiceBootstrapper] Failed to install log rotation service: \(result.output)")
             }
@@ -443,7 +423,7 @@ final class ServiceBootstrapper {
     }
 
     /// Immediately rotate current large log files
-    private func rotateCurrentLogs() {
+    private func rotateCurrentLogs() async {
         AppLogger.shared.log("🔄 [ServiceBootstrapper] Immediately rotating current large log files")
 
         let command = """
@@ -457,13 +437,12 @@ final class ServiceBootstrapper {
         fi
         """
 
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/sh")
-        task.arguments = ["-c", command]
-
         do {
-            try task.run()
-            task.waitUntilExit()
+            _ = try await SubprocessRunner.shared.run(
+                "/bin/sh",
+                args: ["-c", command],
+                timeout: 5
+            )
         } catch {
             AppLogger.shared.log("⚠️ [ServiceBootstrapper] Failed to rotate logs: \(error)")
         }

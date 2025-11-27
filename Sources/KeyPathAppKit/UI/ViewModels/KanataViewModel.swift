@@ -189,7 +189,7 @@ class KanataViewModel: ObservableObject {
     }
 
     func openFileInZed(_ path: String) {
-        manager.openFileInZed(path)
+        Task { await manager.openFileInZed(path) }
     }
 
     func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
