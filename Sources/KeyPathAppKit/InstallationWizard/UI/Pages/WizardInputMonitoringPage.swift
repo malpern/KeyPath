@@ -325,7 +325,7 @@ struct WizardInputMonitoringPage: View {
 
             // Fallback: if still not granted shortly after, open System Settings panel
             Task { @MainActor in
-                for _ in 0..<6 { // ~1.5s at 250ms
+                for _ in 0 ..< 6 { // ~1.5s at 250ms
                     _ = await WizardSleep.ms(250)
                     let snapshot = await PermissionOracle.shared.currentSnapshot()
                     let granted =

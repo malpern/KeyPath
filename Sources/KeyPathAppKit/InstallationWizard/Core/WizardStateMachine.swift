@@ -144,16 +144,15 @@ class WizardStateMachine: ObservableObject {
             timestamp: state.timestamp
         )
         let adapted = SystemContextAdapter.adapt(context)
-        let target: WizardPage
-        if FeatureFlags.useUnifiedWizardRouter {
-            target = WizardRouter.route(
+        let target: WizardPage = if FeatureFlags.useUnifiedWizardRouter {
+            WizardRouter.route(
                 state: adapted.state,
                 issues: adapted.issues,
                 helperInstalled: state.helper.isInstalled,
                 helperNeedsApproval: HelperManager.shared.helperNeedsLoginItemsApproval()
             )
         } else {
-            target = WizardRouter.route(
+            WizardRouter.route(
                 state: adapted.state,
                 issues: adapted.issues,
                 helperInstalled: state.helper.isInstalled,

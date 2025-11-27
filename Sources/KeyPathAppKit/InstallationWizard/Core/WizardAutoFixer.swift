@@ -51,7 +51,7 @@ class WizardAutoFixer: AutoFixCapable {
     /// Wait for TCP server readiness using a short-lived client.
     private func awaitTCPReady(
         port: Int,
-        timeoutMs: Int = 3_000,
+        timeoutMs: Int = 3000,
         pollMs: Int = 200
     ) async -> Bool {
         let start = Date()
@@ -312,110 +312,153 @@ class WizardAutoFixer: AutoFixCapable {
     }
 
     private func installCorrectVHIDDriver() async -> Bool {
-        AppLogger.shared.log(
-            "🔧 [AutoFixer] Installing required Karabiner VirtualHID driver (helper-first)")
-
-        let session = UUID().uuidString
+        let session = UUID().uuidString.prefix(8)
         let t0 = Date()
-        let pre = await captureVHIDSnapshot()
 
+        func elapsed() -> String {
+            String(format: "%.2fs", Date().timeIntervalSince(t0))
+        }
+
+        AppLogger.shared.log(
+            "🔧 [VHIDInstall:\(session)] ═══════════════════════════════════════════════════════")
+        AppLogger.shared.log(
+            "🔧 [VHIDInstall:\(session)] STEP 0: Starting VHID driver install (helper-first)")
+
+        // STEP 1: Capture pre-install snapshot
+        AppLogger.shared.log("🔧 [VHIDInstall:\(session)] STEP 1: Capturing pre-install snapshot...")
+        let pre = await captureVHIDSnapshot()
+        AppLogger.shared.log(
+            "🔧 [VHIDInstall:\(session)] STEP 1 DONE [\(elapsed())]: pre=\(snapshotJSON(pre))")
+
+        // STEP 2: Install driver via coordinator (helper or sudo)
+        AppLogger.shared.log("🔧 [VHIDInstall:\(session)] STEP 2: Installing driver via coordinator...")
         do {
             try await PrivilegedOperationsCoordinator.shared.downloadAndInstallCorrectVHIDDriver()
+            AppLogger.shared.log("🔧 [VHIDInstall:\(session)] STEP 2 DONE [\(elapsed())]: Driver pkg installed ✅")
         } catch {
-            AppLogger.shared.error("❌ [AutoFixer] Failed to auto-install driver via helper: \(error)")
+            AppLogger.shared.error("❌ [VHIDInstall:\(session)] STEP 2 FAILED [\(elapsed())]: \(error)")
             let post = await captureVHIDSnapshot()
             logFixSessionSummary(
-                session: session, action: "installCorrectVHIDDriver", success: false, start: t0, pre: pre,
+                session: String(session), action: "installCorrectVHIDDriver", success: false, start: t0, pre: pre,
                 post: post
             )
             return false
         }
 
-        // Try to activate manager and verify daemon
+        // STEP 3: Activate manager
+        AppLogger.shared.log("🔧 [VHIDInstall:\(session)] STEP 3: Activating VirtualHID manager...")
         do {
             try await PrivilegedOperationsCoordinator.shared.activateVirtualHIDManager()
+            AppLogger.shared.log("🔧 [VHIDInstall:\(session)] STEP 3 DONE [\(elapsed())]: Manager activated ✅")
         } catch {
             AppLogger.shared.warn(
-                "⚠️ [AutoFixer] activateVirtualHIDManager returned error (continuing): \(error)")
+                "⚠️ [VHIDInstall:\(session)] STEP 3 WARN [\(elapsed())]: activateVirtualHIDManager error (continuing): \(error)")
         }
 
+        // STEP 4: Restart daemon
+        AppLogger.shared.log("🔧 [VHIDInstall:\(session)] STEP 4: Restarting VirtualHID daemon...")
         let restartOk = await restartVirtualHIDDaemon()
-        AppLogger.shared.log("🔧 [AutoFixer] Post-install restart verified: \(restartOk)")
+        AppLogger.shared.log("🔧 [VHIDInstall:\(session)] STEP 4 DONE [\(elapsed())]: restart=\(restartOk ? "✅" : "❌")")
+
+        // STEP 5: Wait for VHID health
+        AppLogger.shared.log("🔧 [VHIDInstall:\(session)] STEP 5: Waiting for VHID health...")
         let vhidHealthy = await awaitVHIDHealthy()
-        AppLogger.shared.log("🔧 [AutoFixer] VHID health after install: \(vhidHealthy)")
+        AppLogger.shared.log("🔧 [VHIDInstall:\(session)] STEP 5 DONE [\(elapsed())]: healthy=\(vhidHealthy ? "✅" : "❌")")
+
+        // STEP 6: Capture post-install snapshot and verify version
+        AppLogger.shared.log("🔧 [VHIDInstall:\(session)] STEP 6: Capturing post-install snapshot...")
         let post = await captureVHIDSnapshot()
         let versionMatches = post.driverVersion == VHIDDeviceManager.requiredDriverVersionString
         AppLogger.shared.log(
-            "🔍 [AutoFixer] VHID version check after install: installed=\(post.driverVersion ?? "nil"), required=\(VHIDDeviceManager.requiredDriverVersionString), match=\(versionMatches)"
-        )
+            "🔧 [VHIDInstall:\(session)] STEP 6 DONE [\(elapsed())]: post=\(snapshotJSON(post)), versionMatch=\(versionMatches ? "✅" : "❌")")
+
+        let success = restartOk && vhidHealthy && versionMatches
+        AppLogger.shared.log(
+            "🔧 [VHIDInstall:\(session)] ═══════════════════════════════════════════════════════")
+        AppLogger.shared.log(
+            "🔧 [VHIDInstall:\(session)] COMPLETE [\(elapsed())]: success=\(success ? "✅" : "❌") (restart=\(restartOk), healthy=\(vhidHealthy), version=\(versionMatches))")
+
         logFixSessionSummary(
-            session: session, action: "installCorrectVHIDDriver", success: restartOk && vhidHealthy && versionMatches, start: t0, pre: pre,
+            session: String(session), action: "installCorrectVHIDDriver", success: success, start: t0, pre: pre,
             post: post
         )
-        return restartOk && vhidHealthy && versionMatches
+        return success
     }
 
     private func fixDriverVersionMismatch() async -> Bool {
-        AppLogger.shared.log("🔧 [AutoFixer] Fixing driver version mismatch")
+        let session = UUID().uuidString.prefix(8)
+        let t0 = Date()
 
-        // Inform user via status reporter instead of modal alert
+        func elapsed() -> String {
+            String(format: "%.2fs", Date().timeIntervalSince(t0))
+        }
+
+        AppLogger.shared.log(
+            "🔧 [VHIDFix:\(session)] ═══════════════════════════════════════════════════════")
+        AppLogger.shared.log(
+            "🔧 [VHIDFix:\(session)] STEP 0: Starting driver version mismatch fix")
+
+        // STEP 1: Report mismatch info
         if let versionMessage = vhidDeviceManager.getVersionMismatchMessage() {
             await statusReporter(
                 "Updating Karabiner driver to \(VHIDDeviceManager.requiredDriverVersionString)…"
             )
-            AppLogger.shared.log("🔧 [AutoFixer] Version mismatch detail: \(versionMessage)")
+            AppLogger.shared.log("🔧 [VHIDFix:\(session)] STEP 1 [\(elapsed())]: Version mismatch: \(versionMessage)")
         } else {
-            AppLogger.shared.warn("⚠️ [AutoFixer] No version mismatch message available")
+            AppLogger.shared.warn("⚠️ [VHIDFix:\(session)] STEP 1 [\(elapsed())]: No version mismatch message available")
         }
 
-        // Install the correct version using coordinator (bundled pkg, no download)
-        AppLogger.shared.log("🔧 [AutoFixer] Starting driver install via coordinator...")
-        let session = UUID().uuidString
-        let t0 = Date()
+        // STEP 2: Capture pre-install snapshot
+        AppLogger.shared.log("🔧 [VHIDFix:\(session)] STEP 2: Capturing pre-install snapshot...")
         let pre = await captureVHIDSnapshot()
+        AppLogger.shared.log(
+            "🔧 [VHIDFix:\(session)] STEP 2 DONE [\(elapsed())]: pre=\(snapshotJSON(pre))")
+
+        // STEP 3: Install driver via coordinator (bundled pkg, no download)
+        AppLogger.shared.log("🔧 [VHIDFix:\(session)] STEP 3: Installing driver via coordinator...")
         var success: Bool
         do {
             try await PrivilegedOperationsCoordinator.shared.downloadAndInstallCorrectVHIDDriver()
-            AppLogger.shared.log("🔧 [AutoFixer] Coordinator call completed successfully")
+            AppLogger.shared.log("🔧 [VHIDFix:\(session)] STEP 3 DONE [\(elapsed())]: Coordinator call succeeded ✅")
             success = true
         } catch {
-            AppLogger.shared.error("❌ [AutoFixer] Coordinator failed to install driver: \(error)")
+            AppLogger.shared.error("❌ [VHIDFix:\(session)] STEP 3 FAILED [\(elapsed())]: \(error)")
             success = false
         }
 
         if success {
-            AppLogger.shared.info("✅ [AutoFixer] Successfully installed driver v\(VHIDDeviceManager.requiredDriverVersionString)")
-
-            // Now start the Karabiner daemon services so the driver is actually usable
-            AppLogger.shared.info("🔄 [AutoFixer] Starting Karabiner daemon services...")
+            // STEP 4: Start Karabiner daemon services
+            AppLogger.shared.log("🔧 [VHIDFix:\(session)] STEP 4: Starting Karabiner daemon services...")
             do {
-                _ = try await PrivilegedOperationsCoordinator.shared.restartKarabinerDaemonVerified()
-                AppLogger.shared.info("✅ [AutoFixer] Karabiner daemon started successfully")
+                let daemonOk = try await PrivilegedOperationsCoordinator.shared.restartKarabinerDaemonVerified()
+                AppLogger.shared.log("🔧 [VHIDFix:\(session)] STEP 4 DONE [\(elapsed())]: daemonRestart=\(daemonOk ? "✅" : "❌")")
             } catch {
-                AppLogger.shared.error("⚠️ [AutoFixer] Failed to start Karabiner daemon: \(error)")
+                AppLogger.shared.error("⚠️ [VHIDFix:\(session)] STEP 4 ERROR [\(elapsed())]: \(error)")
             }
 
-            // Also ensure the VHID services are installed and running
-            AppLogger.shared.info("🔄 [AutoFixer] Ensuring VHID services are running...")
+            // STEP 5: Ensure VHID services are running
+            AppLogger.shared.log("🔧 [VHIDFix:\(session)] STEP 5: Ensuring VHID services are running...")
             do {
                 try await PrivilegedOperationsCoordinator.shared.restartUnhealthyServices()
-                AppLogger.shared.info("✅ [AutoFixer] VHID services started successfully")
+                AppLogger.shared.log("🔧 [VHIDFix:\(session)] STEP 5 DONE [\(elapsed())]: Services restarted ✅")
             } catch {
-                AppLogger.shared.error("⚠️ [AutoFixer] Failed to restart VHID services: \(error)")
+                AppLogger.shared.error("⚠️ [VHIDFix:\(session)] STEP 5 ERROR [\(elapsed())]: \(error)")
             }
 
-            // Verify VHID is healthy and version matches instead of sleeping
+            // STEP 6: Verify VHID health and version
+            AppLogger.shared.log("🔧 [VHIDFix:\(session)] STEP 6: Verifying VHID health and version...")
             let vhidHealthy = await awaitVHIDHealthy()
             let installedVersion = vhidDeviceManager.getInstalledVersion()
             let versionMatches = installedVersion == VHIDDeviceManager.requiredDriverVersionString
             AppLogger.shared.log(
-                "🔍 [AutoFixer] VHID post-fix: healthy=\(vhidHealthy), installedVersion=\(installedVersion ?? "nil"), required=\(VHIDDeviceManager.requiredDriverVersionString), match=\(versionMatches)"
+                "🔧 [VHIDFix:\(session)] STEP 6 DONE [\(elapsed())]: healthy=\(vhidHealthy ? "✅" : "❌"), version=\(installedVersion ?? "nil"), match=\(versionMatches ? "✅" : "❌")"
             )
+
             if !vhidHealthy {
-                AppLogger.shared.warn("⚠️ [AutoFixer] VHID still not healthy after version fix")
+                AppLogger.shared.warn("⚠️ [VHIDFix:\(session)] VHID still not healthy after version fix")
             }
             if !versionMatches {
-                AppLogger.shared.warn("⚠️ [AutoFixer] Driver version still mismatched after fix")
+                AppLogger.shared.warn("⚠️ [VHIDFix:\(session)] Driver version still mismatched after fix")
             }
             success = success && vhidHealthy && versionMatches
 
@@ -423,14 +466,25 @@ class WizardAutoFixer: AutoFixCapable {
                 "Driver v\(VHIDDeviceManager.requiredDriverVersionString) installed and services restarted."
             )
         } else {
-            AppLogger.shared.error("❌ [AutoFixer] Failed to fix driver version mismatch")
+            AppLogger.shared.error("❌ [VHIDFix:\(session)] Install failed - aborting fix")
             await statusReporter(
                 "Driver install failed. Check logs for details and try again."
             )
         }
+
+        // STEP 7: Capture post-install snapshot
+        AppLogger.shared.log("🔧 [VHIDFix:\(session)] STEP 7: Capturing post-install snapshot...")
         let post = await captureVHIDSnapshot()
+        AppLogger.shared.log(
+            "🔧 [VHIDFix:\(session)] STEP 7 DONE [\(elapsed())]: post=\(snapshotJSON(post))")
+
+        AppLogger.shared.log(
+            "🔧 [VHIDFix:\(session)] ═══════════════════════════════════════════════════════")
+        AppLogger.shared.log(
+            "🔧 [VHIDFix:\(session)] COMPLETE [\(elapsed())]: success=\(success ? "✅" : "❌")")
+
         logFixSessionSummary(
-            session: session, action: "fixDriverVersionMismatch", success: success, start: t0, pre: pre,
+            session: String(session), action: "fixDriverVersionMismatch", success: success, start: t0, pre: pre,
             post: post
         )
         return success

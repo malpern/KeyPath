@@ -74,9 +74,11 @@ final class WizardDeterminismTests: XCTestCase {
 
         // When routing each snapshot
         let conflictPage = await engine.determineCurrentPage(
-            for: conflictResult.state, issues: conflictResult.issues)
+            for: conflictResult.state, issues: conflictResult.issues
+        )
         let readyPage = await engine.determineCurrentPage(
-            for: readyResult.state, issues: readyResult.issues)
+            for: readyResult.state, issues: readyResult.issues
+        )
 
         // Then pages differ as expected
         XCTAssertEqual(conflictPage, .conflicts)

@@ -29,9 +29,8 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
         let helperNeedsApproval = HelperManager.shared.helperNeedsLoginItemsApproval()
         let helperInstalled = await HelperManager.shared.isHelperInstalled()
 
-        let corePage: WizardPage
-        if FeatureFlags.useUnifiedWizardRouter {
-            corePage = WizardRouter.route(
+        let corePage: WizardPage = if FeatureFlags.useUnifiedWizardRouter {
+            WizardRouter.route(
                 state: state,
                 issues: issues,
                 helperInstalled: helperInstalled,
@@ -39,7 +38,7 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
             )
         } else {
             // Fallback: legacy inline logic (kept for quick rollback)
-            corePage = legacyDetermineCurrentPage(
+            legacyDetermineCurrentPage(
                 state: state,
                 issues: issues,
                 helperInstalled: helperInstalled,
@@ -253,6 +252,7 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
 
         return .summary
     }
+
     // MARK: - Navigation Helpers
 
     /// Determines if the wizard should show a "Next" button on the given page

@@ -35,13 +35,23 @@ kp_notarize_zip() {
     local zip_path=$1
     local profile=$2
     shift 2
-    kp_run "$KP_NOTARY_CMD" submit "$zip_path" --keychain-profile "$profile" --wait "$@"
+    if [ "$KP_SIGN_DRY_RUN" = "1" ]; then
+        echo "[DRY RUN] $KP_NOTARY_CMD submit $zip_path --keychain-profile $profile --wait $*"
+        return 0
+    fi
+    # Use word-splitting for multi-word command (xcrun notarytool)
+    $KP_NOTARY_CMD submit "$zip_path" --keychain-profile "$profile" --wait "$@"
 }
 
 kp_staple() {
     local target=$1
     shift
-    kp_run "$KP_STAPLER_CMD" staple "$target" "$@"
+    if [ "$KP_SIGN_DRY_RUN" = "1" ]; then
+        echo "[DRY RUN] $KP_STAPLER_CMD staple $target $*"
+        return 0
+    fi
+    # Use word-splitting for multi-word command (xcrun stapler)
+    $KP_STAPLER_CMD staple "$target" "$@"
 }
 
 kp_spctl_assess() {

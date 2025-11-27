@@ -513,17 +513,24 @@ class HelperService: NSObject, HelperProtocol {
 
     func uninstallKeyPath(deleteConfig: Bool, reply: @escaping (Bool, String?) -> Void) {
         NSLog("[KeyPathHelper] uninstallKeyPath requested (deleteConfig: \(deleteConfig))")
-        executePrivilegedOperation(
-            name: "uninstallKeyPath",
-            operation: {
-                try Self.performUninstall(deleteConfig: deleteConfig)
-            },
-            reply: reply
-        )
+        // Custom handling: send reply BEFORE self-destruct so XPC doesn't break
+        do {
+            try Self.performUninstallExceptSelfDestruct(deleteConfig: deleteConfig)
+            NSLog("[KeyPathHelper] ✅ uninstallKeyPath succeeded (sending reply before self-destruct)")
+            reply(true, nil)
+            // Now self-destruct after reply is sent
+            Self.selfDestruct()
+        } catch let error as HelperError {
+            NSLog("[KeyPathHelper] ❌ uninstallKeyPath failed: \(error.localizedDescription)")
+            reply(false, error.localizedDescription)
+        } catch {
+            NSLog("[KeyPathHelper] ❌ uninstallKeyPath failed: \(error.localizedDescription)")
+            reply(false, error.localizedDescription)
+        }
     }
 
-    /// Perform the full uninstall operation
-    private static func performUninstall(deleteConfig: Bool) throws {
+    /// Perform uninstall except for self-destruct (so we can send XPC reply first)
+    private static func performUninstallExceptSelfDestruct(deleteConfig: Bool) throws {
         NSLog("[KeyPathHelper] Starting uninstall sequence...")
 
         // 1. Stop and unload LaunchDaemons
@@ -550,11 +557,20 @@ class HelperService: NSObject, HelperProtocol {
         NSLog("[KeyPathHelper] Step 6: Removing user data (deleteConfig: \(deleteConfig))...")
         removeUserData(deleteConfig: deleteConfig)
 
-        // Note: We do NOT remove /Applications/KeyPath.app here because:
-        // - The app is still running (calling this uninstall)
-        // - The user will quit the app after uninstall completes
-        // - They can drag the app to trash manually
+        // 7. Remove the app bundle from /Applications
+        // macOS allows deleting a running app - the binary stays in memory
+        // The app will terminate itself after this helper call returns
+        NSLog("[KeyPathHelper] Step 7: Removing app bundle...")
+        removeAppBundle()
 
+        NSLog("[KeyPathHelper] Uninstall steps 1-7 completed (self-destruct pending)")
+    }
+
+    /// Self-destruct: remove helper binary and boot out service
+    /// Called AFTER XPC reply is sent to avoid breaking the connection
+    private static func selfDestruct() {
+        NSLog("[KeyPathHelper] Step 8: Self-destructing (removing privileged helper)...")
+        removePrivilegedHelper()
         NSLog("[KeyPathHelper] Uninstall sequence completed successfully")
     }
 
@@ -670,6 +686,40 @@ class HelperService: NSObject, HelperProtocol {
 
         // Kill cfprefsd to flush preference cache for user
         _ = run("/usr/bin/killall", ["-u", user, "cfprefsd"])
+    }
+
+    private static func removeAppBundle() {
+        let appPath = "/Applications/KeyPath.app"
+        if FileManager.default.fileExists(atPath: appPath) {
+            // Use rm -rf to remove the entire app bundle
+            // macOS allows this even while the app is running - the binary stays in memory
+            let result = run("/bin/rm", ["-rf", appPath])
+            if result.status == 0 {
+                NSLog("[KeyPathHelper] Removed app bundle: \(appPath)")
+            } else {
+                NSLog("[KeyPathHelper] Warning: Could not remove app bundle: \(result.out)")
+            }
+        } else {
+            NSLog("[KeyPathHelper] App bundle not found at \(appPath)")
+        }
+    }
+
+    private static func removePrivilegedHelper() {
+        // Remove the helper binary and plist
+        // Note: We're currently running, but macOS keeps us in memory
+        let helperPaths = [
+            "/Library/PrivilegedHelperTools/com.keypath.helper",
+            "/Library/LaunchDaemons/com.keypath.helper.plist"
+        ]
+        for path in helperPaths {
+            if FileManager.default.fileExists(atPath: path) {
+                _ = run("/bin/rm", ["-f", path])
+                NSLog("[KeyPathHelper] Removed: \(path)")
+            }
+        }
+        // Bootout the helper service (this won't kill us immediately since we're mid-call)
+        _ = run("/bin/launchctl", ["bootout", "system/com.keypath.helper"])
+        NSLog("[KeyPathHelper] Helper service booted out")
     }
 
     // MARK: - Helper Methods

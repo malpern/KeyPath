@@ -22,8 +22,8 @@ struct InstallationWizardView: View {
         let marker = statusBannerTimestamp
         DispatchQueue.main.asyncAfter(deadline: .now() + 6.0) {
             // Ensure we only clear if timestamp matches (no newer message arrived)
-            if marker == self.statusBannerTimestamp {
-                self.statusBannerMessage = nil
+            if marker == statusBannerTimestamp {
+                statusBannerMessage = nil
             }
         }
     }
@@ -1624,7 +1624,7 @@ class WizardAutoFixerManager: ObservableObject {
 
     func configure(
         kanataManager: RuntimeCoordinator,
-        toastManager: WizardToastManager,
+        toastManager _: WizardToastManager,
         statusReporter: @escaping @MainActor (String) -> Void = { _ in }
     ) {
         AppLogger.shared.log("🔧 [AutoFixerManager] Configuring with RuntimeCoordinator")

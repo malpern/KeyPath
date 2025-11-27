@@ -538,7 +538,7 @@ final class ServiceBootstrapper {
             }
             // Wait for installation to settle
             // Poll for launchctl to report loaded within warm-up window
-            for _ in 0..<10 { // ~2s with 200ms steps
+            for _ in 0 ..< 10 { // ~2s with 200ms steps
                 if await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.kanataServiceID) {
                     break
                 }
@@ -558,7 +558,7 @@ final class ServiceBootstrapper {
             do {
                 try await KanataDaemonManager.shared.unregister()
                 // Poll for service readiness with a short wait, instead of fixed sleep
-                for _ in 0..<6 { // ~0.6s
+                for _ in 0 ..< 6 { // ~0.6s
                     if await ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID) {
                         break
                     }
@@ -618,14 +618,14 @@ final class ServiceBootstrapper {
                 AppLogger.shared.log("🔄 Attempt \(attempt)/\(maxRetries)")
 
                 try await KanataDaemonManager.shared.unregister()
-                for _ in 0..<10 { // ~1s
+                for _ in 0 ..< 10 { // ~1s
                     if await ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID) {
                         break
                     }
                     _ = await WizardSleep.ms(100)
                 }
                 try await KanataDaemonManager.shared.register()
-                for _ in 0..<20 { // ~2s
+                for _ in 0 ..< 20 { // ~2s
                     if await ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID) {
                         break
                     }
@@ -640,7 +640,7 @@ final class ServiceBootstrapper {
             } catch {
                 AppLogger.shared.log("❌ Attempt \(attempt) failed: \(error)")
             }
-            for _ in 0..<5 {
+            for _ in 0 ..< 5 {
                 if await ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID) {
                     break
                 }

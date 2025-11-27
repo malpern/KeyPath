@@ -293,7 +293,7 @@ struct WizardAccessibilityPage: View {
                 var lastKeyPathGranted: Bool?
                 var lastKanataGranted: Bool?
                 while attempts < maxAttempts {
-                    _ = await WizardSleep.ms(1_000)
+                    _ = await WizardSleep.ms(1000)
                     attempts += 1
                     let snapshot = await PermissionOracle.shared.currentSnapshot()
                     let kpGranted = snapshot.keyPath.accessibility.isReady
@@ -318,7 +318,7 @@ struct WizardAccessibilityPage: View {
             }
             // Fallback: if not granted shortly, open Accessibility settings so the user can toggle
             Task { @MainActor in
-                _ = await WizardSleep.ms(1_500) // 1.5s
+                _ = await WizardSleep.ms(1500) // 1.5s
                 let snapshot = await PermissionOracle.shared.currentSnapshot()
                 let granted =
                     snapshot.keyPath.accessibility.isReady && snapshot.kanata.accessibility.isReady

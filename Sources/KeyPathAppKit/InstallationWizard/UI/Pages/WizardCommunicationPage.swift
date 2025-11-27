@@ -295,14 +295,14 @@ struct WizardCommunicationPage: View {
 
                 // Timeout task (15 seconds total)
                 group.addTask {
-                        // Poll for up to 15s at 250ms to detect service recovery
-                        let clock = ContinuousClock()
-                        for _ in 0..<60 {
-                            try await clock.sleep(for: .milliseconds(250))
-                            if await isCommunicationResponding() {
-                                break
-                            }
+                    // Poll for up to 15s at 250ms to detect service recovery
+                    let clock = ContinuousClock()
+                    for _ in 0 ..< 60 {
+                        try await clock.sleep(for: .milliseconds(250))
+                        if await isCommunicationResponding() {
+                            break
                         }
+                    }
                     throw TimeoutError()
                 }
 
@@ -374,14 +374,14 @@ struct WizardCommunicationPage: View {
             if success {
                 // Wait for TCP server to start
                 AppLogger.shared.log("⏳ [WizardComm] Waiting for TCP server to be ready...")
-                    // Poll up to 3s at 200ms for the service to come up
-                    let clock = ContinuousClock()
-                    for _ in 0..<15 {
-                        try? await clock.sleep(for: .milliseconds(200))
-                        if await isCommunicationResponding() {
-                            break
-                        }
+                // Poll up to 3s at 200ms for the service to come up
+                let clock = ContinuousClock()
+                for _ in 0 ..< 15 {
+                    try? await clock.sleep(for: .milliseconds(200))
+                    if await isCommunicationResponding() {
+                        break
                     }
+                }
             } else {
                 AppLogger.shared.log("❌ [WizardComm] Failed to restart service after regeneration")
             }
@@ -398,7 +398,7 @@ struct WizardCommunicationPage: View {
         if success {
             // Recheck status after successful fix
             let clock = ContinuousClock()
-            for _ in 0..<10 {
+            for _ in 0 ..< 10 {
                 try? await clock.sleep(for: .milliseconds(100))
                 if await isCommunicationResponding() {
                     break

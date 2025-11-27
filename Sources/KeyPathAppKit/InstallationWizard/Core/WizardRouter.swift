@@ -3,7 +3,7 @@ import KeyPathWizardCore
 
 /// Pure, side-effect-free routing function for the wizard.
 /// Takes only immutable inputs so it can be used by any stack (legacy or new).
-struct WizardRouter {
+enum WizardRouter {
     /// Determine the appropriate page given system state and detected issues.
     /// This intentionally ignores optional pages like Full Disk Access; callers can
     /// apply additional heuristics (e.g., show-once pages) on top.

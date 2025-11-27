@@ -257,7 +257,6 @@ struct AsyncOperation<T> {
 // MARK: - Operation Factory
 
 enum WizardOperations {
-
     /// Auto-fix operation with detailed progress tracking
     static func autoFix(
         action: AutoFixAction,
