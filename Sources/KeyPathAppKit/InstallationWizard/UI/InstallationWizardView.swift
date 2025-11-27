@@ -13,6 +13,21 @@ struct InstallationWizardView: View {
         kanataViewModel.underlyingManager
     }
 
+    @MainActor
+    private func showStatusBanner(_ message: String) {
+        statusBannerMessage = message
+        statusBannerTimestamp = Date()
+
+        // Auto-dismiss after 6 seconds if not updated
+        let marker = statusBannerTimestamp
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6.0) {
+            // Ensure we only clear if timestamp matches (no newer message arrived)
+            if marker == self.statusBannerTimestamp {
+                self.statusBannerMessage = nil
+            }
+        }
+    }
+
     // Optional initial page to navigate to
     var initialPage: WizardPage?
 
@@ -43,12 +58,37 @@ struct InstallationWizardView: View {
     @State private var refreshTask: Task<Void, Never>?
     @State private var isForceClosing = false // Prevent new operations after nuclear close
     @State private var loginItemsPollingTask: Task<Void, Never>? // Polls for Login Items approval
+    @State private var statusBannerMessage: String?
+    @State private var statusBannerTimestamp: Date?
 
     // Focus management for reliable ESC key handling
     @FocusState private var hasKeyboardFocus: Bool
 
     var body: some View {
         ZStack {
+            if let banner = statusBannerMessage {
+                VStack(spacing: 0) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "info.circle")
+                        Text(banner)
+                            .font(.callout)
+                            .multilineTextAlignment(.leading)
+                        Spacer()
+                    }
+                    .padding(10)
+                    .background(.thinMaterial)
+                    .overlay(
+                        Rectangle()
+                            .frame(height: 1)
+                            .foregroundColor(Color.gray.opacity(0.15)),
+                        alignment: .bottom
+                    )
+                    Spacer()
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .zIndex(2)
+            }
+
             // Dark mode-aware background for cross-fade effect
             WizardDesign.Colors.wizardBackground
                 .ignoresSafeArea()
@@ -109,6 +149,11 @@ struct InstallationWizardView: View {
         .onAppear {
             hasKeyboardFocus = true
             Task { await setupWizard() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowUserFeedback"))) { note in
+            if let message = note.userInfo?["message"] as? String {
+                showStatusBanner(message)
+            }
         }
         .onChange(of: asyncOperationManager.hasRunningOperations) { _, newValue in
             // When overlays disappear, reclaim focus for ESC key
@@ -373,7 +418,13 @@ struct InstallationWizardView: View {
         } else {
             AppLogger.shared.log("🔍 [Wizard] Legacy navigation stack ACTIVE (flag off)")
         }
-        autoFixer.configure(kanataManager: kanataManager, toastManager: toastManager)
+        autoFixer.configure(
+            kanataManager: kanataManager,
+            toastManager: toastManager,
+            statusReporter: { message in
+                showStatusBanner(message)
+            }
+        )
 
         // Show summary page immediately with validation state
         // Determine initial page based on cached system snapshot (if available)
@@ -1571,10 +1622,16 @@ private func runWithTimeout<T: Sendable>(
 class WizardAutoFixerManager: ObservableObject {
     private(set) var autoFixer: WizardAutoFixer?
 
-    func configure(kanataManager: RuntimeCoordinator, toastManager _: WizardToastManager) {
+    func configure(
+        kanataManager: RuntimeCoordinator,
+        toastManager: WizardToastManager,
+        statusReporter: @escaping @MainActor (String) -> Void = { _ in }
+    ) {
         AppLogger.shared.log("🔧 [AutoFixerManager] Configuring with RuntimeCoordinator")
-        // FIXED: Removed toastManager parameter (was unused, created Core→UI architecture violation)
-        autoFixer = WizardAutoFixer(kanataManager: kanataManager)
+        autoFixer = WizardAutoFixer(
+            kanataManager: kanataManager,
+            statusReporter: statusReporter
+        )
         AppLogger.shared.log("🔧 [AutoFixerManager] Configuration complete")
     }
 

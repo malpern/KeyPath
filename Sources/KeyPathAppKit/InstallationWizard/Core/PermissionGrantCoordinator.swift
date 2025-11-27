@@ -88,24 +88,10 @@ class PermissionGrantCoordinator: ObservableObject {
         instructions: String,
         onComplete: @escaping () -> Void
     ) {
-        if TestEnvironment.isRunningTests {
-            WizardLogger.shared.log("🧪 [PermissionGrant] Suppressing NSAlert in test environment")
-            onComplete()
-            return
-        }
-
-        let alert = NSAlert()
-        alert.messageText = "\(permissionType.displayName) Permission Required"
-        alert.informativeText = instructions
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "Open System Settings")
-        alert.addButton(withTitle: "Cancel")
-
-        let response = alert.runModal()
-        if response == .alertFirstButtonReturn {
-            openSystemSettings(for: permissionType)
-            onComplete()
-        }
+        // Use inline wizard feedback instead of a modal alert.
+        showUserFeedback(instructions)
+        openSystemSettings(for: permissionType)
+        onComplete()
     }
 
     private func openSystemSettings(for permissionType: CoordinatorPermissionType) {

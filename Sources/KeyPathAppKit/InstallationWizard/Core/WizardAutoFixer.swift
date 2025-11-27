@@ -12,6 +12,7 @@ class WizardAutoFixer: AutoFixCapable {
     // NOTE: launchDaemonInstaller removed - health checks migrated to ServiceHealthChecker
     private let packageManager: PackageManager
     private let bundledRuntimeCoordinator: BundledRuntimeCoordinator
+    private let statusReporter: @MainActor (String) -> Void
     // REMOVED: toastManager was unused and created architecture violation (Core → UI dependency)
     // REMOVED: ProcessSynchronizationActor - no longer needed
 
@@ -19,12 +20,14 @@ class WizardAutoFixer: AutoFixCapable {
         kanataManager: RuntimeCoordinator,
         vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(),
         packageManager: PackageManager = PackageManager(),
-        bundledRuntimeCoordinator: BundledRuntimeCoordinator = BundledRuntimeCoordinator()
+        bundledRuntimeCoordinator: BundledRuntimeCoordinator = BundledRuntimeCoordinator(),
+        statusReporter: @escaping @MainActor (String) -> Void = { _ in }
     ) {
         self.kanataManager = kanataManager
         self.vhidDeviceManager = vhidDeviceManager
         self.packageManager = packageManager
         self.bundledRuntimeCoordinator = bundledRuntimeCoordinator
+        self.statusReporter = statusReporter
     }
 
     // MARK: - Readiness helpers
@@ -341,45 +344,28 @@ class WizardAutoFixer: AutoFixCapable {
         let vhidHealthy = await awaitVHIDHealthy()
         AppLogger.shared.log("🔧 [AutoFixer] VHID health after install: \(vhidHealthy)")
         let post = await captureVHIDSnapshot()
+        let versionMatches = post.driverVersion == VHIDDeviceManager.requiredDriverVersionString
+        AppLogger.shared.log(
+            "🔍 [AutoFixer] VHID version check after install: installed=\(post.driverVersion ?? "nil"), required=\(VHIDDeviceManager.requiredDriverVersionString), match=\(versionMatches)"
+        )
         logFixSessionSummary(
-            session: session, action: "installCorrectVHIDDriver", success: restartOk && vhidHealthy, start: t0, pre: pre,
+            session: session, action: "installCorrectVHIDDriver", success: restartOk && vhidHealthy && versionMatches, start: t0, pre: pre,
             post: post
         )
-        return restartOk && vhidHealthy
+        return restartOk && vhidHealthy && versionMatches
     }
 
     private func fixDriverVersionMismatch() async -> Bool {
         AppLogger.shared.log("🔧 [AutoFixer] Fixing driver version mismatch")
 
-        // Show dialog explaining the version downgrade
-        guard let versionMessage = vhidDeviceManager.getVersionMismatchMessage() else {
+        // Inform user via status reporter instead of modal alert
+        if let versionMessage = vhidDeviceManager.getVersionMismatchMessage() {
+            await statusReporter(
+                "Updating Karabiner driver to \(VHIDDeviceManager.requiredDriverVersionString)…"
+            )
+            AppLogger.shared.log("🔧 [AutoFixer] Version mismatch detail: \(versionMessage)")
+        } else {
             AppLogger.shared.warn("⚠️ [AutoFixer] No version mismatch message available")
-            return false
-        }
-
-        AppLogger.shared.log("🔧 [AutoFixer] Got version message, showing dialog...")
-
-        // Show user-facing dialog on main thread
-        let userConfirmed = await MainActor.run {
-            AppLogger.shared.log("🔧 [AutoFixer] Creating NSAlert on MainActor...")
-            let alert = NSAlert()
-            alert.messageText = "Karabiner Driver Version Fix Required"
-            alert.informativeText = versionMessage
-            alert.alertStyle = .informational
-            alert.addButton(withTitle: "Install v\(VHIDDeviceManager.requiredDriverVersionString)")
-            alert.addButton(withTitle: "Cancel")
-
-            AppLogger.shared.log("🔧 [AutoFixer] Calling runModal()...")
-            let response = alert.runModal()
-            AppLogger.shared.log("🔧 [AutoFixer] runModal() returned: \(response.rawValue)")
-            return response == .alertFirstButtonReturn
-        }
-
-        AppLogger.shared.log("🔧 [AutoFixer] User confirmed: \(userConfirmed)")
-
-        guard userConfirmed else {
-            AppLogger.shared.log("ℹ️ [AutoFixer] User cancelled driver version fix")
-            return false
         }
 
         // Install the correct version using coordinator (bundled pkg, no download)
@@ -418,43 +404,29 @@ class WizardAutoFixer: AutoFixCapable {
                 AppLogger.shared.error("⚠️ [AutoFixer] Failed to restart VHID services: \(error)")
             }
 
-            // Verify VHID is healthy instead of sleeping
+            // Verify VHID is healthy and version matches instead of sleeping
             let vhidHealthy = await awaitVHIDHealthy()
-            AppLogger.shared.log("🔍 [AutoFixer] VHID health after version fix: \(vhidHealthy)")
+            let installedVersion = vhidDeviceManager.getInstalledVersion()
+            let versionMatches = installedVersion == VHIDDeviceManager.requiredDriverVersionString
+            AppLogger.shared.log(
+                "🔍 [AutoFixer] VHID post-fix: healthy=\(vhidHealthy), installedVersion=\(installedVersion ?? "nil"), required=\(VHIDDeviceManager.requiredDriverVersionString), match=\(versionMatches)"
+            )
             if !vhidHealthy {
                 AppLogger.shared.warn("⚠️ [AutoFixer] VHID still not healthy after version fix")
             }
-            success = success && vhidHealthy
-
-            // Show success message
-            await MainActor.run {
-                let alert = NSAlert()
-                alert.messageText = "Driver Version Fixed"
-                alert.informativeText = """
-                Karabiner-DriverKit-VirtualHIDDevice v\(VHIDDeviceManager.requiredDriverVersionString) has been installed and started successfully.
-
-                ✓ Installed v\(VHIDDeviceManager.requiredDriverVersionString)
-                ✓ Started Karabiner daemon services
-
-                KeyPath is now ready to use.
-                """
-                alert.alertStyle = .informational
-                alert.addButton(withTitle: "OK")
-                alert.runModal()
+            if !versionMatches {
+                AppLogger.shared.warn("⚠️ [AutoFixer] Driver version still mismatched after fix")
             }
+            success = success && vhidHealthy && versionMatches
+
+            await statusReporter(
+                "Driver v\(VHIDDeviceManager.requiredDriverVersionString) installed and services restarted."
+            )
         } else {
             AppLogger.shared.error("❌ [AutoFixer] Failed to fix driver version mismatch")
-
-            // Show error message
-            await MainActor.run {
-                let alert = NSAlert()
-                alert.messageText = "Installation Failed"
-                alert.informativeText =
-                    "Failed to install Karabiner-DriverKit-VirtualHIDDevice v\(VHIDDeviceManager.requiredDriverVersionString). Please try again or check the logs for details."
-                alert.alertStyle = .warning
-                alert.addButton(withTitle: "OK")
-                alert.runModal()
-            }
+            await statusReporter(
+                "Driver install failed. Check logs for details and try again."
+            )
         }
         let post = await captureVHIDSnapshot()
         logFixSessionSummary(
@@ -779,72 +751,33 @@ class WizardAutoFixer: AutoFixCapable {
             AppLogger.shared.log(
                 "⚠️ [AutoFixer] Automatic activation failed - showing user dialog for manual activation")
 
-            // Show dialog to guide user through manual driver extension activation
-            if TestEnvironment.isRunningTests {
-                AppLogger.shared.debug(
-                    "🧪 [AutoFixer] Suppressing driver extension dialog in test environment")
-            } else {
-                await showDriverExtensionDialog()
-            }
+            // Inline guidance instead of modal dialog
+            await statusReporter(
+                "Driver extension needs approval. Opening System Settings → Driver Extensions…"
+            )
+            openDriverExtensionSettings()
 
-            // Wait a moment for user to potentially complete the action
-            _ = await WizardSleep.seconds(2) // 2 seconds
-
-            // Check if activation succeeded after user intervention
-            let manualSuccess = vhidDeviceManager.detectActivation()
-
-            if manualSuccess {
+            // Poll briefly for activation
+            let activated = await awaitVHIDHealthy(timeoutSeconds: 6.0, pollMs: 300)
+            if activated {
                 AppLogger.shared.info("✅ [AutoFixer] VHIDDevice Manager activated after user intervention")
                 return true
-            } else {
-                AppLogger.shared.log(
-                    "⚠️ [AutoFixer] VHIDDevice Manager still not activated - user may need more time")
-                // Still return true since we showed helpful guidance
-                return true
             }
-        }
-    }
 
-    /// Show dialog to guide user through manual driver extension activation
-    private func showDriverExtensionDialog() async {
-        await MainActor.run {
-            let alert = NSAlert()
-            alert.messageText = "Driver Extension Activation Required"
-            alert.informativeText = """
-            KeyPath needs to activate the VirtualHID Device driver extension, but this requires manual approval for security.
-
-            Please follow these steps:
-
-            1. Click "Open System Settings" below
-            2. Go to Privacy & Security → Driver Extensions
-            3. Find "Karabiner-VirtualHIDDevice-Manager.app"
-            4. Turn ON the toggle switch
-            5. Return to KeyPath
-
-            This is a one-time setup required for keyboard remapping functionality.
-            """
-            alert.alertStyle = .informational
-            alert.addButton(withTitle: "Open System Settings")
-            alert.addButton(withTitle: "I'll Do This Later")
-
-            let response = alert.runModal()
-
-            if response == .alertFirstButtonReturn {
-                // Open System Settings to Driver Extensions
-                AppLogger.shared.log(
-                    "🔧 [AutoFixer] Opening System Settings for driver extension activation")
-                let url = URL(string: "x-apple.systempreferences:com.apple.SystemExtensionsSettings")!
-                NSWorkspace.shared.open(url)
-            } else {
-                AppLogger.shared.log("🔧 [AutoFixer] User chose to activate driver extension later")
-            }
+            AppLogger.shared.log(
+                "⚠️ [AutoFixer] VHIDDevice Manager still not activated - user may need more time")
+            await statusReporter(
+                "Driver extension not yet approved. Flip the toggle in Driver Extensions and retry."
+            )
+            return false
         }
     }
 
     /// Open System Settings to the Driver Extensions page
     private func openDriverExtensionSettings() {
-        let url = URL(string: "x-apple.systempreferences:com.apple.SystemExtensionsSettings")!
-        NSWorkspace.shared.open(url)
+        if let url = URL(string: "x-apple.systempreferences:com.apple.SystemExtensionsSettings") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     private func installLaunchDaemonServices() async -> Bool {
