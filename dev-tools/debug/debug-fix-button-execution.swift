@@ -2,20 +2,20 @@
 
 import Foundation
 
-print("🔍 DEBUG: Fix Button Execution Flow Analysis")
+print("🔍 DEBUG: Fix Button Execution Flow (InstallerEngine)")
 print(String(repeating: "=", count: 60))
 
 // This script helps debug the complete Fix button execution flow
 // by adding comprehensive logging and checking all error message paths
 
-let sourcesPath = "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath"
+let sourcesPath = FileManager.default.currentDirectoryPath + "/Sources"
 
 // Key files to examine for Fix button execution flow
 let keyFiles = [
-    "InstallationWizard/UI/InstallationWizardView.swift",
-    "InstallationWizard/Core/WizardAutoFixer.swift",
-    "InstallationWizard/Core/WizardAsyncOperationManager.swift",
-    "InstallationWizard/Core/LaunchDaemonInstaller.swift"
+    "KeyPathAppKit/InstallationWizard/UI/InstallationWizardView.swift",
+    "KeyPathAppKit/InstallationWizard/Core/WizardAutoFixer.swift",
+    "KeyPathAppKit/InstallationWizard/Core/WizardAsyncOperationManager.swift",
+    "KeyPathAppKit/InstallationWizard/Core/InstallerEngine.swift"
 ]
 
 print("\n📋 LOGGING ANALYSIS PLAN:")

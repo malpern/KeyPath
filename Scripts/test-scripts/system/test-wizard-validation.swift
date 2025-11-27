@@ -1,56 +1,41 @@
 #!/usr/bin/env swift
 
 import Foundation
+import KeyPathAppKit
 
-// Test script to validate the wizard's new detection logic
-print("🧪 Testing Wizard Validation Logic")
-print("==================================")
+/// Validates wizard detection using the InstallerEngine snapshot and reports
+/// what the wizard should display for LaunchDaemon services.
+@main
+struct TestWizardValidation {
+    static func main() async {
+        print("🧪 Testing Wizard Validation Logic (InstallerEngine)")
+        print(String(repeating: "=", count: 38))
 
-// Test the new LaunchDaemon validation
-@_silgen_name("swift_retainCount")
-func swift_retainCount(_: AnyObject) -> UInt
+        let engine = InstallerEngine()
+        let context = await engine.inspectSystem()
+        let services = context.services.launchDaemons
 
-class LaunchDaemonInstaller {
-    static let kanataServiceID = "com.keypath.kanata"
-    static let launchDaemonsPath = "/Library/LaunchDaemons"
+        print("\n📋 LaunchDaemon snapshot:")
+        print("  Kanata loaded/healthy:     \(services.kanataServiceLoaded)/\(services.kanataServiceHealthy)")
+        print("  VHID Daemon loaded/healthy:\(services.vhidDaemonServiceLoaded)/\(services.vhidDaemonServiceHealthy)")
+        print("  VHID Manager loaded/healthy:\(services.vhidManagerServiceLoaded)/\(services.vhidManagerServiceHealthy)")
 
-    func isKanataServiceConfiguredCorrectly() -> Bool {
-        let plistPath = "\(Self.launchDaemonsPath)/\(Self.kanataServiceID).plist"
-        print("📋 Checking plist at: \(plistPath)")
+        let allHealthy = services.kanataServiceHealthy
+            && services.vhidDaemonServiceHealthy
+            && services.vhidManagerServiceHealthy
+        let loadedButUnhealthy = (services.kanataServiceLoaded && !services.kanataServiceHealthy)
+            || (services.vhidDaemonServiceLoaded && !services.vhidDaemonServiceHealthy)
+            || (services.vhidManagerServiceLoaded && !services.vhidManagerServiceHealthy)
 
-        guard let dict = NSDictionary(contentsOfFile: plistPath) as? [String: Any] else {
-            print("❌ Plist not found or unreadable")
-            return false
+        print("\n🎯 Wizard classification:")
+        if allHealthy {
+            print("  🟢 INSTALLED (all services healthy)")
+        } else if loadedButUnhealthy {
+            print("  🟡 Services failing → auto-fix: restartUnhealthyServices")
+        } else {
+            print("  🔴 Services missing → auto-fix: installLaunchDaemonServices")
         }
 
-        guard let args = dict["ProgramArguments"] as? [String] else {
-            print("❌ ProgramArguments missing or malformed")
-            return false
-        }
-
-        print("📝 Current ProgramArguments:")
-        for (index, arg) in args.enumerated() {
-            print("  [\(index)] \(arg)")
-        }
-
-        // Check for required arguments
-        let hasPortFlag = args.contains("--port")
-        let hasPortValue = args.contains("5829")
-
-        print("\n🔍 Validation Results:")
-        print("  - Port flag (--port): \(hasPortFlag)")
-        print("  - Port value (5829): \(hasPortValue)")
-
-        let isCorrect = hasPortFlag && hasPortValue
-        print("  - Overall result: \(isCorrect ? "✅ CORRECT" : "❌ NEEDS UPDATE")")
-
-        return isCorrect
+        print("\n✅ Snapshot timestamp: \(context.timestamp)")
     }
 }
-
-let installer = LaunchDaemonInstaller()
-let result = installer.isKanataServiceConfiguredCorrectly()
-
-print("\n🎯 Test Result: \(result ? "PASS" : "FAIL")")
-print("Expected: FAIL (because current plist doesn't have TCP server config)")
-print("If wizard detects this correctly, it should show LaunchDaemon services as needing attention.")
