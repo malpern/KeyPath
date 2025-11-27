@@ -362,8 +362,7 @@ struct InstallationWizardView: View {
                 WizardKanataServicePage(
                     systemState: systemState,
                     issues: currentIssues,
-                    onRefresh: { refreshState() },
-                    toastManager: toastManager
+                    onRefresh: { refreshState() }
                 )
             }
         }

@@ -20,8 +20,8 @@ struct WizardKarabinerComponentsPage: View {
 
     @State private var showAllItems = false
     @State private var isCombinedFixLoading = false
+    @State private var actionStatus: WizardDesign.ActionStatus = .idle
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
-    @EnvironmentObject var toastManager: WizardToastManager
 
     var body: some View {
         VStack(spacing: 0) {
@@ -87,6 +87,12 @@ struct WizardKarabinerComponentsPage: View {
                         .padding(.top, WizardDesign.Spacing.sectionGap)
                     }
 
+                    // Inline action status
+                    if actionStatus.isActive, let message = actionStatus.message {
+                        InlineStatusView(status: actionStatus, message: message)
+                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                    }
+
                     Button(nextStepButtonTitle) {
                         navigateToNextStep()
                     }
@@ -94,6 +100,7 @@ struct WizardKarabinerComponentsPage: View {
                     .keyboardShortcut(.defaultAction)
                     .padding(.top, WizardDesign.Spacing.sectionGap)
                 }
+                .animation(WizardDesign.Animation.statusTransition, value: actionStatus)
                 .heroSectionContainer()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -119,7 +126,14 @@ struct WizardKarabinerComponentsPage: View {
                     .disabled(isCombinedFixLoading)
                     .frame(minHeight: 44) // Prevent height change when loading spinner appears
                     .padding(.top, WizardDesign.Spacing.itemGap)
+
+                    // Inline action status
+                    if actionStatus.isActive, let message = actionStatus.message {
+                        InlineStatusView(status: actionStatus, message: message)
+                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                    }
                 }
+                .animation(WizardDesign.Animation.statusTransition, value: actionStatus)
                 .heroSectionContainer()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }

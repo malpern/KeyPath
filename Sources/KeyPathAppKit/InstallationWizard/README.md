@@ -127,7 +127,7 @@ Pages are shown in priority order when issues are detected:
 | File | Lines | Purpose |
 |------|-------|---------|
 | `WizardAutoFixer.swift` | 1,187 | **Auto-remediation** - Implements fixes for 50+ edge cases |
-| `LaunchDaemonInstaller.swift` | 2,465 | **Service installation** - LaunchDaemon creation, validation, lifecycle |
+| `InstallerEngine.swift` | 400 | **Service installation façade** - install/repair/uninstall through recipes |
 | `VHIDDeviceManager.swift` | 548 | **Driver management** - VirtualHID driver download, installation, version checking |
 | `PackageManager.swift` | 650 | **Dependency installation** - Homebrew and .pkg installer integration |
 | `PermissionGrantCoordinator.swift` | 428 | **Permission flows** - Coordinates System Settings dialogs and permission grants |

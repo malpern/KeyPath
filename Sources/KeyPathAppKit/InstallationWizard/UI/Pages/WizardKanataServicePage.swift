@@ -7,7 +7,6 @@ struct WizardKanataServicePage: View {
     let systemState: WizardSystemState
     let issues: [WizardIssue]
     let onRefresh: () -> Void
-    let toastManager: WizardToastManager
 
     // Access underlying RuntimeCoordinator for business logic
     private var kanataManager: RuntimeCoordinator {
@@ -17,6 +16,7 @@ struct WizardKanataServicePage: View {
     @State private var isPerformingAction = false
     @State private var serviceStatus: ServiceStatus = .unknown
     @State private var refreshTimer: Timer?
+    @State private var actionStatus: WizardDesign.ActionStatus = .idle
 
     // Integration with RuntimeCoordinator for better error context
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
@@ -75,6 +75,12 @@ struct WizardKanataServicePage: View {
             )
             .padding(.top, WizardDesign.Spacing.sectionGap)
 
+            // Inline action status
+            if actionStatus.isActive, let message = actionStatus.message {
+                InlineStatusView(status: actionStatus, message: message)
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
+
             if let cta = primaryCTAConfiguration {
                 Button(cta.label, action: cta.action)
                     .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isPerformingAction))
@@ -95,6 +101,7 @@ struct WizardKanataServicePage: View {
 
             Spacer()
         }
+        .animation(WizardDesign.Animation.statusTransition, value: actionStatus)
         .frame(maxWidth: .infinity)
         .fixedSize(horizontal: false, vertical: true)
         .background(WizardDesign.Colors.wizardBackground)
@@ -120,22 +127,34 @@ struct WizardKanataServicePage: View {
         case .running:
             switch serviceStatus {
             case .running:
-                toastManager.showSuccess("\(actionName) succeeded")
+                actionStatus = .success(message: "\(actionName) succeeded")
+                scheduleStatusClear()
             case let .failed(error):
-                toastManager.showError("\(actionName) failed: \(error)")
+                actionStatus = .error(message: "\(actionName) failed: \(error)")
             default:
-                toastManager.showError(
-                    "\(actionName) did not complete. Current state: \(serviceStatus.description)")
+                actionStatus = .error(
+                    message: "\(actionName) did not complete. Current state: \(serviceStatus.description)")
             }
         case .stopped:
             switch serviceStatus {
             case .stopped:
-                toastManager.showSuccess("\(actionName) succeeded")
+                actionStatus = .success(message: "\(actionName) succeeded")
+                scheduleStatusClear()
             case let .failed(error):
-                toastManager.showError("\(actionName) encountered an error: \(error)")
+                actionStatus = .error(message: "\(actionName) encountered an error: \(error)")
             default:
-                toastManager.showError(
-                    "\(actionName) did not complete. Current state: \(serviceStatus.description)")
+                actionStatus = .error(
+                    message: "\(actionName) did not complete. Current state: \(serviceStatus.description)")
+            }
+        }
+    }
+
+    /// Auto-clear success status after 3 seconds
+    private func scheduleStatusClear() {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(3))
+            if case .success = actionStatus {
+                actionStatus = .idle
             }
         }
     }
@@ -192,6 +211,7 @@ struct WizardKanataServicePage: View {
     private func startService() {
         isPerformingAction = true
         serviceStatus = .starting
+        actionStatus = .inProgress(message: "Starting Kanata service…")
 
         Task { @MainActor in
             _ = await kanataManager.startKanata(reason: "Wizard service start button")
@@ -204,6 +224,7 @@ struct WizardKanataServicePage: View {
     private func restartService() {
         isPerformingAction = true
         serviceStatus = .stopping
+        actionStatus = .inProgress(message: "Restarting Kanata service…")
 
         Task { @MainActor in
             _ = await kanataManager.restartServiceWithFallback(reason: "Wizard service restart button")
@@ -216,6 +237,7 @@ struct WizardKanataServicePage: View {
     private func stopService() {
         isPerformingAction = true
         serviceStatus = .stopping
+        actionStatus = .inProgress(message: "Stopping Kanata service…")
 
         Task { @MainActor in
             _ = await kanataManager.stopKanata(reason: "Wizard service stop button")
@@ -394,13 +416,11 @@ struct WizardKanataServicePage_Previews: PreviewProvider {
     static var previews: some View {
         let manager = RuntimeCoordinator()
         let viewModel = KanataViewModel(manager: manager)
-        let toastManager = WizardToastManager()
 
         WizardKanataServicePage(
             systemState: .ready,
             issues: [],
-            onRefresh: {},
-            toastManager: toastManager
+            onRefresh: {}
         )
         .environmentObject(viewModel)
         .environmentObject(WizardNavigationCoordinator())
