@@ -18,7 +18,6 @@ class WizardAutoFixer {
     private let kanataManager: RuntimeCoordinator
     private let vhidDeviceManager: VHIDDeviceManager
     private let packageManager: PackageManager
-    private let bundledRuntimeCoordinator: BundledRuntimeCoordinator
     private let installerEngine: WizardInstallerEngineProtocol
     private let statusReporter: @MainActor (String) -> Void
 
@@ -27,14 +26,12 @@ class WizardAutoFixer {
         kanataManager: RuntimeCoordinator,
         vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(),
         packageManager: PackageManager = PackageManager(),
-        bundledRuntimeCoordinator: BundledRuntimeCoordinator = BundledRuntimeCoordinator(),
         installerEngine: WizardInstallerEngineProtocol = InstallerEngine(),
         statusReporter: @escaping @MainActor (String) -> Void = { _ in }
     ) {
         self.kanataManager = kanataManager
         self.vhidDeviceManager = vhidDeviceManager
         self.packageManager = packageManager
-        self.bundledRuntimeCoordinator = bundledRuntimeCoordinator
         self.installerEngine = installerEngine
         self.statusReporter = statusReporter
     }
