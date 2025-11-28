@@ -731,6 +731,8 @@ private struct SingleKeyPickerContent: View {
     let onSelectOutput: (String) -> Void
 
     @State private var selectedOutput: String
+    @State private var showingCustomPopover = false
+    @State private var customKeyInput = ""
 
     init(collection: RuleCollection, onSelectOutput: @escaping (String) -> Void) {
         self.collection = collection
@@ -763,14 +765,31 @@ private struct SingleKeyPickerContent: View {
                     }
                 }
 
-                // Custom segment (shown if there's a custom selection or always available)
+                // Custom segment with popover
                 PickerSegment(
                     label: "Custom",
                     isSelected: isCustomSelection,
                     isFirst: false,
                     isLast: true
                 ) {
-                    // For now, just show it's selected; could open editor
+                    customKeyInput = isCustomSelection ? selectedOutput : ""
+                    showingCustomPopover = true
+                }
+                .popover(isPresented: $showingCustomPopover, arrowEdge: .bottom) {
+                    CustomKeyPopover(
+                        keyInput: $customKeyInput,
+                        onConfirm: {
+                            let normalized = CustomRuleValidator.normalizeKey(customKeyInput)
+                            if CustomRuleValidator.isValidKey(normalized) {
+                                selectedOutput = normalized
+                                onSelectOutput(normalized)
+                            }
+                            showingCustomPopover = false
+                        },
+                        onCancel: {
+                            showingCustomPopover = false
+                        }
+                    )
                 }
             }
             .padding(.horizontal, 4)
@@ -785,12 +804,13 @@ private struct SingleKeyPickerContent: View {
                     .id(preset.output)
             } else if isCustomSelection {
                 HStack {
-                    Text("Custom mapping: \(selectedOutput)")
+                    Text("Custom key: \(selectedOutput)")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     Spacer()
                     Button("Edit") {
-                        // Could open custom rule editor
+                        customKeyInput = selectedOutput
+                        showingCustomPopover = true
                     }
                     .buttonStyle(.link)
                     .font(.subheadline)
@@ -800,6 +820,102 @@ private struct SingleKeyPickerContent: View {
         }
         .padding(.vertical, 8)
         .animation(.easeInOut(duration: 0.15), value: selectedOutput)
+    }
+}
+
+// MARK: - Custom Key Popover
+
+private struct CustomKeyPopover: View {
+    @Binding var keyInput: String
+    let onConfirm: () -> Void
+    let onCancel: () -> Void
+
+    @State private var showingSuggestions = false
+    @FocusState private var isInputFocused: Bool
+
+    private var suggestions: [String] {
+        CustomRuleValidator.suggestions(for: keyInput).prefix(8).map { $0 }
+    }
+
+    private var isValidKey: Bool {
+        let normalized = CustomRuleValidator.normalizeKey(keyInput)
+        return CustomRuleValidator.isValidKey(normalized)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Enter Custom Key")
+                .font(.headline)
+
+            // Key input with autocomplete
+            VStack(alignment: .leading, spacing: 4) {
+                TextField("Key name (e.g., tab, grv)", text: $keyInput)
+                    .textFieldStyle(.roundedBorder)
+                    .focused($isInputFocused)
+                    .onSubmit {
+                        if isValidKey {
+                            onConfirm()
+                        }
+                    }
+                    .onChange(of: keyInput) { _, newValue in
+                        showingSuggestions = !newValue.isEmpty
+                    }
+
+                // Autocomplete suggestions
+                if showingSuggestions, !suggestions.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(suggestions, id: \.self) { suggestion in
+                                Button {
+                                    keyInput = suggestion
+                                    showingSuggestions = false
+                                } label: {
+                                    Text(suggestion)
+                                        .font(.caption.monospaced())
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color.accentColor.opacity(0.1))
+                                        .cornerRadius(4)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    .frame(height: 28)
+                }
+
+                // Validation feedback
+                if !keyInput.isEmpty, !isValidKey {
+                    Text("Unknown key name")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                }
+            }
+
+            Divider()
+
+            // Buttons
+            HStack {
+                Button("Cancel") {
+                    onCancel()
+                }
+                .keyboardShortcut(.escape)
+
+                Spacer()
+
+                Button("OK") {
+                    onConfirm()
+                }
+                .keyboardShortcut(.return)
+                .disabled(!isValidKey)
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(16)
+        .frame(width: 280)
+        .onAppear {
+            isInputFocused = true
+        }
     }
 }
 
