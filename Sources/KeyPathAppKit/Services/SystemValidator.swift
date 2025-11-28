@@ -368,6 +368,10 @@ class SystemValidator {
 
     // MARK: - Component Checking
 
+    // ⚠️ CONCURRENCY HAZARD: This method runs in a TaskGroup alongside checkHealth().
+    // DO NOT call detectConnectionHealth() here - it uses pgrep with 500ms retry sleeps,
+    // and concurrent pgrep calls can hang. Use launchctl-based checks from ServiceHealthChecker.
+    // See: git log for "concurrent pgrep" fix, November 2024
     private func checkComponents() async -> ComponentStatus {
         AppLogger.shared.log("🔍 [SystemValidator] Checking components")
 
@@ -377,10 +381,19 @@ class SystemValidator {
         let kanataBinaryDetector = KanataBinaryDetector.shared
         let kanataBinaryInstalled = kanataBinaryDetector.isInstalled()
 
-        // Check VirtualHID Device
+        // Check VirtualHID Device installation (fast sync check)
         let vhidInstalled = vhidDeviceManager.detectInstallation()
-        let vhidHealthy = await vhidDeviceManager.detectConnectionHealth()
         let vhidVersionMismatch = vhidDeviceManager.hasVersionMismatch()
+
+        // Check LaunchDaemon services via ServiceHealthChecker FIRST
+        // This uses launchctl (fast) and provides VHID health, avoiding duplicate pgrep calls
+        // that could contend with checkHealth()'s detectConnectionHealth() call
+        let daemonStatus = await ServiceHealthChecker.shared.getServiceStatus()
+        let launchDaemonServicesHealthy = daemonStatus.allServicesHealthy
+        let vhidServicesHealthy = daemonStatus.vhidServicesHealthy
+        // Use launchctl-based VHID daemon health instead of pgrep-based detectConnectionHealth
+        // to avoid concurrent pgrep calls that can cause hangs (see checkHealth which also calls it)
+        let vhidHealthy = daemonStatus.vhidDaemonServiceHealthy
 
         // Check Karabiner driver - use extension enabled check for accurate status
         // Treat the driver as installed if either the extension is enabled or a VHID device is present.
@@ -391,11 +404,6 @@ class SystemValidator {
         // Use launchctl-based check instead of unreliable pgrep (same as checkHealth)
         let karabinerDaemonRunning = await ServiceHealthChecker.shared.isServiceHealthy(
             serviceID: "com.keypath.karabiner-vhiddaemon")
-
-        // Check LaunchDaemon services via ServiceHealthChecker
-        let daemonStatus = await ServiceHealthChecker.shared.getServiceStatus()
-        let launchDaemonServicesHealthy = daemonStatus.allServicesHealthy
-        let vhidServicesHealthy = daemonStatus.vhidServicesHealthy
 
         AppLogger.shared
             .log(

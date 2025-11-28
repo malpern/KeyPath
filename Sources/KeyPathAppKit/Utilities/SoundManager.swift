@@ -48,4 +48,38 @@ class SoundManager {
         NSSound(named: "Submarine")?.play()
         AppLogger.shared.log("🔊 [Sound] Playing submarine sound for success")
     }
+
+    // MARK: - Layer Change Sounds
+
+    /// Play subtle sound when entering a non-base layer (higher pitch)
+    func playLayerUpSound() {
+        if TestEnvironment.isRunningTests {
+            AppLogger.shared.log("🧪 [Sound] Suppressed layer-up sound in test environment")
+            return
+        }
+        // "Tink" is a light, higher-pitched tap - good for going "up"
+        playSubtleSound(named: "Tink", volume: 0.3)
+        AppLogger.shared.log("🔊 [Sound] Playing layer-up sound (Tink)")
+    }
+
+    /// Play subtle sound when returning to base layer (lower pitch)
+    func playLayerDownSound() {
+        if TestEnvironment.isRunningTests {
+            AppLogger.shared.log("🧪 [Sound] Suppressed layer-down sound in test environment")
+            return
+        }
+        // "Pop" has a lower, softer quality - good for settling "down"
+        playSubtleSound(named: "Pop", volume: 0.2)
+        AppLogger.shared.log("🔊 [Sound] Playing layer-down sound (Pop)")
+    }
+
+    /// Play a system sound at reduced volume for subtle feedback
+    private func playSubtleSound(named name: String, volume: Float) {
+        guard let sound = NSSound(named: name) else {
+            AppLogger.shared.log("⚠️ [Sound] Sound '\(name)' not found")
+            return
+        }
+        sound.volume = volume
+        sound.play()
+    }
 }

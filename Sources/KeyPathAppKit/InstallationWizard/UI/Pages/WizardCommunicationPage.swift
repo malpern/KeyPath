@@ -33,151 +33,102 @@ struct WizardCommunicationPage: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Use experimental hero design when communication is working
-            if commStatus.isSuccess {
-                VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                    // Green globe with green check overlay
+            // Unified hero/header (matches other wizard pages)
+            VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                // Icon with overlay
+                VStack(spacing: WizardDesign.Spacing.elementGap) {
                     ZStack {
                         Image(systemName: "globe")
                             .font(.system(size: 115, weight: .light))
-                            .foregroundColor(WizardDesign.Colors.success)
+                            .foregroundColor(commStatus.globeColor)
                             .symbolRenderingMode(.hierarchical)
                             .modifier(BounceIfAvailable())
 
-                        // Green check overlay in top right
                         VStack {
                             HStack {
                                 Spacer()
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.system(size: 40, weight: .medium))
-                                    .foregroundColor(WizardDesign.Colors.success)
+                                Image(systemName: commStatus.overlayIcon)
+                                    .font(.system(size: commStatus.isSuccess ? 32 : 24, weight: .medium))
+                                    .foregroundColor(commStatus.globeColor)
                                     .background(WizardDesign.Colors.wizardBackground)
                                     .clipShape(Circle())
-                                    .offset(x: 15, y: -5) // Move further right and slightly up
+                                    .offset(x: commStatus.isSuccess ? 12 : 8, y: commStatus.isSuccess ? -4 : -3)
                             }
                             Spacer()
                         }
                         .frame(width: 140, height: 115)
                     }
+                    .frame(width: 140, height: 130)
 
-                    // Large headline (23pt)
-                    Text("Communication Ready")
-                        .font(.system(size: 23, weight: .semibold, design: .default))
+                    Text("TCP Communication")
+                        .font(.system(size: 20, weight: .semibold))
                         .foregroundColor(.primary)
                         .multilineTextAlignment(.center)
-                        .lineLimit(2)
 
-                    // Supporting copy (17pt)
-                    Text("TCP server is running for instant config reloading & external integrations")
-                        .font(.system(size: 17, weight: .regular))
+                    Text(commStatus.message)
+                        .font(WizardDesign.Typography.body)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
-
-                    Button(nextStepButtonTitle) {
-                        navigateToNextStep()
-                    }
-                    .buttonStyle(WizardDesign.Component.PrimaryButton())
-                    .keyboardShortcut(.defaultAction)
-                    .padding(.top, WizardDesign.Spacing.sectionGap)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .heroSectionContainer()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                // Header for setup/error states with action link
-                VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                    // Custom header with colored globe icon
-                    VStack(spacing: WizardDesign.Spacing.elementGap) {
-                        // Colored globe with overlay icon
-                        ZStack {
-                            Image(systemName: "globe")
-                                .font(.system(size: 115, weight: .light))
-                                .foregroundColor(commStatus.globeColor)
-                                .symbolRenderingMode(.hierarchical)
-                                .modifier(BounceIfAvailable())
+                .padding(.vertical, WizardDesign.Spacing.pageVertical)
 
-                            // Overlay icon in top right
-                            VStack {
-                                HStack {
-                                    Spacer()
-                                    Image(systemName: commStatus.overlayIcon)
-                                        .font(.system(size: 24, weight: .medium))
-                                        .foregroundColor(commStatus.globeColor)
-                                        .background(WizardDesign.Colors.wizardBackground)
-                                        .clipShape(Circle())
-                                        .offset(x: 8, y: -3) // Move to the right for smaller icon
-                                }
-                                Spacer()
-                            }
-                            .frame(width: 60, height: 60)
-                        }
-                        .frame(width: 130, height: 130)
-
-                        // Title
-                        Text("TCP Communication")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(.primary)
-                            .multilineTextAlignment(.center)
-
-                        // Status message
-                        Text(commStatus.message)
-                            .font(WizardDesign.Typography.body)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(.vertical, WizardDesign.Spacing.pageVertical)
-
-                    // Action area
-                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                        // Fix button or status indicator
-                        if commStatus.canAutoFix {
-                            WizardButton(
-                                commStatus.fixButtonText,
-                                style: .primary,
-                                isLoading: isFixing
-                            ) {
-                                await performAutoFix()
-                            }
-                        } else if commStatus == .checking {
-                            VStack {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                                Text("Checking communication server...")
-                                    .font(WizardDesign.Typography.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        } else if case .authTesting = commStatus {
-                            VStack {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                                Text("Setting up secure connection...")
-                                    .font(WizardDesign.Typography.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-
-                        // Secondary information or actions
-                        if showingFixFeedback, let result = fixResult {
-                            HStack {
-                                Image(systemName: result.success ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                    .foregroundColor(
-                                        result.success ? WizardDesign.Colors.success : WizardDesign.Colors.error)
-                                Text(result.message)
-                                    .font(WizardDesign.Typography.body)
-                                    .foregroundColor(.primary)
-                                Spacer()
-                            }
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(
-                                        (result.success ? WizardDesign.Colors.success : WizardDesign.Colors.error)
-                                            .opacity(0.1))
-                            )
-                        }
-                    }
-                    .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+                // Inline status banner following the shared pattern
+                if commStatus.isSuccess {
+                    InlineStatusView(
+                        status: .success(message: "Communication ready"),
+                        message: "Communication ready"
+                    )
+                } else if showingFixFeedback, let result = fixResult {
+                    InlineStatusView(
+                        status: result.success
+                            ? .success(message: result.message)
+                            : .error(message: result.message),
+                        message: result.message
+                    )
                 }
+
+                // Action area
+                VStack(spacing: WizardDesign.Spacing.elementGap) {
+                    if commStatus.isSuccess {
+                        WizardButton(nextStepButtonTitle, style: .primary) {
+                            navigateToNextStep()
+                        }
+                        WizardButton("Re-check Status", style: .secondary) {
+                            Task { await checkCommunicationStatus() }
+                        }
+                    } else if commStatus.canAutoFix {
+                        WizardButton(
+                            commStatus.fixButtonText,
+                            style: .primary,
+                            isLoading: isFixing
+                        ) {
+                            await performAutoFix()
+                        }
+                        WizardButton("Re-check Status", style: .secondary) {
+                            Task { await checkCommunicationStatus() }
+                        }
+                    } else if commStatus == .checking {
+                        VStack {
+                            ProgressView().scaleEffect(0.8)
+                            Text("Checking communication server...")
+                                .font(WizardDesign.Typography.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    } else if case .authTesting = commStatus {
+                        VStack {
+                            ProgressView().scaleEffect(0.8)
+                            Text("Setting up secure connection...")
+                                .font(WizardDesign.Typography.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    } else {
+                        WizardButton("Re-check Status", style: .primary) {
+                            Task { await checkCommunicationStatus() }
+                        }
+                    }
+                }
+                .padding(.horizontal, WizardDesign.Spacing.pageVertical)
             }
 
             Spacer()

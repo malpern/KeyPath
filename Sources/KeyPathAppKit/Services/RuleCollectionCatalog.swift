@@ -46,57 +46,60 @@ struct RuleCollectionCatalog {
         )
     }
 
+    // Kanata modifier key reference (for Mac):
+    // M- = Meta = ⌘ Command (lmet/rmet)
+    // A- = Alt  = ⌥ Option  (lalt/ralt)
+    // C- = Ctrl = ⌃ Control (lctl/rctl)
+    // S- = Shift = ⇧ Shift  (lsft/rsft)
+
     private var navigationArrows: RuleCollection {
         RuleCollection(
             id: RuleCollectionIdentifier.vimNavigation,
             name: "Vim",
-            summary: "Vim-style navigation, selection, and text editing on Space layer.",
+            summary: "Vim-style navigation and text editing. Hold Space + hjkl for arrows. Add Shift for selection.",
             category: .navigation,
             mappings: [
-                // Basic navigation (hjkl)
+                // === Basic navigation (hjkl) - hold ⇧ Shift for selection ===
                 KeyMapping(input: "h", output: "left"),
                 KeyMapping(input: "j", output: "down"),
                 KeyMapping(input: "k", output: "up"),
                 KeyMapping(input: "l", output: "right"),
 
-                // Word navigation
-                KeyMapping(input: "w", output: "M-right"), // Word forward
-                KeyMapping(input: "b", output: "M-left"), // Word backward
-                KeyMapping(input: "e", output: "M-right"), // Word end (same as w on macOS)
+                // === Word navigation: ⌥ Option + Arrow ===
+                KeyMapping(input: "w", output: "A-right"), // Word forward (⌥→)
+                KeyMapping(input: "b", output: "A-left"), // Word backward (⌥←)
+                KeyMapping(input: "e", output: "A-right"), // End of word (⌥→) - same as w
 
-                // Line navigation
-                KeyMapping(input: "0", output: "C-M-left"), // Line start (Cmd-Left)
-                KeyMapping(input: "4", output: "C-M-right"), // Line end (Cmd-Right) - $ key
+                // === Line navigation: ⌘ Command + Arrow ===
+                KeyMapping(input: "0", output: "M-left"), // Line start (⌘←)
+                KeyMapping(input: "4", output: "M-right"), // Line end (⌘→) - $ key
+                // a → move right (append after cursor), A (⇧a) → end of line (⌘→)
+                KeyMapping(input: "a", output: "right", shiftedOutput: "M-right"),
 
-                // Document navigation
-                KeyMapping(input: "g", output: "C-M-up"), // Document start (Cmd-Up) - use gg
-                KeyMapping(input: "S-g", output: "C-M-down"), // Document end (Cmd-Down) - G
+                // === Document navigation with ⇧ Shift modifier (uses fork) ===
+                // g → ⌘↑ document start, G (⇧g) → ⌘↓ document end
+                KeyMapping(input: "g", output: "M-up", shiftedOutput: "M-down"),
 
-                // Page navigation
-                KeyMapping(input: "C-u", output: "pgup"), // Page up (Ctrl+u in Vim)
-                KeyMapping(input: "C-d", output: "pgdn"), // Page down (Ctrl+d in Vim)
+                // === Search: ⌘ Command + F/G ===
+                KeyMapping(input: "/", output: "M-f"), // Find (⌘F)
+                // n → next match (⌘G), N (⇧n) → previous match (⌘⇧G)
+                KeyMapping(input: "n", output: "M-g", shiftedOutput: "M-S-g"),
 
-                // Text selection (visual mode - hold Shift for selection)
-                KeyMapping(input: "S-h", output: "S-left"), // Select character left
-                KeyMapping(input: "S-j", output: "S-down"), // Select line down
-                KeyMapping(input: "S-k", output: "S-up"), // Select line up
-                KeyMapping(input: "S-l", output: "S-right"), // Select character right
-                KeyMapping(input: "S-w", output: "S-M-right"), // Select word forward
-                KeyMapping(input: "S-b", output: "S-M-left"), // Select word backward
-                KeyMapping(input: "S-0", output: "S-C-M-left"), // Select to line start
-                KeyMapping(input: "S-4", output: "S-C-M-right"), // Select to line end (Shift+$)
-                KeyMapping(input: "S-g", output: "S-C-M-up"), // Select to document start
-                KeyMapping(input: "S-S-g", output: "S-C-M-down"), // Select to document end (Shift+G)
+                // === Copy/paste (yank/put): ⌘ Command + C/V ===
+                KeyMapping(input: "y", output: "M-c"), // Yank/copy (⌘C)
+                KeyMapping(input: "p", output: "M-v"), // Put/paste (⌘V)
 
-                // Copy/paste (yank/put)
-                KeyMapping(input: "y", output: "C-M-c"), // Yank (copy) - Cmd+C
-                KeyMapping(input: "p", output: "C-M-v"), // Put (paste) - Cmd+V
-
-                // Editing
+                // === Editing ===
                 KeyMapping(input: "x", output: "del"), // Delete character
-                KeyMapping(input: "d", output: "M-bspc"), // Delete word backward
-                KeyMapping(input: "u", output: "C-M-z"), // Undo (Cmd-Z)
-                KeyMapping(input: "C-r", output: "C-M-S-z") // Redo (Cmd-Shift-Z)
+                KeyMapping(input: "r", output: "M-S-z"), // Redo (⌘⇧Z)
+                // d → ⌥⌫ delete word, ⌃d → Page Down
+                KeyMapping(input: "d", output: "A-bspc", ctrlOutput: "pgdn"),
+                // u → ⌘Z undo, ⌃u → Page Up
+                KeyMapping(input: "u", output: "M-z", ctrlOutput: "pgup"),
+
+                // === Line operations with ⇧ Shift modifier (uses fork) ===
+                // o → open line below (⌘→ ↩), O (⇧o) → open line above (↑ ⌘→ ↩)
+                KeyMapping(input: "o", output: "M-right ret", shiftedOutput: "up M-right ret")
             ],
             isEnabled: true,
             isSystemDefault: true,

@@ -53,6 +53,7 @@ class MainAppStateController: ObservableObject {
 
     private var lastValidationTime: Date?
     private let validationCooldown: TimeInterval = 30.0 // Skip validation if completed within last 30 seconds
+    private enum ValidationError: Error { case timeout }
 
     // MARK: - Initialization
 
@@ -294,9 +295,38 @@ class MainAppStateController: ObservableObject {
         AppLogger.shared.log("🎯 [MainAppStateController] Running SystemValidator (Phase 3)")
         AppLogger.shared.log("⏱️ [TIMING] Main screen validation START")
 
-        // Get fresh state from validator (defensive assertions active)
+        // Get fresh state from validator with a watchdog to avoid indefinite "checking"
         // Note: Main screen doesn't use progress callback (wizard does)
-        let snapshot = await validator.checkSystem()
+        AppLogger.shared.log("🔍 [MainAppStateController] Validation run started (watchdog=12s)")
+        let snapshot: SystemSnapshot
+        do {
+            snapshot = try await withThrowingTaskGroup(of: SystemSnapshot.self) { group in
+                group.addTask { await validator.checkSystem() }
+                group.addTask {
+                    try await Task.sleep(nanoseconds: 12_000_000_000) // 12s watchdog
+                    throw ValidationError.timeout
+                }
+                guard let first = try await group.next() else {
+                    throw ValidationError.timeout
+                }
+                group.cancelAll()
+                AppLogger.shared.log("✅ [MainAppStateController] Validation run completed within watchdog")
+                return first
+            }
+        } catch {
+            validationState = .failed(blockingCount: 1, totalCount: 1)
+            issues = [WizardIssue(
+                identifier: .component(.kanataService),
+                severity: .critical,
+                category: .daemon,
+                title: "Status check timed out",
+                description: "Main status validation exceeded the 12s watchdog. The Kanata service may be slow or unresponsive.",
+                autoFixAction: .restartUnhealthyServices,
+                userAction: "Try restarting the keyboard service from the System menu."
+            )]
+            AppLogger.shared.error("⏱️ [MainAppStateController] Validation watchdog fired – marking status as failed")
+            return
+        }
 
         let validationDuration = Date().timeIntervalSince(validationStart)
         AppLogger.shared.log(

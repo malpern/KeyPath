@@ -271,7 +271,7 @@ struct WizardHelperPage: View {
                 .keyboardShortcut(.defaultAction)
             } else {
                 // Single idempotent action: install or repair (performs cleanup + install)
-                Button(isInstalled ? "Repair Helper" : "Install Helper") {
+                Button(isInstalled ? "Fix" : "Install Helper") {
                     Task { await installOrRepairHelper() }
                 }
                 .buttonStyle(WizardDesign.Component.PrimaryButton())

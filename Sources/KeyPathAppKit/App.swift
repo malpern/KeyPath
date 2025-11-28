@@ -108,10 +108,10 @@ public struct KeyPathApp: App {
             CommandGroup(replacing: .newItem) {
                 Button(
                     action: {
-                        openPreferencesTab(.openSettingsGeneral)
+                        openPreferencesTab(.openSettingsAdvanced)
                     },
                     label: {
-                        Label("General Settings…", systemImage: "gearshape")
+                        Label("Repair/Remove…", systemImage: "wrench.and.screwdriver")
                     }
                 )
                 .keyboardShortcut(",", modifiers: .command)

@@ -264,6 +264,40 @@ The "fix Karabiner driver" operation takes ~11 seconds. This is intentional.
 
 **Decision**: Keep conservative 9s of sleeps + ~2s command execution. User sees progress UI during this time. The 11 seconds ensures reliability across all supported hardware configurations.
 
+### ADR-022: No Concurrent pgrep Calls in TaskGroups ✅
+Concurrent calls to functions that spawn pgrep subprocesses with retry logic can hang indefinitely.
+
+**The Bug (November 2024):**
+- `SystemValidator.performValidationBody()` runs 5 checks in a `withTaskGroup`
+- Both `checkComponents()` and `checkHealth()` called `detectConnectionHealth()`
+- `detectConnectionHealth()` → `detectRunning()` → `evaluateDaemonProcess()` spawns pgrep via `Task.detached`
+- When daemon isn't running, both tasks entered 500ms retry sleeps
+- Concurrent pgrep subprocesses caused one task to never complete
+- The TaskGroup's `for await result in group` loop hung forever
+
+**Root Cause:** `Process.waitUntilExit()` inside `Task.detached` with concurrent calls creates contention that can cause hangs.
+
+**Prevention Rules:**
+1. **Never call the same subprocess-spawning function from multiple TaskGroup tasks**
+2. **Use launchctl-based checks** (`ServiceHealthChecker`) for concurrent health checking
+3. **Reserve pgrep** for single-caller scenarios: diagnostics, orphan detection, post-kill verification
+4. **Add ⚠️ CONCURRENCY WARNING comments** to functions with retry/sleep logic
+
+**Code Pattern:**
+```swift
+// ❌ BAD - Both tasks call detectConnectionHealth() which has retries
+withTaskGroup { group in
+    group.addTask { await checkComponents() }  // calls detectConnectionHealth()
+    group.addTask { await checkHealth() }      // also calls detectConnectionHealth()
+}
+
+// ✅ GOOD - Only one task uses pgrep-based check
+withTaskGroup { group in
+    group.addTask { /* use ServiceHealthChecker.getServiceStatus() */ }
+    group.addTask { await checkHealth() }  // only caller of detectConnectionHealth()
+}
+```
+
 ## Build Commands
 
 ```bash

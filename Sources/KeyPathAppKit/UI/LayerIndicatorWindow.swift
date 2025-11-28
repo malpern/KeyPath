@@ -46,8 +46,8 @@ class LayerIndicatorWindow: NSWindow {
         alphaValue = 1.0
         orderFront(nil)
 
-        // Schedule fade-out after 3 seconds
-        hideTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
+        // Schedule fade-out after 1 second
+        hideTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: false) { [weak self] _ in
             Task { @MainActor in
                 self?.hideWithFadeOut()
             }
@@ -101,15 +101,33 @@ class LayerIndicatorManager: ObservableObject {
     static let shared = LayerIndicatorManager()
 
     private var window: LayerIndicatorWindow?
+    private var previousLayer: String = "base"
 
     private init() {}
 
     func showLayer(_ layerName: String) {
-        AppLogger.shared.log("🪟 [LayerIndicator] showLayer called with: '\(layerName)'")
+        AppLogger.shared.log("🪟 [LayerIndicator] showLayer called with: '\(layerName)' (previous: '\(previousLayer)')")
 
-        // Ignore "base" layer changes to reduce noise
-        guard layerName.lowercased() != "base" else {
-            AppLogger.shared.log("🪟 [LayerIndicator] Ignoring base layer")
+        let isBase = layerName.lowercased() == "base"
+        let wasBase = previousLayer.lowercased() == "base"
+
+        // Skip if no actual layer change (base→base polling, or same layer repeated)
+        guard layerName.lowercased() != previousLayer.lowercased() else {
+            AppLogger.shared.debug("🪟 [LayerIndicator] No layer change, skipping")
+            return
+        }
+
+        // Update previous layer tracking
+        let oldLayer = previousLayer
+        previousLayer = layerName
+
+        // Show indicator for:
+        // 1. Any non-base layer (e.g., navigation, symbols)
+        // 2. Returning to base FROM a non-base layer
+        let shouldShow = !isBase || !wasBase
+
+        guard shouldShow else {
+            AppLogger.shared.debug("🪟 [LayerIndicator] Skipping base (was already base)")
             return
         }
 
@@ -118,7 +136,14 @@ class LayerIndicatorManager: ObservableObject {
             window = LayerIndicatorWindow()
         }
 
-        AppLogger.shared.log("🪟 [LayerIndicator] Showing window with layer: '\(layerName)'")
+        AppLogger.shared.log("🪟 [LayerIndicator] Showing layer change: '\(oldLayer)' → '\(layerName)'")
         window?.show(layerName: layerName)
+
+        // Play directional sound: up when entering layer, down when returning to base
+        if isBase {
+            SoundManager.shared.playLayerDownSound()
+        } else {
+            SoundManager.shared.playLayerUpSound()
+        }
     }
 }

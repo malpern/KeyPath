@@ -704,7 +704,223 @@ class ConfigurationServiceTests: XCTestCase {
         XCTAssertTrue(repairedConfig.contains("x"), "Should contain all layer keys")
     }
 
+    // MARK: - Fork Config Generation Tests
+
+    func testForkAliasGeneration_ShiftedOutput() {
+        // Test that mappings with shiftedOutput generate fork aliases
+        let nav = RuleCollection(
+            id: RuleCollectionIdentifier.vimNavigation,
+            name: "Vim Navigation",
+            summary: "Arrow keys with fork support",
+            category: .navigation,
+            mappings: [
+                KeyMapping(input: "g", output: "M-up", shiftedOutput: "M-down")
+            ],
+            isEnabled: true,
+            isSystemDefault: false,
+            targetLayer: .navigation,
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
+        )
+
+        let config = KanataConfiguration.generateFromCollections([nav])
+
+        // Should have defalias section with fork
+        XCTAssertTrue(config.contains("(defalias"), "Config should have defalias for fork")
+        XCTAssertTrue(config.contains("fork_navigation_g"), "Config should have fork alias for g")
+        XCTAssertTrue(config.contains("(fork"), "Config should contain fork action")
+        // Fork with single key should use (multi ...) format
+        XCTAssertTrue(config.contains("(multi lmet up)"), "Default output should use (multi lmet up)")
+        XCTAssertTrue(config.contains("(multi lmet down)"), "Shifted output should use (multi lmet down)")
+        XCTAssertTrue(config.contains("(lsft rsft)"), "Fork should trigger on shift keys")
+    }
+
+    func testForkAliasGeneration_CtrlOutput() {
+        // Test that mappings with ctrlOutput generate fork aliases
+        let nav = RuleCollection(
+            id: RuleCollectionIdentifier.vimNavigation,
+            name: "Vim Navigation",
+            summary: "Page navigation with ctrl",
+            category: .navigation,
+            mappings: [
+                KeyMapping(input: "d", output: "A-bspc", ctrlOutput: "pgdn")
+            ],
+            isEnabled: true,
+            isSystemDefault: false,
+            targetLayer: .navigation,
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
+        )
+
+        let config = KanataConfiguration.generateFromCollections([nav])
+
+        XCTAssertTrue(config.contains("(defalias"), "Config should have defalias for fork")
+        XCTAssertTrue(config.contains("fork_navigation_d"), "Config should have fork alias for d")
+        XCTAssertTrue(config.contains("(fork"), "Config should contain fork action")
+        XCTAssertTrue(config.contains("(multi lalt bspc)"), "Default output should use (multi lalt bspc)")
+        XCTAssertTrue(config.contains("pgdn"), "Ctrl output should be pgdn")
+        XCTAssertTrue(config.contains("(lctl rctl)"), "Fork should trigger on ctrl keys")
+    }
+
+    func testForkAliasGeneration_MacroWithUppercaseModifiers() {
+        // Test that multi-key sequences in fork use macro with UPPERCASE modifier prefixes
+        let nav = RuleCollection(
+            id: RuleCollectionIdentifier.vimNavigation,
+            name: "Vim Navigation",
+            summary: "Line operations with macro",
+            category: .navigation,
+            mappings: [
+                KeyMapping(input: "o", output: "M-right ret", shiftedOutput: "up M-right ret")
+            ],
+            isEnabled: true,
+            isSystemDefault: false,
+            targetLayer: .navigation,
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
+        )
+
+        let config = KanataConfiguration.generateFromCollections([nav])
+
+        XCTAssertTrue(config.contains("(defalias"), "Config should have defalias")
+        XCTAssertTrue(config.contains("fork_navigation_o"), "Config should have fork alias for o")
+        // Macros should use uppercase M-right, not lowercase m-right
+        XCTAssertTrue(config.contains("(macro M-right ret)"), "Default macro should have uppercase M-right")
+        XCTAssertTrue(
+            config.contains("(macro up M-right ret)"), "Shifted macro should have uppercase M-right"
+        )
+        // Should NOT have lowercase m-right which is invalid
+        XCTAssertFalse(config.contains("m-right"), "Config should NOT have lowercase m-right")
+    }
+
+    func testConvertToKanataKeyForMacro_PreservesUppercaseModifiers() {
+        // Test the key converter preserves modifier prefix case
+        XCTAssertEqual(
+            KanataKeyConverter.convertToKanataKeyForMacro("M-right"),
+            "M-right",
+            "Should preserve uppercase M-"
+        )
+        XCTAssertEqual(
+            KanataKeyConverter.convertToKanataKeyForMacro("M-S-g"),
+            "M-S-g",
+            "Should preserve uppercase M-S-"
+        )
+        XCTAssertEqual(
+            KanataKeyConverter.convertToKanataKeyForMacro("A-left"),
+            "A-left",
+            "Should preserve uppercase A-"
+        )
+        XCTAssertEqual(
+            KanataKeyConverter.convertToKanataKeyForMacro("ret"),
+            "ret",
+            "Non-modifier keys should use standard conversion"
+        )
+        XCTAssertEqual(
+            KanataKeyConverter.convertToKanataKeyForMacro("up"),
+            "up",
+            "Arrow keys should pass through"
+        )
+    }
+
     // MARK: - Integration Tests
+
+    /// CRITICAL: This test validates that the default RuleCollectionCatalog generates
+    /// valid Kanata config. This catches syntax errors introduced in catalog mappings
+    /// during the build process, before they reach users.
+    func testDefaultCatalogGeneratesValidKanataConfig() async throws {
+        // Find kanata binary - try multiple locations
+        let kanataBinary = try findKanataBinary()
+        try await validateCatalogConfig(withBinary: kanataBinary)
+    }
+
+    /// Find the kanata binary, checking multiple locations
+    private func findKanataBinary() throws -> String {
+        // Get project root from this test file's location
+        // #file = .../Tests/KeyPathTests/Services/ConfigurationServiceTests.swift
+        let testFile = URL(fileURLWithPath: #file)
+        let projectRoot = testFile
+            .deletingLastPathComponent() // Services/
+            .deletingLastPathComponent() // KeyPathTests/
+            .deletingLastPathComponent() // Tests/
+            .deletingLastPathComponent() // project root
+
+        // Candidate locations in priority order
+        let candidates = [
+            // Local dev build
+            projectRoot.appendingPathComponent("dist/KeyPath.app/Contents/Library/KeyPath/kanata").path,
+            // Installed app
+            "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata",
+            // External kanata build (for CI or fresh clones)
+            projectRoot.appendingPathComponent("External/kanata/target/aarch64-apple-darwin/release/kanata").path,
+            projectRoot.appendingPathComponent("External/kanata/target/release/kanata").path
+        ]
+
+        for candidate in candidates {
+            if FileManager.default.isExecutableFile(atPath: candidate) {
+                return candidate
+            }
+        }
+
+        throw XCTSkip("""
+        Kanata binary not found - skipping real validation test.
+        Searched: \(candidates.joined(separator: ", "))
+        """)
+    }
+
+    private func validateCatalogConfig(withBinary kanataBinary: String) async throws {
+        // Generate config from the ACTUAL default catalog
+        let catalog = RuleCollectionCatalog()
+        let defaultCollections = catalog.defaultCollections()
+        let configContent = KanataConfiguration.generateFromCollections(defaultCollections)
+
+        // Write to temp file
+        let tempPath = tempDirectory.appendingPathComponent("catalog_validation_test.kbd")
+        try configContent.write(to: tempPath, atomically: true, encoding: .utf8)
+
+        // Validate with kanata --check
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: kanataBinary)
+        process.arguments = ["--cfg", tempPath.path, "--check"]
+
+        let outputPipe = Pipe()
+        let errorPipe = Pipe()
+        process.standardOutput = outputPipe
+        process.standardError = errorPipe
+
+        try process.run()
+        process.waitUntilExit()
+
+        let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+        let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+        let output = String(data: outputData, encoding: .utf8) ?? ""
+        let errorOutput = String(data: errorData, encoding: .utf8) ?? ""
+
+        // Clean up temp file
+        try? FileManager.default.removeItem(at: tempPath)
+
+        // Assert config is valid
+        if process.terminationStatus != 0 {
+            // Include the generated config in the failure message for debugging
+            let configPreview = String(configContent.prefix(2000))
+            XCTFail("""
+            Default catalog generates INVALID Kanata config!
+
+            Exit code: \(process.terminationStatus)
+
+            Kanata output:
+            \(output)
+            \(errorOutput)
+
+            Generated config (first 2000 chars):
+            \(configPreview)
+
+            This means a change to RuleCollectionCatalog or config generation
+            introduced a syntax error. Fix the catalog mappings or generation logic.
+            """)
+        }
+
+        // Verify we got the expected success message
+        XCTAssertTrue(
+            output.contains("config file is valid") || errorOutput.contains("config file is valid"),
+            "Kanata should confirm config is valid"
+        )
+    }
 
     func testRoundTrip_GenerateParseGenerate() throws {
         let originalMappings = [

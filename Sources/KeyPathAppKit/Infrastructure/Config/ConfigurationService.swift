@@ -257,13 +257,24 @@ public struct KanataConfiguration: Sendable {
             let entries = collection.mappings.map { mapping -> LayerEntry in
                 let sourceKey = KanataKeyConverter.convertToKanataKey(mapping.input)
                 var layerOutputs: [RuleCollectionLayer: String] = [:]
+
+                // Generate fork alias for mappings with modifier-specific outputs
+                let layerOutput: String
+                if mapping.requiresFork {
+                    let aliasName = forkAliasName(for: mapping, layer: collection.targetLayer)
+                    let forkDef = buildForkDefinition(for: mapping)
+                    aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: forkDef))
+                    layerOutput = "@\(aliasName)"
+                } else {
+                    layerOutput = KanataKeyConverter.convertToKanataSequence(mapping.output)
+                }
+
                 if collection.targetLayer != .base {
-                    layerOutputs[collection.targetLayer] = KanataKeyConverter.convertToKanataSequence(
-                        mapping.output)
+                    layerOutputs[collection.targetLayer] = layerOutput
                 }
                 let baseOutput: String =
                     if collection.targetLayer == .base {
-                        KanataKeyConverter.convertToKanataSequence(mapping.output)
+                        layerOutput
                     } else {
                         sourceKey
                     }
@@ -299,6 +310,92 @@ public struct KanataConfiguration: Sendable {
                 .replacingOccurrences(of: "-", with: "_")
                 .replacingOccurrences(of: " ", with: "_")
         return "layer_\(layer.kanataName)_\(sanitized)"
+    }
+
+    /// Generate alias name for fork-based modifier detection
+    private static func forkAliasName(for mapping: KeyMapping, layer: RuleCollectionLayer) -> String {
+        let sanitized =
+            mapping.input
+                .replacingOccurrences(of: "-", with: "_")
+                .replacingOccurrences(of: " ", with: "_")
+        return "fork_\(layer.kanataName)_\(sanitized)"
+    }
+
+    /// Build fork definition for modifier-aware mappings
+    /// Fork syntax: (fork default-action alternate-action (trigger-keys))
+    /// Note: Inside fork, modifier prefixes like m-right must be (multi lmet right)
+    private static func buildForkDefinition(for mapping: KeyMapping) -> String {
+        let defaultOutput = convertToForkAction(mapping.output)
+
+        // Shift modifier takes precedence
+        if let shiftedOutput = mapping.shiftedOutput {
+            let shiftOutput = convertToForkAction(shiftedOutput)
+            return "(fork \(defaultOutput) \(shiftOutput) (lsft rsft))"
+        }
+
+        // Ctrl modifier
+        if let ctrlOutput = mapping.ctrlOutput {
+            let ctrlOutputConverted = convertToForkAction(ctrlOutput)
+            return "(fork \(defaultOutput) \(ctrlOutputConverted) (lctl rctl))"
+        }
+
+        // Fallback (shouldn't reach here if requiresFork is true)
+        return defaultOutput
+    }
+
+    /// Convert a key output to a fork-compatible action
+    /// - Single keys with modifiers: (multi modifier key) format
+    /// - Multi-key sequences: (macro ...) with chord syntax inside
+    private static func convertToForkAction(_ output: String) -> String {
+        let tokens = output.split(separator: " ").map(String.init)
+
+        if tokens.count > 1 {
+            // Multi-key sequence -> wrap in macro
+            // Inside macro, chord syntax (M-right) works and requires UPPERCASE prefixes
+            let converted = tokens.map { KanataKeyConverter.convertToKanataKeyForMacro($0) }
+            return "(macro \(converted.joined(separator: " ")))"
+        } else if let single = tokens.first {
+            // Single key - must use (multi ...) format for modifiers inside fork
+            return convertSingleKeyToForkFormat(single)
+        }
+        return output
+    }
+
+    /// Convert a single key (possibly with modifiers) to fork-compatible format
+    /// e.g., "M-right" -> "(multi lmet right)", "pgup" -> "pgup"
+    /// Note: Inside fork actions (not inside macro), modifier prefixes must be (multi ...)
+    private static func convertSingleKeyToForkFormat(_ key: String) -> String {
+        // Map modifier prefixes to their key names
+        let modifierMap: [(prefix: String, key: String)] = [
+            ("M-S-", "lmet lsft"), // Meta+Shift
+            ("C-S-", "lctl lsft"), // Ctrl+Shift
+            ("A-S-", "lalt lsft"), // Alt+Shift
+            ("M-", "lmet"), // Meta/Command
+            ("A-", "lalt"), // Alt/Option
+            ("C-", "lctl"), // Control
+            ("S-", "lsft") // Shift
+        ]
+
+        var remainingKey = key
+        var modifiers: [String] = []
+
+        // Extract all modifier prefixes
+        for (prefix, modKey) in modifierMap {
+            if remainingKey.hasPrefix(prefix) {
+                modifiers.append(contentsOf: modKey.split(separator: " ").map(String.init))
+                remainingKey = String(remainingKey.dropFirst(prefix.count))
+                break // Only match one combined prefix
+            }
+        }
+
+        if modifiers.isEmpty {
+            // No modifiers - return as-is (convert to kanata key format)
+            return KanataKeyConverter.convertToKanataKey(remainingKey)
+        }
+
+        // Has modifiers - wrap in (multi ...)
+        let baseKey = KanataKeyConverter.convertToKanataKey(remainingKey)
+        return "(multi \(modifiers.joined(separator: " ")) \(baseKey))"
     }
 
     private struct CollectionBlock {
@@ -488,9 +585,12 @@ public final class ConfigurationService: FileConfigurationProviding {
         if !exists {
             AppLogger.shared.log("⚠️ [ConfigService] No existing config found at \(configurationPath)")
 
-            // Create empty configuration
-            try await saveConfiguration(keyMappings: [])
-            AppLogger.shared.log("✅ [ConfigService] Created initial empty configuration")
+            // Create configuration from catalog defaults (all default collections)
+            let defaultCollections = RuleCollectionCatalog().defaultCollections()
+            try await saveConfiguration(ruleCollections: defaultCollections)
+            AppLogger.shared.log(
+                "✅ [ConfigService] Created initial configuration with \(defaultCollections.count) default collections"
+            )
         } else {
             AppLogger.shared.log("✅ [ConfigService] Existing config found at \(configurationPath)")
         }
@@ -1089,6 +1189,27 @@ private extension ConfigurationService {
 
 /// Utility class for converting keys between KeyPath and Kanata formats
 public enum KanataKeyConverter {
+    /// Convert KeyPath key to Kanata key format for use inside macros
+    /// Inside macros, chord syntax like M-right requires UPPERCASE modifier prefixes
+    /// This method preserves the case of modifier prefixes (M-, A-, C-, S-)
+    public static func convertToKanataKeyForMacro(_ input: String) -> String {
+        // Known modifier prefixes that must remain uppercase in macro context
+        // Order matters - check longer prefixes first
+        let modifierPrefixes = ["M-S-", "C-S-", "A-S-", "M-", "A-", "C-", "S-"]
+
+        for prefix in modifierPrefixes {
+            if input.hasPrefix(prefix) {
+                // Preserve uppercase prefix, convert base key
+                let baseKey = String(input.dropFirst(prefix.count))
+                let convertedBase = convertToKanataKey(baseKey)
+                return prefix + convertedBase
+            }
+        }
+
+        // No modifier prefix - use standard conversion
+        return convertToKanataKey(input)
+    }
+
     /// Convert KeyPath input key to Kanata key format
     public static func convertToKanataKey(_ input: String) -> String {
         // Use the same key mapping logic as the original RuntimeCoordinator
@@ -1164,7 +1285,8 @@ public enum KanataKeyConverter {
 
         // Multiple whitespace-separated tokens (e.g., "cmd space") → chord/sequence
         if tokens.count > 1 {
-            let kanataKeys = tokens.map { convertToKanataKey($0) }
+            // Use convertToKanataKeyForMacro to preserve uppercase modifier prefixes
+            let kanataKeys = tokens.map { convertToKanataKeyForMacro($0) }
             return "(\(kanataKeys.joined(separator: " ")))"
         }
 
@@ -1180,13 +1302,24 @@ public enum KanataKeyConverter {
             return "(macro \(keys.joined(separator: " ")))"
         }
 
-        // Single key: just convert the key name, no parentheses
-        return convertToKanataKey(singleToken)
+        // Single key: use convertToKanataKeyForMacro to preserve uppercase modifier prefixes
+        // (e.g., A-right, M-left, M-S-g) which are valid in both macro and deflayer contexts
+        return convertToKanataKeyForMacro(singleToken)
     }
 
     /// Determine if a string should be converted to a macro (typed character by character)
     /// vs treated as a single key name like "escape" or "tab"
     private static func shouldConvertToMacro(_ token: String) -> Bool {
+        // Check for Kanata modifier prefixes (e.g., A-right, M-left, C-S-a)
+        // These should NOT be converted to macros - they are valid Kanata modified key outputs
+        let modifierPattern = #"^(A-|M-|C-|S-|RA-|RM-|RC-|RS-|AG-)+"#
+        if let regex = try? NSRegularExpression(pattern: modifierPattern, options: .caseInsensitive) {
+            let range = NSRange(token.startIndex..., in: token)
+            if regex.firstMatch(in: token, options: [], range: range) != nil {
+                return false
+            }
+        }
+
         // Known key names that shouldn't be split into macros
         let keyNames: Set<String> = [
             "escape", "esc", "return", "ret", "enter",

@@ -312,10 +312,6 @@ final class RuleCollectionsManager {
 
         if currentLayerName == display { return }
 
-        if display.caseInsensitiveCompare(RuleCollectionLayer.base.displayName) != .orderedSame {
-            SoundManager.shared.playTinkSound()
-        }
-
         currentLayerName = display
         onLayerChanged?(display)
 

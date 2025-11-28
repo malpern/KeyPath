@@ -194,7 +194,7 @@ struct EmergencyStopDialog: View {
             .controlSize(.large)
         }
         .padding(32)
-        .frame(width: 700)
+        .frame(minWidth: 700, maxWidth: 700, minHeight: 650)
         .background(.regularMaterial)
     }
 }

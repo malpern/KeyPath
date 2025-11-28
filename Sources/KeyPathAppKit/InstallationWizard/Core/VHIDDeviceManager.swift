@@ -300,6 +300,11 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
     /// Checks if VirtualHID daemon is functioning correctly (wizard prerequisite)
     /// Wizard now treats this as a pure process health check; log parsing lives in DiagnosticsView
+    ///
+    /// ⚠️ CONCURRENCY WARNING: This method uses pgrep with 500ms retry delays.
+    /// Do NOT call this concurrently from multiple TaskGroup tasks - it can hang.
+    /// If you need VHID health in a concurrent context, use ServiceHealthChecker.getServiceStatus()
+    /// which provides vhidDaemonServiceHealthy via launchctl (no retries, no hangs).
     func detectConnectionHealth() async -> Bool {
         let isRunning = await detectRunning()
         // 🔍 DEBUG: Log the result to understand health check behavior

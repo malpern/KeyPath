@@ -22,11 +22,6 @@ struct UninstallKeyPathDialog: View {
 
                 Text("Uninstall Complete")
                     .font(.title2.bold())
-
-                Text("KeyPath has been successfully uninstalled. Your configuration file has been preserved.")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
             } else {
                 // Confirmation/working state
                 Image(systemName: "trash.circle.fill")
