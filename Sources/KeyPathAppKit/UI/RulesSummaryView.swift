@@ -248,6 +248,7 @@ struct RulesTabView: View {
     private func formatKeyWithSymbol(_ key: String) -> String {
         let keySymbols: [String: String] = [
             "caps": "⇪ Caps Lock",
+            "leader": "Leader",
             "lmet": "⌘ Command",
             "rmet": "⌘ Command",
             "lalt": "⌥ Option",
@@ -260,6 +261,7 @@ struct RulesTabView: View {
             "tab": "⇥ Tab",
             "ret": "↩ Return",
             "spc": "␣ Space",
+            "space": "␣ Space",
             "bspc": "⌫ Delete",
             "del": "⌦ Forward Delete"
         ]

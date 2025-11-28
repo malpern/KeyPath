@@ -1,0 +1,126 @@
+;; Virtual Keys Example Configuration
+;;
+;; This config demonstrates how to define virtual keys that can be triggered
+;; via KeyPath deep links: keypath://fakekey/{name}/tap
+;;
+;; Use cases:
+;; - Trigger macros from Raycast, Alfred, or Shortcuts
+;; - Create text expansion snippets accessible via URL
+;; - Remote-control layer switches from external tools
+
+(defcfg
+  process-unmapped-keys yes
+)
+
+(defsrc
+  caps a s d f g h j k l
+)
+
+;; ============================================================================
+;; Virtual Keys - Triggerable via keypath://fakekey/{name}/tap
+;; ============================================================================
+
+(defvirtualkeys
+  ;; Text Expansion - Type common phrases
+  email-sig (macro
+    B e s t spc r e g a r d s , ret ret
+    J o h n spc D o e ret
+    j o h n @ e x a m p l e . c o m
+  )
+
+  phone-number (macro
+    ( 5 5 5 ) spc 1 2 3 - 4 5 6 7
+  )
+
+  date-stamp (macro
+    2 0 2 5 - 1 1 - 2 8
+  )
+
+  ;; Layer Switches - Control modes remotely
+  nav-mode (layer-switch nav)
+  vim-mode (layer-switch vim)
+  base-mode (layer-switch base)
+
+  ;; App Launcher Combos - Launch with notification
+  launch-terminal (multi
+    (push-msg "keypath://launch/Terminal")
+    (push-msg "keypath://notify?title=Launched&body=Terminal")
+  )
+
+  launch-browser (multi
+    (push-msg "keypath://launch/Safari")
+    (push-msg "keypath://notify?title=Launched&body=Safari")
+  )
+)
+
+;; Alternative: deffakekeys (functionally equivalent)
+(deffakekeys
+  ;; Quick snippets
+  arrow-right (macro - >)
+  arrow-left (macro < -)
+  fat-arrow (macro = >)
+
+  ;; Emoji shortcuts (requires emoji keyboard support)
+  shrug (macro \ spc ̄ \ spc _ spc ( ツ ) spc _ / ̄)
+)
+
+;; ============================================================================
+;; Layers
+;; ============================================================================
+
+(deflayer base
+  @caps a s d f g h j k l
+)
+
+(deflayer nav
+  @caps left down up right g h j k l
+)
+
+(deflayer vim
+  @caps a s d f g h j k l
+)
+
+;; ============================================================================
+;; Aliases
+;; ============================================================================
+
+(defalias
+  ;; Caps Lock to Escape with layer indicator
+  caps (multi
+    (push-msg "keypath://layer/base")
+    esc
+  )
+)
+
+;; ============================================================================
+;; Usage Examples (run in Terminal):
+;; ============================================================================
+;;
+;; Trigger text expansion:
+;;   open "keypath://fakekey/email-sig/tap"
+;;   open "keypath://fakekey/phone-number/tap"
+;;   open "keypath://fakekey/date-stamp/tap"
+;;
+;; Switch layers:
+;;   open "keypath://fakekey/nav-mode/tap"
+;;   open "keypath://fakekey/vim-mode/tap"
+;;   open "keypath://fakekey/base-mode/tap"
+;;
+;; Launch apps:
+;;   open "keypath://fakekey/launch-terminal/tap"
+;;   open "keypath://fakekey/launch-browser/tap"
+;;
+;; Type symbols:
+;;   open "keypath://fakekey/arrow-right/tap"
+;;   open "keypath://fakekey/fat-arrow/tap"
+;;
+;; ============================================================================
+;; Raycast Script Example:
+;; ============================================================================
+;;
+;; #!/bin/bash
+;; # @raycast.title Insert Email Signature
+;; # @raycast.mode silent
+;; open "keypath://fakekey/email-sig/tap"
+;;
+;; ============================================================================

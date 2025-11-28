@@ -273,6 +273,19 @@ public final class ActionDispatcher {
         // Fire-and-forget the TCP command (create client on-demand like other services)
         Task {
             let client = KanataTCPClient(port: port, timeout: 3.0)
+
+            // Quick check if server is reachable
+            let serverUp = await client.checkServerStatus()
+            guard serverUp else {
+                await MainActor.run {
+                    let message = "Cannot trigger '\(keyName)': Kanata service is not running. Start KeyPath to enable virtual keys."
+                    AppLogger.shared.log("❌ [ActionDispatcher] \(message)")
+                    self.onError?(message)
+                }
+                await client.cancelInflightAndCloseConnection()
+                return
+            }
+
             let result = await client.actOnFakeKey(name: keyName, action: action)
             await client.cancelInflightAndCloseConnection()
 
@@ -281,13 +294,18 @@ public final class ActionDispatcher {
                 case .success:
                     AppLogger.shared.log("✅ [ActionDispatcher] FakeKey \(keyName) \(action.rawValue) succeeded")
                 case let .error(error):
-                    let message = "FakeKey \(keyName) failed: \(error)"
-                    AppLogger.shared.log("❌ [ActionDispatcher] \(message)")
-                    self.onError?(message)
+                    // Improve error message for common cases
+                    let userMessage = if error.lowercased().contains("not found") || error.lowercased().contains("unknown") {
+                        "Virtual key '\(keyName)' not found in config. Check spelling or add it to defvirtualkeys."
+                    } else {
+                        "FakeKey '\(keyName)' failed: \(error)"
+                    }
+                    AppLogger.shared.log("❌ [ActionDispatcher] \(userMessage)")
+                    self.onError?(userMessage)
                 case let .networkError(error):
-                    let message = "FakeKey \(keyName) network error: \(error)"
-                    AppLogger.shared.log("❌ [ActionDispatcher] \(message)")
-                    self.onError?(message)
+                    let userMessage = "Network error triggering '\(keyName)': \(error). Is Kanata running?"
+                    AppLogger.shared.log("❌ [ActionDispatcher] \(userMessage)")
+                    self.onError?(userMessage)
                 }
             }
         }

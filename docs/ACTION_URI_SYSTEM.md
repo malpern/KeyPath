@@ -296,6 +296,40 @@ ActionDispatcher.shared.onError = { message in
 - **No file system access**: Actions cannot read/write arbitrary files
 - **No shell execution**: `cmd` action is not supported (use Kanata's native `cmd` for that)
 
+## Virtual Keys Inspector
+
+KeyPath includes a built-in inspector for viewing and testing virtual keys defined in your configuration.
+
+### Accessing the Inspector
+
+1. Open KeyPath Settings (⌘,)
+2. Go to the **General** tab
+3. Scroll down to the **Virtual Keys** section
+
+### Features
+
+| Feature | Description |
+|---------|-------------|
+| **Key List** | Shows all keys from `defvirtualkeys` and `deffakekeys` blocks |
+| **Copy URL** | Copy the deep link URL to clipboard for use in Raycast, Alfred, etc. |
+| **Test Button** | Trigger the virtual key immediately to verify it works |
+| **Refresh** | Re-parse the config file to pick up changes |
+
+### Requirements
+
+- Virtual keys must be defined in your Kanata config using `defvirtualkeys` or `deffakekeys`
+- Kanata service must be running to test keys (TCP connection required)
+- The inspector is read-only; edit your config file to add/modify keys
+
+### Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| "No Virtual Keys Defined" | Add `defvirtualkeys` or `deffakekeys` blocks to your config |
+| "Network error" on test | Ensure Kanata service is running |
+| Key not triggering | Verify the key name matches exactly (case-sensitive) |
+| Changes not showing | Click Refresh or reopen Settings |
+
 ## Future Extensions
 
 Planned action types (not yet implemented):

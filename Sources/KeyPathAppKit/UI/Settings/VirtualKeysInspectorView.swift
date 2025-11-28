@@ -254,6 +254,20 @@ struct VirtualKeysInspectorView: View {
 
         let port = PreferencesService.shared.tcpServerPort
         let client = KanataTCPClient(port: port, timeout: 3.0)
+
+        // First check if Kanata is running
+        let serverUp = await client.checkServerStatus()
+        guard serverUp else {
+            await MainActor.run {
+                testingKey = nil
+                withAnimation {
+                    testResult = .failure("Kanata not running. Start the service first.")
+                }
+            }
+            await client.cancelInflightAndCloseConnection()
+            return
+        }
+
         let result = await client.actOnFakeKey(name: key.name, action: .tap)
         await client.cancelInflightAndCloseConnection()
 
@@ -264,9 +278,14 @@ struct VirtualKeysInspectorView: View {
                 case .success:
                     testResult = .success("Triggered '\(key.name)' successfully")
                 case let .error(message):
-                    testResult = .failure(message)
+                    // Improve error messages for common cases
+                    if message.lowercased().contains("not found") || message.lowercased().contains("unknown") {
+                        testResult = .failure("Key '\(key.name)' not recognized by Kanata. Try reloading config.")
+                    } else {
+                        testResult = .failure(message)
+                    }
                 case let .networkError(message):
-                    testResult = .failure("Network error: \(message)")
+                    testResult = .failure("Connection lost: \(message)")
                 }
             }
 
