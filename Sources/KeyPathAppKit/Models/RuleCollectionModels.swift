@@ -137,6 +137,7 @@ public enum RuleCollectionIdentifier {
     public static let capsLockRemap = UUID(uuidString: "D2B4F6A8-1C3E-5D7F-9A2B-4C6E8F0A2B4D")!
     public static let escapeRemap = UUID(uuidString: "E7C9A3B5-2F4D-6E8A-B1C3-5D7F9A2B4C6E")!
     public static let deleteRemap = UUID(uuidString: "F8D0B4C6-3A5E-7F9B-C2D4-6E8A0B2C4D6F")!
+    public static let leaderKey = UUID(uuidString: "A1B2C3D4-5E6F-7A8B-9C0D-1E2F3A4B5C6D")!
     public static let customMappings = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
 }
 

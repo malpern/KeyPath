@@ -16,7 +16,7 @@ struct RuleCollectionCatalog {
     // MARK: - Predefined collections
 
     private var builtInList: [RuleCollection] {
-        [macOSFunctionKeys, navigationArrows, windowManagement, capsLockRemap, escapeRemap, deleteRemap]
+        [macOSFunctionKeys, leaderKeyConfig, navigationArrows, windowManagement, capsLockRemap, escapeRemap, deleteRemap]
     }
 
     private var builtInCollections: [UUID: RuleCollection] {
@@ -44,6 +44,49 @@ struct RuleCollectionCatalog {
             icon: "applelogo",
             targetLayer: .base,
             displayStyle: .table
+        )
+    }
+
+    private var leaderKeyConfig: RuleCollection {
+        RuleCollection(
+            id: RuleCollectionIdentifier.leaderKey,
+            name: "Leader Key",
+            summary: "Customize which key activates layer shortcuts (default: Space)",
+            category: .system,
+            mappings: [], // No direct mappings - this controls other collections' activators
+            isEnabled: false,
+            isSystemDefault: false,
+            icon: "key.fill",
+            tags: ["leader", "layer", "modifier", "navigation"],
+            displayStyle: .singleKeyPicker,
+            pickerInputKey: "leader",
+            presetOptions: [
+                SingleKeyPreset(
+                    output: "space",
+                    label: "␣ Space",
+                    description: "Spacebar - most common, easy thumb access. Tap for space, hold for shortcuts.",
+                    icon: "space"
+                ),
+                SingleKeyPreset(
+                    output: "caps",
+                    label: "⇪ Caps",
+                    description: "Caps Lock - dedicated modifier key, no conflict with typing.",
+                    icon: "capslock"
+                ),
+                SingleKeyPreset(
+                    output: "tab",
+                    label: "⇥ Tab",
+                    description: "Tab key - left pinky access, tap for tab, hold for shortcuts.",
+                    icon: "arrow.right.to.line"
+                ),
+                SingleKeyPreset(
+                    output: "grv",
+                    label: "` Grave",
+                    description: "Backtick key - upper left corner, rarely used in normal typing.",
+                    icon: "character"
+                )
+            ],
+            selectedOutput: "space"
         )
     }
 

@@ -193,6 +193,13 @@ final class RuleCollectionsManager {
             newCollection.isEnabled = isEnabled
             ruleCollections.append(newCollection)
         }
+
+        // Special handling: If Leader Key collection is toggled off, reset all momentary activators to default (space)
+        if id == RuleCollectionIdentifier.leaderKey, !isEnabled {
+            await updateLeaderKey("space")
+            return // updateLeaderKey already calls regenerateConfigFromCollections
+        }
+
         refreshLayerIndicatorState()
         await regenerateConfigFromCollections()
     }
@@ -245,10 +252,16 @@ final class RuleCollectionsManager {
         ruleCollections[index].selectedOutput = output
         ruleCollections[index].isEnabled = true
 
-        // Update the mapping based on selected output
-        if let inputKey = ruleCollections[index].pickerInputKey {
+        // Update the mapping based on selected output (skip for Leader Key which has no mappings)
+        if let inputKey = ruleCollections[index].pickerInputKey, inputKey != "leader" {
             let description = ruleCollections[index].presetOptions.first { $0.output == output }?.label ?? "Custom"
             ruleCollections[index].mappings = [KeyMapping(input: inputKey, output: output, description: description)]
+        }
+
+        // Special handling: If this is the Leader Key collection, update all momentary activators
+        if id == RuleCollectionIdentifier.leaderKey {
+            await updateLeaderKey(output)
+            return // updateLeaderKey already calls regenerateConfigFromCollections
         }
 
         refreshLayerIndicatorState()

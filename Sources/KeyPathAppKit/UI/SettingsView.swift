@@ -158,8 +158,7 @@ struct StatusSettingsTabView: View {
     @State private var settingsToastManager = WizardToastManager()
     @State private var showingPermissionAlert = false
     @State private var refreshRetryScheduled = false
-    @State private var localServiceRunning: Bool?  // Optimistic local state for instant toggle feedback
-
+    @State private var localServiceRunning: Bool? // Optimistic local state for instant toggle feedback
 
     private var isServiceRunning: Bool {
         systemContext?.services.kanataRunning ?? false

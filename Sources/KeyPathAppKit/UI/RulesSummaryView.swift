@@ -15,17 +15,7 @@ struct RulesTabView: View {
     @State private var createButtonHovered = false
     /// Stable sort order captured when view appears (enabled collections first)
     @State private var stableSortOrder: [UUID] = []
-    /// Global leader key for layer activation (persisted)
-    @AppStorage("leaderKey") private var leaderKey: String = "space"
     private let catalog = RuleCollectionCatalog()
-
-    /// Available leader key options
-    private static let leaderKeyOptions: [(key: String, label: String, description: String)] = [
-        ("space", "␣ Space", "Spacebar - most common, easy thumb access"),
-        ("caps", "⇪ Caps", "Caps Lock - dedicated modifier key"),
-        ("tab", "⇥ Tab", "Tab key - left pinky access"),
-        ("grv", "` Grave", "Backtick/grave accent key")
-    ]
 
     // Show all catalog collections, merging with existing state
     private var allCollections: [RuleCollection] {
@@ -95,16 +85,6 @@ struct RulesTabView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .background(Color(NSColor.controlBackgroundColor).opacity(0.3))
-
-            Divider()
-
-            // Leader Key Picker
-            LeaderKeyPicker(
-                selectedKey: $leaderKey,
-                options: Self.leaderKeyOptions
-            )
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
 
             Divider()
 
@@ -190,10 +170,6 @@ struct RulesTabView: View {
             if stableSortOrder.isEmpty {
                 stableSortOrder = computeSortOrder()
             }
-        }
-        .onChange(of: leaderKey) { _, newKey in
-            // Update all collections that use the leader key
-            Task { await kanataManager.updateLeaderKey(newKey) }
         }
         .sheet(isPresented: $isPresentingNewRule) {
             CustomRuleEditorView(
@@ -494,8 +470,7 @@ private struct ExpandableCollectionRow: View {
         } else if icon.hasPrefix("resource:") {
             let resourceName = String(icon.dropFirst(9))
             if let resourceURL = Bundle.main.url(forResource: resourceName, withExtension: "svg"),
-               let image = NSImage(contentsOf: resourceURL)
-            {
+               let image = NSImage(contentsOf: resourceURL) {
                 Image(nsImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -1124,150 +1099,5 @@ private struct MappingTableContent: View {
                 .replacingOccurrences(of: "pgdn", with: "Pg ↓")
                 .replacingOccurrences(of: "esc", with: "⎋")
         }.joined(separator: " ")
-    }
-}
-
-// MARK: - Leader Key Picker
-
-private struct LeaderKeyPicker: View {
-    @Binding var selectedKey: String
-    let options: [(key: String, label: String, description: String)]
-    @State private var showingHelp = false
-
-    private var selectedOption: (key: String, label: String, description: String)? {
-        options.first { $0.key == selectedKey }
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 12) {
-                Image(systemName: "key.fill")
-                    .font(.system(size: 16))
-                    .foregroundColor(.secondary)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text("Leader Key")
-                            .font(.headline)
-
-                        Button {
-                            showingHelp.toggle()
-                        } label: {
-                            Image(systemName: "questionmark.circle")
-                                .font(.system(size: 14))
-                                .foregroundColor(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                        .popover(isPresented: $showingHelp, arrowEdge: .bottom) {
-                            LeaderKeyHelpPopover()
-                        }
-                    }
-                    Text("Hold this key to activate layer shortcuts")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                Spacer()
-
-                // Segmented picker for leader key
-                HStack(spacing: 0) {
-                    ForEach(Array(options.enumerated()), id: \.element.key) { index, option in
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                selectedKey = option.key
-                            }
-                        } label: {
-                            Text(option.label)
-                                .font(.subheadline.weight(selectedKey == option.key ? .semibold : .regular))
-                                .foregroundColor(selectedKey == option.key ? .white : .primary)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(
-                                    RoundedRectangle(cornerRadius: index == 0 ? 6 : (index == options.count - 1 ? 6 : 0))
-                                        .fill(selectedKey == option.key ? Color.accentColor : Color.clear)
-                                        .clipShape(SegmentShape(isFirst: index == 0, isLast: index == options.count - 1))
-                                )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color(NSColor.controlBackgroundColor))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(Color.primary.opacity(0.1), lineWidth: 1)
-                )
-            }
-
-            // Description of selected option
-            if let option = selectedOption {
-                Text(option.description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(.leading, 32)
-            }
-        }
-    }
-}
-
-// MARK: - Leader Key Help Popover
-
-private struct LeaderKeyHelpPopover: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("What is a Leader Key?")
-                .font(.headline)
-
-            Text("""
-            A leader key is a modifier you hold down to temporarily \
-            activate a different keyboard layer with new shortcuts.
-            """)
-            .font(.subheadline)
-            .foregroundColor(.secondary)
-
-            Divider()
-
-            VStack(alignment: .leading, spacing: 8) {
-                Label {
-                    Text("**Example:** Hold Space + H J K L for Vim-style arrow keys")
-                } icon: {
-                    Image(systemName: "keyboard")
-                        .foregroundColor(.accentColor)
-                }
-                .font(.caption)
-
-                Label {
-                    Text("Your normal keys work when you tap them quickly")
-                } icon: {
-                    Image(systemName: "hand.tap")
-                        .foregroundColor(.green)
-                }
-                .font(.caption)
-
-                Label {
-                    Text("Shortcuts activate when you hold the leader key")
-                } icon: {
-                    Image(systemName: "hand.point.up.left")
-                        .foregroundColor(.orange)
-                }
-                .font(.caption)
-            }
-
-            Divider()
-
-            Button {
-                if let url = URL(string: "https://precondition.github.io/home-row-mods#layers") {
-                    NSWorkspace.shared.open(url)
-                }
-            } label: {
-                Label("Learn more about keyboard layers", systemImage: "safari")
-                    .font(.caption)
-            }
-            .buttonStyle(.link)
-        }
-        .padding(16)
-        .frame(width: 320)
     }
 }
