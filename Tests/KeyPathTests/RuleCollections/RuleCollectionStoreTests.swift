@@ -40,7 +40,18 @@ final class RuleCollectionStoreTests: XCTestCase {
         try await store.saveCollections(sample)
         let loaded = await store.loadCollections()
 
-        XCTAssertEqual(loaded, sample)
+        let loadedIDs = Set(loaded.map(\.id))
+        let sampleIDs = Set(sample.map(\.id))
+        let catalogIDs = Set(RuleCollectionCatalog().defaultCollections().map(\.id))
+
+        XCTAssertTrue(
+            loadedIDs.isSuperset(of: sampleIDs),
+            "Persisted collections should remain present after load"
+        )
+        XCTAssertTrue(
+            loadedIDs.isSuperset(of: catalogIDs),
+            "Loaded collections should also include catalog defaults"
+        )
     }
 
     func testLoadUpgradesBuiltInCollectionsWithLatestMetadata() async throws {
@@ -74,5 +85,36 @@ final class RuleCollectionStoreTests: XCTestCase {
         XCTAssertEqual(vim?.momentaryActivator?.input, "space")
         XCTAssertEqual(vim?.momentaryActivator?.targetLayer, .navigation)
         XCTAssertEqual(vim?.activationHint, "Hold space to enter Navigation layer")
+    }
+
+    func testLoadAddsMissingCatalogDefaultsWhenFileHasSubset() async throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rule-collections-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        let fileURL = tempDir.appendingPathComponent("collections.json")
+
+        let catalog = RuleCollectionCatalog()
+        guard let macOnly = catalog.defaultCollections().first(
+            where: { $0.id == RuleCollectionIdentifier.macFunctionKeys }
+        ) else {
+            XCTFail("Missing macOS Function Keys in catalog")
+            return
+        }
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode([macOnly])
+        try data.write(to: fileURL)
+
+        let store = RuleCollectionStore.testStore(at: fileURL)
+        let loaded = await store.loadCollections()
+
+        let loadedIDs = Set(loaded.map(\.id))
+        let defaultIDs = Set(catalog.defaultCollections().map(\.id))
+
+        XCTAssertEqual(
+            defaultIDs, loadedIDs,
+            "Loading should merge persisted subset with all catalog defaults (including new ones)"
+        )
     }
 }

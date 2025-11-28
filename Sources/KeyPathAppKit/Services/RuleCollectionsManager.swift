@@ -167,20 +167,30 @@ final class RuleCollectionsManager {
 
     /// Toggle a rule collection on/off
     func toggleCollection(id: UUID, isEnabled: Bool) async {
-        if isEnabled,
-           let candidate = ruleCollections.first(where: { $0.id == id }),
-           let conflict = conflictInfo(for: candidate) {
-            onError?(
-                "Cannot enable \(candidate.name). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
-            )
-            AppLogger.shared.log(
-                "⚠️ [RuleCollections] Conflict enabling \(candidate.name) vs \(conflict.displayName) on \(conflict.keys)"
-            )
-            return
+        let catalogMatch = RuleCollectionCatalog().defaultCollections().first { $0.id == id }
+        let candidate = ruleCollections.first(where: { $0.id == id }) ?? catalogMatch
+
+        if var candidate, isEnabled {
+            candidate.isEnabled = true
+            if let conflict = conflictInfo(for: candidate) {
+                onError?(
+                    "Cannot enable \(candidate.name). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
+                )
+                AppLogger.shared.log(
+                    "⚠️ [RuleCollections] Conflict enabling \(candidate.name) vs \(conflict.displayName) on \(conflict.keys)"
+                )
+                return
+            }
         }
+
+        guard let resolvedCandidate = candidate else { return }
 
         if let index = ruleCollections.firstIndex(where: { $0.id == id }) {
             ruleCollections[index].isEnabled = isEnabled
+        } else {
+            var newCollection = resolvedCandidate
+            newCollection.isEnabled = isEnabled
+            ruleCollections.append(newCollection)
         }
         refreshLayerIndicatorState()
         await regenerateConfigFromCollections()
