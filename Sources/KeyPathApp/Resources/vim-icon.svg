@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Green diamond background -->
+  <polygon points="50,5 95,50 50,95 5,50" fill="#019833"/>
+  <!-- Inner lighter diamond -->
+  <polygon points="50,15 85,50 50,85 15,50" fill="#33b155"/>
+  <!-- Vim text -->
+  <text x="50" y="58" text-anchor="middle" font-family="Arial Black, Helvetica, sans-serif" font-size="22" font-weight="bold" fill="#cccccc">Vim</text>
+</svg>

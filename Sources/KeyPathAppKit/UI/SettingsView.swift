@@ -158,14 +158,16 @@ struct StatusSettingsTabView: View {
     @State private var settingsToastManager = WizardToastManager()
     @State private var showingPermissionAlert = false
     @State private var refreshRetryScheduled = false
+    @State private var localServiceRunning: Bool?  // Optimistic local state for instant toggle feedback
 
-    // Focus state for primary button (Enter key triggers)
-    private enum FocusField: Hashable { case wizardButton }
-    @FocusState private var focusedField: FocusField?
-    @AccessibilityFocusState private var accessibilityFocus: FocusField?
 
     private var isServiceRunning: Bool {
         systemContext?.services.kanataRunning ?? false
+    }
+
+    /// Effective service running state: use local optimistic value if set, otherwise actual state
+    private var effectiveServiceRunning: Bool {
+        localServiceRunning ?? isServiceRunning
     }
 
     private var isSystemHealthy: Bool {
@@ -387,8 +389,11 @@ struct StatusSettingsTabView: View {
                         Toggle(
                             "",
                             isOn: Binding(
-                                get: { isServiceRunning },
+                                get: { effectiveServiceRunning },
                                 set: { newValue in
+                                    // Optimistic update: change UI immediately
+                                    localServiceRunning = newValue
+                                    // Then trigger async operation
                                     Task {
                                         if newValue {
                                             await startViaInstallerEngine()
@@ -403,9 +408,9 @@ struct StatusSettingsTabView: View {
                         .toggleStyle(.switch)
                         .controlSize(.large)
 
-                        Text(isServiceRunning ? "ON" : "OFF")
+                        Text(effectiveServiceRunning ? "ON" : "OFF")
                             .font(.body.weight(.medium))
-                            .foregroundColor(isServiceRunning ? .green : .secondary)
+                            .foregroundColor(effectiveServiceRunning ? .green : .secondary)
                     }
                 }
                 .frame(minWidth: 220)
@@ -448,18 +453,12 @@ struct StatusSettingsTabView: View {
                             Button(action: { showingInstallationWizard = true }) {
                                 Label("Install wizard…", systemImage: "wand.and.stars.inverse")
                             }
-                            .focused($focusedField, equals: .wizardButton)
-                            .accessibilityFocused($accessibilityFocus, equals: .wizardButton)
-                            .keyboardShortcut(.defaultAction)
                             .buttonStyle(.bordered)
                             .controlSize(.small)
                         } else {
                             Button(action: { showingPermissionAlert = true }) {
                                 Label("Fix it…", systemImage: "wand.and.stars")
                             }
-                            .focused($focusedField, equals: .wizardButton)
-                            .accessibilityFocused($accessibilityFocus, equals: .wizardButton)
-                            .keyboardShortcut(.defaultAction)
                             .buttonStyle(.borderedProminent)
                             .controlSize(.small)
                         }
@@ -494,15 +493,15 @@ struct StatusSettingsTabView: View {
         .task {
             await refreshStatus()
         }
-        .onAppear {
-            focusedField = .wizardButton
-            accessibilityFocus = .wizardButton
-        }
         // Removed legacy onReceive(currentState)
         .onReceive(NotificationCenter.default.publisher(for: .wizardClosed)) { _ in
             Task {
                 await refreshStatus()
             }
+        }
+        .onChange(of: isServiceRunning) { _, _ in
+            // Sync local optimistic state when actual service state updates
+            localServiceRunning = nil
         }
     }
 

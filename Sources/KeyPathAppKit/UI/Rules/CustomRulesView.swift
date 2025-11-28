@@ -97,12 +97,18 @@ struct CustomRulesView: View {
             }
         }
         .sheet(isPresented: $isPresentingNewRule) {
-            CustomRuleEditorView(rule: nil) { newRule in
+            CustomRuleEditorView(
+                rule: nil,
+                existingRules: kanataManager.customRules
+            ) { newRule in
                 _ = Task { await kanataManager.saveCustomRule(newRule) }
             }
         }
         .sheet(item: $editingRule) { rule in
-            CustomRuleEditorView(rule: rule) { updatedRule in
+            CustomRuleEditorView(
+                rule: rule,
+                existingRules: kanataManager.customRules
+            ) { updatedRule in
                 _ = Task { await kanataManager.saveCustomRule(updatedRule) }
             }
         }

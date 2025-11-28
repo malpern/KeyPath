@@ -34,135 +34,127 @@ struct RulesTabView: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 0) {
-            // Left Column: Create Rule + Advanced
-            VStack(alignment: .leading, spacing: 24) {
-                // Create Rule Section
-                VStack(spacing: 16) {
-                    VStack(spacing: 12) {
-                        CreateRuleButton(
-                            isPressed: $isPresentingNewRule,
-                            externalHover: $createButtonHovered
-                        )
-
-                        Button {
-                            isPresentingNewRule = true
-                        } label: {
-                            Text("Create Rule")
-                                .font(.title3.weight(.semibold))
-                                .multilineTextAlignment(.center)
-                        }
-                        .buttonStyle(.plain)
-                        .onHover { hovering in
-                            createButtonHovered = hovering
-                        }
-                    }
-
-                    Button {
-                        isPresentingNewRule = true
-                    } label: {
-                        Text("Create")
-                            .frame(minWidth: 100)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
+        VStack(spacing: 0) {
+            // Top Action Bar
+            HStack(spacing: 12) {
+                Button {
+                    isPresentingNewRule = true
+                } label: {
+                    Label("Create Rule", systemImage: "plus.circle.fill")
                 }
-                .frame(minWidth: 220)
-
-                // Action buttons centered under image
-                VStack(spacing: 8) {
-                    Button(action: { openConfigInEditor() }) {
-                        Label("Edit Config File", systemImage: "doc.text.magnifyingglass")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-
-                    Button(action: { showingResetConfirmation = true }) {
-                        Label("Reset to Default", systemImage: "arrow.counterclockwise")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .tint(.red)
-                }
-                .frame(maxWidth: .infinity)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
 
                 Spacer()
-            }
-            .padding(20)
-            .frame(width: 280)
-            .background(Color(NSColor.windowBackgroundColor))
 
-            // Right Column: Rules List
-            ScrollView {
-                VStack(spacing: 0) {
-                    // Custom Rules Section (toggleable, expanded when has rules)
-                    ExpandableCollectionRow(
-                        name: customRulesTitle,
-                        icon: "square.and.pencil",
-                        count: kanataManager.customRules.count,
-                        isEnabled: kanataManager.customRules.isEmpty
-                            || kanataManager.customRules.allSatisfy(\.isEnabled),
-                        mappings: kanataManager.customRules.map { ($0.input, $0.output, nil, nil, nil, false, $0.isEnabled, $0.id) },
-                        onToggle: { isOn in
-                            Task {
-                                for rule in kanataManager.customRules {
-                                    await kanataManager.toggleCustomRule(rule.id, enabled: isOn)
-                                }
-                            }
-                        },
-                        onEditMapping: { id in
-                            if let rule = kanataManager.customRules.first(where: { $0.id == id }) {
-                                editingRule = rule
-                            }
-                        },
-                        onDeleteMapping: { id in
-                            Task { await kanataManager.removeCustomRule(id) }
-                        },
-                        showZeroState: kanataManager.customRules.isEmpty,
-                        onCreateFirstRule: { isPresentingNewRule = true },
-                        description: "Remap any key combination or sequence",
-                        defaultExpanded: !kanataManager.customRules.isEmpty
-                    )
-                    .padding(.vertical, 4)
-
-                    // Collection Rows
-                    ForEach(allCollections) { collection in
-                        ExpandableCollectionRow(
-                            name: collection.name,
-                            icon: collection.icon ?? "circle",
-                            count: collection.mappings.count,
-                            isEnabled: collection.isEnabled,
-                            mappings: collection.mappings.map {
-                                ($0.input, $0.output, $0.shiftedOutput, $0.ctrlOutput, $0.description, $0.sectionBreak, collection.isEnabled, $0.id)
-                            },
-                            onToggle: { isOn in
-                                Task { await kanataManager.toggleRuleCollection(collection.id, enabled: isOn) }
-                            },
-                            onEditMapping: nil,
-                            onDeleteMapping: nil,
-                            description: collection.summary,
-                            layerActivator: collection.momentaryActivator,
-                            displayStyle: collection.displayStyle
-                        )
-                        .padding(.vertical, 4)
-                    }
+                Button(action: { openConfigInEditor() }) {
+                    Label("Edit Config", systemImage: "doc.text")
                 }
-                .padding(.vertical, 12)
-                .padding(.horizontal, 12)
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+
+                Button(action: { showingResetConfirmation = true }) {
+                    Label("Reset", systemImage: "arrow.counterclockwise")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .tint(.red)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Color(NSColor.controlBackgroundColor).opacity(0.3))
+
+            Divider()
+
+            // Rules List
+            ScrollViewReader { scrollProxy in
+                ScrollView {
+                    VStack(spacing: 0) {
+                        // Custom Rules Section (toggleable, expanded when has rules)
+                        ExpandableCollectionRow(
+                            name: customRulesTitle,
+                            icon: "square.and.pencil",
+                            count: kanataManager.customRules.count,
+                            isEnabled: kanataManager.customRules.isEmpty
+                                || kanataManager.customRules.allSatisfy(\.isEnabled),
+                            mappings: kanataManager.customRules.map { ($0.input, $0.output, nil, nil, $0.title.isEmpty ? nil : $0.title, false, $0.isEnabled, $0.id) },
+                            onToggle: { isOn in
+                                Task {
+                                    for rule in kanataManager.customRules {
+                                        await kanataManager.toggleCustomRule(rule.id, enabled: isOn)
+                                    }
+                                }
+                            },
+                            onEditMapping: { id in
+                                if let rule = kanataManager.customRules.first(where: { $0.id == id }) {
+                                    editingRule = rule
+                                }
+                            },
+                            onDeleteMapping: { id in
+                                Task { await kanataManager.removeCustomRule(id) }
+                            },
+                            showZeroState: kanataManager.customRules.isEmpty,
+                            onCreateFirstRule: { isPresentingNewRule = true },
+                            description: "Remap any key combination or sequence",
+                            defaultExpanded: !kanataManager.customRules.isEmpty,
+                            scrollID: "custom-rules",
+                            scrollProxy: scrollProxy
+                        )
+                        // Force SwiftUI to re-render when customRules changes (count OR content)
+                        .id("custom-rules-\(kanataManager.customRules.map { "\($0.id)-\($0.input.hashValue)-\($0.output.hashValue)-\($0.title.hashValue)" }.joined())")
+                        .padding(.vertical, 4)
+
+                        // Collection Rows
+                        ForEach(allCollections) { collection in
+                            ExpandableCollectionRow(
+                                name: dynamicCollectionName(for: collection),
+                                icon: collection.icon ?? "circle",
+                                count: collection.displayStyle == .singleKeyPicker ? 1 : collection.mappings.count,
+                                isEnabled: collection.isEnabled,
+                                mappings: collection.mappings.map {
+                                    ($0.input, $0.output, $0.shiftedOutput, $0.ctrlOutput, $0.description, $0.sectionBreak, collection.isEnabled, $0.id)
+                                },
+                                onToggle: { isOn in
+                                    Task { await kanataManager.toggleRuleCollection(collection.id, enabled: isOn) }
+                                },
+                                onEditMapping: nil,
+                                onDeleteMapping: nil,
+                                description: collection.summary,
+                                layerActivator: collection.momentaryActivator,
+                                displayStyle: collection.displayStyle,
+                                collection: collection.displayStyle == .singleKeyPicker ? collection : nil,
+                                onSelectOutput: collection.displayStyle == .singleKeyPicker ? { output in
+                                    Task { await kanataManager.updateCollectionOutput(collection.id, output: output) }
+                                } : nil,
+                                scrollID: "collection-\(collection.id.uuidString)",
+                                scrollProxy: scrollProxy
+                            )
+                            .id("collection-\(collection.id.uuidString)")
+                            .padding(.vertical, 4)
+                        }
+                    }
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 12)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(NSColor.windowBackgroundColor))
         }
-        .frame(maxHeight: 450)
+        .frame(maxHeight: 500)
         .settingsBackground()
         .withToasts(settingsToastManager)
         .sheet(isPresented: $isPresentingNewRule) {
-            CustomRuleEditorView(rule: nil) { newRule in
+            CustomRuleEditorView(
+                rule: nil,
+                existingRules: kanataManager.customRules
+            ) { newRule in
                 _ = Task { await kanataManager.saveCustomRule(newRule) }
             }
         }
         .sheet(item: $editingRule) { rule in
-            CustomRuleEditorView(rule: rule) { updatedRule in
+            CustomRuleEditorView(
+                rule: rule,
+                existingRules: kanataManager.customRules
+            ) { updatedRule in
                 _ = Task { await kanataManager.saveCustomRule(updatedRule) }
             }
         }
@@ -181,6 +173,46 @@ struct RulesTabView: View {
                 A safety backup will be stored in ~/.config/keypath/.backups.
                 """)
         }
+    }
+
+    /// Generate a dynamic name for picker-style collections that shows the current mapping
+    private func dynamicCollectionName(for collection: RuleCollection) -> String {
+        guard collection.displayStyle == .singleKeyPicker,
+              let inputKey = collection.pickerInputKey
+        else {
+            return collection.name
+        }
+
+        // Format input key with Mac symbol
+        let inputDisplay = formatKeyWithSymbol(inputKey)
+
+        // Get selected output and its label
+        let selectedOutput = collection.selectedOutput ?? collection.presetOptions.first?.output ?? ""
+        let outputLabel = collection.presetOptions.first { $0.output == selectedOutput }?.label ?? selectedOutput
+
+        return "\(inputDisplay) → \(outputLabel)"
+    }
+
+    /// Format a key name with its Mac symbol
+    private func formatKeyWithSymbol(_ key: String) -> String {
+        let keySymbols: [String: String] = [
+            "caps": "⇪ Caps Lock",
+            "lmet": "⌘ Command",
+            "rmet": "⌘ Command",
+            "lalt": "⌥ Option",
+            "ralt": "⌥ Option",
+            "lctl": "⌃ Control",
+            "rctl": "⌃ Control",
+            "lsft": "⇧ Shift",
+            "rsft": "⇧ Shift",
+            "esc": "⎋ Escape",
+            "tab": "⇥ Tab",
+            "ret": "↩ Return",
+            "spc": "␣ Space",
+            "bspc": "⌫ Delete",
+            "del": "⌦ Forward Delete"
+        ]
+        return keySymbols[key.lowercased()] ?? key.capitalized
     }
 
     private func openConfigInEditor() {
@@ -223,17 +255,46 @@ private struct ExpandableCollectionRow: View {
     var layerActivator: MomentaryActivator?
     var defaultExpanded: Bool = false
     var displayStyle: RuleCollectionDisplayStyle = .list
+    /// For singleKeyPicker style: the full collection with presets
+    var collection: RuleCollection?
+    var onSelectOutput: ((String) -> Void)?
+    /// Unique ID for scroll-to behavior
+    var scrollID: String?
+    /// Scroll proxy for auto-scrolling when expanded
+    var scrollProxy: ScrollViewProxy?
 
     @State private var isExpanded = false
     @State private var isHovered = false
     @State private var hasInitialized = false
+    @State private var localEnabled: Bool? // Optimistic local state for instant toggle feedback
+
+    /// Effective enabled state: use local optimistic value if set, otherwise parent value
+    private var effectiveEnabled: Bool {
+        localEnabled ?? isEnabled
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // Scroll anchor for auto-scroll when expanded
+            if let id = scrollID {
+                Color.clear
+                    .frame(height: 0)
+                    .id(id)
+            }
+
             // Header Row (clickable for expand/collapse)
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     isExpanded.toggle()
+                    // Auto-scroll to show expanded content
+                    if isExpanded, let id = scrollID, let proxy = scrollProxy {
+                        // Delay slightly to allow expansion animation to begin
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                proxy.scrollTo(id, anchor: .top)
+                            }
+                        }
+                    }
                 }
             } label: {
                 HStack(alignment: .top, spacing: 12) {
@@ -263,8 +324,13 @@ private struct ExpandableCollectionRow: View {
                     Toggle(
                         "",
                         isOn: Binding(
-                            get: { isEnabled },
-                            set: { onToggle($0) }
+                            get: { effectiveEnabled },
+                            set: { newValue in
+                                // Optimistic update: change UI immediately
+                                localEnabled = newValue
+                                // Then trigger async operation
+                                onToggle(newValue)
+                            }
                         )
                     )
                     .labelsHidden()
@@ -309,6 +375,17 @@ private struct ExpandableCollectionRow: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 20)
+                } else if displayStyle == .singleKeyPicker, let coll = collection {
+                    // Segmented picker for single-key remapping
+                    SingleKeyPickerContent(
+                        collection: coll,
+                        onSelectOutput: { output in
+                            onSelectOutput?(output)
+                        }
+                    )
+                    .padding(.top, 8)
+                    .padding(.bottom, 12)
+                    .padding(.horizontal, 16)
                 } else if displayStyle == .table {
                     // Table view for complex collections like Vim
                     MappingTableContent(mappings: mappings)
@@ -316,81 +393,16 @@ private struct ExpandableCollectionRow: View {
                         .padding(.bottom, 12)
                         .padding(.horizontal, 12)
                 } else {
+                    // List view for standard collections and custom rules
                     VStack(spacing: 6) {
                         ForEach(mappings, id: \.id) { mapping in
-                            HStack(spacing: 8) {
-                                // Show layer activator if present
-                                if let activator = layerActivator {
-                                    HStack(spacing: 4) {
-                                        Text("Hold")
-                                            .font(.body.monospaced().weight(.semibold))
-                                            .foregroundColor(.accentColor)
-                                        Text(prettyKeyName(activator.input))
-                                            .font(.body.monospaced().weight(.semibold))
-                                            .foregroundColor(.primary)
-                                    }
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(
-                                        Capsule()
-                                            .fill(Color(NSColor.controlBackgroundColor))
-                                    )
-
-                                    Text("+")
-                                        .font(.body)
-                                        .foregroundColor(.secondary)
-                                }
-
-                                Text(prettyKeyName(mapping.input))
-                                    .font(.body.monospaced().weight(.semibold))
-                                    .foregroundColor(.primary)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(
-                                        Capsule()
-                                            .fill(Color(NSColor.controlBackgroundColor))
-                                    )
-
-                                Image(systemName: "arrow.right")
-                                    .font(.body.weight(.medium))
-                                    .foregroundColor(.secondary)
-
-                                Text(prettyKeyName(mapping.output))
-                                    .font(.body.monospaced().weight(.semibold))
-                                    .foregroundColor(.primary)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(
-                                        Capsule()
-                                            .fill(Color(NSColor.controlBackgroundColor))
-                                    )
-
-                                Spacer()
-
-                                if let onEdit = onEditMapping {
-                                    Button {
-                                        onEdit(mapping.id)
-                                    } label: {
-                                        Image(systemName: "pencil")
-                                            .font(.callout)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .foregroundColor(.blue)
-                                }
-
-                                if let onDelete = onDeleteMapping {
-                                    Button {
-                                        onDelete(mapping.id)
-                                    } label: {
-                                        Image(systemName: "trash")
-                                            .font(.callout)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .foregroundColor(.red)
-                                }
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 4)
+                            MappingRowView(
+                                mapping: mapping,
+                                layerActivator: layerActivator,
+                                onEditMapping: onEditMapping,
+                                onDeleteMapping: onDeleteMapping,
+                                prettyKeyName: prettyKeyName
+                            )
                         }
                     }
                     .padding(.top, 8)
@@ -404,6 +416,18 @@ private struct ExpandableCollectionRow: View {
                 hasInitialized = true
             }
         }
+        .onChange(of: defaultExpanded) { _, newValue in
+            // Auto-expand when rules are added (going from empty to non-empty)
+            if newValue, !isExpanded {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded = true
+                }
+            }
+        }
+        .onChange(of: isEnabled) { _, _ in
+            // Parent state updated, clear local override to stay in sync
+            localEnabled = nil
+        }
     }
 
     @ViewBuilder
@@ -414,6 +438,20 @@ private struct ExpandableCollectionRow: View {
                 .font(.system(size: 14, weight: .bold, design: .monospaced))
                 .foregroundColor(.secondary)
                 .frame(width: 24, height: 24)
+        } else if icon.hasPrefix("resource:") {
+            let resourceName = String(icon.dropFirst(9))
+            if let resourceURL = Bundle.main.url(forResource: resourceName, withExtension: "svg"),
+               let image = NSImage(contentsOf: resourceURL) {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 24, height: 24)
+            } else {
+                // Fallback to system image
+                Image(systemName: "questionmark.circle")
+                    .font(.system(size: 24))
+                    .foregroundColor(.secondary)
+            }
         } else {
             Image(systemName: icon)
                 .font(.system(size: 24))
@@ -425,6 +463,143 @@ private struct ExpandableCollectionRow: View {
         raw.replacingOccurrences(of: "_", with: " ")
             .trimmingCharacters(in: .whitespaces)
             .capitalized
+    }
+}
+
+// MARK: - Mapping Row View
+
+private struct MappingRowView: View {
+    let mapping: (input: String, output: String, shiftedOutput: String?, ctrlOutput: String?, description: String?, sectionBreak: Bool, enabled: Bool, id: UUID)
+    let layerActivator: MomentaryActivator?
+    let onEditMapping: ((UUID) -> Void)?
+    let onDeleteMapping: ((UUID) -> Void)?
+    let prettyKeyName: (String) -> String
+
+    @State private var isHovered = false
+
+    private var isEditable: Bool {
+        onEditMapping != nil
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            // Mapping content
+            HStack(spacing: 8) {
+                // Show layer activator if present
+                if let activator = layerActivator {
+                    HStack(spacing: 4) {
+                        Text("Hold")
+                            .font(.body.monospaced().weight(.semibold))
+                            .foregroundColor(.accentColor)
+                        Text(prettyKeyName(activator.input))
+                            .font(.body.monospaced().weight(.semibold))
+                            .foregroundColor(.primary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(Color(NSColor.controlBackgroundColor))
+                    )
+
+                    Text("+")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                }
+
+                Text(prettyKeyName(mapping.input))
+                    .font(.body.monospaced().weight(.semibold))
+                    .foregroundColor(.primary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(Color(NSColor.controlBackgroundColor))
+                    )
+
+                Image(systemName: "arrow.right")
+                    .font(.body.weight(.medium))
+                    .foregroundColor(.secondary)
+
+                Text(prettyKeyName(mapping.output))
+                    .font(.body.monospaced().weight(.semibold))
+                    .foregroundColor(.primary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(Color(NSColor.controlBackgroundColor))
+                    )
+
+                // Show rule name/title if provided
+                if let title = mapping.description, !title.isEmpty {
+                    Text(title)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Spacer()
+
+            // Action buttons in solid circles - aligned with toggle above
+            if onEditMapping != nil || onDeleteMapping != nil {
+                HStack(spacing: 8) {
+                    if let onEdit = onEditMapping {
+                        Button {
+                            onEdit(mapping.id)
+                        } label: {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(width: 24, height: 24)
+                                .background(Circle().fill(Color.blue))
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    if let onDelete = onDeleteMapping {
+                        Button {
+                            onDelete(mapping.id)
+                        } label: {
+                            Image(systemName: "trash")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(width: 24, height: 24)
+                                .background(Circle().fill(Color.red.opacity(0.8)))
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    // Spacer to match chevron width in header
+                    Spacer()
+                        .frame(width: 24)
+                }
+            }
+        }
+        .padding(.leading, 48)
+        .padding(.trailing, 12)
+        .padding(.vertical, 4)
+        .padding(.horizontal, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isHovered && isEditable ? Color.primary.opacity(0.03) : Color.clear)
+        )
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            isHovered = hovering
+            if isEditable {
+                if hovering {
+                    NSCursor.pointingHand.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
+        }
+        .onTapGesture {
+            if let onEdit = onEditMapping {
+                onEdit(mapping.id)
+            }
+        }
     }
 }
 
@@ -512,6 +687,159 @@ private struct CreateRuleButton: View {
     }
 }
 
+// MARK: - Single Key Picker Content
+
+private struct SingleKeyPickerContent: View {
+    let collection: RuleCollection
+    let onSelectOutput: (String) -> Void
+
+    @State private var selectedOutput: String
+
+    init(collection: RuleCollection, onSelectOutput: @escaping (String) -> Void) {
+        self.collection = collection
+        self.onSelectOutput = onSelectOutput
+        _selectedOutput = State(initialValue: collection.selectedOutput ?? collection.presetOptions.first?.output ?? "")
+    }
+
+    private var selectedPreset: SingleKeyPreset? {
+        collection.presetOptions.first { $0.output == selectedOutput }
+    }
+
+    private var isCustomSelection: Bool {
+        !collection.presetOptions.contains { $0.output == selectedOutput }
+            && !selectedOutput.isEmpty
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Segmented picker
+            HStack(spacing: 0) {
+                ForEach(collection.presetOptions) { preset in
+                    PickerSegment(
+                        label: preset.label,
+                        isSelected: selectedOutput == preset.output,
+                        isFirst: preset.id == collection.presetOptions.first?.id,
+                        isLast: preset.id == collection.presetOptions.last?.id && !isCustomSelection
+                    ) {
+                        selectedOutput = preset.output
+                        onSelectOutput(preset.output)
+                    }
+                }
+
+                // Custom segment (shown if there's a custom selection or always available)
+                PickerSegment(
+                    label: "Custom",
+                    isSelected: isCustomSelection,
+                    isFirst: false,
+                    isLast: true
+                ) {
+                    // For now, just show it's selected; could open editor
+                }
+            }
+            .padding(.horizontal, 4)
+
+            // Description that updates based on selection
+            if let preset = selectedPreset {
+                Text(preset.description)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 4)
+                    .transition(.opacity)
+                    .id(preset.output)
+            } else if isCustomSelection {
+                HStack {
+                    Text("Custom mapping: \(selectedOutput)")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Button("Edit") {
+                        // Could open custom rule editor
+                    }
+                    .buttonStyle(.link)
+                    .font(.subheadline)
+                }
+                .padding(.horizontal, 4)
+            }
+        }
+        .padding(.vertical, 8)
+        .animation(.easeInOut(duration: 0.15), value: selectedOutput)
+    }
+}
+
+private struct PickerSegment: View {
+    let label: String
+    let isSelected: Bool
+    let isFirst: Bool
+    let isLast: Bool
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(label)
+                .font(.subheadline.weight(isSelected ? .semibold : .regular))
+                .foregroundColor(isSelected ? .white : .primary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .frame(minWidth: 70)
+                .background(
+                    RoundedRectangle(cornerRadius: isFirst ? 6 : (isLast ? 6 : 0))
+                        .fill(isSelected ? Color.accentColor : (isHovered ? Color.primary.opacity(0.08) : Color.clear))
+                        .clipShape(SegmentShape(isFirst: isFirst, isLast: isLast))
+                )
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+    }
+}
+
+private struct SegmentShape: Shape {
+    let isFirst: Bool
+    let isLast: Bool
+
+    func path(in rect: CGRect) -> Path {
+        let radius: CGFloat = 6
+        var path = Path()
+
+        if isFirst, isLast {
+            path.addRoundedRect(in: rect, cornerSize: CGSize(width: radius, height: radius))
+        } else if isFirst {
+            path.move(to: CGPoint(x: rect.minX + radius, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+            path.addLine(to: CGPoint(x: rect.minX + radius, y: rect.maxY))
+            path.addArc(
+                center: CGPoint(x: rect.minX + radius, y: rect.maxY - radius),
+                radius: radius, startAngle: .degrees(90), endAngle: .degrees(180), clockwise: false
+            )
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + radius))
+            path.addArc(
+                center: CGPoint(x: rect.minX + radius, y: rect.minY + radius),
+                radius: radius, startAngle: .degrees(180), endAngle: .degrees(270), clockwise: false
+            )
+        } else if isLast {
+            path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.maxX - radius, y: rect.minY))
+            path.addArc(
+                center: CGPoint(x: rect.maxX - radius, y: rect.minY + radius),
+                radius: radius, startAngle: .degrees(270), endAngle: .degrees(0), clockwise: false
+            )
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - radius))
+            path.addArc(
+                center: CGPoint(x: rect.maxX - radius, y: rect.maxY - radius),
+                radius: radius, startAngle: .degrees(0), endAngle: .degrees(90), clockwise: false
+            )
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+            path.closeSubpath()
+        } else {
+            path.addRect(rect)
+        }
+
+        return path
+    }
+}
+
 // MARK: - Mapping Table Content
 
 private struct MappingTableContent: View {
@@ -529,61 +857,71 @@ private struct MappingTableContent: View {
         mappings.contains { $0.description != nil }
     }
 
+    // Calculate column widths based on content
+    private var keyColumnWidth: CGFloat {
+        let maxInput = mappings.map { prettyKeyName($0.input) }.max(by: { $0.count < $1.count }) ?? ""
+        return max(60, CGFloat(maxInput.count) * 10 + 20)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header row
             HStack(spacing: 0) {
-                headerCell("Key", width: 60)
+                headerCell("Key")
+                    .frame(minWidth: 80, alignment: .leading)
+                    .padding(.leading, 12)
+                    .padding(.trailing, 24)
                 if hasDescriptions {
-                    headerCell("Description", width: 180, alignment: .leading)
+                    headerCell("Description")
+                        .frame(minWidth: 150, maxWidth: .infinity, alignment: .leading)
                 }
-                headerCell("Action", width: 80, alignment: .leading)
+                headerCell("Action")
+                    .frame(width: 90)
                 if hasShiftVariants {
-                    headerCell("+Shift", width: 80, color: .orange)
+                    headerCell("+ Shift ⇧", color: .orange)
+                        .frame(width: 100)
                 }
                 if hasCtrlVariants {
-                    headerCell("+Ctrl", width: 80, color: .cyan)
+                    headerCell("+ Ctrl ⌃", color: .cyan)
+                        .frame(width: 100)
                 }
-                Spacer()
             }
-            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
             .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
 
-            Divider()
-
             // Data rows
-            ForEach(Array(mappings.enumerated()), id: \.element.id) { index, mapping in
-                // Section break separator
+            ForEach(Array(mappings.enumerated()), id: \.element.id) { _, mapping in
+                // Section break separator (extra whitespace)
                 if mapping.sectionBreak {
-                    Rectangle()
-                        .fill(Color.primary.opacity(0.15))
-                        .frame(height: 2)
-                        .padding(.vertical, 4)
+                    Spacer()
+                        .frame(height: 12)
                 }
 
                 HStack(spacing: 0) {
-                    keyCell(prettyKeyName(mapping.input), width: 60)
+                    keyCell(prettyKeyName(mapping.input))
+                        .frame(minWidth: 80, alignment: .leading)
+                        .padding(.leading, 12)
+                        .padding(.trailing, 24)
                     if hasDescriptions {
-                        descriptionCell(mapping.description, width: 180)
+                        descriptionCell(mapping.description)
+                            .frame(minWidth: 150, maxWidth: .infinity)
                     }
-                    actionCell(formatOutput(mapping.output), width: 80)
+                    actionCell(formatOutput(mapping.output))
+                        .frame(width: 90)
                     if hasShiftVariants {
-                        modifierCell(mapping.shiftedOutput.map { formatOutput($0) }, width: 80, color: .orange)
+                        modifierCell(mapping.shiftedOutput.map { formatOutput($0) }, color: .orange)
+                            .frame(width: 100)
                     }
                     if hasCtrlVariants {
-                        modifierCell(mapping.ctrlOutput.map { formatOutput($0) }, width: 80, color: .cyan)
+                        modifierCell(mapping.ctrlOutput.map { formatOutput($0) }, color: .cyan)
+                            .frame(width: 100)
                     }
-                    Spacer()
                 }
-                .padding(.vertical, 6)
-
-                // Show divider unless this is the last row or the next row has a section break
-                let isLast = index == mappings.count - 1
-                let nextHasSectionBreak = index + 1 < mappings.count && mappings[index + 1].sectionBreak
-                if !isLast && !nextHasSectionBreak {
-                    Divider().opacity(0.3)
-                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 5)
             }
+            .padding(.vertical, 4)
         }
         .background(Color(NSColor.controlBackgroundColor).opacity(0.3))
         .cornerRadius(8)
@@ -594,49 +932,50 @@ private struct MappingTableContent: View {
     }
 
     @ViewBuilder
-    private func headerCell(_ text: String, width: CGFloat, alignment: Alignment = .center, color: Color = .secondary) -> some View {
+    private func headerCell(_ text: String, color: Color = .secondary) -> some View {
         Text(text)
-            .font(.caption.weight(.semibold))
+            .font(.subheadline.weight(.semibold))
             .foregroundColor(color)
-            .frame(width: width, alignment: alignment)
     }
 
     @ViewBuilder
-    private func keyCell(_ text: String, width: CGFloat) -> some View {
-        Text(text)
-            .font(.callout.monospaced().weight(.medium))
+    private func keyCell(_ text: String) -> some View {
+        Text(formatKeyForDisplay(text))
+            .font(.body.monospaced().bold())
             .foregroundColor(.primary)
-            .frame(width: width, alignment: .center)
+            .fixedSize(horizontal: true, vertical: false)
     }
 
     @ViewBuilder
-    private func descriptionCell(_ text: String?, width: CGFloat) -> some View {
+    private func descriptionCell(_ text: String?) -> some View {
         Text(text ?? "")
-            .font(.callout)
+            .font(.body)
             .foregroundColor(.primary.opacity(0.8))
-            .frame(width: width, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
-    private func actionCell(_ text: String, width: CGFloat) -> some View {
+    private func actionCell(_ text: String) -> some View {
         Text(text)
-            .font(.callout.monospaced())
+            .font(.body.monospaced())
             .foregroundColor(.secondary)
-            .frame(width: width, alignment: .leading)
+            .fixedSize(horizontal: true, vertical: false)
+            .frame(maxWidth: .infinity)
     }
 
     @ViewBuilder
-    private func modifierCell(_ text: String?, width: CGFloat, color: Color) -> some View {
+    private func modifierCell(_ text: String?, color: Color) -> some View {
         if let text {
             Text(text)
-                .font(.callout.monospaced())
-                .foregroundColor(color.opacity(0.8))
-                .frame(width: width, alignment: .center)
+                .font(.body.monospaced())
+                .foregroundColor(color.opacity(0.9))
+                .fixedSize(horizontal: true, vertical: false)
+                .frame(maxWidth: .infinity)
         } else {
             Text("—")
-                .font(.callout)
+                .font(.body)
                 .foregroundColor(.secondary.opacity(0.3))
-                .frame(width: width, alignment: .center)
+                .frame(maxWidth: .infinity)
         }
     }
 
@@ -646,16 +985,80 @@ private struct MappingTableContent: View {
             .capitalized
     }
 
+    /// Format key name for display in Key column (show Mac modifier names & symbols)
+    private func formatKeyForDisplay(_ key: String) -> String {
+        let macModifiers: [String: String] = [
+            // Command
+            "Lmet": "⌘ Cmd",
+            "Rmet": "⌘ Cmd",
+            "Cmd": "⌘ Cmd",
+            "Command": "⌘ Cmd",
+            // Option/Alt
+            "Lalt": "⌥ Opt",
+            "Ralt": "⌥ Opt",
+            "Alt": "⌥ Opt",
+            "Option": "⌥ Opt",
+            // Control
+            "Lctl": "⌃ Ctrl",
+            "Rctl": "⌃ Ctrl",
+            "Ctrl": "⌃ Ctrl",
+            "Control": "⌃ Ctrl",
+            // Shift
+            "Lsft": "⇧ Shift",
+            "Rsft": "⇧ Shift",
+            "Shift": "⇧ Shift",
+            // Caps Lock
+            "Caps": "⇪ Caps",
+            "Capslock": "⇪ Caps",
+            // Function keys stay as-is (F1, F2, etc.)
+            // Special keys
+            "Esc": "⎋ Esc",
+            "Tab": "⇥ Tab",
+            "Ret": "↩ Return",
+            "Return": "↩ Return",
+            "Enter": "↩ Return",
+            "Spc": "␣ Space",
+            "Space": "␣ Space",
+            "Bspc": "⌫ Delete",
+            "Backspace": "⌫ Delete",
+            "Del": "⌦ Fwd Del",
+            "Delete": "⌦ Fwd Del",
+            // Arrow keys
+            "Left": "←",
+            "Right": "→",
+            "Up": "↑",
+            "Down": "↓",
+            // Page navigation
+            "Pgup": "Pg ↑",
+            "Pgdn": "Pg ↓",
+            "Home": "↖ Home",
+            "End": "↘ End"
+        ]
+
+        // Check if we have a Mac-friendly name for this key
+        if let macName = macModifiers[key] {
+            return macName
+        }
+        return key
+    }
+
     /// Format output for display (convert Kanata codes to readable symbols)
     private func formatOutput(_ output: String) -> String {
         // Split by space to handle multi-key sequences, format each part, rejoin with space
         output.split(separator: " ").map { part in
             String(part)
-                .replacingOccurrences(of: "M-S-", with: "⌘⇧")
-                .replacingOccurrences(of: "M-", with: "⌘")
-                .replacingOccurrences(of: "A-", with: "⌥")
-                .replacingOccurrences(of: "C-", with: "⌃")
-                .replacingOccurrences(of: "S-", with: "⇧")
+                // Multi-modifier combinations (order matters - longest first)
+                .replacingOccurrences(of: "C-M-A-S-", with: "⌃ ⌘ ⌥ ⇧ ")
+                .replacingOccurrences(of: "C-M-A-", with: "⌃ ⌘ ⌥ ")
+                .replacingOccurrences(of: "M-S-", with: "⌘ ⇧ ")
+                .replacingOccurrences(of: "C-S-", with: "⌃ ⇧ ")
+                .replacingOccurrences(of: "A-S-", with: "⌥ ⇧ ")
+                // Single modifiers
+                .replacingOccurrences(of: "M-", with: "⌘ ")
+                .replacingOccurrences(of: "A-", with: "⌥ ")
+                .replacingOccurrences(of: "C-", with: "⌃ ")
+                .replacingOccurrences(of: "S-", with: "⇧ ")
+                // Arrow keys and special keys
                 .replacingOccurrences(of: "left", with: "←")
                 .replacingOccurrences(of: "right", with: "→")
                 .replacingOccurrences(of: "up", with: "↑")
@@ -663,8 +1066,9 @@ private struct MappingTableContent: View {
                 .replacingOccurrences(of: "ret", with: "↩")
                 .replacingOccurrences(of: "bspc", with: "⌫")
                 .replacingOccurrences(of: "del", with: "⌦")
-                .replacingOccurrences(of: "pgup", with: "PgUp")
-                .replacingOccurrences(of: "pgdn", with: "PgDn")
+                .replacingOccurrences(of: "pgup", with: "Pg ↑")
+                .replacingOccurrences(of: "pgdn", with: "Pg ↓")
+                .replacingOccurrences(of: "esc", with: "⎋")
         }.joined(separator: " ")
     }
 }

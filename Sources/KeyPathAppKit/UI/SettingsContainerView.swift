@@ -161,6 +161,7 @@ private struct SettingsTabButton: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .focusEffectDisabled()
         .disabled(disabled)
     }
 }

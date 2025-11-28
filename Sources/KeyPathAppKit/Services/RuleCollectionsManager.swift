@@ -124,6 +124,7 @@ final class RuleCollectionsManager {
 
         ruleCollections = storedCollections
         customRules = storedCustomRules
+        AppLogger.shared.log("📊 [RuleCollectionsManager] bootstrap: loaded \(customRules.count) custom rules from store")
         ensureDefaultCollectionsIfNeeded()
         refreshLayerIndicatorState()
 
@@ -221,9 +222,44 @@ final class RuleCollectionsManager {
         await regenerateConfigFromCollections()
     }
 
+    /// Update a single-key picker collection's selected output and regenerate its mapping
+    func updateCollectionOutput(id: UUID, output: String) async {
+        guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
+            // Try to find in catalog and add it
+            let catalog = RuleCollectionCatalog()
+            if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
+                catalogCollection.selectedOutput = output
+                catalogCollection.isEnabled = true
+                // Update the mapping based on selected output
+                if let inputKey = catalogCollection.pickerInputKey {
+                    let description = catalogCollection.presetOptions.first { $0.output == output }?.label ?? "Custom"
+                    catalogCollection.mappings = [KeyMapping(input: inputKey, output: output, description: description)]
+                }
+                ruleCollections.append(catalogCollection)
+                refreshLayerIndicatorState()
+                await regenerateConfigFromCollections()
+            }
+            return
+        }
+
+        ruleCollections[index].selectedOutput = output
+        ruleCollections[index].isEnabled = true
+
+        // Update the mapping based on selected output
+        if let inputKey = ruleCollections[index].pickerInputKey {
+            let description = ruleCollections[index].presetOptions.first { $0.output == output }?.label ?? "Custom"
+            ruleCollections[index].mappings = [KeyMapping(input: inputKey, output: output, description: description)]
+        }
+
+        refreshLayerIndicatorState()
+        await regenerateConfigFromCollections()
+    }
+
     /// Save or update a custom rule
     @discardableResult
     func saveCustomRule(_ rule: CustomRule, skipReload: Bool = false) async -> Bool {
+        AppLogger.shared.log("💾 [CustomRules] saveCustomRule called: id=\(rule.id), input='\(rule.input)', output='\(rule.output)'")
+
         if rule.isEnabled,
            let conflict = conflictInfo(for: rule) {
             onError?(
@@ -236,11 +272,14 @@ final class RuleCollectionsManager {
         }
 
         if let index = customRules.firstIndex(where: { $0.id == rule.id }) {
+            AppLogger.shared.log("💾 [CustomRules] Updating existing rule at index \(index)")
             customRules[index] = rule
         } else {
+            AppLogger.shared.log("💾 [CustomRules] Adding new rule (count will be \(customRules.count + 1))")
             customRules.append(rule)
         }
         await regenerateConfigFromCollections(skipReload: skipReload)
+        AppLogger.shared.log("💾 [CustomRules] Save complete, customRules.count = \(customRules.count)")
         return true
     }
 

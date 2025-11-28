@@ -28,10 +28,17 @@ actor CustomRulesStore {
     }
 
     func loadRules() -> [CustomRule] {
-        guard fileManager.fileExists(atPath: fileURL.path) else { return [] }
+        AppLogger.shared.log("📂 [CustomRulesStore] loadRules from: \(fileURL.path)")
+        guard fileManager.fileExists(atPath: fileURL.path) else {
+            AppLogger.shared.log("📂 [CustomRulesStore] File does not exist, returning []")
+            return []
+        }
         do {
             let data = try Data(contentsOf: fileURL)
-            return try decoder.decode([CustomRule].self, from: data)
+            AppLogger.shared.log("📂 [CustomRulesStore] Read \(data.count) bytes from file")
+            let rules = try decoder.decode([CustomRule].self, from: data)
+            AppLogger.shared.log("📂 [CustomRulesStore] Decoded \(rules.count) rules")
+            return rules
         } catch {
             AppLogger.shared.log("⚠️ [CustomRulesStore] Failed to load rules: \(error)")
             return []
@@ -39,10 +46,12 @@ actor CustomRulesStore {
     }
 
     func saveRules(_ rules: [CustomRule]) throws {
+        AppLogger.shared.log("💾 [CustomRulesStore] saveRules: \(rules.count) rules to \(fileURL.path)")
         let directory = fileURL.deletingLastPathComponent()
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
         let data = try encoder.encode(rules)
         try data.write(to: fileURL, options: .atomic)
+        AppLogger.shared.log("💾 [CustomRulesStore] Saved \(data.count) bytes")
     }
 }
 

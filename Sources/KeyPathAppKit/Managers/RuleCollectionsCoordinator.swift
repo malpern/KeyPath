@@ -62,6 +62,13 @@ final class RuleCollectionsCoordinator {
         notifyStateChanged()
     }
 
+    /// Update a single-key picker collection's selected output
+    func updateCollectionOutput(id: UUID, output: String) async {
+        await ruleCollectionsManager.updateCollectionOutput(id: id, output: output)
+        applyMappings(ruleCollectionsManager.enabledMappings())
+        notifyStateChanged()
+    }
+
     // MARK: - Custom Rule Operations
 
     /// Save a custom rule

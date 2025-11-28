@@ -183,6 +183,9 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         // Sync diagnostics from DiagnosticsManager
         diagnostics = diagnosticsManager.getDiagnostics()
 
+        // Debug: Log custom rules count when building state
+        AppLogger.shared.log("📊 [RuntimeCoordinator] buildUIState: customRules.count = \(customRules.count)")
+
         return KanataUIState(
             // Core Status
             lastError: lastError,
@@ -742,6 +745,10 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     func addRuleCollection(_ collection: RuleCollection) async {
         await ruleCollectionsCoordinator.addRuleCollection(collection)
+    }
+
+    func updateCollectionOutput(id: UUID, output: String) async {
+        await ruleCollectionsCoordinator.updateCollectionOutput(id: id, output: output)
     }
 
     @discardableResult

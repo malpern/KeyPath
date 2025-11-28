@@ -251,9 +251,11 @@ struct WizardCommunicationPage: View {
                     for _ in 0 ..< 60 {
                         try await clock.sleep(for: .milliseconds(250))
                         if await isCommunicationResponding() {
-                            break
+                            // Communication is responding - return normally (no timeout)
+                            return
                         }
                     }
+                    // Only throw if we exhausted all 60 polls without a response
                     throw TimeoutError()
                 }
 

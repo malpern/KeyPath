@@ -84,6 +84,9 @@ class KanataViewModel: ObservableObject {
     /// Update UI properties from state snapshot
     /// Only called when state actually changes (not on a timer)
     private func updateUI(with state: KanataUIState) {
+        // Debug: Log custom rules count when updating UI
+        AppLogger.shared.log("📊 [KanataViewModel] updateUI: customRules.count = \(state.customRules.count)")
+
         lastError = state.lastError
         keyMappings = state.keyMappings
         ruleCollections = state.ruleCollections
@@ -176,6 +179,10 @@ class KanataViewModel: ObservableObject {
 
     func addRuleCollection(_ collection: RuleCollection) async {
         await manager.addRuleCollection(collection)
+    }
+
+    func updateCollectionOutput(_ id: UUID, output: String) async {
+        await manager.updateCollectionOutput(id: id, output: output)
     }
 
     func isCompletelyInstalled() -> Bool {

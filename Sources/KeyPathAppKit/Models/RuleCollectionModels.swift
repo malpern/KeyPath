@@ -15,6 +15,12 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
     public var momentaryActivator: MomentaryActivator?
     public var activationHint: String?
     public var displayStyle: RuleCollectionDisplayStyle
+    /// For singleKeyPicker style: the input key being remapped (e.g., "caps")
+    public var pickerInputKey: String?
+    /// For singleKeyPicker style: available preset output options
+    public var presetOptions: [SingleKeyPreset]
+    /// For singleKeyPicker style: currently selected output (can be preset or custom)
+    public var selectedOutput: String?
 
     public init(
         id: UUID = UUID(),
@@ -29,7 +35,10 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         targetLayer: RuleCollectionLayer = .base,
         momentaryActivator: MomentaryActivator? = nil,
         activationHint: String? = nil,
-        displayStyle: RuleCollectionDisplayStyle = .list
+        displayStyle: RuleCollectionDisplayStyle = .list,
+        pickerInputKey: String? = nil,
+        presetOptions: [SingleKeyPreset] = [],
+        selectedOutput: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -44,11 +53,14 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         self.momentaryActivator = momentaryActivator
         self.activationHint = activationHint
         self.displayStyle = displayStyle
+        self.pickerInputKey = pickerInputKey
+        self.presetOptions = presetOptions
+        self.selectedOutput = selectedOutput
     }
 
     enum CodingKeys: String, CodingKey {
         case id, name, summary, category, mappings, isEnabled, isSystemDefault, icon, tags, targetLayer,
-             momentaryActivator, activationHint, displayStyle
+             momentaryActivator, activationHint, displayStyle, pickerInputKey, presetOptions, selectedOutput
     }
 
     public init(from decoder: Decoder) throws {
@@ -70,6 +82,9 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         activationHint = try container.decodeIfPresent(String.self, forKey: .activationHint)
         displayStyle =
             try container.decodeIfPresent(RuleCollectionDisplayStyle.self, forKey: .displayStyle) ?? .list
+        pickerInputKey = try container.decodeIfPresent(String.self, forKey: .pickerInputKey)
+        presetOptions = try container.decodeIfPresent([SingleKeyPreset].self, forKey: .presetOptions) ?? []
+        selectedOutput = try container.decodeIfPresent(String.self, forKey: .selectedOutput)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -87,6 +102,9 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         try container.encode(momentaryActivator, forKey: .momentaryActivator)
         try container.encode(activationHint, forKey: .activationHint)
         try container.encode(displayStyle, forKey: .displayStyle)
+        try container.encodeIfPresent(pickerInputKey, forKey: .pickerInputKey)
+        try container.encode(presetOptions, forKey: .presetOptions)
+        try container.encodeIfPresent(selectedOutput, forKey: .selectedOutput)
     }
 }
 
@@ -116,6 +134,9 @@ public enum RuleCollectionIdentifier {
     public static let macFunctionKeys = UUID(uuidString: "B8D6C8E4-2269-4C21-8C86-77D7A1722E01")!
     public static let vimNavigation = UUID(uuidString: "A1E0744C-66C1-4E69-8E68-DA2643765429")!
     public static let capsLockHyperKey = UUID(uuidString: "F4A2E8D1-9C3B-4E7A-B5F6-2D8C9A3E1B4F")!
+    public static let capsLockRemap = UUID(uuidString: "D2B4F6A8-1C3E-5D7F-9A2B-4C6E8F0A2B4D")!
+    public static let escapeRemap = UUID(uuidString: "E7C9A3B5-2F4D-6E8A-B1C3-5D7F9A2B4C6E")!
+    public static let deleteRemap = UUID(uuidString: "F8D0B4C6-3A5E-7F9B-C2D4-6E8A0B2C4D6F")!
     public static let customMappings = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
 }
 
@@ -209,4 +230,22 @@ public enum RuleCollectionDisplayStyle: String, Codable, Sendable {
     case list
     /// Table with columns for Key, Action, +Shift, +Ctrl (for complex mappings)
     case table
+    /// Segmented picker for single-key remapping with preset options (e.g., Caps Lock → X)
+    case singleKeyPicker
+}
+
+/// A preset option for single-key picker collections
+public struct SingleKeyPreset: Codable, Equatable, Sendable, Identifiable {
+    public var id: String { output }
+    public let output: String
+    public let label: String
+    public let description: String
+    public let icon: String?
+
+    public init(output: String, label: String, description: String, icon: String? = nil) {
+        self.output = output
+        self.label = label
+        self.description = description
+        self.icon = icon
+    }
 }
