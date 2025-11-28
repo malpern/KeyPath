@@ -111,9 +111,15 @@ struct GeneralSettingsTabView: View {
             .padding(.horizontal, 20)
             .padding(.top, 20)
 
+            Divider()
+                .padding(.vertical, 12)
+
+            // Virtual Keys Inspector
+            VirtualKeysInspectorView()
+                .padding(.horizontal, 20)
+
             Spacer()
         }
-        .frame(maxHeight: 300)
         .settingsBackground()
         .withToasts(settingsToastManager)
     }

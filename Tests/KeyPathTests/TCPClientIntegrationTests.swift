@@ -144,4 +144,53 @@ final class TCPClientIntegrationTests: XCTestCase {
         )
         // Accept either timeout or immediate success; framing is the key invariant
     }
+
+    // MARK: - FakeKey Tests
+
+    /// Test that actOnFakeKey returns appropriate result for non-existent key
+    /// Note: This requires Kanata to have virtual keys defined to test success path
+    func testActOnFakeKeyWithNonExistentKey() async throws {
+        guard await serverReachable() else { throw XCTSkip("TCP server not running") }
+        let client = KanataTCPClient(port: port)
+
+        // Using a key name that almost certainly doesn't exist
+        let result = await client.actOnFakeKey(name: "nonexistent_test_key_12345", action: .tap)
+
+        switch result {
+        case .success:
+            // Kanata may succeed even for non-existent keys (silent no-op)
+            XCTAssertTrue(true)
+        case let .error(message):
+            // Expected: key doesn't exist
+            XCTAssertTrue(message.lowercased().contains("not found") || message.lowercased().contains("unknown"))
+        case let .networkError(message):
+            XCTFail("Unexpected network error: \(message)")
+        }
+    }
+
+    /// Test all FakeKeyAction variants serialize correctly
+    func testFakeKeyActionSerialization() async throws {
+        guard await serverReachable() else { throw XCTSkip("TCP server not running") }
+        let client = KanataTCPClient(port: port)
+
+        // Test each action type - they should all complete without network errors
+        for action in [KanataTCPClient.FakeKeyAction.tap, .press, .release, .toggle] {
+            let result = await client.actOnFakeKey(name: "test_key", action: action)
+            switch result {
+            case let .networkError(message):
+                XCTFail("Network error for action \(action.rawValue): \(message)")
+            default:
+                // success or error (key not found) is fine - proves serialization worked
+                break
+            }
+        }
+    }
+
+    /// Test FakeKeyAction raw values match Kanata protocol
+    func testFakeKeyActionRawValues() {
+        XCTAssertEqual(KanataTCPClient.FakeKeyAction.press.rawValue, "Press")
+        XCTAssertEqual(KanataTCPClient.FakeKeyAction.release.rawValue, "Release")
+        XCTAssertEqual(KanataTCPClient.FakeKeyAction.tap.rawValue, "Tap")
+        XCTAssertEqual(KanataTCPClient.FakeKeyAction.toggle.rawValue, "Toggle")
+    }
 }

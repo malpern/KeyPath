@@ -189,6 +189,18 @@ final class RecordingCoordinator: ObservableObject {
                 input: inputSequence, output: outputSequence
             )
             try await kanataManager.saveGeneratedConfiguration(generatedConfig)
+
+            // Also create a CustomRule so it appears in the Custom Rules UI
+            let inputKanata = convertSequenceToKanataInput(inputSequence)
+            let outputKanata = convertSequenceToKanataOutput(outputSequence)
+            let customRule = CustomRule(
+                input: inputKanata,
+                output: outputKanata,
+                isEnabled: true,
+                notes: "Created via recording"
+            )
+            _ = await kanataManager.saveCustomRule(customRule, skipReload: true)
+
             await kanataManager.updateStatus()
 
             await MainActor.run {
@@ -200,6 +212,74 @@ final class RecordingCoordinator: ObservableObject {
             AppLogger.shared.log("❌ [Coordinator] Error saving mapping: \(error)")
             onError(error)
         }
+    }
+
+    // MARK: - Kanata Key Conversion
+
+    /// Convert KeySequence to Kanata input key format
+    private func convertSequenceToKanataInput(_ sequence: KeySequence) -> String {
+        guard let firstKey = sequence.keys.first else { return "spc" }
+
+        var result = firstKey.baseKey.lowercased()
+
+        // Handle special key names
+        let keyMap: [String: String] = [
+            "space": "spc",
+            "return": "ret",
+            "enter": "ret",
+            "escape": "esc",
+            "backspace": "bspc",
+            "delete": "del",
+            "caps": "caps",
+            "capslock": "caps"
+        ]
+
+        if let mapped = keyMap[result] {
+            result = mapped
+        }
+
+        // Add modifiers if present
+        if !firstKey.modifiers.isEmpty {
+            var modifierStr = ""
+            if firstKey.modifiers.contains(.control) { modifierStr += "C-" }
+            if firstKey.modifiers.contains(.option) { modifierStr += "A-" }
+            if firstKey.modifiers.contains(.shift) { modifierStr += "S-" }
+            if firstKey.modifiers.contains(.command) { modifierStr += "M-" }
+            result = modifierStr + result
+        }
+
+        return result
+    }
+
+    /// Convert KeySequence to Kanata output format (may include multiple keys)
+    private func convertSequenceToKanataOutput(_ sequence: KeySequence) -> String {
+        let keyStrings = sequence.keys.map { keyPress -> String in
+            var result = keyPress.baseKey.lowercased()
+
+            // Handle special key names
+            let keyMap: [String: String] = [
+                "space": "spc",
+                "return": "ret",
+                "enter": "ret",
+                "escape": "esc",
+                "backspace": "bspc",
+                "delete": "del"
+            ]
+
+            if let mapped = keyMap[result] {
+                result = mapped
+            }
+
+            // Add modifiers
+            if keyPress.modifiers.contains(.control) { result = "C-" + result }
+            if keyPress.modifiers.contains(.option) { result = "A-" + result }
+            if keyPress.modifiers.contains(.shift) { result = "S-" + result }
+            if keyPress.modifiers.contains(.command) { result = "M-" + result }
+
+            return result
+        }
+
+        return keyStrings.joined(separator: " ")
     }
 
     // MARK: - Internal Helpers
