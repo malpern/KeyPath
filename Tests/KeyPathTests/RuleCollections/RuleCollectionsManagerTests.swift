@@ -21,7 +21,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
             ruleCollectionStore: collectionStore,
             customRulesStore: customStore,
             configurationService: configService,
-            layerChangeListener: LayerChangeListener()
+            eventListener: KanataEventListener()
         )
 
         // Start with only macOS Function Keys (simulate post-reset subset)

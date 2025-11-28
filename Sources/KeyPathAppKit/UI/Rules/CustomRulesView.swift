@@ -107,10 +107,15 @@ struct CustomRulesView: View {
         .sheet(item: $editingRule) { rule in
             CustomRuleEditorView(
                 rule: rule,
-                existingRules: kanataManager.customRules
-            ) { updatedRule in
-                _ = Task { await kanataManager.saveCustomRule(updatedRule) }
-            }
+                existingRules: kanataManager.customRules,
+                onSave: { updatedRule in
+                    _ = Task { await kanataManager.saveCustomRule(updatedRule) }
+                },
+                onDelete: { ruleToDelete in
+                    AppLogger.shared.log("🗑️ [CustomRulesView] Delete from editor for rule: \(ruleToDelete.id)")
+                    Task { await kanataManager.removeCustomRule(ruleToDelete.id) }
+                }
+            )
         }
         .alert(
             "Delete \"\(pendingDeleteRule?.displayTitle ?? "")\"?",
@@ -122,7 +127,10 @@ struct CustomRulesView: View {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
                 if let rule = pendingDeleteRule {
+                    AppLogger.shared.log("🗑️ [CustomRulesView] Delete confirmed for rule: \(rule.id) '\(rule.displayTitle)'")
                     Task { await kanataManager.removeCustomRule(rule.id) }
+                } else {
+                    AppLogger.shared.log("⚠️ [CustomRulesView] Delete confirmed but pendingDeleteRule was nil!")
                 }
                 pendingDeleteRule = nil
             }

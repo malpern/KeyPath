@@ -681,6 +681,83 @@ actor KanataTCPClient {
         let request_id: UInt64?
     }
 
+    // MARK: - Virtual/Fake Key Actions
+
+    /// Action types for fake key commands
+    enum FakeKeyAction: String, Sendable {
+        case press = "Press"
+        case release = "Release"
+        case tap = "Tap"
+        case toggle = "Toggle"
+    }
+
+    /// Result of acting on a fake key
+    enum FakeKeyResult: Sendable {
+        case success
+        case error(String)
+        case networkError(String)
+    }
+
+    /// Trigger a virtual/fake key defined in Kanata config via TCP
+    ///
+    /// This allows external tools (deep links, Raycast, etc.) to trigger
+    /// actions defined in `defvirtualkeys` or `deffakekeys`.
+    ///
+    /// Example Kanata config:
+    /// ```
+    /// (defvirtualkeys
+    ///   email-sig (macro H e l l o spc W o r l d)
+    ///   launch-obs (cmd open -a Obsidian)
+    /// )
+    /// ```
+    ///
+    /// Then trigger via: `keypath://fakekey/email-sig/tap`
+    ///
+    /// - Parameters:
+    ///   - name: The name of the virtual/fake key as defined in config
+    ///   - action: The action to perform (press, release, tap, toggle)
+    /// - Returns: Result indicating success or failure
+    func actOnFakeKey(name: String, action: FakeKeyAction) async -> FakeKeyResult {
+        AppLogger.shared.log("🎹 [TCP] ActOnFakeKey: \(name) \(action.rawValue)")
+
+        do {
+            let requestId = generateRequestId()
+            let req: [String: Any] = [
+                "ActOnFakeKey": [
+                    "name": name,
+                    "action": action.rawValue,
+                    "request_id": requestId
+                ]
+            ]
+            let requestData = try JSONSerialization.data(withJSONObject: req)
+
+            let responseData = try await send(requestData)
+            let responseStr = String(data: responseData, encoding: .utf8) ?? ""
+            AppLogger.shared.log("🎹 [TCP] ActOnFakeKey response: \(responseStr)")
+
+            // Parse response
+            if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
+               let status = json["status"] as? String {
+                if status.lowercased() == "ok" {
+                    AppLogger.shared.log("✅ [TCP] ActOnFakeKey success: \(name)")
+                    return .success
+                } else {
+                    let errorMsg = json["msg"] as? String ?? "Unknown error"
+                    AppLogger.shared.log("❌ [TCP] ActOnFakeKey failed: \(errorMsg)")
+                    return .error(errorMsg)
+                }
+            }
+
+            return .success
+        } catch {
+            AppLogger.shared.error("❌ [TCP] ActOnFakeKey error: \(error)")
+            if shouldRetry(error) {
+                closeConnection()
+            }
+            return .networkError(error.localizedDescription)
+        }
+    }
+
     // MARK: - Core Send/Receive
 
     /// Send TCP message and receive response with timeout

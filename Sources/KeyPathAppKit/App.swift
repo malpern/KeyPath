@@ -560,6 +560,31 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         AppLogger.shared.info("✅ [AppDelegate] Cleanup complete, app terminating")
     }
 
+    // MARK: - URL Scheme Handling (keypath://)
+
+    func application(_: NSApplication, open urls: [URL]) {
+        AppLogger.shared.log("🔗 [AppDelegate] Received \(urls.count) URL(s) to open")
+
+        for url in urls {
+            AppLogger.shared.log("🔗 [AppDelegate] Processing URL: \(url.absoluteString)")
+
+            // Only handle keypath:// URLs
+            guard url.scheme == KeyPathActionURI.scheme else {
+                AppLogger.shared.log("⚠️ [AppDelegate] Ignoring non-keypath URL: \(url.scheme ?? "nil")")
+                continue
+            }
+
+            // Parse and dispatch
+            if let actionURI = KeyPathActionURI(string: url.absoluteString) {
+                AppLogger.shared.log("🎬 [AppDelegate] Dispatching action: \(actionURI.action)")
+                ActionDispatcher.shared.dispatch(actionURI)
+            } else {
+                AppLogger.shared.log("⚠️ [AppDelegate] Failed to parse URL as KeyPathActionURI")
+                ActionDispatcher.shared.onError?("Invalid keypath:// URL: \(url.absoluteString)")
+            }
+        }
+    }
+
     func applicationShouldHandleReopen(_: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         AppLogger.shared.debug(
             "🔍 [AppDelegate] applicationShouldHandleReopen (hasVisibleWindows=\(flag))")

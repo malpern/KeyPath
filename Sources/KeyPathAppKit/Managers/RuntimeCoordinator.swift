@@ -418,11 +418,14 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
             self?.lastError = error
             self?.notifyStateChanged()
         }
+        ruleCollectionsManager.onActionURI = { actionURI in
+            ActionDispatcher.shared.dispatch(actionURI)
+        }
 
         AppLogger.shared.log(
-            "🏗️ [RuntimeCoordinator] About to call bootstrapRuleCollections and startLayerMonitoring")
+            "🏗️ [RuntimeCoordinator] About to call bootstrapRuleCollections and startEventMonitoring")
         Task { await ruleCollectionsManager.bootstrap() }
-        ruleCollectionsManager.startLayerMonitoring(port: PreferencesService.shared.tcpServerPort)
+        ruleCollectionsManager.startEventMonitoring(port: PreferencesService.shared.tcpServerPort)
         AppLogger.shared.log("🏗️ [RuntimeCoordinator] init() completed")
     }
 

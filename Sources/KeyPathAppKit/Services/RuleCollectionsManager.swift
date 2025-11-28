@@ -48,13 +48,19 @@ final class RuleCollectionsManager {
     private let ruleCollectionStore: RuleCollectionStore
     private let customRulesStore: CustomRulesStore
     private let configurationService: ConfigurationService
-    private let layerChangeListener: LayerChangeListener
+    private let eventListener: KanataEventListener
 
     /// Callback invoked when rules change (for config regeneration)
     var onRulesChanged: (() async -> Void)?
 
     /// Callback invoked when layer changes (for UI updates)
     var onLayerChanged: ((String) -> Void)?
+
+    /// Callback invoked when a keypath:// action URI is received via push-msg
+    var onActionURI: ((KeyPathActionURI) -> Void)?
+
+    /// Callback invoked when an unknown (non-keypath://) message is received
+    var onUnknownMessage: ((String) -> Void)?
 
     /// Callback for reporting errors
     var onError: ((String) -> Void)?
@@ -65,16 +71,16 @@ final class RuleCollectionsManager {
         ruleCollectionStore: RuleCollectionStore = .shared,
         customRulesStore: CustomRulesStore = .shared,
         configurationService: ConfigurationService,
-        layerChangeListener: LayerChangeListener = LayerChangeListener()
+        eventListener: KanataEventListener = KanataEventListener()
     ) {
         self.ruleCollectionStore = ruleCollectionStore
         self.customRulesStore = customRulesStore
         self.configurationService = configurationService
-        self.layerChangeListener = layerChangeListener
+        self.eventListener = eventListener
     }
 
     deinit {
-        let listener = layerChangeListener
+        let listener = eventListener
         Task.detached(priority: .background) {
             await listener.stop()
         }
@@ -131,25 +137,68 @@ final class RuleCollectionsManager {
         await regenerateConfigFromCollections()
     }
 
-    // MARK: - Layer Monitoring
+    // MARK: - Event Monitoring
 
-    /// Start listening for layer changes from Kanata TCP server
-    func startLayerMonitoring(port: Int) {
-        AppLogger.shared.log("🌐 [RuleCollectionsManager] Starting layer monitoring on port \(port)")
+    /// Start listening for events from Kanata TCP server (layer changes, action URIs)
+    func startEventMonitoring(port: Int) {
+        AppLogger.shared.log("🌐 [RuleCollectionsManager] Starting event monitoring on port \(port)")
         guard !TestEnvironment.isRunningTests else {
-            AppLogger.shared.log("🌐 [RuleCollectionsManager] Skipping layer monitoring (test environment)")
+            AppLogger.shared.log("🌐 [RuleCollectionsManager] Skipping event monitoring (test environment)")
             return
         }
 
         Task.detached(priority: .background) { [weak self] in
             guard let self else { return }
-            await layerChangeListener.start(port: port) { [weak self] layer in
-                guard let self else { return }
-                await MainActor.run {
-                    self.updateActiveLayerName(layer)
+            await eventListener.start(
+                port: port,
+                onLayerChange: { [weak self] layer in
+                    guard let self else { return }
+                    await MainActor.run {
+                        self.updateActiveLayerName(layer)
+                    }
+                },
+                onActionURI: { [weak self] actionURI in
+                    guard let self else { return }
+                    await MainActor.run {
+                        self.handleActionURI(actionURI)
+                    }
+                },
+                onUnknownMessage: { [weak self] message in
+                    guard let self else { return }
+                    await MainActor.run {
+                        self.handleUnknownMessage(message)
+                    }
                 }
-            }
+            )
         }
+    }
+
+    /// Handle a keypath:// action URI received via push-msg
+    private func handleActionURI(_ actionURI: KeyPathActionURI) {
+        AppLogger.shared.log("🎯 [RuleCollectionsManager] Action URI: \(actionURI.url.absoluteString)")
+
+        // Dispatch to ActionDispatcher
+        ActionDispatcher.shared.dispatch(actionURI)
+
+        // Also notify any external observers
+        onActionURI?(actionURI)
+    }
+
+    /// Handle an unknown (non-keypath://) message
+    private func handleUnknownMessage(_ message: String) {
+        AppLogger.shared.log("⚠️ [RuleCollectionsManager] Unknown message: \(message)")
+
+        // Report error via ActionDispatcher
+        ActionDispatcher.shared.onError?("Received non-keypath:// message: \(message)")
+
+        // Also notify any external observers
+        onUnknownMessage?(message)
+    }
+
+    /// Deprecated: Use startEventMonitoring instead
+    @available(*, deprecated, renamed: "startEventMonitoring")
+    func startLayerMonitoring(port: Int) {
+        startEventMonitoring(port: port)
     }
 
     // MARK: - Public API
@@ -341,7 +390,11 @@ final class RuleCollectionsManager {
 
     /// Remove a custom rule
     func removeCustomRule(id: UUID) async {
+        let beforeCount = customRules.count
+        AppLogger.shared.log("🗑️ [CustomRules] removeCustomRule called: id=\(id), beforeCount=\(beforeCount)")
         customRules.removeAll { $0.id == id }
+        let afterCount = customRules.count
+        AppLogger.shared.log("🗑️ [CustomRules] After removal: afterCount=\(afterCount), removed=\(beforeCount - afterCount)")
         await regenerateConfigFromCollections()
     }
 

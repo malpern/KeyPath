@@ -19,19 +19,23 @@ struct CustomRuleEditorView: View {
     @State private var currentTipIndex: Int = .random(in: 0 ..< 6)
     @FocusState private var inputFieldFocused: Bool
     @FocusState private var outputFieldFocused: Bool
+    @State private var showDeleteConfirmation = false
     private let existingRule: CustomRule?
     private let existingRules: [CustomRule]
     private let mode: Mode
     let onSave: (CustomRule) -> Void
+    let onDelete: ((CustomRule) -> Void)?
 
     init(
         rule: CustomRule?,
         existingRules: [CustomRule] = [],
-        onSave: @escaping (CustomRule) -> Void
+        onSave: @escaping (CustomRule) -> Void,
+        onDelete: ((CustomRule) -> Void)? = nil
     ) {
         existingRule = rule
         self.existingRules = existingRules
         self.onSave = onSave
+        self.onDelete = onDelete
         if let rule {
             _title = State(initialValue: rule.title)
             _input = State(initialValue: rule.input)
@@ -219,6 +223,12 @@ struct CustomRuleEditorView: View {
                 }
                 .keyboardShortcut(.cancelAction)
 
+                if mode == .edit, onDelete != nil {
+                    Button("Delete", role: .destructive) {
+                        showDeleteConfirmation = true
+                    }
+                }
+
                 Spacer()
 
                 Button(mode == .create ? "Add Rule" : "Save Changes") {
@@ -233,6 +243,17 @@ struct CustomRuleEditorView: View {
         }
         .padding(24)
         .frame(minWidth: 400, minHeight: 400)
+        .alert("Delete Rule?", isPresented: $showDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                if let rule = existingRule {
+                    onDelete?(rule)
+                }
+                dismiss()
+            }
+        } message: {
+            Text("Are you sure you want to delete \"\(existingRule?.displayTitle ?? "this rule")\"?")
+        }
     }
 
     @ViewBuilder
