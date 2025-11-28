@@ -142,6 +142,7 @@ struct RulesTabView: View {
                                 onDeleteMapping: nil,
                                 description: collection.summary,
                                 layerActivator: collection.momentaryActivator,
+                                leaderKeyDisplay: currentLeaderKeyDisplay,
                                 displayStyle: collection.displayStyle,
                                 collection: collection.displayStyle == .singleKeyPicker ? collection : nil,
                                 onSelectOutput: collection.displayStyle == .singleKeyPicker ? { output in
@@ -203,6 +204,23 @@ struct RulesTabView: View {
         }
     }
 
+    /// Get the current leader key value (from the Leader Key collection or default to Space)
+    private var currentLeaderKey: String {
+        // Find the Leader Key collection
+        if let leaderCollection = allCollections.first(where: { $0.id == RuleCollectionIdentifier.leaderKey }),
+           leaderCollection.isEnabled,
+           let selectedOutput = leaderCollection.selectedOutput {
+            return selectedOutput
+        }
+        // Default to space when leader key is off or not set
+        return "space"
+    }
+
+    /// Format leader key for display in activator hints
+    private var currentLeaderKeyDisplay: String {
+        formatKeyWithSymbol(currentLeaderKey)
+    }
+
     /// Generate a dynamic name for picker-style collections that shows the current mapping
     private func dynamicCollectionName(for collection: RuleCollection) -> String {
         guard collection.displayStyle == .singleKeyPicker,
@@ -213,6 +231,11 @@ struct RulesTabView: View {
 
         // Format input key with Mac symbol
         let inputDisplay = formatKeyWithSymbol(inputKey)
+
+        // If collection is OFF, show "→ ?"
+        guard collection.isEnabled else {
+            return "\(inputDisplay) → ?"
+        }
 
         // Get selected output and its label
         let selectedOutput = collection.selectedOutput ?? collection.presetOptions.first?.output ?? ""
@@ -281,6 +304,8 @@ private struct ExpandableCollectionRow: View {
     var onCreateFirstRule: (() -> Void)?
     var description: String?
     var layerActivator: MomentaryActivator?
+    /// Current leader key display name for layer-based collections
+    var leaderKeyDisplay: String = "␣ Space"
     var defaultExpanded: Bool = false
     var displayStyle: RuleCollectionDisplayStyle = .list
     /// For singleKeyPicker style: the full collection with presets
@@ -349,8 +374,8 @@ private struct ExpandableCollectionRow: View {
                                 .foregroundColor(.secondary)
                         }
 
-                        if let activator = layerActivator {
-                            Label("Hold \(prettyKeyName(activator.input))", systemImage: "hand.point.up.left")
+                        if layerActivator != nil {
+                            Label("Hold \(leaderKeyDisplay)", systemImage: "hand.point.up.left")
                                 .font(.caption)
                                 .foregroundColor(.accentColor)
                         }
@@ -436,6 +461,7 @@ private struct ExpandableCollectionRow: View {
                             MappingRowView(
                                 mapping: mapping,
                                 layerActivator: layerActivator,
+                                leaderKeyDisplay: leaderKeyDisplay,
                                 onEditMapping: onEditMapping,
                                 onDeleteMapping: onDeleteMapping,
                                 prettyKeyName: prettyKeyName
@@ -508,6 +534,7 @@ private struct ExpandableCollectionRow: View {
 private struct MappingRowView: View {
     let mapping: (input: String, output: String, shiftedOutput: String?, ctrlOutput: String?, description: String?, sectionBreak: Bool, enabled: Bool, id: UUID)
     let layerActivator: MomentaryActivator?
+    var leaderKeyDisplay: String = "␣ Space"
     let onEditMapping: ((UUID) -> Void)?
     let onDeleteMapping: ((UUID) -> Void)?
     let prettyKeyName: (String) -> String
@@ -523,12 +550,12 @@ private struct MappingRowView: View {
             // Mapping content
             HStack(spacing: 8) {
                 // Show layer activator if present
-                if let activator = layerActivator {
+                if layerActivator != nil {
                     HStack(spacing: 4) {
                         Text("Hold")
                             .font(.body.monospaced().weight(.semibold))
                             .foregroundColor(.accentColor)
-                        Text(prettyKeyName(activator.input))
+                        Text(leaderKeyDisplay)
                             .font(.body.monospaced().weight(.semibold))
                             .foregroundColor(.primary)
                     }
