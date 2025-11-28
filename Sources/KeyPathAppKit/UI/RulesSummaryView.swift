@@ -51,8 +51,7 @@ struct RulesTabView: View {
     }
 
     private var customRulesTitle: String {
-        let count = kanataManager.customRules.count
-        return count > 0 ? "Custom Rules (\(count))" : "Custom Rules"
+        "Custom Rules"
     }
 
     var body: some View {
@@ -331,9 +330,18 @@ private struct ExpandableCollectionRow: View {
                         .frame(width: 24)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(name)
-                            .font(.headline)
-                            .foregroundColor(.primary)
+                        HStack(spacing: 4) {
+                            Text(name)
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            if count > 0, showZeroState || onEditMapping != nil {
+                                // Show count for custom rules section only
+                                Text("(\(count))")
+                                    .font(.headline)
+                                    .fontWeight(.regular)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
 
                         if let desc = description {
                             Text(desc)

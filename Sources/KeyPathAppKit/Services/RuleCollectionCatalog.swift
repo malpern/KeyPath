@@ -51,12 +51,12 @@ struct RuleCollectionCatalog {
         RuleCollection(
             id: RuleCollectionIdentifier.leaderKey,
             name: "Leader Key",
-            summary: "Customize which key activates layer shortcuts (default: Space)",
+            summary: "Change the key that activates all layer shortcuts (Vim, Delete, etc.)",
             category: .system,
             mappings: [], // No direct mappings - this controls other collections' activators
             isEnabled: false,
             isSystemDefault: false,
-            icon: "key.fill",
+            icon: "hand.point.up.left",
             tags: ["leader", "layer", "modifier", "navigation"],
             displayStyle: .singleKeyPicker,
             pickerInputKey: "leader",
@@ -100,7 +100,7 @@ struct RuleCollectionCatalog {
         RuleCollection(
             id: RuleCollectionIdentifier.vimNavigation,
             name: "Vim",
-            summary: "Vim-style navigation and text editing. Hold Space + hjkl for arrows. Add Shift for selection.",
+            summary: "Vim-style navigation and text editing. Hold Leader + hjkl for arrows. Add Shift for selection.",
             category: .navigation,
             mappings: [
                 // === Basic navigation (hjkl) ===
@@ -140,7 +140,7 @@ struct RuleCollectionCatalog {
             tags: ["vim", "navigation", "editing", "selection"],
             targetLayer: .navigation,
             momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation),
-            activationHint: "Hold space to enter Navigation layer",
+            activationHint: "Hold Leader key to enter Navigation layer",
             displayStyle: .table
         )
     }
