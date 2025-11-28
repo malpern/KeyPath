@@ -13,6 +13,8 @@ struct RulesTabView: View {
     @State private var isPresentingNewRule = false
     @State private var editingRule: CustomRule?
     @State private var createButtonHovered = false
+    /// Stable sort order captured when view appears (enabled collections first)
+    @State private var stableSortOrder: [UUID] = []
     private let catalog = RuleCollectionCatalog()
 
     // Show all catalog collections, merging with existing state
@@ -26,6 +28,26 @@ struct RulesTabView: View {
             // Return catalog item with its default enabled state
             return catalogCollection
         }
+    }
+
+    /// Collections sorted by stable order (enabled first, captured on view appear)
+    private var sortedCollections: [RuleCollection] {
+        guard !stableSortOrder.isEmpty else { return allCollections }
+        return allCollections.sorted { a, b in
+            guard let indexA = stableSortOrder.firstIndex(of: a.id),
+                  let indexB = stableSortOrder.firstIndex(of: b.id)
+            else {
+                return false
+            }
+            return indexA < indexB
+        }
+    }
+
+    /// Compute sort order: enabled collections first, then disabled
+    private func computeSortOrder() -> [UUID] {
+        let enabled = allCollections.filter(\.isEnabled).map(\.id)
+        let disabled = allCollections.filter { !$0.isEnabled }.map(\.id)
+        return enabled + disabled
     }
 
     private var customRulesTitle: String {
@@ -104,8 +126,8 @@ struct RulesTabView: View {
                         .id("custom-rules-\(kanataManager.customRules.map { "\($0.id)-\($0.input.hashValue)-\($0.output.hashValue)-\($0.title.hashValue)" }.joined())")
                         .padding(.vertical, 4)
 
-                        // Collection Rows
-                        ForEach(allCollections) { collection in
+                        // Collection Rows (sorted: enabled first, order stable during session)
+                        ForEach(sortedCollections) { collection in
                             ExpandableCollectionRow(
                                 name: dynamicCollectionName(for: collection),
                                 icon: collection.icon ?? "circle",
@@ -142,6 +164,13 @@ struct RulesTabView: View {
         .frame(maxHeight: 500)
         .settingsBackground()
         .withToasts(settingsToastManager)
+        .onAppear {
+            // Capture sort order once when view appears (enabled first, then disabled)
+            // This ensures stable layout - toggling a rule won't move it until window reopens
+            if stableSortOrder.isEmpty {
+                stableSortOrder = computeSortOrder()
+            }
+        }
         .sheet(isPresented: $isPresentingNewRule) {
             CustomRuleEditorView(
                 rule: nil,
