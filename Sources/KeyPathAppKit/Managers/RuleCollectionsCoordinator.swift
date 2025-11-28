@@ -69,6 +69,13 @@ final class RuleCollectionsCoordinator {
         notifyStateChanged()
     }
 
+    /// Update the leader key for all collections that use momentary activation
+    func updateLeaderKey(_ newKey: String) async {
+        await ruleCollectionsManager.updateLeaderKey(newKey)
+        applyMappings(ruleCollectionsManager.enabledMappings())
+        notifyStateChanged()
+    }
+
     // MARK: - Custom Rule Operations
 
     /// Save a custom rule

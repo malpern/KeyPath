@@ -255,6 +255,28 @@ final class RuleCollectionsManager {
         await regenerateConfigFromCollections()
     }
 
+    /// Update the leader key for all collections that use momentary activation
+    func updateLeaderKey(_ newKey: String) async {
+        AppLogger.shared.log("🔑 [RuleCollections] Updating leader key to '\(newKey)'")
+
+        // Update all collections that have a momentary activator
+        for index in ruleCollections.indices {
+            if ruleCollections[index].momentaryActivator != nil {
+                let oldActivator = ruleCollections[index].momentaryActivator!
+                ruleCollections[index].momentaryActivator = MomentaryActivator(
+                    input: newKey,
+                    targetLayer: oldActivator.targetLayer
+                )
+                AppLogger.shared.log(
+                    "🔑 [RuleCollections] Updated '\(ruleCollections[index].name)' activator to '\(newKey)'"
+                )
+            }
+        }
+
+        refreshLayerIndicatorState()
+        await regenerateConfigFromCollections()
+    }
+
     /// Save or update a custom rule
     @discardableResult
     func saveCustomRule(_ rule: CustomRule, skipReload: Bool = false) async -> Bool {

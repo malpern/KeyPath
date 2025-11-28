@@ -185,6 +185,11 @@ class KanataViewModel: ObservableObject {
         await manager.updateCollectionOutput(id: id, output: output)
     }
 
+    /// Update the leader key for all collections that use momentary activation
+    func updateLeaderKey(_ newKey: String) async {
+        await manager.updateLeaderKey(newKey)
+    }
+
     func isCompletelyInstalled() -> Bool {
         manager.isCompletelyInstalled()
     }
@@ -198,7 +203,8 @@ class KanataViewModel: ObservableObject {
     }
 
     func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
-        -> String {
+        -> String
+    {
         try await manager.backupFailedConfigAndApplySafe(failedConfig: failedConfig, mappings: mappings)
     }
 

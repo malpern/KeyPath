@@ -751,6 +751,10 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         await ruleCollectionsCoordinator.updateCollectionOutput(id: id, output: output)
     }
 
+    func updateLeaderKey(_ newKey: String) async {
+        await ruleCollectionsCoordinator.updateLeaderKey(newKey)
+    }
+
     @discardableResult
     func saveCustomRule(_ rule: CustomRule, skipReload: Bool = false) async -> Bool {
         await ruleCollectionsCoordinator.saveCustomRule(rule, skipReload: skipReload)

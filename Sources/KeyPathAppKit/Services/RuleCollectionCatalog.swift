@@ -212,8 +212,8 @@ struct RuleCollectionCatalog {
     private var deleteRemap: RuleCollection {
         RuleCollection(
             id: RuleCollectionIdentifier.deleteRemap,
-            name: "Delete",
-            summary: "Remap the Delete (Backspace) key",
+            name: "Delete Enhancement",
+            summary: "Leader + Delete for enhanced delete actions (regular Delete unchanged)",
             category: .productivity,
             mappings: [
                 KeyMapping(input: "bspc", output: "del", description: "Forward Delete")
@@ -221,26 +221,29 @@ struct RuleCollectionCatalog {
             isEnabled: false,
             isSystemDefault: false,
             icon: "delete.left",
-            tags: ["delete", "backspace", "forward delete"],
+            tags: ["delete", "backspace", "forward delete", "leader"],
+            targetLayer: .navigation,
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation),
+            activationHint: "Hold Leader + Delete",
             displayStyle: .singleKeyPicker,
             pickerInputKey: "bspc",
             presetOptions: [
                 SingleKeyPreset(
                     output: "del",
                     label: "⌦ Fwd Delete",
-                    description: "Forward Delete (delete character after cursor)",
+                    description: "Leader + Delete → Forward Delete (delete character after cursor)",
                     icon: "delete.right"
                 ),
                 SingleKeyPreset(
                     output: "A-bspc",
                     label: "⌥⌫ Del Word",
-                    description: "Delete entire word (Option+Delete)",
+                    description: "Leader + Delete → Delete entire word",
                     icon: "text.word.spacing"
                 ),
                 SingleKeyPreset(
                     output: "M-bspc",
                     label: "⌘⌫ Del Line",
-                    description: "Delete to beginning of line (Command+Delete)",
+                    description: "Leader + Delete → Delete to beginning of line",
                     icon: "text.alignleft"
                 )
             ],
