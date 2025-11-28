@@ -59,47 +59,41 @@ struct RuleCollectionCatalog {
             summary: "Vim-style navigation and text editing. Hold Space + hjkl for arrows. Add Shift for selection.",
             category: .navigation,
             mappings: [
-                // === Basic navigation (hjkl) - hold ⇧ Shift for selection ===
-                KeyMapping(input: "h", output: "left"),
-                KeyMapping(input: "j", output: "down"),
-                KeyMapping(input: "k", output: "up"),
-                KeyMapping(input: "l", output: "right"),
+                // === Basic navigation (hjkl) ===
+                KeyMapping(input: "h", output: "left", description: "Move left"),
+                KeyMapping(input: "j", output: "down", description: "Move down"),
+                KeyMapping(input: "k", output: "up", description: "Move up"),
+                KeyMapping(input: "l", output: "right", description: "Move right"),
 
-                // === Word navigation: ⌥ Option + Arrow ===
-                KeyMapping(input: "w", output: "A-right"), // Word forward (⌥→)
-                KeyMapping(input: "b", output: "A-left"), // Word backward (⌥←)
-                KeyMapping(input: "e", output: "A-right"), // End of word (⌥→) - same as w
+                // === Word navigation ===
+                KeyMapping(input: "w", output: "A-right", description: "Word forward"),
+                KeyMapping(input: "b", output: "A-left", description: "Word backward"),
+                KeyMapping(input: "e", output: "A-right", description: "End of word"),
 
-                // === Line navigation: ⌘ Command + Arrow ===
-                KeyMapping(input: "0", output: "M-left"), // Line start (⌘←)
-                KeyMapping(input: "4", output: "M-right"), // Line end (⌘→) - $ key
-                // a → move right (append after cursor), A (⇧a) → end of line (⌘→)
-                KeyMapping(input: "a", output: "right", shiftedOutput: "M-right"),
+                // === Line navigation ===
+                KeyMapping(input: "0", output: "M-left", description: "Line start"),
+                KeyMapping(input: "4", output: "M-right", description: "Line end ($)"),
+                KeyMapping(input: "a", output: "right", shiftedOutput: "M-right", description: "Append / End of line"),
 
-                // === Document navigation with ⇧ Shift modifier (uses fork) ===
-                // g → ⌘↑ document start, G (⇧g) → ⌘↓ document end
-                KeyMapping(input: "g", output: "M-up", shiftedOutput: "M-down"),
+                // === Document navigation ===
+                KeyMapping(input: "g", output: "M-up", shiftedOutput: "M-down", description: "Doc start / Doc end"),
 
-                // === Search: ⌘ Command + F/G ===
-                KeyMapping(input: "/", output: "M-f"), // Find (⌘F)
-                // n → next match (⌘G), N (⇧n) → previous match (⌘⇧G)
-                KeyMapping(input: "n", output: "M-g", shiftedOutput: "M-S-g"),
+                // === Search ===
+                KeyMapping(input: "/", output: "M-f", description: "Find", sectionBreak: true),
+                KeyMapping(input: "n", output: "M-g", shiftedOutput: "M-S-g", description: "Next match / Prev match"),
 
-                // === Copy/paste (yank/put): ⌘ Command + C/V ===
-                KeyMapping(input: "y", output: "M-c"), // Yank/copy (⌘C)
-                KeyMapping(input: "p", output: "M-v"), // Put/paste (⌘V)
+                // === Copy/paste ===
+                KeyMapping(input: "y", output: "M-c", description: "Yank (copy)"),
+                KeyMapping(input: "p", output: "M-v", description: "Put (paste)"),
 
                 // === Editing ===
-                KeyMapping(input: "x", output: "del"), // Delete character
-                KeyMapping(input: "r", output: "M-S-z"), // Redo (⌘⇧Z)
-                // d → ⌥⌫ delete word, ⌃d → Page Down
-                KeyMapping(input: "d", output: "A-bspc", ctrlOutput: "pgdn"),
-                // u → ⌘Z undo, ⌃u → Page Up
-                KeyMapping(input: "u", output: "M-z", ctrlOutput: "pgup"),
+                KeyMapping(input: "x", output: "del", description: "Delete char"),
+                KeyMapping(input: "r", output: "M-S-z", description: "Redo"),
+                KeyMapping(input: "d", output: "A-bspc", ctrlOutput: "pgdn", description: "Delete word / Page down"),
+                KeyMapping(input: "u", output: "M-z", ctrlOutput: "pgup", description: "Undo / Page up"),
 
-                // === Line operations with ⇧ Shift modifier (uses fork) ===
-                // o → open line below (⌘→ ↩), O (⇧o) → open line above (↑ ⌘→ ↩)
-                KeyMapping(input: "o", output: "M-right ret", shiftedOutput: "up M-right ret")
+                // === Line operations ===
+                KeyMapping(input: "o", output: "M-right ret", shiftedOutput: "up M-right ret", description: "Open line below / above")
             ],
             isEnabled: true,
             isSystemDefault: true,
@@ -107,7 +101,8 @@ struct RuleCollectionCatalog {
             tags: ["vim", "navigation", "editing", "selection"],
             targetLayer: .navigation,
             momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation),
-            activationHint: "Hold space to enter Navigation layer"
+            activationHint: "Hold space to enter Navigation layer",
+            displayStyle: .table
         )
     }
 

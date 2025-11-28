@@ -100,41 +100,46 @@ private struct RuleCollectionRow: View {
             }
 
             if isExpanded {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(collection.mappings.prefix(8)) { mapping in
-                        HStack(spacing: 8) {
-                            Text(mappingDescription(for: mapping))
-                                .font(.callout.monospaced().weight(.medium))
-                                .foregroundColor(.primary)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color(NSColor.controlBackgroundColor))
-                                .cornerRadius(6)
+                if collection.displayStyle == .table {
+                    MappingTableView(collection: collection, prettyKeyName: prettyKeyName)
+                        .padding(.top, 4)
+                } else {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(collection.mappings.prefix(8)) { mapping in
+                            HStack(spacing: 8) {
+                                Text(mappingDescription(for: mapping))
+                                    .font(.callout.monospaced().weight(.medium))
+                                    .foregroundColor(.primary)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color(NSColor.controlBackgroundColor))
+                                    .cornerRadius(6)
 
-                            Image(systemName: "arrow.right")
+                                Image(systemName: "arrow.right")
+                                    .font(.callout)
+                                    .foregroundColor(.secondary)
+
+                                Text(mapping.output)
+                                    .font(.callout.monospaced().weight(.medium))
+                                    .foregroundColor(.primary)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color(NSColor.controlBackgroundColor))
+                                    .cornerRadius(6)
+                            }
+                            .padding(.vertical, 2)
+                        }
+
+                        if collection.mappings.count > 8 {
+                            Text("+\(collection.mappings.count - 8) more…")
                                 .font(.callout)
                                 .foregroundColor(.secondary)
-
-                            Text(mapping.output)
-                                .font(.callout.monospaced().weight(.medium))
-                                .foregroundColor(.primary)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color(NSColor.controlBackgroundColor))
-                                .cornerRadius(6)
+                                .padding(.top, 4)
                         }
-                        .padding(.vertical, 2)
                     }
-
-                    if collection.mappings.count > 8 {
-                        Text("+\(collection.mappings.count - 8) more…")
-                            .font(.callout)
-                            .foregroundColor(.secondary)
-                            .padding(.top, 4)
-                    }
+                    .padding(.leading, collection.icon == nil ? 0 : 4)
+                    .padding(.top, 4)
                 }
-                .padding(.leading, collection.icon == nil ? 0 : 4)
-                .padding(.top, 4)
             }
         }
         .padding(12)
@@ -180,5 +185,126 @@ private extension RuleCollectionRow {
         raw.replacingOccurrences(of: "_", with: " ")
             .trimmingCharacters(in: .whitespaces)
             .capitalized
+    }
+}
+
+// MARK: - Mapping Table View
+
+/// Table-style display for complex rule collections with modifier variants
+private struct MappingTableView: View {
+    let collection: RuleCollection
+    let prettyKeyName: (String) -> String
+
+    private var hasShiftVariants: Bool {
+        collection.mappings.contains { $0.shiftedOutput != nil }
+    }
+
+    private var hasCtrlVariants: Bool {
+        collection.mappings.contains { $0.ctrlOutput != nil }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header row
+            HStack(spacing: 0) {
+                headerCell("Key", width: 80)
+                headerCell("Action", width: 120, alignment: .leading)
+                if hasShiftVariants {
+                    headerCell("+Shift", width: 100, color: .orange)
+                }
+                if hasCtrlVariants {
+                    headerCell("+Ctrl", width: 100, color: .cyan)
+                }
+                Spacer()
+            }
+            .padding(.vertical, 6)
+            .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+
+            Divider()
+
+            // Data rows
+            ForEach(collection.mappings) { mapping in
+                HStack(spacing: 0) {
+                    keyCell(prettyKeyName(mapping.input), width: 80)
+                    actionCell(formatOutput(mapping.output), width: 120)
+                    if hasShiftVariants {
+                        modifierCell(mapping.shiftedOutput.map { formatOutput($0) }, width: 100, color: .orange)
+                    }
+                    if hasCtrlVariants {
+                        modifierCell(mapping.ctrlOutput.map { formatOutput($0) }, width: 100, color: .cyan)
+                    }
+                    Spacer()
+                }
+                .padding(.vertical, 4)
+
+                if mapping.id != collection.mappings.last?.id {
+                    Divider().opacity(0.3)
+                }
+            }
+        }
+        .background(Color(NSColor.controlBackgroundColor).opacity(0.3))
+        .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(Color.gray.opacity(0.2), lineWidth: 1)
+        )
+    }
+
+    @ViewBuilder
+    private func headerCell(_ text: String, width: CGFloat, alignment: Alignment = .center, color: Color = .secondary) -> some View {
+        Text(text)
+            .font(.caption.weight(.semibold))
+            .foregroundColor(color)
+            .frame(width: width, alignment: alignment)
+    }
+
+    @ViewBuilder
+    private func keyCell(_ text: String, width: CGFloat) -> some View {
+        Text(text)
+            .font(.callout.monospaced().weight(.medium))
+            .foregroundColor(.primary)
+            .frame(width: width, alignment: .center)
+    }
+
+    @ViewBuilder
+    private func actionCell(_ text: String, width: CGFloat) -> some View {
+        Text(text)
+            .font(.callout.monospaced())
+            .foregroundColor(.secondary)
+            .frame(width: width, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func modifierCell(_ text: String?, width: CGFloat, color: Color) -> some View {
+        if let text {
+            Text(text)
+                .font(.callout.monospaced())
+                .foregroundColor(color.opacity(0.8))
+                .frame(width: width, alignment: .leading)
+        } else {
+            Text("—")
+                .font(.callout)
+                .foregroundColor(.secondary.opacity(0.3))
+                .frame(width: width, alignment: .center)
+        }
+    }
+
+    /// Format output for display (convert Kanata codes to readable names)
+    private func formatOutput(_ output: String) -> String {
+        output
+            .replacingOccurrences(of: "M-", with: "⌘")
+            .replacingOccurrences(of: "A-", with: "⌥")
+            .replacingOccurrences(of: "C-", with: "⌃")
+            .replacingOccurrences(of: "S-", with: "⇧")
+            .replacingOccurrences(of: "left", with: "←")
+            .replacingOccurrences(of: "right", with: "→")
+            .replacingOccurrences(of: "up", with: "↑")
+            .replacingOccurrences(of: "down", with: "↓")
+            .replacingOccurrences(of: "ret", with: "↩")
+            .replacingOccurrences(of: "bspc", with: "⌫")
+            .replacingOccurrences(of: "del", with: "⌦")
+            .replacingOccurrences(of: "pgup", with: "PgUp")
+            .replacingOccurrences(of: "pgdn", with: "PgDn")
+            .replacingOccurrences(of: " ", with: " ")
     }
 }

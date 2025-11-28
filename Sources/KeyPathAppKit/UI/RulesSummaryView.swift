@@ -102,7 +102,7 @@ struct RulesTabView: View {
                         count: kanataManager.customRules.count,
                         isEnabled: kanataManager.customRules.isEmpty
                             || kanataManager.customRules.allSatisfy(\.isEnabled),
-                        mappings: kanataManager.customRules.map { ($0.input, $0.output, $0.isEnabled, $0.id) },
+                        mappings: kanataManager.customRules.map { ($0.input, $0.output, nil, nil, nil, false, $0.isEnabled, $0.id) },
                         onToggle: { isOn in
                             Task {
                                 for rule in kanataManager.customRules {
@@ -133,7 +133,7 @@ struct RulesTabView: View {
                             count: collection.mappings.count,
                             isEnabled: collection.isEnabled,
                             mappings: collection.mappings.map {
-                                ($0.input, $0.output, collection.isEnabled, $0.id)
+                                ($0.input, $0.output, $0.shiftedOutput, $0.ctrlOutput, $0.description, $0.sectionBreak, collection.isEnabled, $0.id)
                             },
                             onToggle: { isOn in
                                 Task { await kanataManager.toggleRuleCollection(collection.id, enabled: isOn) }
@@ -141,7 +141,8 @@ struct RulesTabView: View {
                             onEditMapping: nil,
                             onDeleteMapping: nil,
                             description: collection.summary,
-                            layerActivator: collection.momentaryActivator
+                            layerActivator: collection.momentaryActivator,
+                            displayStyle: collection.displayStyle
                         )
                         .padding(.vertical, 4)
                     }
@@ -212,7 +213,7 @@ private struct ExpandableCollectionRow: View {
     let icon: String
     let count: Int
     let isEnabled: Bool
-    let mappings: [(input: String, output: String, enabled: Bool, id: UUID)]
+    let mappings: [(input: String, output: String, shiftedOutput: String?, ctrlOutput: String?, description: String?, sectionBreak: Bool, enabled: Bool, id: UUID)]
     let onToggle: (Bool) -> Void
     let onEditMapping: ((UUID) -> Void)?
     let onDeleteMapping: ((UUID) -> Void)?
@@ -221,6 +222,7 @@ private struct ExpandableCollectionRow: View {
     var description: String?
     var layerActivator: MomentaryActivator?
     var defaultExpanded: Bool = false
+    var displayStyle: RuleCollectionDisplayStyle = .list
 
     @State private var isExpanded = false
     @State private var isHovered = false
@@ -307,6 +309,12 @@ private struct ExpandableCollectionRow: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 20)
+                } else if displayStyle == .table {
+                    // Table view for complex collections like Vim
+                    MappingTableContent(mappings: mappings)
+                        .padding(.top, 8)
+                        .padding(.bottom, 12)
+                        .padding(.horizontal, 12)
                 } else {
                     VStack(spacing: 6) {
                         ForEach(mappings, id: \.id) { mapping in
@@ -501,5 +509,162 @@ private struct CreateRuleButton: View {
 
     private var shadowY: CGFloat {
         isAnyHovered ? 2 : 0
+    }
+}
+
+// MARK: - Mapping Table Content
+
+private struct MappingTableContent: View {
+    let mappings: [(input: String, output: String, shiftedOutput: String?, ctrlOutput: String?, description: String?, sectionBreak: Bool, enabled: Bool, id: UUID)]
+
+    private var hasShiftVariants: Bool {
+        mappings.contains { $0.shiftedOutput != nil }
+    }
+
+    private var hasCtrlVariants: Bool {
+        mappings.contains { $0.ctrlOutput != nil }
+    }
+
+    private var hasDescriptions: Bool {
+        mappings.contains { $0.description != nil }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header row
+            HStack(spacing: 0) {
+                headerCell("Key", width: 60)
+                if hasDescriptions {
+                    headerCell("Description", width: 180, alignment: .leading)
+                }
+                headerCell("Action", width: 80, alignment: .leading)
+                if hasShiftVariants {
+                    headerCell("+Shift", width: 80, color: .orange)
+                }
+                if hasCtrlVariants {
+                    headerCell("+Ctrl", width: 80, color: .cyan)
+                }
+                Spacer()
+            }
+            .padding(.vertical, 8)
+            .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+
+            Divider()
+
+            // Data rows
+            ForEach(Array(mappings.enumerated()), id: \.element.id) { index, mapping in
+                // Section break separator
+                if mapping.sectionBreak {
+                    Rectangle()
+                        .fill(Color.primary.opacity(0.15))
+                        .frame(height: 2)
+                        .padding(.vertical, 4)
+                }
+
+                HStack(spacing: 0) {
+                    keyCell(prettyKeyName(mapping.input), width: 60)
+                    if hasDescriptions {
+                        descriptionCell(mapping.description, width: 180)
+                    }
+                    actionCell(formatOutput(mapping.output), width: 80)
+                    if hasShiftVariants {
+                        modifierCell(mapping.shiftedOutput.map { formatOutput($0) }, width: 80, color: .orange)
+                    }
+                    if hasCtrlVariants {
+                        modifierCell(mapping.ctrlOutput.map { formatOutput($0) }, width: 80, color: .cyan)
+                    }
+                    Spacer()
+                }
+                .padding(.vertical, 6)
+
+                // Show divider unless this is the last row or the next row has a section break
+                let isLast = index == mappings.count - 1
+                let nextHasSectionBreak = index + 1 < mappings.count && mappings[index + 1].sectionBreak
+                if !isLast && !nextHasSectionBreak {
+                    Divider().opacity(0.3)
+                }
+            }
+        }
+        .background(Color(NSColor.controlBackgroundColor).opacity(0.3))
+        .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(Color.gray.opacity(0.2), lineWidth: 1)
+        )
+    }
+
+    @ViewBuilder
+    private func headerCell(_ text: String, width: CGFloat, alignment: Alignment = .center, color: Color = .secondary) -> some View {
+        Text(text)
+            .font(.caption.weight(.semibold))
+            .foregroundColor(color)
+            .frame(width: width, alignment: alignment)
+    }
+
+    @ViewBuilder
+    private func keyCell(_ text: String, width: CGFloat) -> some View {
+        Text(text)
+            .font(.callout.monospaced().weight(.medium))
+            .foregroundColor(.primary)
+            .frame(width: width, alignment: .center)
+    }
+
+    @ViewBuilder
+    private func descriptionCell(_ text: String?, width: CGFloat) -> some View {
+        Text(text ?? "")
+            .font(.callout)
+            .foregroundColor(.primary.opacity(0.8))
+            .frame(width: width, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func actionCell(_ text: String, width: CGFloat) -> some View {
+        Text(text)
+            .font(.callout.monospaced())
+            .foregroundColor(.secondary)
+            .frame(width: width, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func modifierCell(_ text: String?, width: CGFloat, color: Color) -> some View {
+        if let text {
+            Text(text)
+                .font(.callout.monospaced())
+                .foregroundColor(color.opacity(0.8))
+                .frame(width: width, alignment: .center)
+        } else {
+            Text("—")
+                .font(.callout)
+                .foregroundColor(.secondary.opacity(0.3))
+                .frame(width: width, alignment: .center)
+        }
+    }
+
+    private func prettyKeyName(_ raw: String) -> String {
+        raw.replacingOccurrences(of: "_", with: " ")
+            .trimmingCharacters(in: .whitespaces)
+            .capitalized
+    }
+
+    /// Format output for display (convert Kanata codes to readable symbols)
+    private func formatOutput(_ output: String) -> String {
+        // Split by space to handle multi-key sequences, format each part, rejoin with space
+        output.split(separator: " ").map { part in
+            String(part)
+                .replacingOccurrences(of: "M-S-", with: "⌘⇧")
+                .replacingOccurrences(of: "M-", with: "⌘")
+                .replacingOccurrences(of: "A-", with: "⌥")
+                .replacingOccurrences(of: "C-", with: "⌃")
+                .replacingOccurrences(of: "S-", with: "⇧")
+                .replacingOccurrences(of: "left", with: "←")
+                .replacingOccurrences(of: "right", with: "→")
+                .replacingOccurrences(of: "up", with: "↑")
+                .replacingOccurrences(of: "down", with: "↓")
+                .replacingOccurrences(of: "ret", with: "↩")
+                .replacingOccurrences(of: "bspc", with: "⌫")
+                .replacingOccurrences(of: "del", with: "⌦")
+                .replacingOccurrences(of: "pgup", with: "PgUp")
+                .replacingOccurrences(of: "pgdn", with: "PgDn")
+        }.joined(separator: " ")
     }
 }

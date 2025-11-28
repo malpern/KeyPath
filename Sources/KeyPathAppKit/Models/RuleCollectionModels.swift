@@ -14,6 +14,7 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
     public var targetLayer: RuleCollectionLayer
     public var momentaryActivator: MomentaryActivator?
     public var activationHint: String?
+    public var displayStyle: RuleCollectionDisplayStyle
 
     public init(
         id: UUID = UUID(),
@@ -27,7 +28,8 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         tags: [String] = [],
         targetLayer: RuleCollectionLayer = .base,
         momentaryActivator: MomentaryActivator? = nil,
-        activationHint: String? = nil
+        activationHint: String? = nil,
+        displayStyle: RuleCollectionDisplayStyle = .list
     ) {
         self.id = id
         self.name = name
@@ -41,11 +43,12 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         self.targetLayer = targetLayer
         self.momentaryActivator = momentaryActivator
         self.activationHint = activationHint
+        self.displayStyle = displayStyle
     }
 
     enum CodingKeys: String, CodingKey {
         case id, name, summary, category, mappings, isEnabled, isSystemDefault, icon, tags, targetLayer,
-             momentaryActivator, activationHint
+             momentaryActivator, activationHint, displayStyle
     }
 
     public init(from decoder: Decoder) throws {
@@ -65,6 +68,8 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
             MomentaryActivator.self, forKey: .momentaryActivator
         )
         activationHint = try container.decodeIfPresent(String.self, forKey: .activationHint)
+        displayStyle =
+            try container.decodeIfPresent(RuleCollectionDisplayStyle.self, forKey: .displayStyle) ?? .list
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -81,6 +86,7 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         try container.encode(targetLayer, forKey: .targetLayer)
         try container.encode(momentaryActivator, forKey: .momentaryActivator)
         try container.encode(activationHint, forKey: .activationHint)
+        try container.encode(displayStyle, forKey: .displayStyle)
     }
 }
 
@@ -195,4 +201,12 @@ public struct MomentaryActivator: Codable, Equatable, Sendable {
         self.input = input
         self.targetLayer = targetLayer
     }
+}
+
+/// Controls how a rule collection's mappings are displayed in the UI.
+public enum RuleCollectionDisplayStyle: String, Codable, Sendable {
+    /// Simple list with input → output pairs (default)
+    case list
+    /// Table with columns for Key, Action, +Shift, +Ctrl (for complex mappings)
+    case table
 }
