@@ -494,7 +494,8 @@ private struct ExpandableCollectionRow: View {
         } else if icon.hasPrefix("resource:") {
             let resourceName = String(icon.dropFirst(9))
             if let resourceURL = Bundle.main.url(forResource: resourceName, withExtension: "svg"),
-               let image = NSImage(contentsOf: resourceURL) {
+               let image = NSImage(contentsOf: resourceURL)
+            {
                 Image(nsImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -1131,6 +1132,7 @@ private struct MappingTableContent: View {
 private struct LeaderKeyPicker: View {
     @Binding var selectedKey: String
     let options: [(key: String, label: String, description: String)]
+    @State private var showingHelp = false
 
     private var selectedOption: (key: String, label: String, description: String)? {
         options.first { $0.key == selectedKey }
@@ -1144,8 +1146,22 @@ private struct LeaderKeyPicker: View {
                     .foregroundColor(.secondary)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Leader Key")
-                        .font(.headline)
+                    HStack(spacing: 6) {
+                        Text("Leader Key")
+                            .font(.headline)
+
+                        Button {
+                            showingHelp.toggle()
+                        } label: {
+                            Image(systemName: "questionmark.circle")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .popover(isPresented: $showingHelp, arrowEdge: .bottom) {
+                            LeaderKeyHelpPopover()
+                        }
+                    }
                     Text("Hold this key to activate layer shortcuts")
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -1193,5 +1209,65 @@ private struct LeaderKeyPicker: View {
                     .padding(.leading, 32)
             }
         }
+    }
+}
+
+// MARK: - Leader Key Help Popover
+
+private struct LeaderKeyHelpPopover: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("What is a Leader Key?")
+                .font(.headline)
+
+            Text("""
+            A leader key is a modifier you hold down to temporarily \
+            activate a different keyboard layer with new shortcuts.
+            """)
+            .font(.subheadline)
+            .foregroundColor(.secondary)
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 8) {
+                Label {
+                    Text("**Example:** Hold Space + H J K L for Vim-style arrow keys")
+                } icon: {
+                    Image(systemName: "keyboard")
+                        .foregroundColor(.accentColor)
+                }
+                .font(.caption)
+
+                Label {
+                    Text("Your normal keys work when you tap them quickly")
+                } icon: {
+                    Image(systemName: "hand.tap")
+                        .foregroundColor(.green)
+                }
+                .font(.caption)
+
+                Label {
+                    Text("Shortcuts activate when you hold the leader key")
+                } icon: {
+                    Image(systemName: "hand.point.up.left")
+                        .foregroundColor(.orange)
+                }
+                .font(.caption)
+            }
+
+            Divider()
+
+            Button {
+                if let url = URL(string: "https://precondition.github.io/home-row-mods#layers") {
+                    NSWorkspace.shared.open(url)
+                }
+            } label: {
+                Label("Learn more about keyboard layers", systemImage: "safari")
+                    .font(.caption)
+            }
+            .buttonStyle(.link)
+        }
+        .padding(16)
+        .frame(width: 320)
     }
 }
