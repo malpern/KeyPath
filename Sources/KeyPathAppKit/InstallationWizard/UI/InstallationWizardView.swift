@@ -544,7 +544,8 @@ struct InstallationWizardView: View {
                     AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
                     navigationCoordinator.navigateToPage(.summary)
                 } else if let preferred = await preferredDetailPage(for: result.state, issues: filteredIssues),
-                          navigationCoordinator.currentPage != preferred {
+                          navigationCoordinator.currentPage != preferred
+                {
                     AppLogger.shared.log("🔍 [Wizard] Deterministic routing to \(preferred) (single blocker)")
                     navigationCoordinator.navigateToPage(preferred)
                 } else if navigationCoordinator.currentPage == .summary {
@@ -873,17 +874,21 @@ struct InstallationWizardView: View {
         return false
     }
 
-    private func performAutoFix(_ action: AutoFixAction) async -> Bool {
+    private func performAutoFix(_ action: AutoFixAction, suppressToast: Bool = false) async -> Bool {
         // Single-flight guard for Fix buttons
         if inFlightFixActions.contains(action) {
-            await MainActor.run {
-                toastManager.showInfo("Fix already running…", duration: 3.0)
+            if !suppressToast {
+                await MainActor.run {
+                    toastManager.showInfo("Fix already running…", duration: 3.0)
+                }
             }
             return false
         }
         if fixInFlight {
-            await MainActor.run {
-                toastManager.showInfo("Another fix is already running…", duration: 3.0)
+            if !suppressToast {
+                await MainActor.run {
+                    toastManager.showInfo("Another fix is already running…", duration: 3.0)
+                }
             }
             return false
         }
@@ -900,12 +905,15 @@ struct InstallationWizardView: View {
 
         // Short-circuit service installs when Login Items approval is pending
         if action == .installLaunchDaemonServices || action == .restartUnhealthyServices,
-           await KanataDaemonManager.shared.refreshManagementState() == .smappservicePending {
-            await MainActor.run {
-                toastManager.showError(
-                    "KeyPath background service needs approval in System Settings → Login Items. Enable ‘KeyPath’ then click Fix again.",
-                    duration: 7.0
-                )
+           await KanataDaemonManager.shared.refreshManagementState() == .smappservicePending
+        {
+            if !suppressToast {
+                await MainActor.run {
+                    toastManager.showError(
+                        "KeyPath background service needs approval in System Settings → Login Items. Enable 'KeyPath' then click Fix again.",
+                        duration: 7.0
+                    )
+                }
             }
             return false
         }
@@ -935,10 +943,12 @@ struct InstallationWizardView: View {
             }
         } catch {
             let stateSummary = await describeServiceState()
-            await MainActor.run {
-                toastManager.showError(
-                    "Fix timed out after \(Int(timeoutSeconds))s. \(stateSummary)", duration: 7.0
-                )
+            if !suppressToast {
+                await MainActor.run {
+                    toastManager.showError(
+                        "Fix timed out after \(Int(timeoutSeconds))s. \(stateSummary)", duration: 7.0
+                    )
+                }
             }
             AppLogger.shared.log("⚠️ [Wizard] Auto-fix timed out for action: \(action)")
             return false
@@ -946,19 +956,21 @@ struct InstallationWizardView: View {
 
         let errorMessage = success ? "" : await getDetailedErrorMessage(for: action, actionDescription: actionDescription)
 
-        await MainActor.run {
-            if success {
-                if deferSuccessToast {
-                    successToastPending = true
-                    toastManager.showInfo("Verifying…", duration: 3.0)
+        if !suppressToast {
+            await MainActor.run {
+                if success {
+                    if deferSuccessToast {
+                        successToastPending = true
+                        toastManager.showInfo("Verifying…", duration: 3.0)
+                    } else {
+                        toastManager.showSuccess("\(actionDescription) completed successfully", duration: 5.0)
+                    }
                 } else {
-                    toastManager.showSuccess("\(actionDescription) completed successfully", duration: 5.0)
+                    let message = (!success && smState == .smappservicePending) ?
+                        "KeyPath background service needs approval in System Settings → Login Items. Enable 'KeyPath' and click Fix again."
+                        : errorMessage
+                    toastManager.showError(message, duration: 7.0)
                 }
-            } else {
-                let message = (!success && smState == .smappservicePending) ?
-                    "KeyPath background service needs approval in System Settings → Login Items. Enable 'KeyPath' and click Fix again."
-                    : errorMessage
-                toastManager.showError(message, duration: 7.0)
             }
         }
 
@@ -990,7 +1002,8 @@ struct InstallationWizardView: View {
                 )
                 AppLogger.shared.log("🔍 [Wizard] Post-fix health check: karabinerStatus=\(karabinerStatus)")
                 if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon ||
-                    action == .installCorrectVHIDDriver || action == .repairVHIDDaemonServices {
+                    action == .installCorrectVHIDDriver || action == .repairVHIDDaemonServices
+                {
                     let smStatePost = await KanataDaemonManager.shared.refreshManagementState()
                     // IMPORTANT: Run off MainActor to avoid blocking UI - detectConnectionHealth spawns pgrep subprocesses
                     let vhidHealthy = await Task.detached {
@@ -998,21 +1011,21 @@ struct InstallationWizardView: View {
                     }.value
 
                     if karabinerStatus == .completed || vhidHealthy {
-                        if successToastPending {
+                        if successToastPending, !suppressToast {
                             await MainActor.run {
                                 toastManager.showSuccess(
                                     "\(actionDescription) completed successfully", duration: 5.0
                                 )
                             }
                         }
-                    } else {
+                    } else if !suppressToast {
                         let detail = await kanataManager.getVirtualHIDBreakageSummary()
                         AppLogger.shared.log(
                             "❌ [Wizard] Post-fix health check failed; will show diagnostic toast")
                         await MainActor.run {
                             if smStatePost == .smappservicePending {
                                 toastManager.showError(
-                                    "KeyPath background service needs approval in System Settings → Login Items. Enable ‘KeyPath’ and click Fix again.",
+                                    "KeyPath background service needs approval in System Settings → Login Items. Enable 'KeyPath' and click Fix again.",
                                     duration: 7.0
                                 )
                             } else {
@@ -1150,7 +1163,8 @@ struct InstallationWizardView: View {
     }
 
     private func preferredDetailPage(for state: WizardSystemState, issues: [WizardIssue])
-        async -> WizardPage? {
+        async -> WizardPage?
+    {
         let page = await navigationCoordinator.navigationEngine.determineCurrentPage(
             for: state, issues: issues
         )
@@ -1170,7 +1184,8 @@ struct InstallationWizardView: View {
     }
 
     private func sanitizedIssues(from issues: [WizardIssue], for state: WizardSystemState)
-        -> [WizardIssue] {
+        -> [WizardIssue]
+    {
         guard shouldSuppressCommunicationIssues(for: state) else {
             return issues
         }
@@ -1209,7 +1224,8 @@ struct InstallationWizardView: View {
         } else if shouldAutoNavigate {
             Task {
                 if let preferred = await preferredDetailPage(for: result.state, issues: filteredIssues),
-                   navigationCoordinator.currentPage != preferred {
+                   navigationCoordinator.currentPage != preferred
+                {
                     AppLogger.shared.log("🔄 [Wizard] Deterministic routing to \(preferred) after refresh")
                     navigationCoordinator.navigateToPage(preferred)
                 }
@@ -1508,7 +1524,8 @@ struct InstallationWizardView: View {
 
     /// Get detailed error message for specific auto-fix failures
     private func getDetailedErrorMessage(for action: AutoFixAction, actionDescription: String)
-        async -> String {
+        async -> String
+    {
         AppLogger.shared.log("🔍 [ErrorMessage] getDetailedErrorMessage called for action: \(action)")
         AppLogger.shared.log("🔍 [ErrorMessage] Action description: \(actionDescription)")
 

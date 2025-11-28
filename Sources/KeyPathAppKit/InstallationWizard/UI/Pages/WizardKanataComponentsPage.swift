@@ -7,12 +7,13 @@ struct WizardKanataComponentsPage: View {
     let systemState: WizardSystemState
     let issues: [WizardIssue]
     let isFixing: Bool
-    let onAutoFix: (AutoFixAction) async -> Bool
+    let onAutoFix: (AutoFixAction, Bool) async -> Bool // (action, suppressToast)
     let onRefresh: () -> Void
     let kanataManager: RuntimeCoordinator
 
     // Track which specific issues are being fixed
     @State private var fixingIssues: Set<UUID> = []
+    @State private var actionStatus: WizardDesign.ActionStatus = .idle
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
     var body: some View {
@@ -26,6 +27,12 @@ struct WizardKanataComponentsPage: View {
                         subtitle:
                         "Kanata binary is installed & configured for advanced keyboard remapping functionality"
                     )
+
+                    // Inline action status (immediately after hero for visual consistency)
+                    if actionStatus.isActive, let message = actionStatus.message {
+                        InlineStatusView(status: actionStatus, message: message)
+                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                    }
 
                     // Component details card below the subheading - horizontally centered
                     HStack {
@@ -91,6 +98,12 @@ struct WizardKanataComponentsPage: View {
                     }
                 )
 
+                // Inline action status (immediately after hero for visual consistency)
+                if actionStatus.isActive, let message = actionStatus.message {
+                    InlineStatusView(status: actionStatus, message: message)
+                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                }
+
                 // Component details for error/setup states
                 if !(kanataRelatedIssues.isEmpty && componentStatus(for: "Kanata Binary") == .completed) {
                     ScrollView {
@@ -117,22 +130,31 @@ struct WizardKanataComponentsPage: View {
                                                     style: .secondary,
                                                     isLoading: isThisIssueFixing
                                                 ) {
-                                                    if let autoFixAction = issue.autoFixAction {
-                                                        // Mark this specific issue as fixing
-                                                        fixingIssues.insert(issue.id)
+                                                    guard let autoFixAction = issue.autoFixAction else { return }
 
-                                                        Task {
-                                                            // Set service bounce flag before performing auto-fix
-                                                            await MainActor.run {
-                                                                PermissionGrantCoordinator.shared.setServiceBounceNeeded(
-                                                                    reason: "Kanata engine fix - \(autoFixAction)")
-                                                            }
+                                                    // Mark this specific issue as fixing
+                                                    fixingIssues.insert(issue.id)
 
-                                                            _ = await onAutoFix(autoFixAction)
+                                                    Task {
+                                                        let componentTitle = getComponentTitle(for: issue)
+                                                        await MainActor.run {
+                                                            PermissionGrantCoordinator.shared.setServiceBounceNeeded(
+                                                                reason: "Kanata engine fix - \(autoFixAction)")
+                                                            actionStatus = .inProgress(
+                                                                message: "Fixing \(componentTitle)…")
+                                                        }
 
-                                                            // Remove this issue from fixing state
-                                                            _ = await MainActor.run {
-                                                                fixingIssues.remove(issue.id)
+                                                        let ok = await onAutoFix(autoFixAction, true) // suppressToast=true
+
+                                                        await MainActor.run {
+                                                            fixingIssues.remove(issue.id)
+                                                            if ok {
+                                                                actionStatus = .success(
+                                                                    message: "\(componentTitle) fixed")
+                                                                scheduleStatusClear()
+                                                            } else {
+                                                                actionStatus = .error(
+                                                                    message: "Fix failed. See diagnostics for details.")
                                                             }
                                                         }
                                                     }
@@ -252,11 +274,21 @@ struct WizardKanataComponentsPage: View {
             fixingIssues.insert(kanataIssue.id)
 
             Task {
-                _ = await onAutoFix(.installBundledKanata)
+                await MainActor.run {
+                    actionStatus = .inProgress(message: "Installing bundled Kanata…")
+                }
+
+                let ok = await onAutoFix(.installBundledKanata, true) // suppressToast=true
                 await kanataManager.updateStatus()
 
                 await MainActor.run {
                     _ = fixingIssues.remove(kanataIssue.id)
+                    if ok {
+                        actionStatus = .success(message: "Bundled Kanata installed")
+                        scheduleStatusClear()
+                    } else {
+                        actionStatus = .error(message: "Install failed. Please try again.")
+                    }
                 }
             }
         }
@@ -274,10 +306,21 @@ struct WizardKanataComponentsPage: View {
 
         Task {
             if let nextPage = await navigationCoordinator.getNextPage(for: systemState, issues: issues),
-               nextPage != navigationCoordinator.currentPage {
+               nextPage != navigationCoordinator.currentPage
+            {
                 navigationCoordinator.navigateToPage(nextPage)
             } else {
                 navigationCoordinator.navigateToPage(.summary)
+            }
+        }
+    }
+
+    /// Auto-clear success status after 3 seconds
+    private func scheduleStatusClear() {
+        Task { @MainActor in
+            _ = await WizardSleep.seconds(3)
+            if case .success = actionStatus {
+                actionStatus = .idle
             }
         }
     }

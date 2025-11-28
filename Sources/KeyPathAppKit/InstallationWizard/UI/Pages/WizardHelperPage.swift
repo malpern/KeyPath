@@ -10,7 +10,7 @@ struct WizardHelperPage: View {
     let systemState: WizardSystemState
     let issues: [WizardIssue]
     let isFixing: Bool
-    let onAutoFix: (AutoFixAction) async -> Bool
+    let onAutoFix: (AutoFixAction, Bool) async -> Bool
     let onRefresh: () -> Void
     let kanataManager: RuntimeCoordinator
 
@@ -109,9 +109,10 @@ struct WizardHelperPage: View {
             bundledVersion = getBundledHelperVersion()
             // Check if Login Items approval is needed
             needsLoginItemsApproval = checkLoginItemsApprovalNeeded()
-            // Start polling if awaiting approval
+            // Start polling and auto-open settings if awaiting approval
             if needsLoginItemsApproval {
                 startApprovalPolling()
+                openLoginItemsSettings()
             }
         }
         .onAppear {
@@ -290,7 +291,8 @@ struct WizardHelperPage: View {
 
             // If approval is required, offer a quick link to System Settings
             if case let .error(message) = actionStatus,
-               message.localizedCaseInsensitiveContains("approval required") {
+               message.localizedCaseInsensitiveContains("approval required")
+            {
                 Button("Open System Settings → Login Items") {
                     openLoginItemsSettings()
                 }
@@ -348,7 +350,7 @@ struct WizardHelperPage: View {
     /// Auto-clear success status after 3 seconds
     private func scheduleStatusClear() {
         Task { @MainActor in
-            try? await Task.sleep(for: .seconds(3))
+            _ = await WizardSleep.seconds(3)
             if case .success = actionStatus {
                 actionStatus = .idle
             }
@@ -423,7 +425,8 @@ struct WizardHelperPage: View {
 
         Task {
             if let next = await navigationCoordinator.getNextPage(for: systemState, issues: issues),
-               next != navigationCoordinator.currentPage {
+               next != navigationCoordinator.currentPage
+            {
                 navigationCoordinator.navigateToPage(next)
             } else {
                 navigationCoordinator.navigateToPage(.summary)

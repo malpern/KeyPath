@@ -20,11 +20,11 @@ struct WizardCommunicationPage: View {
     }
 
     // Auto-fix integration
-    let onAutoFix: ((AutoFixAction) async -> Bool)?
+    let onAutoFix: ((AutoFixAction, Bool) async -> Bool)?
 
     init(
         systemState: WizardSystemState, issues: [WizardIssue],
-        onAutoFix: ((AutoFixAction) async -> Bool)? = nil
+        onAutoFix: ((AutoFixAction, Bool) async -> Bool)? = nil
     ) {
         self.systemState = systemState
         self.issues = issues
@@ -363,13 +363,13 @@ struct WizardCommunicationPage: View {
         showingFixFeedback = false
 
         let (action, successMessage, failureMessage) = getAutoFixAction()
-        var success = await onAutoFix(action)
+        var success = await onAutoFix(action, true) // suppressToast=true for inline feedback
 
         // For service regeneration, restart the service
         // NOTE: TCP mode doesn't require authentication (Kanata v1.9.0 ignores auth messages)
         if success, case .needsSetup = commStatus {
             AppLogger.shared.log("🔄 [WizardComm] Service regenerated, restarting Kanata...")
-            success = await onAutoFix(.restartCommServer)
+            success = await onAutoFix(.restartCommServer, true)
 
             if success {
                 // Wait for TCP server to start
@@ -433,7 +433,8 @@ struct WizardCommunicationPage: View {
 
         Task {
             if let nextPage = await navigationCoordinator.getNextPage(for: systemState, issues: issues),
-               nextPage != navigationCoordinator.currentPage {
+               nextPage != navigationCoordinator.currentPage
+            {
                 navigationCoordinator.navigateToPage(nextPage)
             } else {
                 navigationCoordinator.navigateToPage(.summary)

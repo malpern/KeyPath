@@ -14,7 +14,7 @@ struct WizardKarabinerComponentsPage: View {
     let systemState: WizardSystemState
     let issues: [WizardIssue]
     let isFixing: Bool
-    let onAutoFix: (AutoFixAction) async -> Bool
+    let onAutoFix: (AutoFixAction, Bool) async -> Bool // (action, suppressToast)
     let onRefresh: () -> Void
     let kanataManager: RuntimeCoordinator
     let stateManager: WizardStateManager
@@ -185,7 +185,8 @@ struct WizardKarabinerComponentsPage: View {
 
         Task {
             if let nextPage = await navigationCoordinator.getNextPage(for: systemState, issues: issues),
-               nextPage != navigationCoordinator.currentPage {
+               nextPage != navigationCoordinator.currentPage
+            {
                 navigationCoordinator.navigateToPage(nextPage)
             } else {
                 navigationCoordinator.navigateToPage(.summary)
@@ -405,7 +406,7 @@ struct WizardKarabinerComponentsPage: View {
     /// Auto-clear success status after 3 seconds
     private func scheduleStatusClear() {
         Task { @MainActor in
-            try? await Task.sleep(for: .seconds(3))
+            _ = await WizardSleep.seconds(3)
             if case .success = actionStatus {
                 actionStatus = .idle
             }
@@ -430,9 +431,9 @@ struct WizardKarabinerComponentsPage: View {
         return success
     }
 
-    /// Perform auto-fix using the wizard's auto-fix capability
+    /// Perform auto-fix using the wizard's auto-fix capability (suppresses toasts - uses inline status)
     private func performAutoFix(_ action: AutoFixAction) async -> Bool {
-        await onAutoFix(action)
+        await onAutoFix(action, true) // suppressToast=true, page handles inline status
     }
 
     /// Refresh wizard state and wait for completion before returning control to caller UI.
@@ -442,6 +443,9 @@ struct WizardKarabinerComponentsPage: View {
     private func refreshAndWait(fixSucceeded: Bool) async {
         let t0 = Date()
         AppLogger.shared.log("🔄 [Karabiner Fix] refreshAndWait() starting (fixSucceeded=\(fixSucceeded))")
+
+        // Show verification status inline
+        actionStatus = .inProgress(message: "Verifying installation...")
 
         // Trigger async state detection via the wizard's refresh callback.
         let versionBefore = stateManager.stateVersion

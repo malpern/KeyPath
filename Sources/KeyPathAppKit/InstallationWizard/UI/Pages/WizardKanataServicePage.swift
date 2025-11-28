@@ -152,7 +152,7 @@ struct WizardKanataServicePage: View {
     /// Auto-clear success status after 3 seconds
     private func scheduleStatusClear() {
         Task { @MainActor in
-            try? await Task.sleep(for: .seconds(3))
+            _ = await WizardSleep.seconds(3)
             if case .success = actionStatus {
                 actionStatus = .idle
             }
