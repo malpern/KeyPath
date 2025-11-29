@@ -258,14 +258,23 @@ public struct KanataConfiguration: Sendable {
                 let sourceKey = KanataKeyConverter.convertToKanataKey(mapping.input)
                 var layerOutputs: [RuleCollectionLayer: String] = [:]
 
-                // Generate fork alias for mappings with modifier-specific outputs
+                // Determine the output action based on behavior or simple output
                 let layerOutput: String
-                if mapping.requiresFork {
+                if mapping.behavior != nil {
+                    // Advanced behavior (tap-hold, tap-dance) - use renderer
+                    let rendered = KanataBehaviorRenderer.render(mapping)
+                    // Create alias for complex behaviors to keep deflayer clean
+                    let aliasName = behaviorAliasName(for: mapping, layer: collection.targetLayer)
+                    aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: rendered))
+                    layerOutput = "@\(aliasName)"
+                } else if mapping.requiresFork {
+                    // Generate fork alias for mappings with modifier-specific outputs
                     let aliasName = forkAliasName(for: mapping, layer: collection.targetLayer)
                     let forkDef = buildForkDefinition(for: mapping)
                     aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: forkDef))
                     layerOutput = "@\(aliasName)"
                 } else {
+                    // Simple output
                     layerOutput = KanataKeyConverter.convertToKanataSequence(mapping.output)
                 }
 
@@ -319,6 +328,15 @@ public struct KanataConfiguration: Sendable {
                 .replacingOccurrences(of: "-", with: "_")
                 .replacingOccurrences(of: " ", with: "_")
         return "fork_\(layer.kanataName)_\(sanitized)"
+    }
+
+    /// Generate alias name for advanced behavior (tap-hold, tap-dance)
+    private static func behaviorAliasName(for mapping: KeyMapping, layer: RuleCollectionLayer) -> String {
+        let sanitized =
+            mapping.input
+                .replacingOccurrences(of: "-", with: "_")
+                .replacingOccurrences(of: " ", with: "_")
+        return "beh_\(layer.kanataName)_\(sanitized)"
     }
 
     /// Build fork definition for modifier-aware mappings
