@@ -61,6 +61,7 @@ public struct KeyPathApp: App {
         }
 
         appDelegate.kanataManager = manager
+        appDelegate.viewModel = viewModel
         appDelegate.isHeadlessMode = isHeadlessMode
 
         // Request user notification authorization after app has fully launched
@@ -293,6 +294,7 @@ private func openPreferencesTab(_ notification: Notification.Name) {
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
     var kanataManager: RuntimeCoordinator?
+    var viewModel: KanataViewModel?
     var isHeadlessMode = false
     private var mainWindowController: MainWindowController?
     private var menuBarController: MenuBarController?
@@ -424,12 +426,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if !isHeadlessMode {
             AppLogger.shared.debug("🪟 [AppDelegate] Setting up main window controller")
 
-            guard let manager = kanataManager else {
-                AppLogger.shared.error("❌ [AppDelegate] RuntimeCoordinator is nil, cannot create window")
+            guard let vm = viewModel else {
+                AppLogger.shared.error("❌ [AppDelegate] ViewModel is nil, cannot create window")
                 return
             }
-
-            mainWindowController = MainWindowController(kanataManager: manager)
+            mainWindowController = MainWindowController(viewModel: vm)
             AppLogger.shared.debug(
                 "🪟 [AppDelegate] Main window controller created (deferring show until activation)")
 
@@ -496,6 +497,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.kanataManager?.openAccessibilitySettings()
             }
         }
+
+        // Wire ActionDispatcher errors to user notifications (for deep link failures)
+        ActionDispatcher.shared.onError = { message in
+            UserNotificationService.shared.notifyActionError(message)
+        }
     }
 
     private func setupMenuBarController() {
@@ -525,11 +531,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         AppLogger.shared.debug("☰ [MenuBar] Show KeyPath requested from status item")
 
         if mainWindowController == nil {
-            if let manager = kanataManager {
-                mainWindowController = MainWindowController(kanataManager: manager)
+            if let vm = viewModel {
+                mainWindowController = MainWindowController(viewModel: vm)
                 AppLogger.shared.debug("🪟 [MenuBar] Created main window controller for status item request")
             } else {
-                AppLogger.shared.error("❌ [MenuBar] Cannot show KeyPath: RuntimeCoordinator unavailable")
+                AppLogger.shared.error("❌ [MenuBar] Cannot show KeyPath: ViewModel unavailable")
                 return
             }
         }
@@ -598,12 +604,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     "🪟 [AppDelegate] Escalated activation policy to .regular for UI reopen")
             }
 
-            if let manager = kanataManager {
-                mainWindowController = MainWindowController(kanataManager: manager)
+            if let vm = viewModel {
+                mainWindowController = MainWindowController(viewModel: vm)
                 AppLogger.shared.debug("🪟 [AppDelegate] Created main window controller on reopen")
             } else {
                 AppLogger.shared.error(
-                    "❌ [AppDelegate] Cannot create window on reopen: RuntimeCoordinator is nil")
+                    "❌ [AppDelegate] Cannot create window on reopen: ViewModel is nil")
             }
         }
 

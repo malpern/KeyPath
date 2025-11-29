@@ -84,8 +84,8 @@ class KanataViewModel: ObservableObject {
     /// Update UI properties from state snapshot
     /// Only called when state actually changes (not on a timer)
     private func updateUI(with state: KanataUIState) {
-        // Debug: Log custom rules count when updating UI
-        AppLogger.shared.log("📊 [KanataViewModel] updateUI: customRules.count = \(state.customRules.count)")
+        // Debug: Log custom rules count when updating UI with object identity
+        AppLogger.shared.log("📊 [KanataViewModel] updateUI: customRules.count = \(state.customRules.count), vmID=\(ObjectIdentifier(self))")
 
         lastError = state.lastError
         keyMappings = state.keyMappings

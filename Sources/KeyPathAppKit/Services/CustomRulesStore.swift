@@ -37,7 +37,10 @@ actor CustomRulesStore {
             let data = try Data(contentsOf: fileURL)
             AppLogger.shared.log("📂 [CustomRulesStore] Read \(data.count) bytes from file")
             let rules = try decoder.decode([CustomRule].self, from: data)
-            AppLogger.shared.log("📂 [CustomRulesStore] Decoded \(rules.count) rules")
+            AppLogger.shared.log("📂 [CustomRulesStore] Decoded \(rules.count) rules:")
+            for rule in rules {
+                AppLogger.shared.log("📂 [CustomRulesStore]   - '\(rule.input)' → '\(rule.output)' (enabled: \(rule.isEnabled))")
+            }
             return rules
         } catch {
             AppLogger.shared.log("⚠️ [CustomRulesStore] Failed to load rules: \(error)")
@@ -47,6 +50,9 @@ actor CustomRulesStore {
 
     func saveRules(_ rules: [CustomRule]) throws {
         AppLogger.shared.log("💾 [CustomRulesStore] saveRules: \(rules.count) rules to \(fileURL.path)")
+        for rule in rules {
+            AppLogger.shared.log("💾 [CustomRulesStore]   - '\(rule.input)' → '\(rule.output)' (enabled: \(rule.isEnabled))")
+        }
         let directory = fileURL.deletingLastPathComponent()
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
         let data = try encoder.encode(rules)

@@ -15,6 +15,10 @@ struct RulesTabView: View {
     @State private var createButtonHovered = false
     /// Stable sort order captured when view appears (enabled collections first)
     @State private var stableSortOrder: [UUID] = []
+    /// Track pending selections for immediate UI feedback (before backend confirms)
+    @State private var pendingSelections: [UUID: String] = [:]
+    /// Track pending toggle states for immediate UI feedback
+    @State private var pendingToggles: [UUID: Bool] = [:]
     private let catalog = RuleCollectionCatalog()
 
     // Show all catalog collections, merging with existing state
@@ -55,6 +59,12 @@ struct RulesTabView: View {
     }
 
     var body: some View {
+        // Debug: log customRules on each render with object identity
+        let _ = AppLogger.shared.log("📋 [RulesTabView] body: customRules.count=\(kanataManager.customRules.count), vmID=\(ObjectIdentifier(kanataManager))")
+        let _ = kanataManager.customRules.forEach { rule in
+            AppLogger.shared.log("📋 [RulesTabView]   - '\(rule.input)' → '\(rule.output)'")
+        }
+
         VStack(spacing: 0) {
             // Top Action Bar
             HStack(spacing: 12) {
@@ -131,11 +141,17 @@ struct RulesTabView: View {
                                 name: dynamicCollectionName(for: collection),
                                 icon: collection.icon ?? "circle",
                                 count: collection.displayStyle == .singleKeyPicker ? 1 : collection.mappings.count,
-                                isEnabled: collection.isEnabled,
+                                isEnabled: pendingToggles[collection.id] ?? collection.isEnabled,
                                 mappings: collection.mappings.map {
                                     ($0.input, $0.output, $0.shiftedOutput, $0.ctrlOutput, $0.description, $0.sectionBreak, collection.isEnabled, $0.id)
                                 },
                                 onToggle: { isOn in
+                                    // Update pending toggle immediately for responsive UI
+                                    pendingToggles[collection.id] = isOn
+                                    // Clear pending selection when toggling off
+                                    if !isOn {
+                                        pendingSelections.removeValue(forKey: collection.id)
+                                    }
                                     Task { await kanataManager.toggleRuleCollection(collection.id, enabled: isOn) }
                                 },
                                 onEditMapping: nil,
@@ -146,6 +162,8 @@ struct RulesTabView: View {
                                 displayStyle: collection.displayStyle,
                                 collection: collection.displayStyle == .singleKeyPicker ? collection : nil,
                                 onSelectOutput: collection.displayStyle == .singleKeyPicker ? { output in
+                                    // Update pending selection immediately for responsive UI
+                                    pendingSelections[collection.id] = output
                                     Task { await kanataManager.updateCollectionOutput(collection.id, output: output) }
                                 } : nil,
                                 scrollID: "collection-\(collection.id.uuidString)",
@@ -206,12 +224,25 @@ struct RulesTabView: View {
 
     /// Get the current leader key value (from the Leader Key collection or default to Space)
     private var currentLeaderKey: String {
-        // Find the Leader Key collection
-        if let leaderCollection = allCollections.first(where: { $0.id == RuleCollectionIdentifier.leaderKey }),
-           leaderCollection.isEnabled,
-           let selectedOutput = leaderCollection.selectedOutput {
-            return selectedOutput
+        // Check pending toggle first - if toggled OFF, default to space
+        if let pendingToggle = pendingToggles[RuleCollectionIdentifier.leaderKey], !pendingToggle {
+            return "space"
         }
+
+        // Check pending selection (immediate UI feedback)
+        if let pending = pendingSelections[RuleCollectionIdentifier.leaderKey] {
+            return pending
+        }
+
+        // Find the Leader Key collection
+        if let leaderCollection = allCollections.first(where: { $0.id == RuleCollectionIdentifier.leaderKey }) {
+            // Check pending toggle for enabled state
+            let isEnabled = pendingToggles[RuleCollectionIdentifier.leaderKey] ?? leaderCollection.isEnabled
+            if isEnabled, let selectedOutput = leaderCollection.selectedOutput {
+                return selectedOutput
+            }
+        }
+
         // Default to space when leader key is off or not set
         return "space"
     }
@@ -232,14 +263,29 @@ struct RulesTabView: View {
         // Format input key with Mac symbol
         let inputDisplay = formatKeyWithSymbol(inputKey)
 
+        // Check for pending toggle first, then pending selection, then actual state
+        let effectiveEnabled: Bool
+        if let pendingToggle = pendingToggles[collection.id] {
+            effectiveEnabled = pendingToggle
+        } else {
+            effectiveEnabled = collection.isEnabled
+        }
+
         // If collection is OFF, show "→ ?"
-        guard collection.isEnabled else {
+        guard effectiveEnabled else {
             return "\(inputDisplay) → ?"
         }
 
-        // Get selected output and its label
-        let selectedOutput = collection.selectedOutput ?? collection.presetOptions.first?.output ?? ""
-        let outputLabel = collection.presetOptions.first { $0.output == selectedOutput }?.label ?? selectedOutput
+        // Check for pending selection (immediate UI feedback)
+        let effectiveOutput: String
+        if let pending = pendingSelections[collection.id] {
+            effectiveOutput = pending
+        } else {
+            effectiveOutput = collection.selectedOutput ?? collection.presetOptions.first?.output ?? ""
+        }
+
+        // Get label for the output
+        let outputLabel = collection.presetOptions.first { $0.output == effectiveOutput }?.label ?? effectiveOutput
 
         return "\(inputDisplay) → \(outputLabel)"
     }
@@ -421,8 +467,11 @@ private struct ExpandableCollectionRow: View {
 
             // Expanded Mappings or Zero State
             if isExpanded {
-                if showZeroState, let onCreate = onCreateFirstRule {
-                    // Zero State
+                // Log for debugging
+                let _ = AppLogger.shared.log("📋 [ExpandableCollectionRow] \(name): showZeroState=\(showZeroState), mappings.count=\(mappings.count)")
+
+                if showZeroState, mappings.isEmpty, let onCreate = onCreateFirstRule {
+                    // Zero State - only show if BOTH showZeroState is true AND mappings is actually empty
                     VStack(spacing: 12) {
                         Text("No rules yet")
                             .font(.subheadline)

@@ -9,7 +9,12 @@ struct CustomRulesView: View {
     @State private var pendingDeleteRule: CustomRule?
 
     private var sortedRules: [CustomRule] {
-        kanataManager.customRules.sorted { lhs, rhs in
+        let rules = kanataManager.customRules
+        AppLogger.shared.log("📋 [CustomRulesView] sortedRules computed: \(rules.count) rules")
+        for rule in rules {
+            AppLogger.shared.log("📋 [CustomRulesView]   - '\(rule.input)' → '\(rule.output)' (enabled: \(rule.isEnabled))")
+        }
+        return rules.sorted { lhs, rhs in
             if lhs.isEnabled == rhs.isEnabled {
                 return lhs.displayTitle.localizedCaseInsensitiveCompare(rhs.displayTitle)
                     == .orderedAscending

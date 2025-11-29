@@ -161,13 +161,19 @@ final class RecordingCoordinator: ObservableObject {
         let inputSequence = normalize(rawInput)
         let outputSequence = normalize(rawOutput)
 
+        AppLogger.shared.log("📝 [RecordingCoordinator] saveMapping called:")
+        AppLogger.shared.log("  - Input keys: \(inputSequence.keys.count), modifiers: \(inputSequence.keys.first?.modifiers ?? [])")
+        AppLogger.shared.log("  - Output keys: \(outputSequence.keys.count), modifiers: \(outputSequence.keys.map(\.modifiers))")
+
         // Simple path: single key → single key (no modifiers) => literal mapping via ConfigurationService
         if inputSequence.keys.count == 1,
            outputSequence.keys.count == 1,
            inputSequence.keys[0].modifiers.isEmpty,
-           outputSequence.keys[0].modifiers.isEmpty {
+           outputSequence.keys[0].modifiers.isEmpty
+        {
             let inKey = inputSequence.keys[0].baseKey
             let outKey = outputSequence.keys[0].baseKey
+            AppLogger.shared.log("📝 [RecordingCoordinator] Using SIMPLE path: \(inKey) → \(outKey)")
             do {
                 try await kanataManager.saveConfiguration(input: inKey, output: outKey)
                 await kanataManager.updateStatus()
@@ -183,23 +189,27 @@ final class RecordingCoordinator: ObservableObject {
         }
 
         // Otherwise, generate a full config (macros/sequences/chords)
+        AppLogger.shared.log("📝 [RecordingCoordinator] Using COMPLEX path (multi-key or modifiers)")
         let configGenerator = KanataConfigGenerator(kanataManager: kanataManager)
         do {
             let generatedConfig = try await configGenerator.generateMapping(
                 input: inputSequence, output: outputSequence
             )
             try await kanataManager.saveGeneratedConfiguration(generatedConfig)
+            AppLogger.shared.log("📝 [RecordingCoordinator] Generated config saved successfully")
 
             // Also create a CustomRule so it appears in the Custom Rules UI
             let inputKanata = convertSequenceToKanataInput(inputSequence)
             let outputKanata = convertSequenceToKanataOutput(outputSequence)
+            AppLogger.shared.log("📝 [RecordingCoordinator] Creating CustomRule: '\(inputKanata)' → '\(outputKanata)'")
             let customRule = CustomRule(
                 input: inputKanata,
                 output: outputKanata,
                 isEnabled: true,
                 notes: "Created via recording"
             )
-            _ = await kanataManager.saveCustomRule(customRule, skipReload: true)
+            let saveResult = await kanataManager.saveCustomRule(customRule, skipReload: true)
+            AppLogger.shared.log("📝 [RecordingCoordinator] CustomRule save result: \(saveResult)")
 
             await kanataManager.updateStatus()
 
@@ -316,7 +326,8 @@ final class RecordingCoordinator: ObservableObject {
 
                 // Check if we should suspend mappings for raw key capture
                 if !PreferencesService.shared.applyMappingsDuringRecording,
-                   let km = self.kanataManager {
+                   let km = self.kanataManager
+                {
                     Task {
                         let wasPaused = await km.pauseMappings()
                         await MainActor.run {
@@ -453,7 +464,8 @@ final class RecordingCoordinator: ObservableObject {
 
                 // Check if we should suspend mappings for raw key capture
                 if !PreferencesService.shared.applyMappingsDuringRecording,
-                   let km = self.kanataManager {
+                   let km = self.kanataManager
+                {
                     Task {
                         let wasPaused = await km.pauseMappings()
                         await MainActor.run {
@@ -628,7 +640,8 @@ private extension RecordingCoordinator {
             if let last = result.last,
                last.baseKey == kp.baseKey,
                last.modifiers == kp.modifiers,
-               kp.timestamp.timeIntervalSince(last.timestamp) <= window {
+               kp.timestamp.timeIntervalSince(last.timestamp) <= window
+            {
                 continue
             }
             result.append(kp)

@@ -8,9 +8,8 @@ import SwiftUI
 final class MainWindowController: NSWindowController {
     private var topLeftBeforeResize: NSPoint?
 
-    init(kanataManager: RuntimeCoordinator) {
-        // Phase 4: MVVM - Create ViewModel wrapper for RuntimeCoordinator
-        let viewModel = KanataViewModel(manager: kanataManager)
+    init(viewModel: KanataViewModel) {
+        // Phase 4: MVVM - Use shared ViewModel (don't create a new one!)
 
         // Create SwiftUI hosting controller with full environment
         let rootView = RootView()
