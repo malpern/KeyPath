@@ -166,6 +166,8 @@ The wizard handles all technical setup automatically and provides one-click fixe
 
 | Feature | Description |
 |---------|-------------|
+| **Tap-Hold (Dual-Role)** | Keys that do one thing when tapped, another when held (e.g., home-row mods) |
+| **Tap-Dance** | Keys that do different things based on tap count (single, double, triple) |
 | **Complex Mappings** | Chain multiple actions from a single trigger |
 | **Hot Reload** | Edit config files directly, changes apply instantly via TCP (localhost, default 37001) |
 | **System Integration** | Runs as LaunchDaemon at startup, works everywhere |
@@ -187,7 +189,9 @@ The wizard handles all technical setup automatically and provides one-click fixe
 
 ### Advanced Uses
 
+- **Home Row Mods** - Turn home row keys (A, S, D, F) into modifiers when held, letters when tapped
 - **Hyper Key** - Turn Caps Lock into Cmd+Ctrl+Alt+Shift combo
+- **Tap-Dance Caps** - Single tap for Escape, double tap for Caps Lock
 - **App Launchers** - Map key sequences to launch favorite apps
 - **Text Snippets** - Type your email address with a key combo
 - **Gaming** - Create custom key combinations for complex moves
@@ -385,6 +389,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines, architecture ove
 ## 📚 Documentation
 
 - **[Architecture Overview](ARCHITECTURE.md)** - Deep dive into system design and architecture decisions
+- **[Tap-Hold & Tap-Dance Guide](docs/TAP_HOLD_TAP_DANCE.md)** - Advanced key behaviors (dual-role, tap-dance)
 - **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to KeyPath
 - **[Debugging Guide](docs/DEBUGGING_KANATA.md)** - Advanced troubleshooting and diagnostics
 - **[FAQ](docs/FAQ.md)** - Frequently asked questions

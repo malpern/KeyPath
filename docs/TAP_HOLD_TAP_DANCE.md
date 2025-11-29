@@ -1,141 +1,204 @@
-# Tap-Hold and Tap-Dance Support
+# Tap-Hold & Tap-Dance Support
 
 KeyPath supports advanced key behaviors beyond simple remapping:
 
-- **Tap-Hold (Dual-Role)**: A key that does one thing when tapped quickly, another when held.
-- **Tap-Dance**: A key that does different things based on how many times you tap it.
+- **Tap-Hold (Dual-Role)**: A key that does one thing when tapped, another when held
+- **Tap-Dance**: A key that does different things based on tap count (single, double, triple, etc.)
 
-## UI Overview
+## Quick Start
 
-When editing a Custom Rule, you'll see a **Simple / Advanced** toggle:
+### Creating a Tap-Hold Key
 
-- **Simple**: Standard input → output mapping (e.g., Caps Lock → Escape)
-- **Advanced**: Configure tap/hold actions, tap-dance patterns, and timing
+1. Open **Custom Rules** tab
+2. Click **Create Rule**
+3. Set your input key (e.g., `a`)
+4. Click the **Advanced** tab (segmented control)
+5. Select **Tap / Hold**
+6. Set:
+   - **Tap**: `a` (what happens on quick tap)
+   - **Hold**: `lctl` (what happens when held)
+7. Save
 
-### Dual-Role (Tap/Hold)
+### Creating a Tap-Dance Key
 
-In Advanced mode, select "Tap / Hold" to configure:
+1. Open **Custom Rules** tab
+2. Click **Create Rule**
+3. Set your input key (e.g., `caps`)
+4. Click the **Advanced** tab
+5. Select **Tap Dance**
+6. Add steps:
+   - **Single tap**: `esc`
+   - **Double tap**: `caps`
+7. Save
 
-| Field | Description |
-|-------|-------------|
-| Tap action | What happens on a quick tap (e.g., type "a") |
-| Hold action | What happens when held (e.g., activate Left Control) |
-| Tapping term | Milliseconds before a press becomes a hold (default: 200ms) |
-| Activate hold on other key | If enabled, pressing another key while this key is down triggers the hold action immediately |
-| Quick tap | If enabled, very fast taps always register as tap even if another key was pressed |
+## Data Model
 
-#### Kanata Variants
+### MappingBehavior
 
-Based on the flags you set, KeyPath emits the appropriate Kanata syntax:
+The `MappingBehavior` enum represents advanced key behaviors:
 
-| Flags | Kanata Syntax |
-|-------|---------------|
-| Default | `(tap-hold 200 200 a lctl)` |
-| Activate hold on other key | `(tap-hold-press 200 200 a lctl)` |
-| Quick tap | `(tap-hold-release 200 200 a lctl)` |
+```swift
+public enum MappingBehavior: Codable, Equatable, Sendable {
+    case dualRole(DualRoleBehavior)
+    case tapDance(TapDanceBehavior)
+}
+```
 
-### Tap-Dance
+### DualRoleBehavior
 
-Select "Tap Dance" to configure multiple actions:
+Settings for tap-hold keys:
 
-| Field | Description |
-|-------|-------------|
-| Pattern window | Milliseconds to wait for additional taps (default: 200ms) |
-| Steps | Ordered list of actions (single tap, double tap, etc.) |
+```swift
+public struct DualRoleBehavior: Codable, Equatable, Sendable {
+    public var tapAction: String      // Action on tap (e.g., "a")
+    public var holdAction: String     // Action on hold (e.g., "lctl")
+    public var tapTimeout: Int        // ms before hold activates (default: 200)
+    public var holdTimeout: Int       // ms for hold to fully activate (default: 200)
+    public var activateHoldOnOtherKey: Bool  // Hold triggers on other key press
+    public var quickTap: Bool         // Fast taps always register as tap
+}
+```
 
-Example: Caps Lock could be configured as:
-- Single tap → Escape
-- Double tap → Caps Lock
-- Triple tap → Open Spotlight
+**Kanata Variants:**
+- `tap-hold`: Basic timeout-based (neither flag set)
+- `tap-hold-press`: Hold triggers on other key press (`activateHoldOnOtherKey = true`)
+- `tap-hold-release`: Quick-tap / permissive-hold (`quickTap = true`)
 
-Kanata syntax: `(tap-dance 200 (esc caps M-spc))`
+> **Note:** If both `activateHoldOnOtherKey` and `quickTap` are true, `activateHoldOnOtherKey` takes precedence.
 
-## Home Row Mods
+### TapDanceBehavior
 
-A popular use case for dual-role keys is "home row mods"—using the home row letters as modifiers when held:
+Settings for tap-dance keys:
 
-| Key | Tap | Hold |
-|-----|-----|------|
-| A | a | Left Control |
-| S | s | Left Option |
-| D | d | Left Command |
-| F | f | Left Shift |
-| J | j | Right Shift |
-| K | k | Right Command |
-| L | l | Right Option |
-| ; | ; | Right Control |
+```swift
+public struct TapDanceBehavior: Codable, Equatable, Sendable {
+    public var windowMs: Int          // Time window to register taps (default: 200)
+    public var steps: [TapDanceStep]  // Actions for each tap count
+}
 
-KeyPath provides a `homeRowMod` factory that pre-configures recommended settings:
-- `activateHoldOnOtherKey: true` — hold triggers when you press another key
-- `quickTap: true` — fast typing still produces letters
+public struct TapDanceStep: Codable, Equatable, Sendable {
+    public var label: String          // Human-readable label
+    public var action: String         // Key or action to perform
+}
+```
 
-## Side-Channel Telemetry (Future)
+## Factory Methods
 
-When Kanata supports reporting tap vs hold resolutions, KeyPath will consume this data to show:
+### Home Row Mods
 
-- Which action was triggered (tap or hold)
-- Timing information for debugging
-- Layer state changes from tap-dance patterns
+For the common home-row modifier pattern:
+
+```swift
+let homeRowA = DualRoleBehavior.homeRowMod(letter: "a", modifier: "lctl")
+// Creates: tap=a, hold=lctl, activateHoldOnOtherKey=true, quickTap=true
+```
+
+### Two-Step Tap-Dance
+
+For simple single/double tap patterns:
+
+```swift
+let capsEsc = TapDanceBehavior.twoStep(singleTap: "esc", doubleTap: "caps")
+// Creates: window=200ms, steps=[esc, caps]
+```
+
+## Generated Kanata Syntax
+
+### Tap-Hold Examples
+
+```lisp
+;; Basic tap-hold (timeout-based)
+(tap-hold 200 200 a lctl)
+
+;; tap-hold-press (hold on other key)
+(tap-hold-press 200 200 f lmet)
+
+;; tap-hold-release (quick-tap)
+(tap-hold-release 200 200 j rsft)
+```
+
+### Tap-Dance Examples
+
+```lisp
+;; Two-step tap-dance
+(tap-dance 200 (esc caps))
+
+;; Three-step tap-dance
+(tap-dance 150 (spc ret tab))
+```
+
+## Validation
+
+Both behavior types have an `isValid` property:
+
+```swift
+// DualRoleBehavior.isValid
+// - tapAction must not be empty
+// - holdAction must not be empty
+// - tapTimeout must be > 0
+// - holdTimeout must be > 0
+
+// TapDanceBehavior.isValid
+// - windowMs must be > 0
+// - At least one step with non-empty action
+```
+
+## Parsing (Round-Trip Support)
+
+`KanataBehaviorParser` can parse KeyPath-generated Kanata syntax back into `MappingBehavior`:
+
+```swift
+let behavior = KanataBehaviorParser.parse("(tap-hold-press 200 200 a lctl)")
+// Returns: .dualRole(DualRoleBehavior(tapAction: "a", holdAction: "lctl", ...))
+```
+
+**Supported syntax:**
+- `(tap-hold ...)`, `(tap-hold-press ...)`, `(tap-hold-release ...)`
+- `(tap-dance windowMs (action1 action2 ...))`
+
+**Limitations:**
+- Only parses KeyPath-generated syntax, not arbitrary Kanata configs
+- Does not parse nested behaviors
+- Returns `nil` for unrecognized syntax
+
+## UI Components
+
+### MappingBehaviorEditor
+
+The main editor component with:
+- **Simple/Advanced** segmented control
+- **Tap/Hold** or **Tap Dance** picker in Advanced mode
+- State grid for actions
+- Timing controls with per-state overrides
+- Live Kanata syntax preview
+
+## Future: Side-Channel Telemetry
+
+> **Status:** Not yet implemented
+
+A future enhancement will allow Kanata to report how each key resolved (tap vs. hold) back to KeyPath via the TCP side-channel. This will enable:
+
+- Visual feedback showing which action was triggered
+- Analytics on tap/hold timing patterns
+- Adaptive timeout suggestions
 
 ### Proposed Schema
 
 ```json
 {
-  "type": "behavior_resolution",
-  "key_id": "beh_base_a",
-  "resolution": "tap" | "hold" | "dance_step",
-  "step_index": 0,
-  "timestamp_ms": 1234567890,
-  "duration_ms": 150
+  "TapHoldResolution": {
+    "key": "a",
+    "resolution": "tap",  // or "hold"
+    "duration_ms": 150,
+    "timestamp": 1234567890
+  }
 }
 ```
 
-This will enable the UI to:
-- Highlight which action fired on a keyboard visualization
-- Show timing feedback for tuning tapping terms
-- Debug unexpected behavior
-
-## Technical Details
-
-### Data Model
-
-```swift
-enum MappingBehavior {
-    case dualRole(DualRoleBehavior)
-    case tapDance(TapDanceBehavior)
-}
-
-struct DualRoleBehavior {
-    var tapAction: String
-    var holdAction: String
-    var tapTimeout: Int        // default 200
-    var holdTimeout: Int       // default 200
-    var activateHoldOnOtherKey: Bool
-    var quickTap: Bool
-}
-
-struct TapDanceBehavior {
-    var windowMs: Int          // default 200
-    var steps: [TapDanceStep]
-}
-```
-
-### Round-Trip Support
-
-KeyPath can parse its own generated Kanata syntax back into `MappingBehavior` for diagnostics:
-
-```swift
-let rendered = KanataBehaviorRenderer.render(mapping)
-// "(tap-hold-press 200 200 a lctl)"
-
-let parsed = KanataBehaviorParser.parse(rendered)
-// .dualRole(DualRoleBehavior(tapAction: "a", holdAction: "lctl", ...))
-```
-
-This enables conflict detection and UI previews without running Kanata.
+This requires Kanata to emit resolution events, which is not currently supported.
 
 ## References
 
-- [Kanata Configuration Guide - tap-hold](https://jtroo.github.io/config.html#tap-hold)
+- [Kanata tap-hold documentation](https://github.com/jtroo/kanata/blob/main/docs/config.adoc#tap-hold)
 - [Home Row Mods Guide](https://precondition.github.io/home-row-mods)
-
+- [Kanata tap-dance documentation](https://github.com/jtroo/kanata/blob/main/docs/config.adoc#tap-dance)
