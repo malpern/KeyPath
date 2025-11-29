@@ -105,6 +105,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
     // Core status tracking
     // Removed: isRunning
     var lastError: String?
+    var lastWarning: String?
     var keyMappings: [KeyMapping] = []
     var currentLayerName: String = RuleCollectionLayer.base.displayName
 
@@ -189,6 +190,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         return KanataUIState(
             // Core Status
             lastError: lastError,
+            lastWarning: lastWarning,
             keyMappings: keyMappings,
             ruleCollections: ruleCollections,
             customRules: customRules,
@@ -417,6 +419,17 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         ruleCollectionsManager.onError = { [weak self] error in
             self?.lastError = error
             self?.notifyStateChanged()
+        }
+        ruleCollectionsManager.onWarning = { [weak self] warning in
+            self?.lastWarning = warning
+            self?.notifyStateChanged()
+            // Play warning sound
+            SoundManager.shared.playWarningSound()
+            // Clear warning after it's been delivered to prevent re-triggering
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 100_000_000) // 100ms delay
+                self?.lastWarning = nil
+            }
         }
         ruleCollectionsManager.onActionURI = { actionURI in
             ActionDispatcher.shared.dispatch(actionURI)

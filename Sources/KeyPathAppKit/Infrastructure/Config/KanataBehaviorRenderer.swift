@@ -32,19 +32,21 @@ public enum KanataBehaviorRenderer {
         let tapTimeout = dr.tapTimeout
         let holdTimeout = dr.holdTimeout
 
-        // Choose variant based on flags
-        let variant = if dr.activateHoldOnOtherKey {
+        // Choose variant based on flags (priority: activateHoldOnOtherKey > quickTap > customTapKeys > basic)
+        if dr.activateHoldOnOtherKey {
             // tap-hold-press: hold triggers on any other key press
-            "tap-hold-press"
+            return "(tap-hold-press \(tapTimeout) \(holdTimeout) \(tapAction) \(holdAction))"
         } else if dr.quickTap {
             // tap-hold-release: hold triggers on release of another key
-            "tap-hold-release"
+            return "(tap-hold-release \(tapTimeout) \(holdTimeout) \(tapAction) \(holdAction))"
+        } else if !dr.customTapKeys.isEmpty {
+            // tap-hold-release-keys: early tap on specific keys
+            let keys = dr.customTapKeys.map { KanataKeyConverter.convertToKanataKey($0) }.joined(separator: " ")
+            return "(tap-hold-release-keys \(tapTimeout) \(holdTimeout) \(tapAction) \(holdAction) (\(keys)))"
         } else {
             // Basic tap-hold: pure timeout-based
-            "tap-hold"
+            return "(tap-hold \(tapTimeout) \(holdTimeout) \(tapAction) \(holdAction))"
         }
-
-        return "(\(variant) \(tapTimeout) \(holdTimeout) \(tapAction) \(holdAction))"
     }
 
     // MARK: - Tap Dance

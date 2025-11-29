@@ -18,15 +18,66 @@ struct CustomRuleEditorView: View {
     @State private var isRecordingOutput: Bool = false
     @State private var validationError: String?
     @State private var showDeleteConfirmation = false
+    @State private var description: String = ""
+    @State private var isEditingDescription: Bool = false
+    @State private var isHoveringHeader: Bool = false
 
     // Advanced action states
     @State private var holdAction: String = ""
-    @State private var doubleTapAction: String = ""
-    @State private var tapHoldAction: String = ""
+    @State private var tapDanceSteps: [(label: String, action: String)] = []
     @State private var tappingTerm: Int = 200
     @State private var isRecordingHold: Bool = false
-    @State private var isRecordingDoubleTap: Bool = false
-    @State private var isRecordingTapHold: Bool = false
+    @State private var recordingTapDanceIndex: Int?
+
+    // Conflict dialog state
+    @State private var showConflictDialog: Bool = false
+    @State private var pendingConflict: BehaviorConflict?
+
+    // Hold behavior type (radio button selection)
+    enum HoldBehaviorType: String, CaseIterable {
+        case basic = "Basic"
+        case triggerEarly = "Trigger early"
+        case quickTap = "Quick tap"
+        case customKeys = "Custom keys"
+
+        var activateHoldOnOtherKey: Bool {
+            self == .triggerEarly
+        }
+
+        var quickTapMode: Bool {
+            self == .quickTap
+        }
+
+        var description: String {
+            switch self {
+            case .basic:
+                "Hold activates after timeout. Best for beginners."
+            case .triggerEarly:
+                "Hold activates immediately when another key is pressed. Best for home-row mods."
+            case .quickTap:
+                "Fast taps always register as tap, even if another key was pressed. Prevents accidental holds."
+            case .customKeys:
+                "Only specific keys trigger early tap. For fine-tuned control."
+            }
+        }
+    }
+
+    @State private var holdBehavior: HoldBehaviorType = .basic
+    @State private var customTapKeysText: String = "" // Comma or space separated keys
+
+    // Progressive disclosure: advanced timing options
+    @State private var showTimingAdvanced: Bool = false
+    @State private var tapTimeout: Int = 200
+    @State private var holdTimeout: Int = 200
+
+    private var tapDanceStepLabels: [String] {
+        ["Double Tap", "Triple Tap", "Quad Tap", "Quint Tap", "Sext Tap", "Sept Tap", "Oct Tap"]
+    }
+
+    /// Default tap dance steps with only Double Tap
+    private var defaultTapDanceSteps: [(label: String, action: String)] {
+        [(label: "Double Tap", action: "")]
+    }
 
     private let existingRule: CustomRule?
     private let existingRules: [CustomRule]
@@ -57,11 +108,13 @@ struct CustomRuleEditorView: View {
             _isEnabled = State(initialValue: rule.isEnabled)
             _behavior = State(initialValue: rule.behavior)
             _showAdvanced = State(initialValue: rule.behavior != nil)
+            _description = State(initialValue: rule.notes ?? "")
             mode = .edit
         } else {
             _customName = State(initialValue: "")
             _input = State(initialValue: "")
             _output = State(initialValue: "")
+            _description = State(initialValue: "")
             _isEnabled = State(initialValue: true)
             _behavior = State(initialValue: nil)
             _showAdvanced = State(initialValue: false)
@@ -90,9 +143,76 @@ struct CustomRuleEditorView: View {
         VStack(spacing: 0) {
             // Header - simple title, no divider
             HStack {
+                HStack(spacing: 8) {
+                    KeyCapChip(text: input.isEmpty ? "?" : input)
+                    Text("→")
+                        .font(.title3)
+                        .foregroundColor(.secondary)
+                    KeyCapChip(text: output.isEmpty ? "?" : output)
+                }
+
                 Text(displayName)
                     .font(.title3.weight(.semibold))
                     .foregroundColor(.primary)
+
+                // Description editor - appears on hover
+                if isHoveringHeader || isEditingDescription || !description.isEmpty {
+                    if isEditingDescription {
+                        TextField("Description", text: $description, axis: .vertical)
+                            .textFieldStyle(.plain)
+                            .font(.body.italic())
+                            .foregroundColor(.secondary)
+                            .lineLimit(1 ... 3)
+                            .onSubmit {
+                                isEditingDescription = false
+                            }
+                            .onExitCommand {
+                                isEditingDescription = false
+                            }
+                            .frame(maxWidth: 200)
+                            .onHover { hovering in
+                                if hovering {
+                                    NSCursor.iBeam.push()
+                                } else {
+                                    NSCursor.pop()
+                                }
+                            }
+                    } else {
+                        HStack(spacing: 4) {
+                            if !description.isEmpty {
+                                Text(description)
+                                    .font(.body.italic())
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(2)
+                                    .onTapGesture {
+                                        isEditingDescription = true
+                                    }
+                                    .onHover { hovering in
+                                        if hovering {
+                                            NSCursor.iBeam.push()
+                                        } else {
+                                            NSCursor.pop()
+                                        }
+                                    }
+                            } else {
+                                Text("Description")
+                                    .font(.body.italic())
+                                    .foregroundColor(.secondary.opacity(0.6))
+                                    .onTapGesture {
+                                        isEditingDescription = true
+                                    }
+                                    .onHover { hovering in
+                                        if hovering {
+                                            NSCursor.iBeam.push()
+                                        } else {
+                                            NSCursor.pop()
+                                        }
+                                    }
+                            }
+                        }
+                        .frame(maxWidth: 200)
+                    }
+                }
 
                 Spacer()
 
@@ -104,26 +224,30 @@ struct CustomRuleEditorView: View {
                             .foregroundColor(.red.opacity(0.8))
                     }
                     .buttonStyle(.plain)
+                    .focusable(false)
                     .help("Delete rule")
                 }
             }
             .padding(.horizontal, 20)
             .padding(.top, 16)
             .padding(.bottom, 16)
+            .onHover { hovering in
+                isHoveringHeader = hovering
+            }
 
             // Content
             ScrollView {
                 VStack(spacing: spacing) {
-                    // Input Key
+                    // Start
                     keyInputField(
-                        label: "Input Key",
+                        label: "Start",
                         key: $input,
                         isRecording: $isRecordingInput
                     )
 
-                    // Output Key
+                    // Finish
                     keyInputField(
-                        label: "Output Key",
+                        label: "Finish",
                         key: $output,
                         isRecording: $isRecordingOutput
                     )
@@ -150,6 +274,7 @@ struct CustomRuleEditorView: View {
                 .padding(.vertical, 12)
         }
         .frame(width: 460, height: showAdvanced ? 540 : 340)
+        .animation(.easeInOut(duration: 0.25), value: showAdvanced)
         .background(Color(NSColor.windowBackgroundColor))
         .alert("Delete Rule?", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
@@ -162,8 +287,117 @@ struct CustomRuleEditorView: View {
         } message: {
             Text("This action cannot be undone.")
         }
+        .sheet(isPresented: $showConflictDialog) {
+            ConflictResolutionDialog(
+                pendingConflict: pendingConflict,
+                onChoice: { choice in
+                    resolveConflict(choice)
+                    showConflictDialog = false
+                },
+                onCancel: {
+                    showConflictDialog = false
+                }
+            )
+        }
         .onAppear {
             initializeFromBehavior()
+            // Ensure Double Tap is shown when advanced is enabled
+            if showAdvanced, tapDanceSteps.isEmpty {
+                tapDanceSteps = defaultTapDanceSteps
+            }
+        }
+    }
+
+    // MARK: - Conflict Resolution
+
+    private func resolveConflict(_ choice: BehaviorConflictChoice) {
+        guard let conflict = pendingConflict else { return }
+
+        switch choice {
+        case .keepHold:
+            // Clear all tap dance steps and keep hold
+            for i in tapDanceSteps.indices {
+                tapDanceSteps[i].action = ""
+            }
+            syncBehavior()
+
+        case .keepTapDance:
+            // Clear hold and keep tap dance
+            holdAction = ""
+            holdBehavior = .basic
+            customTapKeysText = ""
+            syncBehavior()
+
+            // Now start recording in the attempted field
+            switch conflict.attemptedField {
+            case let .tapDance(index):
+                if index < tapDanceSteps.count {
+                    recordingTapDanceIndex = index
+                    startKeyCapture(
+                        into: Binding(
+                            get: { tapDanceSteps[index].action },
+                            set: { tapDanceSteps[index].action = $0; syncBehavior() }
+                        ),
+                        isRecording: Binding(
+                            get: { recordingTapDanceIndex == index },
+                            set: { if !$0 { recordingTapDanceIndex = nil } }
+                        )
+                    )
+                }
+            case .hold:
+                break // This case shouldn't happen for keepTapDance
+            }
+        }
+
+        // If keeping hold, start recording in hold field
+        if case .keepHold = choice, case .hold = conflict.attemptedField {
+            isRecordingHold = true
+            startKeyCapture(into: $holdAction, isRecording: $isRecordingHold)
+        }
+
+        pendingConflict = nil
+    }
+
+    // MARK: - Clear Button Component
+
+    private struct ClearButton: View {
+        let action: () -> Void
+        @State private var isHovered = false
+        @State private var isPressed = false
+
+        var body: some View {
+            Button(action: {
+                action()
+            }) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.body)
+                    .foregroundColor(Color(NSColor.tertiaryLabelColor))
+                    .scaleEffect(isPressed ? 0.9 : isHovered ? 1.1 : 1.0)
+                    .opacity(isHovered ? 0.8 : 0.6)
+            }
+            .buttonStyle(.plain)
+            .focusable(false)
+            .help("Clear")
+            .onHover { hovering in
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    isHovered = hovering
+                }
+            }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        if !isPressed {
+                            withAnimation(.easeInOut(duration: 0.1)) {
+                                isPressed = true
+                            }
+                        }
+                    }
+                    .onEnded { _ in
+                        withAnimation(.easeInOut(duration: 0.1)) {
+                            isPressed = false
+                        }
+                    }
+            )
         }
     }
 
@@ -175,35 +409,49 @@ struct CustomRuleEditorView: View {
         key: Binding<String>,
         isRecording: Binding<Bool>
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        HStack(spacing: 12) {
+            // Label on left
             Text(label)
-                .font(.headline)
+                .font(.body)
                 .foregroundColor(.primary)
+                .frame(width: 100, alignment: .leading)
 
+            // Input field and button
             HStack(spacing: 12) {
                 // Input field
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: cornerRadius)
                         .fill(Color(NSColor.controlBackgroundColor))
 
-                    if isRecording.wrappedValue {
-                        Text("Press a key...")
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal, 16)
-                    } else if key.wrappedValue.isEmpty {
-                        Text("Click to record")
-                            .font(.body)
-                            .foregroundColor(.secondary.opacity(0.5))
-                            .padding(.horizontal, 16)
-                    } else {
-                        Text(KeyDisplayName.display(for: key.wrappedValue))
-                            .font(.body.weight(.semibold))
-                            .foregroundColor(.primary)
-                            .padding(.horizontal, 16)
+                    HStack {
+                        if isRecording.wrappedValue {
+                            Text("Press a key...")
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                        } else if key.wrappedValue.isEmpty {
+                            Text("Click to record")
+                                .font(.body)
+                                .foregroundColor(.secondary.opacity(0.5))
+                        } else {
+                            Text(KeyDisplayName.display(for: key.wrappedValue))
+                                .font(.body.weight(.semibold))
+                                .foregroundColor(.primary)
+                        }
+
+                        Spacer()
+
+                        // Clear button - visible in dark mode with subtle hover/click states
+                        if !key.wrappedValue.isEmpty, !isRecording.wrappedValue {
+                            ClearButton {
+                                key.wrappedValue = ""
+                                syncBehavior()
+                            }
+                        }
                     }
+                    .padding(.horizontal, 16)
                 }
                 .frame(height: fieldHeight)
+                .focusable(false)
                 .overlay(
                     RoundedRectangle(cornerRadius: cornerRadius)
                         .stroke(
@@ -237,6 +485,7 @@ struct CustomRuleEditorView: View {
                         )
                 }
                 .buttonStyle(.plain)
+                .focusable(false)
             }
         }
     }
@@ -244,77 +493,345 @@ struct CustomRuleEditorView: View {
     private func anyOtherRecording(except current: Binding<Bool>) -> Bool {
         let allRecordings = [
             $isRecordingInput, $isRecordingOutput,
-            $isRecordingHold, $isRecordingDoubleTap, $isRecordingTapHold
+            $isRecordingHold
         ]
-        return allRecordings.contains { $0.wrappedValue && $0.wrappedValue != current.wrappedValue }
+        let hasTapDanceRecording = recordingTapDanceIndex != nil
+        return allRecordings.contains { $0.wrappedValue && $0.wrappedValue != current.wrappedValue } || hasTapDanceRecording
     }
 
     // MARK: - Advanced Section
 
     private var advancedSection: some View {
         VStack(alignment: .leading, spacing: spacing) {
-            // Toggle for advanced mode - more Mac-native
-            Toggle(isOn: $showAdvanced) {
-                Text("Hold, Double Tap, ...")
-                    .font(.headline)
+            // Toggle with switch on left, label on right, left aligned
+            HStack(spacing: 8) {
+                Toggle("", isOn: $showAdvanced)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+
+                Text("Hold, Double Tap, etc.")
+                    .font(.body)
                     .foregroundColor(.primary)
+                    .onTapGesture {
+                        showAdvanced.toggle()
+                    }
+
+                Spacer()
             }
-            .toggleStyle(.switch)
             .onChange(of: showAdvanced) { _, isExpanded in
-                if !isExpanded {
+                if isExpanded {
+                    // Initialize with Double Tap by default (always shown)
+                    if tapDanceSteps.isEmpty {
+                        tapDanceSteps = defaultTapDanceSteps
+                    }
+                } else {
                     behavior = nil
                     holdAction = ""
-                    doubleTapAction = ""
-                    tapHoldAction = ""
+                    tapDanceSteps = []
                     tappingTerm = 200
+                    recordingTapDanceIndex = nil
+                    holdBehavior = .basic
+                    customTapKeysText = ""
+                    showTimingAdvanced = false
+                    tapTimeout = 200
+                    holdTimeout = 200
                 }
             }
 
             if showAdvanced {
-                VStack(spacing: spacing) {
-                    // Hold action
-                    actionField(
-                        label: "On Hold",
-                        key: $holdAction,
-                        isRecording: $isRecordingHold
-                    )
-
-                    // Double tap action
-                    actionField(
-                        label: "Double Tap",
-                        key: $doubleTapAction,
-                        isRecording: $isRecordingDoubleTap
-                    )
-
-                    // Tap + hold action
-                    actionField(
-                        label: "Tap + Hold",
-                        key: $tapHoldAction,
-                        isRecording: $isRecordingTapHold
-                    )
-
-                    // Tapping term - simple text field
-                    HStack(spacing: 12) {
-                        Text("Timing (ms)")
-                            .font(.headline)
-                            .foregroundColor(.primary)
-                            .frame(width: 100, alignment: .leading)
-
-                        TextField("200", value: $tappingTerm, format: .number)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 80)
-                            .onChange(of: tappingTerm) { _, _ in syncBehavior() }
-
-                        Spacer()
-
-                        // Reset button
-                        Button("Reset") {
-                            resetAdvanced()
+                VStack(alignment: .leading, spacing: spacing) {
+                    // Hold action with progressive disclosure
+                    VStack(alignment: .leading, spacing: 8) {
+                        actionField(
+                            label: "On Hold",
+                            key: $holdAction,
+                            isRecording: $isRecordingHold,
+                            onAttemptRecord: {
+                                // Check for conflict before recording
+                                if tapDanceSteps.contains(where: { !$0.action.isEmpty }) {
+                                    pendingConflict = BehaviorConflict(
+                                        attemptedField: .hold,
+                                        existingHoldAction: holdAction,
+                                        existingTapDanceActions: tapDanceSteps.map(\.action).filter { !$0.isEmpty }
+                                    )
+                                    showConflictDialog = true
+                                    return false // Don't start recording
+                                }
+                                return true // OK to record
+                            }
+                        )
+                        .onChange(of: holdAction) { _, _ in
+                            syncBehavior()
                         }
-                        .buttonStyle(.bordered)
+
+                        // Hold behavior options - shown when hold action is set
+                        if !holdAction.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Hold Behavior:")
+                                    .font(.body.weight(.medium))
+                                    .foregroundColor(.primary)
+
+                                VStack(alignment: .leading, spacing: 10) {
+                                    ForEach(HoldBehaviorType.allCases, id: \.self) { behaviorType in
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            HStack(spacing: 8) {
+                                                Button {
+                                                    holdBehavior = behaviorType
+                                                    syncBehavior()
+                                                } label: {
+                                                    Image(systemName: holdBehavior == behaviorType ? "checkmark.circle.fill" : "circle")
+                                                        .foregroundColor(holdBehavior == behaviorType ? .accentColor : .secondary)
+                                                        .font(.body)
+                                                }
+                                                .buttonStyle(.plain)
+                                                .focusable(false)
+
+                                                Text(behaviorType.rawValue)
+                                                    .font(.body)
+                                                    .foregroundColor(.primary)
+                                            }
+
+                                            // Description for selected behavior
+                                            if holdBehavior == behaviorType {
+                                                Text(behaviorType.description)
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                                    .padding(.leading, 28)
+                                                    .fixedSize(horizontal: false, vertical: true)
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Custom keys input (only shown for customKeys option)
+                                if holdBehavior == .customKeys {
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text("Keys that trigger early tap:")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        TextField("e.g., a s d f", text: $customTapKeysText)
+                                            .textFieldStyle(.roundedBorder)
+                                            .frame(width: 200)
+                                            .onChange(of: customTapKeysText) { _, _ in
+                                                syncBehavior()
+                                            }
+                                        Text("Space or comma separated. Press these keys to trigger tap instead of hold.")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary.opacity(0.7))
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
+                                    .padding(.leading, 28)
+                                    .padding(.top, 4)
+                                    .transition(.opacity.combined(with: .move(edge: .top)))
+                                }
+                            }
+                            .padding(.leading, 112) // Align with input fields
+                            .padding(.top, 4)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                            .animation(.easeInOut(duration: 0.2), value: holdAction.isEmpty)
+                        }
+                    }
+
+                    // Tap Dance steps (dynamic list)
+                    VStack(alignment: .leading, spacing: spacing) {
+                        ForEach(Array(tapDanceSteps.indices), id: \.self) { index in
+                            HStack(spacing: 8) {
+                                actionField(
+                                    label: tapDanceSteps[index].label,
+                                    key: Binding(
+                                        get: { tapDanceSteps[index].action },
+                                        set: { newValue in
+                                            tapDanceSteps[index].action = newValue
+                                            syncBehavior()
+                                        }
+                                    ),
+                                    isRecording: Binding(
+                                        get: { recordingTapDanceIndex == index },
+                                        set: { isRecording in
+                                            if isRecording {
+                                                recordingTapDanceIndex = index
+                                            } else {
+                                                recordingTapDanceIndex = nil
+                                            }
+                                        }
+                                    ),
+                                    onAttemptRecord: {
+                                        // Check for conflict before recording
+                                        if !holdAction.isEmpty {
+                                            pendingConflict = BehaviorConflict(
+                                                attemptedField: .tapDance(index: index),
+                                                existingHoldAction: holdAction,
+                                                existingTapDanceActions: tapDanceSteps.map(\.action).filter { !$0.isEmpty }
+                                            )
+                                            showConflictDialog = true
+                                            return false // Don't start recording
+                                        }
+                                        return true // OK to record
+                                    }
+                                )
+                                .onChange(of: tapDanceSteps[index].action) { _, _ in
+                                    syncBehavior()
+                                }
+
+                                // Remove step button (only for Triple Tap and above, index > 0)
+                                if index == 0 {
+                                    // No remove for Double Tap (index 0)
+                                    EmptyView()
+                                } else {
+                                    Button {
+                                        tapDanceSteps.remove(at: index)
+                                        syncBehavior()
+                                    } label: {
+                                        Image(systemName: "minus.circle.fill")
+                                            .font(.title3)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .focusable(false)
+                                }
+                            }
+                        }
+
+                        // Add step button (Triple Tap, Quad Tap, etc.)
+                        Button {
+                            let nextIndex = tapDanceSteps.count
+                            let label = nextIndex < tapDanceStepLabels.count
+                                ? tapDanceStepLabels[nextIndex]
+                                : "\(nextIndex + 2) Taps"
+                            tapDanceSteps.append((label: label, action: ""))
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "plus.circle")
+                                    .foregroundColor(.accentColor)
+                                Text("Add Triple Tap, etc.")
+                                    .foregroundColor(.primary)
+                            }
+                            .font(.body)
+                        }
+                        .buttonStyle(.plain)
+                        .focusable(false)
+                        .padding(.leading, 112) // Align with input fields
+                    }
+
+                    // Timing with progressive disclosure
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 12) {
+                            Text("Timing (ms)")
+                                .font(.body)
+                                .foregroundColor(.primary)
+                                .frame(width: 100, alignment: .leading)
+
+                            Group {
+                                if showTimingAdvanced {
+                                    // Separate tap and hold timeouts
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text("Separate timeouts:")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            HStack(spacing: 12) {
+                                                VStack(alignment: .leading, spacing: 4) {
+                                                    Text("Tap window")
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                    TextField("200", value: $tapTimeout, format: .number)
+                                                        .textFieldStyle(.roundedBorder)
+                                                        .frame(width: 80)
+                                                        .focusable(false)
+                                                        .onChange(of: tapTimeout) { _, _ in syncBehavior() }
+                                                        .onHover { hovering in
+                                                            if hovering {
+                                                                NSCursor.iBeam.push()
+                                                            } else {
+                                                                NSCursor.pop()
+                                                            }
+                                                        }
+                                                }
+
+                                                VStack(alignment: .leading, spacing: 4) {
+                                                    Text("Hold delay")
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                    TextField("200", value: $holdTimeout, format: .number)
+                                                        .textFieldStyle(.roundedBorder)
+                                                        .frame(width: 80)
+                                                        .focusable(false)
+                                                        .onChange(of: holdTimeout) { _, _ in syncBehavior() }
+                                                        .onHover { hovering in
+                                                            if hovering {
+                                                                NSCursor.iBeam.push()
+                                                            } else {
+                                                                NSCursor.pop()
+                                                            }
+                                                        }
+                                                }
+                                            }
+
+                                            Text("Tap window: time before tap becomes hold. Hold delay: time before hold activates.")
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary.opacity(0.7))
+                                                .fixedSize(horizontal: false, vertical: true)
+                                        }
+                                    }
+                                } else {
+                                    // Single timing value (default)
+                                    TextField("200", value: $tappingTerm, format: .number)
+                                        .textFieldStyle(.roundedBorder)
+                                        .frame(width: 80)
+                                        .focusable(false)
+                                        .onChange(of: tappingTerm) { _, _ in
+                                            // Sync both timeouts when single value changes
+                                            tapTimeout = tappingTerm
+                                            holdTimeout = tappingTerm
+                                            syncBehavior()
+                                        }
+                                        .onHover { hovering in
+                                            if hovering {
+                                                NSCursor.iBeam.push()
+                                            } else {
+                                                NSCursor.pop()
+                                            }
+                                        }
+                                }
+                            }
+                            .animation(.easeInOut(duration: 0.2), value: showTimingAdvanced)
+
+                            // Gear icon for advanced timing options
+                            Button {
+                                showTimingAdvanced.toggle()
+                                if showTimingAdvanced {
+                                    // Initialize separate values from single value
+                                    tapTimeout = tappingTerm
+                                    holdTimeout = tappingTerm
+                                } else {
+                                    // Sync single value from tapTimeout (or average?)
+                                    tappingTerm = tapTimeout
+                                }
+                                syncBehavior()
+                            } label: {
+                                Image(systemName: "gearshape")
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
+                                    .frame(width: 24, height: 24)
+                            }
+                            .buttonStyle(.plain)
+                            .focusable(false)
+                            .help("Advanced timing options")
+
+                            Spacer()
+
+                            // Reset button
+                            Button("Reset") {
+                                resetAdvanced()
+                            }
+                            .buttonStyle(.bordered)
+                            .focusable(false)
+                        }
                     }
                 }
                 .padding(.top, 8)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
     }
@@ -323,79 +840,105 @@ struct CustomRuleEditorView: View {
     private func actionField(
         label: String,
         key: Binding<String>,
-        isRecording: Binding<Bool>
+        isRecording: Binding<Bool>,
+        onAttemptRecord: (() -> Bool)? = nil // Returns true if OK to record, false to block
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        HStack(spacing: 12) {
+            // Label on left
             Text(label)
-                .font(.headline)
+                .font(.body)
                 .foregroundColor(.primary)
+                .frame(width: 100, alignment: .leading)
 
-            HStack(spacing: 12) {
-                // Input field - same size as main fields
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: cornerRadius)
-                        .fill(Color(NSColor.controlBackgroundColor))
+            // Input field
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(Color(NSColor.controlBackgroundColor))
 
+                HStack {
                     if isRecording.wrappedValue {
                         Text("Press a key...")
                             .font(.body)
                             .foregroundColor(.secondary)
-                            .padding(.horizontal, 16)
                     } else if key.wrappedValue.isEmpty {
                         Text("Optional")
                             .font(.body)
                             .foregroundColor(.secondary.opacity(0.4))
-                            .padding(.horizontal, 16)
                     } else {
                         Text(KeyDisplayName.display(for: key.wrappedValue))
                             .font(.body.weight(.semibold))
                             .foregroundColor(.primary)
-                            .padding(.horizontal, 16)
                     }
-                }
-                .frame(height: fieldHeight)
-                .overlay(
-                    RoundedRectangle(cornerRadius: cornerRadius)
-                        .stroke(
-                            isRecording.wrappedValue ? Color.accentColor : Color.secondary.opacity(0.2),
-                            lineWidth: isRecording.wrappedValue ? 2 : 1
-                        )
-                )
-                .onTapGesture {
-                    if !isRecording.wrappedValue, !anyOtherRecording(except: isRecording) {
-                        isRecording.wrappedValue = true
-                        startKeyCapture(into: key, isRecording: isRecording)
-                    }
-                }
 
-                // Record button - same size as main buttons
-                Button {
-                    if isRecording.wrappedValue {
-                        isRecording.wrappedValue = false
-                    } else if !anyOtherRecording(except: isRecording) {
-                        isRecording.wrappedValue = true
-                        startKeyCapture(into: key, isRecording: isRecording)
+                    Spacer()
+
+                    // Clear button
+                    if !key.wrappedValue.isEmpty, !isRecording.wrappedValue {
+                        ClearButton {
+                            key.wrappedValue = ""
+                            syncBehavior()
+                        }
                     }
-                } label: {
-                    Image(systemName: isRecording.wrappedValue ? "stop.fill" : "record.circle")
-                        .font(.title3)
-                        .foregroundColor(.white)
-                        .frame(width: buttonSize, height: buttonSize)
-                        .background(
-                            RoundedRectangle(cornerRadius: cornerRadius)
-                                .fill(isRecording.wrappedValue ? Color.red : Color.accentColor)
-                        )
                 }
-                .buttonStyle(.plain)
+                .padding(.horizontal, 16)
             }
+            .frame(height: fieldHeight)
+            .focusable(false)
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(
+                        isRecording.wrappedValue ? Color.accentColor : Color.secondary.opacity(0.2),
+                        lineWidth: isRecording.wrappedValue ? 2 : 1
+                    )
+            )
+            .onTapGesture {
+                if !isRecording.wrappedValue, !anyOtherRecording(except: isRecording) {
+                    // Check if we should show conflict dialog
+                    if let check = onAttemptRecord, !check() {
+                        return // Blocked by conflict
+                    }
+                    isRecording.wrappedValue = true
+                    startKeyCapture(into: key, isRecording: isRecording)
+                }
+            }
+
+            // Record button
+            Button {
+                if isRecording.wrappedValue {
+                    isRecording.wrappedValue = false
+                } else if !anyOtherRecording(except: isRecording) {
+                    // Check if we should show conflict dialog
+                    if let check = onAttemptRecord, !check() {
+                        return // Blocked by conflict
+                    }
+                    isRecording.wrappedValue = true
+                    startKeyCapture(into: key, isRecording: isRecording)
+                }
+            } label: {
+                Image(systemName: isRecording.wrappedValue ? "stop.fill" : "record.circle")
+                    .font(.title3)
+                    .foregroundColor(.white)
+                    .frame(width: buttonSize, height: buttonSize)
+                    .background(
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .fill(isRecording.wrappedValue ? Color.red : Color.accentColor)
+                    )
+            }
+            .buttonStyle(.plain)
+            .focusable(false)
         }
     }
 
     private func resetAdvanced() {
         holdAction = ""
-        doubleTapAction = ""
-        tapHoldAction = ""
+        tapDanceSteps = defaultTapDanceSteps // Keep Double Tap, just clear it
         tappingTerm = 200
+        recordingTapDanceIndex = nil
+        holdBehavior = .basic
+        customTapKeysText = ""
+        showTimingAdvanced = false
+        tapTimeout = 200
+        holdTimeout = 200
         syncBehavior()
     }
 
@@ -407,6 +950,7 @@ struct CustomRuleEditorView: View {
                 dismiss()
             }
             .keyboardShortcut(.cancelAction)
+            .focusable(false)
 
             Spacer()
 
@@ -415,6 +959,7 @@ struct CustomRuleEditorView: View {
             }
             .keyboardShortcut(.defaultAction)
             .buttonStyle(.borderedProminent)
+            .focusable(false)
             .disabled(!canSave)
         }
     }
@@ -554,25 +1099,61 @@ struct CustomRuleEditorView: View {
     // MARK: - Behavior Sync
 
     private func initializeFromBehavior() {
-        guard let behavior else { return }
+        guard let behavior else {
+            // No existing behavior - ensure Double Tap is shown by default
+            if showAdvanced, tapDanceSteps.isEmpty {
+                tapDanceSteps = defaultTapDanceSteps
+            }
+            return
+        }
 
         switch behavior {
         case let .dualRole(dr):
-            // tapAction is the output key, holdAction is stored
             holdAction = dr.holdAction
             tappingTerm = dr.tapTimeout
+            tapTimeout = dr.tapTimeout
+            holdTimeout = dr.holdTimeout
+
+            // Determine hold behavior type from flags
+            if !dr.customTapKeys.isEmpty {
+                holdBehavior = .customKeys
+                customTapKeysText = dr.customTapKeys.joined(separator: " ")
+            } else if dr.activateHoldOnOtherKey {
+                holdBehavior = .triggerEarly
+            } else if dr.quickTap {
+                holdBehavior = .quickTap
+            } else {
+                holdBehavior = .basic
+            }
+
+            // Show advanced timing options if they differ
+            if dr.tapTimeout != dr.holdTimeout {
+                showTimingAdvanced = true
+            }
+
+            // Ensure Double Tap entry is available (empty) even for dualRole
+            if tapDanceSteps.isEmpty {
+                tapDanceSteps = defaultTapDanceSteps
+            }
 
         case let .tapDance(td):
             tappingTerm = td.windowMs
-            // First step is tap (same as output), rest are other actions
+            tapTimeout = td.windowMs
+            holdTimeout = td.windowMs
+            // Skip index 0 (single tap = output), load the rest as tap-dance steps
+            tapDanceSteps = []
             for (index, step) in td.steps.enumerated() {
-                switch index {
-                case 0: break // Tap action = output, already set
-                case 1: doubleTapAction = step.action
-                case 2: holdAction = step.action
-                case 3: tapHoldAction = step.action
-                default: break
+                if index == 0 {
+                    continue // Single tap = output (handled by Finish field)
                 }
+                let label = index <= tapDanceStepLabels.count
+                    ? tapDanceStepLabels[index - 1]
+                    : "\(index + 1) Taps"
+                tapDanceSteps.append((label: label, action: step.action))
+            }
+            // Ensure at least Double Tap exists
+            if tapDanceSteps.isEmpty {
+                tapDanceSteps = defaultTapDanceSteps
             }
         }
     }
@@ -583,50 +1164,69 @@ struct CustomRuleEditorView: View {
             return
         }
 
-        // Tap action is always the output key
-        let hasTap = !output.isEmpty
+        // Check if any advanced actions are set
         let hasHold = !holdAction.isEmpty
-        let hasDoubleTap = !doubleTapAction.isEmpty
-        let hasTapHold = !tapHoldAction.isEmpty
+        let hasTapDanceSteps = tapDanceSteps.contains { !$0.action.isEmpty }
 
-        if !hasHold, !hasDoubleTap, !hasTapHold {
+        if !hasHold, !hasTapDanceSteps {
             behavior = nil
             return
         }
 
-        // If only hold action, use dual-role (tap = output, hold = holdAction)
-        if hasHold, !hasDoubleTap, !hasTapHold {
+        // IMPORTANT: Kanata's tap-dance doesn't support hold detection - it only counts taps.
+        // If hold is set, we MUST use tap-hold (dual-role) even if tap-dance steps are also set.
+        // Kanata cannot detect both hold and tap-count on the same key.
+        // The UI prevents both from being set simultaneously, but we prioritize hold if somehow both are set.
+        if hasHold {
+            // Use dual-role for hold detection (tap = output, hold = holdAction)
+            // Use separate timeouts if advanced timing is enabled, otherwise use single value
+            let tapTimeoutValue = showTimingAdvanced ? tapTimeout : tappingTerm
+            let holdTimeoutValue = showTimingAdvanced ? holdTimeout : tappingTerm
+
+            // Parse custom tap keys from text field
+            let customKeys: [String] = if holdBehavior == .customKeys {
+                customTapKeysText
+                    .replacingOccurrences(of: ",", with: " ")
+                    .split(separator: " ")
+                    .map { String($0).trimmingCharacters(in: .whitespaces) }
+                    .filter { !$0.isEmpty }
+            } else {
+                []
+            }
+
             behavior = .dualRole(DualRoleBehavior(
                 tapAction: output,
                 holdAction: holdAction,
-                tapTimeout: tappingTerm,
-                holdTimeout: tappingTerm,
-                activateHoldOnOtherKey: false,
-                quickTap: false
+                tapTimeout: tapTimeoutValue,
+                holdTimeout: holdTimeoutValue,
+                activateHoldOnOtherKey: holdBehavior.activateHoldOnOtherKey,
+                quickTap: holdBehavior.quickTapMode,
+                customTapKeys: customKeys
             ))
             return
         }
 
-        // Otherwise use tap-dance
-        var steps: [TapDanceStep] = []
-        if hasTap {
-            steps.append(TapDanceStep(label: "Single tap", action: output))
-        }
-        if hasDoubleTap {
-            steps.append(TapDanceStep(label: "Double tap", action: doubleTapAction))
-        }
-        if hasHold {
-            steps.append(TapDanceStep(label: "Hold", action: holdAction))
-        }
-        if hasTapHold {
-            steps.append(TapDanceStep(label: "Tap + hold", action: tapHoldAction))
-        }
+        // If no hold, use tap-dance for tap-count based behaviors
+        let hasTap = !output.isEmpty
+        if hasTap || hasTapDanceSteps {
+            var steps: [TapDanceStep] = []
+            // Always include single tap (from output field)
+            if hasTap {
+                steps.append(TapDanceStep(label: "Single tap", action: output))
+            }
+            // Add all configured tap-dance steps
+            for step in tapDanceSteps where !step.action.isEmpty {
+                steps.append(TapDanceStep(label: step.label, action: step.action))
+            }
 
-        if !steps.isEmpty {
-            behavior = .tapDance(TapDanceBehavior(
-                windowMs: tappingTerm,
-                steps: steps
-            ))
+            if !steps.isEmpty {
+                behavior = .tapDance(TapDanceBehavior(
+                    windowMs: tappingTerm,
+                    steps: steps
+                ))
+            } else {
+                behavior = nil
+            }
         } else {
             behavior = nil
         }
@@ -649,13 +1249,14 @@ struct CustomRuleEditorView: View {
 
         syncBehavior()
 
+        let trimmedDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
         let rule = CustomRule(
             id: existingRule?.id ?? UUID(),
             title: customName,
             input: trimmedInput,
             output: trimmedOutput,
             isEnabled: isEnabled,
-            notes: nil,
+            notes: trimmedDescription.isEmpty ? nil : trimmedDescription,
             createdAt: existingRule?.createdAt ?? Date(),
             behavior: behavior
         )
@@ -679,78 +1280,6 @@ struct CustomRuleEditorView: View {
 
         onSave(rule)
         dismiss()
-    }
-}
-
-// MARK: - Key Display Name Helper
-
-private enum KeyDisplayName {
-    static func display(for kanataKey: String) -> String {
-        let displayNames: [String: String] = [
-            // Special combo modifiers
-            "hyper": "✦ Hyper",
-            "meh": "◇ Meh",
-            // Standard modifiers
-            "lmet": "⌘ Cmd",
-            "rmet": "⌘ Cmd",
-            "lctl": "⌃ Ctrl",
-            "rctl": "⌃ Ctrl",
-            "lalt": "⌥ Opt",
-            "ralt": "⌥ Opt",
-            "lsft": "⇧ Shift",
-            "rsft": "⇧ Shift",
-            "caps": "⇪ Caps Lock",
-            "tab": "⇥ Tab",
-            "ret": "↩ Return",
-            "spc": "Space",
-            "bspc": "⌫ Delete",
-            "del": "⌦ Fwd Del",
-            "esc": "⎋ Escape",
-            "up": "↑ Up",
-            "down": "↓ Down",
-            "left": "← Left",
-            "right": "→ Right",
-            "pgup": "Page Up",
-            "pgdn": "Page Down",
-            "home": "Home",
-            "end": "End",
-            "fn": "fn",
-            "f1": "F1", "f2": "F2", "f3": "F3", "f4": "F4",
-            "f5": "F5", "f6": "F6", "f7": "F7", "f8": "F8",
-            "f9": "F9", "f10": "F10", "f11": "F11", "f12": "F12",
-            "f13": "F13", "f14": "F14", "f15": "F15",
-            "brdn": "🔅 Brightness Down", "brup": "🔆 Brightness Up",
-            "mute": "🔇 Mute", "vold": "🔉 Volume Down", "volu": "🔊 Volume Up",
-            "prev": "⏮ Previous", "pp": "⏯ Play/Pause", "next": "⏭ Next"
-        ]
-
-        var result = kanataKey
-        var modPrefix = ""
-
-        if result.hasPrefix("M-") {
-            modPrefix += "⌘"
-            result = String(result.dropFirst(2))
-        }
-        if result.hasPrefix("C-") {
-            modPrefix += "⌃"
-            result = String(result.dropFirst(2))
-        }
-        if result.hasPrefix("A-") {
-            modPrefix += "⌥"
-            result = String(result.dropFirst(2))
-        }
-        if result.hasPrefix("S-") {
-            modPrefix += "⇧"
-            result = String(result.dropFirst(2))
-        }
-
-        let baseName = displayNames[result] ?? result.uppercased()
-
-        if modPrefix.isEmpty {
-            return baseName
-        } else {
-            return "\(modPrefix) \(baseName)"
-        }
     }
 }
 

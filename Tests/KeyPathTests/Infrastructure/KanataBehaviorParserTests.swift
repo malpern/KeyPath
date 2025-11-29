@@ -80,6 +80,43 @@ struct KanataBehaviorParserTests {
         #expect(dr.quickTap == true)
     }
 
+    @Test("tap-hold-release-keys parses custom tap keys")
+    func tapHoldReleaseKeys() {
+        let result = KanataBehaviorParser.parse("(tap-hold-release-keys 200 200 a lctl (s d f))")
+
+        guard case let .dualRole(dr) = result else {
+            Issue.record("Expected dualRole")
+            return
+        }
+
+        #expect(dr.tapAction == "a")
+        #expect(dr.holdAction == "lctl")
+        #expect(dr.activateHoldOnOtherKey == false)
+        #expect(dr.quickTap == false)
+        #expect(dr.customTapKeys == ["s", "d", "f"])
+    }
+
+    @Test("Custom tap keys round-trips through render and parse")
+    func customTapKeysRoundTrip() {
+        let original = DualRoleBehavior(
+            tapAction: "a",
+            holdAction: "lctl",
+            customTapKeys: ["s", "d", "f"]
+        )
+        let mapping = KeyMapping(input: "a", output: "a", behavior: .dualRole(original))
+        let rendered = KanataBehaviorRenderer.render(mapping)
+        let parsed = KanataBehaviorParser.parse(rendered)
+
+        guard case let .dualRole(dr) = parsed else {
+            Issue.record("Expected dualRole after round-trip")
+            return
+        }
+
+        #expect(dr.tapAction == original.tapAction)
+        #expect(dr.holdAction == original.holdAction)
+        #expect(dr.customTapKeys == original.customTapKeys)
+    }
+
     // MARK: - Tap-Dance Parsing
 
     @Test("Two-step tap-dance parses correctly")
@@ -94,9 +131,9 @@ struct KanataBehaviorParserTests {
         #expect(td.windowMs == 200)
         #expect(td.steps.count == 2)
         #expect(td.steps[0].action == "esc")
-        #expect(td.steps[0].label == "Single tap")
+        #expect(td.steps[0].label == "Single Tap")
         #expect(td.steps[1].action == "caps")
-        #expect(td.steps[1].label == "Double tap")
+        #expect(td.steps[1].label == "Double Tap")
     }
 
     @Test("Tap-dance with custom window")
@@ -111,7 +148,7 @@ struct KanataBehaviorParserTests {
         #expect(td.windowMs == 150)
         #expect(td.steps.count == 3)
         #expect(td.steps[2].action == "tab")
-        #expect(td.steps[2].label == "Triple tap")
+        #expect(td.steps[2].label == "Triple Tap")
     }
 
     // MARK: - Round-Trip Tests

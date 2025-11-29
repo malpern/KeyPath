@@ -39,6 +39,17 @@ class SoundManager {
         AppLogger.shared.log("🔊 [Sound] Playing error beep")
     }
 
+    /// Play warning sound for conflicts (non-blocking warnings)
+    func playWarningSound() {
+        if TestEnvironment.isRunningTests {
+            AppLogger.shared.log("🧪 [Sound] Suppressed warning sound in test environment")
+            return
+        }
+        // "Basso" is a low, cautionary sound - appropriate for warnings
+        playSubtleSound(named: "Basso", volume: 0.4)
+        AppLogger.shared.log("🔊 [Sound] Playing warning sound (Basso) for conflict")
+    }
+
     /// Play submarine sound for successful operations (alternative to glass)
     func playSubmarineSound() {
         if TestEnvironment.isRunningTests {

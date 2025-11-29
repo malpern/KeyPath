@@ -111,6 +111,38 @@ struct KanataBehaviorRendererTests {
         #expect(result == "(tap-hold-press 200 200 a lctl)")
     }
 
+    @Test("Custom tap keys renders tap-hold-release-keys")
+    func customTapKeys() {
+        let mapping = KeyMapping(
+            input: "a",
+            output: "a",
+            behavior: .dualRole(DualRoleBehavior(
+                tapAction: "a",
+                holdAction: "lctl",
+                customTapKeys: ["s", "d", "f"]
+            ))
+        )
+        let result = KanataBehaviorRenderer.render(mapping)
+        #expect(result == "(tap-hold-release-keys 200 200 a lctl (s d f))")
+    }
+
+    @Test("Custom tap keys with flags: flags take precedence")
+    func customTapKeysWithFlags() {
+        let mapping = KeyMapping(
+            input: "a",
+            output: "a",
+            behavior: .dualRole(DualRoleBehavior(
+                tapAction: "a",
+                holdAction: "lctl",
+                activateHoldOnOtherKey: true, // This takes precedence
+                customTapKeys: ["s", "d", "f"]
+            ))
+        )
+        let result = KanataBehaviorRenderer.render(mapping)
+        // activateHoldOnOtherKey takes precedence over customTapKeys
+        #expect(result == "(tap-hold-press 200 200 a lctl)")
+    }
+
     // MARK: - Tap Dance
 
     @Test("Two-step tap-dance renders correctly")

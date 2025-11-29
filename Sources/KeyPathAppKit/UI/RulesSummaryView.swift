@@ -102,7 +102,7 @@ struct RulesTabView: View {
                             count: kanataManager.customRules.count,
                             isEnabled: kanataManager.customRules.isEmpty
                                 || kanataManager.customRules.allSatisfy(\.isEnabled),
-                            mappings: kanataManager.customRules.map { ($0.input, $0.output, nil, nil, $0.title.isEmpty ? nil : $0.title, false, $0.isEnabled, $0.id) },
+                            mappings: kanataManager.customRules.map { ($0.input, $0.output, nil, nil, $0.title.isEmpty ? nil : $0.title, false, $0.isEnabled, $0.id, $0.behavior) },
                             onToggle: { isOn in
                                 Task {
                                     for rule in kanataManager.customRules {
@@ -137,7 +137,7 @@ struct RulesTabView: View {
                                 count: collection.displayStyle == .singleKeyPicker ? 1 : collection.mappings.count,
                                 isEnabled: pendingToggles[collection.id] ?? collection.isEnabled,
                                 mappings: collection.mappings.map {
-                                    ($0.input, $0.output, $0.shiftedOutput, $0.ctrlOutput, $0.description, $0.sectionBreak, collection.isEnabled, $0.id)
+                                    ($0.input, $0.output, $0.shiftedOutput, $0.ctrlOutput, $0.description, $0.sectionBreak, collection.isEnabled, $0.id, nil)
                                 },
                                 onToggle: { isOn in
                                     // Update pending toggle immediately for responsive UI
@@ -336,7 +336,7 @@ private struct ExpandableCollectionRow: View {
     let icon: String
     let count: Int
     let isEnabled: Bool
-    let mappings: [(input: String, output: String, shiftedOutput: String?, ctrlOutput: String?, description: String?, sectionBreak: Bool, enabled: Bool, id: UUID)]
+    let mappings: [(input: String, output: String, shiftedOutput: String?, ctrlOutput: String?, description: String?, sectionBreak: Bool, enabled: Bool, id: UUID, behavior: MappingBehavior?)]
     let onToggle: (Bool) -> Void
     let onEditMapping: ((UUID) -> Void)?
     let onDeleteMapping: ((UUID) -> Void)?
@@ -439,10 +439,6 @@ private struct ExpandableCollectionRow: View {
                     .toggleStyle(.switch)
                     .tint(.blue)
                     .onTapGesture {} // Prevents toggle from triggering row expansion
-
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.callout)
-                        .foregroundColor(.secondary)
                 }
                 .padding(12)
                 .contentShape(Rectangle())
@@ -455,6 +451,11 @@ private struct ExpandableCollectionRow: View {
             )
             .onHover { hovering in
                 isHovered = hovering
+                if hovering {
+                    NSCursor.pointingHand.push()
+                } else {
+                    NSCursor.pop()
+                }
             }
 
             // Expanded Mappings or Zero State
@@ -572,7 +573,7 @@ private struct ExpandableCollectionRow: View {
 // MARK: - Mapping Row View
 
 private struct MappingRowView: View {
-    let mapping: (input: String, output: String, shiftedOutput: String?, ctrlOutput: String?, description: String?, sectionBreak: Bool, enabled: Bool, id: UUID)
+    let mapping: (input: String, output: String, shiftedOutput: String?, ctrlOutput: String?, description: String?, sectionBreak: Bool, enabled: Bool, id: UUID, behavior: MappingBehavior?)
     let layerActivator: MomentaryActivator?
     var leaderKeyDisplay: String = "␣ Space"
     let onEditMapping: ((UUID) -> Void)?
@@ -586,97 +587,106 @@ private struct MappingRowView: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
-            // Mapping content
+        VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
-                // Show layer activator if present
-                if layerActivator != nil {
+                // Mapping content
+                HStack(spacing: 8) {
+                    // Show layer activator if present
+                    if layerActivator != nil {
+                        HStack(spacing: 4) {
+                            Text("Hold")
+                                .font(.body.monospaced().weight(.semibold))
+                                .foregroundColor(.accentColor)
+                            Text(leaderKeyDisplay)
+                                .font(.body.monospaced().weight(.semibold))
+                                .foregroundColor(.primary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(Color(NSColor.controlBackgroundColor))
+                        )
+
+                        Text("+")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Text(prettyKeyName(mapping.input))
+                        .font(.body.monospaced().weight(.semibold))
+                        .foregroundColor(.primary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(Color(NSColor.controlBackgroundColor))
+                        )
+
+                    Image(systemName: "arrow.right")
+                        .font(.body.weight(.medium))
+                        .foregroundColor(.secondary)
+
+                    Text(prettyKeyName(mapping.output))
+                        .font(.body.monospaced().weight(.semibold))
+                        .foregroundColor(.primary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(Color(NSColor.controlBackgroundColor))
+                        )
+
+                    // Show rule name/title if provided
+                    if let title = mapping.description, !title.isEmpty {
+                        Text(title)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+
+                    // Behavior summary for custom rules on same line
+                    if let behavior = mapping.behavior {
+                        behaviorSummaryView(behavior: behavior)
+                    }
+
+                    Spacer(minLength: 0)
+                }
+
+                Spacer()
+
+                // Action buttons - subtle icons that appear on hover
+                if onEditMapping != nil || onDeleteMapping != nil {
                     HStack(spacing: 4) {
-                        Text("Hold")
-                            .font(.body.monospaced().weight(.semibold))
-                            .foregroundColor(.accentColor)
-                        Text(leaderKeyDisplay)
-                            .font(.body.monospaced().weight(.semibold))
-                            .foregroundColor(.primary)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(Color(NSColor.controlBackgroundColor))
-                    )
-
-                    Text("+")
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                }
-
-                Text(prettyKeyName(mapping.input))
-                    .font(.body.monospaced().weight(.semibold))
-                    .foregroundColor(.primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(Color(NSColor.controlBackgroundColor))
-                    )
-
-                Image(systemName: "arrow.right")
-                    .font(.body.weight(.medium))
-                    .foregroundColor(.secondary)
-
-                Text(prettyKeyName(mapping.output))
-                    .font(.body.monospaced().weight(.semibold))
-                    .foregroundColor(.primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(Color(NSColor.controlBackgroundColor))
-                    )
-
-                // Show rule name/title if provided
-                if let title = mapping.description, !title.isEmpty {
-                    Text(title)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            Spacer()
-
-            // Action buttons - subtle icons that appear on hover
-            if onEditMapping != nil || onDeleteMapping != nil {
-                HStack(spacing: 4) {
-                    if let onEdit = onEditMapping {
-                        Button {
-                            onEdit(mapping.id)
-                        } label: {
-                            Image(systemName: "pencil")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(.secondary.opacity(isHovered ? 1 : 0.5))
-                                .frame(width: 28, height: 28)
-                                .contentShape(Rectangle())
+                        if let onEdit = onEditMapping {
+                            Button {
+                                onEdit(mapping.id)
+                            } label: {
+                                Image(systemName: "pencil")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(.secondary.opacity(isHovered ? 1 : 0.5))
+                                    .frame(width: 28, height: 28)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
-                    }
 
-                    if let onDelete = onDeleteMapping {
-                        Button {
-                            onDelete(mapping.id)
-                        } label: {
-                            Image(systemName: "trash")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(.secondary.opacity(isHovered ? 1 : 0.5))
-                                .frame(width: 28, height: 28)
-                                .contentShape(Rectangle())
+                        if let onDelete = onDeleteMapping {
+                            Button {
+                                onDelete(mapping.id)
+                            } label: {
+                                Image(systemName: "trash")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(.secondary.opacity(isHovered ? 1 : 0.5))
+                                    .frame(width: 28, height: 28)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
-                    }
 
-                    // Spacer to match chevron width in header
-                    Spacer()
-                        .frame(width: 24)
+                        // Spacer for alignment
+                        Spacer()
+                            .frame(width: 0)
+                    }
                 }
             }
         }
@@ -704,6 +714,115 @@ private struct MappingRowView: View {
                 onEdit(mapping.id)
             }
         }
+    }
+
+    @ViewBuilder
+    private func behaviorSummaryView(behavior: MappingBehavior) -> some View {
+        HStack(spacing: 6) {
+            switch behavior {
+            case let .dualRole(dr):
+                behaviorItem(icon: "hand.point.up.left", label: "Hold", key: dr.holdAction)
+
+            case let .tapDance(td):
+                let behaviorItems = extractBehaviorItemsInEditOrder(from: td)
+
+                if behaviorItems.isEmpty {
+                    EmptyView()
+                } else {
+                    ForEach(Array(behaviorItems.enumerated()), id: \.offset) { itemIndex, item in
+                        if itemIndex > 0 {
+                            Text("•")
+                                .font(.caption)
+                                .foregroundColor(.secondary.opacity(0.5))
+                        }
+                        behaviorItem(icon: item.0, label: item.1, key: item.2)
+                    }
+                }
+            }
+        }
+        .foregroundColor(.secondary)
+    }
+
+    // Extract tap dance steps (skip index 0 which is single tap = output)
+    private func extractBehaviorItemsInEditOrder(from td: TapDanceBehavior) -> [(String, String, String)] {
+        var behaviorItems: [(String, String, String)] = []
+
+        // Step 0 = single tap (shown as "Finish" already)
+        // Step 1+ = double tap, triple tap, etc.
+        let tapLabels = ["Double Tap", "Triple Tap", "Quad Tap", "5× Tap", "6× Tap", "7× Tap"]
+        let tapIcons = ["hand.tap", "hand.tap", "hand.tap", "hand.tap", "hand.tap", "hand.tap"]
+
+        for index in 1 ..< td.steps.count {
+            let step = td.steps[index]
+            guard !step.action.isEmpty else { continue }
+
+            let labelIndex = index - 1
+            let label = labelIndex < tapLabels.count ? tapLabels[labelIndex] : "\(index + 1)× Tap"
+            let icon = labelIndex < tapIcons.count ? tapIcons[labelIndex] : "hand.tap"
+
+            behaviorItems.append((icon, label, step.action))
+        }
+
+        return behaviorItems
+    }
+
+    @ViewBuilder
+    private func behaviorItem(icon: String, label: String, key: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.caption)
+            Text(label)
+                .font(.caption)
+            KeyCapChip(text: formatKeyForBehavior(key))
+        }
+    }
+
+    private func formatKeyForBehavior(_ key: String) -> String {
+        let keySymbols: [String: String] = [
+            "spc": "␣ Space",
+            "space": "␣ Space",
+            "caps": "⇪ Caps",
+            "tab": "⇥ Tab",
+            "ret": "↩ Return",
+            "bspc": "⌫ Delete",
+            "del": "⌦ Fwd Del",
+            "esc": "⎋ Escape",
+            "lmet": "⌘ Cmd",
+            "rmet": "⌘ Cmd",
+            "lalt": "⌥ Opt",
+            "ralt": "⌥ Opt",
+            "lctl": "⌃ Ctrl",
+            "rctl": "⌃ Ctrl",
+            "lsft": "⇧ Shift",
+            "rsft": "⇧ Shift"
+        ]
+
+        if let symbol = keySymbols[key.lowercased()] {
+            return symbol
+        }
+
+        // Handle modifier prefixes
+        var result = key
+        var prefix = ""
+        if result.hasPrefix("M-") {
+            prefix = "⌘"
+            result = String(result.dropFirst(2))
+        } else if result.hasPrefix("C-") {
+            prefix = "⌃"
+            result = String(result.dropFirst(2))
+        } else if result.hasPrefix("A-") {
+            prefix = "⌥"
+            result = String(result.dropFirst(2))
+        } else if result.hasPrefix("S-") {
+            prefix = "⇧"
+            result = String(result.dropFirst(2))
+        }
+
+        if let symbol = keySymbols[result.lowercased()] {
+            return prefix + symbol
+        }
+
+        return prefix + result.capitalized
     }
 }
 
@@ -1063,7 +1182,7 @@ private struct SegmentShape: Shape {
 // MARK: - Mapping Table Content
 
 private struct MappingTableContent: View {
-    let mappings: [(input: String, output: String, shiftedOutput: String?, ctrlOutput: String?, description: String?, sectionBreak: Bool, enabled: Bool, id: UUID)]
+    let mappings: [(input: String, output: String, shiftedOutput: String?, ctrlOutput: String?, description: String?, sectionBreak: Bool, enabled: Bool, id: UUID, behavior: MappingBehavior?)]
 
     private var hasShiftVariants: Bool {
         mappings.contains { $0.shiftedOutput != nil }

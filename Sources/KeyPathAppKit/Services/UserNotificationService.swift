@@ -225,6 +225,18 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
         )
     }
 
+    /// Notify user of an action URI error (e.g., failed deep link)
+    func notifyActionError(_ message: String) {
+        sendNotification(
+            title: "Action Failed",
+            body: message,
+            category: .info,
+            key: "action.error",
+            ttl: 30, // Short TTL - errors should be shown quickly
+            allowWhenFrontmost: true // Show even when app is frontmost
+        )
+    }
+
     // MARK: - UNUserNotificationCenterDelegate
 
     nonisolated func userNotificationCenter(

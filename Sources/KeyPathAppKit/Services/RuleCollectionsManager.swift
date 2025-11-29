@@ -65,6 +65,9 @@ final class RuleCollectionsManager {
     /// Callback for reporting errors
     var onError: ((String) -> Void)?
 
+    /// Callback for reporting warnings (non-blocking)
+    var onWarning: ((String) -> Void)?
+
     // MARK: - Initialization
 
     init(
@@ -223,13 +226,13 @@ final class RuleCollectionsManager {
         if var candidate, isEnabled {
             candidate.isEnabled = true
             if let conflict = conflictInfo(for: candidate) {
-                onError?(
-                    "Cannot enable \(candidate.name). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
+                onWarning?(
+                    "⚠️ \(candidate.name) conflicts with \(conflict.displayName) on key: \(conflict.keys.joined(separator: ", ")). Last enabled rule wins."
                 )
                 AppLogger.shared.log(
                     "⚠️ [RuleCollections] Conflict enabling \(candidate.name) vs \(conflict.displayName) on \(conflict.keys)"
                 )
-                return
+                // Continue anyway - just a warning
             }
         }
 
@@ -256,13 +259,13 @@ final class RuleCollectionsManager {
     /// Add or update a rule collection
     func addCollection(_ collection: RuleCollection) async {
         if let conflict = conflictInfo(for: collection) {
-            onError?(
-                "Cannot enable \(collection.name). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
+            onWarning?(
+                "⚠️ \(collection.name) conflicts with \(conflict.displayName) on key: \(conflict.keys.joined(separator: ", ")). Last enabled rule wins."
             )
             AppLogger.shared.log(
                 "⚠️ [RuleCollections] Conflict adding \(collection.name) vs \(conflict.displayName) on \(conflict.keys)"
             )
-            return
+            // Continue anyway - just a warning
         }
 
         if let index = ruleCollections.firstIndex(where: { $0.id == collection.id }) {
@@ -346,13 +349,13 @@ final class RuleCollectionsManager {
 
         if rule.isEnabled,
            let conflict = conflictInfo(for: rule) {
-            onError?(
-                "Cannot enable \(rule.displayTitle). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
+            onWarning?(
+                "⚠️ \(rule.displayTitle) conflicts with \(conflict.displayName) on key: \(conflict.keys.joined(separator: ", ")). Last enabled rule wins."
             )
             AppLogger.shared.log(
                 "⚠️ [CustomRules] Conflict saving \(rule.displayTitle) vs \(conflict.displayName) on \(conflict.keys)"
             )
-            return false
+            // Continue anyway - just a warning
         }
 
         if let index = customRules.firstIndex(where: { $0.id == rule.id }) {
@@ -373,13 +376,13 @@ final class RuleCollectionsManager {
 
         if isEnabled,
            let conflict = conflictInfo(for: existing) {
-            onError?(
-                "Cannot enable \(existing.displayTitle). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
+            onWarning?(
+                "⚠️ \(existing.displayTitle) conflicts with \(conflict.displayName) on key: \(conflict.keys.joined(separator: ", ")). Last enabled rule wins."
             )
             AppLogger.shared.log(
                 "⚠️ [CustomRules] Conflict enabling \(existing.displayTitle) vs \(conflict.displayName) on \(conflict.keys)"
             )
-            return
+            // Continue anyway - just a warning
         }
 
         if let index = customRules.firstIndex(where: { $0.id == id }) {
@@ -456,11 +459,19 @@ final class RuleCollectionsManager {
                 customRules: customRules
             )
 
+            // Play success sound when config is saved
+            await MainActor.run {
+                SoundManager.shared.playTinkSound()
+            }
+
             if !skipReload {
                 await onRulesChanged?()
             }
         } catch {
             AppLogger.shared.log("❌ [RuleCollections] Failed to regenerate config: \(error)")
+            await MainActor.run {
+                SoundManager.shared.playErrorSound()
+            }
         }
     }
 

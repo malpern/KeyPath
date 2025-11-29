@@ -629,20 +629,26 @@ private struct ConflictMappingDialog: View {
 
 // MARK: - KeyCap styling for key labels
 
-private struct KeyCapChip: View {
+struct KeyCapChip: View {
     let text: String
+    @State private var isHovered = false
+
     var body: some View {
         Text(text)
             .font(.caption)
+            .foregroundColor(isHovered ? Color(NSColor.windowBackgroundColor) : Color.primary)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(Color(red: 0.96, green: 0.95, blue: 0.90)) // beige
+                    .fill(isHovered ? Color.primary : Color(NSColor.controlBackgroundColor))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 6)
-                    .stroke(Color(red: 0.88, green: 0.86, blue: 0.80), lineWidth: 1)
+                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
             )
+            .onHover { hovering in
+                isHovered = hovering
+            }
     }
 }

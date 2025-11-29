@@ -52,11 +52,11 @@ public enum KanataBehaviorParser {
 
     // MARK: - Tap-Hold Parsing
 
-    /// Parse tap-hold, tap-hold-press, tap-hold-release variants.
-    /// Format: (tap-hold[-press|-release] tapTimeout holdTimeout tapAction holdAction)
+    /// Parse tap-hold, tap-hold-press, tap-hold-release, tap-hold-release-keys variants.
+    /// Format: (tap-hold[-press|-release|-release-keys] tapTimeout holdTimeout tapAction holdAction [keys])
     private static func parseTapHold(_ action: String) -> DualRoleBehavior? {
-        // Match tap-hold variants
-        let variants = ["tap-hold-press", "tap-hold-release", "tap-hold"]
+        // Match tap-hold variants (order matters - longer variants first)
+        let variants = ["tap-hold-release-keys", "tap-hold-press", "tap-hold-release", "tap-hold"]
 
         for variant in variants {
             if action.hasPrefix("(\(variant) ") {
@@ -79,7 +79,7 @@ public enum KanataBehaviorParser {
         let body = String(action[start ..< end])
         let tokens = tokenize(body)
 
-        // Expected: tapTimeout holdTimeout tapAction holdAction
+        // Expected: tapTimeout holdTimeout tapAction holdAction [keys]
         guard tokens.count >= 4 else { return nil }
 
         guard let tapTimeout = Int(tokens[0]),
@@ -95,13 +95,25 @@ public enum KanataBehaviorParser {
         let activateHoldOnOtherKey = variant == "tap-hold-press"
         let quickTap = variant == "tap-hold-release"
 
+        // Parse custom tap keys for tap-hold-release-keys
+        var customTapKeys: [String] = []
+        if variant == "tap-hold-release-keys", tokens.count >= 5 {
+            let keysToken = tokens[4]
+            // Keys are in format "(key1 key2 ...)"
+            if keysToken.hasPrefix("("), keysToken.hasSuffix(")") {
+                let keysBody = String(keysToken.dropFirst().dropLast())
+                customTapKeys = keysBody.split(separator: " ").map { String($0) }
+            }
+        }
+
         return DualRoleBehavior(
             tapAction: tapAction,
             holdAction: holdAction,
             tapTimeout: tapTimeout,
             holdTimeout: holdTimeout,
             activateHoldOnOtherKey: activateHoldOnOtherKey,
-            quickTap: quickTap
+            quickTap: quickTap,
+            customTapKeys: customTapKeys
         )
     }
 
@@ -142,8 +154,8 @@ public enum KanataBehaviorParser {
 
         guard !actions.isEmpty else { return nil }
 
-        // Create steps with default labels
-        let labels = ["Single tap", "Double tap", "Triple tap", "Quad tap", "Quint tap"]
+        // Create steps with default labels (capitalized to match UI)
+        let labels = ["Single Tap", "Double Tap", "Triple Tap", "Quad Tap", "Quint Tap"]
         let steps = actions.enumerated().map { index, action in
             TapDanceStep(
                 label: index < labels.count ? labels[index] : "Tap \(index + 1)",

@@ -45,7 +45,7 @@ struct MappingBehaviorTests {
         #expect(hrm.tapAction == "f")
         #expect(hrm.holdAction == "lmet")
         #expect(hrm.activateHoldOnOtherKey == true)
-        #expect(hrm.quickTap == true)
+        #expect(hrm.quickTap == false) // Only activateHoldOnOtherKey is set for home-row mods
     }
 
     // MARK: - TapDanceBehavior

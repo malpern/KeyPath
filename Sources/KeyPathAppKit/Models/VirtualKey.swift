@@ -42,22 +42,24 @@ public enum VirtualKeyParser {
     private static func parseBlock(config: String, blockType: String, source: VirtualKey.VirtualKeySource) -> [VirtualKey] {
         var keys: [VirtualKey] = []
 
-        // Find all occurrences of the block
-        // Pattern: (defvirtualkeys ... )
-        let pattern = "\\(\(blockType)\\s+([^)]+)\\)"
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators]) else {
-            return []
-        }
+        for block in extractBlocks(config: config, blockType: blockType) {
+            var content = String(block)
+            let prefix = "(\(blockType)"
 
-        let range = NSRange(config.startIndex..., in: config)
-        let matches = regex.matches(in: config, options: [], range: range)
+            guard content.hasPrefix(prefix) else { continue }
+            content.removeFirst(prefix.count)
 
-        for match in matches {
-            guard let contentRange = Range(match.range(at: 1), in: config) else { continue }
-            let content = String(config[contentRange])
+            // Remove trailing block closing paren and whitespace
+            while let last = content.last, last.isWhitespace {
+                content.removeLast()
+            }
+            if content.last == ")" {
+                content.removeLast()
+            }
+            content = content.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !content.isEmpty else { continue }
 
             // Parse key definitions from the block content
-            // Each definition is: name (action...)
             let definitions = parseDefinitions(content)
             for (name, action) in definitions {
                 keys.append(VirtualKey(name: name, action: action, source: source))
@@ -114,6 +116,44 @@ public enum VirtualKeyParser {
         }
 
         return definitions
+    }
+
+    /// Find all block occurrences by matching balanced parentheses
+    private static func extractBlocks(config: String, blockType: String) -> [Substring] {
+        var results: [Substring] = []
+        let marker = "(\(blockType)"
+        var searchIndex = config.startIndex
+
+        while searchIndex < config.endIndex,
+              let startRange = config.range(of: marker, options: [], range: searchIndex ..< config.endIndex) {
+            var depth = 0
+            var index = startRange.lowerBound
+            var foundMatch = false
+
+            while index < config.endIndex {
+                let char = config[index]
+                if char == "(" {
+                    depth += 1
+                } else if char == ")" {
+                    depth -= 1
+                    if depth == 0 {
+                        let blockRange = startRange.lowerBound ... index
+                        results.append(config[blockRange])
+                        searchIndex = config.index(after: index)
+                        foundMatch = true
+                        break
+                    }
+                }
+                index = config.index(after: index)
+            }
+
+            if !foundMatch {
+                // Unbalanced block - stop searching to avoid infinite loop
+                break
+            }
+        }
+
+        return results
     }
 
     /// Find the index of the closing paren that matches the opening paren at position 0

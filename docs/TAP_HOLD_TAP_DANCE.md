@@ -11,25 +11,29 @@ KeyPath supports advanced key behaviors beyond simple remapping:
 
 1. Open **Custom Rules** tab
 2. Click **Create Rule**
-3. Set your input key (e.g., `a`)
-4. Click the **Advanced** tab (segmented control)
-5. Select **Tap / Hold**
-6. Set:
-   - **Tap**: `a` (what happens on quick tap)
-   - **Hold**: `lctl` (what happens when held)
-7. Save
+3. Set your **Start** key (e.g., `1`)
+4. Set your **Finish** key (e.g., `2`) — this is the tap action
+5. Enable **Hold, Double Tap, etc.** toggle
+6. Set **On Hold** (e.g., `3`) — this is what happens when held
+7. Choose hold behavior (options appear after entering hold action):
+   - **Basic**: Pure timeout-based
+   - **Trigger early**: Hold activates on other key press (best for home-row mods)
+   - **Quick tap**: Fast taps always register as tap
+   - **Custom keys**: Only specific keys trigger early tap
+8. Save
 
 ### Creating a Tap-Dance Key
 
 1. Open **Custom Rules** tab
 2. Click **Create Rule**
-3. Set your input key (e.g., `caps`)
-4. Click the **Advanced** tab
-5. Select **Tap Dance**
-6. Add steps:
-   - **Single tap**: `esc`
-   - **Double tap**: `caps`
-7. Save
+3. Set your **Start** key (e.g., `caps`)
+4. Set your **Finish** key (e.g., `esc`) — this is the single-tap action
+5. Enable **Hold, Double Tap, etc.** toggle
+6. Set **Double Tap** (e.g., `caps`)
+7. (Optional) Click **Add Tap Step** for triple-tap, quad-tap, etc.
+8. Save
+
+> **Note:** Hold and Tap-Dance cannot be used together on the same key. If you try to set one when the other is already configured, a dialog will ask which behavior you want to keep.
 
 ## Data Model
 
@@ -56,15 +60,23 @@ public struct DualRoleBehavior: Codable, Equatable, Sendable {
     public var holdTimeout: Int       // ms for hold to fully activate (default: 200)
     public var activateHoldOnOtherKey: Bool  // Hold triggers on other key press
     public var quickTap: Bool         // Fast taps always register as tap
+    public var customTapKeys: [String] // Keys that trigger early tap
 }
 ```
 
-**Kanata Variants:**
-- `tap-hold`: Basic timeout-based (neither flag set)
-- `tap-hold-press`: Hold triggers on other key press (`activateHoldOnOtherKey = true`)
-- `tap-hold-release`: Quick-tap / permissive-hold (`quickTap = true`)
+**Kanata Variants (priority order):**
+1. `tap-hold-press`: Hold triggers on other key press (`activateHoldOnOtherKey = true`)
+2. `tap-hold-release`: Quick-tap / permissive-hold (`quickTap = true`)
+3. `tap-hold-release-keys`: Early tap on specific keys (`customTapKeys` non-empty)
+4. `tap-hold`: Basic timeout-based (default)
 
-> **Note:** If both `activateHoldOnOtherKey` and `quickTap` are true, `activateHoldOnOtherKey` takes precedence.
+**UI Hold Behavior Options:**
+| Option | Description | Kanata Variant |
+|--------|-------------|----------------|
+| Basic | Hold activates after timeout | `tap-hold` |
+| Trigger early | Hold activates when another key is pressed | `tap-hold-press` |
+| Quick tap | Fast taps always register as tap | `tap-hold-release` |
+| Custom keys | Only specific keys trigger early tap | `tap-hold-release-keys` |
 
 ### TapDanceBehavior
 
@@ -90,7 +102,8 @@ For the common home-row modifier pattern:
 
 ```swift
 let homeRowA = DualRoleBehavior.homeRowMod(letter: "a", modifier: "lctl")
-// Creates: tap=a, hold=lctl, activateHoldOnOtherKey=true, quickTap=true
+// Creates: tap=a, hold=lctl, activateHoldOnOtherKey=true
+// Uses tap-hold-press variant (best for home-row mods)
 ```
 
 ### Two-Step Tap-Dance
@@ -110,11 +123,14 @@ let capsEsc = TapDanceBehavior.twoStep(singleTap: "esc", doubleTap: "caps")
 ;; Basic tap-hold (timeout-based)
 (tap-hold 200 200 a lctl)
 
-;; tap-hold-press (hold on other key)
+;; tap-hold-press (hold on other key press)
 (tap-hold-press 200 200 f lmet)
 
-;; tap-hold-release (quick-tap)
+;; tap-hold-release (quick-tap / permissive hold)
 (tap-hold-release 200 200 j rsft)
+
+;; tap-hold-release-keys (early tap on specific keys)
+(tap-hold-release-keys 200 200 a lctl (s d f))
 ```
 
 ### Tap-Dance Examples
@@ -153,7 +169,7 @@ let behavior = KanataBehaviorParser.parse("(tap-hold-press 200 200 a lctl)")
 ```
 
 **Supported syntax:**
-- `(tap-hold ...)`, `(tap-hold-press ...)`, `(tap-hold-release ...)`
+- `(tap-hold ...)`, `(tap-hold-press ...)`, `(tap-hold-release ...)`, `(tap-hold-release-keys ...)`
 - `(tap-dance windowMs (action1 action2 ...))`
 
 **Limitations:**
@@ -163,14 +179,22 @@ let behavior = KanataBehaviorParser.parse("(tap-hold-press 200 200 a lctl)")
 
 ## UI Components
 
-### MappingBehaviorEditor
+### CustomRuleEditorView
 
-The main editor component with:
-- **Simple/Advanced** segmented control
-- **Tap/Hold** or **Tap Dance** picker in Advanced mode
-- State grid for actions
-- Timing controls with per-state overrides
-- Live Kanata syntax preview
+The main editor for custom rules with advanced behavior support:
+- **Hold, Double Tap, etc.** toggle to reveal advanced options
+- **On Hold** field for tap-hold behavior (with hold behavior radio buttons)
+- **Double Tap / Triple Tap** fields for tap-dance behavior
+- **Conflict resolution dialog** when switching between Hold and Tap-Dance
+- **Timing controls** with optional separate tap/hold timeouts
+- **Description** field (hover over header to reveal)
+
+### ConflictResolutionDialog
+
+When Hold and Tap-Dance conflict:
+- Visual illustration showing the fork between behaviors
+- Current values displayed for both options
+- "Keep Hold" / "Switch to Hold" and "Keep Tap" / "Switch to Tap" buttons
 
 ## Future: Side-Channel Telemetry
 
@@ -196,6 +220,42 @@ A future enhancement will allow Kanata to report how each key resolved (tap vs. 
 ```
 
 This requires Kanata to emit resolution events, which is not currently supported.
+
+## Rule Conflict Detection
+
+KeyPath detects when multiple rules map the same input key and shows a warning.
+
+### How It Works
+
+1. **Detection**: When enabling a rule (collection or custom), KeyPath checks for conflicts with other enabled rules
+2. **Warning**: If a conflict exists, an orange warning toast appears with a "Basso" sound
+3. **Non-blocking**: The action proceeds anyway - conflicts are warnings, not errors
+4. **Resolution**: "Last enabled rule wins" - the most recently enabled rule takes precedence in the config
+
+### Types of Conflicts Detected
+
+| Conflict Type | Example |
+|---------------|---------|
+| Custom Rule vs Custom Rule | Two rules both map `caps` |
+| Custom Rule vs Collection | Rule maps `caps`, collection also remaps `caps` |
+| Collection vs Collection | Two collections remap the same key on the same layer |
+| Activator Conflict | Two collections use the same momentary activator key |
+
+### Warning Message Format
+
+```
+⚠️ [Rule Name] conflicts with [Other Rule] on key: [key]. Last enabled rule wins.
+```
+
+### Testing
+
+Conflict detection is tested in `RuleCollectionsManagerTests.swift`:
+- `testCustomRuleConflictWithCustomRule_WarnsButAllows`
+- `testCustomRuleConflictWithCollection_WarnsButAllows`
+- `testToggleCustomRule_ConflictWarnsButEnables`
+- `testNoConflictWarning_WhenNoOverlap`
+- `testDisabledRuleDoesNotConflict`
+- `testConflictInfo_ContainsCorrectKeys`
 
 ## References
 

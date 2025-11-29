@@ -33,6 +33,7 @@ struct KanataUIState: Sendable {
     // Core Status
     // Removed: isRunning
     let lastError: String?
+    let lastWarning: String?
     let keyMappings: [KeyMapping]
     let ruleCollections: [RuleCollection]
     let customRules: [CustomRule]
@@ -51,6 +52,7 @@ struct KanataUIState: Sendable {
     /// Empty state for initialization fallback
     static let empty = KanataUIState(
         lastError: nil,
+        lastWarning: nil,
         keyMappings: [],
         ruleCollections: [],
         customRules: [],
