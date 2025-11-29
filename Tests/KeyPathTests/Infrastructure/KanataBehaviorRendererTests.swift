@@ -217,4 +217,98 @@ struct KanataBehaviorRendererTests {
 
         #expect(result == "esc")
     }
+
+    // MARK: - Hyper and Meh Keywords
+
+    @Test("Hyper keyword expands to multi modifier")
+    func hyperKeyword() {
+        let mapping = KeyMapping(
+            input: "caps",
+            output: "caps",
+            behavior: .dualRole(DualRoleBehavior(
+                tapAction: "esc",
+                holdAction: "hyper"
+            ))
+        )
+        let result = KanataBehaviorRenderer.render(mapping)
+        #expect(result == "(tap-hold 200 200 esc (multi lctl lmet lalt lsft))")
+    }
+
+    @Test("Meh keyword expands to multi modifier without Cmd")
+    func mehKeyword() {
+        let mapping = KeyMapping(
+            input: "caps",
+            output: "caps",
+            behavior: .dualRole(DualRoleBehavior(
+                tapAction: "esc",
+                holdAction: "meh"
+            ))
+        )
+        let result = KanataBehaviorRenderer.render(mapping)
+        #expect(result == "(tap-hold 200 200 esc (multi lctl lalt lsft))")
+    }
+
+    @Test("Hyper keyword is case insensitive")
+    func hyperCaseInsensitive() {
+        let mapping = KeyMapping(
+            input: "caps",
+            output: "caps",
+            behavior: .dualRole(DualRoleBehavior(
+                tapAction: "esc",
+                holdAction: "HYPER"
+            ))
+        )
+        let result = KanataBehaviorRenderer.render(mapping)
+        #expect(result == "(tap-hold 200 200 esc (multi lctl lmet lalt lsft))")
+    }
+
+    // MARK: - Multi-key Actions
+
+    @Test("Space-separated keys wrap in multi")
+    func multiKeyAction() {
+        let mapping = KeyMapping(
+            input: "a",
+            output: "a",
+            behavior: .dualRole(DualRoleBehavior(
+                tapAction: "a",
+                holdAction: "lctl lmet"
+            ))
+        )
+        let result = KanataBehaviorRenderer.render(mapping)
+        #expect(result == "(tap-hold 200 200 a (multi lctl lmet))")
+    }
+
+    @Test("Multi-key tap action in tap-dance")
+    func multiKeyTapDance() {
+        let mapping = KeyMapping(
+            input: "x",
+            output: "x",
+            behavior: .tapDance(TapDanceBehavior(
+                windowMs: 200,
+                steps: [
+                    TapDanceStep(label: "Single", action: "a"),
+                    TapDanceStep(label: "Double", action: "lctl a")
+                ]
+            ))
+        )
+        let result = KanataBehaviorRenderer.render(mapping)
+        #expect(result == "(tap-dance 200 (a (multi lctl a)))")
+    }
+
+    @Test("Hyper in tap-dance step")
+    func hyperInTapDance() {
+        let mapping = KeyMapping(
+            input: "caps",
+            output: "caps",
+            behavior: .tapDance(TapDanceBehavior(
+                windowMs: 200,
+                steps: [
+                    TapDanceStep(label: "Single", action: "esc"),
+                    TapDanceStep(label: "Double", action: "hyper")
+                ]
+            ))
+        )
+        let result = KanataBehaviorRenderer.render(mapping)
+        #expect(result == "(tap-dance 200 (esc (multi lctl lmet lalt lsft)))")
+    }
 }

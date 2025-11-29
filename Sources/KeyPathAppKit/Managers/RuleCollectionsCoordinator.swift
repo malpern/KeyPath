@@ -84,6 +84,9 @@ final class RuleCollectionsCoordinator {
         let result = await ruleCollectionsManager.saveCustomRule(rule, skipReload: skipReload)
         applyMappings(ruleCollectionsManager.enabledMappings())
         notifyStateChanged()
+        if result {
+            SoundManager.shared.playGlassSound()
+        }
         return result
     }
 
@@ -92,6 +95,7 @@ final class RuleCollectionsCoordinator {
         await ruleCollectionsManager.toggleCustomRule(id: id, isEnabled: isEnabled)
         applyMappings(ruleCollectionsManager.enabledMappings())
         notifyStateChanged()
+        SoundManager.shared.playTinkSound()
     }
 
     /// Remove a custom rule

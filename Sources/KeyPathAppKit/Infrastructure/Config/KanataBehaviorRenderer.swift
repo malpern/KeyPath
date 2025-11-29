@@ -27,8 +27,8 @@ public enum KanataBehaviorRenderer {
     /// Render a dual-role (tap-hold) behavior.
     /// Chooses the appropriate Kanata variant based on flags.
     private static func renderDualRole(_ dr: DualRoleBehavior) -> String {
-        let tapAction = KanataKeyConverter.convertToKanataKey(dr.tapAction)
-        let holdAction = KanataKeyConverter.convertToKanataKey(dr.holdAction)
+        let tapAction = convertAction(dr.tapAction)
+        let holdAction = convertAction(dr.holdAction)
         let tapTimeout = dr.tapTimeout
         let holdTimeout = dr.holdTimeout
 
@@ -58,10 +58,42 @@ public enum KanataBehaviorRenderer {
         }
 
         let actions = td.steps.map { step in
-            KanataKeyConverter.convertToKanataKey(step.action)
+            convertAction(step.action)
         }
 
         // Kanata tap-dance syntax: (tap-dance timeout (action1 action2 ...))
         return "(tap-dance \(td.windowMs) (\(actions.joined(separator: " "))))"
+    }
+
+    // MARK: - Action Conversion
+
+    /// Convert an action string to Kanata syntax.
+    /// Handles special keywords (hyper, meh) and multi-key combinations.
+    private static func convertAction(_ action: String) -> String {
+        let trimmed = action.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        // Special keyword: "hyper" = Cmd+Ctrl+Alt+Shift
+        if trimmed == "hyper" {
+            return "(multi lctl lmet lalt lsft)"
+        }
+
+        // Special keyword: "meh" = Ctrl+Alt+Shift (no Cmd)
+        if trimmed == "meh" {
+            return "(multi lctl lalt lsft)"
+        }
+
+        // Check for space-separated tokens (multi-key action)
+        let tokens = action.trimmingCharacters(in: .whitespacesAndNewlines)
+            .components(separatedBy: .whitespaces)
+            .filter { !$0.isEmpty }
+
+        if tokens.count > 1 {
+            // Multiple keys - wrap in (multi ...)
+            let kanataKeys = tokens.map { KanataKeyConverter.convertToKanataKey($0) }
+            return "(multi \(kanataKeys.joined(separator: " ")))"
+        }
+
+        // Single key - use standard conversion
+        return KanataKeyConverter.convertToKanataKey(action)
     }
 }

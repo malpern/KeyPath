@@ -620,7 +620,8 @@ public final class ConfigurationService: FileConfigurationProviding {
         ruleCollections: [RuleCollection],
         customRules: [CustomRule] = []
     ) async throws {
-        let combinedCollections = ruleCollections + customRules.asRuleCollections()
+        // Custom rules come first so they take priority over preset collections
+        let combinedCollections = customRules.asRuleCollections() + ruleCollections
         let mappings = combinedCollections.enabledMappings()
         let configContent = KanataConfiguration.generateFromCollections(combinedCollections)
 

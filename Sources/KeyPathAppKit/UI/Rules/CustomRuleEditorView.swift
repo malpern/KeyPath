@@ -9,7 +9,6 @@ struct CustomRuleEditorView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var customName: String
-    @State private var isEditingName: Bool = false
     @State private var input: String
     @State private var output: String
     @State private var isEnabled: Bool
@@ -20,13 +19,11 @@ struct CustomRuleEditorView: View {
     @State private var validationError: String?
     @State private var showDeleteConfirmation = false
 
-    // Tap dance states
-    @State private var tapAction: String = ""
+    // Advanced action states
     @State private var holdAction: String = ""
     @State private var doubleTapAction: String = ""
     @State private var tapHoldAction: String = ""
     @State private var tappingTerm: Int = 200
-    @State private var isRecordingTap: Bool = false
     @State private var isRecordingHold: Bool = false
     @State private var isRecordingDoubleTap: Bool = false
     @State private var isRecordingTapHold: Bool = false
@@ -36,6 +33,12 @@ struct CustomRuleEditorView: View {
     private let mode: Mode
     let onSave: (CustomRule) -> Void
     let onDelete: ((CustomRule) -> Void)?
+
+    // Consistent sizing
+    private let fieldHeight: CGFloat = 44
+    private let buttonSize: CGFloat = 44
+    private let cornerRadius: CGFloat = 8
+    private let spacing: CGFloat = 16
 
     init(
         rule: CustomRule?,
@@ -74,7 +77,7 @@ struct CustomRuleEditorView: View {
             let outputDisplay = output.isEmpty ? "?" : KeyDisplayName.display(for: output)
             return "\(inputDisplay) → \(outputDisplay)"
         } else {
-            return "New Mapping"
+            return "New Rule"
         }
     }
 
@@ -85,17 +88,32 @@ struct CustomRuleEditorView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            header
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 12)
+            // Header - simple title, no divider
+            HStack {
+                Text(displayName)
+                    .font(.title3.weight(.semibold))
+                    .foregroundColor(.primary)
 
-            Divider()
+                Spacer()
+
+                if mode == .edit, onDelete != nil {
+                    Button {
+                        showDeleteConfirmation = true
+                    } label: {
+                        Image(systemName: "trash")
+                            .foregroundColor(.red.opacity(0.8))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Delete rule")
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 16)
 
             // Content
             ScrollView {
-                VStack(spacing: 20) {
+                VStack(spacing: spacing) {
                     // Input Key
                     keyInputField(
                         label: "Input Key",
@@ -110,13 +128,13 @@ struct CustomRuleEditorView: View {
                         isRecording: $isRecordingOutput
                     )
 
-                    // Advanced options (tap dance)
+                    // Advanced options - using native Toggle for reveal
                     advancedSection
 
                     // Validation error
                     if let error = validationError {
                         Text(error)
-                            .font(.caption)
+                            .font(.callout)
                             .foregroundColor(.red)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -131,7 +149,7 @@ struct CustomRuleEditorView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
         }
-        .frame(width: 420, height: showAdvanced ? 580 : 320)
+        .frame(width: 460, height: showAdvanced ? 540 : 340)
         .background(Color(NSColor.windowBackgroundColor))
         .alert("Delete Rule?", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
@@ -149,48 +167,7 @@ struct CustomRuleEditorView: View {
         }
     }
 
-    // MARK: - Header
-
-    private var header: some View {
-        HStack {
-            // Editable name
-            if isEditingName {
-                TextField("Name (optional)", text: $customName)
-                    .textFieldStyle(.plain)
-                    .font(.headline)
-                    .onSubmit { isEditingName = false }
-            } else {
-                Button {
-                    isEditingName = true
-                } label: {
-                    HStack(spacing: 6) {
-                        Text(displayName)
-                            .font(.headline)
-                            .foregroundColor(.primary)
-                        Image(systemName: "pencil")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .buttonStyle(.plain)
-            }
-
-            Spacer()
-
-            if mode == .edit, onDelete != nil {
-                Button {
-                    showDeleteConfirmation = true
-                } label: {
-                    Image(systemName: "trash")
-                        .foregroundColor(.red.opacity(0.8))
-                }
-                .buttonStyle(.plain)
-                .help("Delete rule")
-            }
-        }
-    }
-
-    // MARK: - Key Input Field (Main Page Style)
+    // MARK: - Key Input Field
 
     @ViewBuilder
     private func keyInputField(
@@ -204,44 +181,38 @@ struct CustomRuleEditorView: View {
                 .foregroundColor(.primary)
 
             HStack(spacing: 12) {
-                // Large input field
+                // Input field
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 10)
+                    RoundedRectangle(cornerRadius: cornerRadius)
                         .fill(Color(NSColor.controlBackgroundColor))
 
                     if isRecording.wrappedValue {
                         Text("Press a key...")
+                            .font(.body)
                             .foregroundColor(.secondary)
                             .padding(.horizontal, 16)
                     } else if key.wrappedValue.isEmpty {
-                        Text("Click record or type key name")
-                            .foregroundColor(.secondary.opacity(0.6))
+                        Text("Click to record")
+                            .font(.body)
+                            .foregroundColor(.secondary.opacity(0.5))
                             .padding(.horizontal, 16)
                     } else {
-                        HStack {
-                            Text(KeyDisplayName.display(for: key.wrappedValue))
-                                .font(.system(.body, design: .default).weight(.bold))
-                                .foregroundColor(.primary)
-                            Spacer()
-                            // Small text showing kanata code
-                            Text(key.wrappedValue)
-                                .font(.system(.caption, design: .monospaced))
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.horizontal, 16)
+                        Text(KeyDisplayName.display(for: key.wrappedValue))
+                            .font(.body.weight(.semibold))
+                            .foregroundColor(.primary)
+                            .padding(.horizontal, 16)
                     }
                 }
-                .frame(height: 50)
+                .frame(height: fieldHeight)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 10)
+                    RoundedRectangle(cornerRadius: cornerRadius)
                         .stroke(
                             isRecording.wrappedValue ? Color.accentColor : Color.secondary.opacity(0.2),
                             lineWidth: isRecording.wrappedValue ? 2 : 1
                         )
                 )
                 .onTapGesture {
-                    // Allow clicking the field to start recording
-                    if !isRecording.wrappedValue && !anyOtherRecording(except: isRecording) {
+                    if !isRecording.wrappedValue, !anyOtherRecording(except: isRecording) {
                         isRecording.wrappedValue = true
                         startKeyCapture(into: key, isRecording: isRecording)
                     }
@@ -257,11 +228,11 @@ struct CustomRuleEditorView: View {
                     }
                 } label: {
                     Image(systemName: isRecording.wrappedValue ? "stop.fill" : "record.circle")
-                        .font(.title2)
+                        .font(.title3)
                         .foregroundColor(.white)
-                        .frame(width: 50, height: 50)
+                        .frame(width: buttonSize, height: buttonSize)
                         .background(
-                            RoundedRectangle(cornerRadius: 10)
+                            RoundedRectangle(cornerRadius: cornerRadius)
                                 .fill(isRecording.wrappedValue ? Color.red : Color.accentColor)
                         )
                 }
@@ -273,162 +244,159 @@ struct CustomRuleEditorView: View {
     private func anyOtherRecording(except current: Binding<Bool>) -> Bool {
         let allRecordings = [
             $isRecordingInput, $isRecordingOutput,
-            $isRecordingTap, $isRecordingHold,
-            $isRecordingDoubleTap, $isRecordingTapHold
+            $isRecordingHold, $isRecordingDoubleTap, $isRecordingTapHold
         ]
         return allRecordings.contains { $0.wrappedValue && $0.wrappedValue != current.wrappedValue }
     }
 
-    // MARK: - Advanced Section (Tap Dance)
+    // MARK: - Advanced Section
 
     private var advancedSection: some View {
-        DisclosureGroup(isExpanded: $showAdvanced) {
-            VStack(spacing: 16) {
-                // Tap action
-                actionSlot(
-                    label: "On tap",
-                    key: $tapAction,
-                    isRecording: $isRecordingTap
-                )
+        VStack(alignment: .leading, spacing: spacing) {
+            // Toggle for advanced mode - more Mac-native
+            Toggle(isOn: $showAdvanced) {
+                Text("Hold, Double Tap, ...")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+            }
+            .toggleStyle(.switch)
+            .onChange(of: showAdvanced) { _, isExpanded in
+                if !isExpanded {
+                    behavior = nil
+                    holdAction = ""
+                    doubleTapAction = ""
+                    tapHoldAction = ""
+                    tappingTerm = 200
+                }
+            }
 
-                // Hold action
-                actionSlot(
-                    label: "On hold",
-                    key: $holdAction,
-                    isRecording: $isRecordingHold
-                )
+            if showAdvanced {
+                VStack(spacing: spacing) {
+                    // Hold action
+                    actionField(
+                        label: "On Hold",
+                        key: $holdAction,
+                        isRecording: $isRecordingHold
+                    )
 
-                // Double tap action
-                actionSlot(
-                    label: "On double tap",
-                    key: $doubleTapAction,
-                    isRecording: $isRecordingDoubleTap
-                )
+                    // Double tap action
+                    actionField(
+                        label: "Double Tap",
+                        key: $doubleTapAction,
+                        isRecording: $isRecordingDoubleTap
+                    )
 
-                // Tap + hold action
-                actionSlot(
-                    label: "On tap + hold",
-                    key: $tapHoldAction,
-                    isRecording: $isRecordingTapHold
-                )
+                    // Tap + hold action
+                    actionField(
+                        label: "Tap + Hold",
+                        key: $tapHoldAction,
+                        isRecording: $isRecordingTapHold
+                    )
 
-                // Tapping term
-                HStack {
-                    Text("Tapping term (ms)")
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
-                    Spacer()
-                    Stepper(
-                        value: $tappingTerm,
-                        in: 100 ... 400,
-                        step: 25
-                    ) {
-                        Text("\(tappingTerm)")
-                            .font(.system(.body, design: .monospaced))
-                            .frame(width: 50, alignment: .trailing)
+                    // Tapping term - simple text field
+                    HStack(spacing: 12) {
+                        Text("Timing (ms)")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                            .frame(width: 100, alignment: .leading)
+
+                        TextField("200", value: $tappingTerm, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 80)
+                            .onChange(of: tappingTerm) { _, _ in syncBehavior() }
+
+                        Spacer()
+
+                        // Reset button
+                        Button("Reset") {
+                            resetAdvanced()
+                        }
+                        .buttonStyle(.bordered)
                     }
-                    .onChange(of: tappingTerm) { _, _ in syncBehavior() }
                 }
                 .padding(.top, 8)
-            }
-            .padding(.top, 12)
-        } label: {
-            HStack {
-                Text("Tap / Hold Actions")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                if behavior != nil {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.caption)
-                        .foregroundColor(.green)
-                }
-            }
-        }
-        .onChange(of: showAdvanced) { _, isExpanded in
-            if !isExpanded {
-                // Clear behavior when collapsing
-                behavior = nil
-                tapAction = ""
-                holdAction = ""
-                doubleTapAction = ""
-                tapHoldAction = ""
-            } else {
-                // Initialize tap action from output
-                if tapAction.isEmpty {
-                    tapAction = output
-                }
             }
         }
     }
 
     @ViewBuilder
-    private func actionSlot(
+    private func actionField(
         label: String,
         key: Binding<String>,
         isRecording: Binding<Bool>
     ) -> some View {
-        HStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(label)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .frame(width: 110, alignment: .leading)
+                .font(.headline)
+                .foregroundColor(.primary)
 
-            // Action display box
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(NSColor.controlBackgroundColor))
+            HStack(spacing: 12) {
+                // Input field - same size as main fields
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(Color(NSColor.controlBackgroundColor))
 
-                if isRecording.wrappedValue {
-                    Text("Press key...")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 12)
-                } else if key.wrappedValue.isEmpty {
-                    Text("")
-                        .padding(.horizontal, 12)
-                } else {
-                    Text(KeyDisplayName.display(for: key.wrappedValue))
-                        .font(.system(.callout, design: .default).weight(.bold))
-                        .foregroundColor(.primary)
-                        .padding(.horizontal, 12)
+                    if isRecording.wrappedValue {
+                        Text("Press a key...")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 16)
+                    } else if key.wrappedValue.isEmpty {
+                        Text("Optional")
+                            .font(.body)
+                            .foregroundColor(.secondary.opacity(0.4))
+                            .padding(.horizontal, 16)
+                    } else {
+                        Text(KeyDisplayName.display(for: key.wrappedValue))
+                            .font(.body.weight(.semibold))
+                            .foregroundColor(.primary)
+                            .padding(.horizontal, 16)
+                    }
                 }
-            }
-            .frame(height: 36)
-            .frame(maxWidth: .infinity)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(
-                        isRecording.wrappedValue ? Color.accentColor : Color.secondary.opacity(0.2),
-                        lineWidth: isRecording.wrappedValue ? 2 : 1
-                    )
-            )
-            .onTapGesture {
-                if !isRecording.wrappedValue && !anyOtherRecording(except: isRecording) {
-                    isRecording.wrappedValue = true
-                    startKeyCapture(into: key, isRecording: isRecording)
+                .frame(height: fieldHeight)
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .stroke(
+                            isRecording.wrappedValue ? Color.accentColor : Color.secondary.opacity(0.2),
+                            lineWidth: isRecording.wrappedValue ? 2 : 1
+                        )
+                )
+                .onTapGesture {
+                    if !isRecording.wrappedValue, !anyOtherRecording(except: isRecording) {
+                        isRecording.wrappedValue = true
+                        startKeyCapture(into: key, isRecording: isRecording)
+                    }
                 }
-            }
 
-            // Record button
-            Button {
-                if isRecording.wrappedValue {
-                    isRecording.wrappedValue = false
-                } else if !anyOtherRecording(except: isRecording) {
-                    isRecording.wrappedValue = true
-                    startKeyCapture(into: key, isRecording: isRecording)
+                // Record button - same size as main buttons
+                Button {
+                    if isRecording.wrappedValue {
+                        isRecording.wrappedValue = false
+                    } else if !anyOtherRecording(except: isRecording) {
+                        isRecording.wrappedValue = true
+                        startKeyCapture(into: key, isRecording: isRecording)
+                    }
+                } label: {
+                    Image(systemName: isRecording.wrappedValue ? "stop.fill" : "record.circle")
+                        .font(.title3)
+                        .foregroundColor(.white)
+                        .frame(width: buttonSize, height: buttonSize)
+                        .background(
+                            RoundedRectangle(cornerRadius: cornerRadius)
+                                .fill(isRecording.wrappedValue ? Color.red : Color.accentColor)
+                        )
                 }
-            } label: {
-                Image(systemName: isRecording.wrappedValue ? "stop.fill" : "record.circle")
-                    .font(.body)
-                    .foregroundColor(.white)
-                    .frame(width: 36, height: 36)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(isRecording.wrappedValue ? Color.red : Color.accentColor)
-                    )
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
+    }
+
+    private func resetAdvanced() {
+        holdAction = ""
+        doubleTapAction = ""
+        tapHoldAction = ""
+        tappingTerm = 200
+        syncBehavior()
     }
 
     // MARK: - Footer
@@ -446,6 +414,7 @@ struct CustomRuleEditorView: View {
                 saveRule()
             }
             .keyboardShortcut(.defaultAction)
+            .buttonStyle(.borderedProminent)
             .disabled(!canSave)
         }
     }
@@ -471,7 +440,7 @@ struct CustomRuleEditorView: View {
             if let m = monitor {
                 NSEvent.removeMonitor(m)
             }
-            return nil // Consume the event
+            return nil
         }
 
         // Timeout after 10 seconds
@@ -487,99 +456,96 @@ struct CustomRuleEditorView: View {
         let keyCode = event.keyCode
         let modifiers = event.modifierFlags
 
-        // Build modifier prefix
         var prefix = ""
         if modifiers.contains(.command) { prefix += "M-" }
         if modifiers.contains(.control) { prefix += "C-" }
         if modifiers.contains(.option) { prefix += "A-" }
         if modifiers.contains(.shift) { prefix += "S-" }
 
-        // Map key code to kanata name
-        let keyName: String
-        switch keyCode {
-        case 0: keyName = "a"
-        case 1: keyName = "s"
-        case 2: keyName = "d"
-        case 3: keyName = "f"
-        case 4: keyName = "h"
-        case 5: keyName = "g"
-        case 6: keyName = "z"
-        case 7: keyName = "x"
-        case 8: keyName = "c"
-        case 9: keyName = "v"
-        case 11: keyName = "b"
-        case 12: keyName = "q"
-        case 13: keyName = "w"
-        case 14: keyName = "e"
-        case 15: keyName = "r"
-        case 16: keyName = "y"
-        case 17: keyName = "t"
-        case 18: keyName = "1"
-        case 19: keyName = "2"
-        case 20: keyName = "3"
-        case 21: keyName = "4"
-        case 22: keyName = "6"
-        case 23: keyName = "5"
-        case 24: keyName = "="
-        case 25: keyName = "9"
-        case 26: keyName = "7"
-        case 27: keyName = "-"
-        case 28: keyName = "8"
-        case 29: keyName = "0"
-        case 30: keyName = "]"
-        case 31: keyName = "o"
-        case 32: keyName = "u"
-        case 33: keyName = "["
-        case 34: keyName = "i"
-        case 35: keyName = "p"
-        case 36: keyName = "ret"
-        case 37: keyName = "l"
-        case 38: keyName = "j"
-        case 39: keyName = "'"
-        case 40: keyName = "k"
-        case 41: keyName = ";"
-        case 42: keyName = "\\"
-        case 43: keyName = ","
-        case 44: keyName = "/"
-        case 45: keyName = "n"
-        case 46: keyName = "m"
-        case 47: keyName = "."
-        case 48: keyName = "tab"
-        case 49: keyName = "spc"
-        case 50: keyName = "`"
-        case 51: keyName = "bspc"
-        case 53: keyName = "esc"
-        case 55: keyName = "lmet"
-        case 56: keyName = "lsft"
-        case 57: keyName = "caps"
-        case 58: keyName = "lalt"
-        case 59: keyName = "lctl"
-        case 60: keyName = "rsft"
-        case 61: keyName = "ralt"
-        case 62: keyName = "rctl"
-        case 63: keyName = "fn"
-        case 96: keyName = "f5"
-        case 97: keyName = "f6"
-        case 98: keyName = "f7"
-        case 99: keyName = "f3"
-        case 100: keyName = "f8"
-        case 101: keyName = "f9"
-        case 103: keyName = "f11"
-        case 105: keyName = "f13"
-        case 107: keyName = "f14"
-        case 109: keyName = "f10"
-        case 111: keyName = "f12"
-        case 113: keyName = "f15"
-        case 118: keyName = "f4"
-        case 119: keyName = "end"
-        case 120: keyName = "f2"
-        case 121: keyName = "pgdn"
-        case 122: keyName = "f1"
-        case 123: keyName = "left"
-        case 124: keyName = "right"
-        case 125: keyName = "down"
-        case 126: keyName = "up"
-        default: keyName = "k\(keyCode)"
+        let keyName = switch keyCode {
+        case 0: "a"
+        case 1: "s"
+        case 2: "d"
+        case 3: "f"
+        case 4: "h"
+        case 5: "g"
+        case 6: "z"
+        case 7: "x"
+        case 8: "c"
+        case 9: "v"
+        case 11: "b"
+        case 12: "q"
+        case 13: "w"
+        case 14: "e"
+        case 15: "r"
+        case 16: "y"
+        case 17: "t"
+        case 18: "1"
+        case 19: "2"
+        case 20: "3"
+        case 21: "4"
+        case 22: "6"
+        case 23: "5"
+        case 24: "="
+        case 25: "9"
+        case 26: "7"
+        case 27: "-"
+        case 28: "8"
+        case 29: "0"
+        case 30: "]"
+        case 31: "o"
+        case 32: "u"
+        case 33: "["
+        case 34: "i"
+        case 35: "p"
+        case 36: "ret"
+        case 37: "l"
+        case 38: "j"
+        case 39: "'"
+        case 40: "k"
+        case 41: ";"
+        case 42: "\\"
+        case 43: ","
+        case 44: "/"
+        case 45: "n"
+        case 46: "m"
+        case 47: "."
+        case 48: "tab"
+        case 49: "spc"
+        case 50: "`"
+        case 51: "bspc"
+        case 53: "esc"
+        case 55: "lmet"
+        case 56: "lsft"
+        case 57: "caps"
+        case 58: "lalt"
+        case 59: "lctl"
+        case 60: "rsft"
+        case 61: "ralt"
+        case 62: "rctl"
+        case 63: "fn"
+        case 96: "f5"
+        case 97: "f6"
+        case 98: "f7"
+        case 99: "f3"
+        case 100: "f8"
+        case 101: "f9"
+        case 103: "f11"
+        case 105: "f13"
+        case 107: "f14"
+        case 109: "f10"
+        case 111: "f12"
+        case 113: "f15"
+        case 118: "f4"
+        case 119: "end"
+        case 120: "f2"
+        case 121: "pgdn"
+        case 122: "f1"
+        case 123: "left"
+        case 124: "right"
+        case 125: "down"
+        case 126: "up"
+        default: "k\(keyCode)"
         }
 
         return prefix + keyName
@@ -592,17 +558,18 @@ struct CustomRuleEditorView: View {
 
         switch behavior {
         case let .dualRole(dr):
-            tapAction = dr.tapAction
+            // tapAction is the output key, holdAction is stored
             holdAction = dr.holdAction
             tappingTerm = dr.tapTimeout
 
         case let .tapDance(td):
             tappingTerm = td.windowMs
+            // First step is tap (same as output), rest are other actions
             for (index, step) in td.steps.enumerated() {
                 switch index {
-                case 0: tapAction = step.action
+                case 0: break // Tap action = output, already set
                 case 1: doubleTapAction = step.action
-                case 2: holdAction = step.action // Use third step as hold
+                case 2: holdAction = step.action
                 case 3: tapHoldAction = step.action
                 default: break
                 }
@@ -616,21 +583,21 @@ struct CustomRuleEditorView: View {
             return
         }
 
-        // Check if we have any advanced actions configured
-        let hasTap = !tapAction.isEmpty
+        // Tap action is always the output key
+        let hasTap = !output.isEmpty
         let hasHold = !holdAction.isEmpty
         let hasDoubleTap = !doubleTapAction.isEmpty
         let hasTapHold = !tapHoldAction.isEmpty
 
-        if !hasTap && !hasHold && !hasDoubleTap && !hasTapHold {
+        if !hasHold, !hasDoubleTap, !hasTapHold {
             behavior = nil
             return
         }
 
-        // If only tap and hold, use dual-role
-        if hasTap && hasHold && !hasDoubleTap && !hasTapHold {
+        // If only hold action, use dual-role (tap = output, hold = holdAction)
+        if hasHold, !hasDoubleTap, !hasTapHold {
             behavior = .dualRole(DualRoleBehavior(
-                tapAction: tapAction,
+                tapAction: output,
                 holdAction: holdAction,
                 tapTimeout: tappingTerm,
                 holdTimeout: tappingTerm,
@@ -643,7 +610,7 @@ struct CustomRuleEditorView: View {
         // Otherwise use tap-dance
         var steps: [TapDanceStep] = []
         if hasTap {
-            steps.append(TapDanceStep(label: "Single tap", action: tapAction))
+            steps.append(TapDanceStep(label: "Single tap", action: output))
         }
         if hasDoubleTap {
             steps.append(TapDanceStep(label: "Double tap", action: doubleTapAction))
@@ -680,7 +647,6 @@ struct CustomRuleEditorView: View {
             return
         }
 
-        // Sync behavior before saving
         syncBehavior()
 
         let rule = CustomRule(
@@ -694,7 +660,6 @@ struct CustomRuleEditorView: View {
             behavior: behavior
         )
 
-        // Validate with existing rules
         let errors = CustomRuleValidator.validate(rule, existingRules: existingRules)
         if let firstError = errors.first {
             switch firstError {
@@ -721,27 +686,30 @@ struct CustomRuleEditorView: View {
 
 private enum KeyDisplayName {
     static func display(for kanataKey: String) -> String {
-        // Map kanata key names to display names
         let displayNames: [String: String] = [
-            "lmet": "⌘ LCmd",
-            "rmet": "⌘ RCmd",
-            "lctl": "⌃ LCtrl",
-            "rctl": "⌃ RCtrl",
-            "lalt": "⌥ LOpt",
-            "ralt": "⌥ ROpt",
-            "lsft": "⇧ LShift",
-            "rsft": "⇧ RShift",
-            "caps": "⇪ Caps",
+            // Special combo modifiers
+            "hyper": "✦ Hyper",
+            "meh": "✧ Meh",
+            // Standard modifiers
+            "lmet": "⌘ Cmd",
+            "rmet": "⌘ Cmd",
+            "lctl": "⌃ Ctrl",
+            "rctl": "⌃ Ctrl",
+            "lalt": "⌥ Opt",
+            "ralt": "⌥ Opt",
+            "lsft": "⇧ Shift",
+            "rsft": "⇧ Shift",
+            "caps": "⇪ Caps Lock",
             "tab": "⇥ Tab",
             "ret": "↩ Return",
             "spc": "Space",
             "bspc": "⌫ Delete",
             "del": "⌦ Fwd Del",
-            "esc": "⎋ Esc",
-            "up": "↑",
-            "down": "↓",
-            "left": "←",
-            "right": "→",
+            "esc": "⎋ Escape",
+            "up": "↑ Up",
+            "down": "↓ Down",
+            "left": "← Left",
+            "right": "→ Right",
             "pgup": "Page Up",
             "pgdn": "Page Down",
             "home": "Home",
@@ -751,12 +719,11 @@ private enum KeyDisplayName {
             "f5": "F5", "f6": "F6", "f7": "F7", "f8": "F8",
             "f9": "F9", "f10": "F10", "f11": "F11", "f12": "F12",
             "f13": "F13", "f14": "F14", "f15": "F15",
-            "brdn": "🔅", "brup": "🔆",
-            "mute": "🔇", "vold": "🔉", "volu": "🔊",
-            "prev": "⏮", "pp": "⏯", "next": "⏭"
+            "brdn": "🔅 Brightness Down", "brup": "🔆 Brightness Up",
+            "mute": "🔇 Mute", "vold": "🔉 Volume Down", "volu": "🔊 Volume Up",
+            "prev": "⏮ Previous", "pp": "⏯ Play/Pause", "next": "⏭ Next"
         ]
 
-        // Handle modifier prefixes
         var result = kanataKey
         var modPrefix = ""
 
@@ -782,7 +749,7 @@ private enum KeyDisplayName {
         if modPrefix.isEmpty {
             return baseName
         } else {
-            return "\(modPrefix)\(baseName)"
+            return "\(modPrefix) \(baseName)"
         }
     }
 }

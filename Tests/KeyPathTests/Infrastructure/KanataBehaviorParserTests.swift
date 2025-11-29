@@ -167,4 +167,62 @@ struct KanataBehaviorParserTests {
         #expect(KanataBehaviorParser.parse("(unknown 1 2 3)") == nil)
         #expect(KanataBehaviorParser.parse("") == nil)
     }
+
+    // MARK: - Multi-Key Actions
+
+    @Test("tap-hold with multi hold action parses correctly")
+    func tapHoldWithMultiHold() {
+        let result = KanataBehaviorParser.parse("(tap-hold 200 200 esc (multi lctl lmet lalt lsft))")
+
+        guard case let .dualRole(dr) = result else {
+            Issue.record("Expected dualRole")
+            return
+        }
+
+        #expect(dr.tapAction == "esc")
+        #expect(dr.holdAction == "(multi lctl lmet lalt lsft)")
+        #expect(dr.tapTimeout == 200)
+        #expect(dr.holdTimeout == 200)
+    }
+
+    @Test("tap-dance with multi action parses correctly")
+    func tapDanceWithMulti() {
+        let result = KanataBehaviorParser.parse("(tap-dance 200 (esc (multi lctl lmet lalt lsft)))")
+
+        guard case let .tapDance(td) = result else {
+            Issue.record("Expected tapDance")
+            return
+        }
+
+        #expect(td.windowMs == 200)
+        #expect(td.steps.count == 2)
+        #expect(td.steps[0].action == "esc")
+        #expect(td.steps[1].action == "(multi lctl lmet lalt lsft)")
+    }
+
+    @Test("Hyper round-trips through render and parse")
+    func hyperRoundTrip() {
+        // Render hyper
+        let original = DualRoleBehavior(
+            tapAction: "esc",
+            holdAction: "hyper"
+        )
+        let mapping = KeyMapping(input: "caps", output: "caps", behavior: .dualRole(original))
+        let rendered = KanataBehaviorRenderer.render(mapping)
+
+        // Verify it expanded
+        #expect(rendered == "(tap-hold 200 200 esc (multi lctl lmet lalt lsft))")
+
+        // Parse it back
+        let parsed = KanataBehaviorParser.parse(rendered)
+
+        guard case let .dualRole(dr) = parsed else {
+            Issue.record("Expected dualRole after round-trip")
+            return
+        }
+
+        // Hold action is stored as the expanded form
+        #expect(dr.tapAction == "esc")
+        #expect(dr.holdAction == "(multi lctl lmet lalt lsft)")
+    }
 }
