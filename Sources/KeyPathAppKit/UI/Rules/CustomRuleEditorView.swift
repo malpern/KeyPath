@@ -689,7 +689,7 @@ private enum KeyDisplayName {
         let displayNames: [String: String] = [
             // Special combo modifiers
             "hyper": "✦ Hyper",
-            "meh": "✧ Meh",
+            "meh": "◇ Meh",
             // Standard modifiers
             "lmet": "⌘ Cmd",
             "rmet": "⌘ Cmd",
