@@ -4,7 +4,6 @@ import Foundation
 
 /// Renders `MappingBehavior` values to Kanata configuration syntax.
 public enum KanataBehaviorRenderer {
-
     /// Render a mapping's behavior (or simple output) to Kanata syntax.
     /// - Parameters:
     ///   - mapping: The key mapping to render.
@@ -34,16 +33,15 @@ public enum KanataBehaviorRenderer {
         let holdTimeout = dr.holdTimeout
 
         // Choose variant based on flags
-        let variant: String
-        if dr.activateHoldOnOtherKey {
+        let variant = if dr.activateHoldOnOtherKey {
             // tap-hold-press: hold triggers on any other key press
-            variant = "tap-hold-press"
+            "tap-hold-press"
         } else if dr.quickTap {
             // tap-hold-release: hold triggers on release of another key
-            variant = "tap-hold-release"
+            "tap-hold-release"
         } else {
             // Basic tap-hold: pure timeout-based
-            variant = "tap-hold"
+            "tap-hold"
         }
 
         return "(\(variant) \(tapTimeout) \(holdTimeout) \(tapAction) \(holdAction))"
@@ -67,4 +65,3 @@ public enum KanataBehaviorRenderer {
         return "(tap-dance \(td.windowMs) (\(actions.joined(separator: " "))))"
     }
 }
-

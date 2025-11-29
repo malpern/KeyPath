@@ -3,11 +3,32 @@ import Foundation
 // MARK: - Kanata Behavior Parser
 
 /// Parses KeyPath-generated Kanata syntax back into `MappingBehavior` values.
-/// This is a scoped parser that only understands the syntax we emit, not arbitrary Kanata configs.
+///
+/// This is a **scoped parser** that only understands the syntax we emit, not arbitrary Kanata configs.
+/// It's designed for round-tripping: `render(mapping)` → `parse(result)` should produce equivalent behavior.
+///
+/// ## Supported Syntax
+///
+/// **Tap-Hold variants:**
+/// - `(tap-hold tapTimeout holdTimeout tapAction holdAction)`
+/// - `(tap-hold-press tapTimeout holdTimeout tapAction holdAction)`
+/// - `(tap-hold-release tapTimeout holdTimeout tapAction holdAction)`
+///
+/// **Tap-Dance:**
+/// - `(tap-dance windowMs (action1 action2 ...))`
+///
+/// ## Limitations
+///
+/// - Does not parse nested behaviors (e.g., tap-hold inside tap-dance)
+/// - Does not handle Kanata's full action syntax (macros, layers, etc.)
+/// - Returns `nil` for any unrecognized syntax
 public enum KanataBehaviorParser {
-
-    /// Attempt to parse a Kanata action string into a MappingBehavior.
-    /// Returns nil if the string is a simple key (no behavior) or unrecognized syntax.
+    /// Attempt to parse a Kanata action string into a `MappingBehavior`.
+    ///
+    /// - Parameter action: The Kanata action string (e.g., `"(tap-hold 200 200 a lctl)"`)
+    /// - Returns: A `MappingBehavior` if the syntax is recognized, `nil` otherwise.
+    ///
+    /// Simple keys (e.g., `"esc"`, `"M-c"`) return `nil` since they don't have advanced behavior.
     public static func parse(_ action: String) -> MappingBehavior? {
         let trimmed = action.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -62,7 +83,8 @@ public enum KanataBehaviorParser {
         guard tokens.count >= 4 else { return nil }
 
         guard let tapTimeout = Int(tokens[0]),
-              let holdTimeout = Int(tokens[1]) else {
+              let holdTimeout = Int(tokens[1])
+        else {
             return nil
         }
 
@@ -88,10 +110,11 @@ public enum KanataBehaviorParser {
     /// Parse tap-dance syntax.
     /// Format: (tap-dance windowMs (action1 action2 ...))
     private static func parseTapDance(_ action: String) -> TapDanceBehavior? {
-        guard action.hasPrefix("(tap-dance ") else { return nil }
+        let prefix = "(tap-dance "
+        guard action.hasPrefix(prefix) else { return nil }
 
         // Remove outer parens and "tap-dance "
-        let prefixLen = 12 // "(tap-dance "
+        let prefixLen = prefix.count // 11 characters
         guard action.count > prefixLen + 1 else { return nil }
 
         let start = action.index(action.startIndex, offsetBy: prefixLen)
@@ -167,4 +190,3 @@ public enum KanataBehaviorParser {
         return tokens.filter { !$0.isEmpty }
     }
 }
-

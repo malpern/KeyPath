@@ -15,6 +15,9 @@ public enum MappingBehavior: Codable, Equatable, Sendable {
 // MARK: - Dual Role
 
 /// Settings for a tap-hold (dual-role) key.
+///
+/// When both `activateHoldOnOtherKey` and `quickTap` are true, `activateHoldOnOtherKey`
+/// takes precedence and the renderer emits `tap-hold-press`.
 public struct DualRoleBehavior: Codable, Equatable, Sendable {
     /// Action when tapped (e.g., "a", "esc", or a macro string).
     public var tapAction: String
@@ -22,21 +25,18 @@ public struct DualRoleBehavior: Codable, Equatable, Sendable {
     /// Action when held (e.g., "lctl", "lmet", or layer switch).
     public var holdAction: String
 
-    /// Milliseconds before a press is considered a hold. Default 200.
+    /// Milliseconds before a press is considered a hold. Default 200. Must be > 0.
     public var tapTimeout: Int
 
-    /// Milliseconds for the hold to fully activate. Default 200.
+    /// Milliseconds for the hold to fully activate. Default 200. Must be > 0.
     public var holdTimeout: Int
-
-    /// Per-state timeout overrides (optional). Keys are state names like "tap", "hold".
-    public var stateOverrides: [String: Int]?
 
     /// If true, any other key press while waiting triggers the hold action early.
     /// Maps to Kanata's `tap-hold-press` variant.
     public var activateHoldOnOtherKey: Bool
 
     /// If true, releasing before timeout still triggers tap even if another key was pressed.
-    /// Maps to Kanata's quick-tap / permissive-hold behavior.
+    /// Maps to Kanata's `tap-hold-release` variant (quick-tap / permissive-hold behavior).
     public var quickTap: Bool
 
     public init(
@@ -44,17 +44,21 @@ public struct DualRoleBehavior: Codable, Equatable, Sendable {
         holdAction: String,
         tapTimeout: Int = 200,
         holdTimeout: Int = 200,
-        stateOverrides: [String: Int]? = nil,
         activateHoldOnOtherKey: Bool = false,
         quickTap: Bool = false
     ) {
         self.tapAction = tapAction
         self.holdAction = holdAction
-        self.tapTimeout = tapTimeout
-        self.holdTimeout = holdTimeout
-        self.stateOverrides = stateOverrides
+        // Clamp to minimum of 1ms to prevent invalid configs
+        self.tapTimeout = max(1, tapTimeout)
+        self.holdTimeout = max(1, holdTimeout)
         self.activateHoldOnOtherKey = activateHoldOnOtherKey
         self.quickTap = quickTap
+    }
+
+    /// Returns true if the configuration is valid for rendering.
+    public var isValid: Bool {
+        !tapAction.isEmpty && !holdAction.isEmpty && tapTimeout > 0 && holdTimeout > 0
     }
 }
 
@@ -62,15 +66,22 @@ public struct DualRoleBehavior: Codable, Equatable, Sendable {
 
 /// Settings for a tap-dance key.
 public struct TapDanceBehavior: Codable, Equatable, Sendable {
-    /// Time window (ms) to register additional taps. Default 200.
+    /// Time window (ms) to register additional taps. Default 200. Must be > 0.
     public var windowMs: Int
 
     /// Ordered list of actions for each tap count (index 0 = single tap, 1 = double, etc.).
+    /// Must have at least one step with a non-empty action.
     public var steps: [TapDanceStep]
 
     public init(windowMs: Int = 200, steps: [TapDanceStep]) {
-        self.windowMs = windowMs
+        // Clamp to minimum of 1ms to prevent invalid configs
+        self.windowMs = max(1, windowMs)
         self.steps = steps
+    }
+
+    /// Returns true if the configuration is valid for rendering.
+    public var isValid: Bool {
+        windowMs > 0 && steps.contains { !$0.action.isEmpty }
     }
 }
 
@@ -116,4 +127,3 @@ public extension TapDanceBehavior {
         )
     }
 }
-

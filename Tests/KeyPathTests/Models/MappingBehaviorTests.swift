@@ -1,10 +1,9 @@
 import Foundation
-import Testing
 @testable import KeyPathAppKit
+import Testing
 
 @Suite("MappingBehavior")
 struct MappingBehaviorTests {
-
     // MARK: - DualRoleBehavior
 
     @Test("DualRoleBehavior encodes and decodes")
@@ -14,7 +13,6 @@ struct MappingBehaviorTests {
             holdAction: "lctl",
             tapTimeout: 180,
             holdTimeout: 220,
-            stateOverrides: ["hold": 250],
             activateHoldOnOtherKey: true,
             quickTap: true
         )
@@ -26,7 +24,6 @@ struct MappingBehaviorTests {
         #expect(decoded.holdAction == "lctl")
         #expect(decoded.tapTimeout == 180)
         #expect(decoded.holdTimeout == 220)
-        #expect(decoded.stateOverrides?["hold"] == 250)
         #expect(decoded.activateHoldOnOtherKey == true)
         #expect(decoded.quickTap == true)
     }
@@ -37,7 +34,6 @@ struct MappingBehaviorTests {
 
         #expect(behavior.tapTimeout == 200)
         #expect(behavior.holdTimeout == 200)
-        #expect(behavior.stateOverrides == nil)
         #expect(behavior.activateHoldOnOtherKey == false)
         #expect(behavior.quickTap == false)
     }
@@ -157,5 +153,102 @@ struct MappingBehaviorTests {
             Issue.record("Expected dualRole behavior")
         }
     }
-}
 
+    // MARK: - CustomRule integration
+
+    @Test("CustomRule with behavior round-trips")
+    func customRuleWithBehavior() throws {
+        let rule = CustomRule(
+            title: "Home Row A",
+            input: "a",
+            output: "a",
+            behavior: .dualRole(DualRoleBehavior.homeRowMod(letter: "a", modifier: "lctl"))
+        )
+
+        let data = try JSONEncoder().encode(rule)
+        let decoded = try JSONDecoder().decode(CustomRule.self, from: data)
+
+        #expect(decoded.title == "Home Row A")
+        #expect(decoded.behavior != nil)
+
+        if case let .dualRole(dr) = decoded.behavior {
+            #expect(dr.tapAction == "a")
+            #expect(dr.holdAction == "lctl")
+        } else {
+            Issue.record("Expected dualRole behavior")
+        }
+    }
+
+    @Test("CustomRule.asKeyMapping passes behavior through")
+    func customRuleAsKeyMapping() {
+        let behavior = MappingBehavior.dualRole(
+            DualRoleBehavior(tapAction: "s", holdAction: "lalt")
+        )
+        let rule = CustomRule(
+            input: "s",
+            output: "s",
+            behavior: behavior
+        )
+
+        let mapping = rule.asKeyMapping()
+
+        #expect(mapping.input == "s")
+        #expect(mapping.behavior == behavior)
+    }
+
+    @Test("CustomRule without behavior decodes from legacy JSON")
+    func customRuleLegacyDecode() throws {
+        let legacyJSON = """
+        {
+            "id": "22222222-2222-2222-2222-222222222222",
+            "title": "Test",
+            "input": "caps",
+            "output": "esc",
+            "isEnabled": true,
+            "createdAt": 0
+        }
+        """
+        let data = legacyJSON.data(using: .utf8)!
+        let rule = try JSONDecoder().decode(CustomRule.self, from: data)
+
+        #expect(rule.input == "caps")
+        #expect(rule.output == "esc")
+        #expect(rule.behavior == nil)
+    }
+
+    // MARK: - Validation
+
+    @Test("DualRoleBehavior.isValid returns true for valid config")
+    func dualRoleValidation() {
+        let valid = DualRoleBehavior(tapAction: "a", holdAction: "lctl")
+        #expect(valid.isValid == true)
+    }
+
+    @Test("DualRoleBehavior.isValid returns false when tapAction mutated to empty")
+    func dualRoleInvalidTapAction() {
+        var behavior = DualRoleBehavior(tapAction: "a", holdAction: "lctl")
+        behavior.tapAction = ""
+        #expect(behavior.isValid == false)
+    }
+
+    @Test("TapDanceBehavior.isValid returns true for valid config")
+    func tapDanceValidation() {
+        let valid = TapDanceBehavior.twoStep(singleTap: "a", doubleTap: "b")
+        #expect(valid.isValid == true)
+    }
+
+    @Test("TapDanceBehavior.isValid returns false for empty steps")
+    func tapDanceEmptySteps() {
+        // Create valid then mutate to avoid assert
+        var behavior = TapDanceBehavior.twoStep(singleTap: "a", doubleTap: "b")
+        behavior.steps = []
+        #expect(behavior.isValid == false)
+    }
+
+    @Test("TapDanceBehavior.isValid returns false when all actions empty")
+    func tapDanceEmptyActions() {
+        var behavior = TapDanceBehavior.twoStep(singleTap: "a", doubleTap: "b")
+        behavior.steps = [TapDanceStep(label: "Single", action: "")]
+        #expect(behavior.isValid == false)
+    }
+}

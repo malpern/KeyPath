@@ -56,6 +56,10 @@ struct MappingBehaviorEditor: View {
                     if tapAction.isEmpty {
                         tapAction = output
                     }
+                    // Initialize tap-dance with at least one step if empty
+                    if tapDanceSteps.isEmpty {
+                        tapDanceSteps = [TapDanceStep(label: "Single tap", action: output)]
+                    }
                     syncBehaviorFromState()
                 }
             }
@@ -294,7 +298,7 @@ struct MappingBehaviorEditor: View {
     }
 
     private var previewSyntax: String {
-        guard let behavior = behavior else { return output }
+        guard let behavior else { return output }
 
         // Create a temporary mapping to render
         let mapping = KeyMapping(input: "x", output: output, behavior: behavior)
@@ -304,7 +308,7 @@ struct MappingBehaviorEditor: View {
     // MARK: - State Sync
 
     private func initializeFromBehavior() {
-        guard let behavior = behavior else {
+        guard let behavior else {
             mode = .simple
             return
         }
@@ -368,7 +372,7 @@ struct MappingBehaviorEditor: View {
 #Preview {
     struct PreviewWrapper: View {
         @State var output = "esc"
-        @State var behavior: MappingBehavior? = nil
+        @State var behavior: MappingBehavior?
 
         var body: some View {
             MappingBehaviorEditor(output: $output, behavior: $behavior)
@@ -378,4 +382,3 @@ struct MappingBehaviorEditor: View {
     }
     return PreviewWrapper()
 }
-

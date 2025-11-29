@@ -1,10 +1,9 @@
 import Foundation
-import Testing
 @testable import KeyPathAppKit
+import Testing
 
 @Suite("KanataBehaviorParser")
 struct KanataBehaviorParserTests {
-
     // MARK: - Simple Keys (no behavior)
 
     @Test("Simple key returns nil")
@@ -169,4 +168,3 @@ struct KanataBehaviorParserTests {
         #expect(KanataBehaviorParser.parse("") == nil)
     }
 }
-

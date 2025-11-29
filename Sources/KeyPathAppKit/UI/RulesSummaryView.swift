@@ -59,12 +59,6 @@ struct RulesTabView: View {
     }
 
     var body: some View {
-        // Debug: log customRules on each render with object identity
-        let _ = AppLogger.shared.log("📋 [RulesTabView] body: customRules.count=\(kanataManager.customRules.count), vmID=\(ObjectIdentifier(kanataManager))")
-        let _ = kanataManager.customRules.forEach { rule in
-            AppLogger.shared.log("📋 [RulesTabView]   - '\(rule.input)' → '\(rule.output)'")
-        }
-
         VStack(spacing: 0) {
             // Top Action Bar
             HStack(spacing: 12) {
@@ -264,11 +258,10 @@ struct RulesTabView: View {
         let inputDisplay = formatKeyWithSymbol(inputKey)
 
         // Check for pending toggle first, then pending selection, then actual state
-        let effectiveEnabled: Bool
-        if let pendingToggle = pendingToggles[collection.id] {
-            effectiveEnabled = pendingToggle
+        let effectiveEnabled: Bool = if let pendingToggle = pendingToggles[collection.id] {
+            pendingToggle
         } else {
-            effectiveEnabled = collection.isEnabled
+            collection.isEnabled
         }
 
         // If collection is OFF, show "→ ?"
@@ -277,11 +270,10 @@ struct RulesTabView: View {
         }
 
         // Check for pending selection (immediate UI feedback)
-        let effectiveOutput: String
-        if let pending = pendingSelections[collection.id] {
-            effectiveOutput = pending
+        let effectiveOutput: String = if let pending = pendingSelections[collection.id] {
+            pending
         } else {
-            effectiveOutput = collection.selectedOutput ?? collection.presetOptions.first?.output ?? ""
+            collection.selectedOutput ?? collection.presetOptions.first?.output ?? ""
         }
 
         // Get label for the output
@@ -467,9 +459,6 @@ private struct ExpandableCollectionRow: View {
 
             // Expanded Mappings or Zero State
             if isExpanded {
-                // Log for debugging
-                let _ = AppLogger.shared.log("📋 [ExpandableCollectionRow] \(name): showZeroState=\(showZeroState), mappings.count=\(mappings.count)")
-
                 if showZeroState, mappings.isEmpty, let onCreate = onCreateFirstRule {
                     // Zero State - only show if BOTH showZeroState is true AND mappings is actually empty
                     VStack(spacing: 12) {

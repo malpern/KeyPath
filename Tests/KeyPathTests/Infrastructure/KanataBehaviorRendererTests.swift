@@ -1,10 +1,9 @@
 import Foundation
-import Testing
 @testable import KeyPathAppKit
+import Testing
 
 @Suite("KanataBehaviorRenderer")
 struct KanataBehaviorRendererTests {
-
     // MARK: - Simple Output (no behavior)
 
     @Test("Simple mapping renders output directly")
@@ -95,6 +94,23 @@ struct KanataBehaviorRendererTests {
         #expect(result == "(tap-hold-press 200 200 d lsft)")
     }
 
+    @Test("Both flags set: activateHoldOnOtherKey takes precedence")
+    func bothFlagsSet() {
+        let mapping = KeyMapping(
+            input: "a",
+            output: "a",
+            behavior: .dualRole(DualRoleBehavior(
+                tapAction: "a",
+                holdAction: "lctl",
+                activateHoldOnOtherKey: true,
+                quickTap: true
+            ))
+        )
+        let result = KanataBehaviorRenderer.render(mapping)
+        // activateHoldOnOtherKey takes precedence over quickTap
+        #expect(result == "(tap-hold-press 200 200 a lctl)")
+    }
+
     // MARK: - Tap Dance
 
     @Test("Two-step tap-dance renders correctly")
@@ -156,5 +172,49 @@ struct KanataBehaviorRendererTests {
         // "escape" -> "esc", "command" -> "lmet"
         #expect(result == "(tap-hold 200 200 esc lmet)")
     }
-}
 
+    // MARK: - Integration: CustomRule → KeyMapping → Kanata
+
+    @Test("CustomRule with dualRole behavior renders correctly")
+    func customRuleIntegration() {
+        let rule = CustomRule(
+            title: "Home Row A",
+            input: "a",
+            output: "a",
+            behavior: .dualRole(DualRoleBehavior.homeRowMod(letter: "a", modifier: "lctl"))
+        )
+
+        let mapping = rule.asKeyMapping()
+        let result = KanataBehaviorRenderer.render(mapping)
+
+        #expect(result == "(tap-hold-press 200 200 a lctl)")
+    }
+
+    @Test("CustomRule with tapDance behavior renders correctly")
+    func customRuleTapDanceIntegration() {
+        let rule = CustomRule(
+            title: "Caps Escape/CapsLock",
+            input: "caps",
+            output: "esc",
+            behavior: .tapDance(TapDanceBehavior.twoStep(singleTap: "esc", doubleTap: "caps"))
+        )
+
+        let mapping = rule.asKeyMapping()
+        let result = KanataBehaviorRenderer.render(mapping)
+
+        #expect(result == "(tap-dance 200 (esc caps))")
+    }
+
+    @Test("CustomRule without behavior renders simple output")
+    func customRuleSimpleIntegration() {
+        let rule = CustomRule(
+            input: "caps",
+            output: "esc"
+        )
+
+        let mapping = rule.asKeyMapping()
+        let result = KanataBehaviorRenderer.render(mapping)
+
+        #expect(result == "esc")
+    }
+}
