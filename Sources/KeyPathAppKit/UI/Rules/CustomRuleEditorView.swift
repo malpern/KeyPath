@@ -20,6 +20,7 @@ struct CustomRuleEditorView: View {
     @FocusState private var inputFieldFocused: Bool
     @FocusState private var outputFieldFocused: Bool
     @State private var showDeleteConfirmation = false
+    @State private var behavior: MappingBehavior?
     private let existingRule: CustomRule?
     private let existingRules: [CustomRule]
     private let mode: Mode
@@ -42,6 +43,7 @@ struct CustomRuleEditorView: View {
             _output = State(initialValue: rule.output)
             _notes = State(initialValue: rule.notes ?? "")
             _isEnabled = State(initialValue: rule.isEnabled)
+            _behavior = State(initialValue: rule.behavior)
             mode = .edit
         } else {
             _title = State(initialValue: "")
@@ -49,6 +51,7 @@ struct CustomRuleEditorView: View {
             _output = State(initialValue: "")
             _notes = State(initialValue: "")
             _isEnabled = State(initialValue: true)
+            _behavior = State(initialValue: nil)
             mode = .create
         }
     }
@@ -192,6 +195,15 @@ struct CustomRuleEditorView: View {
                         .font(.caption)
                         .foregroundColor(.red)
                 }
+
+                // Behavior editor (Simple/Advanced toggle)
+                Divider()
+                    .padding(.vertical, 4)
+
+                MappingBehaviorEditor(output: $output, behavior: $behavior)
+
+                Divider()
+                    .padding(.vertical, 4)
 
                 Toggle("Enabled", isOn: $isEnabled)
 
@@ -354,7 +366,8 @@ struct CustomRuleEditorView: View {
             output: trimmedOutput,
             isEnabled: isEnabled,
             notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
-            createdAt: existingRule?.createdAt ?? Date()
+            createdAt: existingRule?.createdAt ?? Date(),
+            behavior: behavior
         )
 
         // Validate the rule including conflict checking

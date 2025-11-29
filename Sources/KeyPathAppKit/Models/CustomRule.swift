@@ -9,6 +9,8 @@ public struct CustomRule: Identifiable, Codable, Equatable, Sendable {
     public var isEnabled: Bool
     public var notes: String?
     public var createdAt: Date
+    /// Advanced behavior (tap-hold, tap-dance). Nil means simple remap.
+    public var behavior: MappingBehavior?
 
     public init(
         id: UUID = UUID(),
@@ -17,7 +19,8 @@ public struct CustomRule: Identifiable, Codable, Equatable, Sendable {
         output: String,
         isEnabled: Bool = true,
         notes: String? = nil,
-        createdAt: Date = Date()
+        createdAt: Date = Date(),
+        behavior: MappingBehavior? = nil
     ) {
         self.id = id
         self.title = title
@@ -26,6 +29,7 @@ public struct CustomRule: Identifiable, Codable, Equatable, Sendable {
         self.isEnabled = isEnabled
         self.notes = notes
         self.createdAt = createdAt
+        self.behavior = behavior
     }
 }
 
@@ -45,7 +49,7 @@ public extension CustomRule {
     }
 
     func asKeyMapping() -> KeyMapping {
-        KeyMapping(id: id, input: input, output: output)
+        KeyMapping(id: id, input: input, output: output, behavior: behavior)
     }
 
     func asRuleCollection() -> RuleCollection {
