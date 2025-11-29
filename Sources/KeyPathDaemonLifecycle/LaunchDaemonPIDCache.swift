@@ -36,6 +36,13 @@ public actor LaunchDaemonPIDCache {
 
     /// Get cached PID or fetch fresh one with timeout protection
     public func getCachedPID() async -> pid_t? {
+        // Test seam: skip real launchctl in test environment to avoid detecting
+        // actual running daemons which would interfere with mocked test scenarios
+        if TestEnvironment.isRunningTests {
+            AppLogger.shared.log("🧪 [PIDCache] Test environment - returning nil (no real process detection)")
+            return nil
+        }
+
         // Check if cache is still valid
         if let lastUpdate,
            let cachedPID,

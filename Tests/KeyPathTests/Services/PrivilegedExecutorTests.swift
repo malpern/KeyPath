@@ -27,11 +27,13 @@ final class PrivilegedExecutorTests: XCTestCase {
     // MARK: - AppleScript Escaping Tests
 
     func testEscapeForAppleScriptEscapesQuotes() {
-        let command = "echo 'hello world'"
-        let escaped = executor.escapeForAppleScript(command)
+        // AppleScript only requires escaping backslashes and double quotes
+        // Single quotes don't need escaping
+        let commandWithDoubleQuotes = "echo \"hello world\""
+        let escaped = executor.escapeForAppleScript(commandWithDoubleQuotes)
 
-        XCTAssertNotEqual(escaped, command, "Should escape special characters")
-        XCTAssertTrue(escaped.contains("\\"), "Should contain escape characters")
+        XCTAssertNotEqual(escaped, commandWithDoubleQuotes, "Should escape double quotes")
+        XCTAssertTrue(escaped.contains("\\\""), "Should contain escaped double quotes")
     }
 
     func testEscapeForAppleScriptHandlesSpecialCharacters() {
@@ -53,16 +55,17 @@ final class PrivilegedExecutorTests: XCTestCase {
     // MARK: - Command Execution Tests (Test Mode)
 
     func testExecuteWithPrivilegesInTestMode() {
-        // In test mode, should handle gracefully
+        // In test mode, behavior depends on environment:
+        // - If shouldSkipAdminOperations=true: returns (true, "Skipped in test mode")
+        // - If useSudoForPrivilegedOps=true (sudoers auto-detected): actually runs sudo
+        // - Otherwise: runs osascript (would show dialog, likely fails in headless test)
         let result = executor.executeWithPrivileges(
             command: "echo test",
             prompt: "Test prompt"
         )
 
-        // Should return a result (may succeed or fail in test mode)
-        XCTAssertNotNil(result, "Should return a result")
-        XCTAssertTrue(result.success == true || result.success == false, "Should return success boolean")
-        XCTAssertFalse(result.output.isEmpty || !result.output.isEmpty, "Should have output (may be empty)")
+        // Should return a result without crashing - success depends on environment config
+        XCTAssertFalse(result.output.isEmpty, "Should have some output (even if error message)")
     }
 
     func testExecuteWithSudoInTestMode() {
