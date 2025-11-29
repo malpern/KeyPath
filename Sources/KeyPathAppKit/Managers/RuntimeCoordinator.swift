@@ -1116,6 +1116,12 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         // Notify ViewModel of state change so UI updates
         notifyStateChanged()
 
+        // Skip TCP/service operations in test environment to avoid timeouts
+        guard !TestEnvironment.isRunningTests else {
+            AppLogger.shared.log("🧪 [Reset] Test environment - skipping TCP reload")
+            return
+        }
+
         // Apply changes immediately via TCP reload if service is running
         let serviceState = await kanataService.refreshStatus()
         if serviceState.isRunning {

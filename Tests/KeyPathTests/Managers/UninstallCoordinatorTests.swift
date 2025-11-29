@@ -4,6 +4,17 @@ import XCTest
 
 @MainActor
 final class UninstallCoordinatorTests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        // Skip real XPC calls in tests to avoid timeouts
+        HelperManager.testHelperFunctionalityOverride = { false }
+    }
+
+    override func tearDown() {
+        HelperManager.testHelperFunctionalityOverride = nil
+        super.tearDown()
+    }
+
     func testUninstallRemovesPathsAndLogsSuccess() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(
             "keypath-uninstall-\(UUID().uuidString)")
