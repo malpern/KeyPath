@@ -86,10 +86,10 @@ Compared to the <<cmd>> action, `push-msg` offers:
   nav-mode (layer-switch nav)
 )
 
-;; Combine push-msg with other actions
+;; Combine push-msg with other actions (use full app name in alias)
 (defalias
-  launch-term (multi
-    (push-msg "app:launch:terminal")
+  launch-terminal (multi
+    (push-msg "launch:terminal")
     (layer-switch base)
   )
 )

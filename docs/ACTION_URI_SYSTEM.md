@@ -5,33 +5,61 @@ KeyPath supports a URI-based action system that enables:
 2. **Deep linking** - External tools (Raycast, LeaderKey, Alfred) can invoke KeyPath actions
 3. **Extensibility** - Add new action types without protocol changes
 
-## URI Format
+## Syntax Formats
+
+KeyPath accepts **two equivalent syntaxes**:
+
+| Context | Format | Example |
+|---------|--------|---------|
+| **Kanata config** | Shorthand (colon) | `launch:obsidian` |
+| **Deep links** | Full URI | `keypath://launch/Obsidian` |
+
+### Shorthand Syntax (Recommended for Configs)
+
+```
+[action]:[target][:[subpath]][?query=params]
+```
+
+- Use **lowercase** - resolves to Title Case in UI
+- Colons separate action, target, and subpaths
+- Query params use standard `?key=value` syntax
+
+```lisp
+(push-msg "launch:obsidian")           ;; → launches "Obsidian"
+(push-msg "layer:nav:activate")        ;; → layer "nav", subpath "activate"
+(push-msg "notify:?title=Saved")       ;; → notification with title
+```
+
+### Full URI Syntax (For Deep Links)
 
 ```
 keypath://[action]/[target][/subpath...][?query=params]
 ```
 
-| Component | Description | Example |
-|-----------|-------------|---------|
-| `action` | The action type | `launch`, `layer`, `notify` |
-| `target` | Primary target | `obsidian`, `nav`, `vim-mode` |
-| `subpath` | Additional path segments | `/fired`, `/activate` |
-| `query` | Key-value parameters | `?title=Hello&sound=pop` |
+Used by external tools (Terminal, Raycast, Alfred):
+
+```bash
+open "keypath://launch/Obsidian"
+open "keypath://notify?title=Hello&body=World"
+```
 
 ## Supported Actions
 
-### `keypath://launch/{app}`
+### `launch:{app}` / `keypath://launch/{app}`
 
 Launch an application by name or bundle identifier.
 
+**Kanata config (shorthand):**
 ```lisp
-;; By app name
-(push-msg "keypath://launch/Obsidian")
-(push-msg "keypath://launch/Terminal")
+(push-msg "launch:obsidian")
+(push-msg "launch:terminal")
+(push-msg "launch:visual studio code")
+```
 
-;; By bundle identifier
-(push-msg "keypath://launch/com.apple.Terminal")
-(push-msg "keypath://launch/md.obsidian")
+**Deep link (full URI):**
+```bash
+open "keypath://launch/Obsidian"
+open "keypath://launch/com.apple.Terminal"
 ```
 
 **Resolution order:**
@@ -40,38 +68,43 @@ Launch an application by name or bundle identifier.
 3. Application name in `/System/Applications/`
 4. Application name in `~/Applications/`
 
-### `keypath://layer/{name}`
+**Case handling:** Lowercase input (`obsidian`) resolves to Title Case (`Obsidian`) for display and lookup.
+
+### `layer:{name}` / `keypath://layer/{name}`
 
 Signal a layer change (for UI feedback, logging, or custom handlers).
 
+**Kanata config (shorthand):**
 ```lisp
 (defalias
-  nav (multi (push-msg "keypath://layer/nav") (layer-switch nav))
-  vim (multi (push-msg "keypath://layer/vim") (layer-switch vim))
+  nav (multi (push-msg "layer:nav") (layer-switch nav))
+  vim (multi (push-msg "layer:vim") (layer-switch vim))
 )
 ```
 
 **Optional subpaths:**
-- `/activate` - Layer was activated
-- `/deactivate` - Layer was deactivated
+- `:activate` / `/activate` - Layer was activated
+- `:deactivate` / `/deactivate` - Layer was deactivated
 
-### `keypath://rule/{id}[/fired]`
+### `rule:{id}` / `keypath://rule/{id}[/fired]`
 
 Signal that a rule was triggered (for analytics, feedback, or debugging).
 
+**Kanata config (shorthand):**
 ```lisp
 (defalias
-  caps-esc (multi (push-msg "keypath://rule/caps-to-escape/fired") esc)
+  caps-escape (multi (push-msg "rule:caps-escape:fired") esc)
 )
 ```
 
-### `keypath://notify`
+### `notify:` / `keypath://notify`
 
 Show a system notification.
 
+**Kanata config (shorthand):**
 ```lisp
-(push-msg "keypath://notify?title=Saved&body=Document saved successfully")
-(push-msg "keypath://notify?title=Layer&body=Navigation mode&sound=Pop")
+(push-msg "notify:?title=Saved&body=Document saved successfully")
+(push-msg "notify:?title=Layer&body=Navigation mode&sound=Pop")
 ```
 
 **Query parameters:**
@@ -81,23 +114,25 @@ Show a system notification.
 | `body` | Notification body | "" |
 | `sound` | macOS sound name | (none) |
 
-### `keypath://open/{url}`
+### `open:{url}` / `keypath://open/{url}`
 
 Open a URL in the default browser.
 
+**Kanata config (shorthand):**
 ```lisp
-(push-msg "keypath://open/github.com")
-(push-msg "keypath://open/https://docs.keypath.app")
+(push-msg "open:github.com")
+(push-msg "open:https://docs.keypath.app")
 ```
 
 **Notes:**
 - URLs without a scheme get `https://` prepended
 - URL-encoded characters are decoded automatically
 
-### `keypath://fakekey/{name}[/{action}]`
+### `fakekey:{name}` / `keypath://fakekey/{name}[/{action}]`
 
 Trigger a Kanata virtual key (defined via `defvirtualkeys` or `deffakekeys`).
 
+**Kanata config (shorthand):**
 ```lisp
 ;; Define virtual keys in your Kanata config
 (defvirtualkeys
@@ -105,10 +140,15 @@ Trigger a Kanata virtual key (defined via `defvirtualkeys` or `deffakekeys`).
   toggle-mode (layer-toggle special)
 )
 
-;; Trigger from KeyPath (or external tools)
-(push-msg "keypath://fakekey/email-sig")        ;; tap (default)
-(push-msg "keypath://fakekey/toggle-mode/press")
-(push-msg "keypath://fakekey/toggle-mode/release")
+;; Trigger from KeyPath
+(push-msg "fakekey:email-sig")           ;; tap (default)
+(push-msg "fakekey:toggle-mode:press")
+(push-msg "fakekey:toggle-mode:release")
+```
+
+**Deep link (for external tools):**
+```bash
+open "keypath://fakekey/email-sig/tap"
 ```
 
 **Actions:**
@@ -134,20 +174,37 @@ open "keypath://fakekey/email-sig/tap"
 
 ## Kanata Configuration
 
+### Naming Conventions
+
+**Use full application names in launch aliases**, not abbreviations:
+
+| ✅ Recommended | ❌ Avoid |
+|---------------|----------|
+| `launch-obsidian` | `launch-obs` |
+| `launch-terminal` | `launch-term` |
+| `launch-safari` | `launch-saf` |
+| `launch-slack` | `launch-slk` |
+| `launch-visual-studio-code` | `launch-vscode` |
+
+**Why?**
+- Self-documenting: Anyone reading the config immediately knows which app launches
+- Unambiguous: `launch-obs` could mean Obsidian or OBS Studio
+- Consistent: Matches the `launch:{full-app-name}` pattern
+
 ### Basic Usage
 
-Add `push-msg` to any alias using `multi`:
+Add `push-msg` to any alias:
 
 ```lisp
 (defalias
-  ;; Launch app when pressing key
-  obs (multi (push-msg "keypath://launch/Obsidian") o)
+  ;; Launch app (use full app name in alias)
+  launch-obsidian (push-msg "launch:obsidian")
 
   ;; Notify on layer switch
-  nav (multi (push-msg "keypath://layer/nav") (layer-switch nav))
+  nav (multi (push-msg "layer:nav") (layer-switch nav))
 
-  ;; Track rule usage
-  caps (multi (push-msg "keypath://rule/caps-esc") esc)
+  ;; Track rule usage (optional - consider if you really need it)
+  caps-escape (multi (push-msg "rule:caps-escape:fired") esc)
 )
 ```
 
@@ -161,27 +218,27 @@ Add `push-msg` to any alias using `multi`:
 (defsrc caps a s d f)
 
 (defalias
-  ;; Caps Lock → Escape with tracking
-  caps-esc (multi (push-msg "keypath://rule/caps-esc/fired") esc)
+  ;; Caps Lock → Escape (no tracking needed for basic functionality)
+  caps-escape esc
 
-  ;; Quick app launchers
-  app-obs (multi (push-msg "keypath://launch/Obsidian") o)
-  app-slack (multi (push-msg "keypath://launch/Slack") s)
+  ;; Quick app launchers (use full app name in alias, not abbreviations)
+  launch-obsidian (push-msg "launch:obsidian")
+  launch-slack (push-msg "launch:slack")
 
   ;; Layer with notification
   to-nav (multi
-    (push-msg "keypath://layer/nav/activate")
-    (push-msg "keypath://notify?title=Nav Mode&sound=Tink")
+    (push-msg "layer:nav:activate")
+    (push-msg "notify:?title=Nav Mode&sound=Tink")
     (layer-switch nav)
   )
 )
 
 (deflayer base
-  @caps-esc @app-obs @app-slack d @to-nav
+  @caps-escape @launch-obsidian @launch-slack d @to-nav
 )
 
 (deflayer nav
-  @caps-esc left down up right
+  @caps-escape left down up right
 )
 ```
 

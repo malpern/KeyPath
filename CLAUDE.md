@@ -112,9 +112,12 @@ KeyPath registers a custom URL scheme for deep linking and Kanata integration:
 **Integration with Kanata:**
 ```lisp
 ;; In keypath.kbd - trigger KeyPath actions via keyboard shortcuts
+;; Note: Always use full application names in launch aliases (e.g., launch-terminal, not launch-term)
+;; Use shorthand colon syntax for cleaner configs (lowercase resolves to Title Case)
 (defalias
-  launch-term (push-msg "keypath://launch/Terminal")
-  nav-on (push-msg "keypath://fakekey/nav-mode/tap")
+  launch-terminal (push-msg "launch:terminal")
+  launch-obsidian (push-msg "launch:obsidian")
+  nav-on (push-msg "fakekey:nav-mode:tap")
 )
 ```
 

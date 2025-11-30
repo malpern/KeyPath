@@ -1,0 +1,1139 @@
+= KeyPath Configuration Guide
+:last-update-label!:
+ifndef::env-github[]
+:toc: left
+endif::[]
+:stylesheet: config-stylesheet.css
+
+This document describes how to use KeyPath, a macOS application that makes keyboard remapping simple and accessible.
+
+KeyPath provides a native macOS interface for https://github.com/jtroo/kanata[Kanata], a powerful cross-platform keyboard remapping engine. With KeyPath, you can remap keys, create advanced behaviors like tap-hold and tap-dance, and integrate with external tools—all without writing configuration files or using the command line.
+
+== How to read this guide
+
+ifdef::env-github[]
+See the triple bullet-lines at the upper right
+to open or close a Table of Contents sidebar.
+endif::[]
+
+The **Reference** sections are shorter
+and are intended for reviewing how precisely to configure different features.
+The **Description** sections are longer
+and contain more details such as advice, motivation, and examples.
+
+If you have any questions, confusions, suggestions, etc., feel free to
+https://github.com/malpern/KeyPath/discussions/new/choose[start a discussion]
+or https://github.com/malpern/KeyPath/issues/new/choose[file an issue].
+
+== Preamble
+
+KeyPath is designed to make keyboard remapping accessible to everyone. You don't need to:
+- Learn Kanata's configuration syntax
+- Understand macOS security frameworks (TCC)
+- Manage LaunchDaemon services
+- Install drivers manually
+- Debug permission issues
+
+KeyPath handles all of this automatically while giving you access to Kanata's full power.
+
+Useful terminology:
+[cols="1,5"]
+|===
+| mapping
+| A rule that transforms one key (or key combination) into another action.
+Examples: `caps` → `esc`, `Cmd+Space` → `Cmd+C`.
+
+| tap-hold (dual-role)
+| A key that does one thing when tapped, another when held.
+Example: `a` types "a" when tapped, acts as `Ctrl` when held.
+
+| tap-dance
+| A key that does different things based on tap count.
+Example: Single tap = `esc`, Double tap = `caps`.
+
+| rule collection
+| A group of related mappings bundled together.
+Examples: "macOS Function Keys", "Vim Navigation", "Home Row Mods".
+
+| custom rule
+| A user-defined mapping created through the UI.
+|===
+
+[[getting-started]]
+== Getting Started
+
+[[installation]]
+=== Installation
+
+**Option 1: Download Release** (Recommended)
+1. Download from the https://github.com/malpern/KeyPath/releases[Releases page]
+2. Open `KeyPath.app`
+3. Follow the setup wizard
+
+**Option 2: Build from Source**
+[source,bash]
+----
+git clone https://github.com/malpern/KeyPath.git
+cd KeyPath
+./build.sh
+----
+
+The build script automatically:
+- Compiles the Swift package
+- Signs all components with Developer ID
+- Notarizes the app bundle
+- Installs to `~/Applications/`
+- Restarts the app
+
+**Troubleshooting builds locally:**
+- Skip notarization: `SKIP_NOTARIZE=1 ./build.sh`
+- Dry-run signing: `KP_SIGN_DRY_RUN=1 ./build.sh`
+
+[[first-launch]]
+=== First Launch
+
+When you first launch KeyPath, the **Installation Wizard** will guide you through:
+
+1. **Permission Setup** - Grants Input Monitoring and Accessibility permissions
+2. **Driver Installation** - Installs Karabiner VirtualHID driver if needed
+3. **Service Configuration** - Sets up LaunchDaemon services
+4. **System Validation** - Verifies everything is working correctly
+
+The wizard handles all technical setup automatically and provides one-click fixes for common issues.
+
+[[emergency-exit]]
+=== Forcefully exit KeyPath [[force-exit]]
+
+Though this isn't configuration-related,
+it may be important for you to know that pressing and holding all of the
+three following keys together at the same time will cause KeyPath to exit:
+
+- Left Control
+- Space
+- Escape
+
+This mechanism works on the key input **before** any remappings done by KeyPath/Kanata.
+
+[[ui-guide]]
+== User Interface Guide
+
+[[main-window]]
+=== Main Window
+
+The KeyPath main window provides access to all features:
+
+[cols="1,4"]
+|===
+| **Custom Rules**
+| Create and manage your own key mappings
+
+| **Rule Collections**
+| Enable/disable pre-configured rule sets (macOS Function Keys, Vim Navigation, etc.)
+
+| **Settings**
+| Configure KeyPath behavior, view system status, access advanced features
+
+| **Status Indicator**
+| Visual feedback showing system health (green = good, orange = warnings, red = errors)
+|===
+
+[[creating-mappings]]
+=== Creating a Simple Mapping
+
+**Reference**
+
+1. Click **"Create Rule"** button
+2. Click **"Record Input"** and press the key(s) you want to remap
+3. Click **"Record Output"** and press what you want it to do
+4. Click **"Save"**
+
+**Description**
+
+KeyPath uses visual recording to capture your key presses. You can record:
+
+- **Single keys**: `caps`, `esc`, `tab`
+- **Key combinations**: `Cmd+C`, `Ctrl+Space`, `Shift+Tab`
+- **Sequences**: Press `A`, then `B`, then `C`
+
+The recording interface shows exactly what keys you're pressing in real-time.
+
+**Example: Caps Lock → Escape**
+
+1. Open Custom Rules tab
+2. Click "Create Rule"
+3. Record Input: Press `Caps Lock`
+4. Record Output: Press `Escape`
+5. Click Save
+
+Your mapping is active immediately—no restart needed.
+
+[[advanced-behaviors]]
+=== Advanced Behaviors
+
+See <<tap-hold-tap-dance,Tap-Hold & Tap-Dance>> for detailed information on:
+- Tap-Hold (dual-role keys)
+- Tap-Dance (multi-tap sequences)
+- Hold behavior customization
+- Timing configuration
+
+[[rule-collections]]
+=== Rule Collections
+
+Rule collections are pre-configured groups of mappings:
+
+[cols="1,4"]
+|===
+| **macOS Function Keys**
+| Remaps F1-F12 to media keys, brightness, etc.
+
+| **Vim Navigation**
+| Adds Vim-style navigation layer (hjkl for arrows)
+
+| **Leader Key**
+| Configurable leader key for custom shortcuts
+
+| **Caps Lock Remap**
+| Common Caps Lock alternatives (Escape, Control, etc.)
+|===
+
+To enable a collection:
+1. Go to **Rule Collections** tab
+2. Toggle the switch next to the collection name
+3. Collection is active immediately
+
+[[conflict-detection]]
+=== Conflict Detection
+
+KeyPath automatically detects when multiple rules map the same input key.
+
+**Behavior:**
+- **Warning toast** appears (orange, 5 seconds)
+- **Warning sound** plays ("Basso" at 40% volume)
+- **Action proceeds** - conflicts are warnings, not errors
+- **Last enabled rule wins** - most recently enabled rule takes precedence
+
+**Example:**
+If you enable "Caps Lock Remap" collection (maps `caps` → `esc`) and then create a custom rule mapping `caps` → `tab`, you'll see:
+
+----
+⚠️ Custom Rule conflicts with Caps Lock Remap on key: caps. Last enabled rule wins.
+----
+
+The custom rule will take precedence since it was enabled last.
+
+[[cli-reference]]
+== Command-Line Interface
+
+KeyPath includes a CLI for automation and system administration.
+
+[[cli-installation]]
+=== CLI Installation
+
+The CLI is bundled with KeyPath.app. To use it:
+
+[source,bash]
+----
+# Add to PATH (add to ~/.zshrc or ~/.bash_profile)
+export PATH="$PATH:/Applications/KeyPath.app/Contents/MacOS"
+
+# Or use full path
+/Applications/KeyPath.app/Contents/MacOS/keypath-cli status
+----
+
+[[cli-commands]]
+=== Commands
+
+[[cli-status]]
+==== status
+
+Check system status and wizard readiness.
+
+[source,bash]
+----
+keypath-cli status
+----
+
+**Output:**
+- System component status (permissions, services, drivers)
+- Wizard readiness (can wizard be shown?)
+- Conflicts detected
+- Health summary
+
+**Exit codes:**
+- `0` - System healthy
+- `1` - Issues detected (wizard recommended)
+
+[[cli-install]]
+==== install
+
+Install KeyPath services and components.
+
+[source,bash]
+----
+keypath-cli install
+----
+
+**What it does:**
+- Installs LaunchDaemon services
+- Sets up Kanata daemon
+- Installs VirtualHID driver (if needed)
+- Configures permissions
+- Validates installation
+
+**Requires:** Admin privileges (prompts for password)
+
+[[cli-repair]]
+==== repair
+
+Repair broken or unhealthy services.
+
+[source,bash]
+----
+keypath-cli repair
+----
+
+**What it does:**
+- Attempts fast repair (restart Kanata service)
+- If that fails, runs full repair:
+  - Reinstalls services
+  - Fixes permission issues
+  - Resolves conflicts
+  - Validates configuration
+
+**Requires:** Admin privileges
+
+[[cli-uninstall]]
+==== uninstall
+
+Remove KeyPath services and components.
+
+[source,bash]
+----
+keypath-cli uninstall
+keypath-cli uninstall --delete-config
+----
+
+**Options:**
+- `--delete-config` - Also delete user configuration files
+
+**What it removes:**
+- LaunchDaemon services
+- System binaries
+- Configuration files (if `--delete-config` specified)
+- Application bundle (if run from app bundle)
+
+**Requires:** Admin privileges
+
+[[cli-inspect]]
+==== inspect
+
+Inspect system state without making changes.
+
+[source,bash]
+----
+keypath-cli inspect
+----
+
+**Output:**
+- Detailed system state report
+- Component status breakdown
+- Detected conflicts
+- Recommended actions
+
+**Does not require:** Admin privileges (read-only)
+
+[[cli-help]]
+==== help
+
+Show usage information.
+
+[source,bash]
+----
+keypath-cli help
+keypath-cli --help
+keypath-cli -h
+----
+
+[[deep-links]]
+== Deep Links (Action URI System)
+
+KeyPath supports a URI-based action system that enables:
+1. **Kanata integration** - Trigger KeyPath actions from keyboard shortcuts via `push-msg`
+2. **External tool integration** - Raycast, Alfred, Keyboard Maestro can invoke KeyPath actions
+3. **Extensibility** - Add new action types without protocol changes
+
+[[syntax-formats]]
+=== Syntax Formats
+
+KeyPath accepts **two equivalent syntaxes**:
+
+[cols="2,3,4"]
+|===
+| Context | Format | Example
+
+| **Kanata config**
+| Shorthand (colon)
+| `launch:obsidian`
+
+| **Deep links**
+| Full URI
+| `keypath://launch/Obsidian`
+|===
+
+==== Shorthand Syntax (Recommended for Configs)
+
+[source]
+----
+[action]:[target][:[subpath]][?query=params]
+----
+
+* Use **lowercase** - resolves to Title Case in UI
+* Colons separate action, target, and subpaths
+* Query params use standard `?key=value` syntax
+
+[source,lisp]
+----
+(push-msg "launch:obsidian")           ;; → launches "Obsidian"
+(push-msg "layer:nav:activate")        ;; → layer "nav", subpath "activate"
+(push-msg "notify:?title=Saved")       ;; → notification with title
+----
+
+==== Full URI Syntax (For Deep Links)
+
+[source]
+----
+keypath://[action]/[target][/subpath...][?query=params]
+----
+
+Used by external tools (Terminal, Raycast, Alfred):
+
+[source,bash]
+----
+open "keypath://launch/Obsidian"
+open "keypath://notify?title=Hello&body=World"
+----
+
+[[supported-actions]]
+=== Supported Actions
+
+[[action-launch]]
+==== `launch:{app}` / `keypath://launch/{app}`
+
+Launch an application by name or bundle identifier.
+
+**Kanata Configuration (shorthand - recommended):**
+[source,lisp]
+----
+;; Use lowercase - resolves to Title Case
+(push-msg "launch:obsidian")
+(push-msg "launch:terminal")
+(push-msg "launch:visual studio code")
+----
+
+**Resolution order:**
+1. Bundle identifier lookup
+2. Application name in `/Applications/`
+3. Application name in `/System/Applications/`
+4. Application name in `~/Applications/`
+
+**External Tool (full URI):**
+[source,bash]
+----
+open "keypath://launch/Obsidian"
+----
+
+[[action-layer]]
+==== `layer:{name}` / `keypath://layer/{name}`
+
+Signal a layer change (for UI feedback, logging, or custom handlers).
+
+**Kanata Configuration (shorthand):**
+[source,lisp]
+----
+(defalias
+  nav (multi (push-msg "layer:nav") (layer-switch nav))
+  vim (multi (push-msg "layer:vim") (layer-switch vim))
+)
+----
+
+**Optional subpaths:**
+- `:activate` / `/activate` - Layer was activated
+- `:deactivate` / `/deactivate` - Layer was deactivated
+
+[[action-rule]]
+==== `rule:{id}` / `keypath://rule/{id}[/fired]`
+
+Signal that a rule was triggered (for analytics, feedback, or debugging).
+
+**Kanata Configuration (shorthand):**
+[source,lisp]
+----
+(defalias
+  caps-escape (multi (push-msg "rule:caps-escape:fired") esc)
+)
+----
+
+[[action-notify]]
+==== `notify:` / `keypath://notify`
+
+Show a system notification.
+
+**Kanata Configuration (shorthand):**
+[source,lisp]
+----
+(push-msg "notify:?title=Saved&body=Document saved successfully")
+(push-msg "notify:?title=Layer&body=Navigation mode&sound=Pop")
+----
+
+**Query parameters:**
+[cols="1,1,1"]
+|===
+| Parameter | Description | Default
+| `title` | Notification title | "KeyPath"
+| `body` | Notification body | ""
+| `sound` | macOS sound name | (none)
+|===
+
+**External Tool (full URI):**
+[source,bash]
+----
+open "keypath://notify?title=Hello&body=World&sound=Tink"
+----
+
+[[action-open]]
+==== `open:{url}` / `keypath://open/{url}`
+
+Open a URL in the default browser.
+
+**Kanata Configuration (shorthand):**
+[source,lisp]
+----
+(push-msg "open:github.com")
+(push-msg "open:https://docs.keypath.app")
+----
+
+**Notes:**
+- URLs without a scheme get `https://` prepended
+- URL-encoded characters are decoded automatically
+
+[[action-fakekey]]
+==== `fakekey:{name}` / `keypath://fakekey/{name}[/{action}]`
+
+Trigger a Kanata virtual key (defined via `defvirtualkeys` or `deffakekeys`).
+
+**Kanata Configuration (shorthand):**
+[source,lisp]
+----
+;; Define virtual keys in your Kanata config
+(defvirtualkeys
+  email-sig (macro H e l l o spc W o r l d)
+  toggle-mode (layer-toggle special)
+)
+
+;; Trigger from KeyPath
+(push-msg "fakekey:email-sig")           ;; tap (default)
+(push-msg "fakekey:toggle-mode:press")
+(push-msg "fakekey:toggle-mode:release")
+----
+
+**External Tool (full URI):**
+[source,bash]
+----
+open "keypath://fakekey/email-sig/tap"
+----
+
+**Actions:**
+[cols="1,4"]
+|===
+| Action | Description
+| `tap` | Press and immediately release (default)
+| `press` | Press and hold
+| `release` | Release a held key
+| `toggle` | Toggle between pressed and released
+|===
+
+**Use cases:**
+- Trigger macros from external tools (Raycast, Alfred, deep links)
+- Execute complex key sequences via simple URL
+- Remote-control Kanata layers and modes
+
+**Example: Email signature via Raycast**
+[source,bash]
+----
+#!/bin/bash
+# @raycast.title Insert Email Signature
+# @raycast.mode silent
+open "keypath://fakekey/email-sig/tap"
+----
+
+[[external-tools]]
+=== External Tool Integration
+
+[[raycast]]
+==== Raycast
+
+Create a Raycast script command:
+
+[source,bash]
+----
+#!/bin/bash
+# @raycast.title Launch Obsidian via KeyPath
+# @raycast.mode silent
+
+open "keypath://launch/Obsidian"
+----
+
+[[alfred]]
+==== Alfred
+
+Create a workflow with "Open URL" action:
+- URL: `keypath://launch/{query}`
+
+[[keyboard-maestro]]
+==== Keyboard Maestro
+
+Use "Open URL" action with `keypath://` URLs.
+
+[[applescript]]
+==== AppleScript
+
+[source,applescript]
+----
+do shell script "open 'keypath://launch/Obsidian'"
+----
+
+[[virtual-keys-inspector]]
+=== Virtual Keys Inspector
+
+KeyPath includes a built-in inspector for viewing and testing virtual keys defined in your configuration.
+
+**Accessing:**
+1. Open KeyPath Settings (⌘,)
+2. Go to the **General** tab
+3. Scroll down to the **Virtual Keys** section
+
+**Features:**
+[cols="1,4"]
+|===
+| Feature | Description
+| **Key List** | Shows all keys from `defvirtualkeys` and `deffakekeys` blocks
+| **Copy URL** | Copy the deep link URL to clipboard for use in Raycast, Alfred, etc.
+| **Test Button** | Trigger the virtual key immediately to verify it works
+| **Refresh** | Re-parse the config file to pick up changes
+|===
+
+**Requirements:**
+- Virtual keys must be defined in your Kanata config using `defvirtualkeys` or `deffakekeys`
+- Kanata service must be running to test keys (TCP connection required)
+- The inspector is read-only; edit your config file to add/modify keys
+
+[[tap-hold-tap-dance]]
+== Tap-Hold & Tap-Dance
+
+KeyPath supports advanced key behaviors beyond simple remapping:
+
+- **Tap-Hold (Dual-Role)**: A key that does one thing when tapped, another when held
+- **Tap-Dance**: A key that does different things based on tap count (single, double, triple, etc.)
+
+[[tap-hold-quick-start]]
+=== Quick Start: Creating a Tap-Hold Key
+
+1. Open **Custom Rules** tab
+2. Click **Create Rule**
+3. Set your **Start** key (e.g., `1`)
+4. Set your **Finish** key (e.g., `2`) — this is the tap action
+5. Enable **Hold, Double Tap, etc.** toggle
+6. Set **On Hold** (e.g., `3`) — this is what happens when held
+7. Choose hold behavior (options appear after entering hold action):
+   - **Basic**: Pure timeout-based
+   - **Trigger early**: Hold activates on other key press (best for home-row mods)
+   - **Quick tap**: Fast taps always register as tap
+   - **Custom keys**: Only specific keys trigger early tap
+8. Save
+
+[[tap-dance-quick-start]]
+=== Quick Start: Creating a Tap-Dance Key
+
+1. Open **Custom Rules** tab
+2. Click **Create Rule**
+3. Set your **Start** key (e.g., `caps`)
+4. Set your **Finish** key (e.g., `esc`) — this is the single-tap action
+5. Enable **Hold, Double Tap, etc.** toggle
+6. Set **Double Tap** (e.g., `caps`)
+7. (Optional) Click **Add Tap Step** for triple-tap, quad-tap, etc.
+8. Save
+
+**Note:** Hold and Tap-Dance cannot be used together on the same key. If you try to set one when the other is already configured, a dialog will ask which behavior you want to keep.
+
+[[tap-hold-behaviors]]
+=== Tap-Hold Behaviors
+
+KeyPath supports four hold behavior variants:
+
+[cols="1,2,3"]
+|===
+| Variant | Description | Best For
+| **Basic** | Hold activates after timeout | Beginners, simple use cases
+| **Trigger early** | Hold activates immediately when another key is pressed | Home-row mods
+| **Quick tap** | Fast taps always register as tap, even if another key was pressed | Fast typists, preventing accidental holds
+| **Custom keys** | Only specific keys trigger early tap | Fine-tuned control
+|===
+
+**Kanata Variants (priority order):**
+1. `tap-hold-press` - Hold triggers on other key press (`activateHoldOnOtherKey = true`)
+2. `tap-hold-release` - Quick-tap / permissive-hold (`quickTap = true`)
+3. `tap-hold-release-keys` - Early tap on specific keys (`customTapKeys` non-empty)
+4. `tap-hold` - Basic timeout-based (default)
+
+[[tap-hold-timing]]
+=== Timing Configuration
+
+Tap-Hold timing can be configured globally or per-rule:
+
+[cols="1,4"]
+|===
+| Setting | Description | Default
+| **Tap window** | Milliseconds before tap becomes hold | 200ms
+| **Hold delay** | Milliseconds for hold to fully activate | 200ms
+|===
+
+**Accessing timing controls:**
+1. Open rule editor
+2. Enable **Hold, Double Tap, etc.** toggle
+3. Click gear icon next to **Timing (ms)**
+4. Adjust values as needed
+
+**Explanation:**
+- **Tap window**: Time before a press is considered a hold
+- **Hold delay**: Time for the hold to fully activate
+
+[[tap-dance-configuration]]
+=== Tap-Dance Configuration
+
+Tap-Dance allows different actions for different tap counts:
+
+[cols="1,4"]
+|===
+| Tap Count | Label | Example
+| 1 | Single Tap | `esc`
+| 2 | Double Tap | `caps`
+| 3 | Triple Tap | `tab`
+| 4+ | Quad Tap, etc. | Custom actions
+|===
+
+**Window Duration:**
+- Default: 200ms
+- Configurable per rule
+- Time window to register additional taps
+
+**Adding Steps:**
+- Double Tap is shown by default
+- Click **"Add Tap Step"** for triple-tap and beyond
+- Remove steps (except Double Tap) with the minus button
+
+[[conflict-resolution]]
+=== Hold vs Tap-Dance Conflict Resolution
+
+Kanata cannot detect both hold duration and tap count on the same key. When you try to configure both:
+
+1. **Conflict dialog appears** with illustration
+2. **Shows current values** for both behaviors
+3. **Choose which to keep:**
+   - "Keep Hold" / "Switch to Hold"
+   - "Keep Tap Dance" / "Switch to Tap"
+
+The dialog explains: "Last enabled rule wins" - the most recently configured behavior takes precedence.
+
+[[generated-kanata-syntax]]
+=== Generated Kanata Syntax
+
+KeyPath generates standard Kanata syntax for advanced behaviors:
+
+**Tap-Hold Examples:**
+[source,lisp]
+----
+;; Basic tap-hold (timeout-based)
+(tap-hold 200 200 a lctl)
+
+;; tap-hold-press (hold on other key press)
+(tap-hold-press 200 200 f lmet)
+
+;; tap-hold-release (quick-tap / permissive hold)
+(tap-hold-release 200 200 j rsft)
+
+;; tap-hold-release-keys (early tap on specific keys)
+(tap-hold-release-keys 200 200 a lctl (s d f))
+----
+
+**Tap-Dance Examples:**
+[source,lisp]
+----
+;; Two-step tap-dance
+(tap-dance 200 (esc caps))
+
+;; Three-step tap-dance
+(tap-dance 150 (spc ret tab))
+----
+
+[[configuration-files]]
+== Configuration Files
+
+[[config-location]]
+=== Configuration Location
+
+KeyPath stores configuration at:
+
+[source]
+----
+~/Library/Application Support/KeyPath/keypath.kbd
+----
+
+This is a standard Kanata configuration file. You can edit it directly if needed, and KeyPath will hot-reload changes via TCP.
+
+[[config-structure]]
+=== Configuration Structure
+
+KeyPath generates Kanata configuration with the following structure:
+
+[source,lisp]
+----
+(defcfg
+  process-unmapped-keys yes
+)
+
+(defsrc
+  ;; All keys you've configured
+)
+
+(deflayer base
+  ;; Your mappings
+)
+
+;; Rule collections add their own layers
+(deflayer navigation
+  ;; Vim navigation mappings
+)
+----
+
+[[hot-reload]]
+=== Hot Reload
+
+KeyPath supports hot-reloading configuration changes:
+
+1. **Edit config file** directly (if you know Kanata syntax)
+2. **Save the file**
+3. **KeyPath detects changes** and reloads via TCP
+4. **Changes apply immediately** - no restart needed
+
+**TCP Connection:**
+- Default port: `37001`
+- Localhost only (no network access)
+- No authentication (future: token-based auth planned)
+
+[[troubleshooting]]
+== Troubleshooting
+
+[[common-issues]]
+=== Common Issues
+
+[[keys-not-remapping]]
+==== Keys Not Remapping?
+
+1. **Check status indicator** - Look for green checkmarks in the app
+2. **Verify permissions** - Ensure permissions granted in System Settings
+3. **Use Fix Issues** - Click "Fix Issues" button in the app for automated fixes
+4. **Check logs** - View system logs: `tail -f /var/log/kanata.log`
+
+[[app-wont-start]]
+==== KeyPath Won't Start?
+
+1. **Check macOS version** - Requires macOS 15.0 (Sequoia) or later
+2. **Run setup wizard** - Go to File → Run Setup Wizard
+3. **Check logs** - View Console.app for KeyPath errors
+
+[[conflict-warnings]]
+==== Seeing Conflict Warnings?
+
+Conflicts are warnings, not errors. The last enabled rule wins. To resolve:
+
+1. **Review enabled rules** - Check Custom Rules and Rule Collections tabs
+2. **Disable conflicting rules** - Toggle off rules you don't need
+3. **Reorder if needed** - Enable rules in the order you want them to take precedence
+
+[[permission-issues]]
+==== Permission Issues?
+
+1. **Run Setup Wizard** - File → Run Setup Wizard
+2. **Check System Settings** - System Settings → Privacy & Security
+   - Input Monitoring: Should show KeyPath and Kanata
+   - Accessibility: Should show KeyPath
+3. **Use Fix Button** - Wizard provides one-click fixes for common issues
+
+[[advanced-troubleshooting]]
+=== Advanced Troubleshooting
+
+[[cli-diagnostics]]
+==== Using CLI for Diagnostics
+
+[source,bash]
+----
+# Check system status
+keypath-cli status
+
+# Inspect without making changes
+keypath-cli inspect
+
+# Repair issues
+keypath-cli repair
+----
+
+[[log-files]]
+==== Log Files
+
+KeyPath logs to:
+- **System logs**: `/var/log/kanata.log` (if running as LaunchDaemon)
+- **Console.app**: Filter for "KeyPath" or "kanata"
+- **App logs**: Check Console.app → KeyPath process
+
+[[manual-config-editing]]
+==== Manual Configuration Editing
+
+If you need to edit the Kanata config directly:
+
+1. **Backup first**: Copy `~/Library/Application Support/KeyPath/keypath.kbd`
+2. **Edit with text editor**: Use any text editor
+3. **Validate syntax**: KeyPath will show errors if syntax is invalid
+4. **Hot reload**: Changes apply automatically when saved
+
+**Reference:** See https://github.com/jtroo/kanata/blob/main/docs/config.adoc[Kanata Configuration Guide] for syntax details.
+
+[[safety-features]]
+== Safety Features
+
+[[emergency-stop]]
+=== Emergency Stop
+
+If your keyboard becomes unresponsive, press **Ctrl + Space + Esc** simultaneously. This immediately disables all remappings and restores normal keyboard functionality.
+
+[[conflict-detection]]
+=== Conflict Detection
+
+KeyPath automatically detects:
+- **Rule conflicts** - Multiple rules mapping the same key
+- **System conflicts** - Karabiner-Elements or other remappers running
+- **Service conflicts** - Multiple Kanata instances
+
+**Behavior:**
+- Warnings shown (non-blocking)
+- Last enabled rule wins
+- System conflicts detected and resolved automatically
+
+[[permission-management]]
+=== Permission Management
+
+KeyPath manages macOS permissions automatically:
+- **PermissionOracle** - Single source of truth for permission detection
+- **Wizard guidance** - Step-by-step permission setup
+- **One-click fixes** - Automated permission repair
+
+[[uninstallation]]
+== Uninstallation
+
+[[recommended-method]]
+=== Recommended Method
+
+1. Open KeyPath
+2. Choose **File → Uninstall KeyPath…** (or **Settings → Advanced → Uninstall KeyPath…**)
+3. Confirm the admin prompt
+4. Bundled uninstaller removes LaunchDaemons, helper tools, and app bundle
+
+[[cli-uninstall]]
+=== CLI Uninstall
+
+[source,bash]
+----
+# Preserve user configuration
+keypath-cli uninstall
+
+# Delete user configuration too
+keypath-cli uninstall --delete-config
+----
+
+**What gets removed:**
+- LaunchDaemon services
+- System binaries (`/Library/KeyPath/bin/kanata`)
+- Configuration files (if `--delete-config` specified)
+- Application bundle (if run from app bundle)
+
+[[manual-uninstall]]
+=== Manual Uninstall
+
+[source,bash]
+----
+sudo ./Scripts/uninstall.sh
+# or for automation:
+sudo ./Scripts/uninstall.sh --assume-yes
+----
+
+[[reference]]
+== Reference
+
+[[key-names]]
+=== Key Names
+
+KeyPath uses standard Kanata key names. Common keys:
+
+[cols="2,2"]
+|===
+| Key Name | Description
+| `caps` | Caps Lock
+| `esc` | Escape
+| `tab` | Tab
+| `ret` | Return/Enter
+| `spc` | Space
+| `bspc` | Backspace
+| `del` | Delete (Forward Delete)
+| `lctl`, `rctl` | Left/Right Control
+| `lsft`, `rsft` | Left/Right Shift
+| `lalt`, `ralt` | Left/Right Option/Alt
+| `lmet`, `rmet` | Left/Right Command/Meta
+| `up`, `down`, `left`, `right` | Arrow keys
+| `f1` - `f12` | Function keys
+|===
+
+For complete list, see https://github.com/jtroo/kanata/blob/main/docs/config.adoc#key-names[Kanata Key Names Reference].
+
+[[modifier-prefixes]]
+=== Modifier Prefixes
+
+KeyPath supports modifier prefixes in output:
+
+[cols="2,2"]
+|===
+| Prefix | Modifier
+| `C-` | Control
+| `M-` | Command/Meta
+| `A-` | Option/Alt
+| `S-` | Shift
+|===
+
+**Examples:**
+- `M-c` = Command+C
+- `C-M-a` = Control+Command+A
+- `S-tab` = Shift+Tab
+
+[[special-keywords]]
+=== Special Keywords
+
+[cols="2,4"]
+|===
+| Keyword | Expansion | Description
+| `hyper` | `(multi lctl lmet lalt lsft)` | All modifiers (Ctrl+Cmd+Alt+Shift)
+| `meh` | `(multi lctl lalt lsft)` | All modifiers except Cmd
+|===
+
+[[file-locations]]
+=== File Locations
+
+[cols="2,4"]
+|===
+| Path | Description
+| `~/Library/Application Support/KeyPath/keypath.kbd` | Main configuration file
+| `~/Library/Application Support/KeyPath/RuleCollections.json` | Rule collections state
+| `~/Library/Application Support/KeyPath/CustomRules.json` | Custom rules
+| `/Library/KeyPath/bin/kanata` | System-installed Kanata binary
+| `/Library/LaunchDaemons/com.keypath.kanata.plist` | LaunchDaemon plist (SMAppService-managed)
+| `/var/log/kanata.log` | System logs (if running as LaunchDaemon)
+|===
+
+[[tcp-port]]
+=== TCP Port
+
+Default port: `37001`
+
+**Security:**
+- Localhost only (no network access)
+- No authentication (future: token-based auth planned)
+- Threat model: any local process could trigger reloads/status calls
+
+[[version-compatibility]]
+=== Version Compatibility
+
+KeyPath is built for:
+- **macOS 15.0 (Sequoia) or later**
+- **Kanata 1.10.0+** (bundled)
+- **Karabiner VirtualHID Driver 6.0+**
+
+[[faq]]
+== Frequently Asked Questions
+
+[[faq-offline]]
+=== Does KeyPath work offline?
+
+Yes. KeyPath works completely offline by default. Optional AI config generation contacts Anthropic if `ANTHROPIC_API_KEY` is present, but this is opt-in.
+
+[[faq-telemetry]]
+=== Does KeyPath collect data?
+
+No. KeyPath does not collect telemetry or send data anywhere. All processing happens locally.
+
+[[faq-kanata-syntax]]
+=== Do I need to learn Kanata syntax?
+
+No. KeyPath's UI handles all configuration. However, you can edit the generated Kanata config file directly if you want advanced control.
+
+[[faq-multiple-computers]]
+=== Can I sync settings across computers?
+
+KeyPath stores configuration in `~/Library/Application Support/KeyPath/`. You can sync these files using iCloud, Dropbox, or any file sync service.
+
+[[faq-performance]]
+=== Does KeyPath affect performance?
+
+Minimal impact. KeyPath runs as a lightweight LaunchDaemon and uses efficient event tapping. Typical CPU usage is <1%.
+
+[[references]]
+== References
+
+- https://github.com/jtroo/kanata/blob/main/docs/config.adoc[Kanata Configuration Guide] - Complete Kanata syntax reference
+- https://precondition.github.io/home-row-mods[Home Row Mods Guide] - Advanced tap-hold techniques
+- https://github.com/malpern/KeyPath[KeyPath GitHub Repository] - Source code and issues
+- https://github.com/malpern/KeyPath/discussions[KeyPath Discussions] - Community discussions
+
+[[appendix]]
+== Appendix
+
+[[appendix-architecture]]
+=== Architecture Overview
+
+KeyPath consists of:
+
+[cols="1,4"]
+|===
+| Component | Description
+| **KeyPath.app** | Main SwiftUI application
+| **KeyPathHelper** | Privileged helper tool (SMAppService)
+| **Kanata Daemon** | LaunchDaemon service running Kanata
+| **Configuration Service** | Generates and validates Kanata configs
+| **PermissionOracle** | Single source of truth for permission detection
+| **InstallerEngine** | Handles installation, repair, uninstallation
+|===
+
+[[appendix-technical-stack]]
+=== Technical Stack
+
+- **Swift 6.0** - Modern Swift concurrency (async/await, actors)
+- **SwiftUI** - Native macOS UI with Liquid Glass design
+- **Kanata** - Cross-platform keyboard remapping engine
+- **LaunchDaemon** - System-level service management
+- **Karabiner VirtualHID** - macOS HID driver for system-level remapping
+
+[[appendix-contributing]]
+=== Contributing
+
+We welcome contributions! See https://github.com/malpern/KeyPath/blob/main/CONTRIBUTING.md[CONTRIBUTING.md] for:
+- Architecture overview
+- Contribution guidelines
+- Development setup
+- Testing requirements
+

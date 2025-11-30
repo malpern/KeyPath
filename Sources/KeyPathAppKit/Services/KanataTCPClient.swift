@@ -707,7 +707,7 @@ actor KanataTCPClient {
     /// ```
     /// (defvirtualkeys
     ///   email-sig (macro H e l l o spc W o r l d)
-    ///   launch-obs (cmd open -a Obsidian)
+    ///   launch-obsidian (cmd open -a Obsidian)
     /// )
     /// ```
     ///
