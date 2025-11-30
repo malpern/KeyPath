@@ -279,7 +279,7 @@ actor KanataTCPClient {
 
     // FIX #3: Helper to execute operations with automatic error recovery
     /// Executes an operation and closes connection if it fails with a recoverable error
-    private func withErrorRecovery<T>(_ operation: () async throws -> T) async throws -> T {
+    private func withErrorRecovery<T: Sendable>(_ operation: () async throws -> T) async throws -> T {
         do {
             return try await operation()
         } catch {
