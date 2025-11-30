@@ -2,8 +2,58 @@ import KeyPathCore
 import SwiftUI
 
 #if os(macOS)
-    import AppKit
+import AppKit
 #endif
+
+/// State for home row mods editing modal
+struct HomeRowModsEditState: Identifiable {
+    let id = UUID()
+    let collection: RuleCollection
+    let selectedKey: String?
+}
+
+// MARK: - Toast View (shared with ContentView)
+
+private struct ToastView: View {
+    let message: String
+    let type: KanataViewModel.ToastType
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: iconName)
+                .foregroundColor(iconColor)
+
+            Text(message)
+                .font(.body)
+                .foregroundColor(.primary)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(NSColor.controlBackgroundColor))
+                .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+        )
+    }
+
+    private var iconName: String {
+        switch type {
+        case .success: "checkmark.circle.fill"
+        case .error: "exclamationmark.triangle.fill"
+        case .info: "info.circle.fill"
+        case .warning: "exclamationmark.triangle.fill"
+        }
+    }
+
+    private var iconColor: Color {
+        switch type {
+        case .success: .green
+        case .error: .red
+        case .info: .blue
+        case .warning: .orange
+        }
+    }
+}
 
 struct RulesTabView: View {
     @EnvironmentObject var kanataManager: KanataViewModel
@@ -19,6 +69,7 @@ struct RulesTabView: View {
     @State private var pendingSelections: [UUID: String] = [:]
     /// Track pending toggle states for immediate UI feedback
     @State private var pendingToggles: [UUID: Bool] = [:]
+    @State private var homeRowModsEditState: HomeRowModsEditState?
     private let catalog = RuleCollectionCatalog()
 
     // Show all catalog collections, merging with existing state
@@ -56,6 +107,58 @@ struct RulesTabView: View {
 
     private var customRulesTitle: String {
         "Custom Rules"
+    }
+
+    /// Helper to build a collection row - extracted to simplify type-checking
+    @ViewBuilder
+    private func collectionRow(for collection: RuleCollection, scrollProxy: ScrollViewProxy) -> some View {
+        let style = collection.displayStyle
+        let needsCollection = style == .singleKeyPicker || style == .homeRowMods || style == .tapHoldPicker
+
+        ExpandableCollectionRow(
+            name: dynamicCollectionName(for: collection),
+            icon: collection.icon ?? "circle",
+            count: style == .singleKeyPicker || style == .tapHoldPicker ? 1 : collection.mappings.count,
+            isEnabled: pendingToggles[collection.id] ?? collection.isEnabled,
+            mappings: collection.mappings.map {
+                ($0.input, $0.output, $0.shiftedOutput, $0.ctrlOutput, $0.description, $0.sectionBreak, collection.isEnabled, $0.id, nil)
+            },
+            onToggle: { isOn in
+                pendingToggles[collection.id] = isOn
+                if !isOn {
+                    pendingSelections.removeValue(forKey: collection.id)
+                }
+                Task { await kanataManager.toggleRuleCollection(collection.id, enabled: isOn) }
+            },
+            onEditMapping: nil,
+            onDeleteMapping: nil,
+            description: dynamicCollectionDescription(for: collection),
+            layerActivator: collection.momentaryActivator,
+            leaderKeyDisplay: currentLeaderKeyDisplay,
+            displayStyle: style,
+            collection: needsCollection ? collection : nil,
+            onSelectOutput: style == .singleKeyPicker ? { output in
+                pendingSelections[collection.id] = output
+                Task { await kanataManager.updateCollectionOutput(collection.id, output: output) }
+            } : nil,
+            onSelectTapOutput: style == .tapHoldPicker ? { tap in
+                Task { await kanataManager.updateCollectionTapOutput(collection.id, tapOutput: tap) }
+            } : nil,
+            onSelectHoldOutput: style == .tapHoldPicker ? { hold in
+                Task { await kanataManager.updateCollectionHoldOutput(collection.id, holdOutput: hold) }
+            } : nil,
+            onUpdateHomeRowModsConfig: style == .homeRowMods ? { config in
+                Task { await kanataManager.updateHomeRowModsConfig(collectionId: collection.id, config: config) }
+            } : nil,
+            onOpenHomeRowModsModal: style == .homeRowMods ? {
+                homeRowModsEditState = HomeRowModsEditState(collection: collection, selectedKey: nil)
+            } : nil,
+            onOpenHomeRowModsModalWithKey: style == .homeRowMods ? { key in
+                homeRowModsEditState = HomeRowModsEditState(collection: collection, selectedKey: key)
+            } : nil,
+            scrollID: "collection-\(collection.id.uuidString)",
+            scrollProxy: scrollProxy
+        )
     }
 
     var body: some View {
@@ -131,40 +234,9 @@ struct RulesTabView: View {
 
                         // Collection Rows (sorted: enabled first, order stable during session)
                         ForEach(sortedCollections) { collection in
-                            ExpandableCollectionRow(
-                                name: dynamicCollectionName(for: collection),
-                                icon: collection.icon ?? "circle",
-                                count: collection.displayStyle == .singleKeyPicker ? 1 : collection.mappings.count,
-                                isEnabled: pendingToggles[collection.id] ?? collection.isEnabled,
-                                mappings: collection.mappings.map {
-                                    ($0.input, $0.output, $0.shiftedOutput, $0.ctrlOutput, $0.description, $0.sectionBreak, collection.isEnabled, $0.id, nil)
-                                },
-                                onToggle: { isOn in
-                                    // Update pending toggle immediately for responsive UI
-                                    pendingToggles[collection.id] = isOn
-                                    // Clear pending selection when toggling off
-                                    if !isOn {
-                                        pendingSelections.removeValue(forKey: collection.id)
-                                    }
-                                    Task { await kanataManager.toggleRuleCollection(collection.id, enabled: isOn) }
-                                },
-                                onEditMapping: nil,
-                                onDeleteMapping: nil,
-                                description: collection.summary,
-                                layerActivator: collection.momentaryActivator,
-                                leaderKeyDisplay: currentLeaderKeyDisplay,
-                                displayStyle: collection.displayStyle,
-                                collection: collection.displayStyle == .singleKeyPicker ? collection : nil,
-                                onSelectOutput: collection.displayStyle == .singleKeyPicker ? { output in
-                                    // Update pending selection immediately for responsive UI
-                                    pendingSelections[collection.id] = output
-                                    Task { await kanataManager.updateCollectionOutput(collection.id, output: output) }
-                                } : nil,
-                                scrollID: "collection-\(collection.id.uuidString)",
-                                scrollProxy: scrollProxy
-                            )
-                            .id("collection-\(collection.id.uuidString)")
-                            .padding(.vertical, 4)
+                            collectionRow(for: collection, scrollProxy: scrollProxy)
+                                .id("collection-\(collection.id.uuidString)")
+                                .padding(.vertical, 4)
                         }
                     }
                     .padding(.vertical, 12)
@@ -176,6 +248,16 @@ struct RulesTabView: View {
         .frame(maxHeight: 500)
         .settingsBackground()
         .withToasts(settingsToastManager)
+        .overlay(alignment: .top) {
+            if let toastMessage = kanataManager.toastMessage {
+                ToastView(message: toastMessage, type: kanataManager.toastType)
+                    .padding(.top, 16)
+                    .padding(.horizontal, 20)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .zIndex(1000)
+            }
+        }
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: kanataManager.toastMessage)
         .onAppear {
             // Capture sort order once when view appears (enabled first, then disabled)
             // This ensures stable layout - toggling a rule won't move it until window reopens
@@ -190,6 +272,24 @@ struct RulesTabView: View {
             ) { newRule in
                 _ = Task { await kanataManager.saveCustomRule(newRule) }
             }
+        }
+        .sheet(item: $homeRowModsEditState) { editState in
+            HomeRowModsModalView(
+                config: Binding(
+                    get: { editState.collection.homeRowModsConfig ?? HomeRowModsConfig() },
+                    set: { _ in }
+                ),
+                onSave: { newConfig in
+                    Task {
+                        await kanataManager.updateHomeRowModsConfig(collectionId: editState.collection.id, config: newConfig)
+                    }
+                    homeRowModsEditState = nil
+                },
+                onCancel: {
+                    homeRowModsEditState = nil
+                },
+                initialSelectedKey: editState.selectedKey
+            )
         }
         .sheet(item: $editingRule) { rule in
             CustomRuleEditorView(
@@ -246,6 +346,35 @@ struct RulesTabView: View {
         formatKeyWithSymbol(currentLeaderKey)
     }
 
+    /// Generate a dynamic description for tap-hold picker collections showing configured values
+    private func dynamicCollectionDescription(for collection: RuleCollection) -> String {
+        guard collection.displayStyle == .tapHoldPicker else {
+            return collection.summary
+        }
+
+        // Check effective enabled state
+        let effectiveEnabled: Bool = if let pendingToggle = pendingToggles[collection.id] {
+            pendingToggle
+        } else {
+            collection.isEnabled
+        }
+
+        // If disabled, show the generic summary
+        guard effectiveEnabled else {
+            return collection.summary
+        }
+
+        // Get the selected tap and hold outputs
+        let tapOutput = collection.selectedTapOutput ?? collection.tapHoldOptions?.tapOptions.first?.output ?? "esc"
+        let holdOutput = collection.selectedHoldOutput ?? collection.tapHoldOptions?.holdOptions.first?.output ?? "hyper"
+
+        // Find labels for the outputs
+        let tapLabel = collection.tapHoldOptions?.tapOptions.first { $0.output == tapOutput }?.label ?? tapOutput
+        let holdLabel = collection.tapHoldOptions?.holdOptions.first { $0.output == holdOutput }?.label ?? holdOutput
+
+        return "Tap: \(tapLabel), Hold: \(holdLabel)"
+    }
+
     /// Generate a dynamic name for picker-style collections that shows the current mapping
     private func dynamicCollectionName(for collection: RuleCollection) -> String {
         guard collection.displayStyle == .singleKeyPicker,
@@ -266,6 +395,10 @@ struct RulesTabView: View {
 
         // If collection is OFF, show "→ ?"
         guard effectiveEnabled else {
+            // For leader-based rules, show "Leader + [key] → ?"
+            if collection.momentaryActivator != nil {
+                return "\(currentLeaderKeyDisplay) + \(inputDisplay) → ?"
+            }
             return "\(inputDisplay) → ?"
         }
 
@@ -279,9 +412,25 @@ struct RulesTabView: View {
         // Get label for the output
         let outputLabel = collection.presetOptions.first { $0.output == effectiveOutput }?.label ?? effectiveOutput
 
+        // For leader-based rules, show "Leader + [input] → [output]" instead of "[input] → [output]"
+        if collection.momentaryActivator != nil {
+            return "\(currentLeaderKeyDisplay) + \(inputDisplay) → \(outputLabel)"
+        }
+
         return "\(inputDisplay) → \(outputLabel)"
     }
 
+    /// Format a modifier key for display
+    private func formatModifierForDisplay(_ modifier: String) -> String {
+        let displayNames: [String: String] = [
+            "lmet": "⌘", "rmet": "⌘",
+            "lalt": "⌥", "ralt": "⌥",
+            "lctl": "⌃", "rctl": "⌃",
+            "lsft": "⇧", "rsft": "⇧"
+        ]
+        return displayNames[modifier] ?? modifier
+    }
+    
     /// Format a key name with its Mac symbol
     private func formatKeyWithSymbol(_ key: String) -> String {
         let keySymbols: [String: String] = [
@@ -351,6 +500,16 @@ private struct ExpandableCollectionRow: View {
     /// For singleKeyPicker style: the full collection with presets
     var collection: RuleCollection?
     var onSelectOutput: ((String) -> Void)?
+    /// For tapHoldPicker style: callback to select tap output
+    var onSelectTapOutput: ((String) -> Void)?
+    /// For tapHoldPicker style: callback to select hold output
+    var onSelectHoldOutput: ((String) -> Void)?
+    /// For homeRowMods style: callback to update config
+    var onUpdateHomeRowModsConfig: ((HomeRowModsConfig) -> Void)?
+    /// For homeRowMods style: callback to open modal
+    var onOpenHomeRowModsModal: (() -> Void)?
+    /// For homeRowMods style: callback to open modal with a specific key selected
+    var onOpenHomeRowModsModalWithKey: ((String) -> Void)?
     /// Unique ID for scroll-to behavior
     var scrollID: String?
     /// Scroll proxy for auto-scrolling when expanded
@@ -364,6 +523,17 @@ private struct ExpandableCollectionRow: View {
     /// Effective enabled state: use local optimistic value if set, otherwise parent value
     private var effectiveEnabled: Bool {
         localEnabled ?? isEnabled
+    }
+    
+    /// Format a modifier key for display
+    private func formatModifierForDisplay(_ modifier: String) -> String {
+        let displayNames: [String: String] = [
+            "lmet": "⌘", "rmet": "⌘",
+            "lalt": "⌥", "ralt": "⌥",
+            "lctl": "⌃", "rctl": "⌃",
+            "lsft": "⇧", "rsft": "⇧"
+        ]
+        return displayNames[modifier] ?? modifier
     }
 
     var body: some View {
@@ -444,7 +614,10 @@ private struct ExpandableCollectionRow: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .background(Color(NSColor.windowBackgroundColor))
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(isHovered ? Color(NSColor.controlBackgroundColor).opacity(0.5) : Color(NSColor.windowBackgroundColor))
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
                     .stroke(Color.white.opacity(isHovered ? 0.15 : 0), lineWidth: 1)
@@ -486,6 +659,97 @@ private struct ExpandableCollectionRow: View {
                             onSelectOutput?(output)
                         }
                     )
+                    .padding(.top, 8)
+                    .padding(.bottom, 12)
+                    .padding(.horizontal, 16)
+                } else if displayStyle == .tapHoldPicker, let coll = collection {
+                    // Tap-hold picker for dual-role keys
+                    TapHoldPickerContent(
+                        collection: coll,
+                        onSelectTapOutput: { tap in
+                            onSelectTapOutput?(tap)
+                        },
+                        onSelectHoldOutput: { hold in
+                            onSelectHoldOutput?(hold)
+                        }
+                    )
+                    .padding(.top, 8)
+                    .padding(.bottom, 12)
+                    .padding(.horizontal, 16)
+                } else if displayStyle == .homeRowMods, let coll = collection {
+                    // Home Row Mods: show summary with current config, click to customize
+                    let config = coll.homeRowModsConfig ?? HomeRowModsConfig()
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Tap keys for letters, hold for modifiers")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        // Summary of current configuration
+                        if !config.enabledKeys.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack(spacing: 16) {
+                                    // Left hand
+                                    if config.enabledKeys.contains(where: { HomeRowModsConfig.leftHandKeys.contains($0) }) {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Left hand")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                            HStack(spacing: 6) {
+                                                ForEach(HomeRowModsConfig.leftHandKeys, id: \.self) { key in
+                                                    if config.enabledKeys.contains(key) {
+                                                        let modSymbol = config.modifierAssignments[key].map { formatModifierForDisplay($0) } ?? ""
+                                                        Button(action: {
+                                                            onOpenHomeRowModsModalWithKey?(key)
+                                                        }) {
+                                                            HomeRowKeyChipSmall(letter: key.uppercased(), symbol: modSymbol)
+                                                        }
+                                                        .buttonStyle(.plain)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    
+                                    // Right hand
+                                    if config.enabledKeys.contains(where: { HomeRowModsConfig.rightHandKeys.contains($0) }) {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Right hand")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                            HStack(spacing: 6) {
+                                                ForEach(HomeRowModsConfig.rightHandKeys, id: \.self) { key in
+                                                    if config.enabledKeys.contains(key) {
+                                                        let modSymbol = config.modifierAssignments[key].map { formatModifierForDisplay($0) } ?? ""
+                                                        Button(action: {
+                                                            onOpenHomeRowModsModalWithKey?(key)
+                                                        }) {
+                                                            HomeRowKeyChipSmall(letter: key.uppercased(), symbol: modSymbol)
+                                                        }
+                                                        .buttonStyle(.plain)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                Text("Timing: \(config.timing.tapWindow)ms tap, \(config.timing.holdDelay)ms hold")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                            )
+                        }
+                        
+                        Button("Customize...") {
+                            onOpenHomeRowModsModal?()
+                        }
+                        .buttonStyle(.bordered)
+                    }
                     .padding(.top, 8)
                     .padding(.bottom, 12)
                     .padding(.horizontal, 16)
@@ -777,6 +1041,17 @@ private struct MappingRowView: View {
         }
     }
 
+    /// Format a modifier key for display
+    private func formatModifierForDisplay(_ modifier: String) -> String {
+        let displayNames: [String: String] = [
+            "lmet": "⌘", "rmet": "⌘",
+            "lalt": "⌥", "ralt": "⌥",
+            "lctl": "⌃", "rctl": "⌃",
+            "lsft": "⇧", "rsft": "⇧"
+        ]
+        return displayNames[modifier] ?? modifier
+    }
+    
     private func formatKeyForBehavior(_ key: String) -> String {
         let keySymbols: [String: String] = [
             "spc": "␣ Space",
@@ -1006,6 +1281,195 @@ private struct SingleKeyPickerContent: View {
         }
         .padding(.vertical, 8)
         .animation(.easeInOut(duration: 0.15), value: selectedOutput)
+    }
+}
+
+// MARK: - Tap-Hold Picker Content
+
+private struct TapHoldPickerContent: View {
+    let collection: RuleCollection
+    let onSelectTapOutput: (String) -> Void
+    let onSelectHoldOutput: (String) -> Void
+
+    @State private var selectedTap: String
+    @State private var selectedHold: String
+    @State private var showingCustomTapPopover = false
+    @State private var showingCustomHoldPopover = false
+    @State private var customTapInput = ""
+    @State private var customHoldInput = ""
+
+    init(collection: RuleCollection, onSelectTapOutput: @escaping (String) -> Void, onSelectHoldOutput: @escaping (String) -> Void) {
+        self.collection = collection
+        self.onSelectTapOutput = onSelectTapOutput
+        self.onSelectHoldOutput = onSelectHoldOutput
+        let tapOptions = collection.tapHoldOptions?.tapOptions ?? []
+        let holdOptions = collection.tapHoldOptions?.holdOptions ?? []
+        _selectedTap = State(initialValue: collection.selectedTapOutput ?? tapOptions.first?.output ?? "esc")
+        _selectedHold = State(initialValue: collection.selectedHoldOutput ?? holdOptions.first?.output ?? "hyper")
+    }
+
+    private var tapOptions: [SingleKeyPreset] {
+        collection.tapHoldOptions?.tapOptions ?? []
+    }
+
+    private var holdOptions: [SingleKeyPreset] {
+        collection.tapHoldOptions?.holdOptions ?? []
+    }
+
+    private var selectedTapPreset: SingleKeyPreset? {
+        tapOptions.first { $0.output == selectedTap }
+    }
+
+    private var selectedHoldPreset: SingleKeyPreset? {
+        holdOptions.first { $0.output == selectedHold }
+    }
+
+    private var isCustomTapSelection: Bool {
+        !tapOptions.contains { $0.output == selectedTap } && !selectedTap.isEmpty
+    }
+
+    private var isCustomHoldSelection: Bool {
+        !holdOptions.contains { $0.output == selectedHold } && !selectedHold.isEmpty
+    }
+
+    /// Check if caps lock is "lost" (not available via tap or hold)
+    private var capsLockLost: Bool {
+        selectedTap != "caps" && selectedHold != "caps"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // TAP section
+            VStack(alignment: .leading, spacing: 8) {
+                Text("TAP")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.secondary)
+
+                HStack(spacing: 0) {
+                    ForEach(tapOptions) { preset in
+                        PickerSegment(
+                            label: preset.label,
+                            isSelected: selectedTap == preset.output,
+                            isFirst: preset.id == tapOptions.first?.id,
+                            isLast: preset.id == tapOptions.last?.id && !isCustomTapSelection
+                        ) {
+                            selectedTap = preset.output
+                            onSelectTapOutput(preset.output)
+                        }
+                    }
+
+                    PickerSegment(
+                        label: "Custom",
+                        isSelected: isCustomTapSelection,
+                        isFirst: false,
+                        isLast: true
+                    ) {
+                        customTapInput = isCustomTapSelection ? selectedTap : ""
+                        showingCustomTapPopover = true
+                    }
+                    .popover(isPresented: $showingCustomTapPopover, arrowEdge: .bottom) {
+                        CustomKeyPopover(
+                            keyInput: $customTapInput,
+                            onConfirm: {
+                                let normalized = CustomRuleValidator.normalizeKey(customTapInput)
+                                if CustomRuleValidator.isValidKey(normalized) {
+                                    selectedTap = normalized
+                                    onSelectTapOutput(normalized)
+                                }
+                                showingCustomTapPopover = false
+                            },
+                            onCancel: {
+                                showingCustomTapPopover = false
+                            }
+                        )
+                    }
+                }
+                .padding(.horizontal, 4)
+
+                if let preset = selectedTapPreset {
+                    Text(preset.description)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 4)
+                }
+            }
+
+            // HOLD section
+            VStack(alignment: .leading, spacing: 8) {
+                Text("HOLD")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.secondary)
+
+                HStack(spacing: 0) {
+                    ForEach(holdOptions) { preset in
+                        PickerSegment(
+                            label: preset.label,
+                            isSelected: selectedHold == preset.output,
+                            isFirst: preset.id == holdOptions.first?.id,
+                            isLast: preset.id == holdOptions.last?.id && !isCustomHoldSelection
+                        ) {
+                            selectedHold = preset.output
+                            onSelectHoldOutput(preset.output)
+                        }
+                    }
+
+                    PickerSegment(
+                        label: "Custom",
+                        isSelected: isCustomHoldSelection,
+                        isFirst: false,
+                        isLast: true
+                    ) {
+                        customHoldInput = isCustomHoldSelection ? selectedHold : ""
+                        showingCustomHoldPopover = true
+                    }
+                    .popover(isPresented: $showingCustomHoldPopover, arrowEdge: .bottom) {
+                        CustomKeyPopover(
+                            keyInput: $customHoldInput,
+                            onConfirm: {
+                                let normalized = CustomRuleValidator.normalizeKey(customHoldInput)
+                                if CustomRuleValidator.isValidKey(normalized) {
+                                    selectedHold = normalized
+                                    onSelectHoldOutput(normalized)
+                                }
+                                showingCustomHoldPopover = false
+                            },
+                            onCancel: {
+                                showingCustomHoldPopover = false
+                            }
+                        )
+                    }
+                }
+                .padding(.horizontal, 4)
+
+                if let preset = selectedHoldPreset {
+                    Text(preset.description)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 4)
+                }
+            }
+
+            // Suggestion: Lost Caps Lock
+            if capsLockLost {
+                HStack(spacing: 8) {
+                    Image(systemName: "lightbulb.fill")
+                        .foregroundColor(.yellow)
+                        .font(.caption)
+                    Text("Lost Caps Lock? Enable \"Backup Caps Lock\" to get it back via Both Shifts.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(10)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.yellow.opacity(0.1))
+                )
+                .padding(.top, 4)
+            }
+        }
+        .padding(.vertical, 8)
+        .animation(.easeInOut(duration: 0.15), value: selectedTap)
+        .animation(.easeInOut(duration: 0.15), value: selectedHold)
     }
 }
 
@@ -1378,7 +1842,54 @@ private struct MappingTableContent: View {
         if let macName = macModifiers[key] {
             return macName
         }
-        return key
+
+        // Handle modifier prefix notation (e.g., "C-M-A-up" -> "⌃⌘⌥↑")
+        return formatModifierPrefixNotation(key, macModifiers: macModifiers)
+    }
+
+    /// Format modifier prefix notation (e.g., "C-M-A-up" -> "⌃⌘⌥↑")
+    private func formatModifierPrefixNotation(_ key: String, macModifiers: [String: String]) -> String {
+        // Modifier prefix symbols in Kanata notation
+        let modifierPrefixes: [(prefix: String, symbol: String)] = [
+            ("C-", "⌃"),  // Control
+            ("M-", "⌘"),  // Meta/Command
+            ("A-", "⌥"),  // Alt/Option
+            ("S-", "⇧")   // Shift
+        ]
+
+        var remaining = key
+        var symbols = ""
+
+        // Extract modifier prefixes in order
+        var foundModifier = true
+        while foundModifier {
+            foundModifier = false
+            for (prefix, symbol) in modifierPrefixes {
+                if remaining.hasPrefix(prefix) {
+                    symbols += symbol
+                    remaining = String(remaining.dropFirst(prefix.count))
+                    foundModifier = true
+                    break
+                }
+            }
+        }
+
+        // Format the base key
+        let baseKey = remaining.isEmpty ? key : remaining
+        let formattedBase: String
+        if let macName = macModifiers[baseKey.capitalized] {
+            // Extract just the symbol part if it has a name (e.g., "↑" from "↑ Up")
+            formattedBase = macName.components(separatedBy: " ").first ?? macName
+        } else {
+            formattedBase = baseKey.uppercased()
+        }
+
+        // Combine modifiers and base key
+        if symbols.isEmpty {
+            return formattedBase
+        } else {
+            return "\(symbols)\(formattedBase)"
+        }
     }
 
     /// Format output for display (convert Kanata codes to readable symbols)
@@ -1387,16 +1898,16 @@ private struct MappingTableContent: View {
         output.split(separator: " ").map { part in
             String(part)
                 // Multi-modifier combinations (order matters - longest first)
-                .replacingOccurrences(of: "C-M-A-S-", with: "⌃ ⌘ ⌥ ⇧ ")
-                .replacingOccurrences(of: "C-M-A-", with: "⌃ ⌘ ⌥ ")
-                .replacingOccurrences(of: "M-S-", with: "⌘ ⇧ ")
-                .replacingOccurrences(of: "C-S-", with: "⌃ ⇧ ")
-                .replacingOccurrences(of: "A-S-", with: "⌥ ⇧ ")
+                .replacingOccurrences(of: "C-M-A-S-", with: "⌃⌘⌥⇧")
+                .replacingOccurrences(of: "C-M-A-", with: "⌃⌘⌥")
+                .replacingOccurrences(of: "M-S-", with: "⌘⇧")
+                .replacingOccurrences(of: "C-S-", with: "⌃⇧")
+                .replacingOccurrences(of: "A-S-", with: "⌥⇧")
                 // Single modifiers
-                .replacingOccurrences(of: "M-", with: "⌘ ")
-                .replacingOccurrences(of: "A-", with: "⌥ ")
-                .replacingOccurrences(of: "C-", with: "⌃ ")
-                .replacingOccurrences(of: "S-", with: "⇧ ")
+                .replacingOccurrences(of: "M-", with: "⌘")
+                .replacingOccurrences(of: "A-", with: "⌥")
+                .replacingOccurrences(of: "C-", with: "⌃")
+                .replacingOccurrences(of: "S-", with: "⇧")
                 // Arrow keys and special keys
                 .replacingOccurrences(of: "left", with: "←")
                 .replacingOccurrences(of: "right", with: "→")
@@ -1405,8 +1916,8 @@ private struct MappingTableContent: View {
                 .replacingOccurrences(of: "ret", with: "↩")
                 .replacingOccurrences(of: "bspc", with: "⌫")
                 .replacingOccurrences(of: "del", with: "⌦")
-                .replacingOccurrences(of: "pgup", with: "Pg ↑")
-                .replacingOccurrences(of: "pgdn", with: "Pg ↓")
+                .replacingOccurrences(of: "pgup", with: "Pg↑")
+                .replacingOccurrences(of: "pgdn", with: "Pg↓")
                 .replacingOccurrences(of: "esc", with: "⎋")
         }.joined(separator: " ")
     }

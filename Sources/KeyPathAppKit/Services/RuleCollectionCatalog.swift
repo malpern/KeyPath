@@ -16,7 +16,7 @@ struct RuleCollectionCatalog {
     // MARK: - Predefined collections
 
     private var builtInList: [RuleCollection] {
-        [macOSFunctionKeys, leaderKeyConfig, navigationArrows, windowManagement, capsLockRemap, escapeRemap, deleteRemap]
+        [macOSFunctionKeys, leaderKeyConfig, navigationArrows, windowManagement, capsLockRemap, backupCapsLock, escapeRemap, deleteRemap, homeRowMods]
     }
 
     private var builtInCollections: [UUID: RuleCollection] {
@@ -170,46 +170,109 @@ struct RuleCollectionCatalog {
     private var capsLockRemap: RuleCollection {
         RuleCollection(
             id: RuleCollectionIdentifier.capsLockRemap,
-            name: "Caps Lock",
-            summary: "Remap Caps Lock to a more useful key",
+            name: "Caps Lock Remap",
+            summary: "Make Caps Lock actually useful with tap and hold actions",
             category: .productivity,
             mappings: [
-                // Default mapping - will be updated based on selectedOutput
-                KeyMapping(input: "caps", output: "f18", description: "Hyper key")
+                // Mapping will be generated based on selectedTapOutput and selectedHoldOutput
+                KeyMapping(input: "caps", output: "esc", description: "Tap: Escape, Hold: Hyper")
             ],
             isEnabled: true,
             isSystemDefault: true,
             icon: "capslock",
-            tags: ["caps lock", "hyper", "escape", "control", "productivity"],
-            displayStyle: .singleKeyPicker,
+            tags: ["caps lock", "hyper", "escape", "control", "meh", "productivity", "tap-hold"],
+            displayStyle: .tapHoldPicker,
             pickerInputKey: "caps",
+            tapHoldOptions: TapHoldPresetOptions(
+                tapOptions: [
+                    SingleKeyPreset(
+                        output: "esc",
+                        label: "⎋ Escape",
+                        description: "Popular for Vim users - quick access to Escape",
+                        icon: "escape"
+                    ),
+                    SingleKeyPreset(
+                        output: "caps",
+                        label: "⇪ Caps Lock",
+                        description: "Keep original Caps Lock function on tap",
+                        icon: "capslock"
+                    ),
+                    SingleKeyPreset(
+                        output: "bspc",
+                        label: "⌫ Delete",
+                        description: "Easy access to Delete without reaching",
+                        icon: "delete.left"
+                    ),
+                    SingleKeyPreset(
+                        output: "XX",
+                        label: "None",
+                        description: "No tap action - hold only",
+                        icon: "minus.circle"
+                    )
+                ],
+                holdOptions: [
+                    SingleKeyPreset(
+                        output: "hyper",
+                        label: "✦ Hyper",
+                        description: "All four modifiers (⌃⌥⇧⌘) - ultimate shortcut prefix",
+                        icon: "bolt.circle"
+                    ),
+                    SingleKeyPreset(
+                        output: "meh",
+                        label: "◇ Meh",
+                        description: "Three modifiers (⌃⌥⇧) - Hyper without Command",
+                        icon: "diamond"
+                    ),
+                    SingleKeyPreset(
+                        output: "lctl",
+                        label: "⌃ Control",
+                        description: "Control modifier (common on Unix systems)",
+                        icon: "control"
+                    ),
+                    SingleKeyPreset(
+                        output: "lsft",
+                        label: "⇧ Shift",
+                        description: "Shift modifier",
+                        icon: "shift"
+                    )
+                ]
+            ),
+            selectedTapOutput: "esc",
+            selectedHoldOutput: "hyper"
+        )
+    }
+
+    private var backupCapsLock: RuleCollection {
+        RuleCollection(
+            id: RuleCollectionIdentifier.backupCapsLock,
+            name: "Backup Caps Lock",
+            summary: "Alternative way to access Caps Lock (both Shift keys)",
+            category: .productivity,
+            mappings: [
+                // Chord mapping: lsft + rsft = caps
+                KeyMapping(input: "lsft rsft", output: "caps", description: "Both Shifts → Caps Lock")
+            ],
+            isEnabled: false,
+            isSystemDefault: false,
+            icon: "shift",
+            tags: ["caps lock", "shift", "backup", "chord"],
+            displayStyle: .singleKeyPicker,
+            pickerInputKey: "backup-caps",
             presetOptions: [
                 SingleKeyPreset(
-                    output: "f18",
-                    label: "✦ Hyper",
-                    description: "F18 key for automation tools (Keyboard Maestro, Raycast, etc.)",
-                    icon: "bolt.circle"
+                    output: "both-shifts",
+                    label: "⇧⇧ Both Shifts",
+                    description: "Press both Shift keys together to toggle Caps Lock",
+                    icon: "shift"
                 ),
                 SingleKeyPreset(
-                    output: "esc",
-                    label: "⎋ Escape",
-                    description: "Popular for Vim users - quick access to Escape key",
+                    output: "double-tap-esc",
+                    label: "⎋⎋ Double-tap Esc",
+                    description: "Double-tap Escape to toggle Caps Lock",
                     icon: "escape"
-                ),
-                SingleKeyPreset(
-                    output: "lctl",
-                    label: "⌃ Control",
-                    description: "Use Caps Lock as Control (common on Unix systems)",
-                    icon: "control"
-                ),
-                SingleKeyPreset(
-                    output: "bspc",
-                    label: "⌫ Delete",
-                    description: "Easy access to Delete without reaching",
-                    icon: "delete.left"
                 )
             ],
-            selectedOutput: "f18"
+            selectedOutput: "both-shifts"
         )
     }
 
@@ -293,24 +356,20 @@ struct RuleCollectionCatalog {
             selectedOutput: "del"
         )
     }
-
-    // Note: Home row mods require tap-hold configuration which is not yet supported
-    // by the simple KeyMapping model. This would need to be implemented as a
-    // custom Kanata configuration block with defalias and tap-hold syntax.
-    // Keeping this commented out until tap-hold support is added.
-    //
-    // private var homeRowMods: RuleCollection {
-    //     RuleCollection(
-    //         id: UUID(uuidString: "A7B9C5D1-6E8F-4A2B-9C3D-5E7F1A2B3C4D")!,
-    //         name: "Home Row Mods",
-    //         summary: "Hold home row keys (A, S, D, F, J, K, L, ;) for modifiers (Ctrl, Opt, Cmd, Shift).",
-    //         category: .advanced,
-    //         mappings: [], // Would require tap-hold implementation
-    //         isEnabled: false,
-    //         isSystemDefault: false,
-    //         icon: "hand.point.up.left",
-    //         tags: ["home row", "modifiers", "advanced", "ergonomic"],
-    //         targetLayer: .base
-    //     )
-    // }
+    
+    private var homeRowMods: RuleCollection {
+        RuleCollection(
+            id: RuleCollectionIdentifier.homeRowMods,
+            name: "Home Row Mods",
+            summary: "Home row keys act as modifiers when held",
+            category: .productivity,
+            mappings: [], // Generated from homeRowModsConfig
+            isEnabled: false,
+            isSystemDefault: false,
+            icon: "keyboard",
+            tags: ["home row", "modifiers", "productivity", "ergonomics"],
+            displayStyle: .homeRowMods,
+            homeRowModsConfig: HomeRowModsConfig()
+        )
+    }
 }

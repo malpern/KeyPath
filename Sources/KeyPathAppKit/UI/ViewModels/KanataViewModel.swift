@@ -186,10 +186,20 @@ class KanataViewModel: ObservableObject {
         await manager.toggleRuleCollection(id: id, isEnabled: enabled)
         let collection = ruleCollections.first { $0.id == id }
         let collectionName = collection?.name ?? "Collection"
-        if enabled {
-            showToast("\(collectionName) enabled", type: .success)
+        
+        // Special message for Home Row Mods
+        if id == RuleCollectionIdentifier.homeRowMods {
+            if enabled {
+                showToast("Home Row Mods enabled - tap keys for letters, hold for modifiers", type: .success)
+            } else {
+                showToast("Home Row Mods disabled", type: .info)
+            }
         } else {
-            showToast("\(collectionName) disabled", type: .info)
+            if enabled {
+                showToast("\(collectionName) enabled", type: .success)
+            } else {
+                showToast("\(collectionName) disabled", type: .info)
+            }
         }
     }
 
@@ -223,6 +233,18 @@ class KanataViewModel: ObservableObject {
 
     func updateCollectionOutput(_ id: UUID, output: String) async {
         await manager.updateCollectionOutput(id: id, output: output)
+    }
+
+    func updateCollectionTapOutput(_ id: UUID, tapOutput: String) async {
+        await manager.updateCollectionTapOutput(id: id, tapOutput: tapOutput)
+    }
+
+    func updateCollectionHoldOutput(_ id: UUID, holdOutput: String) async {
+        await manager.updateCollectionHoldOutput(id: id, holdOutput: holdOutput)
+    }
+
+    func updateHomeRowModsConfig(collectionId: UUID, config: HomeRowModsConfig) async {
+        await manager.updateHomeRowModsConfig(collectionId: collectionId, config: config)
     }
 
     /// Update the leader key for all collections that use momentary activation

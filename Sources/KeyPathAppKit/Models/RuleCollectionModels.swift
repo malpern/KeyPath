@@ -21,6 +21,14 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
     public var presetOptions: [SingleKeyPreset]
     /// For singleKeyPicker style: currently selected output (can be preset or custom)
     public var selectedOutput: String?
+    /// For homeRowMods style: configuration for home row mods
+    public var homeRowModsConfig: HomeRowModsConfig?
+    /// For tapHoldPicker style: preset options for tap and hold actions
+    public var tapHoldOptions: TapHoldPresetOptions?
+    /// For tapHoldPicker style: currently selected tap action
+    public var selectedTapOutput: String?
+    /// For tapHoldPicker style: currently selected hold action
+    public var selectedHoldOutput: String?
 
     public init(
         id: UUID = UUID(),
@@ -38,7 +46,11 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         displayStyle: RuleCollectionDisplayStyle = .list,
         pickerInputKey: String? = nil,
         presetOptions: [SingleKeyPreset] = [],
-        selectedOutput: String? = nil
+        selectedOutput: String? = nil,
+        homeRowModsConfig: HomeRowModsConfig? = nil,
+        tapHoldOptions: TapHoldPresetOptions? = nil,
+        selectedTapOutput: String? = nil,
+        selectedHoldOutput: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -56,11 +68,16 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         self.pickerInputKey = pickerInputKey
         self.presetOptions = presetOptions
         self.selectedOutput = selectedOutput
+        self.homeRowModsConfig = homeRowModsConfig
+        self.tapHoldOptions = tapHoldOptions
+        self.selectedTapOutput = selectedTapOutput
+        self.selectedHoldOutput = selectedHoldOutput
     }
 
     enum CodingKeys: String, CodingKey {
         case id, name, summary, category, mappings, isEnabled, isSystemDefault, icon, tags, targetLayer,
-             momentaryActivator, activationHint, displayStyle, pickerInputKey, presetOptions, selectedOutput
+             momentaryActivator, activationHint, displayStyle, pickerInputKey, presetOptions, selectedOutput,
+             homeRowModsConfig, tapHoldOptions, selectedTapOutput, selectedHoldOutput
     }
 
     public init(from decoder: Decoder) throws {
@@ -85,6 +102,10 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         pickerInputKey = try container.decodeIfPresent(String.self, forKey: .pickerInputKey)
         presetOptions = try container.decodeIfPresent([SingleKeyPreset].self, forKey: .presetOptions) ?? []
         selectedOutput = try container.decodeIfPresent(String.self, forKey: .selectedOutput)
+        homeRowModsConfig = try container.decodeIfPresent(HomeRowModsConfig.self, forKey: .homeRowModsConfig)
+        tapHoldOptions = try container.decodeIfPresent(TapHoldPresetOptions.self, forKey: .tapHoldOptions)
+        selectedTapOutput = try container.decodeIfPresent(String.self, forKey: .selectedTapOutput)
+        selectedHoldOutput = try container.decodeIfPresent(String.self, forKey: .selectedHoldOutput)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -105,6 +126,10 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         try container.encodeIfPresent(pickerInputKey, forKey: .pickerInputKey)
         try container.encode(presetOptions, forKey: .presetOptions)
         try container.encodeIfPresent(selectedOutput, forKey: .selectedOutput)
+        try container.encodeIfPresent(homeRowModsConfig, forKey: .homeRowModsConfig)
+        try container.encodeIfPresent(tapHoldOptions, forKey: .tapHoldOptions)
+        try container.encodeIfPresent(selectedTapOutput, forKey: .selectedTapOutput)
+        try container.encodeIfPresent(selectedHoldOutput, forKey: .selectedHoldOutput)
     }
 }
 
@@ -139,6 +164,8 @@ public enum RuleCollectionIdentifier {
     public static let deleteRemap = UUID(uuidString: "F8D0B4C6-3A5E-7F9B-C2D4-6E8A0B2C4D6F")!
     public static let leaderKey = UUID(uuidString: "A1B2C3D4-5E6F-7A8B-9C0D-1E2F3A4B5C6D")!
     public static let customMappings = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+    public static let homeRowMods = UUID(uuidString: "B3E5F7A9-1C2D-4E5F-6A7B-8C9D0E1F2A3B")!
+    public static let backupCapsLock = UUID(uuidString: "C4D6E8F0-2A3B-5C7D-9E1F-3A5B7C9D1E3F")!
 }
 
 public extension Sequence<RuleCollection> {
@@ -233,6 +260,10 @@ public enum RuleCollectionDisplayStyle: String, Codable, Sendable {
     case table
     /// Segmented picker for single-key remapping with preset options (e.g., Caps Lock → X)
     case singleKeyPicker
+    /// Home Row Mods: visual keyboard with interactive customization
+    case homeRowMods
+    /// Tap-hold picker: separate preset options for tap and hold actions
+    case tapHoldPicker
 }
 
 /// A preset option for single-key picker collections
@@ -248,5 +279,16 @@ public struct SingleKeyPreset: Codable, Equatable, Sendable, Identifiable {
         self.label = label
         self.description = description
         self.icon = icon
+    }
+}
+
+/// Preset options for tap-hold picker collections
+public struct TapHoldPresetOptions: Codable, Equatable, Sendable {
+    public let tapOptions: [SingleKeyPreset]
+    public let holdOptions: [SingleKeyPreset]
+
+    public init(tapOptions: [SingleKeyPreset], holdOptions: [SingleKeyPreset]) {
+        self.tapOptions = tapOptions
+        self.holdOptions = holdOptions
     }
 }

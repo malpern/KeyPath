@@ -767,6 +767,18 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         await ruleCollectionsCoordinator.updateCollectionOutput(id: id, output: output)
     }
 
+    func updateCollectionTapOutput(id: UUID, tapOutput: String) async {
+        await ruleCollectionsCoordinator.updateCollectionTapOutput(id: id, tapOutput: tapOutput)
+    }
+
+    func updateCollectionHoldOutput(id: UUID, holdOutput: String) async {
+        await ruleCollectionsCoordinator.updateCollectionHoldOutput(id: id, holdOutput: holdOutput)
+    }
+
+    func updateHomeRowModsConfig(collectionId: UUID, config: HomeRowModsConfig) async {
+        await ruleCollectionsCoordinator.updateHomeRowModsConfig(id: collectionId, config: config)
+    }
+
     func updateLeaderKey(_ newKey: String) async {
         await ruleCollectionsCoordinator.updateLeaderKey(newKey)
     }
