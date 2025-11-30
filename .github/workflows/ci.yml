@@ -43,7 +43,7 @@ jobs:
         swift build
         echo "✅ Build completed successfully"
 
-    - name: Smoke: Signing and Installer Engine
+    - name: "Smoke: Signing and Installer Engine"
       run: |
         echo "🧪 Running signing/notarization wrappers and installer E2E smoke tests"
         export KP_SIGN_DRY_RUN=1
