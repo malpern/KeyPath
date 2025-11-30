@@ -8,16 +8,18 @@ final class DiagnosticsServiceTests: XCTestCase {
     var service: DiagnosticsService!
     var processManager: ProcessLifecycleManager!
 
-    override func setUp() {
-        super.setUp()
+    @MainActor
+    override func setUp() async throws {
+        try await super.setUp()
         processManager = ProcessLifecycleManager()
         service = DiagnosticsService(processLifecycleManager: processManager)
     }
 
-    override func tearDown() {
+    @MainActor
+    override func tearDown() async throws {
         service = nil
         processManager = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Failure Diagnosis Tests
