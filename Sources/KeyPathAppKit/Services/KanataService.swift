@@ -98,6 +98,12 @@ public final class KanataService: ObservableObject {
     init(healthMonitor: ServiceHealthMonitor = ServiceHealthMonitor(processLifecycle: ProcessLifecycleManager())) {
         self.healthMonitor = healthMonitor
 
+        // Skip polling and initial check in test environment to avoid TCP timeouts
+        guard !TestEnvironment.isRunningTests else {
+            AppLogger.shared.log("🧪 [KanataService] Test environment - skipping status polling")
+            return
+        }
+
         // Initial status check
         Task { await refreshStatus() }
 

@@ -707,7 +707,7 @@ actor KanataTCPClient {
     /// ```
     /// (defvirtualkeys
     ///   email-sig (macro H e l l o spc W o r l d)
-    ///   launch-obs (cmd open -a Obsidian)
+    ///   launch-obsidian (cmd open -a Obsidian)
     /// )
     /// ```
     ///
@@ -926,16 +926,38 @@ actor KanataTCPClient {
             return nil
         }
 
+        func parseRequestIdValue(_ value: Any) -> UInt64? {
+            if let number = value as? NSNumber {
+                return number.uint64Value
+            }
+            if let stringValue = value as? String, let parsed = UInt64(stringValue) {
+                return parsed
+            }
+            return value as? UInt64
+        }
+
+        if let topLevel = json["request_id"], let id = parseRequestIdValue(topLevel) {
+            return id
+        }
+
         // Try to find request_id in the first level of any message type
         for (_, value) in json {
             if let dict = value as? [String: Any],
-               let requestId = dict["request_id"] as? UInt64 {
+               let nested = dict["request_id"],
+               let requestId = parseRequestIdValue(nested) {
                 return requestId
             }
         }
 
         return nil
     }
+
+    #if DEBUG
+        /// Test hook exposed in DEBUG builds to validate request_id parsing behavior.
+        nonisolated func _testExtractRequestId(from data: Data) -> UInt64? {
+            extractRequestId(from: data)
+        }
+    #endif
 
     /// Core TCP send/receive implementation with request_id matching
     /// Falls back to broadcast draining if server doesn't support request_id

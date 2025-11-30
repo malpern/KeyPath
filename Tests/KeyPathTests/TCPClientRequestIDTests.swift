@@ -177,6 +177,14 @@ final class TCPClientRequestIDTests: XCTestCase {
         XCTAssertTrue(status.ready, "Should still parse other fields")
     }
 
+    /// Ensure we can extract request_id from top-level ServerResponse payloads
+    func testExtractsTopLevelRequestId() {
+        let client = KanataTCPClient(port: port)
+        let payload = #"{"status":"Ok","request_id":123}"#.data(using: .utf8)!
+        let extracted = client._testExtractRequestId(from: payload)
+        XCTAssertEqual(extracted, 123)
+    }
+
     // MARK: - Real-World Scenario Tests
 
     /// Test rapid successive requests (the problem request_id solves)

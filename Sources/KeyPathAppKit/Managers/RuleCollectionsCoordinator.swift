@@ -69,6 +69,27 @@ final class RuleCollectionsCoordinator {
         notifyStateChanged()
     }
 
+    /// Update a tap-hold picker collection's tap output
+    func updateCollectionTapOutput(id: UUID, tapOutput: String) async {
+        await ruleCollectionsManager.updateCollectionTapOutput(id: id, tapOutput: tapOutput)
+        applyMappings(ruleCollectionsManager.enabledMappings())
+        notifyStateChanged()
+    }
+
+    /// Update a tap-hold picker collection's hold output
+    func updateCollectionHoldOutput(id: UUID, holdOutput: String) async {
+        await ruleCollectionsManager.updateCollectionHoldOutput(id: id, holdOutput: holdOutput)
+        applyMappings(ruleCollectionsManager.enabledMappings())
+        notifyStateChanged()
+    }
+
+    /// Update home row mods configuration
+    func updateHomeRowModsConfig(id: UUID, config: HomeRowModsConfig) async {
+        await ruleCollectionsManager.updateHomeRowModsConfig(id: id, config: config)
+        applyMappings(ruleCollectionsManager.enabledMappings())
+        notifyStateChanged()
+    }
+
     /// Update the leader key for all collections that use momentary activation
     func updateLeaderKey(_ newKey: String) async {
         await ruleCollectionsManager.updateLeaderKey(newKey)
@@ -84,6 +105,9 @@ final class RuleCollectionsCoordinator {
         let result = await ruleCollectionsManager.saveCustomRule(rule, skipReload: skipReload)
         applyMappings(ruleCollectionsManager.enabledMappings())
         notifyStateChanged()
+        if result {
+            SoundManager.shared.playGlassSound()
+        }
         return result
     }
 
@@ -92,6 +116,7 @@ final class RuleCollectionsCoordinator {
         await ruleCollectionsManager.toggleCustomRule(id: id, isEnabled: isEnabled)
         applyMappings(ruleCollectionsManager.enabledMappings())
         notifyStateChanged()
+        SoundManager.shared.playTinkSound()
     }
 
     /// Remove a custom rule

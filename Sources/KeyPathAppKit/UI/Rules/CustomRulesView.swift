@@ -158,9 +158,22 @@ private struct CustomRuleRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(rule.displayTitle)
                         .font(.headline)
-                    Text("\(rule.input) → \(rule.output)")
-                        .font(.caption.monospaced())
-                        .foregroundColor(.secondary)
+
+                    HStack(spacing: 8) {
+                        KeyCapChip(text: rule.input)
+                        Text("→")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        KeyCapChip(text: rule.output)
+
+                        // Behavior summary on same line
+                        if let behavior = rule.behavior {
+                            behaviorSummaryView(behavior: behavior)
+                        }
+
+                        Spacer(minLength: 0)
+                    }
+
                     if let notes = rule.notes, !notes.isEmpty {
                         Text(notes)
                             .font(.caption)
@@ -196,5 +209,114 @@ private struct CustomRuleRow: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color(NSColor.windowBackgroundColor))
         )
+    }
+
+    @ViewBuilder
+    private func behaviorSummaryView(behavior: MappingBehavior) -> some View {
+        HStack(spacing: 6) {
+            switch behavior {
+            case let .dualRole(dr):
+                behaviorItem(icon: "hand.point.up.left", label: "Hold", key: dr.holdAction)
+
+            case let .tapDance(td):
+                let behaviorItems = extractBehaviorItemsInEditOrder(from: td)
+
+                if behaviorItems.isEmpty {
+                    EmptyView()
+                } else {
+                    ForEach(Array(behaviorItems.enumerated()), id: \.offset) { itemIndex, item in
+                        if itemIndex > 0 {
+                            Text("•")
+                                .font(.caption)
+                                .foregroundColor(.secondary.opacity(0.5))
+                        }
+                        behaviorItem(icon: item.0, label: item.1, key: item.2)
+                    }
+                }
+            }
+        }
+        .foregroundColor(.secondary)
+    }
+
+    // Extract tap dance steps (skip index 0 which is single tap = output)
+    private func extractBehaviorItemsInEditOrder(from td: TapDanceBehavior) -> [(String, String, String)] {
+        var behaviorItems: [(String, String, String)] = []
+
+        // Step 0 = single tap (shown as "Finish" already)
+        // Step 1+ = double tap, triple tap, etc.
+        let tapLabels = ["Double Tap", "Triple Tap", "Quad Tap", "5× Tap", "6× Tap", "7× Tap"]
+        let tapIcons = ["hand.tap", "hand.tap", "hand.tap", "hand.tap", "hand.tap", "hand.tap"]
+
+        for index in 1 ..< td.steps.count {
+            let step = td.steps[index]
+            guard !step.action.isEmpty else { continue }
+
+            let labelIndex = index - 1
+            let label = labelIndex < tapLabels.count ? tapLabels[labelIndex] : "\(index + 1)× Tap"
+            let icon = labelIndex < tapIcons.count ? tapIcons[labelIndex] : "hand.tap"
+
+            behaviorItems.append((icon, label, step.action))
+        }
+
+        return behaviorItems
+    }
+
+    @ViewBuilder
+    private func behaviorItem(icon: String, label: String, key: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.caption)
+            Text(label)
+                .font(.caption)
+            KeyCapChip(text: formatKeyForBehavior(key))
+        }
+    }
+
+    private func formatKeyForBehavior(_ key: String) -> String {
+        let keySymbols: [String: String] = [
+            "spc": "␣ Space",
+            "space": "␣ Space",
+            "caps": "⇪ Caps",
+            "tab": "⇥ Tab",
+            "ret": "↩ Return",
+            "bspc": "⌫ Delete",
+            "del": "⌦ Fwd Del",
+            "esc": "⎋ Escape",
+            "lmet": "⌘ Cmd",
+            "rmet": "⌘ Cmd",
+            "lalt": "⌥ Opt",
+            "ralt": "⌥ Opt",
+            "lctl": "⌃ Ctrl",
+            "rctl": "⌃ Ctrl",
+            "lsft": "⇧ Shift",
+            "rsft": "⇧ Shift"
+        ]
+
+        if let symbol = keySymbols[key.lowercased()] {
+            return symbol
+        }
+
+        // Handle modifier prefixes
+        var result = key
+        var prefix = ""
+        if result.hasPrefix("M-") {
+            prefix = "⌘"
+            result = String(result.dropFirst(2))
+        } else if result.hasPrefix("C-") {
+            prefix = "⌃"
+            result = String(result.dropFirst(2))
+        } else if result.hasPrefix("A-") {
+            prefix = "⌥"
+            result = String(result.dropFirst(2))
+        } else if result.hasPrefix("S-") {
+            prefix = "⇧"
+            result = String(result.dropFirst(2))
+        }
+
+        if let symbol = keySymbols[result.lowercased()] {
+            return prefix + symbol
+        }
+
+        return prefix + result.capitalized
     }
 }

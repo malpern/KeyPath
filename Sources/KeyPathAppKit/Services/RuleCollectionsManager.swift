@@ -65,6 +65,9 @@ final class RuleCollectionsManager {
     /// Callback for reporting errors
     var onError: ((String) -> Void)?
 
+    /// Callback for reporting warnings (non-blocking)
+    var onWarning: ((String) -> Void)?
+
     // MARK: - Initialization
 
     init(
@@ -223,13 +226,13 @@ final class RuleCollectionsManager {
         if var candidate, isEnabled {
             candidate.isEnabled = true
             if let conflict = conflictInfo(for: candidate) {
-                onError?(
-                    "Cannot enable \(candidate.name). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
+                onWarning?(
+                    "⚠️ \(candidate.name) conflicts with \(conflict.displayName) on key: \(conflict.keys.joined(separator: ", ")). Last enabled rule wins."
                 )
                 AppLogger.shared.log(
                     "⚠️ [RuleCollections] Conflict enabling \(candidate.name) vs \(conflict.displayName) on \(conflict.keys)"
                 )
-                return
+                // Continue anyway - just a warning
             }
         }
 
@@ -237,9 +240,17 @@ final class RuleCollectionsManager {
 
         if let index = ruleCollections.firstIndex(where: { $0.id == id }) {
             ruleCollections[index].isEnabled = isEnabled
+            // Ensure home row mods config exists if this is a home row mods collection
+            if resolvedCandidate.displayStyle == .homeRowMods, ruleCollections[index].homeRowModsConfig == nil {
+                ruleCollections[index].homeRowModsConfig = HomeRowModsConfig()
+            }
         } else {
             var newCollection = resolvedCandidate
             newCollection.isEnabled = isEnabled
+            // Ensure home row mods config exists if this is a home row mods collection
+            if newCollection.displayStyle == .homeRowMods, newCollection.homeRowModsConfig == nil {
+                newCollection.homeRowModsConfig = HomeRowModsConfig()
+            }
             ruleCollections.append(newCollection)
         }
 
@@ -256,13 +267,13 @@ final class RuleCollectionsManager {
     /// Add or update a rule collection
     func addCollection(_ collection: RuleCollection) async {
         if let conflict = conflictInfo(for: collection) {
-            onError?(
-                "Cannot enable \(collection.name). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
+            onWarning?(
+                "⚠️ \(collection.name) conflicts with \(conflict.displayName) on key: \(conflict.keys.joined(separator: ", ")). Last enabled rule wins."
             )
             AppLogger.shared.log(
                 "⚠️ [RuleCollections] Conflict adding \(collection.name) vs \(conflict.displayName) on \(conflict.keys)"
             )
-            return
+            // Continue anyway - just a warning
         }
 
         if let index = ruleCollections.firstIndex(where: { $0.id == collection.id }) {
@@ -310,9 +321,73 @@ final class RuleCollectionsManager {
         // Special handling: If this is the Leader Key collection, update all momentary activators
         if id == RuleCollectionIdentifier.leaderKey {
             await updateLeaderKey(output)
-            return // updateLeaderKey already calls regenerateConfigFromCollections
+            return
         }
 
+        refreshLayerIndicatorState()
+        await regenerateConfigFromCollections()
+    }
+
+    /// Update a tap-hold picker collection's tap output
+    func updateCollectionTapOutput(id: UUID, tapOutput: String) async {
+        guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
+            // Try to find in catalog and add it
+            let catalog = RuleCollectionCatalog()
+            if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
+                catalogCollection.selectedTapOutput = tapOutput
+                catalogCollection.isEnabled = true
+                ruleCollections.append(catalogCollection)
+                refreshLayerIndicatorState()
+                await regenerateConfigFromCollections()
+            }
+            return
+        }
+
+        ruleCollections[index].selectedTapOutput = tapOutput
+        ruleCollections[index].isEnabled = true
+        refreshLayerIndicatorState()
+        await regenerateConfigFromCollections()
+    }
+
+    /// Update a tap-hold picker collection's hold output
+    func updateCollectionHoldOutput(id: UUID, holdOutput: String) async {
+        guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
+            // Try to find in catalog and add it
+            let catalog = RuleCollectionCatalog()
+            if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
+                catalogCollection.selectedHoldOutput = holdOutput
+                catalogCollection.isEnabled = true
+                ruleCollections.append(catalogCollection)
+                refreshLayerIndicatorState()
+                await regenerateConfigFromCollections()
+            }
+            return
+        }
+
+        ruleCollections[index].selectedHoldOutput = holdOutput
+        ruleCollections[index].isEnabled = true
+        refreshLayerIndicatorState()
+        await regenerateConfigFromCollections()
+    }
+
+    /// Update home row mods configuration
+    func updateHomeRowModsConfig(id: UUID, config: HomeRowModsConfig) async {
+        guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
+            // Try to find in catalog and add it
+            let catalog = RuleCollectionCatalog()
+            if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
+                catalogCollection.homeRowModsConfig = config
+                catalogCollection.isEnabled = true
+                ruleCollections.append(catalogCollection)
+                refreshLayerIndicatorState()
+                await regenerateConfigFromCollections()
+            }
+            return
+        }
+        
+        ruleCollections[index].homeRowModsConfig = config
+        ruleCollections[index].isEnabled = true
+        
         refreshLayerIndicatorState()
         await regenerateConfigFromCollections()
     }
@@ -346,13 +421,13 @@ final class RuleCollectionsManager {
 
         if rule.isEnabled,
            let conflict = conflictInfo(for: rule) {
-            onError?(
-                "Cannot enable \(rule.displayTitle). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
+            onWarning?(
+                "⚠️ \(rule.displayTitle) conflicts with \(conflict.displayName) on key: \(conflict.keys.joined(separator: ", ")). Last enabled rule wins."
             )
             AppLogger.shared.log(
                 "⚠️ [CustomRules] Conflict saving \(rule.displayTitle) vs \(conflict.displayName) on \(conflict.keys)"
             )
-            return false
+            // Continue anyway - just a warning
         }
 
         if let index = customRules.firstIndex(where: { $0.id == rule.id }) {
@@ -373,13 +448,13 @@ final class RuleCollectionsManager {
 
         if isEnabled,
            let conflict = conflictInfo(for: existing) {
-            onError?(
-                "Cannot enable \(existing.displayTitle). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
+            onWarning?(
+                "⚠️ \(existing.displayTitle) conflicts with \(conflict.displayName) on key: \(conflict.keys.joined(separator: ", ")). Last enabled rule wins."
             )
             AppLogger.shared.log(
                 "⚠️ [CustomRules] Conflict enabling \(existing.displayTitle) vs \(conflict.displayName) on \(conflict.keys)"
             )
-            return
+            // Continue anyway - just a warning
         }
 
         if let index = customRules.firstIndex(where: { $0.id == id }) {
@@ -456,11 +531,19 @@ final class RuleCollectionsManager {
                 customRules: customRules
             )
 
+            // Play success sound when config is saved
+            await MainActor.run {
+                SoundManager.shared.playTinkSound()
+            }
+
             if !skipReload {
                 await onRulesChanged?()
             }
         } catch {
             AppLogger.shared.log("❌ [RuleCollections] Failed to regenerate config: \(error)")
+            await MainActor.run {
+                SoundManager.shared.playErrorSound()
+            }
         }
     }
 

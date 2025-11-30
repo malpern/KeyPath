@@ -9,11 +9,14 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
+        // Skip real XPC calls in tests to avoid timeouts
+        HelperManager.testHelperFunctionalityOverride = { false }
         engine = InstallerEngine()
     }
 
     override func tearDown() async throws {
         engine = nil
+        HelperManager.testHelperFunctionalityOverride = nil
         try await super.tearDown()
     }
 

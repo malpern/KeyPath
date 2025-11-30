@@ -169,8 +169,7 @@ final class RecordingCoordinator: ObservableObject {
         if inputSequence.keys.count == 1,
            outputSequence.keys.count == 1,
            inputSequence.keys[0].modifiers.isEmpty,
-           outputSequence.keys[0].modifiers.isEmpty
-        {
+           outputSequence.keys[0].modifiers.isEmpty {
             let inKey = inputSequence.keys[0].baseKey
             let outKey = outputSequence.keys[0].baseKey
             AppLogger.shared.log("📝 [RecordingCoordinator] Using SIMPLE path: \(inKey) → \(outKey)")
@@ -326,8 +325,7 @@ final class RecordingCoordinator: ObservableObject {
 
                 // Check if we should suspend mappings for raw key capture
                 if !PreferencesService.shared.applyMappingsDuringRecording,
-                   let km = self.kanataManager
-                {
+                   let km = self.kanataManager {
                     Task {
                         let wasPaused = await km.pauseMappings()
                         await MainActor.run {
@@ -464,8 +462,7 @@ final class RecordingCoordinator: ObservableObject {
 
                 // Check if we should suspend mappings for raw key capture
                 if !PreferencesService.shared.applyMappingsDuringRecording,
-                   let km = self.kanataManager
-                {
+                   let km = self.kanataManager {
                     Task {
                         let wasPaused = await km.pauseMappings()
                         await MainActor.run {
@@ -640,8 +637,7 @@ private extension RecordingCoordinator {
             if let last = result.last,
                last.baseKey == kp.baseKey,
                last.modifiers == kp.modifiers,
-               kp.timestamp.timeIntervalSince(last.timestamp) <= window
-            {
+               kp.timestamp.timeIntervalSince(last.timestamp) <= window {
                 continue
             }
             result.append(kp)

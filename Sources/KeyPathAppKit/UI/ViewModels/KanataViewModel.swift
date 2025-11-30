@@ -21,6 +21,7 @@ class KanataViewModel: ObservableObject {
 
     // Core Status Properties
     @Published var lastError: String?
+    @Published var lastWarning: String?
     @Published var keyMappings: [KeyMapping] = []
     @Published var ruleCollections: [RuleCollection] = []
     @Published var customRules: [CustomRule] = []
@@ -43,6 +44,18 @@ class KanataViewModel: ObservableObject {
 
     // Emergency stop state
     @Published var emergencyStopActivated: Bool = false
+
+    // Toast notifications
+    @Published var toastMessage: String?
+    @Published var toastType: ToastType = .success
+    private var toastTask: Task<Void, Never>?
+
+    enum ToastType {
+        case success
+        case error
+        case info
+        case warning
+    }
 
     // MARK: - Private Properties
 
@@ -97,6 +110,14 @@ class KanataViewModel: ObservableObject {
         lastConfigUpdate = state.lastConfigUpdate
         saveStatus = state.saveStatus
         // Note: emergencyStopActivated is managed locally in ViewModel, not synced from manager
+
+        // Show warning toast if there's a new warning
+        if let warning = state.lastWarning, warning != lastWarning {
+            lastWarning = warning
+            showToast(warning, type: .warning, duration: 5.0)
+        } else {
+            lastWarning = state.lastWarning
+        }
 
         // Map validation error to alert properties
         if let error = state.validationError {
@@ -163,6 +184,23 @@ class KanataViewModel: ObservableObject {
 
     func toggleRuleCollection(_ id: UUID, enabled: Bool) async {
         await manager.toggleRuleCollection(id: id, isEnabled: enabled)
+        let collection = ruleCollections.first { $0.id == id }
+        let collectionName = collection?.name ?? "Collection"
+        
+        // Special message for Home Row Mods
+        if id == RuleCollectionIdentifier.homeRowMods {
+            if enabled {
+                showToast("Home Row Mods enabled - tap keys for letters, hold for modifiers", type: .success)
+            } else {
+                showToast("Home Row Mods disabled", type: .info)
+            }
+        } else {
+            if enabled {
+                showToast("\(collectionName) enabled", type: .success)
+            } else {
+                showToast("\(collectionName) disabled", type: .info)
+            }
+        }
     }
 
     func removeCustomRule(_ id: UUID) async {
@@ -170,11 +208,23 @@ class KanataViewModel: ObservableObject {
     }
 
     func saveCustomRule(_ rule: CustomRule) async {
-        _ = await manager.saveCustomRule(rule)
+        let success = await manager.saveCustomRule(rule)
+        if success {
+            showToast("Rule saved", type: .success)
+        } else {
+            showToast("Failed to save rule", type: .error)
+        }
     }
 
     func toggleCustomRule(_ id: UUID, enabled: Bool) async {
         await manager.toggleCustomRule(id: id, isEnabled: enabled)
+        let rule = customRules.first { $0.id == id }
+        let ruleName = rule?.displayTitle ?? "Rule"
+        if enabled {
+            showToast("\(ruleName) enabled", type: .success)
+        } else {
+            showToast("\(ruleName) disabled", type: .info)
+        }
     }
 
     func addRuleCollection(_ collection: RuleCollection) async {
@@ -183,6 +233,18 @@ class KanataViewModel: ObservableObject {
 
     func updateCollectionOutput(_ id: UUID, output: String) async {
         await manager.updateCollectionOutput(id: id, output: output)
+    }
+
+    func updateCollectionTapOutput(_ id: UUID, tapOutput: String) async {
+        await manager.updateCollectionTapOutput(id: id, tapOutput: tapOutput)
+    }
+
+    func updateCollectionHoldOutput(_ id: UUID, holdOutput: String) async {
+        await manager.updateCollectionHoldOutput(id: id, holdOutput: holdOutput)
+    }
+
+    func updateHomeRowModsConfig(collectionId: UUID, config: HomeRowModsConfig) async {
+        await manager.updateHomeRowModsConfig(collectionId: collectionId, config: config)
     }
 
     /// Update the leader key for all collections that use momentary activation
@@ -261,6 +323,20 @@ class KanataViewModel: ObservableObject {
 
     func stopKanata(reason: String = "User action") async -> Bool {
         await manager.stopKanata(reason: reason)
+    }
+
+    // MARK: - Toast Notifications
+
+    private func showToast(_ message: String, type: ToastType, duration: TimeInterval = 3.0) {
+        toastTask?.cancel()
+        toastMessage = message
+        toastType = type
+
+        toastTask = Task {
+            try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            toastMessage = nil
+        }
     }
 
     func restartKanata(reason: String = "User action") async -> Bool {

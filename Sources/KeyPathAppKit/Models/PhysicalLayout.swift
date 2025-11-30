@@ -218,23 +218,22 @@ struct PhysicalLayout {
             currentX += width + keySpacing
         }
 
-        // Row 6: Arrow Cluster (positioned below right Shift)
+        // Arrow Cluster (positioned to the RIGHT of the keyboard, aligned with bottom rows)
         // Up=126, Down=125, Left=123, Right=124
-        // Position: x starts around 11.0u (after right shift), y at rowSpacing * 6
-        let arrowXStart = 11.0 // Approximate position below right shift
-        let arrowY: Double = rowSpacing * 6
+        // Position: x starts after the modifier row, y aligned with rows 4-5
+        let arrowXStart = 15.5 // After the fn key
 
-        // Top row: Up arrow
+        // Up arrow aligned with bottom letter row (row 4)
         keys.append(PhysicalKey(
             keyCode: 126,
             label: "↑",
             x: arrowXStart + standardKeyWidth + keySpacing,
-            y: arrowY,
+            y: rowSpacing * 4,
             width: standardKeyWidth,
             height: standardKeyHeight
         ))
 
-        // Bottom row: Left, Down, Right
+        // Left, Down, Right aligned with modifier row (row 5)
         let arrowKeys: [(UInt16, String)] = [
             (123, "←"), // Left
             (125, "↓"), // Down
@@ -246,7 +245,7 @@ struct PhysicalLayout {
                 keyCode: keyCode,
                 label: label,
                 x: currentX,
-                y: arrowY + standardKeyHeight + keySpacing,
+                y: rowSpacing * 5,
                 width: standardKeyWidth,
                 height: standardKeyHeight
             ))

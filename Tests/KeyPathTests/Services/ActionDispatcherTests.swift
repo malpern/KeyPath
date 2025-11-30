@@ -93,6 +93,109 @@ struct KeyPathActionURITests {
         #expect(uri?.action == "open")
         #expect(uri?.pathComponents == ["github.com", "user", "repo"])
     }
+
+    // MARK: - Shorthand Syntax Tests
+
+    @Test("Parses shorthand launch syntax")
+    func parsesShorthandLaunch() {
+        let uri = KeyPathActionURI(string: "launch:obsidian")
+
+        #expect(uri != nil)
+        #expect(uri?.action == "launch")
+        #expect(uri?.target == "obsidian")
+        #expect(uri?.targetTitleCase == "Obsidian")
+        #expect(uri?.isShorthand == true)
+    }
+
+    @Test("Parses shorthand with multiple path components")
+    func parsesShorthandMultiplePaths() {
+        let uri = KeyPathActionURI(string: "layer:nav:activate")
+
+        #expect(uri != nil)
+        #expect(uri?.action == "layer")
+        #expect(uri?.target == "nav")
+        #expect(uri?.pathComponents == ["nav", "activate"])
+        #expect(uri?.isShorthand == true)
+    }
+
+    @Test("Parses shorthand with query parameters")
+    func parsesShorthandWithQuery() {
+        let uri = KeyPathActionURI(string: "notify:?title=Hello&body=World")
+
+        #expect(uri != nil)
+        #expect(uri?.action == "notify")
+        #expect(uri?.target == nil)
+        #expect(uri?.queryItems["title"] == "Hello")
+        #expect(uri?.queryItems["body"] == "World")
+        #expect(uri?.isShorthand == true)
+    }
+
+    @Test("Parses shorthand fakekey with action")
+    func parsesShorthandFakekey() {
+        let uri = KeyPathActionURI(string: "fakekey:email-sig:tap")
+
+        #expect(uri != nil)
+        #expect(uri?.action == "fakekey")
+        #expect(uri?.target == "email-sig")
+        #expect(uri?.pathComponents == ["email-sig", "tap"])
+        #expect(uri?.isShorthand == true)
+    }
+
+    @Test("Parses shorthand rule with fired")
+    func parsesShorthandRule() {
+        let uri = KeyPathActionURI(string: "rule:caps-escape:fired")
+
+        #expect(uri != nil)
+        #expect(uri?.action == "rule")
+        #expect(uri?.target == "caps-escape")
+        #expect(uri?.pathComponents == ["caps-escape", "fired"])
+    }
+
+    @Test("Parses shorthand open URL")
+    func parsesShorthandOpen() {
+        let uri = KeyPathActionURI(string: "open:github.com")
+
+        #expect(uri != nil)
+        #expect(uri?.action == "open")
+        #expect(uri?.target == "github.com")
+    }
+
+    @Test("Converts target to Title Case")
+    func convertsTargetToTitleCase() {
+        let uri = KeyPathActionURI(string: "launch:visual studio code")
+
+        #expect(uri?.target == "visual studio code")
+        #expect(uri?.targetTitleCase == "Visual Studio Code")
+    }
+
+    @Test("Full URI is not marked as shorthand")
+    func fullURINotShorthand() {
+        let uri = KeyPathActionURI(string: "keypath://launch/Obsidian")
+
+        #expect(uri?.isShorthand == false)
+    }
+
+    @Test("Rejects empty action in shorthand")
+    func rejectsEmptyActionShorthand() {
+        let uri = KeyPathActionURI(string: ":obsidian")
+        #expect(uri == nil)
+    }
+
+    @Test("Rejects string without colon")
+    func rejectsNoColon() {
+        let uri = KeyPathActionURI(string: "launch-obsidian")
+        #expect(uri == nil)
+    }
+
+    @Test("Both syntaxes produce equivalent results")
+    func syntaxesEquivalent() {
+        let fullURI = KeyPathActionURI(string: "keypath://launch/Obsidian")
+        let shorthand = KeyPathActionURI(string: "launch:Obsidian")
+
+        #expect(fullURI?.action == shorthand?.action)
+        #expect(fullURI?.target == shorthand?.target)
+        #expect(fullURI?.pathComponents == shorthand?.pathComponents)
+    }
 }
 
 // MARK: - ActionDispatcher Tests

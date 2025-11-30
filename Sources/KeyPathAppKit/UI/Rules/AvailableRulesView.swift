@@ -37,6 +37,18 @@ private struct AvailableRuleCollectionCard: View {
     let collection: RuleCollection
     let onActivate: () -> Void
 
+    /// Format leader key for display (simplified version for available rules)
+    private func formatLeaderKey(_ key: String) -> String {
+        switch key.lowercased() {
+        case "space", "spc":
+            return "␣ Space"
+        case "leader":
+            return "Leader"
+        default:
+            return key.capitalized
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .center, spacing: 12) {
@@ -68,8 +80,14 @@ private struct AvailableRuleCollectionCard: View {
                     HStack(spacing: 8) {
                         ForEach(collection.mappings.prefix(6)) { mapping in
                             HStack(spacing: 4) {
-                                Text(mapping.input)
-                                    .font(.caption.monospaced())
+                                // For leader-based rules, show "Leader + input" instead of just "input"
+                                if let activator = collection.momentaryActivator {
+                                    Text("\(formatLeaderKey(activator.input)) + \(mapping.input)")
+                                        .font(.caption.monospaced())
+                                } else {
+                                    Text(mapping.input)
+                                        .font(.caption.monospaced())
+                                }
                                 Image(systemName: "arrow.right")
                                     .font(.caption2)
                                 Text(mapping.output)

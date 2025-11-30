@@ -88,6 +88,47 @@ KeyPath.app (SwiftUI) → InstallerEngine → LaunchDaemon/PrivilegedHelper
   - `InstallerEngine` powers the wizard logic.
   - `WizardNavigationEngine`: State-driven wizard navigation.
 
+### 🔗 Action URI System (`keypath://`)
+
+KeyPath registers a custom URL scheme for deep linking and Kanata integration:
+
+**URL Format:** `keypath://{action}/{target}[/{subaction}][?query=params]`
+
+**Supported Actions:**
+| Action | Format | Example |
+|--------|--------|---------|
+| `launch` | `keypath://launch/{app}` | `keypath://launch/Safari` |
+| `fakekey` | `keypath://fakekey/{name}/{action}` | `keypath://fakekey/nav-mode/tap` |
+| `layer` | `keypath://layer/{name}` | `keypath://layer/vim` |
+| `rule` | `keypath://rule/{id}/fired` | `keypath://rule/hyper/fired` |
+| `notify` | `keypath://notify?title=X&body=Y` | `keypath://notify?title=Done&body=Saved` |
+| `open` | `keypath://open/{url}` | `keypath://open/github.com` |
+
+**Key Components:**
+- `KeyPathActionURI`: Parses `keypath://` URLs into action, target, path components, and query items
+- `ActionDispatcher`: Routes URIs to handlers; singleton with `onError` and `onLayerAction` callbacks
+- `VirtualKeyParser`: Extracts virtual keys from `defvirtualkeys`/`deffakekeys` blocks in config
+
+**Integration with Kanata:**
+```lisp
+;; In keypath.kbd - trigger KeyPath actions via keyboard shortcuts
+;; Note: Always use full application names in launch aliases (e.g., launch-terminal, not launch-term)
+;; Use shorthand colon syntax for cleaner configs (lowercase resolves to Title Case)
+(defalias
+  launch-terminal (push-msg "launch:terminal")
+  launch-obsidian (push-msg "launch:obsidian")
+  nav-on (push-msg "fakekey:nav-mode:tap")
+)
+```
+
+**External Triggering (Terminal/Raycast/Alfred):**
+```bash
+open "keypath://fakekey/email-sig/tap"
+open "keypath://launch/Obsidian"
+```
+
+**Error Handling:** `ActionDispatcher.onError` is wired to `UserNotificationService.notifyActionError()` for user-visible feedback on failures.
+
 ### 🔮 PermissionOracle Architecture (CRITICAL - DO NOT BREAK)
 
 **THE FUNDAMENTAL RULE: Apple APIs ALWAYS take precedence over TCC database**

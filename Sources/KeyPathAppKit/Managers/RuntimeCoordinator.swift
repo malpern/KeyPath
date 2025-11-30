@@ -105,6 +105,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
     // Core status tracking
     // Removed: isRunning
     var lastError: String?
+    var lastWarning: String?
     var keyMappings: [KeyMapping] = []
     var currentLayerName: String = RuleCollectionLayer.base.displayName
 
@@ -189,6 +190,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         return KanataUIState(
             // Core Status
             lastError: lastError,
+            lastWarning: lastWarning,
             keyMappings: keyMappings,
             ruleCollections: ruleCollections,
             customRules: customRules,
@@ -417,6 +419,17 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         ruleCollectionsManager.onError = { [weak self] error in
             self?.lastError = error
             self?.notifyStateChanged()
+        }
+        ruleCollectionsManager.onWarning = { [weak self] warning in
+            self?.lastWarning = warning
+            self?.notifyStateChanged()
+            // Play warning sound
+            SoundManager.shared.playWarningSound()
+            // Clear warning after it's been delivered to prevent re-triggering
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 100_000_000) // 100ms delay
+                self?.lastWarning = nil
+            }
         }
         ruleCollectionsManager.onActionURI = { actionURI in
             ActionDispatcher.shared.dispatch(actionURI)
@@ -752,6 +765,18 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     func updateCollectionOutput(id: UUID, output: String) async {
         await ruleCollectionsCoordinator.updateCollectionOutput(id: id, output: output)
+    }
+
+    func updateCollectionTapOutput(id: UUID, tapOutput: String) async {
+        await ruleCollectionsCoordinator.updateCollectionTapOutput(id: id, tapOutput: tapOutput)
+    }
+
+    func updateCollectionHoldOutput(id: UUID, holdOutput: String) async {
+        await ruleCollectionsCoordinator.updateCollectionHoldOutput(id: id, holdOutput: holdOutput)
+    }
+
+    func updateHomeRowModsConfig(collectionId: UUID, config: HomeRowModsConfig) async {
+        await ruleCollectionsCoordinator.updateHomeRowModsConfig(id: collectionId, config: config)
     }
 
     func updateLeaderKey(_ newKey: String) async {
@@ -1115,6 +1140,12 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
         // Notify ViewModel of state change so UI updates
         notifyStateChanged()
+
+        // Skip TCP/service operations in test environment to avoid timeouts
+        guard !TestEnvironment.isRunningTests else {
+            AppLogger.shared.log("🧪 [Reset] Test environment - skipping TCP reload")
+            return
+        }
 
         // Apply changes immediately via TCP reload if service is running
         let serviceState = await kanataService.refreshStatus()

@@ -25,9 +25,10 @@ final class ServiceBootstrapperTests: XCTestCase {
 
     func testMarkRestartTimeRecordsTimestamp() {
         let bootstrapper = ServiceBootstrapper.shared
-        let serviceID = "com.keypath.test-service"
+        // Use a unique service ID to avoid state leakage from other tests
+        let serviceID = "com.keypath.test-service-\(UUID().uuidString)"
 
-        // Clear any existing restart time
+        // This service ID has never been marked
         let before = ServiceBootstrapper.wasRecentlyRestarted(serviceID)
 
         // Mark restart

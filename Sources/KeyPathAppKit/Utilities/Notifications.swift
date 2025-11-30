@@ -15,6 +15,7 @@ extension Notification.Name {
     static let openSettingsGeneral = Notification.Name("KeyPath.Settings.General")
     static let openSettingsStatus = Notification.Name("KeyPath.Settings.Status")
     static let openSettingsRules = Notification.Name("KeyPath.Settings.Rules")
+    static let openSettingsSimulator = Notification.Name("KeyPath.Settings.Simulator")
     static let openSettingsSystemStatus = Notification.Name("KeyPath.Settings.SystemStatus")
     static let openSettingsLogs = Notification.Name("KeyPath.Settings.Logs")
     static let openSettingsAdvanced = Notification.Name("KeyPath.Settings.Advanced")

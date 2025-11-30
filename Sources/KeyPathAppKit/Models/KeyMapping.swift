@@ -19,6 +19,9 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
     /// If true, a visual separator row should appear before this mapping in table display
     public let sectionBreak: Bool
 
+    /// Advanced behavior (dual-role, tap-dance). Nil means simple remap using `output`.
+    public let behavior: MappingBehavior?
+
     public init(
         id: UUID = UUID(),
         input: String,
@@ -26,7 +29,8 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
         shiftedOutput: String? = nil,
         ctrlOutput: String? = nil,
         description: String? = nil,
-        sectionBreak: Bool = false
+        sectionBreak: Bool = false,
+        behavior: MappingBehavior? = nil
     ) {
         self.id = id
         self.input = input
@@ -35,6 +39,7 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
         self.ctrlOutput = ctrlOutput
         self.description = description
         self.sectionBreak = sectionBreak
+        self.behavior = behavior
     }
 
     /// Whether this mapping requires fork for modifier detection
@@ -43,7 +48,7 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, input, output, shiftedOutput, ctrlOutput, description, sectionBreak
+        case id, input, output, shiftedOutput, ctrlOutput, description, sectionBreak, behavior
     }
 
     public init(from decoder: Decoder) throws {
@@ -55,6 +60,7 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
         ctrlOutput = try container.decodeIfPresent(String.self, forKey: .ctrlOutput)
         description = try container.decodeIfPresent(String.self, forKey: .description)
         sectionBreak = (try? container.decode(Bool.self, forKey: .sectionBreak)) ?? false
+        behavior = try container.decodeIfPresent(MappingBehavior.self, forKey: .behavior)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -68,5 +74,6 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
         if sectionBreak {
             try container.encode(sectionBreak, forKey: .sectionBreak)
         }
+        try container.encodeIfPresent(behavior, forKey: .behavior)
     }
 }

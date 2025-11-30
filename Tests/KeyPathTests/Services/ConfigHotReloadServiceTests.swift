@@ -21,6 +21,8 @@ final class ConfigHotReloadServiceTests: XCTestCase {
     override func setUp() async throws {
         try await super.setUp()
         service = ConfigHotReloadService.shared
+        // Use short delay to avoid 2+ second waits in tests
+        service.statusResetDelay = 0.01
         configService = ConfigurationService(configDirectory: NSTemporaryDirectory())
         reloadHandlerCalled = false
         reloadHandlerResult = true
@@ -39,6 +41,8 @@ final class ConfigHotReloadServiceTests: XCTestCase {
     }
 
     override func tearDown() async throws {
+        // Reset delay to default
+        service?.statusResetDelay = 2.0
         service = nil
         configService = nil
         reloadHandlerCalled = nil
@@ -162,8 +166,8 @@ final class ConfigHotReloadServiceTests: XCTestCase {
 
         _ = await service.handleExternalChange(configPath: tempFile.path)
 
-        // Wait for reset callback (delayed)
-        try? await Task.sleep(nanoseconds: 2_100_000_000) // 2.1 seconds
+        // Wait for reset callback (using short test delay set in setUp)
+        try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
 
         XCTAssertTrue(detectedCalled, "onDetected should be called")
         XCTAssertTrue(validatingCalled, "onValidating should be called")
@@ -190,8 +194,8 @@ final class ConfigHotReloadServiceTests: XCTestCase {
 
         let result = await service.handleExternalChange(configPath: tempFile.path)
 
-        // Wait for reset callback
-        try? await Task.sleep(nanoseconds: 2_100_000_000) // 2.1 seconds
+        // Wait for reset callback (using short test delay set in setUp)
+        try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
 
         XCTAssertTrue(detectedCalled, "onDetected should be called")
         // In test environment, service is unavailable (process not running)

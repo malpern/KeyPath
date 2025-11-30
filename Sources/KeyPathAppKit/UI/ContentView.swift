@@ -465,6 +465,16 @@ struct ContentView: View {
             )
         }
         .withToasts(toastManager)
+        .overlay(alignment: .top) {
+            if let toastMessage = kanataManager.toastMessage {
+                ToastView(message: toastMessage, type: kanataManager.toastType)
+                    .padding(.top, 16)
+                    .padding(.horizontal, 20)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .zIndex(1000)
+            }
+        }
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: kanataManager.toastMessage)
     }
 
     private func showStatusMessage(message: String) {
@@ -851,6 +861,49 @@ struct ContentView: View {
         if reason != lastOutputDisabledReason {
             lastOutputDisabledReason = reason
             AppLogger.shared.log("🧭 [UI] Output record button state: \(reason)")
+        }
+    }
+}
+
+// MARK: - Toast View
+
+private struct ToastView: View {
+    let message: String
+    let type: KanataViewModel.ToastType
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: iconName)
+                .foregroundColor(iconColor)
+
+            Text(message)
+                .font(.body)
+                .foregroundColor(.primary)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(NSColor.controlBackgroundColor))
+                .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+        )
+    }
+
+    private var iconName: String {
+        switch type {
+        case .success: "checkmark.circle.fill"
+        case .error: "exclamationmark.triangle.fill"
+        case .info: "info.circle.fill"
+        case .warning: "exclamationmark.triangle.fill"
+        }
+    }
+
+    private var iconColor: Color {
+        switch type {
+        case .success: .green
+        case .error: .red
+        case .info: .blue
+        case .warning: .orange
         }
     }
 }

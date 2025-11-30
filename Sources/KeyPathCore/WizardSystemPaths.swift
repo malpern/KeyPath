@@ -81,6 +81,21 @@ public enum WizardSystemPaths {
         return "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
     }
 
+    /// Bundled kanata simulator binary path (for dry-run simulation)
+    /// This binary outputs structured JSON instead of sending real HID events
+    public static var bundledSimulatorPath: String {
+        if let override = ProcessInfo.processInfo.environment["KEYPATH_BUNDLED_SIMULATOR_OVERRIDE"],
+           !override.isEmpty {
+            return override
+        }
+        return "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata-simulator"
+    }
+
+    /// Checks if the bundled simulator binary exists
+    public static var bundledSimulatorExists: Bool {
+        FileManager.default.fileExists(atPath: bundledSimulatorPath)
+    }
+
     /// Active kanata binary path - uses simple filesystem checks for performance
     /// Single canonical path eliminates TCC permission fragmentation
     public static var kanataActiveBinary: String {

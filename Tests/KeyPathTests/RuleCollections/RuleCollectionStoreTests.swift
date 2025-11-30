@@ -84,7 +84,7 @@ final class RuleCollectionStoreTests: XCTestCase {
         XCTAssertEqual(vim?.targetLayer, .navigation)
         XCTAssertEqual(vim?.momentaryActivator?.input, "space")
         XCTAssertEqual(vim?.momentaryActivator?.targetLayer, .navigation)
-        XCTAssertEqual(vim?.activationHint, "Hold space to enter Navigation layer")
+        XCTAssertEqual(vim?.activationHint, "Hold Leader key to enter Navigation layer")
     }
 
     func testLoadAddsMissingCatalogDefaultsWhenFileHasSubset() async throws {

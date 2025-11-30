@@ -818,6 +818,169 @@ class ConfigurationServiceTests: XCTestCase {
         )
     }
 
+    // MARK: - Chord Mapping Tests
+
+    /// Test that chord mappings (simultaneous key presses like "lsft rsft") generate defchordsv2 blocks
+    func testChordMappingGeneratesDefchordsv2() {
+        // Create a collection with a chord mapping (input has space = multiple keys)
+        let backupCapsLock = RuleCollection(
+            id: RuleCollectionIdentifier.backupCapsLock,
+            name: "Backup Caps Lock",
+            summary: "Both Shifts toggles Caps Lock",
+            category: .productivity,
+            mappings: [
+                KeyMapping(input: "lsft rsft", output: "caps", description: "Both Shifts → Caps Lock")
+            ],
+            isEnabled: true,  // MUST be enabled
+            isSystemDefault: false
+        )
+
+        let config = KanataConfiguration.generateFromCollections([backupCapsLock])
+
+        // CRITICAL: defchordsv2 block must be generated for chord mappings
+        XCTAssertTrue(
+            config.contains("(defchordsv2"),
+            "Config MUST contain defchordsv2 block for chord mappings. Got:\n\(config)"
+        )
+        XCTAssertTrue(
+            config.contains("(lsft rsft) caps"),
+            "Chord mapping should have correct syntax: (lsft rsft) caps. Got:\n\(config)"
+        )
+        XCTAssertTrue(
+            config.contains("50 all-released"),
+            "Chord should have timeout and release behavior"
+        )
+
+        // Chord mappings should NOT appear in defsrc (they're handled separately)
+        let defsrcSection = extractDefsrc(from: config)
+        XCTAssertFalse(
+            defsrcSection.contains("lsft rsft"),
+            "Chord input 'lsft rsft' should NOT appear in defsrc - it's not a valid single key"
+        )
+    }
+
+    /// Test that disabled chord collections don't generate defchordsv2
+    func testDisabledChordCollectionDoesNotGenerateDefchordsv2() {
+        let backupCapsLock = RuleCollection(
+            id: RuleCollectionIdentifier.backupCapsLock,
+            name: "Backup Caps Lock",
+            summary: "Both Shifts toggles Caps Lock",
+            category: .productivity,
+            mappings: [
+                KeyMapping(input: "lsft rsft", output: "caps")
+            ],
+            isEnabled: false,  // DISABLED
+            isSystemDefault: false
+        )
+
+        let config = KanataConfiguration.generateFromCollections([backupCapsLock])
+
+        // Disabled collections should NOT generate defchordsv2
+        XCTAssertFalse(
+            config.contains("(defchordsv2"),
+            "Disabled chord collection should NOT generate defchordsv2 block"
+        )
+
+        // Should be in the commented disabled section
+        XCTAssertTrue(
+            config.contains(";; === Collection: Backup Caps Lock (disabled) ==="),
+            "Disabled collection should appear in commented section"
+        )
+    }
+
+    /// Test that regular mappings still work alongside chord mappings
+    func testMixedRegularAndChordMappings() {
+        let regularCollection = RuleCollection(
+            name: "Regular",
+            summary: "Regular mapping",
+            category: .custom,
+            mappings: [KeyMapping(input: "caps", output: "esc")],
+            isEnabled: true
+        )
+
+        let chordCollection = RuleCollection(
+            id: RuleCollectionIdentifier.backupCapsLock,
+            name: "Backup Caps Lock",
+            summary: "Both Shifts toggles Caps Lock",
+            category: .productivity,
+            mappings: [KeyMapping(input: "lsft rsft", output: "caps")],
+            isEnabled: true
+        )
+
+        let config = KanataConfiguration.generateFromCollections([regularCollection, chordCollection])
+
+        // Should have both regular defsrc/deflayer AND defchordsv2
+        XCTAssertTrue(config.contains("(defsrc"), "Should have defsrc for regular mappings")
+        XCTAssertTrue(config.contains("(deflayer base"), "Should have deflayer for regular mappings")
+        XCTAssertTrue(config.contains("caps"), "Regular mapping should be in defsrc")
+        XCTAssertTrue(config.contains("esc"), "Regular mapping output should be in deflayer")
+
+        // AND should have defchordsv2 for chord mapping
+        XCTAssertTrue(config.contains("(defchordsv2"), "Should have defchordsv2 for chord mapping")
+        XCTAssertTrue(config.contains("(lsft rsft) caps"), "Chord syntax should be correct")
+    }
+
+    /// Helper to extract defsrc section
+    private func extractDefsrc(from config: String) -> String {
+        guard let start = config.range(of: "(defsrc") else { return "" }
+        let suffix = config[start.lowerBound...]
+        guard let end = suffix.range(of: "\n)") else { return String(suffix) }
+        return String(suffix[..<end.upperBound])
+    }
+
+    /// Test that enabled Backup Caps Lock from catalog generates defchordsv2
+    func testBackupCapsLockFromCatalogGeneratesDefchordsv2() {
+        // Get the actual catalog collection
+        let catalog = RuleCollectionCatalog()
+        let defaultCollections = catalog.defaultCollections()
+
+        // Find and enable the Backup Caps Lock collection
+        var collections = defaultCollections
+        if let index = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.backupCapsLock }) {
+            collections[index].isEnabled = true
+        }
+
+        let config = KanataConfiguration.generateFromCollections(collections)
+
+        // Debug: print the enabled state
+        let backupCollection = collections.first { $0.id == RuleCollectionIdentifier.backupCapsLock }
+        XCTAssertNotNil(backupCollection, "Backup Caps Lock should exist in catalog")
+        XCTAssertTrue(backupCollection?.isEnabled ?? false, "Backup Caps Lock should be enabled")
+        XCTAssertEqual(backupCollection?.mappings.first?.input, "lsft rsft", "Should have chord mapping")
+
+        // The critical assertion
+        XCTAssertTrue(
+            config.contains("(defchordsv2"),
+            "Enabled Backup Caps Lock MUST generate defchordsv2. Config:\n\(config.prefix(2000))"
+        )
+        XCTAssertTrue(
+            config.contains("(lsft rsft) caps"),
+            "Chord syntax must be correct"
+        )
+    }
+
+    /// Test that upgradedCollection preserves isEnabled for Backup Caps Lock
+    func testUpgradedCollectionPreservesEnabledState() {
+        let catalog = RuleCollectionCatalog()
+
+        // Simulate a stored collection with isEnabled: true
+        let storedCollection = RuleCollection(
+            id: RuleCollectionIdentifier.backupCapsLock,
+            name: "Backup Caps Lock",
+            summary: "Old summary",
+            category: .productivity,
+            mappings: [KeyMapping(input: "old", output: "old")],
+            isEnabled: true  // User enabled this
+        )
+
+        let upgraded = catalog.upgradedCollection(from: storedCollection)
+
+        // isEnabled should be preserved from stored collection
+        XCTAssertTrue(upgraded.isEnabled, "upgradedCollection must preserve isEnabled from stored collection")
+        // But mappings should come from catalog
+        XCTAssertEqual(upgraded.mappings.first?.input, "lsft rsft", "Mappings should come from catalog")
+    }
+
     // MARK: - Integration Tests
 
     /// CRITICAL: This test validates that the default RuleCollectionCatalog generates

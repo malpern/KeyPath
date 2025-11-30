@@ -4,14 +4,21 @@ import Network
 
 // MARK: - KeyPath Action URI
 
-/// Represents a parsed `keypath://` URI from push-msg
-/// Format: `keypath://[action]/[target][/subpath...][?query=params]`
+/// Represents a parsed action URI from push-msg
 ///
-/// Examples:
-/// - `keypath://launch/obsidian`
-/// - `keypath://layer/nav`
-/// - `keypath://rule/caps-to-escape/fired`
+/// Supports two equivalent syntaxes:
+/// 1. **Full URI** (for deep links): `keypath://[action]/[target][/subpath...][?query=params]`
+/// 2. **Shorthand** (for Kanata configs): `[action]:[target][:[subpath]][?query=params]`
+///
+/// Examples (Full URI):
+/// - `keypath://launch/Obsidian`
+/// - `keypath://layer/nav/activate`
 /// - `keypath://notify?title=Saved&sound=pop`
+///
+/// Examples (Shorthand - lowercase resolves to Title Case):
+/// - `launch:obsidian` → launches "Obsidian"
+/// - `layer:nav:activate` → layer "nav", subpath "activate"
+/// - `notify:?title=Saved` → notification with title
 public struct KeyPathActionURI: Sendable, Equatable {
     /// The URL scheme (always "keypath")
     public static let scheme = "keypath"
@@ -25,27 +32,76 @@ public struct KeyPathActionURI: Sendable, Equatable {
     /// Query parameters (e.g., ["title": "Saved", "sound": "pop"])
     public let queryItems: [String: String]
 
-    /// The original URL
+    /// The original URL (synthesized for shorthand syntax)
     public let url: URL
+
+    /// Whether this was parsed from shorthand syntax
+    public let isShorthand: Bool
 
     /// First path component (convenience accessor)
     public var target: String? { pathComponents.first }
 
-    /// Parse a keypath:// URI string
-    /// Returns nil if the string is not a valid keypath:// URI
+    /// First path component converted to Title Case (for display)
+    /// e.g., "obsidian" → "Obsidian", "visual studio code" → "Visual Studio Code"
+    public var targetTitleCase: String? {
+        guard let target else { return nil }
+        return target.titleCased
+    }
+
+    /// Parse a keypath:// URI or shorthand colon-syntax string
+    /// Returns nil if the string is not a valid action URI
     public init?(string: String) {
+        // Try full URI first
+        if Self.isKeyPathURI(string) {
+            guard let parsed = Self.parseFullURI(string) else { return nil }
+            self = parsed
+        }
+        // Try shorthand colon syntax
+        else if Self.isShorthandSyntax(string) {
+            guard let parsed = Self.parseShorthand(string) else { return nil }
+            self = parsed
+        }
+        // Not a valid format
+        else {
+            return nil
+        }
+    }
+
+    /// Internal initializer for building from parsed components
+    private init(
+        action: String,
+        pathComponents: [String],
+        queryItems: [String: String],
+        url: URL,
+        isShorthand: Bool
+    ) {
+        self.action = action
+        self.pathComponents = pathComponents
+        self.queryItems = queryItems
+        self.url = url
+        self.isShorthand = isShorthand
+    }
+
+    // MARK: - Full URI Parsing
+
+    /// Check if a string is a keypath:// URI
+    public static func isKeyPathURI(_ string: String) -> Bool {
+        string.hasPrefix("\(scheme)://")
+    }
+
+    /// Parse full URI format: keypath://action/target/subpath?query
+    private static func parseFullURI(_ string: String) -> KeyPathActionURI? {
         guard let url = URL(string: string),
-              url.scheme == Self.scheme,
+              url.scheme == scheme,
               let host = url.host, !host.isEmpty
         else {
             return nil
         }
 
-        self.url = url
-        action = host
+        let action = host
 
         // Parse path components (remove empty strings from leading/trailing slashes)
-        pathComponents = url.pathComponents.filter { $0 != "/" && !$0.isEmpty }
+        let pathComponents = url.pathComponents.filter { $0 != "/" && !$0.isEmpty }
 
         // Parse query items
         var items: [String: String] = [:]
@@ -55,12 +111,113 @@ public struct KeyPathActionURI: Sendable, Equatable {
                 items[item.name] = item.value ?? ""
             }
         }
-        queryItems = items
+
+        return KeyPathActionURI(
+            action: action,
+            pathComponents: pathComponents,
+            queryItems: items,
+            url: url,
+            isShorthand: false
+        )
     }
 
-    /// Check if a string is a keypath:// URI
-    public static func isKeyPathURI(_ string: String) -> Bool {
-        string.hasPrefix("\(scheme)://")
+    // MARK: - Shorthand Syntax Parsing
+
+    /// Check if a string is shorthand colon syntax (e.g., "launch:obsidian")
+    /// Must have at least one colon and not be a URL scheme
+    public static func isShorthandSyntax(_ string: String) -> Bool {
+        // Must contain a colon
+        guard string.contains(":") else { return false }
+        // Must not be a URL scheme (no "://")
+        guard !string.contains("://") else { return false }
+        // First part (action) must not be empty
+        guard let colonIndex = string.firstIndex(of: ":"),
+              colonIndex != string.startIndex
+        else { return false }
+        return true
+    }
+
+    /// Parse shorthand format: action:target:subpath?query
+    /// - `launch:obsidian` → action="launch", path=["obsidian"]
+    /// - `layer:nav:activate` → action="layer", path=["nav", "activate"]
+    /// - `notify:?title=Hello` → action="notify", path=[], query=["title": "Hello"]
+    private static func parseShorthand(_ string: String) -> KeyPathActionURI? {
+        // Split query params first
+        let parts = string.split(separator: "?", maxSplits: 1)
+        let mainPart = String(parts[0])
+        let queryString = parts.count > 1 ? String(parts[1]) : nil
+
+        // Split by colons
+        let colonParts = mainPart.split(separator: ":", omittingEmptySubsequences: false)
+            .map(String.init)
+
+        guard !colonParts.isEmpty else { return nil }
+
+        let action = colonParts[0]
+        guard !action.isEmpty else { return nil }
+
+        // Remaining parts are path components (filter out empty from trailing colons)
+        let pathComponents = Array(colonParts.dropFirst()).filter { !$0.isEmpty }
+
+        // Parse query string
+        var queryItems: [String: String] = [:]
+        if let queryString {
+            // Use URLComponents to parse query string
+            var components = URLComponents()
+            components.query = queryString
+            if let items = components.queryItems {
+                for item in items {
+                    queryItems[item.name] = item.value ?? ""
+                }
+            }
+        }
+
+        // Synthesize a full URL for compatibility
+        var urlString = "\(scheme)://\(action)"
+        if !pathComponents.isEmpty {
+            urlString += "/" + pathComponents.joined(separator: "/")
+        }
+        if let queryString {
+            urlString += "?" + queryString
+        }
+
+        guard let url = URL(string: urlString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? urlString)
+            ?? URL(string: urlString)
+        else {
+            // Fallback: create a basic URL
+            guard let fallbackURL = URL(string: "\(scheme)://\(action)") else { return nil }
+            return KeyPathActionURI(
+                action: action,
+                pathComponents: pathComponents,
+                queryItems: queryItems,
+                url: fallbackURL,
+                isShorthand: true
+            )
+        }
+
+        return KeyPathActionURI(
+            action: action,
+            pathComponents: pathComponents,
+            queryItems: queryItems,
+            url: url,
+            isShorthand: true
+        )
+    }
+}
+
+// MARK: - String Extensions
+
+extension String {
+    /// Convert string to Title Case
+    /// "obsidian" → "Obsidian"
+    /// "visual studio code" → "Visual Studio Code"
+    var titleCased: String {
+        split(separator: " ")
+            .map { word in
+                guard let first = word.first else { return String(word) }
+                return first.uppercased() + word.dropFirst().lowercased()
+            }
+            .joined(separator: " ")
     }
 }
 

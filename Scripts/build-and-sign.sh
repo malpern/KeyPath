@@ -12,6 +12,10 @@ echo "🦀 Building bundled kanata..."
 # Build kanata from source (required for proper signing)
 ./Scripts/build-kanata.sh
 
+echo "🔬 Building kanata simulator..."
+# Build simulator for dry-run simulation
+./Scripts/build-kanata-simulator.sh
+
 echo "🔐 Building privileged helper..."
 # Build and sign the helper tool
 ./Scripts/build-helper.sh
@@ -41,6 +45,9 @@ ditto "$BUILD_DIR/KeyPath" "$MACOS/KeyPath"
 # Copy bundled kanata binary
 ditto "build/kanata-universal" "$CONTENTS/Library/KeyPath/kanata"
 
+# Copy bundled kanata simulator binary
+ditto "build/kanata-simulator" "$CONTENTS/Library/KeyPath/kanata-simulator"
+
 # Copy kanata launcher script to enforce absolute config paths
 KANATA_LAUNCHER_SRC="Scripts/kanata-launcher.sh"
 KANATA_LAUNCHER_DST="$CONTENTS/Library/KeyPath/kanata-launcher"
@@ -68,7 +75,8 @@ verify_embedded_artifacts() {
         "$HELPER_TOOLS/KeyPathHelper" \
         "$LAUNCH_DAEMONS/com.keypath.helper.plist" \
         "$LAUNCH_DAEMONS/com.keypath.kanata.plist" \
-        "$KANATA_LAUNCHER_DST"; do
+        "$KANATA_LAUNCHER_DST" \
+        "$CONTENTS/Library/KeyPath/kanata-simulator"; do
         if [ ! -e "$path" ]; then
             echo "❌ ERROR: Missing packaged artifact: $path" >&2
             missing=1
@@ -143,6 +151,9 @@ kp_sign "$HELPER_TOOLS/KeyPathHelper" \
 
 # Sign bundled kanata binary (already signed in build-kanata.sh, but ensure consistency)
 kp_sign "$CONTENTS/Library/KeyPath/kanata" --force --options=runtime --sign "$SIGNING_IDENTITY"
+
+# Sign bundled kanata simulator binary
+kp_sign "$CONTENTS/Library/KeyPath/kanata-simulator" --force --options=runtime --sign "$SIGNING_IDENTITY"
 
 # Sign main app WITH entitlements
 ENTITLEMENTS_FILE="KeyPath.entitlements"
