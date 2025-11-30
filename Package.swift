@@ -179,8 +179,7 @@ let package = Package(
             ],
             path: "Tests/KeyPathTests",
             swiftSettings: [
-                .swiftLanguageMode(.v6),
-                .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
+                .swiftLanguageMode(.v6)
             ],
             linkerSettings: [
                 .linkedFramework("IOKit")
