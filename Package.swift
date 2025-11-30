@@ -49,8 +49,7 @@ let package = Package(
             name: "KeyPathCore",
             path: "Sources/KeyPathCore",
             swiftSettings: [
-                .swiftLanguageMode(.v6),
-                .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
+                .swiftLanguageMode(.v6)
             ]
         ),
         // Permissions library (Oracle)
@@ -59,8 +58,7 @@ let package = Package(
             dependencies: ["KeyPathCore"],
             path: "Sources/KeyPathPermissions",
             swiftSettings: [
-                .swiftLanguageMode(.v6),
-                .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
+                .swiftLanguageMode(.v6)
             ]
         ),
         // Daemon lifecycle library
@@ -69,8 +67,7 @@ let package = Package(
             dependencies: ["KeyPathCore"],
             path: "Sources/KeyPathDaemonLifecycle",
             swiftSettings: [
-                .swiftLanguageMode(.v6),
-                .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
+                .swiftLanguageMode(.v6)
             ]
         ),
         // Wizard core library (pure models/types)
@@ -79,8 +76,7 @@ let package = Package(
             dependencies: ["KeyPathCore", "KeyPathPermissions", "KeyPathDaemonLifecycle"],
             path: "Sources/KeyPathWizardCore",
             swiftSettings: [
-                .swiftLanguageMode(.v6),
-                .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
+                .swiftLanguageMode(.v6)
             ]
         ),
         // Main app library with UI and business logic
@@ -97,8 +93,7 @@ let package = Package(
                 "InstallationWizard/README.md"
             ],
             swiftSettings: [
-                .swiftLanguageMode(.v6),
-                .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
+                .swiftLanguageMode(.v6)
             ],
             linkerSettings: [
                 .linkedFramework("IOKit")
@@ -119,8 +114,7 @@ let package = Package(
                 .copy("com.keypath.kanata.plist")
             ],
             swiftSettings: [
-                .swiftLanguageMode(.v6),
-                .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
+                .swiftLanguageMode(.v6)
             ]
         ),
         // Privileged helper executable
@@ -134,8 +128,7 @@ let package = Package(
                 "KeyPathHelper.entitlements"
             ],
             swiftSettings: [
-                .swiftLanguageMode(.v6),
-                .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
+                .swiftLanguageMode(.v6)
             ]
         ),
         // SMAppService POC test utility
