@@ -7,6 +7,7 @@ import SwiftUI
 enum SettingsTab: Hashable, CaseIterable {
     case status
     case rules
+    case simulator
     case general
     case advanced
 
@@ -15,6 +16,7 @@ enum SettingsTab: Hashable, CaseIterable {
         case .general: "General"
         case .status: "Status"
         case .rules: "Rules"
+        case .simulator: "Simulator"
         case .advanced: "Repair/Remove"
         }
     }
@@ -24,6 +26,7 @@ enum SettingsTab: Hashable, CaseIterable {
         case .general: "gearshape"
         case .status: "gauge.with.dots.needle.bottom.50percent"
         case .rules: "list.bullet"
+        case .simulator: "keyboard"
         case .advanced: "wrench.and.screwdriver"
         }
     }
@@ -51,6 +54,8 @@ struct SettingsContainerView: View {
                     } else {
                         RulesDisabledView(onOpenStatus: { selection = .status })
                     }
+                case .simulator:
+                    SimulatorView()
                 case .advanced:
                     AdvancedSettingsTabView()
                 }
@@ -74,6 +79,9 @@ struct SettingsContainerView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsRules)) { _ in
             selection = canManageRules ? .rules : .status
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openSettingsSimulator)) { _ in
+            selection = .simulator
         }
         .onReceive(NotificationCenter.default.publisher(for: .wizardClosed)) { _ in
             Task { await refreshCanManageRules() }

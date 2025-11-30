@@ -129,6 +129,16 @@ public struct KeyPathApp: App {
 
                 Button(
                     action: {
+                        openPreferencesTab(.openSettingsSimulator)
+                    },
+                    label: {
+                        Label("Simulator…", systemImage: "keyboard")
+                    }
+                )
+                .keyboardShortcut("k", modifiers: .command)
+
+                Button(
+                    action: {
                         openPreferencesTab(.openSettingsSystemStatus)
                     },
                     label: {
