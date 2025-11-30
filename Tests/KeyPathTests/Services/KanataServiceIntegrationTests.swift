@@ -1,7 +1,7 @@
 @testable import KeyPathAppKit
 import KeyPathDaemonLifecycle
 import ServiceManagement
-import XCTest
+@preconcurrency import XCTest
 
 /// Mock implementation of SMAppServiceProtocol for testing
 private class MockSMAppService: SMAppServiceProtocol, @unchecked Sendable {

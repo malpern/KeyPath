@@ -3,7 +3,7 @@ import KeyPathCore
 import KeyPathPermissions
 import KeyPathWizardCore
 import ServiceManagement
-import XCTest
+@preconcurrency import XCTest
 
 /// Characterization tests to lock current wizard routing behavior so refactors can proceed safely.
 @MainActor
