@@ -52,7 +52,9 @@ final class SigningPipelineTests: XCTestCase {
         let tempFile = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         FileManager.default.createFile(atPath: tempFile.path, contents: Data())
 
+        // Explicitly unset KP_SIGN_DRY_RUN to test real failure propagation
         let script = """
+        unset KP_SIGN_DRY_RUN
         source \(signingLibPath)
         KP_SIGN_CMD=/bin/false kp_sign "\(tempFile.path)" --force
         """
@@ -61,7 +63,9 @@ final class SigningPipelineTests: XCTestCase {
     }
 
     func testNotaryWrapperPropagatesFailures() throws {
+        // Explicitly unset KP_SIGN_DRY_RUN to test real failure propagation
         let script = """
+        unset KP_SIGN_DRY_RUN
         source \(signingLibPath)
         KP_NOTARY_CMD=/bin/false kp_notarize_zip "/tmp/fake.zip" "NoProfile"
         """
