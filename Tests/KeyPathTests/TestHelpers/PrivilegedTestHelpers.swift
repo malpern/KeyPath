@@ -1,4 +1,4 @@
-import XCTest
+@preconcurrency import XCTest
 
 @testable import KeyPathAppKit
 
@@ -28,8 +28,8 @@ final class FakeAdminCommandExecutor: AdminCommandExecutor {
 
 @MainActor
 extension XCTestCase {
-    func XCTAssertThrowsErrorAsync(
-        _ expression: @autoclosure @escaping () async throws -> some Any,
+    func XCTAssertThrowsErrorAsync<T: Sendable>(
+        _ expression: @autoclosure @Sendable @escaping () async throws -> T,
         _ message: @autoclosure () -> String = "",
         file: StaticString = #filePath,
         line: UInt = #line,
