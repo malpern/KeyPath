@@ -53,7 +53,7 @@ jobs:
     - name: Verify SMAppService plist wrapper
       run: |
         echo "🔍 Verifying com.keypath.kanata.plist points at kanata-launcher"
-        ./Scripts/verify-kanata-plist.sh Sources/KeyPath/com.keypath.kanata.plist
+        ./Scripts/verify-kanata-plist.sh Sources/KeyPathApp/com.keypath.kanata.plist
     
     - name: Run CI-Safe Tests (Safe Test Runner)
       run: |
