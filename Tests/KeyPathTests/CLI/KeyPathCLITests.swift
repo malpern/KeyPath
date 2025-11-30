@@ -1,6 +1,6 @@
 import KeyPathPermissions
 import KeyPathWizardCore
-import XCTest
+@preconcurrency import XCTest
 
 @testable import KeyPathAppKit
 

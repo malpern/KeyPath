@@ -1,7 +1,7 @@
 @testable import KeyPathAppKit
 import KeyPathCore
 import KeyPathWizardCore
-import XCTest
+@preconcurrency import XCTest
 
 @MainActor
 final class WizardAutoFixerFacadeTests: XCTestCase {

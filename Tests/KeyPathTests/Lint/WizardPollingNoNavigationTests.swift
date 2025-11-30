@@ -1,5 +1,5 @@
 import Foundation
-import XCTest
+@preconcurrency import XCTest
 
 /// Validates that wizard page polling implementations never auto-navigate.
 ///

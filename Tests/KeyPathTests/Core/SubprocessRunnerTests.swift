@@ -1,6 +1,6 @@
 import Foundation
 @testable import KeyPathCore
-import XCTest
+@preconcurrency import XCTest
 
 /// Tests for SubprocessRunner actor
 /// Verifies that subprocess execution works correctly and doesn't block MainActor

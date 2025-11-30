@@ -1,5 +1,5 @@
 import Foundation
-import XCTest
+@preconcurrency import XCTest
 
 @testable import KeyPathAppKit
 @testable import KeyPathCore
@@ -831,7 +831,7 @@ class ConfigurationServiceTests: XCTestCase {
             mappings: [
                 KeyMapping(input: "lsft rsft", output: "caps", description: "Both Shifts → Caps Lock")
             ],
-            isEnabled: true,  // MUST be enabled
+            isEnabled: true, // MUST be enabled
             isSystemDefault: false
         )
 
@@ -869,7 +869,7 @@ class ConfigurationServiceTests: XCTestCase {
             mappings: [
                 KeyMapping(input: "lsft rsft", output: "caps")
             ],
-            isEnabled: false,  // DISABLED
+            isEnabled: false, // DISABLED
             isSystemDefault: false
         )
 
@@ -970,7 +970,7 @@ class ConfigurationServiceTests: XCTestCase {
             summary: "Old summary",
             category: .productivity,
             mappings: [KeyMapping(input: "old", output: "old")],
-            isEnabled: true  // User enabled this
+            isEnabled: true // User enabled this
         )
 
         let upgraded = catalog.upgradedCollection(from: storedCollection)

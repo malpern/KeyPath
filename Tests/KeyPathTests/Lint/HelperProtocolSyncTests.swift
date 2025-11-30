@@ -1,5 +1,5 @@
 import Foundation
-import XCTest
+@preconcurrency import XCTest
 
 /// Validates that the two copies of HelperProtocol.swift remain synchronized.
 ///

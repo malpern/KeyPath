@@ -1,5 +1,5 @@
 import Foundation
-import XCTest
+@preconcurrency import XCTest
 
 final class FacadeLintTests: XCTestCase {
     func testAppKitSourcesDoNotBypassInstallerEngine() throws {

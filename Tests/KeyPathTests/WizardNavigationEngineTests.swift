@@ -1,7 +1,7 @@
 import KeyPathCore
 import KeyPathWizardCore
 import ServiceManagement
-import XCTest
+@preconcurrency import XCTest
 
 @testable import KeyPathAppKit
 

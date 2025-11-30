@@ -1,5 +1,5 @@
 import Foundation
-import XCTest
+@preconcurrency import XCTest
 
 @testable import KeyPathAppKit
 @testable import KeyPathPermissions

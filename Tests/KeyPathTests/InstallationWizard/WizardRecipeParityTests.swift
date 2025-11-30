@@ -2,7 +2,7 @@
 import KeyPathCore
 import KeyPathPermissions
 import KeyPathWizardCore
-import XCTest
+@preconcurrency import XCTest
 
 /// Characterization tests to ensure auto-fix actions map to the same recipes the planner uses.
 @MainActor

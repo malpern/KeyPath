@@ -2,7 +2,7 @@
 import KeyPathCore
 import KeyPathPermissions
 import KeyPathWizardCore
-import XCTest
+@preconcurrency import XCTest
 
 @MainActor
 final class KarabinerComponentsStatusEvaluatorTests: XCTestCase {

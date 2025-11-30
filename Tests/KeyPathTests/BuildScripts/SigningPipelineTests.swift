@@ -1,4 +1,4 @@
-import XCTest
+@preconcurrency import XCTest
 
 final class SigningPipelineTests: XCTestCase {
     private let signingLibPath = "Scripts/lib/signing.sh"

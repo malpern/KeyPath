@@ -1,5 +1,5 @@
 @testable import KeyPathAppKit
-import XCTest
+@preconcurrency import XCTest
 
 final class WizardTelemetryTests: XCTestCase {
     func testRingBufferWrapsAndKeepsNewest() async {

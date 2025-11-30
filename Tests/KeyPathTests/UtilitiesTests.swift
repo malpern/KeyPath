@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
 import KeyPathCore
-import XCTest
+@preconcurrency import XCTest
 
 @testable import KeyPathAppKit
 

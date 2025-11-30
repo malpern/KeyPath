@@ -1,4 +1,4 @@
-import XCTest
+@preconcurrency import XCTest
 
 @testable @_spi(ServiceInstallTesting) import KeyPathAppKit
 

@@ -1,6 +1,6 @@
 import KeyPathCore
 import KeyPathDaemonLifecycle
-import XCTest
+@preconcurrency import XCTest
 
 @testable import KeyPathAppKit
 

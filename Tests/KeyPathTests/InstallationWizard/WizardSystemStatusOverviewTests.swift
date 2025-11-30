@@ -1,6 +1,6 @@
 @testable import KeyPathAppKit
 import KeyPathWizardCore
-import XCTest
+@preconcurrency import XCTest
 
 @MainActor
 final class WizardSystemStatusOverviewTests: XCTestCase {

@@ -2,7 +2,7 @@
 import KeyPathCore
 import KeyPathPermissions
 import KeyPathWizardCore
-import XCTest
+@preconcurrency import XCTest
 
 /// Regression: wizard should not route to “Start Service” when Kanata is running.
 @MainActor

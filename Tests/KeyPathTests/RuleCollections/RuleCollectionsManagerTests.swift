@@ -1,6 +1,6 @@
 @testable import KeyPathAppKit
 import KeyPathCore
-import XCTest
+@preconcurrency import XCTest
 
 final class RuleCollectionsManagerTests: XCTestCase {
     // MARK: - Helper Methods
