@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Main simulator view combining keyboard input, event queue, and results display.
@@ -62,7 +63,7 @@ struct SimulatorView: View {
             .padding(.horizontal, 12)
             .padding(.bottom, 8)
         }
-        .background(Color(white: 0.98))
+        .background(Color(NSColor.controlBackgroundColor))
     }
 
     private var delayControl: some View {
