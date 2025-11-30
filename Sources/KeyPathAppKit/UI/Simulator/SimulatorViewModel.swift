@@ -1,9 +1,11 @@
+import AppKit
 import Foundation
 import KeyPathCore
 import SwiftUI
 
 /// ViewModel for the keyboard simulator.
 /// Manages queued key taps, simulation execution, and results display.
+/// Tracks physical keyboard state for visual feedback.
 @MainActor
 final class SimulatorViewModel: ObservableObject {
     // MARK: - Input State
@@ -13,6 +15,12 @@ final class SimulatorViewModel: ObservableObject {
 
     /// Default delay between taps in milliseconds
     @Published var defaultDelayMs: UInt64 = 200
+
+    /// Default hold duration in milliseconds
+    @Published var holdDelayMs: UInt64 = 400
+
+    /// Currently pressed key codes (from physical keyboard)
+    @Published var pressedKeyCodes: Set<UInt16> = []
 
     // MARK: - Output State
 
@@ -24,6 +32,10 @@ final class SimulatorViewModel: ObservableObject {
 
     /// Last error that occurred
     @Published var error: Error?
+
+    // MARK: - Key Monitoring
+
+    private var eventMonitor: Any?
 
     // MARK: - Dependencies
 
@@ -46,7 +58,20 @@ final class SimulatorViewModel: ObservableObject {
         let tap = SimulatorKeyTap(
             kanataKey: kanataKey,
             displayLabel: key.label,
-            delayAfterMs: defaultDelayMs
+            delayAfterMs: defaultDelayMs,
+            isHold: false
+        )
+        queuedTaps.append(tap)
+    }
+
+    /// Add a key hold to the queue
+    func holdKey(_ key: PhysicalKey) {
+        let kanataKey = Self.keyCodeToKanataName(key.keyCode)
+        let tap = SimulatorKeyTap(
+            kanataKey: kanataKey,
+            displayLabel: key.label,
+            delayAfterMs: holdDelayMs,
+            isHold: true
         )
         queuedTaps.append(tap)
     }
@@ -61,6 +86,43 @@ final class SimulatorViewModel: ObservableObject {
         queuedTaps.removeAll()
         result = nil
         error = nil
+    }
+
+    // MARK: - Physical Keyboard Monitoring
+
+    /// Start monitoring physical keyboard events for visual feedback
+    func startKeyMonitoring() {
+        guard eventMonitor == nil else { return }
+
+        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { [weak self] event in
+            Task { @MainActor in
+                self?.handleKeyEvent(event)
+            }
+            return event
+        }
+    }
+
+    /// Stop monitoring physical keyboard events
+    func stopKeyMonitoring() {
+        if let monitor = eventMonitor {
+            NSEvent.removeMonitor(monitor)
+            eventMonitor = nil
+        }
+        pressedKeyCodes.removeAll()
+    }
+
+    /// Handle a physical keyboard event
+    private func handleKeyEvent(_ event: NSEvent) {
+        let keyCode = UInt16(event.keyCode)
+
+        switch event.type {
+        case .keyDown:
+            pressedKeyCodes.insert(keyCode)
+        case .keyUp:
+            pressedKeyCodes.remove(keyCode)
+        default:
+            break
+        }
     }
 
     /// Run the simulation with queued taps
@@ -212,6 +274,42 @@ final class SimulatorViewModel: ObservableObject {
         case "down": return "↓"
         default: return key.uppercased()
         }
+    }
+
+    /// Convert a SwiftUI KeyPress character to a PhysicalKey for adding to queue
+    nonisolated static func physicalKeyFromCharacter(_ character: Character) -> PhysicalKey? {
+        let char = character.lowercased()
+
+        // Character to key code mapping
+        let keyCodeMap: [String: UInt16] = [
+            // Letters
+            "a": 0, "s": 1, "d": 2, "f": 3, "h": 4, "g": 5,
+            "z": 6, "x": 7, "c": 8, "v": 9, "b": 11,
+            "q": 12, "w": 13, "e": 14, "r": 15, "y": 16, "t": 17,
+            "o": 31, "u": 32, "i": 34, "p": 35,
+            "l": 37, "j": 38, "k": 40,
+            "n": 45, "m": 46,
+
+            // Numbers
+            "1": 18, "2": 19, "3": 20, "4": 21, "5": 23, "6": 22,
+            "7": 26, "8": 28, "9": 25, "0": 29,
+
+            // Punctuation
+            "-": 27, "=": 24, "[": 33, "]": 30, "\\": 42,
+            ";": 41, "'": 39, "`": 50, ",": 43, ".": 47, "/": 44,
+
+            // Space
+            " ": 49
+        ]
+
+        guard let keyCode = keyCodeMap[char] else { return nil }
+
+        return PhysicalKey(
+            keyCode: keyCode,
+            label: char.uppercased(),
+            x: 0,
+            y: 0
+        )
     }
 }
 

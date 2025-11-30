@@ -2,9 +2,12 @@ import SwiftUI
 
 /// Interactive keyboard view for the simulator.
 /// Renders a full keyboard layout with clickable keys.
+/// Highlights keys when pressed on physical keyboard.
 struct SimulatorKeyboardView: View {
     let layout: PhysicalLayout
+    let pressedKeyCodes: Set<UInt16>
     let onKeyTap: (PhysicalKey) -> Void
+    let onKeyHold: (PhysicalKey) -> Void
 
     /// Size of a standard 1u key in points
     private let keyUnitSize: CGFloat = 40
@@ -17,9 +20,12 @@ struct SimulatorKeyboardView: View {
 
             ZStack(alignment: .topLeading) {
                 ForEach(layout.keys) { key in
-                    SimulatorKeycapView(key: key) {
-                        onKeyTap(key)
-                    }
+                    SimulatorKeycapView(
+                        key: key,
+                        isExternallyPressed: pressedKeyCodes.contains(key.keyCode),
+                        onTap: { onKeyTap(key) },
+                        onHold: { onKeyHold(key) }
+                    )
                     .frame(
                         width: keyWidth(for: key, scale: scale),
                         height: keyHeight(for: key, scale: scale)
@@ -40,7 +46,8 @@ struct SimulatorKeyboardView: View {
     private func calculateScale(for size: CGSize) -> CGFloat {
         let widthScale = size.width / (layout.totalWidth * (keyUnitSize + keyGap))
         let heightScale = size.height / (layout.totalHeight * (keyUnitSize + keyGap))
-        return min(widthScale, heightScale, 1.0)
+        // Allow keyboard to scale up to fill available space
+        return min(widthScale, heightScale)
     }
 
     private func keyWidth(for key: PhysicalKey, scale: CGFloat) -> CGFloat {
@@ -69,8 +76,12 @@ struct SimulatorKeyboardView: View {
 #Preview {
     SimulatorKeyboardView(
         layout: .macBookUS,
+        pressedKeyCodes: [0, 1],  // A and S pressed
         onKeyTap: { key in
             print("Tapped: \(key.label)")
+        },
+        onKeyHold: { key in
+            print("Held: \(key.label)")
         }
     )
     .padding()

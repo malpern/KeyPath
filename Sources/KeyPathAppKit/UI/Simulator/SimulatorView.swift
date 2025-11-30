@@ -4,12 +4,12 @@ import SwiftUI
 /// Main simulator view combining keyboard input, event queue, and results display.
 struct SimulatorView: View {
     @StateObject private var viewModel = SimulatorViewModel()
+    @FocusState private var isKeyboardFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
-            // Keyboard section (top)
+            // Keyboard section (top) - fills available space
             keyboardSection
-                .frame(maxHeight: 280)
 
             Divider()
 
@@ -34,6 +34,23 @@ struct SimulatorView: View {
             )
         }
         .frame(minWidth: 600, minHeight: 500)
+        .focusable()
+        .focused($isKeyboardFocused)
+        .focusEffectDisabled()
+        .onKeyPress { keyPress in
+            if let key = SimulatorViewModel.physicalKeyFromCharacter(keyPress.key.character) {
+                viewModel.tapKey(key)
+                return .handled
+            }
+            return .ignored
+        }
+        .onAppear {
+            isKeyboardFocused = true
+            viewModel.startKeyMonitoring()
+        }
+        .onDisappear {
+            viewModel.stopKeyMonitoring()
+        }
     }
 
     // MARK: - Keyboard Section
@@ -42,8 +59,13 @@ struct SimulatorView: View {
         VStack(spacing: 8) {
             // Header
             HStack {
-                Text("Virtual Keyboard")
-                    .font(.headline)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Virtual Keyboard")
+                        .font(.headline)
+                    Text("Click to tap • Long-press to hold • Type to add keys")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
 
                 Spacer()
 
@@ -56,8 +78,12 @@ struct SimulatorView: View {
             // Keyboard
             SimulatorKeyboardView(
                 layout: .macBookUS,
+                pressedKeyCodes: viewModel.pressedKeyCodes,
                 onKeyTap: { key in
                     viewModel.tapKey(key)
+                },
+                onKeyHold: { key in
+                    viewModel.holdKey(key)
                 }
             )
             .padding(.horizontal, 12)

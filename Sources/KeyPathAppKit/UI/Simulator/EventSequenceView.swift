@@ -71,29 +71,42 @@ struct EventSequenceView: View {
 }
 
 /// A chip displaying a single queued key event.
+/// Shows different styling for tap (↓↑) vs hold (⏱).
 struct EventChip: View {
     let tap: SimulatorKeyTap
     let index: Int
 
+    private var icon: String {
+        tap.isHold ? "⏱" : "↓↑"
+    }
+
+    private var backgroundColor: Color {
+        tap.isHold ? Color.orange.opacity(0.2) : Color.accentColor.opacity(0.12)
+    }
+
+    private var accentColor: Color {
+        tap.isHold ? .orange : .secondary
+    }
+
     var body: some View {
-        HStack(spacing: 3) {
+        HStack(spacing: 4) {
             // Index badge
             Text("\(index)")
-                .font(.system(size: 9, weight: .medium))
+                .font(.system(size: 10, weight: .medium))
                 .foregroundColor(.secondary)
 
-            // Key press/release indicator
-            Text("↓↑")
-                .font(.system(size: 9))
-                .foregroundColor(.secondary)
+            // Key press/release indicator (tap) or timer icon (hold)
+            Text(icon)
+                .font(.system(size: 10))
+                .foregroundColor(accentColor)
 
             // Key label
             Text(tap.displayLabel)
-                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .font(.system(size: 13, weight: .semibold, design: .monospaced))
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Color.accentColor.opacity(0.12))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(backgroundColor)
         .cornerRadius(6)
     }
 }
@@ -109,12 +122,12 @@ struct EventChip: View {
     )
 }
 
-#Preview("With Taps") {
+#Preview("With Taps and Holds") {
     EventSequenceView(
         taps: [
-            SimulatorKeyTap(kanataKey: "j", displayLabel: "J", delayAfterMs: 200),
-            SimulatorKeyTap(kanataKey: "k", displayLabel: "K", delayAfterMs: 200),
-            SimulatorKeyTap(kanataKey: "l", displayLabel: "L", delayAfterMs: 200)
+            SimulatorKeyTap(kanataKey: "j", displayLabel: "J", delayAfterMs: 200, isHold: false),
+            SimulatorKeyTap(kanataKey: "caps", displayLabel: "Caps", delayAfterMs: 400, isHold: true),
+            SimulatorKeyTap(kanataKey: "l", displayLabel: "L", delayAfterMs: 200, isHold: false)
         ],
         onClear: {},
         onRun: {},
