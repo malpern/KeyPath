@@ -83,7 +83,7 @@ struct OverlayKeycapView: View {
                     .animation(.easeInOut(duration: 0.2), value: isCapsLockOn)
                 Spacer()
             }
-            .padding(.leading, 4 * scale)
+            .padding(.leading, 4.4 * scale)
             .padding(.top, 3 * scale)
             Spacer()
         }
@@ -240,6 +240,11 @@ struct OverlayKeycapView: View {
     private var wideModifierView: some View {
         // Bottom-aligned, left or right based on position
         // With padding from bottom and sides to match real MacBook
+        // Note: Caps lock uses reduced leading padding to align with LED indicator
+        // Extra 0.4 * scale (10% of base 4) to match LED position
+        let leadingPad = (key.label == "⇪") ? 0.4 * scale : 4 * scale
+        let trailingPad = 4 * scale
+
         VStack {
             Spacer(minLength: 0)
             HStack {
@@ -253,7 +258,8 @@ struct OverlayKeycapView: View {
                     labelContent
                 }
             }
-            .padding(.horizontal, 4 * scale)
+            .padding(.leading, leadingPad)
+            .padding(.trailing, trailingPad)
             .padding(.bottom, 3 * scale)
         }
         .foregroundStyle(foregroundColor)
@@ -519,7 +525,7 @@ struct OverlayKeycapView: View {
         switch key.label {
         // Optical pairs should use same weight
         case ";", "'", "[", "]", "\\": .regular  // : " { } | match their main symbols
-        case ",", ".": .light  // < > stay light
+        case ",", ".": .regular  // < > regular weight
         case "-", "=": .light  // _ + light weight
         default: .light
         }
@@ -582,7 +588,8 @@ struct OverlayKeycapView: View {
     // MARK: - Styling
 
     private var cornerRadius: CGFloat {
-        4 * scale
+        // Arrow keys are smaller, need proportionally smaller radius
+        isArrowKey ? 3 * scale : 4 * scale
     }
 
     private var horizontalPadding: CGFloat {

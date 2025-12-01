@@ -17,7 +17,7 @@ struct LiveKeyboardOverlayView: View {
             let scale = calculateScale(for: geometry.size)
             let cornerRadius = 10 * scale // Larger than keys for harmonious container feel
 
-            // Main keyboard
+            // Main keyboard with directional shadow (light from above)
             OverlayKeyboardView(
                 layout: .macBookUS,
                 pressedKeyCodes: viewModel.pressedKeyCodes,
@@ -29,21 +29,23 @@ struct LiveKeyboardOverlayView: View {
                     .fill(isDark
                         ? Color(red: 0.11, green: 0.11, blue: 0.13)
                         : Color(red: 0.78, green: 0.80, blue: 0.83))
+                    // Apple-style floating shadow: subtle wrap, stronger below
+                    // 1. Ambient shadow - very soft, wraps gently, pushed down
+                    .shadow(color: .black.opacity(isDark ? 0.25 : 0.12), radius: 12, x: 0, y: 8)
+                    // 2. Contact shadow - tighter, grounds the element
+                    .shadow(color: .black.opacity(isDark ? 0.15 : 0.08), radius: 3, x: 0, y: 2)
             )
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-            .shadow(color: shadowColor, radius: isDark ? 20 : 15, y: 8)
+            // Padding for shadow to fade naturally (asymmetric - more below)
+            .padding(.bottom, 25)
+            .padding(.horizontal, 15)
+            .padding(.top, 8)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .contentShape(Rectangle())
     }
 
     // MARK: - Styling
 
     private var isDark: Bool { colorScheme == .dark }
-
-    private var shadowColor: Color {
-        isDark ? .black.opacity(0.6) : .black.opacity(0.35)
-    }
 
     /// Calculate scale to match OverlayKeyboardView's scale calculation
     private func calculateScale(for size: CGSize) -> CGFloat {

@@ -123,7 +123,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         window.isMovableByWindowBackground = true
         window.backgroundColor = .clear
         window.isOpaque = false
-        window.hasShadow = true
+        window.hasShadow = false
         window.delegate = self
 
         // Always on top but not activating

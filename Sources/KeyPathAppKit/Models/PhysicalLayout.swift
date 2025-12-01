@@ -183,11 +183,12 @@ struct PhysicalLayout {
         let optWidth = 1.1
         let cmdWidth = 1.35
 
-        // Arrow cluster dimensions
+        // Arrow cluster dimensions (narrower keys and tighter spacing for right margin)
         let arrowKeyHeight = 0.45
         let arrowKeyGap = 0.1
-        let arrowKeyWidth = standardKeyWidth
-        let arrowClusterWidth = 3 * arrowKeyWidth + 2 * keySpacing
+        let arrowKeyWidth = 0.9  // Narrower than standard to create right margin
+        let arrowKeySpacing = 0.04  // Tighter than standard keySpacing (0.08)
+        let arrowClusterWidth = 3 * arrowKeyWidth + 2 * arrowKeySpacing
 
         // Calculate spacebar: total width minus left mods, right mods, and arrow cluster
         let leftModsWidth = fnWidth + keySpacing + ctrlWidth + keySpacing + optWidth + keySpacing + cmdWidth + keySpacing
@@ -218,7 +219,7 @@ struct PhysicalLayout {
         // Up arrow - center column, upper half of modifier row space
         keys.append(PhysicalKey(
             keyCode: 126, label: "▲",
-            x: arrowXStart + arrowKeyWidth + keySpacing,
+            x: arrowXStart + arrowKeyWidth + arrowKeySpacing,
             y: row5Top,
             width: arrowKeyWidth, height: arrowKeyHeight
         ))
@@ -232,12 +233,12 @@ struct PhysicalLayout {
         ))
         keys.append(PhysicalKey(
             keyCode: 125, label: "▼",
-            x: arrowXStart + arrowKeyWidth + keySpacing, y: lowerArrowY,
+            x: arrowXStart + arrowKeyWidth + arrowKeySpacing, y: lowerArrowY,
             width: arrowKeyWidth, height: arrowKeyHeight
         ))
         keys.append(PhysicalKey(
             keyCode: 124, label: "▶",
-            x: arrowXStart + 2 * (arrowKeyWidth + keySpacing), y: lowerArrowY,
+            x: arrowXStart + 2 * (arrowKeyWidth + arrowKeySpacing), y: lowerArrowY,
             width: arrowKeyWidth, height: arrowKeyHeight
         ))
 
