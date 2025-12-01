@@ -1,6 +1,19 @@
 import Foundation
 import SwiftUI
 
+// Minimal representations of live key events from Kanata TCP stream.
+// Defined here to avoid depending on the Rust protocol types directly.
+enum LiveKeyAction: String, Codable, Sendable {
+    case press
+    case release
+    case `repeat`
+}
+
+struct LiveKeyEvent: Codable, Sendable {
+    let key: String // Kanata key name (lowercase, e.g., "a", "leftmeta")
+    let action: LiveKeyAction
+}
+
 // MARK: - Live Keyboard State
 
 /// Tracks the live state of the keyboard from Kanata's KeyInput events.

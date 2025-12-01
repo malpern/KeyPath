@@ -133,7 +133,9 @@ struct PhysicalLayout {
         // Row 4: Bottom row - right shift shortened for arrow cluster
         let leftShiftWidth = 2.35
         let arrowClusterWidth = 3 * standardKeyWidth + 2 * keySpacing // 3 arrows + 2 gaps
-        let rightShiftWidth = targetRightEdge - (leftShiftWidth + keySpacing + 10 * (standardKeyWidth + keySpacing)) - arrowClusterWidth
+        // Ensure right shift width is always positive (min 1.0) to prevent SwiftUI layout crashes
+        let calculatedRightShift = targetRightEdge - (leftShiftWidth + keySpacing + 10 * (standardKeyWidth + keySpacing)) - arrowClusterWidth
+        let rightShiftWidth = max(1.0, calculatedRightShift)
         let bottomRow: [(UInt16, String, Double)] = [
             (56, "⇧", leftShiftWidth), // Left Shift
             (6, "z", standardKeyWidth), (7, "x", standardKeyWidth),
