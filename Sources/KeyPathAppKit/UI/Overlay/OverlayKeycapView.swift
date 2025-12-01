@@ -24,22 +24,46 @@ struct OverlayKeycapView: View {
 
     var body: some View {
         ZStack {
-            // Key background with subtle shadow
+            // Key background with subtle shadow - explicitly fill available space
             RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(backgroundColor)
-                .shadow(color: .black.opacity(isDarkMode ? 0.5 : 0.35), radius: 0.5 * scale, y: 0.5 * scale)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .shadow(
+                    color: .black.opacity(isDarkMode ? 0.5 : 0.35),
+                    radius: isPressed ? 0.2 * scale : 0.5 * scale,
+                    y: isPressed ? 0.2 * scale : 0.5 * scale
+                )
 
-            // Key label with proper alignment and optional glow
+            // Glow layers - blurred text underneath for bloom effect
+            if isDarkMode {
+                // Diffuse outer glow
+                keyLabel
+                    .padding(.horizontal, horizontalPadding)
+                    .padding(.vertical, verticalPadding)
+                    .blur(radius: 3 * scale)
+                    .opacity(0.25)
+
+                // Tight inner glow
+                keyLabel
+                    .padding(.horizontal, horizontalPadding)
+                    .padding(.vertical, verticalPadding)
+                    .blur(radius: 1 * scale)
+                    .opacity(0.4)
+            }
+
+            // Crisp text layer - sharp edges on top
             keyLabel
                 .padding(.horizontal, horizontalPadding)
                 .padding(.vertical, verticalPadding)
-                .shadow(color: backlightGlow, radius: isDarkMode ? 2 * scale : 0, x: 0, y: 0)
 
             // Caps lock indicator light
             if key.label == "⇪" {
                 capsLockIndicator
             }
         }
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+        .offset(y: isPressed ? 0.75 * scale : 0)
+        .animation(.spring(response: 0.15, dampingFraction: 0.6), value: isPressed)
         .animation(.easeInOut(duration: 0.15), value: isLargeSize)
         .animation(.easeInOut(duration: 0.15), value: isSmallSize)
     }
@@ -60,21 +84,35 @@ struct OverlayKeycapView: View {
                 Spacer()
             }
             .padding(.leading, 4 * scale)
-            .padding(.top, 4 * scale)
+            .padding(.top, 3 * scale)
             Spacer()
         }
     }
 
-    /// Backlight glow color - subtle white glow in dark mode
+    /// Backlight glow color - cool blue-white to match MacBook backlight
     private var backlightGlow: Color {
-        isDarkMode ? .white.opacity(0.4) : .clear
+        isDarkMode ? Color(red: 0.88, green: 0.93, blue: 1.0).opacity(0.4) : .clear
+    }
+
+    /// Tight inner glow - higher opacity for sharper halo
+    private var backlightGlowTight: Color {
+        isDarkMode ? Color(red: 0.88, green: 0.93, blue: 1.0).opacity(0.6) : .clear
+    }
+
+    /// Diffuse outer glow - lower opacity for soft bloom
+    private var backlightGlowDiffuse: Color {
+        isDarkMode ? Color(red: 0.88, green: 0.93, blue: 1.0).opacity(0.2) : .clear
     }
 
     // MARK: - Label Routing
 
     @ViewBuilder
     private var keyLabel: some View {
-        if isFunctionKey {
+        if isEscKey {
+            escKeyView
+        } else if isTouchIdKey {
+            touchIdKeyView
+        } else if isFunctionKey {
             functionKeyView
         } else if isArrowKey {
             arrowKeyView
@@ -95,6 +133,42 @@ struct OverlayKeycapView: View {
         }
     }
 
+    // MARK: - ESC Key
+
+    private var isEscKey: Bool {
+        key.label == "esc"
+    }
+
+    @ViewBuilder
+    private var escKeyView: some View {
+        // Same style as Shift key - bottom-left aligned with padding
+        VStack {
+            Spacer(minLength: 0)
+            HStack {
+                Text("esc")
+                    .font(.system(size: 7 * scale, weight: .regular))
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 4 * scale)
+            .padding(.bottom, 3 * scale)
+        }
+        .foregroundStyle(foregroundColor)
+    }
+
+    // MARK: - Touch ID Key
+
+    private var isTouchIdKey: Bool {
+        key.label == "🔒"
+    }
+
+    @ViewBuilder
+    private var touchIdKeyView: some View {
+        // Fingerprint icon for Touch ID
+        Image(systemName: "touchid")
+            .font(.system(size: 12 * scale, weight: .regular))
+            .foregroundStyle(foregroundColor)
+    }
+
     // MARK: - Function Keys (SF Symbols)
 
     private var isFunctionKey: Bool {
@@ -103,15 +177,20 @@ struct OverlayKeycapView: View {
 
     @ViewBuilder
     private var functionKeyView: some View {
-        if let sfSymbol = sfSymbolName {
-            Image(systemName: sfSymbol)
-                .font(.system(size: 8 * scale, weight: .regular))
-                .foregroundStyle(foregroundColor)
-        } else {
+        VStack(spacing: 0) {
+            if let sfSymbol = sfSymbolName {
+                Image(systemName: sfSymbol)
+                    .font(.system(size: 8 * scale, weight: .regular))
+                    .foregroundStyle(foregroundColor)
+            }
+            Spacer()
+            // F1-F12 label at bottom
             Text(key.label)
-                .font(.system(size: 7 * scale, weight: .medium))
-                .foregroundStyle(foregroundColor)
+                .font(.system(size: 5.4 * scale, weight: .regular))  // 10% smaller
+                .foregroundStyle(foregroundColor.opacity(0.6))
         }
+        .padding(.top, 4 * scale)
+        .padding(.bottom, 2 * scale)
     }
 
     private var sfSymbolName: String? {
@@ -122,12 +201,12 @@ struct OverlayKeycapView: View {
         case 118: "magnifyingglass"
         case 96: "mic"
         case 97: "moon"
-        case 98: "backward.fill"
-        case 100: "playpause.fill"
-        case 101: "forward.fill"
-        case 109: "speaker.slash.fill"
-        case 103: "speaker.wave.1.fill"
-        case 111: "speaker.wave.3.fill"
+        case 98: "backward"          // outline (was backward.fill)
+        case 100: "playpause"        // outline (was playpause.fill)
+        case 101: "forward"          // outline (was forward.fill)
+        case 109: "speaker.slash"    // outline (was speaker.slash.fill)
+        case 103: "speaker.wave.1"   // outline (was speaker.wave.1.fill)
+        case 111: "speaker.wave.3"   // outline (was speaker.wave.3.fill)
         default: nil
         }
     }
@@ -135,13 +214,13 @@ struct OverlayKeycapView: View {
     // MARK: - Arrow Keys
 
     private var isArrowKey: Bool {
-        ["↑", "↓", "←", "→"].contains(key.label)
+        ["▲", "▼", "◀", "▶"].contains(key.label)
     }
 
     @ViewBuilder
     private var arrowKeyView: some View {
         Text(key.label)
-            .font(.system(size: 10 * scale, weight: .medium))
+            .font(.system(size: 8 * scale, weight: .regular))
             .foregroundStyle(foregroundColor)
     }
 
@@ -228,21 +307,24 @@ struct OverlayKeycapView: View {
             ZStack {
                 // Centered globe (shown when not large)
                 Image(systemName: "globe")
-                    .font(.system(size: 10 * scale, weight: .regular, design: .default))
+                    .font(.system(size: 8.5 * scale, weight: .regular, design: .default))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .opacity(isLargeSize ? 0 : 1)
 
                 // Bottom-aligned layout with label (shown when large)
+                // Uses same padding as shift keys for consistency
                 VStack {
                     Spacer(minLength: 0)
                     HStack(spacing: 0) {
                         Image(systemName: "globe")
-                            .font(.system(size: 10 * scale, weight: .regular, design: .default))
+                            .font(.system(size: 8.5 * scale, weight: .regular, design: .default))
                         Spacer(minLength: 0)
                         Text("fn")
                             .font(.system(size: 7 * scale, weight: .regular, design: .default))
                             .lineLimit(1)
                     }
+                    .padding(.horizontal, 4 * scale)
+                    .padding(.bottom, 3 * scale)
                 }
                 .opacity(isLargeSize ? 1 : 0)
             }
@@ -277,12 +359,13 @@ struct OverlayKeycapView: View {
     }
 
     /// Optical size adjustment - ⌃ needs to be larger to match visual weight of ⌘
+    /// Sizes reduced 15% for better proportions
     private var symbolFontSize: CGFloat {
         switch key.label {
-        case "⌃": 15 * scale  // Caret is thin, needs to be larger
-        case "⌥": 14 * scale  // Option symbol
-        case "⌘": 13 * scale  // Command symbol is visually heavy
-        default: 13 * scale
+        case "⌃": 13 * scale  // Caret is thin, needs to be larger
+        case "⌥": 12 * scale  // Option symbol
+        case "⌘": 11 * scale  // Command symbol is visually heavy
+        default: 11 * scale
         }
     }
 
@@ -312,14 +395,16 @@ struct OverlayKeycapView: View {
 
     @ViewBuilder
     private var numberKeyView: some View {
-        // Unified layout with animated shift symbol
-        VStack(spacing: 1 * scale) {
+        // Number labels match letter keys (12pt medium), symbols sized per character
+        VStack(spacing: 2 * scale) {
             Text(numberShiftSymbol)
-                .font(.system(size: 8 * scale, weight: .regular))
-                .foregroundStyle(foregroundColor.opacity(isSmallSize ? 0 : 0.7))
+                .font(.system(size: numberShiftSymbolSize, weight: .light))
+                .foregroundStyle(foregroundColor.opacity(isSmallSize ? 0 : 0.6))
             Text(key.label)
-                .font(.system(size: 11 * scale, weight: .medium))
+                .font(.system(size: 12 * scale, weight: .medium))  // Match letters
                 .foregroundStyle(foregroundColor)
+                // Offset digits up to align with neighbors (compensate for larger symbols above)
+                .offset(y: numberDigitOffset)
         }
     }
 
@@ -339,6 +424,31 @@ struct OverlayKeycapView: View {
         }
     }
 
+    /// Per-symbol sizing for number row shift symbols
+    private var numberShiftSymbolSize: CGFloat {
+        switch key.label {
+        case "2": 8.55 * scale   // @ 5% smaller
+        case "3": 8.55 * scale   // # 5% smaller
+        case "4": 8.55 * scale   // $ 5% smaller
+        case "5": 8.55 * scale   // % 5% smaller
+        case "6": 10.8 * scale   // ^ 20% larger
+        case "7": 8.55 * scale   // & 5% smaller
+        case "8": 10.8 * scale   // * 20% larger
+        case "9": 8.55 * scale   // ( 5% smaller
+        case "0": 8.55 * scale   // ) 5% smaller
+        default: 9 * scale       // Base size (! 1)
+        }
+    }
+
+    /// Vertical offset for number digits to align with neighbors (compensate for larger symbols)
+    private var numberDigitOffset: CGFloat {
+        switch key.label {
+        case "6": -1 * scale     // ^ is 20% larger
+        case "8": -1 * scale     // * is 20% larger
+        default: 0
+        }
+    }
+
     // MARK: - Dual Symbol Keys (, . / etc)
 
     private var isDualSymbolKey: Bool {
@@ -347,14 +457,99 @@ struct OverlayKeycapView: View {
 
     @ViewBuilder
     private var dualSymbolKeyView: some View {
-        // Unified layout with animated shift symbol
-        VStack(spacing: 1 * scale) {
+        // Matches real MacBook key proportions with optical balancing for similar character pairs
+        // Compact keys (:; "' <, >. ?/) use smaller fonts + zero spacing to match letter key heights
+        let compactKeys = [";", "'", ",", ".", "/"]
+        let isCompact = compactKeys.contains(key.label)
+        // Negative spacing for comma/period to compensate for larger < > symbols
+        let spacing: CGFloat = isCompact ? compactKeySpacing : 2 * scale
+
+        VStack(spacing: spacing) {
             Text(shiftSymbol)
-                .font(.system(size: 8 * scale, weight: .regular))
-                .foregroundStyle(foregroundColor.opacity(isSmallSize ? 0 : 0.7))
+                .font(.system(size: isCompact ? compactShiftSymbolSize : dualKeyShiftSymbolSize, weight: dualKeyShiftSymbolWeight))
+                .foregroundStyle(foregroundColor.opacity(isSmallSize ? 0 : 0.6))
             Text(key.label)
-                .font(.system(size: 11 * scale, weight: .medium))
+                .font(.system(size: isCompact ? compactMainSymbolSize : dualKeyMainSymbolSize, weight: dualKeyMainSymbolWeight))
                 .foregroundStyle(foregroundColor)
+        }
+    }
+
+    /// Spacing for compact dual-symbol keys
+    private var compactKeySpacing: CGFloat {
+        switch key.label {
+        case ",", ".": -0.5 * scale  // Tighter for larger < > symbols
+        default: 0
+        }
+    }
+
+    /// Compact symbol sizes for :; "' <, >. ?/ keys to match letter key heights
+    private var compactShiftSymbolSize: CGFloat {
+        switch key.label {
+        case ",": 9.9 * scale  // < 10% larger
+        case ".": 9.9 * scale  // > 10% larger
+        default: 9 * scale
+        }
+    }
+
+    private var compactMainSymbolSize: CGFloat {
+        10 * scale
+    }
+
+    /// Size for shift symbols - optically balanced with main symbols
+    private var dualKeyShiftSymbolSize: CGFloat {
+        switch key.label {
+        // Optical pairs - shift symbol sized to match main symbol visually
+        case ";": 12 * scale   // : to match ;
+        case "'": 12 * scale   // " to match '
+        case "[": 10 * scale   // { - 15% smaller (was 12)
+        case "]": 10 * scale   // } - 15% smaller (was 12)
+        case "\\": 10 * scale  // | - 15% smaller (was 12)
+        case ",": 11 * scale   // < +10% (was 10)
+        case ".": 11 * scale   // > +10% (was 10)
+        case "/": 11 * scale   // ? +10% (was 10)
+        case "-": 14 * scale   // _ doubled
+        case "=": 10 * scale   // + reduced 25% (was 14)
+        case "`": 12.1 * scale  // ~ 10% larger than previous
+        default: 7 * scale
+        }
+    }
+
+    /// Weight for shift symbols - matched with main symbols for optical pairs
+    private var dualKeyShiftSymbolWeight: Font.Weight {
+        switch key.label {
+        // Optical pairs should use same weight
+        case ";", "'", "[", "]", "\\": .regular  // : " { } | match their main symbols
+        case ",", ".": .light  // < > stay light
+        case "-", "=": .light  // _ + light weight
+        default: .light
+        }
+    }
+
+    /// Size for main symbols - optically balanced
+    private var dualKeyMainSymbolSize: CGFloat {
+        switch key.label {
+        case ";": 12 * scale   // ; to match :
+        case "'": 12 * scale   // ' to match "
+        case "[": 10 * scale   // [ - 15% smaller (was 12)
+        case "]": 10 * scale   // ] - 15% smaller (was 12)
+        case "\\": 10 * scale  // \ - 15% smaller (was 12)
+        case ",": 12 * scale   // , to match <
+        case ".": 12 * scale   // . to match >
+        case "/": 9 * scale    // / -10% (was 10)
+        case "-": 10 * scale   // - reduced 30% (was 14)
+        case "=": 10 * scale   // = reduced 30% (was 14)
+        default: 14 * scale
+        }
+    }
+
+    /// Weight for main symbols - matched with shift symbols for optical pairs
+    private var dualKeyMainSymbolWeight: Font.Weight {
+        switch key.label {
+        // Optical pairs should use same weight
+        case ";", "'", "[", "]", "\\": .regular  // ; ' [ ] \ match their shift symbols
+        case ",", ".": .regular
+        case "-", "=": .light  // - = light weight
+        default: .regular
         }
     }
 
@@ -400,8 +595,10 @@ struct OverlayKeycapView: View {
         2 * scale
     }
 
+    /// Text color - cool blue-white to match MacBook backlight (6500-7000K)
     private var foregroundColor: Color {
-        .white.opacity(isPressed ? 1.0 : 0.88)
+        Color(red: 0.88, green: 0.93, blue: 1.0)
+            .opacity(isPressed ? 1.0 : 0.88)
     }
 
     private var backgroundColor: Color {

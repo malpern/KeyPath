@@ -47,14 +47,30 @@ struct PhysicalLayout {
         // Target right edge (from number row: 13 standard + 1.5 delete + 13 gaps)
         let targetRightEdge = 13 * (standardKeyWidth + keySpacing) + 1.5
 
-        // Row 0: Function Keys (smaller, evenly spaced across keyboard width)
-        let functionKeyWidth = (targetRightEdge - 11 * keySpacing) / 12
+        // Row 0: ESC + Function Keys + Touch ID (same height as standard keys)
+        // ESC is same width as Tab (1.5), Touch ID is same width as ~ key (1.0)
+        let escWidth = 1.5
+        let touchIdWidth = standardKeyWidth // Same width as ~ key
+        let functionRowAvailable = targetRightEdge - escWidth - keySpacing - touchIdWidth - keySpacing
+        let functionKeyWidth = (functionRowAvailable - 11 * keySpacing) / 12
+
+        // ESC key (same size as tab)
+        keys.append(PhysicalKey(
+            keyCode: 53,
+            label: "esc",
+            x: 0.0,
+            y: 0.0,
+            width: escWidth,
+            height: standardKeyHeight
+        ))
+        currentX = escWidth + keySpacing
+
+        // Function keys F1-F12
         let functionKeys: [(UInt16, String)] = [
             (122, "F1"), (120, "F2"), (99, "F3"), (118, "F4"),
             (96, "F5"), (97, "F6"), (98, "F7"), (100, "F8"),
             (101, "F9"), (109, "F10"), (103, "F11"), (111, "F12")
         ]
-        currentX = 0.0
         for (keyCode, label) in functionKeys {
             keys.append(PhysicalKey(
                 keyCode: keyCode,
@@ -62,10 +78,20 @@ struct PhysicalLayout {
                 x: currentX,
                 y: 0.0,
                 width: functionKeyWidth,
-                height: 0.6 // Shorter function keys
+                height: standardKeyHeight
             ))
             currentX += functionKeyWidth + keySpacing
         }
+
+        // Touch ID key (same width as backslash key)
+        keys.append(PhysicalKey(
+            keyCode: 0xFFFF, // No real keycode for Touch ID
+            label: "🔒",
+            x: currentX,
+            y: 0.0,
+            width: touchIdWidth,
+            height: standardKeyHeight
+        ))
 
         // Row 1: Number Row - defines the keyboard width
         let numberRow: [(UInt16, String, Double)] = [
@@ -130,20 +156,16 @@ struct PhysicalLayout {
             currentX += width + keySpacing
         }
 
-        // Row 4: Bottom row - right shift shortened for arrow cluster
-        let leftShiftWidth = 2.35
-        let arrowClusterWidth = 3 * standardKeyWidth + 2 * keySpacing // 3 arrows + 2 gaps
-        // Ensure right shift width is always positive (min 1.0) to prevent SwiftUI layout crashes
-        let calculatedRightShift = targetRightEdge - (leftShiftWidth + keySpacing + 10 * (standardKeyWidth + keySpacing)) - arrowClusterWidth
-        let rightShiftWidth = max(1.0, calculatedRightShift)
+        // Row 4: Bottom row - both shifts same width for symmetry
+        let shiftWidth = 2.35
         let bottomRow: [(UInt16, String, Double)] = [
-            (56, "⇧", leftShiftWidth), // Left Shift
+            (56, "⇧", shiftWidth), // Left Shift
             (6, "z", standardKeyWidth), (7, "x", standardKeyWidth),
             (8, "c", standardKeyWidth), (9, "v", standardKeyWidth),
             (11, "b", standardKeyWidth), (45, "n", standardKeyWidth),
             (46, "m", standardKeyWidth), (43, ",", standardKeyWidth),
             (47, ".", standardKeyWidth), (44, "/", standardKeyWidth),
-            (60, "⇧", rightShiftWidth) // Right Shift - narrower for arrows
+            (60, "⇧", shiftWidth) // Right Shift - same width as left
         ]
         currentX = 0.0
         for (keyCode, label, width) in bottomRow {
@@ -154,55 +176,23 @@ struct PhysicalLayout {
             currentX += width + keySpacing
         }
 
-        // Arrow cluster: positioned from the RIGHT EDGE like real MacBook
-        // Arrow keys are half-height with a small gap between top and bottom rows
-        let arrowKeyHeight = 0.45
-        let arrowKeyGap = 0.1 // Gap between up arrow and down/left/right arrows
-        let arrowKeyWidth = standardKeyWidth
-
-        // Position arrow cluster at right edge of keyboard, aligned with modifier row
-        let arrowXStart = targetRightEdge - arrowClusterWidth
-        let row5Top = rowSpacing * 5 // Same Y as modifier row
-
-        // Up arrow - center column, upper half of modifier row space
-        keys.append(PhysicalKey(
-            keyCode: 126, label: "↑",
-            x: arrowXStart + arrowKeyWidth + keySpacing,
-            y: row5Top,
-            width: arrowKeyWidth, height: arrowKeyHeight
-        ))
-
-        // Left, Down, Right - lower half of modifier row space (with gap)
-        let lowerArrowY = row5Top + arrowKeyHeight + arrowKeyGap
-        keys.append(PhysicalKey(
-            keyCode: 123, label: "←",
-            x: arrowXStart, y: lowerArrowY,
-            width: arrowKeyWidth, height: arrowKeyHeight
-        ))
-        keys.append(PhysicalKey(
-            keyCode: 125, label: "↓",
-            x: arrowXStart + arrowKeyWidth + keySpacing, y: lowerArrowY,
-            width: arrowKeyWidth, height: arrowKeyHeight
-        ))
-        keys.append(PhysicalKey(
-            keyCode: 124, label: "→",
-            x: arrowXStart + 2 * (arrowKeyWidth + keySpacing), y: lowerArrowY,
-            width: arrowKeyWidth, height: arrowKeyHeight
-        ))
-
-        // Row 5: Modifiers - sized to END where arrow cluster BEGINS
-        // (row5Top already defined above for arrow cluster)
-        // Real MacBook: fn narrow, control/option same width, command wider
-        let fnWidth = 1.0
+        // Row 5: Modifiers first, then position arrows relative to where modifiers end
+        let row5Top = rowSpacing * 5
+        let fnWidth = 1.1
         let ctrlWidth = 1.1
         let optWidth = 1.1
         let cmdWidth = 1.35
 
-        // Calculate spacebar to fill the middle, leaving room for right modifiers
+        // Arrow cluster dimensions
+        let arrowKeyHeight = 0.45
+        let arrowKeyGap = 0.1
+        let arrowKeyWidth = standardKeyWidth
+        let arrowClusterWidth = 3 * arrowKeyWidth + 2 * keySpacing
+
+        // Calculate spacebar: total width minus left mods, right mods, and arrow cluster
         let leftModsWidth = fnWidth + keySpacing + ctrlWidth + keySpacing + optWidth + keySpacing + cmdWidth + keySpacing
         let rightModsWidth = cmdWidth + keySpacing + optWidth + keySpacing
-        let availableForSpace = arrowXStart - leftModsWidth - rightModsWidth
-        let spacebarWidth = availableForSpace
+        let spacebarWidth = targetRightEdge - leftModsWidth - rightModsWidth - arrowClusterWidth
 
         let modifierRow: [(UInt16, String, Double)] = [
             (63, "fn", fnWidth),
@@ -221,6 +211,35 @@ struct PhysicalLayout {
             ))
             currentX += width + keySpacing
         }
+
+        // Arrow cluster: positioned relative to where modifiers end (currentX is now right after right Option + keySpacing)
+        let arrowXStart = currentX
+
+        // Up arrow - center column, upper half of modifier row space
+        keys.append(PhysicalKey(
+            keyCode: 126, label: "▲",
+            x: arrowXStart + arrowKeyWidth + keySpacing,
+            y: row5Top,
+            width: arrowKeyWidth, height: arrowKeyHeight
+        ))
+
+        // Left, Down, Right - lower half of modifier row space (with gap)
+        let lowerArrowY = row5Top + arrowKeyHeight + arrowKeyGap
+        keys.append(PhysicalKey(
+            keyCode: 123, label: "◀",
+            x: arrowXStart, y: lowerArrowY,
+            width: arrowKeyWidth, height: arrowKeyHeight
+        ))
+        keys.append(PhysicalKey(
+            keyCode: 125, label: "▼",
+            x: arrowXStart + arrowKeyWidth + keySpacing, y: lowerArrowY,
+            width: arrowKeyWidth, height: arrowKeyHeight
+        ))
+        keys.append(PhysicalKey(
+            keyCode: 124, label: "▶",
+            x: arrowXStart + 2 * (arrowKeyWidth + keySpacing), y: lowerArrowY,
+            width: arrowKeyWidth, height: arrowKeyHeight
+        ))
 
         return PhysicalLayout(
             name: "MacBook US",

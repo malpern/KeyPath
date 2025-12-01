@@ -6,10 +6,17 @@ struct LiveKeyboardOverlayView: View {
     @ObservedObject var viewModel: KeyboardVisualizationViewModel
 
     @Environment(\.colorScheme) private var colorScheme
-    @State private var isHovering = false
+
+    /// Constants matching OverlayKeyboardView for scale calculation
+    private let keyUnitSize: CGFloat = 32
+    private let keyGap: CGFloat = 2
+    private let layout = PhysicalLayout.macBookUS
 
     var body: some View {
-        ZStack {
+        GeometryReader { geometry in
+            let scale = calculateScale(for: geometry.size)
+            let cornerRadius = 10 * scale // Larger than keys for harmonious container feel
+
             // Main keyboard
             OverlayKeyboardView(
                 layout: .macBookUS,
@@ -17,89 +24,34 @@ struct LiveKeyboardOverlayView: View {
                 isDarkMode: isDark
             )
             .padding(10)
-            .background(windowBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(isDark
+                        ? Color(red: 0.11, green: 0.11, blue: 0.13)
+                        : Color(red: 0.78, green: 0.80, blue: 0.83))
+            )
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
             .shadow(color: shadowColor, radius: isDark ? 20 : 15, y: 8)
-
-            // Resize handles (visible on hover)
-            if isHovering {
-                ResizeHandles(isDark: isDark)
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .contentShape(Rectangle())
-        .onHover { hovering in
-            isHovering = hovering
-        }
-        .onContinuousHover { phase in
-            switch phase {
-            case .active:
-                NSCursor.openHand.set()
-            case .ended:
-                NSCursor.arrow.set()
-            }
-        }
     }
 
     // MARK: - Styling
 
     private var isDark: Bool { colorScheme == .dark }
 
-    private var windowBackground: some View {
-        Group {
-            if isDark {
-                // Dark mode: darker aluminum, like Space Gray MacBook
-                Color(red: 0.11, green: 0.11, blue: 0.13)
-            } else {
-                // Light mode: Silver aluminum
-                Color(red: 0.78, green: 0.80, blue: 0.83)
-            }
-        }
-    }
-
     private var shadowColor: Color {
         isDark ? .black.opacity(0.6) : .black.opacity(0.35)
     }
-}
 
-// MARK: - Resize Handles
-
-/// Visual resize handles at corners
-private struct ResizeHandles: View {
-    let isDark: Bool
-
-    var body: some View {
-        GeometryReader { geo in
-            let handleSize: CGFloat = 12
-            let handleColor = isDark ? Color.white.opacity(0.3) : Color.black.opacity(0.2)
-
-            // Corner handles
-            ForEach(corners, id: \.self) { corner in
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(handleColor)
-                    .frame(width: handleSize, height: handleSize)
-                    .position(position(for: corner, in: geo.size, handleSize: handleSize))
-            }
-        }
-    }
-
-    private var corners: [UnitPoint] {
-        [.topLeading, .topTrailing, .bottomLeading, .bottomTrailing]
-    }
-
-    private func position(for corner: UnitPoint, in size: CGSize, handleSize: CGFloat) -> CGPoint {
-        let inset: CGFloat = 4
-        switch corner {
-        case .topLeading:
-            return CGPoint(x: inset + handleSize / 2, y: inset + handleSize / 2)
-        case .topTrailing:
-            return CGPoint(x: size.width - inset - handleSize / 2, y: inset + handleSize / 2)
-        case .bottomLeading:
-            return CGPoint(x: inset + handleSize / 2, y: size.height - inset - handleSize / 2)
-        case .bottomTrailing:
-            return CGPoint(x: size.width - inset - handleSize / 2, y: size.height - inset - handleSize / 2)
-        default:
-            return .zero
-        }
+    /// Calculate scale to match OverlayKeyboardView's scale calculation
+    private func calculateScale(for size: CGSize) -> CGFloat {
+        // Account for padding (10pt on each side)
+        let contentSize = CGSize(width: size.width - 20, height: size.height - 20)
+        let widthScale = contentSize.width / (layout.totalWidth * (keyUnitSize + keyGap))
+        let heightScale = contentSize.height / (layout.totalHeight * (keyUnitSize + keyGap))
+        return min(widthScale, heightScale)
     }
 }
 
