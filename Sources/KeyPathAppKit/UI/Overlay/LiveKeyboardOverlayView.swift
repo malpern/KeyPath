@@ -35,6 +35,8 @@ struct LiveKeyboardOverlayView: View {
                     // 2. Contact shadow - tighter, grounds the element
                     .shadow(color: .black.opacity(isDark ? 0.15 : 0.08), radius: 3, x: 0, y: 2)
             )
+            // Resize/move handles on the keyboard background (not shadow area)
+            .windowResizeHandles()
             // Padding for shadow to fade naturally (asymmetric - more below)
             .padding(.bottom, 25)
             .padding(.horizontal, 15)

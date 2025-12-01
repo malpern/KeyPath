@@ -10,6 +10,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     private let viewModel = KeyboardVisualizationViewModel()
 
     // MARK: - UserDefaults Keys
+
     private enum DefaultsKey {
         static let isVisible = "LiveKeyboardOverlay.isVisible"
         static let windowX = "LiveKeyboardOverlay.windowX"
@@ -21,7 +22,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     /// Shared instance for app-wide access
     static let shared = LiveKeyboardOverlayController()
 
-    private override init() {
+    override private init() {
         super.init()
     }
 
@@ -89,13 +90,13 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
     // MARK: - NSWindowDelegate
 
-    nonisolated func windowDidMove(_ notification: Notification) {
+    nonisolated func windowDidMove(_: Notification) {
         Task { @MainActor in
             saveWindowFrame()
         }
     }
 
-    nonisolated func windowDidResize(_ notification: Notification) {
+    nonisolated func windowDidResize(_: Notification) {
         Task { @MainActor in
             saveWindowFrame()
         }
@@ -120,7 +121,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         )
 
         window.contentView = hostingView
-        window.isMovableByWindowBackground = true
+        window.isMovableByWindowBackground = false // Disabled - using custom resize/move handling
         window.backgroundColor = .clear
         window.isOpaque = false
         window.hasShadow = false
@@ -136,7 +137,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         window.maxSize = NSSize(width: 1200, height: 500)
 
         // Restore saved position or default to bottom-right corner
-        if let savedFrame = savedFrame {
+        if let savedFrame {
             window.setFrameOrigin(savedFrame.origin)
         } else if let screen = NSScreen.main {
             let screenFrame = screen.visibleFrame
