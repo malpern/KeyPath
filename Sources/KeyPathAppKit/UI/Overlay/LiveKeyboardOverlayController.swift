@@ -59,6 +59,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             createWindow()
         }
         viewModel.startCapturing()
+        viewModel.noteInteraction() // Reset fade state when showing
         window?.orderFront(nil)
     }
 
@@ -113,7 +114,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         hostingView.setFrameSize(initialSize)
 
         // Borderless, resizable window
-        let window = NSWindow(
+        let window = OverlayWindow(
             contentRect: NSRect(origin: .zero, size: initialSize),
             styleMask: [.borderless, .resizable],
             backing: .buffered,
@@ -148,6 +149,36 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         }
 
         self.window = window
+    }
+}
+
+// MARK: - Overlay Window (allows partial off-screen positioning)
+
+private final class OverlayWindow: NSWindow {
+    /// Keep at least this many points visible inside the screen's visibleFrame so the window is recoverable.
+    private let minVisible: CGFloat = 30
+
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+        guard let screen else { return frameRect }
+
+        let visible = screen.visibleFrame
+        var rect = frameRect
+
+        // Horizontal: ensure at least `minVisible` points remain on-screen
+        if rect.maxX < visible.minX + minVisible {
+            rect.origin.x = visible.minX + minVisible - rect.width
+        } else if rect.minX > visible.maxX - minVisible {
+            rect.origin.x = visible.maxX - minVisible
+        }
+
+        // Vertical: ensure at least `minVisible` points remain on-screen
+        if rect.maxY < visible.minY + minVisible {
+            rect.origin.y = visible.minY + minVisible - rect.height
+        } else if rect.minY > visible.maxY - minVisible {
+            rect.origin.y = visible.maxY - minVisible
+        }
+
+        return rect
     }
 }
 

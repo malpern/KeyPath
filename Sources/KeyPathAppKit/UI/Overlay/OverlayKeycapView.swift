@@ -64,6 +64,7 @@ struct OverlayKeycapView: View {
         .scaleEffect(isPressed ? 0.95 : 1.0)
         .offset(y: isPressed && fadeAmount < 1 ? 0.75 * scale : 0)
         .animation(.spring(response: 0.15, dampingFraction: 0.6), value: isPressed)
+        .animation(.easeOut(duration: 0.3), value: fadeAmount)
         .background(GeometryReader { proxy in
             Color.clear
                 .onAppear { logSize(proxy.size) }

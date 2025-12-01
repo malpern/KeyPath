@@ -9,11 +9,22 @@ import SwiftUI
 class KeyboardVisualizationViewModel: ObservableObject {
     @Published var pressedKeyCodes: Set<UInt16> = []
     @Published var layout: PhysicalLayout = .macBookUS
+    /// Fade level for outline state (0 = fully visible, 1 = outline-only faded)
+    @Published var fadeAmount: CGFloat = 0
+    /// Deep fade level for full keyboard opacity (0 = normal, 1 = 5% visible)
+    @Published var deepFadeAmount: CGFloat = 0
 
     // Event tap for listening to keyDown and keyUp events
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var isCapturing = false
+    private var idleMonitorTask: Task<Void, Never>?
+    private var lastInteraction: Date = .init()
+
+    private let idleTimeout: TimeInterval = 3
+    private let deepFadeTimeout: TimeInterval = 48
+    private let deepFadeRamp: TimeInterval = 2
+    private let idlePollInterval: TimeInterval = 0.25
 
     func startCapturing() {
         guard !isCapturing else {
@@ -34,6 +45,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
         }
 
         setupEventTap()
+        startIdleMonitor()
     }
 
     func stopCapturing() {
@@ -51,6 +63,9 @@ class KeyboardVisualizationViewModel: ObservableObject {
             CFMachPortInvalidate(tap)
             eventTap = nil
         }
+
+        idleMonitorTask?.cancel()
+        idleMonitorTask = nil
 
         AppLogger.shared.debug("⌨️ [KeyboardViz] Stopped capturing")
     }
@@ -107,6 +122,8 @@ class KeyboardVisualizationViewModel: ObservableObject {
             return
         }
 
+        noteInteraction()
+
         let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
 
         Task { @MainActor in
@@ -133,20 +150,110 @@ class KeyboardVisualizationViewModel: ObservableObject {
     private func handleFlagsChanged(event: CGEvent, keyCode: UInt16) {
         let flags = event.flags
 
-        // Map modifier flags to key codes and update pressed state
-        // Key codes: 54=RCmd, 55=LCmd, 56=LShift, 57=CapsLock, 58=LAlt, 59=LCtrl, 60=RShift, 61=RAlt, 63=Fn
-        updateModifierState(keyCode: 57, isPressed: flags.contains(.maskAlphaShift)) // Caps Lock
-        updateModifierState(keyCode: 56, isPressed: flags.contains(.maskShift) && keyCode == 56) // Left Shift
-        updateModifierState(keyCode: 60, isPressed: flags.contains(.maskShift) && keyCode == 60) // Right Shift
-        updateModifierState(keyCode: 59, isPressed: flags.contains(.maskControl) && keyCode == 59) // Left Control
-        updateModifierState(keyCode: 55, isPressed: flags.contains(.maskCommand) && keyCode == 55) // Left Command
-        updateModifierState(keyCode: 54, isPressed: flags.contains(.maskCommand) && keyCode == 54) // Right Command
-        updateModifierState(keyCode: 58, isPressed: flags.contains(.maskAlternate) && keyCode == 58) // Left Option
-        updateModifierState(keyCode: 61, isPressed: flags.contains(.maskAlternate) && keyCode == 61) // Right Option
-        updateModifierState(keyCode: 63, isPressed: flags.contains(.maskSecondaryFn)) // Fn key
+        // Update only the modifier key that triggered this flagsChanged event so previously-held
+        // modifiers stay pressed (e.g., holding ⌘ while pressing ⌥).
+        switch keyCode {
+        case 57: // Caps Lock
+            updateModifierState(keyCode: 57, isPressed: flags.contains(.maskAlphaShift))
+        case 56: // Left Shift
+            updateModifierState(keyCode: 56, isPressed: flags.contains(.maskShift))
+        case 60: // Right Shift
+            updateModifierState(keyCode: 60, isPressed: flags.contains(.maskShift))
+        case 59: // Left Control
+            updateModifierState(keyCode: 59, isPressed: flags.contains(.maskControl))
+        case 55: // Left Command
+            updateModifierState(keyCode: 55, isPressed: flags.contains(.maskCommand))
+        case 54: // Right Command
+            updateModifierState(keyCode: 54, isPressed: flags.contains(.maskCommand))
+        case 58: // Left Option
+            updateModifierState(keyCode: 58, isPressed: flags.contains(.maskAlternate))
+        case 61: // Right Option
+            updateModifierState(keyCode: 61, isPressed: flags.contains(.maskAlternate))
+        case 63: // Fn key
+            updateModifierState(keyCode: 63, isPressed: flags.contains(.maskSecondaryFn))
+        default:
+            break
+        }
+
+        // Final reconciliation: if a modifier flag is absent, ensure both sides of that modifier
+        // are cleared so simultaneous releases don't leave a side stuck as "pressed".
+        reconcileModifierStates(flags: flags)
 
         AppLogger.shared.debug("⌨️ [KeyboardViz] FlagsChanged: keyCode=\(keyCode), flags=\(flags.rawValue)")
     }
+
+    private func startIdleMonitor() {
+        idleMonitorTask?.cancel()
+        lastInteraction = Date()
+
+        idleMonitorTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(idlePollInterval))
+
+                let elapsed = Date().timeIntervalSince(lastInteraction)
+
+                // Stage 1: outline fade begins after idleTimeout, completes over 5s
+                // Use pow(x, 0.7) easing so changes are faster initially and gentler at the end,
+                // avoiding the perceptual "cliff" when linear formulas hit their endpoints together.
+                let linearProgress = max(0, min(1, (elapsed - idleTimeout) / 5))
+                let fadeProgress = pow(linearProgress, 0.7)
+                if fadeProgress != fadeAmount {
+                    fadeAmount = fadeProgress
+                }
+
+                // Stage 2: deep fade to 5% after deepFadeTimeout over deepFadeRamp seconds
+                let deepProgress = max(0, min(1, (elapsed - deepFadeTimeout) / deepFadeRamp))
+                if deepProgress != deepFadeAmount {
+                    deepFadeAmount = deepProgress
+                }
+            }
+        }
+    }
+
+    /// Reset idle timer and un-fade if necessary.
+    func noteInteraction() {
+        lastInteraction = Date()
+        if fadeAmount != 0 { fadeAmount = 0 }
+        if deepFadeAmount != 0 { deepFadeAmount = 0 }
+    }
+
+    /// Clear modifier keycodes when the corresponding flag is fully released.
+    private func reconcileModifierStates(flags: CGEventFlags) {
+        if !flags.contains(.maskCommand) {
+            pressedKeyCodes.remove(55) // Left Command
+            pressedKeyCodes.remove(54) // Right Command
+        }
+        if !flags.contains(.maskAlternate) {
+            pressedKeyCodes.remove(58) // Left Option
+            pressedKeyCodes.remove(61) // Right Option
+        }
+        if !flags.contains(.maskShift) {
+            pressedKeyCodes.remove(56) // Left Shift
+            pressedKeyCodes.remove(60) // Right Shift
+        }
+        if !flags.contains(.maskControl) {
+            pressedKeyCodes.remove(59) // Left Control
+            pressedKeyCodes.remove(62) // Right Control (defensive)
+        }
+        if !flags.contains(.maskAlphaShift) {
+            pressedKeyCodes.remove(57) // Caps Lock
+        }
+        if !flags.contains(.maskSecondaryFn) {
+            pressedKeyCodes.remove(63) // Fn key
+        }
+    }
+
+    #if DEBUG
+        /// Test helper to simulate a flagsChanged event without installing an event tap.
+        func simulateFlagsChanged(flags: CGEventFlags, keyCode: UInt16) {
+            guard let event = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: true) else {
+                return
+            }
+            event.flags = flags
+            handleKeyEvent(event: event, type: .flagsChanged)
+        }
+    #endif
 
     private func updateModifierState(keyCode: UInt16, isPressed: Bool) {
         if isPressed {
