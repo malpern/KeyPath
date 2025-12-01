@@ -180,14 +180,18 @@ public struct KeyPathApp: App {
 
                 Button(
                     action: {
-                        KeyboardVisualizationManager.shared.toggle()
+                        LiveKeyboardOverlayController.shared.toggle()
                     },
                     label: {
-                        Label("See Keymap…", systemImage: "map")
+                        Label("Live Keyboard Overlay", systemImage: "keyboard.badge.eye")
                     }
                 )
-                .keyboardShortcut("k", modifiers: .command)
-                .disabled(!(MainAppStateController.shared.validationState?.isSuccess ?? false))
+                .keyboardShortcut("y", modifiers: .command)
+
+                Button("Input Capture Experiment") {
+                    InputCaptureExperimentWindowController.shared.showWindow()
+                }
+                .keyboardShortcut("i", modifiers: [.command, .shift])
 
                 Divider()
 
@@ -254,6 +258,7 @@ public struct KeyPathApp: App {
                         unregisterSMAppService(plistName: "com.keypath.helper.plist")
                     }
                 }
+
             #endif
         }
     }
@@ -380,11 +385,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         if !isHeadlessMode {
             setupMenuBarController()
-            // Connect state controller to menu bar and visualization manager
-            Task { @MainActor in
-                menuBarController?.setStateController(MainAppStateController.shared)
-                KeyboardVisualizationManager.shared.setStateController(MainAppStateController.shared)
-            }
         }
 
         // Legacy LaunchAgent support removed
@@ -443,6 +443,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             mainWindowController = MainWindowController(viewModel: vm)
             AppLogger.shared.debug(
                 "🪟 [AppDelegate] Main window controller created (deferring show until activation)")
+
+            // Restore live keyboard overlay state from previous session
+            LiveKeyboardOverlayController.shared.restoreState()
 
             // Defer all window fronting until the first applicationDidBecomeActive event
             // to avoid AppKit display-cycle reentrancy during initial layout.

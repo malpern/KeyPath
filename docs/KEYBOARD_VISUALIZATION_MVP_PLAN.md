@@ -344,6 +344,28 @@ Based on `KeyboardCapture.swift` and macOS documentation:
 5. **Heatmap mode** - Show key frequency over time
 6. **Touch Bar support** - For MacBook Pro models with Touch Bar (dynamic keys)
 
+## Known Limitations
+
+### F-Keys as Media Keys (F1-F12)
+
+On MacBooks, F1-F12 are media keys by default (brightness, volume, etc.):
+- **Without Fn held**: These generate `NSSystemDefined` events, not CGEvents. Our CGEvent tap cannot see them.
+- **With Fn held**: They generate normal F-key codes and will highlight correctly.
+
+**Workaround for users**: Enable "Use F1, F2, etc. keys as standard function keys" in System Settings → Keyboard.
+
+**Potential future solution**: Use IOHIDManager for raw HID-level access. This would capture all hardware events including media keys, but requires significant refactoring:
+1. Replace CGEvent tap with IOHIDManager-based capture
+2. Map HID usage pages to key codes
+3. Handle device hotplug events
+4. Test across different Mac models (different HID usage pages)
+
+Estimated effort: 1-2 days of development + testing
+
+### Escape Key on Touch Bar MacBooks
+
+Touch Bar MacBook Pros don't have a physical Escape key. The virtual Escape key on the Touch Bar may not generate CGEvents that our tap can see.
+
 ## Notes
 
 - MacBook keyboards are more compact than standard ANSI 104-key layouts

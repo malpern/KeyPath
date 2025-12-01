@@ -39,26 +39,20 @@ struct PhysicalLayout {
     static let macBookUS: PhysicalLayout = {
         var keys: [PhysicalKey] = []
         var currentX = 0.0
-        let keySpacing = 0.1 // Gap between keys
-        let rowSpacing = 1.2 // Vertical spacing between row centers
+        let keySpacing = 0.08 // Gap between keys (tighter like real MacBook)
+        let rowSpacing = 1.1 // Vertical spacing between row centers
         let standardKeyWidth = 1.0
         let standardKeyHeight = 1.0
 
-        // Row 0: Function Keys (F1-F12)
-        // F1=122, F2=120, F3=99, F4=118, F5=96, F6=97, F7=98, F8=100, F9=101, F10=109, F11=103, F12=111
+        // Target right edge (from number row: 13 standard + 1.5 delete + 13 gaps)
+        let targetRightEdge = 13 * (standardKeyWidth + keySpacing) + 1.5
+
+        // Row 0: Function Keys (smaller, evenly spaced across keyboard width)
+        let functionKeyWidth = (targetRightEdge - 11 * keySpacing) / 12
         let functionKeys: [(UInt16, String)] = [
-            (122, "🔅"), // F1 - Brightness Down
-            (120, "🔆"), // F2 - Brightness Up
-            (99, "F3"), // F3 - Mission Control
-            (118, "F4"), // F4 - Spotlight
-            (96, "F5"), // F5 - Keyboard Backlight Down
-            (97, "F6"), // F6 - Keyboard Backlight Up
-            (98, "⏮"), // F7 - Previous Track
-            (100, "⏯"), // F8 - Play/Pause
-            (101, "⏭"), // F9 - Next Track
-            (109, "🔇"), // F10 - Mute
-            (103, "🔉"), // F11 - Volume Down
-            (111, "🔊") // F12 - Volume Up
+            (122, "F1"), (120, "F2"), (99, "F3"), (118, "F4"),
+            (96, "F5"), (97, "F6"), (98, "F7"), (100, "F8"),
+            (101, "F9"), (109, "F10"), (103, "F11"), (111, "F12")
         ]
         currentX = 0.0
         for (keyCode, label) in functionKeys {
@@ -67,200 +61,171 @@ struct PhysicalLayout {
                 label: label,
                 x: currentX,
                 y: 0.0,
-                width: standardKeyWidth,
-                height: standardKeyHeight
+                width: functionKeyWidth,
+                height: 0.6 // Shorter function keys
             ))
-            currentX += standardKeyWidth + keySpacing
+            currentX += functionKeyWidth + keySpacing
         }
 
-        // Row 1: Number Row
-        // `=50, 1=18, 2=19, 3=20, 4=21, 5=23, 6=22, 7=26, 8=28, 9=25, 0=29, -=27, ==24, delete=51
+        // Row 1: Number Row - defines the keyboard width
         let numberRow: [(UInt16, String, Double)] = [
             (50, "`", standardKeyWidth),
-            (18, "1", standardKeyWidth),
-            (19, "2", standardKeyWidth),
-            (20, "3", standardKeyWidth),
-            (21, "4", standardKeyWidth),
-            (23, "5", standardKeyWidth),
-            (22, "6", standardKeyWidth),
-            (26, "7", standardKeyWidth),
-            (28, "8", standardKeyWidth),
-            (25, "9", standardKeyWidth),
-            (29, "0", standardKeyWidth),
-            (27, "-", standardKeyWidth),
-            (24, "=", standardKeyWidth),
-            (51, "⌫", 1.5) // Delete - wider
+            (18, "1", standardKeyWidth), (19, "2", standardKeyWidth),
+            (20, "3", standardKeyWidth), (21, "4", standardKeyWidth),
+            (23, "5", standardKeyWidth), (22, "6", standardKeyWidth),
+            (26, "7", standardKeyWidth), (28, "8", standardKeyWidth),
+            (25, "9", standardKeyWidth), (29, "0", standardKeyWidth),
+            (27, "-", standardKeyWidth), (24, "=", standardKeyWidth),
+            (51, "⌫", 1.5) // Delete
         ]
         currentX = 0.0
         for (keyCode, label, width) in numberRow {
             keys.append(PhysicalKey(
-                keyCode: keyCode,
-                label: label,
-                x: currentX,
-                y: rowSpacing,
-                width: width,
-                height: standardKeyHeight
+                keyCode: keyCode, label: label, x: currentX,
+                y: rowSpacing, width: width, height: standardKeyHeight
             ))
             currentX += width + keySpacing
         }
 
-        // Row 2: QWERTY Top
-        // tab=48, q=12, w=13, e=14, r=15, t=17, y=16, u=32, i=34, o=31, p=35, [=33, ]=30, \=42
+        // Row 2: QWERTY row (tab 1.5 + 12 standard + backslash to align)
+        let backslashWidth = targetRightEdge - (1.5 + keySpacing + 12 * (standardKeyWidth + keySpacing))
         let topRow: [(UInt16, String, Double)] = [
-            (48, "⇥", 1.5), // Tab - wider
-            (12, "q", standardKeyWidth),
-            (13, "w", standardKeyWidth),
-            (14, "e", standardKeyWidth),
-            (15, "r", standardKeyWidth),
-            (17, "t", standardKeyWidth),
-            (16, "y", standardKeyWidth),
-            (32, "u", standardKeyWidth),
-            (34, "i", standardKeyWidth),
-            (31, "o", standardKeyWidth),
-            (35, "p", standardKeyWidth),
-            (33, "[", standardKeyWidth),
-            (30, "]", standardKeyWidth),
-            (42, "\\", standardKeyWidth)
+            (48, "⇥", 1.5), // Tab
+            (12, "q", standardKeyWidth), (13, "w", standardKeyWidth),
+            (14, "e", standardKeyWidth), (15, "r", standardKeyWidth),
+            (17, "t", standardKeyWidth), (16, "y", standardKeyWidth),
+            (32, "u", standardKeyWidth), (34, "i", standardKeyWidth),
+            (31, "o", standardKeyWidth), (35, "p", standardKeyWidth),
+            (33, "[", standardKeyWidth), (30, "]", standardKeyWidth),
+            (42, "\\", backslashWidth)
         ]
         currentX = 0.0
         for (keyCode, label, width) in topRow {
             keys.append(PhysicalKey(
-                keyCode: keyCode,
-                label: label,
-                x: currentX,
-                y: rowSpacing * 2,
-                width: width,
-                height: standardKeyHeight
+                keyCode: keyCode, label: label, x: currentX,
+                y: rowSpacing * 2, width: width, height: standardKeyHeight
             ))
             currentX += width + keySpacing
         }
 
-        // Row 3: QWERTY Middle
-        // caps=57, a=0, s=1, d=2, f=3, g=5, h=4, j=38, k=40, l=37, ;=41, '=39, return=36
+        // Row 3: Home row (caps 1.8 + 11 standard + return to align)
+        let capsWidth = 1.8
+        let returnWidth = targetRightEdge - (capsWidth + keySpacing + 11 * (standardKeyWidth + keySpacing))
         let middleRow: [(UInt16, String, Double)] = [
-            (57, "⇪", 1.75), // Caps Lock - wider
-            (0, "a", standardKeyWidth),
-            (1, "s", standardKeyWidth),
-            (2, "d", standardKeyWidth),
-            (3, "f", standardKeyWidth),
-            (5, "g", standardKeyWidth),
-            (4, "h", standardKeyWidth),
-            (38, "j", standardKeyWidth),
-            (40, "k", standardKeyWidth),
-            (37, "l", standardKeyWidth),
-            (41, ";", standardKeyWidth),
+            (57, "⇪", capsWidth), // Caps Lock
+            (0, "a", standardKeyWidth), (1, "s", standardKeyWidth),
+            (2, "d", standardKeyWidth), (3, "f", standardKeyWidth),
+            (5, "g", standardKeyWidth), (4, "h", standardKeyWidth),
+            (38, "j", standardKeyWidth), (40, "k", standardKeyWidth),
+            (37, "l", standardKeyWidth), (41, ";", standardKeyWidth),
             (39, "'", standardKeyWidth),
-            (36, "↩", 2.25) // Return - extra wide
+            (36, "↩", returnWidth) // Return - sized to align right edge
         ]
         currentX = 0.0
         for (keyCode, label, width) in middleRow {
             keys.append(PhysicalKey(
-                keyCode: keyCode,
-                label: label,
-                x: currentX,
-                y: rowSpacing * 3,
-                width: width,
-                height: standardKeyHeight
+                keyCode: keyCode, label: label, x: currentX,
+                y: rowSpacing * 3, width: width, height: standardKeyHeight
             ))
             currentX += width + keySpacing
         }
 
-        // Row 4: QWERTY Bottom
-        // shift=56 (left), z=6, x=7, c=8, v=9, b=11, n=45, m=46, ,=43, .=47, /=44, shift=60 (right)
+        // Row 4: Bottom row - right shift shortened for arrow cluster
+        let leftShiftWidth = 2.35
+        let arrowClusterWidth = 3 * standardKeyWidth + 2 * keySpacing // 3 arrows + 2 gaps
+        let rightShiftWidth = targetRightEdge - (leftShiftWidth + keySpacing + 10 * (standardKeyWidth + keySpacing)) - arrowClusterWidth
         let bottomRow: [(UInt16, String, Double)] = [
-            (56, "⇧", 2.25), // Left Shift - wider
-            (6, "z", standardKeyWidth),
-            (7, "x", standardKeyWidth),
-            (8, "c", standardKeyWidth),
-            (9, "v", standardKeyWidth),
-            (11, "b", standardKeyWidth),
-            (45, "n", standardKeyWidth),
-            (46, "m", standardKeyWidth),
-            (43, ",", standardKeyWidth),
-            (47, ".", standardKeyWidth),
-            (44, "/", standardKeyWidth),
-            (60, "⇧", 2.75) // Right Shift - extra wide
+            (56, "⇧", leftShiftWidth), // Left Shift
+            (6, "z", standardKeyWidth), (7, "x", standardKeyWidth),
+            (8, "c", standardKeyWidth), (9, "v", standardKeyWidth),
+            (11, "b", standardKeyWidth), (45, "n", standardKeyWidth),
+            (46, "m", standardKeyWidth), (43, ",", standardKeyWidth),
+            (47, ".", standardKeyWidth), (44, "/", standardKeyWidth),
+            (60, "⇧", rightShiftWidth) // Right Shift - narrower for arrows
         ]
         currentX = 0.0
         for (keyCode, label, width) in bottomRow {
             keys.append(PhysicalKey(
-                keyCode: keyCode,
-                label: label,
-                x: currentX,
-                y: rowSpacing * 4,
-                width: width,
-                height: standardKeyHeight
+                keyCode: keyCode, label: label, x: currentX,
+                y: rowSpacing * 4, width: width, height: standardKeyHeight
             ))
             currentX += width + keySpacing
         }
 
-        // Row 5: Modifiers
-        // control=59 (left), option=58 (left), command=55 (left), space=49, command=54 (right), option=61 (right), fn=63
+        // Arrow cluster: positioned from the RIGHT EDGE like real MacBook
+        // Arrow keys are half-height with a small gap between top and bottom rows
+        let arrowKeyHeight = 0.45
+        let arrowKeyGap = 0.1 // Gap between up arrow and down/left/right arrows
+        let arrowKeyWidth = standardKeyWidth
+
+        // Position arrow cluster at right edge of keyboard, aligned with modifier row
+        let arrowXStart = targetRightEdge - arrowClusterWidth
+        let row5Top = rowSpacing * 5 // Same Y as modifier row
+
+        // Up arrow - center column, upper half of modifier row space
+        keys.append(PhysicalKey(
+            keyCode: 126, label: "↑",
+            x: arrowXStart + arrowKeyWidth + keySpacing,
+            y: row5Top,
+            width: arrowKeyWidth, height: arrowKeyHeight
+        ))
+
+        // Left, Down, Right - lower half of modifier row space (with gap)
+        let lowerArrowY = row5Top + arrowKeyHeight + arrowKeyGap
+        keys.append(PhysicalKey(
+            keyCode: 123, label: "←",
+            x: arrowXStart, y: lowerArrowY,
+            width: arrowKeyWidth, height: arrowKeyHeight
+        ))
+        keys.append(PhysicalKey(
+            keyCode: 125, label: "↓",
+            x: arrowXStart + arrowKeyWidth + keySpacing, y: lowerArrowY,
+            width: arrowKeyWidth, height: arrowKeyHeight
+        ))
+        keys.append(PhysicalKey(
+            keyCode: 124, label: "→",
+            x: arrowXStart + 2 * (arrowKeyWidth + keySpacing), y: lowerArrowY,
+            width: arrowKeyWidth, height: arrowKeyHeight
+        ))
+
+        // Row 5: Modifiers - sized to END where arrow cluster BEGINS
+        // (row5Top already defined above for arrow cluster)
+        // Real MacBook: fn narrow, control/option same width, command wider
+        let fnWidth = 1.0
+        let ctrlWidth = 1.1
+        let optWidth = 1.1
+        let cmdWidth = 1.35
+
+        // Calculate spacebar to fill the middle, leaving room for right modifiers
+        let leftModsWidth = fnWidth + keySpacing + ctrlWidth + keySpacing + optWidth + keySpacing + cmdWidth + keySpacing
+        let rightModsWidth = cmdWidth + keySpacing + optWidth + keySpacing
+        let availableForSpace = arrowXStart - leftModsWidth - rightModsWidth
+        let spacebarWidth = availableForSpace
+
         let modifierRow: [(UInt16, String, Double)] = [
-            (59, "⌃", 1.25), // Left Control
-            (58, "⌥", 1.25), // Left Option
-            (55, "⌘", 1.25), // Left Command
-            (49, "␣", 4.0), // Space - extra wide
-            (54, "⌘", 1.25), // Right Command
-            (61, "⌥", 1.25), // Right Option
-            (63, "fn", 1.0) // Function
+            (63, "fn", fnWidth),
+            (59, "⌃", ctrlWidth),
+            (58, "⌥", optWidth),
+            (55, "⌘", cmdWidth),
+            (49, " ", spacebarWidth),
+            (54, "⌘", cmdWidth),
+            (61, "⌥", optWidth)
         ]
         currentX = 0.0
         for (keyCode, label, width) in modifierRow {
             keys.append(PhysicalKey(
-                keyCode: keyCode,
-                label: label,
-                x: currentX,
-                y: rowSpacing * 5,
-                width: width,
-                height: standardKeyHeight
+                keyCode: keyCode, label: label, x: currentX,
+                y: row5Top, width: width, height: standardKeyHeight
             ))
             currentX += width + keySpacing
         }
 
-        // Arrow Cluster (positioned to the RIGHT of the keyboard, aligned with bottom rows)
-        // Up=126, Down=125, Left=123, Right=124
-        // Position: x starts after the modifier row, y aligned with rows 4-5
-        let arrowXStart = 15.5 // After the fn key
-
-        // Up arrow aligned with bottom letter row (row 4)
-        keys.append(PhysicalKey(
-            keyCode: 126,
-            label: "↑",
-            x: arrowXStart + standardKeyWidth + keySpacing,
-            y: rowSpacing * 4,
-            width: standardKeyWidth,
-            height: standardKeyHeight
-        ))
-
-        // Left, Down, Right aligned with modifier row (row 5)
-        let arrowKeys: [(UInt16, String)] = [
-            (123, "←"), // Left
-            (125, "↓"), // Down
-            (124, "→") // Right
-        ]
-        currentX = arrowXStart
-        for (keyCode, label) in arrowKeys {
-            keys.append(PhysicalKey(
-                keyCode: keyCode,
-                label: label,
-                x: currentX,
-                y: rowSpacing * 5,
-                width: standardKeyWidth,
-                height: standardKeyHeight
-            ))
-            currentX += standardKeyWidth + keySpacing
-        }
-
-        // Calculate total dimensions
-        let maxX = keys.map { $0.x + $0.width }.max() ?? 15.0
-        let maxY = keys.map { $0.y + $0.height }.max() ?? 8.5
-
         return PhysicalLayout(
             name: "MacBook US",
             keys: keys,
-            totalWidth: maxX,
-            totalHeight: maxY
+            totalWidth: targetRightEdge,
+            totalHeight: rowSpacing * 5 + standardKeyHeight
         )
     }()
 }
+
