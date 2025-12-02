@@ -50,6 +50,7 @@ public struct KanataConfiguration: Sendable {
         )
         """
 
+        let fakeKeysBlock = renderFakeKeysBlock(extraLayers)
         let aliasBlock = renderAliasBlock(aliasDefinitions)
         let chordsBlock = renderChordsBlock(chordMappings)
         let sourceBlock = renderDefsrcBlock(blocks)
@@ -60,7 +61,7 @@ public struct KanataConfiguration: Sendable {
             }
         }.joined(separator: "\n")
 
-        return [header, aliasBlock, chordsBlock, sourceBlock, baseLayerBlock, additionalLayerBlocks]
+        return [header, fakeKeysBlock, aliasBlock, chordsBlock, sourceBlock, baseLayerBlock, additionalLayerBlocks]
             .filter { !$0.isEmpty }
             .joined(separator: "\n")
     }
@@ -78,6 +79,24 @@ public struct KanataConfiguration: Sendable {
         )
 
         """
+    }
+
+    /// Render deffakekeys block for layer change notifications.
+    /// Creates fake keys that send push-msg when layers are entered/exited,
+    /// working around Kanata's limitation where layer-while-held doesn't broadcast LayerChange TCP messages.
+    private static func renderFakeKeysBlock(_ layers: [RuleCollectionLayer]) -> String {
+        guard !layers.isEmpty else { return "" }
+        var lines = [";; === Fake Keys for Layer Notifications ==="]
+        lines.append(";; Used to broadcast layer changes via TCP (layer-while-held doesn't do this natively)")
+        lines.append("(deffakekeys")
+        // Add enter/exit fake keys for each non-base layer
+        for layer in layers {
+            let layerName = layer.kanataName
+            lines.append("  kp-layer-\(layerName)-enter (push-msg \"layer:\(layerName)\")")
+            lines.append("  kp-layer-\(layerName)-exit (push-msg \"layer:base\")")
+        }
+        lines.append(")")
+        return lines.joined(separator: "\n") + "\n"
     }
 
     /// Render defchordsv2 block for chord mappings (simultaneous key presses)
@@ -253,8 +272,10 @@ public struct KanataConfiguration: Sendable {
             let aliasName = aliasSafeName(layer: activator.targetLayer, key: tapKey)
             if !seenActivators.contains(aliasName) {
                 seenActivators.insert(aliasName)
-                let definition =
-                    "(tap-hold 200 200 \(tapKey) (layer-while-held \(activator.targetLayer.kanataName)))"
+                let layerName = activator.targetLayer.kanataName
+                // Use multi to combine layer-while-held with fake key triggers for TCP layer notifications.
+                // This works around Kanata's limitation where layer-while-held doesn't broadcast LayerChange messages.
+                let definition = "(tap-hold 200 200 \(tapKey) (multi (layer-while-held \(layerName)) (on-press-fakekey kp-layer-\(layerName)-enter tap) (on-release-fakekey kp-layer-\(layerName)-exit tap)))"
                 aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: definition))
                 let entry = LayerEntry(
                     sourceKey: tapKey,
