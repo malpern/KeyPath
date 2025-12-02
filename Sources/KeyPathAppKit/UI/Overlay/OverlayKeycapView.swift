@@ -66,11 +66,12 @@ struct OverlayKeycapView: View {
         .offset(y: isPressed && fadeAmount < 1 ? 0.75 * scale : 0)
         .animation(.spring(response: 0.15, dampingFraction: 0.6), value: isPressed)
         .animation(.easeOut(duration: 0.3), value: fadeAmount)
-        .background(GeometryReader { proxy in
-            Color.clear
-                .onAppear { logSize(proxy.size) }
-                .onChange(of: proxy.size) { _, newSize in logSize(newSize) }
-        })
+        // Debug: uncomment to log key sizes
+        // .background(GeometryReader { proxy in
+        //     Color.clear
+        //         .onAppear { logSize(proxy.size) }
+        //         .onChange(of: proxy.size) { _, newSize in logSize(newSize) }
+        // })
     }
 
     // MARK: - Content Routing by Layout Role
@@ -274,14 +275,15 @@ struct OverlayKeycapView: View {
 
     @ViewBuilder
     private var escKeyContent: some View {
+        // Match caps lock style: bottom-left aligned using labelText()
         VStack {
             Spacer(minLength: 0)
             HStack {
-                Text("esc")
-                    .font(.system(size: 7 * scale, weight: .regular))
+                labelText("esc")
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 4 * scale)
+            .padding(.leading, 4 * scale)
+            .padding(.trailing, 4 * scale)
             .padding(.bottom, 3 * scale)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

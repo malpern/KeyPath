@@ -54,7 +54,7 @@ struct WindowResizeHandles: ViewModifier {
     let cornerSize: CGFloat = 20
 
     /// Debug: set to true to see handle positions (red = edges, blue = corners)
-    private let debugShowHandles = true
+    private let debugShowHandles = false
     /// Fixed aspect ratio for keyboard (width/height) - from PhysicalLayout.macBookUS
     let keyboardAspectRatio: CGFloat = 15.66 / 6.5 // ~2.41
 

@@ -90,12 +90,12 @@ extension PhysicalKey {
 
         // Function row: y position is 0 (first row)
         if y < 0.5 {
-            // ESC is at x=0 and narrow
-            if x < 0.5, width < 1.2 {
+            // ESC is at x=0 (width 1.5, wider than function keys)
+            if x < 0.5 {
                 return .escKey
             }
-            // Touch ID is at far right of function row (last key, narrow)
-            if x > 14, width < 1.2 {
+            // Touch ID is at far right of function row (standard width 1.0)
+            if x > 14, width <= 1.0 {
                 return .touchId
             }
             // All other function row keys
@@ -107,9 +107,9 @@ extension PhysicalKey {
             return .narrowModifier
         }
 
-        // Wide keys: width > 1.5 (shift, return, delete, tab, caps, spacebar)
+        // Wide keys: width >= 1.5 (shift, return, delete, tab, caps, spacebar)
         // Exception: spacebar is wide but should be centered
-        if width > 1.5 {
+        if width >= 1.5 {
             // Spacebar is very wide (> 5 units) - centered content
             if width > 5 {
                 return .centered
