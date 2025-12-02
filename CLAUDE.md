@@ -339,6 +339,85 @@ withTaskGroup { group in
 }
 ```
 
+### ADR-023: No Config File Parsing - Use TCP and Simulator ✅
+KeyPath must NEVER parse Kanata config files directly. All config understanding comes from Kanata itself.
+
+**Decision:** Use TCP communication and the kanata-simulator for all config-related information:
+- **Layer names and state**: Query via TCP `layer-names` and `current-layer` commands
+- **Key mappings per layer**: Use kanata-simulator with layer-switch key held
+- **Config validation**: Let Kanata validate configs, report errors via TCP
+
+**Why not parse configs?**
+1. **Kanata is the source of truth** - Parsing would create a shadow implementation that can drift
+2. **Config syntax is complex** - Aliases, macros, tap-hold, forks, layer-switch, includes, variables
+3. **Maintenance burden** - Every Kanata syntax change would require KeyPath updates
+4. **Already solved** - Simulator handles all edge cases correctly
+
+**Implementation approach:**
+- TCP for runtime state (current layer, layer list)
+- Simulator for static analysis (what does key X output in layer Y?)
+- If simulator lacks a feature, extend it in our local Kanata fork (`External/kanata`)
+
+**What's allowed:**
+- Reading config file path to pass to simulator
+- Checking if config file exists
+- Computing file hash for cache invalidation
+
+**What's NOT allowed:**
+- Regex/parsing to extract layer names, aliases, key mappings
+- Interpreting Kanata syntax (defsrc, deflayer, defalias, etc.)
+- Building any data structures from config text
+
+### ADR-024: Custom Key Icons via push-msg (Planned)
+Users can specify custom icons for keys in the overlay using Kanata's `push-msg` action.
+
+**Syntax in kanata config:**
+```lisp
+(defalias
+  vim-left (multi left (push-msg "icon:arrow-left"))
+  launch-safari (multi (push-msg "launch:safari") (push-msg "icon:safari"))
+  nav-home (multi home (push-msg "icon:home"))
+)
+```
+
+**KeyPath-side icon registry:**
+```swift
+enum IconSource {
+    case sfSymbol(String)    // SF Symbol name -> Image(systemName:)
+    case appIcon(String)     // App name -> NSWorkspace icon lookup
+    case text(String)        // Fallback to text label
+}
+
+let iconRegistry: [String: IconSource] = [
+    // Navigation (SF Symbols)
+    "arrow-left": .sfSymbol("arrow.left"),
+    "arrow-right": .sfSymbol("arrow.right"),
+    "arrow-up": .sfSymbol("arrow.up"),
+    "arrow-down": .sfSymbol("arrow.down"),
+    "home": .sfSymbol("house"),
+
+    // Apps (resolved via NSWorkspace)
+    "safari": .appIcon("Safari"),
+    "terminal": .appIcon("Terminal"),
+    "obsidian": .appIcon("Obsidian"),
+    "finder": .appIcon("Finder"),
+]
+```
+
+**Flow:**
+1. User presses key with `(push-msg "icon:arrow-left")`
+2. Kanata sends `{"MessagePush":{"message":"icon:arrow-left"}}` via TCP
+3. KeyPath receives message, looks up `arrow-left` in registry
+4. Overlay displays SF Symbol `arrow.left` on that key
+
+**Benefits:**
+- Config stays simple (semantic names, not paths or bundle IDs)
+- KeyPath controls rendering (can update icons without config changes)
+- Extensible (add emoji, custom images later)
+- Follows ADR-023 (no config parsing - uses TCP messages)
+
+**Status:** Planned, not yet implemented.
+
 ## Build Commands
 
 ```bash
