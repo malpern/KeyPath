@@ -130,6 +130,7 @@ struct ContentView: View {
                     }
                 )
                 .buttonStyle(.borderedProminent)
+                .focusable(false) // Prevent keyboard activation on main page
                 .disabled(
                     recordingCoordinator.capturedInputSequence() == nil
                         || recordingCoordinator.capturedOutputSequence() == nil

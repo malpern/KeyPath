@@ -23,6 +23,7 @@ struct DiagnosticSummarySection: View {
                     onViewDetails()
                 }
                 .buttonStyle(.borderedProminent)
+                .focusable(false) // Prevent keyboard activation on main page
                 .controlSize(.small)
             }
 

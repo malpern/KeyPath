@@ -25,6 +25,7 @@ struct SetupBanner: View {
                         onCompleteSetup()
                     }
                     .buttonStyle(.borderedProminent)
+                    .focusable(false) // Prevent keyboard activation
 
                     Button {
                         isDismissed = true
