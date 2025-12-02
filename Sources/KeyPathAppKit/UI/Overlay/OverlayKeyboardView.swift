@@ -14,6 +14,8 @@ struct OverlayKeyboardView: View {
     var layerKeyMap: [UInt16: LayerKeyInfo] = [:]
     /// Effective pressed key codes (includes remapped outputs for dual highlighting)
     var effectivePressedKeyCodes: Set<UInt16> = []
+    /// Key codes to emphasize (highlight with accent color for layer hints)
+    var emphasizedKeyCodes: Set<UInt16> = []
 
     /// Track caps lock state from system
     @State private var isCapsLockOn: Bool = NSEvent.modifierFlags.contains(.capsLock)
@@ -43,7 +45,8 @@ struct OverlayKeyboardView: View {
                         fadeAmount: fadeAmount,
                         currentLayerName: currentLayerName,
                         isLoadingLayerMap: isLoadingLayerMap,
-                        layerKeyInfo: layerKeyMap[key.keyCode]
+                        layerKeyInfo: layerKeyMap[key.keyCode],
+                        isEmphasized: emphasizedKeyCodes.contains(key.keyCode)
                     )
                     .frame(
                         width: keyWidth(for: key, scale: scale),

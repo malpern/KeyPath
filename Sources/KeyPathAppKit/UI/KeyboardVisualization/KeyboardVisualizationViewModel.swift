@@ -22,6 +22,22 @@ class KeyboardVisualizationViewModel: ObservableObject {
     @Published var isLoadingLayerMap: Bool = false
     /// Key mapping for the current layer: keyCode -> LayerKeyInfo
     @Published var layerKeyMap: [UInt16: LayerKeyInfo] = [:]
+
+    // MARK: - Key Emphasis
+
+    /// Key codes to emphasize based on current layer
+    /// HJKL keys are emphasized when on the nav layer
+    var emphasizedKeyCodes: Set<UInt16> {
+        // HJKL key codes for vim navigation emphasis
+        // h=4, j=38, k=40, l=37
+        let hjklKeyCodes: Set<UInt16> = [4, 38, 40, 37]
+
+        if currentLayerName.lowercased() == "nav" {
+            return hjklKeyCodes
+        }
+        return []
+    }
+
     /// Effective key codes that should appear pressed (includes remapped outputs)
     /// When H is pressed and maps to Left Arrow, both H and Left Arrow should highlight
     var effectivePressedKeyCodes: Set<UInt16> {
@@ -30,7 +46,8 @@ class KeyboardVisualizationViewModel: ObservableObject {
         for keyCode in pressedKeyCodes {
             if let info = layerKeyMap[keyCode],
                let outputKeyCode = info.outputKeyCode,
-               outputKeyCode != keyCode {
+               outputKeyCode != keyCode
+            {
                 result.insert(outputKeyCode)
             }
         }

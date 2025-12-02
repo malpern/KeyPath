@@ -21,6 +21,8 @@ struct OverlayKeycapView: View {
     var isLoadingLayerMap: Bool = false
     /// Layer-specific key info (what this key does in current layer)
     var layerKeyInfo: LayerKeyInfo?
+    /// Whether this key is emphasized (highlighted with accent color for layer hints)
+    var isEmphasized: Bool = false
 
     /// Size thresholds for typography adaptation
     private var isSmallSize: Bool { scale < 0.8 }
@@ -391,7 +393,13 @@ struct OverlayKeycapView: View {
     }
 
     private var backgroundColor: Color {
-        isPressed ? Color.accentColor : Color(white: 0.08)
+        if isPressed {
+            Color.accentColor
+        } else if isEmphasized {
+            Color.orange
+        } else {
+            Color(white: 0.08)
+        }
     }
 
     // MARK: - Glow (dynamic based on fade)
@@ -506,6 +514,50 @@ struct OverlayKeycapView: View {
             scale: 1.5,
             isDarkMode: true,
             isLoadingLayerMap: true
+        )
+        .frame(width: 50, height: 50)
+    }
+    .padding()
+    .background(Color.black)
+}
+
+#Preview("Emphasized Keys (HJKL)") {
+    HStack(spacing: 8) {
+        // Normal key
+        OverlayKeycapView(
+            key: PhysicalKey(keyCode: 0, label: "a", x: 0, y: 0),
+            isPressed: false,
+            scale: 1.5,
+            isDarkMode: true
+        )
+        .frame(width: 50, height: 50)
+
+        // Emphasized key (vim nav)
+        OverlayKeycapView(
+            key: PhysicalKey(keyCode: 4, label: "h", x: 0, y: 0),
+            isPressed: false,
+            scale: 1.5,
+            isDarkMode: true,
+            isEmphasized: true
+        )
+        .frame(width: 50, height: 50)
+
+        // Emphasized + Pressed
+        OverlayKeycapView(
+            key: PhysicalKey(keyCode: 38, label: "j", x: 0, y: 0),
+            isPressed: true,
+            scale: 1.5,
+            isDarkMode: true,
+            isEmphasized: true
+        )
+        .frame(width: 50, height: 50)
+
+        // Just pressed (not emphasized)
+        OverlayKeycapView(
+            key: PhysicalKey(keyCode: 40, label: "k", x: 0, y: 0),
+            isPressed: true,
+            scale: 1.5,
+            isDarkMode: true
         )
         .frame(width: 50, height: 50)
     }
