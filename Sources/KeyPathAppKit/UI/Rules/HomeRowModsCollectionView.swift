@@ -1,17 +1,17 @@
 import SwiftUI
 #if os(macOS)
-import AppKit
+    import AppKit
 #endif
 
 /// Main view for Home Row Mods collection with progressive disclosure
 struct HomeRowModsCollectionView: View {
     @Binding var config: HomeRowModsConfig
     let onConfigChanged: (HomeRowModsConfig) -> Void
-    
+
     @State private var showCustomize = false
     @State private var selectedKey: String?
     @State private var showModifierPicker = false
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Visual keyboard (always visible when expanded)
@@ -27,7 +27,7 @@ struct HomeRowModsCollectionView: View {
                 }
             )
             .padding(.bottom, 16)
-            
+
             // Progressive disclosure: Customize section
             if showCustomize {
                 customizeSection
@@ -48,9 +48,9 @@ struct HomeRowModsCollectionView: View {
                 .buttonStyle(.plain)
                 .foregroundColor(.accentColor)
             }
-            
+
             // Modifier picker (contextual, appears when key is selected)
-            if showModifierPicker, let selectedKey = selectedKey {
+            if showModifierPicker, let selectedKey {
                 modifierPickerSection(for: selectedKey)
                     .padding(.top, 12)
                     .transition(.opacity.combined(with: .move(edge: .top)))
@@ -59,16 +59,16 @@ struct HomeRowModsCollectionView: View {
         .animation(.easeInOut(duration: 0.25), value: showCustomize)
         .animation(.easeInOut(duration: 0.2), value: showModifierPicker)
     }
-    
+
     // MARK: - Customize Section
-    
+
     private var customizeSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Key selection
             VStack(alignment: .leading, spacing: 8) {
                 Text("Which keys?")
                     .font(.body)
-                
+
                 Picker("Key Selection", selection: Binding(
                     get: { config.keySelection },
                     set: { newValue in
@@ -84,7 +84,7 @@ struct HomeRowModsCollectionView: View {
                 }
                 .pickerStyle(.radioGroup)
                 .horizontalRadioGroupLayout()
-                
+
                 // Custom key picker (appears contextually)
                 if config.keySelection == .custom {
                     customKeyPicker
@@ -92,12 +92,12 @@ struct HomeRowModsCollectionView: View {
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
-            
+
             // Timing controls
             VStack(alignment: .leading, spacing: 8) {
                 Text("Timing")
                     .font(.body)
-                
+
                 HStack(spacing: 16) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Tap window")
@@ -111,14 +111,14 @@ struct HomeRowModsCollectionView: View {
                                     updateConfig()
                                 }
                             ), format: .number)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 80)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 80)
                             Text("ms")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
                     }
-                    
+
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Hold delay")
                             .font(.subheadline)
@@ -131,8 +131,8 @@ struct HomeRowModsCollectionView: View {
                                     updateConfig()
                                 }
                             ), format: .number)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 80)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 80)
                             Text("ms")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
@@ -140,7 +140,7 @@ struct HomeRowModsCollectionView: View {
                     }
                 }
             }
-            
+
             // Fewer Options button
             Button(action: {
                 withAnimation(.easeInOut(duration: 0.25)) {
@@ -165,15 +165,15 @@ struct HomeRowModsCollectionView: View {
                 .fill(Color(NSColor.controlBackgroundColor).opacity(0.3))
         )
     }
-    
+
     // MARK: - Custom Key Picker
-    
+
     private var customKeyPicker: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Select keys:")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
-            
+
             HStack(spacing: 8) {
                 ForEach(HomeRowModsConfig.allKeys, id: \.self) { key in
                     Button(action: {
@@ -203,9 +203,9 @@ struct HomeRowModsCollectionView: View {
             }
         }
     }
-    
+
     // MARK: - Modifier Picker
-    
+
     private func modifierPickerSection(for key: String) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -223,7 +223,7 @@ struct HomeRowModsCollectionView: View {
                 }
                 .buttonStyle(.plain)
             }
-            
+
             HStack(spacing: 12) {
                 ForEach(modifierOptions, id: \.key) { option in
                     modifierButton(
@@ -244,7 +244,7 @@ struct HomeRowModsCollectionView: View {
                 .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
         )
     }
-    
+
     private var modifierOptions: [(key: String, label: String, symbol: String)] {
         [
             ("lmet", "Command", "⌘"),
@@ -253,7 +253,7 @@ struct HomeRowModsCollectionView: View {
             ("lsft", "Shift", "⇧")
         ]
     }
-    
+
     private func modifierButton(label: String, symbol: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 4) {
@@ -276,11 +276,10 @@ struct HomeRowModsCollectionView: View {
         }
         .buttonStyle(.plain)
     }
-    
+
     // MARK: - Helpers
-    
+
     private func updateConfig() {
         onConfigChanged(config)
     }
 }
-

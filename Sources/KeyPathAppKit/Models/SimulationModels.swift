@@ -5,10 +5,10 @@ import Foundation
 /// A key tap event to simulate (press + delay + release)
 struct SimulatorKeyTap: Identifiable, Equatable, Hashable {
     let id = UUID()
-    let kanataKey: String       // e.g., "a", "lctl", "spc", "lsft"
-    let displayLabel: String    // e.g., "A", "Ctrl", "Space", "Shift"
-    let delayAfterMs: UInt64    // Default: 200ms for tap, 400ms for hold
-    let isHold: Bool            // Whether this is a long-press (hold) vs tap
+    let kanataKey: String // e.g., "a", "lctl", "spc", "lsft"
+    let displayLabel: String // e.g., "A", "Ctrl", "Space", "Shift"
+    let delayAfterMs: UInt64 // Default: 200ms for tap, 400ms for hold
+    let isHold: Bool // Whether this is a long-press (hold) vs tap
 
     init(kanataKey: String, displayLabel: String, delayAfterMs: UInt64, isHold: Bool = false) {
         self.kanataKey = kanataKey

@@ -186,7 +186,7 @@ class KanataViewModel: ObservableObject {
         await manager.toggleRuleCollection(id: id, isEnabled: enabled)
         let collection = ruleCollections.first { $0.id == id }
         let collectionName = collection?.name ?? "Collection"
-        
+
         // Special message for Home Row Mods
         if id == RuleCollectionIdentifier.homeRowMods {
             if enabled {

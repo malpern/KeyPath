@@ -6,7 +6,7 @@ import SwiftUI
 /// Highlights when pressed via physical keyboard.
 struct SimulatorKeycapView: View {
     let key: PhysicalKey
-    let isExternallyPressed: Bool  // From physical keyboard
+    let isExternallyPressed: Bool // From physical keyboard
     let onTap: () -> Void
     let onHold: () -> Void
 
@@ -20,10 +20,13 @@ struct SimulatorKeycapView: View {
         isPressed || isExternallyPressed
     }
 
+    /// Metadata for current label (word expansions, etc.)
+    private var metadata: LabelMetadata {
+        LabelMetadata.forLabel(key.label)
+    }
+
     var body: some View {
-        Text(key.label)
-            .font(.system(size: fontSize, weight: .semibold, design: .rounded))
-            .foregroundColor(foregroundColor)
+        keyContent
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(currentBackgroundColor)
             .cornerRadius(5)
@@ -61,6 +64,43 @@ struct SimulatorKeycapView: View {
                     }
                 }
             }
+    }
+
+    // MARK: - Key Content
+
+    @ViewBuilder
+    private var keyContent: some View {
+        // Wide modifier keys (shift, return, delete, tab, caps) use bottom-aligned word labels
+        if key.layoutRole == .bottomAligned, let wordLabel = metadata.wordLabel {
+            VStack {
+                Spacer(minLength: 0)
+                HStack {
+                    if key.isRightSideKey {
+                        Spacer(minLength: 0)
+                        Text(wordLabel)
+                            .font(.system(size: 9, weight: .medium, design: .rounded))
+                            .foregroundColor(foregroundColor)
+                    } else {
+                        Text(wordLabel)
+                            .font(.system(size: 9, weight: .medium, design: .rounded))
+                            .foregroundColor(foregroundColor)
+                        Spacer(minLength: 0)
+                    }
+                }
+                .padding(.horizontal, 6)
+                .padding(.bottom, 4)
+            }
+        } else {
+            // Standard centered content
+            Text(displayLabel)
+                .font(.system(size: fontSize, weight: .semibold, design: .rounded))
+                .foregroundColor(foregroundColor)
+        }
+    }
+
+    /// Display label - use word label for wide keys at normal sizes
+    private var displayLabel: String {
+        key.label
     }
 
     // MARK: - Styling

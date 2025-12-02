@@ -53,6 +53,9 @@ struct OpticalAdjustments {
         case "⌃": OpticalAdjustments(fontScale: 1.18, verticalOffset: 1.0) // Thin caret needs larger size, nudge down
         case "⌥": OpticalAdjustments(fontScale: 1.09, verticalOffset: 0.5) // Option slightly high
         case "⌘": OpticalAdjustments(fontScale: 1.0, verticalOffset: 0) // Command is visually heavy, balanced
+        // Number row - optical baseline alignment
+        case "6": OpticalAdjustments(verticalOffset: -1.5) // Nudge up to align with 5, 7
+        case "8": OpticalAdjustments(verticalOffset: -1.5) // Nudge up to align with 7, 9
         // Number row shift symbols
         case "^": OpticalAdjustments(fontScale: 1.2) // Caret 20% larger
         case "*": OpticalAdjustments(fontScale: 1.2) // Asterisk 20% larger

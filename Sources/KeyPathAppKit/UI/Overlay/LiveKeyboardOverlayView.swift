@@ -43,7 +43,7 @@ struct LiveKeyboardOverlayView: View {
                 if hovering { viewModel.noteInteraction() }
             }
             .background(MouseMoveMonitor { viewModel.noteInteraction() })
-            .opacity(0.07 + 0.93 * (1 - viewModel.deepFadeAmount))
+            .opacity(0.11 + 0.89 * (1 - viewModel.deepFadeAmount))
             // Animate deep fade smoothly; fade-in is instant
             .animation(viewModel.deepFadeAmount > 0 ? .easeOut(duration: 0.3) : nil,
                        value: viewModel.deepFadeAmount)
@@ -76,8 +76,9 @@ struct LiveKeyboardOverlayView: View {
                 RoundedRectangle(cornerRadius: cornerRadius)
                     .fill(Color(white: isDark ? 0.1 : 0.9).opacity(0.25 * fadeAmount))
             )
-            .shadow(color: ambientShadow, radius: 14, x: 0, y: 9)
-            .shadow(color: contactShadow, radius: 4, x: 0, y: 2)
+            // y >= radius ensures shadow only renders below (light from above)
+            .shadow(color: ambientShadow, radius: 14, x: 0, y: 14)
+            .shadow(color: contactShadow, radius: 4, x: 0, y: 4)
             .animation(.easeOut(duration: 0.3), value: fadeAmount)
     }
 

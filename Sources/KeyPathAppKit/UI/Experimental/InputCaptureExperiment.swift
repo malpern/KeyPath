@@ -10,9 +10,9 @@ enum CapturedInput: Identifiable, Equatable {
 
     var id: String {
         switch self {
-        case .key(let k): return "key-\(k.id)"
-        case .app(let a): return "app-\(a.id)"
-        case .url(let u): return "url-\(u.id)"
+        case let .key(k): "key-\(k.id)"
+        case let .app(a): "app-\(a.id)"
+        case let .url(u): "url-\(u.id)"
         }
     }
 
@@ -348,11 +348,11 @@ struct InputChipView: View {
     @ViewBuilder
     private var chipContent: some View {
         switch input {
-        case .key(let keyInput):
+        case let .key(keyInput):
             keyChipContent(keyInput)
-        case .app(let appInput):
+        case let .app(appInput):
             appChipContent(appInput)
-        case .url(let urlInput):
+        case let .url(urlInput):
             urlChipContent(urlInput)
         }
     }
@@ -453,18 +453,18 @@ struct InputChipView: View {
     private var borderColor: Color {
         switch input {
         case .key:
-            return Color.white.opacity(isHovered ? 0.3 : 0.15)
+            Color.white.opacity(isHovered ? 0.3 : 0.15)
         case .app:
-            return Color.accentColor.opacity(isHovered ? 0.5 : 0.3)
+            Color.accentColor.opacity(isHovered ? 0.5 : 0.3)
         case .url:
-            return Color.orange.opacity(isHovered ? 0.5 : 0.3)
+            Color.orange.opacity(isHovered ? 0.5 : 0.3)
         }
     }
 
     private var chipCornerRadius: CGFloat {
         switch input {
-        case .key: return 8
-        case .app, .url: return 10
+        case .key: 8
+        case .app, .url: 10
         }
     }
 }
@@ -474,12 +474,12 @@ struct InputChipView: View {
 struct FlowLayout: Layout {
     var spacing: CGFloat = 8
 
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) -> CGSize {
         let result = layout(proposal: proposal, subviews: subviews)
         return result.size
     }
 
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) {
         let result = layout(proposal: proposal, subviews: subviews)
         for (index, position) in result.positions.enumerated() {
             subviews[index].place(at: CGPoint(x: bounds.minX + position.x, y: bounds.minY + position.y), proposal: .unspecified)
@@ -496,7 +496,7 @@ struct FlowLayout: Layout {
         for subview in subviews {
             let size = subview.sizeThatFits(.unspecified)
 
-            if currentX + size.width > maxWidth && currentX > 0 {
+            if currentX + size.width > maxWidth, currentX > 0 {
                 currentX = 0
                 currentY += lineHeight + spacing
                 lineHeight = 0
@@ -617,7 +617,7 @@ class InputCaptureViewModel: ObservableObject {
         isRecording = true
 
         eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self = self else { return event }
+            guard let self else { return event }
 
             // Ignore if it's just a modifier key
             let modifierOnlyKeyCodes: Set<UInt16> = [54, 55, 56, 57, 58, 59, 60, 61, 62, 63] // Command, Shift, etc.

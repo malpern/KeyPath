@@ -178,17 +178,18 @@ struct PhysicalLayout {
 
         // Row 5: Modifiers first, then position arrows relative to where modifiers end
         let row5Top = rowSpacing * 5
-        let fnWidth = 1.1
-        let ctrlWidth = 1.1
-        let optWidth = 1.1
+        let fnWidth = standardKeyWidth // Same as Z key
+        let ctrlWidth = standardKeyWidth // Same as Z key
+        let optWidth = standardKeyWidth // Same as Z key (both left and right)
         let cmdWidth = 1.35
 
         // Arrow cluster dimensions (narrower keys and tighter spacing for right margin)
         let arrowKeyHeight = 0.45
         let arrowKeyGap = 0.1
-        let arrowKeyWidth = 0.9  // Narrower than standard to create right margin
-        let arrowKeySpacing = 0.04  // Tighter than standard keySpacing (0.08)
-        let arrowClusterWidth = 3 * arrowKeyWidth + 2 * arrowKeySpacing
+        let arrowKeyWidth = 0.9 // Narrower than standard to create right margin
+        let arrowKeySpacing = 0.04 // Tighter than standard keySpacing (0.08)
+        let arrowRightMargin = 0.15 // Match visual spacing of shift row
+        let arrowClusterWidth = 3 * arrowKeyWidth + 2 * arrowKeySpacing + arrowRightMargin
 
         // Calculate spacebar: total width minus left mods, right mods, and arrow cluster
         let leftModsWidth = fnWidth + keySpacing + ctrlWidth + keySpacing + optWidth + keySpacing + cmdWidth + keySpacing
@@ -250,4 +251,3 @@ struct PhysicalLayout {
         )
     }()
 }
-

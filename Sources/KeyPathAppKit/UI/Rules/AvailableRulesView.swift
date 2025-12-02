@@ -41,11 +41,11 @@ private struct AvailableRuleCollectionCard: View {
     private func formatLeaderKey(_ key: String) -> String {
         switch key.lowercased() {
         case "space", "spc":
-            return "␣ Space"
+            "␣ Space"
         case "leader":
-            return "Leader"
+            "Leader"
         default:
-            return key.capitalized
+            key.capitalized
         }
     }
 

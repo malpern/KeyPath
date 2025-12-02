@@ -151,128 +151,117 @@ final class SimulatorViewModel: ObservableObject {
     nonisolated static func keyCodeToKanataName(_ keyCode: UInt16) -> String {
         switch keyCode {
         // Row 3: Home row (ASDF...)
-        case 0: return "a"
-        case 1: return "s"
-        case 2: return "d"
-        case 3: return "f"
-        case 4: return "h"
-        case 5: return "g"
-
+        case 0: "a"
+        case 1: "s"
+        case 2: "d"
+        case 3: "f"
+        case 4: "h"
+        case 5: "g"
         // Row 4: Bottom row (ZXCV...)
-        case 6: return "z"
-        case 7: return "x"
-        case 8: return "c"
-        case 9: return "v"
-        case 11: return "b"
-
+        case 6: "z"
+        case 7: "x"
+        case 8: "c"
+        case 9: "v"
+        case 11: "b"
         // Row 2: Top row (QWERTY...)
-        case 12: return "q"
-        case 13: return "w"
-        case 14: return "e"
-        case 15: return "r"
-        case 16: return "y"
-        case 17: return "t"
-
+        case 12: "q"
+        case 13: "w"
+        case 14: "e"
+        case 15: "r"
+        case 16: "y"
+        case 17: "t"
         // Row 1: Number row
-        case 18: return "1"
-        case 19: return "2"
-        case 20: return "3"
-        case 21: return "4"
-        case 22: return "6"
-        case 23: return "5"
-        case 24: return "="
-        case 25: return "9"
-        case 26: return "7"
-        case 27: return "-"
-        case 28: return "8"
-        case 29: return "0"
-
+        case 18: "1"
+        case 19: "2"
+        case 20: "3"
+        case 21: "4"
+        case 22: "6"
+        case 23: "5"
+        case 24: "="
+        case 25: "9"
+        case 26: "7"
+        case 27: "-"
+        case 28: "8"
+        case 29: "0"
         // More top row keys
-        case 30: return "]"
-        case 31: return "o"
-        case 32: return "u"
-        case 33: return "["
-        case 34: return "i"
-        case 35: return "p"
-
+        case 30: "]"
+        case 31: "o"
+        case 32: "u"
+        case 33: "["
+        case 34: "i"
+        case 35: "p"
         // Home row continued
-        case 36: return "ret"
-        case 37: return "l"
-        case 38: return "j"
-        case 39: return "'"
-        case 40: return "k"
-        case 41: return ";"
-        case 42: return "\\"
-
+        case 36: "ret"
+        case 37: "l"
+        case 38: "j"
+        case 39: "'"
+        case 40: "k"
+        case 41: ";"
+        case 42: "\\"
         // Bottom row continued
-        case 43: return ","
-        case 44: return "/"
-        case 45: return "n"
-        case 46: return "m"
-        case 47: return "."
-
+        case 43: ","
+        case 44: "/"
+        case 45: "n"
+        case 46: "m"
+        case 47: "."
         // Special keys
-        case 48: return "tab"
-        case 49: return "spc"
-        case 50: return "grv"  // Backtick/grave
-        case 51: return "bspc" // Backspace/Delete
-        case 53: return "esc"
-
+        case 48: "tab"
+        case 49: "spc"
+        case 50: "grv" // Backtick/grave
+        case 51: "bspc" // Backspace/Delete
+        case 53: "esc"
         // Modifiers
-        case 54: return "rmet" // Right Command
-        case 55: return "lmet" // Left Command
-        case 56: return "lsft" // Left Shift
-        case 57: return "caps"
-        case 58: return "lalt" // Left Option
-        case 59: return "lctl" // Left Control
-        case 60: return "rsft" // Right Shift
-        case 61: return "ralt" // Right Option
-        case 63: return "fn"
-
+        case 54: "rmet" // Right Command
+        case 55: "lmet" // Left Command
+        case 56: "lsft" // Left Shift
+        case 57: "caps"
+        case 58: "lalt" // Left Option
+        case 59: "lctl" // Left Control
+        case 60: "rsft" // Right Shift
+        case 61: "ralt" // Right Option
+        case 63: "fn"
         // Function keys
-        case 96: return "f5"
-        case 97: return "f6"
-        case 98: return "f7"
-        case 99: return "f3"
-        case 100: return "f8"
-        case 101: return "f9"
-        case 103: return "f11"
-        case 109: return "f10"
-        case 111: return "f12"
-        case 118: return "f4"
-        case 120: return "f2"
-        case 122: return "f1"
-
+        case 96: "f5"
+        case 97: "f6"
+        case 98: "f7"
+        case 99: "f3"
+        case 100: "f8"
+        case 101: "f9"
+        case 103: "f11"
+        case 109: "f10"
+        case 111: "f12"
+        case 118: "f4"
+        case 120: "f2"
+        case 122: "f1"
         // Arrow keys
-        case 123: return "left"
-        case 124: return "rght"
-        case 125: return "down"
-        case 126: return "up"
-
+        case 123: "left"
+        case 124: "rght"
+        case 125: "down"
+        case 126: "up"
         default:
-            return "unknown-\(keyCode)"
+            "unknown-\(keyCode)"
         }
     }
 
     /// Get a display label for a Kanata key name
     nonisolated static func displayLabelForKanataKey(_ key: String) -> String {
         switch key {
-        case "spc": return "Space"
-        case "ret": return "Return"
-        case "tab": return "Tab"
-        case "bspc": return "Delete"
-        case "esc": return "Esc"
-        case "caps": return "Caps"
-        case "lsft", "rsft": return "Shift"
-        case "lctl", "rctl": return "Ctrl"
-        case "lalt", "ralt": return "Opt"
-        case "lmet", "rmet": return "Cmd"
-        case "grv": return "`"
-        case "left": return "←"
-        case "rght": return "→"
-        case "up": return "↑"
-        case "down": return "↓"
-        default: return key.uppercased()
+        case "spc": "Space"
+        case "ret": "Return"
+        case "tab": "Tab"
+        case "bspc": "Delete"
+        case "esc": "Esc"
+        case "caps": "Caps"
+        case "lsft", "rsft": "Shift"
+        case "lctl", "rctl": "Ctrl"
+        case "lalt", "ralt": "Opt"
+        case "lmet", "rmet": "Cmd"
+        case "grv": "`"
+        case "left": "←"
+        case "rght": "→"
+        case "up": "↑"
+        case "down": "↓"
+        default: key.uppercased()
         }
     }
 

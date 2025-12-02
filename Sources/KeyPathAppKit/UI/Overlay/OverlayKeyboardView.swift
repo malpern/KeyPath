@@ -7,6 +7,7 @@ struct OverlayKeyboardView: View {
     let layout: PhysicalLayout
     let pressedKeyCodes: Set<UInt16>
     var isDarkMode: Bool = false
+    var fadeAmount: CGFloat = 0 // 0 = fully visible, 1 = fully faded
 
     /// Track caps lock state from system
     @State private var isCapsLockOn: Bool = NSEvent.modifierFlags.contains(.capsLock)
@@ -29,7 +30,8 @@ struct OverlayKeyboardView: View {
                         isPressed: isPressed,
                         scale: scale,
                         isDarkMode: isDarkMode,
-                        isCapsLockOn: isCapsLockOn
+                        isCapsLockOn: isCapsLockOn,
+                        fadeAmount: fadeAmount
                     )
                     .frame(
                         width: keyWidth(for: key, scale: scale),

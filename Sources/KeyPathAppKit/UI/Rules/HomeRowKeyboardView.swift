@@ -1,6 +1,6 @@
 import SwiftUI
 #if os(macOS)
-import AppKit
+    import AppKit
 #endif
 
 /// Visual keyboard representation for home row mods
@@ -9,12 +9,12 @@ struct HomeRowKeyboardView: View {
     let modifierAssignments: [String: String]
     let selectedKey: String?
     let onKeySelected: (String) -> Void
-    
+
     @State private var hoveredKey: String?
-    
+
     private let leftHandKeys = ["a", "s", "d", "f"]
     private let rightHandKeys = ["j", "k", "l", ";"]
-    
+
     var body: some View {
         VStack(spacing: 16) {
             // Visual keyboard layout
@@ -37,11 +37,11 @@ struct HomeRowKeyboardView: View {
                         )
                     }
                 }
-                
+
                 // Spacer between hands
                 Spacer()
                     .frame(width: 32)
-                
+
                 // Right hand
                 HStack(spacing: 8) {
                     ForEach(rightHandKeys, id: \.self) { key in
@@ -62,7 +62,7 @@ struct HomeRowKeyboardView: View {
                 }
             }
             .padding(.vertical, 8)
-            
+
             // Helper text
             Text("Tap for letter, hold for modifier")
                 .font(.subheadline)
@@ -85,15 +85,15 @@ struct HomeRowKeyChip: View {
     let isHovered: Bool
     let onTap: () -> Void
     let onHover: (Bool) -> Void
-    
+
     @State private var isPressed = false
-    
+
     private var keyDisplay: String {
         key.uppercased()
     }
-    
+
     private var modifierDisplay: String {
-        guard let modifier = modifier else { return "" }
+        guard let modifier else { return "" }
         let displayNames: [String: String] = [
             "lmet": "⌘", "rmet": "⌘",
             "lalt": "⌥", "ralt": "⌥",
@@ -102,14 +102,14 @@ struct HomeRowKeyChip: View {
         ]
         return displayNames[modifier] ?? modifier
     }
-    
+
     var body: some View {
         VStack(spacing: 4) {
             // Key label
             Text(keyDisplay)
                 .font(.system(size: 18, weight: .medium))
                 .foregroundColor(textColor)
-            
+
             // Modifier symbol
             if modifier != nil, isEnabled {
                 Text(modifierDisplay)
@@ -147,49 +147,48 @@ struct HomeRowKeyChip: View {
         .onHover { hovering in
             onHover(hovering)
             #if os(macOS)
-            if hovering {
-                NSCursor.pointingHand.push()
-            } else {
-                NSCursor.pop()
-            }
+                if hovering {
+                    NSCursor.pointingHand.push()
+                } else {
+                    NSCursor.pop()
+                }
             #endif
         }
     }
-    
+
     private var backgroundColor: Color {
         if isSelected {
-            return .accentColor
+            .accentColor
         } else if isHovered {
-            return Color(NSColor.controlAccentColor).opacity(0.2)
+            Color(NSColor.controlAccentColor).opacity(0.2)
         } else if isEnabled {
-            return Color(NSColor.controlBackgroundColor)
+            Color(NSColor.controlBackgroundColor)
         } else {
-            return Color(NSColor.controlBackgroundColor).opacity(0.3)
+            Color(NSColor.controlBackgroundColor).opacity(0.3)
         }
     }
-    
+
     private var textColor: Color {
         if isSelected {
-            return .white
+            .white
         } else if isEnabled {
-            return .primary
+            .primary
         } else {
-            return .secondary.opacity(0.5)
+            .secondary.opacity(0.5)
         }
     }
-    
+
     private var borderColor: Color {
         if isSelected {
-            return .accentColor
+            .accentColor
         } else if isHovered {
-            return Color(NSColor.controlAccentColor).opacity(0.5)
+            Color(NSColor.controlAccentColor).opacity(0.5)
         } else {
-            return Color.secondary.opacity(0.2)
+            Color.secondary.opacity(0.2)
         }
     }
-    
+
     private var borderWidth: CGFloat {
         isSelected ? 2 : 1
     }
 }
-

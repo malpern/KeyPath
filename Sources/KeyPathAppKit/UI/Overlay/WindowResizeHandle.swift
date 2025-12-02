@@ -1,6 +1,23 @@
 import AppKit
 import SwiftUI
 
+// MARK: - Private Cursor API
+
+/// Private AppKit cursors for diagonal window resizing.
+/// These are not public API but are stable and used by macOS itself.
+/// Note: Not App Store safe - use custom cursor images if distributing via App Store.
+private extension NSCursor {
+    static var _windowResizeNorthWestSouthEastCursor: NSCursor? {
+        NSCursor.perform(NSSelectorFromString("_windowResizeNorthWestSouthEastCursor"))?
+            .takeUnretainedValue() as? NSCursor
+    }
+
+    static var _windowResizeNorthEastSouthWestCursor: NSCursor? {
+        NSCursor.perform(NSSelectorFromString("_windowResizeNorthEastSouthWestCursor"))?
+            .takeUnretainedValue() as? NSCursor
+    }
+}
+
 /// Resize edge/corner identifiers
 enum ResizeEdge: CaseIterable {
     case top, bottom, left, right
@@ -10,8 +27,12 @@ enum ResizeEdge: CaseIterable {
         switch self {
         case .top, .bottom: .resizeUpDown
         case .left, .right: .resizeLeftRight
-        case .topLeft, .bottomRight: .crosshair // No diagonal cursors in AppKit, use crosshair
-        case .topRight, .bottomLeft: .crosshair
+        case .topRight, .bottomLeft:
+            // NE-SW diagonal: / direction (points toward top-right and bottom-left)
+            NSCursor._windowResizeNorthEastSouthWestCursor ?? .crosshair
+        case .topLeft, .bottomRight:
+            // NW-SE diagonal: \ direction (points toward top-left and bottom-right)
+            NSCursor._windowResizeNorthWestSouthEastCursor ?? .crosshair
         }
     }
 
@@ -28,15 +49,19 @@ enum ResizeEdge: CaseIterable {
 /// Also handles window moving when dragging from the center.
 struct WindowResizeHandles: ViewModifier {
     /// Width of edge hit targets
-    let edgeWidth: CGFloat = 12
+    let edgeWidth: CGFloat = 16
     /// Size of corner hit targets
     let cornerSize: CGFloat = 20
+
+    /// Debug: set to true to see handle positions (red = edges, blue = corners)
+    private let debugShowHandles = true
     /// Fixed aspect ratio for keyboard (width/height) - from PhysicalLayout.macBookUS
     let keyboardAspectRatio: CGFloat = 15.66 / 6.5 // ~2.41
 
     @State private var activeEdge: ResizeEdge?
     @State private var isDragging = false
     @State private var isMoving = false
+    @EnvironmentObject private var vizViewModel: KeyboardVisualizationViewModel
     @State private var initialFrame: NSRect = .zero
     @State private var initialMouseLocation: NSPoint = .zero
 
@@ -50,6 +75,7 @@ struct WindowResizeHandles: ViewModifier {
                             if let window = findOverlayWindow() {
                                 initialFrame = window.frame
                                 initialMouseLocation = NSEvent.mouseLocation
+                                vizViewModel.noteInteraction()
                             }
                             isMoving = true
                         }
@@ -61,23 +87,49 @@ struct WindowResizeHandles: ViewModifier {
                     }
                     .onEnded { _ in
                         isMoving = false
+                        vizViewModel.noteInteraction()
                     }
             )
             .overlay(
                 GeometryReader { geometry in
-                    ZStack {
-                        // Edge handles
-                        edgeHandle(.top, geometry: geometry)
-                        edgeHandle(.bottom, geometry: geometry)
-                        edgeHandle(.left, geometry: geometry)
-                        edgeHandle(.right, geometry: geometry)
+                    let size = geometry.size
 
-                        // Corner handles (on top of edges)
-                        cornerHandle(.topLeft, geometry: geometry)
-                        cornerHandle(.topRight, geometry: geometry)
-                        cornerHandle(.bottomLeft, geometry: geometry)
-                        cornerHandle(.bottomRight, geometry: geometry)
-                    }
+                    // Top edge
+                    edgeHandleView(.top)
+                        .frame(width: size.width - cornerSize * 2, height: edgeWidth)
+                        .position(x: size.width / 2, y: edgeWidth / 2)
+
+                    // Bottom edge
+                    edgeHandleView(.bottom)
+                        .frame(width: size.width - cornerSize * 2, height: edgeWidth)
+                        .position(x: size.width / 2, y: size.height - edgeWidth / 2)
+
+                    // Left edge
+                    edgeHandleView(.left)
+                        .frame(width: edgeWidth, height: size.height - cornerSize * 2)
+                        .position(x: edgeWidth / 2, y: size.height / 2)
+
+                    // Right edge
+                    edgeHandleView(.right)
+                        .frame(width: edgeWidth, height: size.height - cornerSize * 2)
+                        .position(x: size.width - edgeWidth / 2, y: size.height / 2)
+
+                    // Corners (on top)
+                    cornerHandleView(.topLeft)
+                        .frame(width: cornerSize, height: cornerSize)
+                        .position(x: cornerSize / 2, y: cornerSize / 2)
+
+                    cornerHandleView(.topRight)
+                        .frame(width: cornerSize, height: cornerSize)
+                        .position(x: size.width - cornerSize / 2, y: cornerSize / 2)
+
+                    cornerHandleView(.bottomLeft)
+                        .frame(width: cornerSize, height: cornerSize)
+                        .position(x: cornerSize / 2, y: size.height - cornerSize / 2)
+
+                    cornerHandleView(.bottomRight)
+                        .frame(width: cornerSize, height: cornerSize)
+                        .position(x: size.width - cornerSize / 2, y: size.height - cornerSize / 2)
                 }
             )
     }
@@ -91,18 +143,12 @@ struct WindowResizeHandles: ViewModifier {
         window.setFrameOrigin(newOrigin)
     }
 
+    /// Creates an edge handle view (visual + gestures, no positioning)
     @ViewBuilder
-    private func edgeHandle(_ edge: ResizeEdge, geometry: GeometryProxy) -> some View {
-        let size = geometry.size
-
+    private func edgeHandleView(_ edge: ResizeEdge) -> some View {
         Rectangle()
-            .fill(Color.clear)
+            .fill(debugShowHandles ? Color.red.opacity(0.3) : Color.clear)
             .contentShape(Rectangle())
-            .frame(
-                width: edgeWidth(for: edge, in: size),
-                height: edgeHeight(for: edge, in: size)
-            )
-            .position(edgePosition(for: edge, in: size))
             .onHover { hovering in
                 if hovering, !isDragging {
                     edge.cursor.push()
@@ -112,11 +158,10 @@ struct WindowResizeHandles: ViewModifier {
                     if activeEdge == edge { activeEdge = nil }
                 }
             }
-            .highPriorityGesture(
+            .gesture(
                 DragGesture(minimumDistance: 1, coordinateSpace: .global)
                     .onChanged { _ in
                         if !isDragging {
-                            // Capture initial frame and mouse position at drag start
                             if let window = findOverlayWindow() {
                                 initialFrame = window.frame
                                 initialMouseLocation = NSEvent.mouseLocation
@@ -124,11 +169,10 @@ struct WindowResizeHandles: ViewModifier {
                             isDragging = true
                         }
                         activeEdge = edge
-                        // Use global mouse delta
                         let currentMouse = NSEvent.mouseLocation
                         let delta = CGSize(
                             width: currentMouse.x - initialMouseLocation.x,
-                            height: -(currentMouse.y - initialMouseLocation.y) // Invert Y for SwiftUI convention
+                            height: -(currentMouse.y - initialMouseLocation.y)
                         )
                         resizeWindow(edge: edge, translation: delta, from: initialFrame)
                     }
@@ -139,15 +183,12 @@ struct WindowResizeHandles: ViewModifier {
             )
     }
 
+    /// Creates a corner handle view (visual + gestures, no positioning)
     @ViewBuilder
-    private func cornerHandle(_ corner: ResizeEdge, geometry: GeometryProxy) -> some View {
-        let size = geometry.size
-
+    private func cornerHandleView(_ corner: ResizeEdge) -> some View {
         Rectangle()
-            .fill(Color.clear)
+            .fill(debugShowHandles ? Color.blue.opacity(0.3) : Color.clear)
             .contentShape(Rectangle())
-            .frame(width: cornerSize, height: cornerSize)
-            .position(cornerPosition(for: corner, in: size))
             .onHover { hovering in
                 if hovering, !isDragging {
                     corner.cursor.push()
@@ -157,11 +198,10 @@ struct WindowResizeHandles: ViewModifier {
                     if activeEdge == corner { activeEdge = nil }
                 }
             }
-            .highPriorityGesture(
+            .gesture(
                 DragGesture(minimumDistance: 1, coordinateSpace: .global)
                     .onChanged { _ in
                         if !isDragging {
-                            // Capture initial frame and mouse position at drag start
                             if let window = findOverlayWindow() {
                                 initialFrame = window.frame
                                 initialMouseLocation = NSEvent.mouseLocation
@@ -169,11 +209,10 @@ struct WindowResizeHandles: ViewModifier {
                             isDragging = true
                         }
                         activeEdge = corner
-                        // Use global mouse delta
                         let currentMouse = NSEvent.mouseLocation
                         let delta = CGSize(
                             width: currentMouse.x - initialMouseLocation.x,
-                            height: -(currentMouse.y - initialMouseLocation.y) // Invert Y for SwiftUI convention
+                            height: -(currentMouse.y - initialMouseLocation.y)
                         )
                         resizeWindow(edge: corner, translation: delta, from: initialFrame)
                     }
@@ -182,44 +221,6 @@ struct WindowResizeHandles: ViewModifier {
                         NSCursor.pop()
                     }
             )
-    }
-
-    // MARK: - Edge Positioning
-
-    private func edgeWidth(for edge: ResizeEdge, in size: CGSize) -> CGFloat {
-        switch edge {
-        case .top, .bottom: size.width - cornerSize * 2
-        case .left, .right: edgeWidth
-        default: 0
-        }
-    }
-
-    private func edgeHeight(for edge: ResizeEdge, in size: CGSize) -> CGFloat {
-        switch edge {
-        case .top, .bottom: edgeWidth
-        case .left, .right: size.height - cornerSize * 2
-        default: 0
-        }
-    }
-
-    private func edgePosition(for edge: ResizeEdge, in size: CGSize) -> CGPoint {
-        switch edge {
-        case .top: CGPoint(x: size.width / 2, y: edgeWidth / 2)
-        case .bottom: CGPoint(x: size.width / 2, y: size.height - edgeWidth / 2)
-        case .left: CGPoint(x: edgeWidth / 2, y: size.height / 2)
-        case .right: CGPoint(x: size.width - edgeWidth / 2, y: size.height / 2)
-        default: .zero
-        }
-    }
-
-    private func cornerPosition(for corner: ResizeEdge, in size: CGSize) -> CGPoint {
-        switch corner {
-        case .topLeft: CGPoint(x: cornerSize / 2, y: cornerSize / 2)
-        case .topRight: CGPoint(x: size.width - cornerSize / 2, y: cornerSize / 2)
-        case .bottomLeft: CGPoint(x: cornerSize / 2, y: size.height - cornerSize / 2)
-        case .bottomRight: CGPoint(x: size.width - cornerSize / 2, y: size.height - cornerSize / 2)
-        default: .zero
-        }
     }
 
     // MARK: - Window Resizing

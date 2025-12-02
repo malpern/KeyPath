@@ -215,15 +215,13 @@ struct SimulationResultsView: View {
     }
 
     private func eventTypeBadge(_ event: SimEvent) -> some View {
-        let (label, color): (String, Color) = {
-            switch event {
-            case .input: return ("IN", .blue)
-            case .output: return ("OUT", .green)
-            case .layer: return ("LYR", .purple)
-            case .unicode: return ("UNI", .orange)
-            case .mouse: return ("MSE", .pink)
-            }
-        }()
+        let (label, color): (String, Color) = switch event {
+        case .input: ("IN", .blue)
+        case .output: ("OUT", .green)
+        case .layer: ("LYR", .purple)
+        case .unicode: ("UNI", .orange)
+        case .mouse: ("MSE", .pink)
+        }
 
         return Text(label)
             .font(.system(size: 9, weight: .bold, design: .monospaced))
@@ -237,11 +235,11 @@ struct SimulationResultsView: View {
     // MARK: - Helpers
 
     private func outputEvents(from result: SimulationResult) -> [SimEvent] {
-        result.events.filter { $0.isOutput }
+        result.events.filter(\.isOutput)
     }
 
     private func layerChanges(from result: SimulationResult) -> [SimEvent] {
-        result.events.filter { $0.isLayerChange }
+        result.events.filter(\.isLayerChange)
     }
 }
 

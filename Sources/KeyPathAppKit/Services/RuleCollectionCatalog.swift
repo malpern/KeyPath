@@ -356,7 +356,7 @@ struct RuleCollectionCatalog {
             selectedOutput: "del"
         )
     }
-    
+
     private var homeRowMods: RuleCollection {
         RuleCollection(
             id: RuleCollectionIdentifier.homeRowMods,

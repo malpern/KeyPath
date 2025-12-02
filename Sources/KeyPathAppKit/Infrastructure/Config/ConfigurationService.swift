@@ -98,8 +98,8 @@ public struct KanataConfiguration: Sendable {
 
     /// Represents a chord mapping (simultaneous key presses)
     private struct ChordMapping {
-        let inputKeys: String  // Space-separated keys, e.g., "lsft rsft"
-        let output: String     // Output action, e.g., "caps"
+        let inputKeys: String // Space-separated keys, e.g., "lsft rsft"
+        let output: String // Output action, e.g., "caps"
         let description: String?
     }
 
@@ -276,13 +276,12 @@ public struct KanataConfiguration: Sendable {
 
             // Handle home row mods: generate mappings from config
             // Handle tap-hold picker: generate tap-hold mapping from config
-            let effectiveMappings: [KeyMapping]
-            if collection.displayStyle == .homeRowMods, let config = collection.homeRowModsConfig {
-                effectiveMappings = generateHomeRowModsMappings(from: config)
+            let effectiveMappings: [KeyMapping] = if collection.displayStyle == .homeRowMods, let config = collection.homeRowModsConfig {
+                generateHomeRowModsMappings(from: config)
             } else if collection.displayStyle == .tapHoldPicker {
-                effectiveMappings = generateTapHoldPickerMappings(from: collection)
+                generateTapHoldPickerMappings(from: collection)
             } else {
-                effectiveMappings = collection.mappings
+                collection.mappings
             }
 
             // Separate chord mappings (input contains space = multiple simultaneous keys)
@@ -437,10 +436,10 @@ public struct KanataConfiguration: Sendable {
     /// Generate KeyMapping instances from HomeRowModsConfig
     private static func generateHomeRowModsMappings(from config: HomeRowModsConfig) -> [KeyMapping] {
         var mappings: [KeyMapping] = []
-        
+
         for key in config.enabledKeys {
             guard let modifier = config.modifierAssignments[key] else { continue }
-            
+
             // Create dual-role behavior: tap = letter, hold = modifier
             let behavior = DualRoleBehavior(
                 tapAction: key,
@@ -451,7 +450,7 @@ public struct KanataConfiguration: Sendable {
                 quickTap: false,
                 customTapKeys: []
             )
-            
+
             let mapping = KeyMapping(
                 input: key,
                 output: key, // Fallback, but behavior takes precedence
@@ -459,7 +458,7 @@ public struct KanataConfiguration: Sendable {
             )
             mappings.append(mapping)
         }
-        
+
         return mappings
     }
 

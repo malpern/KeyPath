@@ -2,7 +2,7 @@ import KeyPathCore
 import SwiftUI
 
 #if os(macOS)
-import AppKit
+    import AppKit
 #endif
 
 /// State for home row mods editing modal
@@ -430,7 +430,7 @@ struct RulesTabView: View {
         ]
         return displayNames[modifier] ?? modifier
     }
-    
+
     /// Format a key name with its Mac symbol
     private func formatKeyWithSymbol(_ key: String) -> String {
         let keySymbols: [String: String] = [
@@ -524,7 +524,7 @@ private struct ExpandableCollectionRow: View {
     private var effectiveEnabled: Bool {
         localEnabled ?? isEnabled
     }
-    
+
     /// Format a modifier key for display
     private func formatModifierForDisplay(_ modifier: String) -> String {
         let displayNames: [String: String] = [
@@ -683,7 +683,7 @@ private struct ExpandableCollectionRow: View {
                         Text("Tap keys for letters, hold for modifiers")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        
+
                         // Summary of current configuration
                         if !config.enabledKeys.isEmpty {
                             VStack(alignment: .leading, spacing: 8) {
@@ -709,7 +709,7 @@ private struct ExpandableCollectionRow: View {
                                             }
                                         }
                                     }
-                                    
+
                                     // Right hand
                                     if config.enabledKeys.contains(where: { HomeRowModsConfig.rightHandKeys.contains($0) }) {
                                         VStack(alignment: .leading, spacing: 4) {
@@ -732,7 +732,7 @@ private struct ExpandableCollectionRow: View {
                                         }
                                     }
                                 }
-                                
+
                                 Text("Timing: \(config.timing.tapWindow)ms tap, \(config.timing.holdDelay)ms hold")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
@@ -744,7 +744,7 @@ private struct ExpandableCollectionRow: View {
                                     .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
                             )
                         }
-                        
+
                         Button("Customize...") {
                             onOpenHomeRowModsModal?()
                         }
@@ -1051,7 +1051,7 @@ private struct MappingRowView: View {
         ]
         return displayNames[modifier] ?? modifier
     }
-    
+
     private func formatKeyForBehavior(_ key: String) -> String {
         let keySymbols: [String: String] = [
             "spc": "␣ Space",
@@ -1851,10 +1851,10 @@ private struct MappingTableContent: View {
     private func formatModifierPrefixNotation(_ key: String, macModifiers: [String: String]) -> String {
         // Modifier prefix symbols in Kanata notation
         let modifierPrefixes: [(prefix: String, symbol: String)] = [
-            ("C-", "⌃"),  // Control
-            ("M-", "⌘"),  // Meta/Command
-            ("A-", "⌥"),  // Alt/Option
-            ("S-", "⇧")   // Shift
+            ("C-", "⌃"), // Control
+            ("M-", "⌘"), // Meta/Command
+            ("A-", "⌥"), // Alt/Option
+            ("S-", "⇧") // Shift
         ]
 
         var remaining = key
@@ -1876,12 +1876,11 @@ private struct MappingTableContent: View {
 
         // Format the base key
         let baseKey = remaining.isEmpty ? key : remaining
-        let formattedBase: String
-        if let macName = macModifiers[baseKey.capitalized] {
+        let formattedBase: String = if let macName = macModifiers[baseKey.capitalized] {
             // Extract just the symbol part if it has a name (e.g., "↑" from "↑ Up")
-            formattedBase = macName.components(separatedBy: " ").first ?? macName
+            macName.components(separatedBy: " ").first ?? macName
         } else {
-            formattedBase = baseKey.uppercased()
+            baseKey.uppercased()
         }
 
         // Combine modifiers and base key

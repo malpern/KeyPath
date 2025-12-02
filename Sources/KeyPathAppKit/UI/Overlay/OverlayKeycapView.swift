@@ -43,14 +43,15 @@ struct OverlayKeycapView: View {
                 )
 
             // Glow layers for dark mode backlight effect
+            // Glow increases as keyboard fades out for ethereal effect
             if isDarkMode {
                 keyContent
-                    .blur(radius: 3 * scale)
-                    .opacity(0.25)
+                    .blur(radius: glowOuterRadius)
+                    .opacity(glowOuterOpacity)
 
                 keyContent
-                    .blur(radius: 1 * scale)
-                    .opacity(0.4)
+                    .blur(radius: glowInnerRadius)
+                    .opacity(glowInnerOpacity)
             }
 
             // Crisp content layer
@@ -129,6 +130,7 @@ struct OverlayKeycapView: View {
                     size: 12 * scale * mainAdj.fontScale,
                     weight: mainAdj.fontWeight ?? .medium
                 ))
+                .offset(y: mainAdj.verticalOffset * scale)
                 .foregroundStyle(foregroundColor)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -148,8 +150,6 @@ struct OverlayKeycapView: View {
     private var bottomAlignedContent: some View {
         let wordLabel = metadata.wordLabel ?? key.label
         let isRight = key.isRightSideKey
-        // Caps lock uses reduced leading padding to align with LED
-        let leadingPad = (key.label == "⇪") ? 0.4 * scale : 4 * scale
 
         VStack {
             Spacer(minLength: 0)
@@ -162,7 +162,7 @@ struct OverlayKeycapView: View {
                     labelText(wordLabel)
                 }
             }
-            .padding(.leading, leadingPad)
+            .padding(.leading, 4 * scale)
             .padding(.trailing, 4 * scale)
             .padding(.bottom, 3 * scale)
         }
@@ -353,6 +353,36 @@ struct OverlayKeycapView: View {
 
     private var backgroundColor: Color {
         isPressed ? Color.accentColor : Color(white: 0.08)
+    }
+
+    // MARK: - Glow (dynamic based on fade)
+
+    /// Outer glow blur radius: reduced when visible, increases when fading
+    private var glowOuterRadius: CGFloat {
+        let base: CGFloat = 1.5 // Reduced from 3 for crisper default
+        let max: CGFloat = 5.0 // Enhanced when faded
+        return (base + (max - base) * fadeAmount) * scale
+    }
+
+    /// Outer glow opacity: subtle when visible, stronger when fading
+    private var glowOuterOpacity: CGFloat {
+        let base: CGFloat = 0.15 // Reduced from 0.25 for crisper default
+        let max: CGFloat = 0.4 // Enhanced when faded
+        return base + (max - base) * fadeAmount
+    }
+
+    /// Inner glow blur radius: tight when visible, softer when fading
+    private var glowInnerRadius: CGFloat {
+        let base: CGFloat = 0.5 // Reduced from 1 for crisper default
+        let max: CGFloat = 2.0 // Enhanced when faded
+        return (base + (max - base) * fadeAmount) * scale
+    }
+
+    /// Inner glow opacity: subtle when visible, stronger when fading
+    private var glowInnerOpacity: CGFloat {
+        let base: CGFloat = 0.25 // Reduced from 0.4 for crisper default
+        let max: CGFloat = 0.5 // Enhanced when faded
+        return base + (max - base) * fadeAmount
     }
 }
 

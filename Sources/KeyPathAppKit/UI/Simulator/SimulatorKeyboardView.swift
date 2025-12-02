@@ -76,7 +76,7 @@ struct SimulatorKeyboardView: View {
 #Preview {
     SimulatorKeyboardView(
         layout: .macBookUS,
-        pressedKeyCodes: [0, 1],  // A and S pressed
+        pressedKeyCodes: [0, 1], // A and S pressed
         onKeyTap: { key in
             print("Tapped: \(key.label)")
         },

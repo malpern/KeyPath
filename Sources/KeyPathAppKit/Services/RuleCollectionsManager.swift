@@ -384,10 +384,10 @@ final class RuleCollectionsManager {
             }
             return
         }
-        
+
         ruleCollections[index].homeRowModsConfig = config
         ruleCollections[index].isEnabled = true
-        
+
         refreshLayerIndicatorState()
         await regenerateConfigFromCollections()
     }
