@@ -49,8 +49,7 @@ struct ActiveRulesView: View {
 
     private func openConfigInEditor() {
         let url = URL(fileURLWithPath: kanataManager.configPath)
-        NSWorkspace.shared.open(url)
-        AppLogger.shared.log("📝 [Rules] Opened config for editing")
+        openFileInPreferredEditor(url)
     }
 }
 

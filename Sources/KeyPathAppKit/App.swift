@@ -269,8 +269,30 @@ public struct KeyPathApp: App {
 @MainActor
 func openConfigInEditor(viewModel: KanataViewModel) {
     let url = URL(fileURLWithPath: viewModel.configPath)
-    NSWorkspace.shared.open(url)
-    AppLogger.shared.log("📝 Opened config with default application")
+    openFileInPreferredEditor(url)
+}
+
+/// Opens a file in Zed if available, otherwise falls back to default application
+@MainActor
+func openFileInPreferredEditor(_ url: URL) {
+    let zedBundleID = "dev.zed.Zed"
+
+    // Try to find Zed
+    if let zedURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: zedBundleID) {
+        let config = NSWorkspace.OpenConfiguration()
+        NSWorkspace.shared.open([url], withApplicationAt: zedURL, configuration: config) { _, error in
+            if let error {
+                AppLogger.shared.log("⚠️ Failed to open in Zed: \(error). Falling back to default.")
+                NSWorkspace.shared.open(url)
+            } else {
+                AppLogger.shared.log("📝 Opened config in Zed")
+            }
+        }
+    } else {
+        // Zed not installed, use default
+        NSWorkspace.shared.open(url)
+        AppLogger.shared.log("📝 Opened config with default application (Zed not found)")
+    }
 }
 
 @MainActor

@@ -30,8 +30,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
         for keyCode in pressedKeyCodes {
             if let info = layerKeyMap[keyCode],
                let outputKeyCode = info.outputKeyCode,
-               outputKeyCode != keyCode
-            {
+               outputKeyCode != keyCode {
                 result.insert(outputKeyCode)
             }
         }
@@ -50,7 +49,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
     private var idleMonitorTask: Task<Void, Never>?
     private var lastInteraction: Date = .init()
 
-    private let idleTimeout: TimeInterval = 3
+    private let idleTimeout: TimeInterval = 10
     private let deepFadeTimeout: TimeInterval = 48
     private let deepFadeRamp: TimeInterval = 2
     private let idlePollInterval: TimeInterval = 0.25
@@ -221,6 +220,15 @@ class KeyboardVisualizationViewModel: ObservableObject {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(idlePollInterval))
 
+                // Don't fade while holding a momentary layer key (non-base layer active)
+                let isOnMomentaryLayer = currentLayerName.lowercased() != "base"
+                if isOnMomentaryLayer {
+                    // Keep overlay fully visible while on a non-base layer
+                    if fadeAmount != 0 { fadeAmount = 0 }
+                    if deepFadeAmount != 0 { deepFadeAmount = 0 }
+                    continue
+                }
+
                 let elapsed = Date().timeIntervalSince(lastInteraction)
 
                 // Stage 1: outline fade begins after idleTimeout, completes over 5s
@@ -253,6 +261,8 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Update the current layer and rebuild key mapping
     func updateLayer(_ layerName: String) {
         currentLayerName = layerName
+        // Reset idle timer on any layer change (including returning to base)
+        noteInteraction()
         rebuildLayerMapping()
     }
 

@@ -457,8 +457,7 @@ struct RulesTabView: View {
 
     private func openConfigInEditor() {
         let url = URL(fileURLWithPath: kanataManager.configPath)
-        NSWorkspace.shared.open(url)
-        AppLogger.shared.log("📝 [Rules] Opened config for editing")
+        openFileInPreferredEditor(url)
     }
 
     private func openBackupsFolder() {
@@ -470,6 +469,11 @@ struct RulesTabView: View {
         Task {
             do {
                 try await kanataManager.resetToDefaultConfig()
+                // Clear all pending UI state so toggles reflect actual reset state
+                pendingToggles.removeAll()
+                pendingSelections.removeAll()
+                // Recompute sort order to reflect new enabled/disabled state
+                stableSortOrder = computeSortOrder()
                 settingsToastManager.showSuccess("Configuration reset to default")
             } catch {
                 settingsToastManager.showError("Reset failed: \(error.localizedDescription)")
@@ -514,7 +518,7 @@ private struct ExpandableCollectionRow: View {
     var scrollID: String?
     /// Scroll proxy for auto-scrolling when expanded
     var scrollProxy: ScrollViewProxy?
-
+    /// Optional transparent-mode toggle (used by Vim collection)
     @State private var isExpanded = false
     @State private var isHovered = false
     @State private var hasInitialized = false

@@ -559,8 +559,7 @@ struct StatusSettingsTabView: View {
 
     private func openConfigInEditor() {
         let url = URL(fileURLWithPath: kanataManager.configPath)
-        NSWorkspace.shared.open(url)
-        AppLogger.shared.log("📝 [Settings] Opened config for editing")
+        openFileInPreferredEditor(url)
     }
 
     private func openBackupsFolder() {

@@ -64,6 +64,12 @@ struct SettingsContainerView: View {
         }
         .frame(minWidth: 680, maxWidth: 680, minHeight: 550, idealHeight: 700)
         .task { await refreshCanManageRules() }
+        .onAppear {
+            LiveKeyboardOverlayController.shared.autoHideOnceForSettings()
+        }
+        .onDisappear {
+            LiveKeyboardOverlayController.shared.resetSettingsAutoHideGuard()
+        }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsGeneral)) { _ in
             selection = .general
         }

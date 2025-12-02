@@ -368,8 +368,10 @@ KeyPath must NEVER parse Kanata config files directly. All config understanding 
 - Interpreting Kanata syntax (defsrc, deflayer, defalias, etc.)
 - Building any data structures from config text
 
-### ADR-024: Custom Key Icons via push-msg (Planned)
-Users can specify custom icons for keys in the overlay using Kanata's `push-msg` action.
+### ADR-024: Custom Key Icons and Emphasis via push-msg (Planned)
+Users can specify custom icons and visual emphasis for keys in the overlay using Kanata's `push-msg` action.
+
+#### Custom Icons
 
 **Syntax in kanata config:**
 ```lisp
@@ -404,19 +406,134 @@ let iconRegistry: [String: IconSource] = [
 ]
 ```
 
-**Flow:**
+**Icon Flow:**
 1. User presses key with `(push-msg "icon:arrow-left")`
 2. Kanata sends `{"MessagePush":{"message":"icon:arrow-left"}}` via TCP
 3. KeyPath receives message, looks up `arrow-left` in registry
 4. Overlay displays SF Symbol `arrow.left` on that key
 
-**Benefits:**
+#### Key Emphasis
+
+Make specific keys visually "pop out" in the overlay - useful for highlighting core keys in a layer (e.g., HJKL in vim/nav layer).
+
+**Syntax in kanata config:**
+```lisp
+;; Emphasize keys when entering nav layer
+(defalias
+  nav-on (multi
+           (layer-while-held nav)
+           (push-msg "emphasis:h,j,k,l"))
+)
+
+;; Or with layer-switch
+(deflayer base
+  ...
+  @nav-on
+  ...
+)
+```
+
+**Emphasis Flow:**
+1. Layer activates, sends `(push-msg "emphasis:h,j,k,l")`
+2. Kanata sends `{"MessagePush":{"message":"emphasis:h,j,k,l"}}` via TCP
+3. KeyPath parses comma-separated key names, maps to key codes
+4. Overlay renders emphasized keys with visual distinction (glow, color pop, larger size)
+5. Emphasis clears automatically on layer change, or via `(push-msg "emphasis:clear")`
+
+**Visual Treatment Options:**
+- Subtle glow/halo effect
+- Accent color background
+- Slightly larger scale (1.1x)
+- Bolder font weight
+- Border highlight
+
+#### Benefits
 - Config stays simple (semantic names, not paths or bundle IDs)
-- KeyPath controls rendering (can update icons without config changes)
-- Extensible (add emoji, custom images later)
+- KeyPath controls rendering (can update visuals without config changes)
+- Extensible (add emoji, custom images, animations later)
 - Follows ADR-023 (no config parsing - uses TCP messages)
+- User controls what's emphasized per layer (not automatic)
 
 **Status:** Planned, not yet implemented.
+
+### ADR-025: Configuration Management - One-Way Write with Segmented Ownership ✅
+KeyPath uses a one-way write architecture for config management. JSON stores are the source of truth; the kanata config file is generated output.
+
+**Context:** Managing keyboard remapping configuration involves:
+- Rule collections (Vim, Caps Lock, etc.) with enable/disable state
+- Custom user-defined rules
+- The actual `keypath.kbd` file that Kanata reads
+- Runtime state (active layer) from Kanata via TCP
+
+**Decision:** JSON stores are the source of truth with one-way generation to config file.
+
+```
+┌─────────────────────────────────────────────────────────┐
+│            SOURCE OF TRUTH (JSON Stores)                │
+├──────────────────────────┬──────────────────────────────┤
+│  RuleCollections.json    │    CustomRules.json          │
+│  (collection states)     │    (user-defined rules)      │
+└────────────┬─────────────┴──────────────┬───────────────┘
+             │                            │
+             └──────────┬─────────────────┘
+                        │ ONE-WAY GENERATION
+                        ▼
+┌─────────────────────────────────────────────────────────┐
+│              keypath.kbd (Generated Output)             │
+├─────────────────────────────────────────────────────────┤
+│  ;; === KEYPATH MANAGED ===                             │
+│  (defsrc ...) (deflayer base ...)                       │
+│                                                         │
+│  ;; === USER SECTION (preserved) ===                    │
+│  (defalias my-advanced-stuff ...)                       │
+└─────────────────────────────────────────────────────────┘
+                        │
+                        │ Kanata reads
+                        ▼
+┌─────────────────────────────────────────────────────────┐
+│              TCP (Runtime State Only)                   │
+│  - Active layer, layer names                            │
+│  - Key events, push-msg                                 │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Why NOT parse the kanata config:**
+1. **Kanata syntax is complex** - Lisp-like with macros, aliases, tap-hold, forks, layers, includes, variables
+2. **Maintenance burden** - Every Kanata syntax change would break KeyPath's parser
+3. **Kanata is authoritative** - We'd create a shadow implementation that drifts from reality
+4. **TCP provides runtime state** - Active layer, layer names come from Kanata directly
+
+**Key invariants:**
+
+1. **Save order matters** (implemented in `RuleCollectionsManager.regenerateConfigFromCollections`):
+   ```swift
+   // Config validates and writes FIRST
+   try await configurationService.saveConfiguration(ruleCollections, customRules)
+   // Only then persist to stores (atomic success)
+   try await ruleCollectionStore.saveCollections(ruleCollections)
+   try await customRulesStore.saveRules(customRules)
+   ```
+   This prevents store/config mismatch if validation fails.
+
+2. **Segmented ownership** - KeyPath only modifies its managed sections (sentinel blocks like `KP:BEGIN`/`KP:END`). User additions outside these blocks are preserved.
+
+3. **Single write path** - ALL config writes go through `RuleCollectionsManager.regenerateConfigFromCollections()`. No direct writes to config file from other components.
+
+**What about external config edits?**
+- File watcher detects changes but does NOT sync back to JSON stores
+- Manual edits in user section are preserved
+- Manual edits in KeyPath-managed section will be overwritten on next save
+- Future: Add "import config" feature for advanced users
+
+**What about AI-generated configs?**
+- Must flow through RuleCollectionsManager, not direct file writes
+- SaveCoordinator should delegate to RuleCollectionsManager for config persistence
+
+**Runtime state via TCP (not config parsing):**
+- Layer names: `layer-names` TCP command
+- Active layer: `current-layer` TCP command
+- Key mappings: kanata-simulator with layer held
+- See ADR-023 for details
 
 ## Build Commands
 

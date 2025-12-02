@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 
 /// Writer for managing simple modifications sentinel blocks
 @MainActor
@@ -64,6 +65,14 @@ public final class SimpleModsWriter {
                     newLines.removeLast()
                 }
                 let newContent = newLines.joined(separator: "\n") + "\n"
+
+                // SAFETY: Never write empty config - this would break kanata
+                let trimmed = newContent.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty, trimmed.contains("defsrc") || trimmed.contains("deflayer") else {
+                    AppLogger.shared.error("🛑 [SimpleModsWriter] BLOCKED: Would have written invalid config")
+                    throw KeyPathError.configuration(.invalidFormat(reason: "Cannot write empty or invalid configuration"))
+                }
+
                 try newContent.write(toFile: configPath, atomically: true, encoding: .utf8)
                 return
             } else {

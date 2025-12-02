@@ -523,13 +523,30 @@ final class RuleCollectionsManager {
     }
 
     private func regenerateConfigFromCollections(skipReload: Bool = false) async {
+        // INVARIANT: In production, ruleCollections should never be empty (at minimum, macOS Function Keys)
+        // Tests may create isolated scenarios with empty collections, so only warn in debug builds
+        if ruleCollections.isEmpty {
+            AppLogger.shared.log("⚠️ [RuleCollections] regenerateConfigFromCollections called with empty collections")
+        }
+
+        // INVARIANT: At least one collection should be enabled (macOS Function Keys is system default)
+        // Log warning instead of assert to avoid crashing in edge cases
+        if !ruleCollections.contains(where: \.isEnabled), !ruleCollections.isEmpty {
+            AppLogger.shared.log("⚠️ [RuleCollections] No enabled collections - config will only have defaults")
+        }
+
         do {
-            try await ruleCollectionStore.saveCollections(ruleCollections)
-            try await customRulesStore.saveRules(customRules)
+            // IMPORTANT: Save config FIRST (validates before writing)
+            // Only persist to stores AFTER config is successfully written
+            // This prevents store/config mismatch if validation fails
             try await configurationService.saveConfiguration(
                 ruleCollections: ruleCollections,
                 customRules: customRules
             )
+
+            // Config write succeeded - now persist to stores
+            try await ruleCollectionStore.saveCollections(ruleCollections)
+            try await customRulesStore.saveRules(customRules)
 
             // Play success sound when config is saved
             await MainActor.run {

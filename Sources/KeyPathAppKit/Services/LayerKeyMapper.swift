@@ -148,9 +148,8 @@ actor LayerKeyMapper {
     // MARK: - Key Mapping via Simulator
 
     /// Build mapping using simulator's --key-mapping mode
-    /// This is fast (~50ms) and accurate - handles aliases, tap-hold, forks, macros, etc.
-    /// The new --key-mapping mode provides direct input→outputs pairs, eliminating
-    /// the need for fragile timestamp-based correlation.
+    /// Each key is simulated independently to avoid tap-hold interference.
+    /// This is slower but accurate - handles aliases, tap-hold, forks, macros, etc.
     private func buildMappingWithSimulator(for layer: String, configPath: String) async throws -> [UInt16: LayerKeyInfo] {
         var mapping: [UInt16: LayerKeyInfo] = [:]
 
@@ -159,51 +158,53 @@ actor LayerKeyMapper {
             .filter { $0.keyCode != 0xFFFF } // Skip Touch ID
             .filter { !OverlayKeyboardView.keyCodeToKanataName($0.keyCode).starts(with: "unknown") }
 
-        // Build a single sim file with all keys
-        var simParts: [String] = []
-        var keyCodeByKanataName: [String: (keyCode: UInt16, label: String)] = [:]
+        let startLayer = layer.lowercased() == "base" ? "base" : layer.lowercased()
+        AppLogger.shared.debug("🗺️ [LayerKeyMapper] Simulating \(physicalKeys.count) keys individually for layer '\(startLayer)'...")
 
-        for key in physicalKeys {
-            let tcpName = OverlayKeyboardView.keyCodeToKanataName(key.keyCode)
-            let simName = toSimulatorKeyName(tcpName)
-            keyCodeByKanataName[simName.uppercased()] = (key.keyCode, key.label)
+        // Simulate each key independently to avoid tap-hold interference
+        // Run in parallel for performance
+        let results = await withTaskGroup(of: (UInt16, String, SimulatorKeyMappingResult?).self) { group in
+            for key in physicalKeys {
+                let tcpName = OverlayKeyboardView.keyCodeToKanataName(key.keyCode)
+                let simName = toSimulatorKeyName(tcpName)
+                let keyCode = key.keyCode
+                let label = key.label
 
-            // press, wait 50ms, release
-            simParts.append("d:\(simName) t:50 u:\(simName)")
+                group.addTask {
+                    // Single key: press, wait 50ms, release
+                    let simContent = "d:\(simName) t:50 u:\(simName)"
+                    do {
+                        let result = try await self.simulatorService.simulateKeyMapping(
+                            simContent: simContent,
+                            configPath: configPath,
+                            startLayer: startLayer
+                        )
+                        return (keyCode, label, result)
+                    } catch {
+                        AppLogger.shared.debug("🗺️ [LayerKeyMapper] Simulation failed for \(simName): \(error)")
+                        return (keyCode, label, nil)
+                    }
+                }
+            }
+
+            var collected: [(UInt16, String, SimulatorKeyMappingResult?)] = []
+            for await result in group {
+                collected.append(result)
+            }
+            return collected
         }
 
-        let simContent = simParts.joined(separator: " ")
-        AppLogger.shared.debug("🗺️ [LayerKeyMapper] Simulating \(physicalKeys.count) keys with --key-mapping for layer '\(layer)'...")
-
-        // Run simulation with --key-mapping mode
-        let startLayer = layer.lowercased() == "base" ? "base" : layer.lowercased()
-        let result: SimulatorKeyMappingResult
-        do {
-            result = try await simulatorService.simulateKeyMapping(
-                simContent: simContent,
-                configPath: configPath,
-                startLayer: startLayer
-            )
-        } catch {
-            AppLogger.shared.error("🗺️ [LayerKeyMapper] Simulation failed: \(error)")
-            // Fall back to physical labels
-            for key in physicalKeys {
-                mapping[key.keyCode] = LayerKeyInfo(
-                    displayLabel: key.label,
+        // Process results
+        for (keyCode, fallbackLabel, result) in results {
+            guard let result, let keyMapping = result.mappings.first else {
+                // Simulation failed or no mapping - use physical label
+                mapping[keyCode] = LayerKeyInfo(
+                    displayLabel: fallbackLabel,
                     outputKey: nil,
                     outputKeyCode: nil,
                     isTransparent: false,
                     isLayerSwitch: false
                 )
-            }
-            return mapping
-        }
-
-        // Process each key mapping from the result
-        for keyMapping in result.mappings {
-            // Look up keyCode from input name
-            guard let (keyCode, fallbackLabel) = keyCodeByKanataName[keyMapping.input.uppercased()] else {
-                AppLogger.shared.debug("🗺️ [LayerKeyMapper] Unknown input key: \(keyMapping.input)")
                 continue
             }
 
@@ -211,13 +212,31 @@ actor LayerKeyMapper {
                 // Key passes through unchanged
                 mapping[keyCode] = .transparent(fallbackLabel: fallbackLabel)
             } else if keyMapping.outputs.isEmpty {
+                // Explicit no-op (e.g., XX) returns no outputs from simulator
+                mapping[keyCode] = LayerKeyInfo(
+                    displayLabel: "",
+                    outputKey: nil,
+                    outputKeyCode: nil,
+                    isTransparent: false,
+                    isLayerSwitch: false
+                )
+            } else if keyMapping.outputs.allSatisfy({ $0.lowercased() == "xx" }) {
+                // Explicitly blocked key should render blank in the overlay
+                mapping[keyCode] = LayerKeyInfo(
+                    displayLabel: "",
+                    outputKey: nil,
+                    outputKeyCode: nil,
+                    isTransparent: false,
+                    isLayerSwitch: false
+                )
+            } else if keyMapping.outputs.isEmpty {
                 // No output (blocked key)
                 mapping[keyCode] = .transparent(fallbackLabel: fallbackLabel)
             } else {
                 // Convert all outputs to display labels and combine
                 var displayParts: [String] = []
-                var primaryOutputKey: String? = nil
-                var primaryOutputKeyCode: UInt16? = nil
+                var primaryOutputKey: String?
+                var primaryOutputKeyCode: UInt16?
 
                 for output in keyMapping.outputs {
                     let label = kanataKeyToDisplayLabel(output)
@@ -253,17 +272,7 @@ actor LayerKeyMapper {
             }
         }
 
-        // Fill in any missing keys with their physical labels
-        for key in physicalKeys where mapping[key.keyCode] == nil {
-            mapping[key.keyCode] = LayerKeyInfo(
-                displayLabel: key.label,
-                outputKey: nil,
-                outputKeyCode: nil,
-                isTransparent: false,
-                isLayerSwitch: false
-            )
-        }
-
+        AppLogger.shared.info("🗺️ [LayerKeyMapper] Built mapping: \(mapping.count) keys")
         return mapping
     }
 
@@ -274,37 +283,34 @@ actor LayerKeyMapper {
     private func toSimulatorKeyName(_ tcpName: String) -> String {
         switch tcpName.lowercased() {
         // Punctuation keys use abbreviated names in simulator
-        case "minus": return "min"
-        case "equal": return "eql"
-        case "grave": return "grv"
-        case "backslash": return "bksl"
-        case "leftbrace": return "lbrc"
-        case "rightbrace": return "rbrc"
-        case "semicolon": return "scln"
-        case "apostrophe": return "apos"
-        case "comma": return "comm"
-        case "dot": return "."
-        case "slash": return "/"
-
+        case "minus": "min"
+        case "equal": "eql"
+        case "grave": "grv"
+        case "backslash": "bksl"
+        case "leftbrace": "lbrc"
+        case "rightbrace": "rbrc"
+        case "semicolon": "scln"
+        case "apostrophe": "apos"
+        case "comma": "comm"
+        case "dot": "."
+        case "slash": "/"
         // Modifiers
-        case "leftshift": return "lsft"
-        case "rightshift": return "rsft"
-        case "leftmeta": return "lmet"
-        case "rightmeta": return "rmet"
-        case "leftalt": return "lalt"
-        case "rightalt": return "ralt"
-        case "leftctrl": return "lctl"
-        case "rightctrl": return "rctl"
-        case "capslock": return "caps"
-
+        case "leftshift": "lsft"
+        case "rightshift": "rsft"
+        case "leftmeta": "lmet"
+        case "rightmeta": "rmet"
+        case "leftalt": "lalt"
+        case "rightalt": "ralt"
+        case "leftctrl": "lctl"
+        case "rightctrl": "rctl"
+        case "capslock": "caps"
         // Special keys
-        case "backspace": return "bspc"
-        case "enter": return "ret"
-        case "space": return "spc"
-        case "escape": return "esc"
-
+        case "backspace": "bspc"
+        case "enter": "ret"
+        case "space": "spc"
+        case "escape": "esc"
         default:
-            return tcpName
+            tcpName
         }
     }
 
@@ -314,72 +320,63 @@ actor LayerKeyMapper {
         switch kanataKey.lowercased() {
         // Letters
         case let key where key.count == 1 && key.first!.isLetter:
-            return key.uppercased()
-
+            key.uppercased()
         // Numbers
         case let key where key.count == 1 && key.first!.isNumber:
-            return key
-
+            key
         // Arrow keys - Mac uses these specific Unicode arrows
         // Handle both kanata names and simulator output symbols (◀▶▲▼)
-        case "left", "◀": return "←"
-        case "right", "▶": return "→"
-        case "up", "▲": return "↑"
-        case "down", "▼": return "↓"
-
+        case "left", "◀": "←"
+        case "right", "▶": "→"
+        case "up", "▲": "↑"
+        case "down", "▼": "↓"
         // Modifier symbols from simulator (used in combos like Cmd+Arrow)
         // The simulator outputs ‹◆ for left-Cmd, ◆› for right-Cmd, etc.
-        case "‹◆", "◆›": return "⌘"  // Command
-        case "‹⎇", "⎇›": return "⌥"  // Option
-        case "‹⇧", "⇧›": return "⇧"  // Shift
-        case "‹⎈", "⎈›": return "⌃"  // Control
-
+        case "‹◆", "◆›": "⌘" // Command
+        case "‹⎇", "⎇›": "⌥" // Option
+        case "‹⇧", "⇧›": "⇧" // Shift
+        case "‹⎈", "⎈›": "⌃" // Control
         // Modifiers - Standard Mac symbols
-        case "leftshift", "lsft": return "⇧"   // U+21E7 Upwards White Arrow
-        case "rightshift", "rsft": return "⇧"
-        case "leftmeta", "lmet": return "⌘"    // U+2318 Place of Interest Sign (Command)
-        case "rightmeta", "rmet": return "⌘"
-        case "leftalt", "lalt": return "⌥"     // U+2325 Option Key
-        case "rightalt", "ralt": return "⌥"
-        case "leftctrl", "lctl": return "⌃"    // U+2303 Up Arrowhead (Control)
-        case "rightctrl", "rctl": return "⌃"
-
+        case "leftshift", "lsft": "⇧" // U+21E7 Upwards White Arrow
+        case "rightshift", "rsft": "⇧"
+        case "leftmeta", "lmet": "⌘" // U+2318 Place of Interest Sign (Command)
+        case "rightmeta", "rmet": "⌘"
+        case "leftalt", "lalt": "⌥" // U+2325 Option Key
+        case "rightalt", "ralt": "⌥"
+        case "leftctrl", "lctl": "⌃" // U+2303 Up Arrowhead (Control)
+        case "rightctrl", "rctl": "⌃"
         // Common keys - Standard Mac symbols
-        case "space", "spc": return "␣"        // U+2423 Open Box (standard space symbol)
-        case "enter", "ret": return "↩"        // U+21A9 Return symbol
-        case "backspace", "bspc": return "⌫"   // U+232B Delete to the Left
-        case "tab": return "⇥"                 // U+21E5 Rightwards Arrow to Bar
-        case "escape", "esc": return "⎋"       // U+238B Broken Circle with Northwest Arrow (Escape)
-        case "capslock", "caps": return "⇪"    // U+21EA Upwards White Arrow from Bar (Caps Lock)
-        case "delete", "del": return "⌦"       // U+2326 Erase to the Right
-        case "fn": return "fn"                 // Function key (no standard symbol)
-
+        case "space", "spc": "␣" // U+2423 Open Box (standard space symbol)
+        case "enter", "ret": "↩" // U+21A9 Return symbol
+        case "backspace", "bspc": "⌫" // U+232B Delete to the Left
+        case "tab": "⇥" // U+21E5 Rightwards Arrow to Bar
+        case "escape", "esc": "⎋" // U+238B Broken Circle with Northwest Arrow (Escape)
+        case "capslock", "caps": "⇪" // U+21EA Upwards White Arrow from Bar (Caps Lock)
+        case "delete", "del": "⌦" // U+2326 Erase to the Right
+        case "fn": "fn" // Function key (no standard symbol)
         // Punctuation - Show actual characters
-        case "grave", "grv": return "`"
-        case "minus", "min": return "-"
-        case "equal", "eql": return "="
-        case "leftbrace", "lbrc": return "["
-        case "rightbrace", "rbrc": return "]"
-        case "backslash", "bksl": return "\\"
-        case "semicolon", "scln": return ";"
-        case "apostrophe", "apos": return "'"
-        case "comma", "comm": return ","
-        case "dot", ".": return "."
-        case "slash", "/": return "/"
-
+        case "grave", "grv": "`"
+        case "minus", "min": "-"
+        case "equal", "eql": "="
+        case "leftbrace", "lbrc": "["
+        case "rightbrace", "rbrc": "]"
+        case "backslash", "bksl": "\\"
+        case "semicolon", "scln": ";"
+        case "apostrophe", "apos": "'"
+        case "comma", "comm": ","
+        case "dot", ".": "."
+        case "slash", "/": "/"
         // Function keys
         case let key where key.hasPrefix("f") && Int(String(key.dropFirst())) != nil:
-            return key.uppercased()
-
+            key.uppercased()
         // Navigation keys
-        case "home": return "↖"
-        case "end": return "↘"
-        case "pageup", "pgup": return "⇞"
-        case "pagedown", "pgdn": return "⇟"
-
+        case "home": "↖"
+        case "end": "↘"
+        case "pageup", "pgup": "⇞"
+        case "pagedown", "pgdn": "⇟"
         default:
             // Return as-is if unknown
-            return kanataKey
+            kanataKey
         }
     }
 
@@ -387,22 +384,21 @@ actor LayerKeyMapper {
     private func isModifierSymbol(_ key: String) -> Bool {
         switch key {
         case "‹◆", "◆›", "‹⎇", "⎇›", "‹⇧", "⇧›", "‹⎈", "⎈›":
-            return true
+            true
         default:
-            return false
+            false
         }
     }
 
     /// Convert Kanata key name to macOS key code
     private func kanataKeyToKeyCode(_ kanataKey: String) -> UInt16? {
         // Handle simulator output symbols (arrows)
-        let normalizedKey: String
-        switch kanataKey {
-        case "◀": normalizedKey = "left"
-        case "▶": normalizedKey = "right"
-        case "▲": normalizedKey = "up"
-        case "▼": normalizedKey = "down"
-        default: normalizedKey = kanataKey
+        let normalizedKey: String = switch kanataKey {
+        case "◀": "left"
+        case "▶": "right"
+        case "▲": "up"
+        case "▼": "down"
+        default: kanataKey
         }
 
         // Reverse lookup using OverlayKeyboardView.keyCodeToKanataName

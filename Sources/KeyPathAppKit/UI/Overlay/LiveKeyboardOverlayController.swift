@@ -8,6 +8,7 @@ import SwiftUI
 final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     private let viewModel = KeyboardVisualizationViewModel()
+    private var hasAutoHiddenForCurrentSettingsSession = false
 
     // MARK: - UserDefaults Keys
 
@@ -88,6 +89,21 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     /// Toggle overlay visibility
     func toggle() {
         isVisible = !isVisible
+    }
+
+    /// Automatically hide the overlay once when Settings opens.
+    /// If the user later shows it manually, we won't hide it again until Settings closes.
+    func autoHideOnceForSettings() {
+        guard !hasAutoHiddenForCurrentSettingsSession else { return }
+        hasAutoHiddenForCurrentSettingsSession = true
+        if isVisible {
+            isVisible = false
+        }
+    }
+
+    /// Reset the one-shot auto-hide guard when Settings closes.
+    func resetSettingsAutoHideGuard() {
+        hasAutoHiddenForCurrentSettingsSession = false
     }
 
     // MARK: - Window Management

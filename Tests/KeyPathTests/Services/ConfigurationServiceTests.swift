@@ -36,8 +36,8 @@ class ConfigurationServiceTests: XCTestCase {
             "Config should always inject the macOS Function Keys collection"
         )
         XCTAssertTrue(
-            config.contains(";; Rule Collections: 2 enabled, 2 total"),
-            "Summary should reflect the number of enabled collections"
+            config.contains(";; Enabled:"),
+            "Header should list enabled collections"
         )
         XCTAssertTrue(config.contains("caps"), "Config should contain caps key")
         XCTAssertTrue(config.contains("esc"), "Config should contain esc key")
@@ -58,8 +58,8 @@ class ConfigurationServiceTests: XCTestCase {
             "Multi-mapping config should still emit the custom collection header"
         )
         XCTAssertTrue(
-            config.contains(";; Rule Collections: 2 enabled, 2 total"),
-            "Should summarize custom + default collections"
+            config.contains(";; Enabled:"),
+            "Header should list enabled collections"
         )
         XCTAssertTrue(config.contains("caps"), "Config should contain all source keys")
         XCTAssertTrue(config.contains("esc"), "Config should contain all layer keys")
@@ -134,9 +134,10 @@ class ConfigurationServiceTests: XCTestCase {
         XCTAssertFalse(
             baseLayer.contains("brdn"), "Disabled macOS keys should not emit macros in active layers"
         )
-        XCTAssertTrue(
-            config.contains(";; === Collection: macOS Function Keys (disabled) ==="),
-            "Disabled macOS Function Keys section should be commented"
+        // ADR-025: Disabled collections are NOT written to config (JSON stores are source of truth)
+        XCTAssertFalse(
+            config.contains("macOS Function Keys"),
+            "Disabled collections should not appear in config output"
         )
         XCTAssertTrue(config.contains("(defsrc"))
         XCTAssertTrue(config.contains("(deflayer base"))
@@ -172,7 +173,11 @@ class ConfigurationServiceTests: XCTestCase {
 
         let baseLayer = extractLayer(named: "base", from: config)
         XCTAssertTrue(baseLayer.contains("h"), "Base layer should keep normal h key")
-        XCTAssertFalse(baseLayer.contains("left"), "Base layer should not remap nav outputs directly")
+        // Base layer may contain "left" for the physical arrow key (pass-through)
+        // but h should output h, not left - verify h's line doesn't contain "left"
+        let hLine = baseLayer.split(separator: "\n").first { $0.contains("h") && !$0.hasPrefix(";") }
+        XCTAssertNotNil(hLine, "Should find h key line in base layer")
+        XCTAssertFalse(hLine?.contains("left") ?? true, "h should output h in base layer, not left")
 
         let navLayer = extractLayer(named: "navigation", from: config)
         XCTAssertTrue(navLayer.contains("left"), "Navigation layer should emit arrow outputs")
@@ -317,23 +322,11 @@ class ConfigurationServiceTests: XCTestCase {
             savedContent.contains(";; === Collection: macOS Function Keys (enabled) ==="),
             "Generated config should always include the macOS Function Keys section"
         )
-        XCTAssertTrue(
-            savedContent.contains(";; === Collection: Disabled (disabled) ==="),
-            "Disabled collections should be annotated in the output"
+        // ADR-025: Disabled collections are NOT written to config (JSON stores are source of truth)
+        XCTAssertFalse(
+            savedContent.contains("Disabled"),
+            "Disabled collections should not appear in config output"
         )
-        if let disabledRange = savedContent.range(of: ";; === Collection: Disabled (disabled) ===") {
-            let disabledBlock = savedContent[disabledRange.upperBound...]
-            XCTAssertTrue(
-                disabledBlock.contains(";; (defsrc"),
-                "Disabled collection should comment out defsrc section"
-            )
-            XCTAssertTrue(
-                disabledBlock.contains(";; (deflayer base"),
-                "Disabled collection should comment out deflayer section"
-            )
-        } else {
-            XCTFail("Disabled collection header missing from config output")
-        }
 
         let parsed = try configService.parseConfigurationFromString(savedContent)
         let capsMappings = parsed.keyMappings.filter { $0.input == "caps" }
@@ -371,9 +364,10 @@ class ConfigurationServiceTests: XCTestCase {
         )
         XCTAssertTrue(savedContent.contains("caps"), "Enabled custom rule input should be present")
         XCTAssertTrue(savedContent.contains("esc"), "Enabled custom rule output should be present")
-        XCTAssertTrue(
-            savedContent.contains(";; === Collection: Space Layer (disabled) ==="),
-            "Disabled custom rule should be represented in the disabled section"
+        // ADR-025: Disabled rules are NOT written to config (JSON stores are source of truth)
+        XCTAssertFalse(
+            savedContent.contains("Space Layer"),
+            "Disabled custom rules should not appear in config output"
         )
     }
 
@@ -789,6 +783,32 @@ class ConfigurationServiceTests: XCTestCase {
         XCTAssertFalse(config.contains("m-right"), "Config should NOT have lowercase m-right")
     }
 
+    func testVimTransparentModeOffBlocksUnmappedKeys() {
+        // Vim collection with transparent mode disabled should block unmapped keys in navigation layer
+        let nav = RuleCollection(
+            id: RuleCollectionIdentifier.vimNavigation,
+            name: "Vim Navigation",
+            summary: "Vim-style navigation",
+            category: .navigation,
+            mappings: [
+                KeyMapping(input: "h", output: "left")
+            ],
+            isEnabled: true,
+            isSystemDefault: false,
+            targetLayer: .navigation,
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation),
+            displayStyle: .table
+        )
+
+        let config = KanataConfiguration.generateFromCollections([nav])
+
+        // Unmapped alpha key like "a" should be blocked (XX) in navigation layer
+        XCTAssertTrue(config.contains("(deflayer navigation"), "Should render navigation layer")
+        XCTAssertTrue(config.contains("XX"), "Navigation layer should include blocked XX entries")
+        // Ensure the mapped key still appears with its action
+        XCTAssertTrue(config.contains("left"), "Mapped action should remain present")
+    }
+
     func testConvertToKanataKeyForMacro_PreservesUppercaseModifiers() {
         // Test the key converter preserves modifier prefix case
         XCTAssertEqual(
@@ -881,10 +901,10 @@ class ConfigurationServiceTests: XCTestCase {
             "Disabled chord collection should NOT generate defchordsv2 block"
         )
 
-        // Should be in the commented disabled section
-        XCTAssertTrue(
-            config.contains(";; === Collection: Backup Caps Lock (disabled) ==="),
-            "Disabled collection should appear in commented section"
+        // ADR-025: Disabled collections are NOT written to config (JSON stores are source of truth)
+        XCTAssertFalse(
+            config.contains("Backup Caps Lock"),
+            "Disabled collections should not appear in config output"
         )
     }
 
@@ -1107,6 +1127,115 @@ class ConfigurationServiceTests: XCTestCase {
             parsed.keyMappings.count, originalMappings.count,
             "Generated config should not drop mappings (may include system defaults)"
         )
+    }
+
+    // MARK: - Config Write Safety Guard Tests
+
+    /// Test that generated config is never empty when using generateFromMappings
+    func testGenerateFromMappings_NeverProducesEmptyConfig() {
+        // Even with empty mappings, we should get a valid config with system defaults
+        let config = KanataConfiguration.generateFromMappings([])
+
+        XCTAssertFalse(config.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                       "Generated config should never be empty")
+        XCTAssertTrue(config.contains("defsrc"), "Generated config should have defsrc")
+        XCTAssertTrue(config.contains("deflayer"), "Generated config should have deflayer")
+    }
+
+    /// Test that generated config from collections is never empty
+    func testGenerateFromCollections_NeverProducesEmptyConfig() {
+        // Even with no enabled collections, we should get a valid config
+        let disabledCollection = RuleCollection(
+            name: "Disabled",
+            summary: "All disabled",
+            category: .custom,
+            mappings: [KeyMapping(input: "a", output: "b")],
+            isEnabled: false
+        )
+
+        let config = KanataConfiguration.generateFromCollections([disabledCollection])
+
+        XCTAssertFalse(config.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                       "Generated config should never be empty")
+        XCTAssertTrue(config.contains("defsrc"), "Generated config should have defsrc")
+        XCTAssertTrue(config.contains("deflayer"), "Generated config should have deflayer")
+    }
+
+    /// Test that saveConfiguration succeeds with valid content
+    func testSaveConfiguration_ValidContentSucceeds() async throws {
+        let mappings = [KeyMapping(input: "caps", output: "esc")]
+
+        // Should not throw
+        try await configService.saveConfiguration(keyMappings: mappings)
+
+        // Verify file was created with valid structure
+        let configPath = tempDirectory.appendingPathComponent("keypath.kbd")
+        let content = try String(contentsOf: configPath, encoding: .utf8)
+        XCTAssertTrue(content.contains("defsrc"), "Saved config should have defsrc")
+        XCTAssertTrue(content.contains("deflayer"), "Saved config should have deflayer")
+        XCTAssertFalse(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                       "Saved config should not be empty")
+    }
+
+    /// Test that writeConfigurationContent rejects empty content
+    func testWriteConfigurationContent_RejectsEmptyContent() async throws {
+        // Try to write empty content directly
+        do {
+            try await configService.writeConfigurationContent("")
+            XCTFail("writeConfigurationContent should throw for empty content")
+        } catch let error as KeyPathError {
+            if case let .configuration(configError) = error,
+               case let .invalidFormat(reason) = configError {
+                XCTAssertTrue(reason.contains("empty"), "Error should mention empty content")
+            } else {
+                XCTFail("Unexpected error type: \(error)")
+            }
+        }
+    }
+
+    /// Test that writeConfigurationContent rejects invalid structure
+    func testWriteConfigurationContent_RejectsInvalidStructure() async throws {
+        // Try to write config missing required structure
+        // IMPORTANT: Do not mention "defsrc" or "deflayer" in comments
+        // as the guard checks for substring presence
+        let invalidContent = """
+        (defcfg
+          process-unmapped-keys yes
+        )
+        ;; This config is missing required blocks - it is invalid
+        """
+
+        do {
+            try await configService.writeConfigurationContent(invalidContent)
+            XCTFail("writeConfigurationContent should throw for invalid structure")
+        } catch let error as KeyPathError {
+            if case let .configuration(configError) = error,
+               case let .invalidFormat(reason) = configError {
+                XCTAssertTrue(reason.contains("defsrc") || reason.contains("deflayer"),
+                              "Error should mention missing defsrc/deflayer")
+            } else {
+                XCTFail("Unexpected error type: \(error)")
+            }
+        }
+    }
+
+    /// Test that writeConfigurationContent accepts valid content
+    func testWriteConfigurationContent_AcceptsValidContent() async throws {
+        let validContent = """
+        (defcfg
+          process-unmapped-keys yes
+        )
+        (defsrc caps)
+        (deflayer base esc)
+        """
+
+        // Should not throw
+        try await configService.writeConfigurationContent(validContent)
+
+        // Verify file was created with correct content
+        let configPath = tempDirectory.appendingPathComponent("keypath.kbd")
+        let written = try String(contentsOf: configPath, encoding: .utf8)
+        XCTAssertEqual(written, validContent, "Written content should match input")
     }
 
     // MARK: - Observer/Notification Tests

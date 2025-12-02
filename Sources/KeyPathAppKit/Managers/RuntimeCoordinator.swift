@@ -1123,9 +1123,19 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
             AppLogger.shared.log("⚠️ [Reset] No safety backup created (missing/invalid existing config)")
         }
 
-        // Reset to macOS Function Keys collection only (enabled by default)
-        let defaultCollections = KanataConfiguration.systemDefaultCollections
-        let defaultConfig = KanataConfiguration.generateFromCollections(defaultCollections)
+        // Get ALL collections from catalog, then disable everything except macOS Function Keys
+        // This ensures the UI shows all collections with correct enabled/disabled state after reset
+        let catalog = RuleCollectionCatalog()
+        let allCollections = catalog.defaultCollections().map { collection -> RuleCollection in
+            var modified = collection
+            // Only enable macOS Function Keys - everything else is OFF
+            modified.isEnabled = (collection.id == RuleCollectionIdentifier.macFunctionKeys)
+            return modified
+        }
+
+        // Generate config from only enabled collections (just macOS Function Keys)
+        let enabledCollections = allCollections.filter(\.isEnabled)
+        let defaultConfig = KanataConfiguration.generateFromCollections(enabledCollections)
         let configURL = URL(fileURLWithPath: configPath)
 
         // Ensure config directory exists
@@ -1137,8 +1147,8 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
         AppLogger.shared.log("💾 [Config] Reset to default configuration (macOS Function Keys only)")
 
-        // Update the stores to reflect the reset state
-        try await RuleCollectionStore.shared.saveCollections(defaultCollections)
+        // Update the stores with ALL collections (so UI shows correct enabled/disabled state)
+        try await RuleCollectionStore.shared.saveCollections(allCollections)
         try await CustomRulesStore.shared.saveRules([]) // Clear custom rules
 
         // Re-bootstrap the manager to pick up the changes
