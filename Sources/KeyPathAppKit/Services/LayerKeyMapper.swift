@@ -67,7 +67,9 @@ actor LayerKeyMapper {
     ///   - configPath: Path to the kanata config file
     /// - Returns: Dictionary mapping physical key codes to their layer-specific info
     func getMapping(for layer: String, configPath: String) async throws -> [UInt16: LayerKeyInfo] {
-        AppLogger.shared.info("🗺️ [LayerKeyMapper] getMapping called for layer '\(layer)'")
+        // Normalize layer name to lowercase for consistent cache keys
+        let normalizedLayer = layer.lowercased()
+        AppLogger.shared.info("🗺️ [LayerKeyMapper] getMapping called for layer '\(layer)' (normalized: '\(normalizedLayer)')")
 
         // Check if config changed (invalidate cache)
         let currentHash = try configFileHash(configPath)
@@ -77,19 +79,19 @@ actor LayerKeyMapper {
             configHash = currentHash
         }
 
-        // Return cached if available
-        if let cached = cache[layer] {
+        // Return cached if available (use normalized key)
+        if let cached = cache[normalizedLayer] {
             AppLogger.shared.debug("🗺️ [LayerKeyMapper] Returning cached mapping (\(cached.count) keys)")
             return cached
         }
 
-        AppLogger.shared.info("🗺️ [LayerKeyMapper] Building new mapping for '\(layer)'...")
+        AppLogger.shared.info("🗺️ [LayerKeyMapper] Building new mapping for '\(normalizedLayer)'...")
 
         // Use batch simulation for accurate key mapping
         // This handles aliases, tap-hold, forks, macros, etc.
-        let mapping = try await buildMappingWithSimulator(for: layer, configPath: configPath)
+        let mapping = try await buildMappingWithSimulator(for: normalizedLayer, configPath: configPath)
 
-        cache[layer] = mapping
+        cache[normalizedLayer] = mapping
         AppLogger.shared.info("🗺️ [LayerKeyMapper] Built mapping: \(mapping.count) keys")
         return mapping
     }
@@ -100,10 +102,55 @@ actor LayerKeyMapper {
         configHash = ""
     }
 
-    // MARK: - Batch Simulation
+    /// Pre-build mappings for all layers at once
+    /// This should be called at startup to ensure instant layer switching
+    /// - Parameters:
+    ///   - layerNames: List of all layer names (from TCP RequestLayerNames)
+    ///   - configPath: Path to the kanata config file
+    func prebuildAllLayers(_ layerNames: [String], configPath: String) async {
+        // Normalize layer names to lowercase
+        let normalizedLayers = layerNames.map { $0.lowercased() }
+        AppLogger.shared.info("🗺️ [LayerKeyMapper] Pre-building mappings for \(normalizedLayers.count) layers: \(normalizedLayers.joined(separator: ", "))")
 
-    /// Build mapping by simulating ALL keys in a single simulator call
-    /// This is fast (~50ms) and accurate (handles aliases, tap-hold, forks, etc.)
+        // Update config hash
+        if let hash = try? configFileHash(configPath) {
+            if hash != configHash {
+                cache.removeAll()
+                configHash = hash
+            }
+        }
+
+        // Build mappings for all layers in parallel
+        await withTaskGroup(of: (String, [UInt16: LayerKeyInfo]?).self) { group in
+            for layer in normalizedLayers {
+                group.addTask {
+                    do {
+                        let mapping = try await self.buildMappingWithSimulator(for: layer, configPath: configPath)
+                        return (layer, mapping)
+                    } catch {
+                        AppLogger.shared.error("🗺️ [LayerKeyMapper] Failed to build mapping for '\(layer)': \(error)")
+                        return (layer, nil)
+                    }
+                }
+            }
+
+            for await (layer, mapping) in group {
+                if let mapping {
+                    cache[layer] = mapping
+                    AppLogger.shared.debug("🗺️ [LayerKeyMapper] Cached mapping for '\(layer)' (\(mapping.count) keys)")
+                }
+            }
+        }
+
+        AppLogger.shared.info("🗺️ [LayerKeyMapper] Pre-build complete: \(cache.count) layers cached")
+    }
+
+    // MARK: - Key Mapping via Simulator
+
+    /// Build mapping using simulator's --key-mapping mode
+    /// This is fast (~50ms) and accurate - handles aliases, tap-hold, forks, macros, etc.
+    /// The new --key-mapping mode provides direct input→outputs pairs, eliminating
+    /// the need for fragile timestamp-based correlation.
     private func buildMappingWithSimulator(for layer: String, configPath: String) async throws -> [UInt16: LayerKeyInfo] {
         var mapping: [UInt16: LayerKeyInfo] = [:]
 
@@ -113,34 +160,29 @@ actor LayerKeyMapper {
             .filter { !OverlayKeyboardView.keyCodeToKanataName($0.keyCode).starts(with: "unknown") }
 
         // Build a single sim file with all keys
-        // Use t:100 between keys to clearly separate input/output pairs
         var simParts: [String] = []
-        var keyTimestamps: [(keyCode: UInt16, kanataName: String, label: String, pressTime: UInt64)] = []
-        var currentTime: UInt64 = 0
+        var keyCodeByKanataName: [String: (keyCode: UInt16, label: String)] = [:]
 
         for key in physicalKeys {
             let tcpName = OverlayKeyboardView.keyCodeToKanataName(key.keyCode)
             let simName = toSimulatorKeyName(tcpName)
-            keyTimestamps.append((key.keyCode, tcpName, key.label, currentTime))
+            keyCodeByKanataName[simName.uppercased()] = (key.keyCode, key.label)
 
-            // press, wait 50ms, release, wait 100ms before next key
+            // press, wait 50ms, release
             simParts.append("d:\(simName) t:50 u:\(simName)")
-            currentTime += 50 // release time
-            if key != physicalKeys.last {
-                simParts.append("t:100")
-                currentTime += 100
-            }
         }
 
         let simContent = simParts.joined(separator: " ")
-        AppLogger.shared.debug("🗺️ [LayerKeyMapper] Simulating \(physicalKeys.count) keys in batch...")
+        AppLogger.shared.debug("🗺️ [LayerKeyMapper] Simulating \(physicalKeys.count) keys with --key-mapping for layer '\(layer)'...")
 
-        // Run single simulation
-        let result: SimulationResult
+        // Run simulation with --key-mapping mode
+        let startLayer = layer.lowercased() == "base" ? "base" : layer.lowercased()
+        let result: SimulatorKeyMappingResult
         do {
-            result = try await simulatorService.simulateRaw(
+            result = try await simulatorService.simulateKeyMapping(
                 simContent: simContent,
-                configPath: configPath
+                configPath: configPath,
+                startLayer: startLayer
             )
         } catch {
             AppLogger.shared.error("🗺️ [LayerKeyMapper] Simulation failed: \(error)")
@@ -157,83 +199,69 @@ actor LayerKeyMapper {
             return mapping
         }
 
-        // Parse results: match each input press to its corresponding output
-        // Group events by their approximate timestamp window
-        for (keyCode, kanataName, label, pressTime) in keyTimestamps {
-            // Helper to check if timestamp is within window
-            func isNearTime(_ t: UInt64, window: UInt64) -> Bool {
-                if t >= pressTime {
-                    return t - pressTime < window
-                } else {
-                    return pressTime - t < window
-                }
-            }
-
-            // Find input press event at this time
-            let inputPress = result.events.first { event in
-                if case let .input(t, action, key) = event {
-                    return action == .press && key.lowercased() == kanataName.lowercased() && isNearTime(t, window: 10)
-                }
-                return false
-            }
-
-            guard inputPress != nil else {
-                // Key wasn't in simulation (shouldn't happen)
-                mapping[keyCode] = LayerKeyInfo(
-                    displayLabel: label,
-                    outputKey: nil,
-                    outputKeyCode: nil,
-                    isTransparent: false,
-                    isLayerSwitch: false
-                )
+        // Process each key mapping from the result
+        for keyMapping in result.mappings {
+            // Look up keyCode from input name
+            guard let (keyCode, fallbackLabel) = keyCodeByKanataName[keyMapping.input.uppercased()] else {
+                AppLogger.shared.debug("🗺️ [LayerKeyMapper] Unknown input key: \(keyMapping.input)")
                 continue
             }
 
-            // Find output press event at same time window
-            let outputPress = result.events.first { event in
-                if case let .output(t, action, _) = event {
-                    return action == .press && isNearTime(t, window: 60) // Allow some timing slack for tap-hold
+            if keyMapping.transparent {
+                // Key passes through unchanged
+                mapping[keyCode] = .transparent(fallbackLabel: fallbackLabel)
+            } else if keyMapping.outputs.isEmpty {
+                // No output (blocked key)
+                mapping[keyCode] = .transparent(fallbackLabel: fallbackLabel)
+            } else {
+                // Convert all outputs to display labels and combine
+                var displayParts: [String] = []
+                var primaryOutputKey: String? = nil
+                var primaryOutputKeyCode: UInt16? = nil
+
+                for output in keyMapping.outputs {
+                    let label = kanataKeyToDisplayLabel(output)
+                    displayParts.append(label)
+                    // Use the non-modifier key as the primary (for dual highlighting)
+                    if !isModifierSymbol(output) {
+                        primaryOutputKey = output
+                        primaryOutputKeyCode = kanataKeyToKeyCode(output)
+                    }
                 }
-                return false
-            }
 
-            // Check for layer change at this time
-            let layerChange = result.events.first { event in
-                if case let .layer(t, _, _) = event {
-                    return isNearTime(t, window: 60)
-                }
-                return false
-            }
+                let combinedLabel = displayParts.joined()
+                let outputKey = primaryOutputKey ?? keyMapping.outputs.first
 
-            if let layerChange, case let .layer(_, _, to) = layerChange {
-                // This key switches layers
-                mapping[keyCode] = .layerSwitch(displayLabel: to)
-            } else if let outputPress, case let .output(_, _, outputKey) = outputPress {
-                let displayLabel = kanataKeyToDisplayLabel(outputKey)
-                let outputKeyCode = kanataKeyToKeyCode(outputKey)
-
-                if outputKey.lowercased() == kanataName.lowercased() {
-                    // Same key - no remapping, but still include for completeness
-                    mapping[keyCode] = LayerKeyInfo(
-                        displayLabel: displayLabel,
+                if let outputKey {
+                    mapping[keyCode] = .mapped(
+                        displayLabel: combinedLabel,
                         outputKey: outputKey,
-                        outputKeyCode: outputKeyCode,
+                        outputKeyCode: primaryOutputKeyCode
+                    )
+                    if outputKey.uppercased() != keyMapping.input.uppercased() {
+                        AppLogger.shared.debug("🗺️ [LayerKeyMapper] Mapped \(keyMapping.input)(\(keyCode)) -> \(outputKey)(\(combinedLabel))")
+                    }
+                } else {
+                    mapping[keyCode] = LayerKeyInfo(
+                        displayLabel: combinedLabel,
+                        outputKey: nil,
+                        outputKeyCode: nil,
                         isTransparent: false,
                         isLayerSwitch: false
                     )
-                } else {
-                    // Different key - this is a remap!
-                    mapping[keyCode] = .mapped(
-                        displayLabel: displayLabel,
-                        outputKey: outputKey,
-                        outputKeyCode: outputKeyCode
-                    )
-                    AppLogger.shared.debug("🗺️ [LayerKeyMapper] Mapped \(kanataName)(\(keyCode)) -> \(outputKey)(\(displayLabel))")
                 }
-            } else {
-                // No output - key is blocked or produces no output
-                mapping[keyCode] = .transparent(fallbackLabel: label)
             }
+        }
+
+        // Fill in any missing keys with their physical labels
+        for key in physicalKeys where mapping[key.keyCode] == nil {
+            mapping[key.keyCode] = LayerKeyInfo(
+                displayLabel: key.label,
+                outputKey: nil,
+                outputKeyCode: nil,
+                isTransparent: false,
+                isLayerSwitch: false
+            )
         }
 
         return mapping
@@ -291,11 +319,17 @@ actor LayerKeyMapper {
         case let key where key.count == 1 && key.first!.isNumber:
             return key
 
-        // Arrow keys
-        case "left": return "←"
-        case "right": return "→"
-        case "up": return "↑"
-        case "down": return "↓"
+        // Arrow keys (handle both kanata names and simulator output symbols)
+        case "left", "◀": return "←"
+        case "right", "▶": return "→"
+        case "up", "▲": return "↑"
+        case "down", "▼": return "↓"
+
+        // Modifier symbols from simulator (used in combos like Cmd+Arrow)
+        case "‹◆", "◆›": return "⌘"  // Cmd (left/right)
+        case "‹⎇", "⎇›": return "⌥"  // Alt/Option (left/right)
+        case "‹⇧", "⇧›": return "⇧"  // Shift (left/right)
+        case "‹⎈", "⎈›": return "⌃"  // Ctrl (left/right)
 
         // Modifiers
         case "leftshift", "lsft": return "⇧"
@@ -345,13 +379,33 @@ actor LayerKeyMapper {
         }
     }
 
+    /// Check if a key is a modifier symbol from the simulator
+    private func isModifierSymbol(_ key: String) -> Bool {
+        switch key {
+        case "‹◆", "◆›", "‹⎇", "⎇›", "‹⇧", "⇧›", "‹⎈", "⎈›":
+            return true
+        default:
+            return false
+        }
+    }
+
     /// Convert Kanata key name to macOS key code
     private func kanataKeyToKeyCode(_ kanataKey: String) -> UInt16? {
+        // Handle simulator output symbols (arrows)
+        let normalizedKey: String
+        switch kanataKey {
+        case "◀": normalizedKey = "left"
+        case "▶": normalizedKey = "right"
+        case "▲": normalizedKey = "up"
+        case "▼": normalizedKey = "down"
+        default: normalizedKey = kanataKey
+        }
+
         // Reverse lookup using OverlayKeyboardView.keyCodeToKanataName
         let allKeyCodes: [UInt16] = Array(0 ... 127) + [0xFFFF]
         for code in allKeyCodes {
             let name = OverlayKeyboardView.keyCodeToKanataName(code)
-            if name.lowercased() == kanataKey.lowercased() {
+            if name.lowercased() == normalizedKey.lowercased() {
                 return code
             }
         }

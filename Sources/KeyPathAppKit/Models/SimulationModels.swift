@@ -206,6 +206,23 @@ enum SimMouseAction: String, Codable, Equatable {
     case scroll
 }
 
+// MARK: - Key Mapping Output Models (for --key-mapping mode)
+
+/// Result from kanata-simulator --key-mapping
+/// Provides direct input→outputs mapping without timestamp correlation
+struct SimulatorKeyMappingResult: Codable, Equatable {
+    let layer: String
+    let mappings: [SimulatorKeyMappingEntry]
+}
+
+/// A single key mapping entry from the simulator showing what outputs a single input key produces
+/// Named SimulatorKeyMappingEntry to avoid collision with the existing KeyMapping model
+struct SimulatorKeyMappingEntry: Codable, Equatable {
+    let input: String
+    let outputs: [String]
+    let transparent: Bool
+}
+
 // MARK: - Errors
 
 enum SimulatorError: Error, LocalizedError {
