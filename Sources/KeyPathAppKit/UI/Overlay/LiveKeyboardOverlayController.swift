@@ -10,6 +10,12 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     private let viewModel = KeyboardVisualizationViewModel()
     private var hasAutoHiddenForCurrentSettingsSession = false
 
+    /// Timestamp when overlay was auto-hidden for settings (for restore on close)
+    private var autoHiddenTimestamp: Date?
+
+    /// Duration within which we'll restore the overlay when settings closes (10 minutes)
+    private let restoreWindowDuration: TimeInterval = 10 * 60
+
     // MARK: - UserDefaults Keys
 
     private enum DefaultsKey {
@@ -97,13 +103,26 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         guard !hasAutoHiddenForCurrentSettingsSession else { return }
         hasAutoHiddenForCurrentSettingsSession = true
         if isVisible {
+            autoHiddenTimestamp = Date()
             isVisible = false
         }
     }
 
     /// Reset the one-shot auto-hide guard when Settings closes.
+    /// Restores the overlay if it was auto-hidden within the restore window (10 minutes).
     func resetSettingsAutoHideGuard() {
-        hasAutoHiddenForCurrentSettingsSession = false
+        defer {
+            hasAutoHiddenForCurrentSettingsSession = false
+            autoHiddenTimestamp = nil
+        }
+
+        // Restore overlay if it was auto-hidden recently and user hasn't manually shown it
+        if let hiddenAt = autoHiddenTimestamp,
+           Date().timeIntervalSince(hiddenAt) < restoreWindowDuration,
+           !isVisible
+        {
+            isVisible = true
+        }
     }
 
     // MARK: - Window Management
