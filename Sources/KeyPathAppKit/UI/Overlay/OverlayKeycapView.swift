@@ -15,19 +15,30 @@ struct OverlayKeycapView: View {
     var isCapsLockOn: Bool = false
     /// Fade amount: 0 = fully visible, 1 = fully faded
     var fadeAmount: CGFloat = 0
+    /// Current layer name for Touch ID key display
+    var currentLayerName: String = "base"
+    /// Whether layer mapping is loading (shows spinner on Touch ID key)
+    var isLoadingLayerMap: Bool = false
+    /// Layer-specific key info (what this key does in current layer)
+    var layerKeyInfo: LayerKeyInfo?
 
     /// Size thresholds for typography adaptation
     private var isSmallSize: Bool { scale < 0.8 }
     private var isLargeSize: Bool { scale >= 1.5 }
 
+    /// The effective label to display (from layer mapping or physical key)
+    private var effectiveLabel: String {
+        layerKeyInfo?.displayLabel ?? key.label
+    }
+
     /// Optical adjustments for current label
     private var adjustments: OpticalAdjustments {
-        OpticalAdjustments.forLabel(key.label)
+        OpticalAdjustments.forLabel(effectiveLabel)
     }
 
     /// Metadata for current label
     private var metadata: LabelMetadata {
-        LabelMetadata.forLabel(key.label)
+        LabelMetadata.forLabel(effectiveLabel)
     }
 
     var body: some View {
@@ -100,13 +111,13 @@ struct OverlayKeycapView: View {
 
     @ViewBuilder
     private var centeredContent: some View {
-        // Check if this is a number key or dual-symbol key
+        // Use metadata for the effective label to get shift symbol (works for both remapped and physical keys)
         if let shiftSymbol = metadata.shiftSymbol {
             // Dual content: shift symbol above, main below
-            dualSymbolContent(main: key.label, shift: shiftSymbol)
+            dualSymbolContent(main: effectiveLabel, shift: shiftSymbol)
         } else {
             // Single centered content
-            Text(key.label.uppercased())
+            Text(effectiveLabel.uppercased())
                 .font(.system(size: 12 * scale, weight: .medium))
                 .foregroundStyle(foregroundColor)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -255,20 +266,43 @@ struct OverlayKeycapView: View {
 
     @ViewBuilder
     private var arrowContent: some View {
-        Text(key.label)
+        Text(effectiveLabel)
             .font(.system(size: 8 * scale, weight: .regular))
             .foregroundStyle(foregroundColor)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - Layout: Touch ID
+    // MARK: - Layout: Touch ID / Layer Indicator
 
     @ViewBuilder
     private var touchIdContent: some View {
-        Image(systemName: "touchid")
-            .font(.system(size: 12 * scale, weight: .regular))
-            .foregroundStyle(foregroundColor)
+        // Layer indicator replaces Touch ID icon
+        // Shows current layer name or loading indicator
+        if isLoadingLayerMap {
+            // Subtle pulsing dot while loading layer mapping
+            Circle()
+                .fill(foregroundColor.opacity(0.6))
+                .frame(width: 4 * scale, height: 4 * scale)
+                .modifier(PulseAnimation())
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            // Layer name - bottom-left aligned like ESC key
+            let isBase = currentLayerName.lowercased() == "base"
+
+            VStack {
+                Spacer(minLength: 0)
+                HStack {
+                    Text(currentLayerName.lowercased())
+                        .font(.system(size: 7 * scale, weight: .regular))
+                        .foregroundStyle(foregroundColor.opacity(isBase ? 0.5 : 1.0))
+                    Spacer(minLength: 0)
+                }
+                .padding(.leading, 4 * scale)
+                .padding(.trailing, 4 * scale)
+                .padding(.bottom, 3 * scale)
+            }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
     }
 
     // MARK: - Layout: ESC Key
@@ -438,4 +472,58 @@ struct OverlayKeycapView: View {
     .frame(width: 50, height: 50)
     .padding()
     .background(Color.black)
+}
+
+#Preview("Layer Indicator") {
+    HStack(spacing: 8) {
+        // Base layer (muted)
+        OverlayKeycapView(
+            key: PhysicalKey(keyCode: 0xFFFF, label: "🔒", x: 14.5, y: 0, width: 1.0),
+            isPressed: false,
+            scale: 1.5,
+            isDarkMode: true,
+            currentLayerName: "base"
+        )
+        .frame(width: 50, height: 50)
+
+        // Active layer (full opacity)
+        OverlayKeycapView(
+            key: PhysicalKey(keyCode: 0xFFFF, label: "🔒", x: 14.5, y: 0, width: 1.0),
+            isPressed: false,
+            scale: 1.5,
+            isDarkMode: true,
+            currentLayerName: "nav"
+        )
+        .frame(width: 50, height: 50)
+
+        // Loading state
+        OverlayKeycapView(
+            key: PhysicalKey(keyCode: 0xFFFF, label: "🔒", x: 14.5, y: 0, width: 1.0),
+            isPressed: false,
+            scale: 1.5,
+            isDarkMode: true,
+            isLoadingLayerMap: true
+        )
+        .frame(width: 50, height: 50)
+    }
+    .padding()
+    .background(Color.black)
+}
+
+// MARK: - Pulse Animation
+
+/// Simple pulsing animation for loading indicator
+private struct PulseAnimation: ViewModifier {
+    @State private var isPulsing = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(isPulsing ? 0.3 : 1.0)
+            .animation(
+                Animation.easeInOut(duration: 0.8)
+                    .repeatForever(autoreverses: true),
+                value: isPulsing
+            )
+            .onAppear { isPulsing = true }
+    }
 }

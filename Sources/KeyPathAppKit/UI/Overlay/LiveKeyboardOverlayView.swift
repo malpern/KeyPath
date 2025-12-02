@@ -24,7 +24,11 @@ struct LiveKeyboardOverlayView: View {
                 layout: .macBookUS,
                 pressedKeyCodes: viewModel.pressedKeyCodes,
                 isDarkMode: isDark,
-                fadeAmount: fadeAmount
+                fadeAmount: fadeAmount,
+                currentLayerName: viewModel.currentLayerName,
+                isLoadingLayerMap: viewModel.isLoadingLayerMap,
+                layerKeyMap: viewModel.layerKeyMap,
+                effectivePressedKeyCodes: viewModel.effectivePressedKeyCodes
             )
             .environmentObject(viewModel)
             .padding(10)

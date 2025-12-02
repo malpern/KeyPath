@@ -411,10 +411,18 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
             guard let self else { return }
             _ = await triggerConfigReload()
             notifyStateChanged()
+            // Notify overlay to rebuild layer mapping
+            NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
         }
         ruleCollectionsManager.onLayerChanged = { [weak self] layerName in
             self?.currentLayerName = layerName
             self?.notifyStateChanged()
+            // Notify overlay about layer change
+            NotificationCenter.default.post(
+                name: .kanataLayerChanged,
+                object: nil,
+                userInfo: ["layerName": layerName]
+            )
         }
         ruleCollectionsManager.onError = { [weak self] error in
             self?.lastError = error

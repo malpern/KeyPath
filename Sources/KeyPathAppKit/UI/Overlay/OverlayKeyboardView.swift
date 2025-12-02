@@ -8,6 +8,12 @@ struct OverlayKeyboardView: View {
     let pressedKeyCodes: Set<UInt16>
     var isDarkMode: Bool = false
     var fadeAmount: CGFloat = 0 // 0 = fully visible, 1 = fully faded
+    var currentLayerName: String = "base"
+    var isLoadingLayerMap: Bool = false
+    /// Key mapping for current layer: keyCode -> LayerKeyInfo
+    var layerKeyMap: [UInt16: LayerKeyInfo] = [:]
+    /// Effective pressed key codes (includes remapped outputs for dual highlighting)
+    var effectivePressedKeyCodes: Set<UInt16> = []
 
     /// Track caps lock state from system
     @State private var isCapsLockOn: Bool = NSEvent.modifierFlags.contains(.capsLock)
@@ -23,7 +29,10 @@ struct OverlayKeyboardView: View {
 
             ZStack(alignment: .topLeading) {
                 ForEach(layout.keys) { key in
-                    let isPressed = pressedKeyCodes.contains(key.keyCode)
+                    // Use effectivePressedKeyCodes for dual highlighting
+                    // This includes both physical pressed keys AND their remapped outputs
+                    let isPressed = effectivePressedKeyCodes.contains(key.keyCode)
+                        || pressedKeyCodes.contains(key.keyCode)
 
                     OverlayKeycapView(
                         key: key,
@@ -31,7 +40,10 @@ struct OverlayKeyboardView: View {
                         scale: scale,
                         isDarkMode: isDarkMode,
                         isCapsLockOn: isCapsLockOn,
-                        fadeAmount: fadeAmount
+                        fadeAmount: fadeAmount,
+                        currentLayerName: currentLayerName,
+                        isLoadingLayerMap: isLoadingLayerMap,
+                        layerKeyInfo: layerKeyMap[key.keyCode]
                     )
                     .frame(
                         width: keyWidth(for: key, scale: scale),

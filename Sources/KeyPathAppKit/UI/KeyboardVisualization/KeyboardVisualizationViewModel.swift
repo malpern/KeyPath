@@ -14,6 +14,35 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Deep fade level for full keyboard opacity (0 = normal, 1 = 5% visible)
     @Published var deepFadeAmount: CGFloat = 0
 
+    // MARK: - Layer State
+
+    /// Current Kanata layer name (e.g., "base", "nav", "symbols")
+    @Published var currentLayerName: String = "base"
+    /// Whether the layer key mapping is being built (for loading indicator)
+    @Published var isLoadingLayerMap: Bool = false
+    /// Key mapping for the current layer: keyCode -> LayerKeyInfo
+    @Published var layerKeyMap: [UInt16: LayerKeyInfo] = [:]
+    /// Effective key codes that should appear pressed (includes remapped outputs)
+    /// When H is pressed and maps to Left Arrow, both H and Left Arrow should highlight
+    var effectivePressedKeyCodes: Set<UInt16> {
+        var result = pressedKeyCodes
+        // Add output key codes for all pressed keys
+        for keyCode in pressedKeyCodes {
+            if let info = layerKeyMap[keyCode],
+               let outputKeyCode = info.outputKeyCode,
+               outputKeyCode != keyCode
+            {
+                result.insert(outputKeyCode)
+            }
+        }
+        return result
+    }
+
+    /// Service for building layer key mappings
+    private let layerKeyMapper = LayerKeyMapper()
+    /// Task for building layer mapping
+    private var layerMapTask: Task<Void, Never>?
+
     // Event tap for listening to keyDown and keyUp events
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
@@ -46,6 +75,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
         setupEventTap()
         startIdleMonitor()
+        rebuildLayerMapping() // Build initial layer mapping
     }
 
     func stopCapturing() {
@@ -216,6 +246,70 @@ class KeyboardVisualizationViewModel: ObservableObject {
         lastInteraction = Date()
         if fadeAmount != 0 { fadeAmount = 0 }
         if deepFadeAmount != 0 { deepFadeAmount = 0 }
+    }
+
+    // MARK: - Layer Mapping
+
+    /// Update the current layer and rebuild key mapping
+    func updateLayer(_ layerName: String) {
+        currentLayerName = layerName
+        rebuildLayerMapping()
+    }
+
+    /// Rebuild the key mapping for the current layer
+    func rebuildLayerMapping() {
+        // Cancel any in-flight mapping task
+        layerMapTask?.cancel()
+
+        // Skip in test environment
+        if TestEnvironment.isRunningTests {
+            AppLogger.shared.debug("🧪 [KeyboardViz] Skipping layer mapping in test environment")
+            return
+        }
+
+        isLoadingLayerMap = true
+        AppLogger.shared.info("🗺️ [KeyboardViz] Starting layer mapping build for '\(currentLayerName)'...")
+
+        layerMapTask = Task { [weak self] in
+            guard let self else { return }
+
+            do {
+                let configPath = WizardSystemPaths.userConfigPath
+                AppLogger.shared.debug("🗺️ [KeyboardViz] Using config: \(configPath)")
+
+                // Build mapping for current layer
+                let mapping = try await layerKeyMapper.getMapping(
+                    for: currentLayerName,
+                    configPath: configPath
+                )
+
+                // Update on main actor
+                await MainActor.run {
+                    self.layerKeyMap = mapping
+                    self.isLoadingLayerMap = false
+                }
+
+                AppLogger.shared.info("🗺️ [KeyboardViz] Built layer mapping for '\(currentLayerName)': \(mapping.count) keys")
+
+                // Log a few sample mappings for debugging
+                for (keyCode, info) in mapping.prefix(5) {
+                    AppLogger.shared.debug("  keyCode \(keyCode) -> '\(info.displayLabel)'")
+                }
+            } catch {
+                AppLogger.shared.error("❌ [KeyboardViz] Failed to build layer mapping: \(error)")
+                await MainActor.run {
+                    self.isLoadingLayerMap = false
+                }
+            }
+        }
+    }
+
+    /// Invalidate cached mappings (call when config changes)
+    func invalidateLayerMappings() {
+        Task {
+            await layerKeyMapper.invalidateCache()
+            rebuildLayerMapping()
+        }
     }
 
     /// Clear modifier keycodes when the corresponding flag is fully released.

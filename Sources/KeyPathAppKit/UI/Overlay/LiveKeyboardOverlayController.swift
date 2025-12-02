@@ -24,6 +24,44 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
     override private init() {
         super.init()
+        setupLayerChangeObserver()
+    }
+
+    // MARK: - Layer State
+
+    /// Update the current layer name displayed on the overlay
+    func updateLayerName(_ layerName: String) {
+        viewModel.updateLayer(layerName)
+    }
+
+    /// Set loading state for layer mapping
+    func setLoadingLayerMap(_ isLoading: Bool) {
+        viewModel.isLoadingLayerMap = isLoading
+    }
+
+    private func setupLayerChangeObserver() {
+        NotificationCenter.default.addObserver(
+            forName: .kanataLayerChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            if let layerName = notification.userInfo?["layerName"] as? String {
+                Task { @MainActor in
+                    self?.updateLayerName(layerName)
+                }
+            }
+        }
+
+        // Listen for config changes to rebuild layer mapping
+        NotificationCenter.default.addObserver(
+            forName: .kanataConfigChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.viewModel.invalidateLayerMappings()
+            }
+        }
     }
 
     /// Restore overlay state from previous session
@@ -187,4 +225,8 @@ private final class OverlayWindow: NSWindow {
 extension Notification.Name {
     /// Posted when the live keyboard overlay should be toggled
     static let toggleLiveKeyboardOverlay = Notification.Name("KeyPath.ToggleLiveKeyboardOverlay")
+    /// Posted when the Kanata layer changes (userInfo["layerName"] = String)
+    static let kanataLayerChanged = Notification.Name("KeyPath.KanataLayerChanged")
+    /// Posted when the Kanata config changes (rules saved, etc.)
+    static let kanataConfigChanged = Notification.Name("KeyPath.KanataConfigChanged")
 }
