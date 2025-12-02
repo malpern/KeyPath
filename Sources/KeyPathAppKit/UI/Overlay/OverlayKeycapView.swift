@@ -160,7 +160,10 @@ struct OverlayKeycapView: View {
 
     @ViewBuilder
     private var bottomAlignedContent: some View {
-        let wordLabel = metadata.wordLabel ?? key.label
+        // For wide modifier keys, prefer text labels over symbols
+        // First try effective label's wordLabel, then physical key's wordLabel, then fallback to physical label
+        let physicalMetadata = LabelMetadata.forLabel(key.label)
+        let wordLabel = metadata.wordLabel ?? physicalMetadata.wordLabel ?? key.label
         let isRight = key.isRightSideKey
 
         VStack {
