@@ -308,7 +308,8 @@ actor LayerKeyMapper {
         }
     }
 
-    /// Convert Kanata key name to display label
+    /// Convert Kanata key name to display label using standard Mac keyboard symbols
+    /// Reference: https://support.apple.com/en-us/HT201236
     private func kanataKeyToDisplayLabel(_ kanataKey: String) -> String {
         switch kanataKey.lowercased() {
         // Letters
@@ -319,57 +320,60 @@ actor LayerKeyMapper {
         case let key where key.count == 1 && key.first!.isNumber:
             return key
 
-        // Arrow keys (handle both kanata names and simulator output symbols)
+        // Arrow keys - Mac uses these specific Unicode arrows
+        // Handle both kanata names and simulator output symbols (◀▶▲▼)
         case "left", "◀": return "←"
         case "right", "▶": return "→"
         case "up", "▲": return "↑"
         case "down", "▼": return "↓"
 
         // Modifier symbols from simulator (used in combos like Cmd+Arrow)
-        case "‹◆", "◆›": return "⌘"  // Cmd (left/right)
-        case "‹⎇", "⎇›": return "⌥"  // Alt/Option (left/right)
-        case "‹⇧", "⇧›": return "⇧"  // Shift (left/right)
-        case "‹⎈", "⎈›": return "⌃"  // Ctrl (left/right)
+        // The simulator outputs ‹◆ for left-Cmd, ◆› for right-Cmd, etc.
+        case "‹◆", "◆›": return "⌘"  // Command
+        case "‹⎇", "⎇›": return "⌥"  // Option
+        case "‹⇧", "⇧›": return "⇧"  // Shift
+        case "‹⎈", "⎈›": return "⌃"  // Control
 
-        // Modifiers
-        case "leftshift", "lsft": return "⇧"
+        // Modifiers - Standard Mac symbols
+        case "leftshift", "lsft": return "⇧"   // U+21E7 Upwards White Arrow
         case "rightshift", "rsft": return "⇧"
-        case "leftmeta", "lmet": return "⌘"
+        case "leftmeta", "lmet": return "⌘"    // U+2318 Place of Interest Sign (Command)
         case "rightmeta", "rmet": return "⌘"
-        case "leftalt", "lalt": return "⌥"
+        case "leftalt", "lalt": return "⌥"     // U+2325 Option Key
         case "rightalt", "ralt": return "⌥"
-        case "leftctrl", "lctl": return "⌃"
+        case "leftctrl", "lctl": return "⌃"    // U+2303 Up Arrowhead (Control)
         case "rightctrl", "rctl": return "⌃"
 
-        // Common keys
-        case "space", "spc": return "␣"
-        case "enter", "ret": return "↩"
-        case "backspace", "bspc": return "⌫"
-        case "tab": return "⇥"
-        case "escape", "esc": return "esc"
-        case "capslock", "caps": return "⇪"
-        case "delete", "del": return "⌦"
+        // Common keys - Standard Mac symbols
+        case "space", "spc": return "␣"        // U+2423 Open Box (standard space symbol)
+        case "enter", "ret": return "↩"        // U+21A9 Return symbol
+        case "backspace", "bspc": return "⌫"   // U+232B Delete to the Left
+        case "tab": return "⇥"                 // U+21E5 Rightwards Arrow to Bar
+        case "escape", "esc": return "⎋"       // U+238B Broken Circle with Northwest Arrow (Escape)
+        case "capslock", "caps": return "⇪"    // U+21EA Upwards White Arrow from Bar (Caps Lock)
+        case "delete", "del": return "⌦"       // U+2326 Erase to the Right
+        case "fn": return "fn"                 // Function key (no standard symbol)
 
-        // Punctuation
-        case "grave": return "`"
-        case "minus": return "-"
-        case "equal": return "="
-        case "leftbrace": return "["
-        case "rightbrace": return "]"
-        case "backslash": return "\\"
-        case "semicolon": return ";"
-        case "apostrophe": return "'"
-        case "comma": return ","
-        case "dot": return "."
-        case "slash": return "/"
+        // Punctuation - Show actual characters
+        case "grave", "grv": return "`"
+        case "minus", "min": return "-"
+        case "equal", "eql": return "="
+        case "leftbrace", "lbrc": return "["
+        case "rightbrace", "rbrc": return "]"
+        case "backslash", "bksl": return "\\"
+        case "semicolon", "scln": return ";"
+        case "apostrophe", "apos": return "'"
+        case "comma", "comm": return ","
+        case "dot", ".": return "."
+        case "slash", "/": return "/"
 
         // Function keys
         case let key where key.hasPrefix("f") && Int(String(key.dropFirst())) != nil:
             return key.uppercased()
 
-        // Home/End/Page keys
-        case "home": return "⇱"
-        case "end": return "⇲"
+        // Navigation keys
+        case "home": return "↖"
+        case "end": return "↘"
         case "pageup", "pgup": return "⇞"
         case "pagedown", "pgdn": return "⇟"
 
