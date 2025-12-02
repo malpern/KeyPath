@@ -589,3 +589,43 @@ sudo ./Scripts/dev-remove-sudoers.sh
 swiftformat Sources/ Tests/ --swiftversion 5.9
 swiftlint --fix --quiet
 ```
+
+## Future Enhancements
+
+### Config Output: Physical Keyboard Layout (Medium Priority)
+**Status:** Planned | **Effort:** ~2-3 hours
+
+Currently, generated kanata configs list keys vertically by collection. Advanced kanata users prefer configs formatted as physical keyboard rows for visual scanning:
+
+```lisp
+;; Current (vertical, by collection)
+(defsrc
+  ;; === Collection: Vim ===
+  h
+  j
+  k
+  l
+  ...
+)
+
+;; Proposed (physical keyboard layout)
+(defsrc
+  esc  f1   f2   f3   f4   f5   f6   f7   f8   f9   f10  f11  f12
+  grv  1    2    3    4    5    6    7    8    9    0    min  eql  bspc
+  tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
+  caps a    s    d    f    g    h    j    k    l    ;    '    ret
+  lsft z    x    c    v    b    n    m    ,    .    /    rsft
+  fn   lctl lalt lmet      spc            rmet ralt
+)
+```
+
+**Implementation:**
+1. Define `keyboardRows: [[String]]` with kanata key names per row
+2. Build key→output map per layer (instead of outputting while iterating)
+3. Render with column alignment (pad keys to equal width)
+4. Move collection comments to header legend instead of inline
+5. (Optional) Use `deflayermap` for sparse layers to avoid 40+ `XX` entries
+
+**Files:** `ConfigurationService.swift` - `renderDefsrcBlock()`, `renderLayerBlock()`
+
+**Reference:** https://github.com/jtroo/kanata/blob/main/docs/config.adoc
