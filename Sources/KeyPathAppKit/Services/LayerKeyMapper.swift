@@ -171,8 +171,10 @@ actor LayerKeyMapper {
                 let label = key.label
 
                 group.addTask {
-                    // Single key: press, wait 50ms, release
-                    let simContent = "d:\(simName) t:50 u:\(simName)"
+                    // Single key: press, wait 50ms, release, then wait 250ms for tap-hold to resolve.
+                    // Tap-hold behaviors need time after release to determine if it was a tap (the
+                    // typical threshold is 200ms, so 250ms ensures the tap fires).
+                    let simContent = "d:\(simName) t:50 u:\(simName) t:250"
                     do {
                         let result = try await self.simulatorService.simulateKeyMapping(
                             simContent: simContent,

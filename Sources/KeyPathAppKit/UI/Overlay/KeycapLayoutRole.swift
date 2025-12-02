@@ -151,6 +151,7 @@ struct LabelMetadata {
         case "⌫": LabelMetadata(wordLabel: "delete")
         case "⇥": LabelMetadata(wordLabel: "tab")
         case "⇪": LabelMetadata(wordLabel: "caps lock")
+        case "⎋": LabelMetadata(wordLabel: "esc")
         // Bottom modifiers
         case "⌃": LabelMetadata(wordLabel: "control")
         case "⌥": LabelMetadata(wordLabel: "option")

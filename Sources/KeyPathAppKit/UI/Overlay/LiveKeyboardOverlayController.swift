@@ -201,10 +201,13 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         window.hasShadow = false
         window.delegate = self
 
-        // Always on top but not activating
+        // Always on top but not activating - prevents window from becoming key/main
         window.level = .floating
-        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
         window.isReleasedWhenClosed = false
+        window.hidesOnDeactivate = false
+        // Prevent the window from ever becoming key window (so it doesn't steal keyboard focus)
+        // Note: This relies on OverlayWindow.canBecomeKey returning false
 
         // Allow resize
         window.minSize = NSSize(width: 400, height: 150)
@@ -230,6 +233,12 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 private final class OverlayWindow: NSWindow {
     /// Keep at least this many points visible inside the screen's visibleFrame so the window is recoverable.
     private let minVisible: CGFloat = 30
+
+    /// Prevent the window from becoming key window (so it doesn't steal keyboard focus from other apps)
+    override var canBecomeKey: Bool { false }
+
+    /// Prevent the window from becoming main window
+    override var canBecomeMain: Bool { false }
 
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
         guard let screen else { return frameRect }

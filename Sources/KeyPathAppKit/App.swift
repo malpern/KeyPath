@@ -537,6 +537,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         ActionDispatcher.shared.onError = { message in
             UserNotificationService.shared.notifyActionError(message)
         }
+
+        // Wire layer action to update the overlay and layer indicator
+        // This handles push-msg "layer:X" from momentary layer activations
+        ActionDispatcher.shared.onLayerAction = { layerName in
+            Task { @MainActor in
+                // Update the keyboard overlay
+                LiveKeyboardOverlayController.shared.updateLayerName(layerName)
+
+                // Post notification for other listeners (e.g., RuleCollectionsManager)
+                NotificationCenter.default.post(
+                    name: .kanataLayerChanged,
+                    object: nil,
+                    userInfo: ["layerName": layerName]
+                )
+
+                AppLogger.shared.log("🔄 [App] Layer action dispatched: '\(layerName)'")
+            }
+        }
     }
 
     private func setupMenuBarController() {

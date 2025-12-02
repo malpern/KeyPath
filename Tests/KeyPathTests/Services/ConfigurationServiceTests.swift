@@ -142,7 +142,7 @@ class ConfigurationServiceTests: XCTestCase {
         XCTAssertTrue(config.contains("(defsrc"))
         XCTAssertTrue(config.contains("(deflayer base"))
         XCTAssertFalse(
-            config.contains("(deflayer navigation)"),
+            config.contains("(deflayer nav)"),
             "Navigation layer should not render when mac collection disabled"
         )
     }
@@ -167,9 +167,13 @@ class ConfigurationServiceTests: XCTestCase {
 
         XCTAssertTrue(config.contains("(defalias"), "Momentary activators require aliases")
         XCTAssertTrue(
-            config.contains("layer_navigation_spc"), "Alias name should reference navigation layer + key"
+            config.contains("layer_nav_spc"), "Alias name should reference navigation layer + key"
         )
-        XCTAssertTrue(config.contains("(tap-hold 200 200 spc (layer-while-held navigation))"))
+        // Momentary activator uses tap-hold with layer-while-held
+        XCTAssertTrue(
+            config.contains("(tap-hold 200 200 spc (layer-while-held nav))"),
+            "Should use tap-hold with layer-while-held for momentary activator"
+        )
 
         let baseLayer = extractLayer(named: "base", from: config)
         XCTAssertTrue(baseLayer.contains("h"), "Base layer should keep normal h key")
@@ -179,7 +183,7 @@ class ConfigurationServiceTests: XCTestCase {
         XCTAssertNotNil(hLine, "Should find h key line in base layer")
         XCTAssertFalse(hLine?.contains("left") ?? true, "h should output h in base layer, not left")
 
-        let navLayer = extractLayer(named: "navigation", from: config)
+        let navLayer = extractLayer(named: "nav", from: config)
         XCTAssertTrue(navLayer.contains("left"), "Navigation layer should emit arrow outputs")
         XCTAssertTrue(
             navLayer.contains("_"), "Navigation layer should provide placeholders for non-nav keys"
@@ -720,7 +724,7 @@ class ConfigurationServiceTests: XCTestCase {
 
         // Should have defalias section with fork
         XCTAssertTrue(config.contains("(defalias"), "Config should have defalias for fork")
-        XCTAssertTrue(config.contains("fork_navigation_g"), "Config should have fork alias for g")
+        XCTAssertTrue(config.contains("fork_nav_g"), "Config should have fork alias for g")
         XCTAssertTrue(config.contains("(fork"), "Config should contain fork action")
         // Fork with single key should use (multi ...) format
         XCTAssertTrue(config.contains("(multi lmet up)"), "Default output should use (multi lmet up)")
@@ -747,7 +751,7 @@ class ConfigurationServiceTests: XCTestCase {
         let config = KanataConfiguration.generateFromCollections([nav])
 
         XCTAssertTrue(config.contains("(defalias"), "Config should have defalias for fork")
-        XCTAssertTrue(config.contains("fork_navigation_d"), "Config should have fork alias for d")
+        XCTAssertTrue(config.contains("fork_nav_d"), "Config should have fork alias for d")
         XCTAssertTrue(config.contains("(fork"), "Config should contain fork action")
         XCTAssertTrue(config.contains("(multi lalt bspc)"), "Default output should use (multi lalt bspc)")
         XCTAssertTrue(config.contains("pgdn"), "Ctrl output should be pgdn")
@@ -773,7 +777,7 @@ class ConfigurationServiceTests: XCTestCase {
         let config = KanataConfiguration.generateFromCollections([nav])
 
         XCTAssertTrue(config.contains("(defalias"), "Config should have defalias")
-        XCTAssertTrue(config.contains("fork_navigation_o"), "Config should have fork alias for o")
+        XCTAssertTrue(config.contains("fork_nav_o"), "Config should have fork alias for o")
         // Macros should use uppercase M-right, not lowercase m-right
         XCTAssertTrue(config.contains("(macro M-right ret)"), "Default macro should have uppercase M-right")
         XCTAssertTrue(
@@ -803,7 +807,7 @@ class ConfigurationServiceTests: XCTestCase {
         let config = KanataConfiguration.generateFromCollections([nav])
 
         // Unmapped alpha key like "a" should be blocked (XX) in navigation layer
-        XCTAssertTrue(config.contains("(deflayer navigation"), "Should render navigation layer")
+        XCTAssertTrue(config.contains("(deflayer nav"), "Should render navigation layer")
         XCTAssertTrue(config.contains("XX"), "Navigation layer should include blocked XX entries")
         // Ensure the mapped key still appears with its action
         XCTAssertTrue(config.contains("left"), "Mapped action should remain present")

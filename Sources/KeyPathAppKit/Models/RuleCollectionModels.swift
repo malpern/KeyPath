@@ -212,7 +212,7 @@ public enum RuleCollectionLayer: Codable, Equatable, Sendable, Hashable {
     public var kanataName: String {
         switch self {
         case .base: "base"
-        case .navigation: "navigation"
+        case .navigation: "nav"
         case let .custom(name): name.lowercased()
         }
     }
@@ -231,7 +231,7 @@ public enum RuleCollectionLayer: Codable, Equatable, Sendable, Hashable {
         let rawValue = try container.decode(String.self)
         switch rawValue {
         case "base": self = .base
-        case "navigation": self = .navigation
+        case "nav", "navigation": self = .navigation
         default: self = .custom(rawValue)
         }
     }
