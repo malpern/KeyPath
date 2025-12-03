@@ -342,8 +342,22 @@ actor LayerKeyMapper {
             return nil
         }
 
+        return Self.labelForOutputKeys(keySet, displayForKey: kanataKeyToDisplayLabel)
+    }
+
+    /// Map a set of output key names (lowercased) to a display label, with Hyper/Meh detection.
+    /// - Parameters:
+    ///   - outputs: set of output key names (e.g., ["lctl","lmet","lalt","lsft"])
+    ///   - displayForKey: converter from kanata key name to display label (e.g., "lmet" -> "⌘")
+    /// - Returns: display label or nil if empty
+    static func labelForOutputKeys(
+        _ outputs: Set<String>,
+        displayForKey: (String) -> String
+    ) -> String? {
+        if outputs.isEmpty { return nil }
+
         // Normalize modifier aliases and be tolerant of naming variants
-        let normalizedSet: Set<String> = Set(keySet.map { key in
+        let normalizedSet: Set<String> = Set(outputs.map { key in
             switch key {
             case "cmd", "lcmd", "command", "lcommand", "meta": "lmet"
             case "rmet": "lmet"
@@ -367,11 +381,11 @@ actor LayerKeyMapper {
         }
 
         if normalizedSet.count == 1, let only = normalizedSet.first {
-            return kanataKeyToDisplayLabel(only)
+            return displayForKey(only)
         }
 
         // Fallback: join display labels for combo
-        let labels = normalizedSet.map { kanataKeyToDisplayLabel($0) }.sorted()
+        let labels = normalizedSet.map { displayForKey($0) }.sorted()
         return labels.joined()
     }
 
