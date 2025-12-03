@@ -33,9 +33,11 @@ struct OverlayKeyboardView: View {
 
             ZStack(alignment: .topLeading) {
                 ForEach(layout.keys) { key in
-                    // Use only effectivePressedKeyCodes (TCP physical keys)
-                    // This shows only the actual physical keys pressed, not remapped outputs
-                    let isPressed = effectivePressedKeyCodes.contains(key.keyCode)
+                    // Prefer TCP physical keys; fall back to local pressed set if TCP data is unavailable
+                    let hasTcp = !effectivePressedKeyCodes.isEmpty
+                    let isPressed = hasTcp
+                        ? effectivePressedKeyCodes.contains(key.keyCode)
+                        : pressedKeyCodes.contains(key.keyCode)
 
                     OverlayKeycapView(
                         key: key,
