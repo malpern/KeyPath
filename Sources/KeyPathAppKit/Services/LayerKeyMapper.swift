@@ -333,6 +333,13 @@ actor LayerKeyMapper {
         let keySet = !pressedOutputs.isEmpty ? pressedOutputs : lastNonEmptyOutputs
         AppLogger.shared.info("🔒 [LayerKeyMapper] holdDisplayLabel outputs=\(Array(keySet)) keyCode=\(keyCode) sim=\(simName)")
         if keySet.isEmpty {
+            let outputEvents = result.events.compactMap { event -> (UInt64, String, String)? in
+                if case let .output(t, action, key) = event {
+                    return (t, String(describing: action), key)
+                }
+                return nil
+            }
+            AppLogger.shared.info("🔒 [LayerKeyMapper] holdDisplayLabel no outputs, raw output events=\(outputEvents)")
             // Fallback to first output press if we didn't catch any net presses
             if let firstOutput = result.events.compactMap({ event -> String? in
                 if case let .output(_, action, key) = event, action == .press { return key }
