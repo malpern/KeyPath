@@ -82,4 +82,21 @@ final class KeyboardVisualizationViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.pressedKeyCodes.contains(55))
         XCTAssertFalse(viewModel.pressedKeyCodes.contains(54))
     }
+
+    func testHoldActivatedSetsLabelAndClearsOnRelease() async {
+        let viewModel = KeyboardVisualizationViewModel()
+
+        // Simulate tap-hold crossing into hold state (Hyper)
+        viewModel.simulateHoldActivated(key: "caps", action: "lctl+lmet+lalt+lsft")
+        await Task.yield()
+
+        // caps -> keyCode 57
+        XCTAssertEqual(viewModel.holdLabels[57], "✦")
+
+        // Releasing the key should clear the hold label
+        viewModel.simulateTcpKeyInput(key: "caps", action: "release")
+        await Task.yield()
+
+        XCTAssertNil(viewModel.holdLabels[57])
+    }
 }

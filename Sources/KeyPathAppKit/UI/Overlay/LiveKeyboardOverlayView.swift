@@ -29,7 +29,8 @@ struct LiveKeyboardOverlayView: View {
                 isLoadingLayerMap: viewModel.isLoadingLayerMap,
                 layerKeyMap: viewModel.layerKeyMap,
                 effectivePressedKeyCodes: viewModel.effectivePressedKeyCodes,
-                emphasizedKeyCodes: viewModel.emphasizedKeyCodes
+                emphasizedKeyCodes: viewModel.emphasizedKeyCodes,
+                holdLabels: viewModel.holdLabels
             )
             .environmentObject(viewModel)
             .padding(10)

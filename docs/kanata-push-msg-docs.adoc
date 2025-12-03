@@ -41,6 +41,16 @@ Messages are sent as newline-terminated JSON in the format:
 {"MessagePush":{"message":"your-message-here"}}
 ----
 
+== Live overlay events (TCP)
+
+When the TCP server is enabled, Kanata can also emit live events that UIs (like KeyPath) can subscribe to. These are additive and backward-compatible; unknown messages should be ignored by clients.
+
+- `KeyInput`: Physical key press/release from the keyboard.
+- `LayerChange` / `CurrentLayerName`: Current layer updates.
+- `HoldActivated`: Sent when a tap-hold key crosses its hold timeout (HoldTap timeout path). Payload: `{"HoldActivated":{"key":"caps","action":"","t":12345}}`. The `action` field may be an empty string; clients should resolve the display label from their own config/layer mapping.
+
+Capabilities: the server advertises supported overlay events in the `HelloOk.capabilities` list. Presence of `"hold_activated"` means `HoldActivated` may be sent.
+
 Compared to the <<cmd>> action, `push-msg` offers:
 
 - **Better security**: No shell execution, no privilege escalation risks

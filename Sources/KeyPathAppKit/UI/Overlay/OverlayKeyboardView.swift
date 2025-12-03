@@ -16,6 +16,8 @@ struct OverlayKeyboardView: View {
     var effectivePressedKeyCodes: Set<UInt16> = []
     /// Key codes to emphasize (highlight with accent color for layer hints)
     var emphasizedKeyCodes: Set<UInt16> = []
+    /// Hold labels for tap-hold keys in hold state: keyCode -> display label
+    var holdLabels: [UInt16: String] = [:]
 
     /// Track caps lock state from system
     @State private var isCapsLockOn: Bool = NSEvent.modifierFlags.contains(.capsLock)
@@ -31,10 +33,9 @@ struct OverlayKeyboardView: View {
 
             ZStack(alignment: .topLeading) {
                 ForEach(layout.keys) { key in
-                    // Use effectivePressedKeyCodes for dual highlighting
-                    // This includes both physical pressed keys AND their remapped outputs
+                    // Use only effectivePressedKeyCodes (TCP physical keys)
+                    // This shows only the actual physical keys pressed, not remapped outputs
                     let isPressed = effectivePressedKeyCodes.contains(key.keyCode)
-                        || pressedKeyCodes.contains(key.keyCode)
 
                     OverlayKeycapView(
                         key: key,
@@ -46,7 +47,8 @@ struct OverlayKeyboardView: View {
                         currentLayerName: currentLayerName,
                         isLoadingLayerMap: isLoadingLayerMap,
                         layerKeyInfo: layerKeyMap[key.keyCode],
-                        isEmphasized: emphasizedKeyCodes.contains(key.keyCode)
+                        isEmphasized: emphasizedKeyCodes.contains(key.keyCode),
+                        holdLabel: holdLabels[key.keyCode]
                     )
                     .frame(
                         width: keyWidth(for: key, scale: scale),
@@ -61,7 +63,7 @@ struct OverlayKeyboardView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .aspectRatio(layout.totalWidth / layout.totalHeight, contentMode: .fit)
-        .onChange(of: pressedKeyCodes) { _, _ in
+        .onChange(of: effectivePressedKeyCodes) { _, _ in
             // Update caps lock state when any key changes (captures toggle)
             isCapsLockOn = NSEvent.modifierFlags.contains(.capsLock)
         }

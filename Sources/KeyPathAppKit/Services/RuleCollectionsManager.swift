@@ -142,7 +142,7 @@ final class RuleCollectionsManager {
 
     // MARK: - Event Monitoring
 
-    /// Start listening for events from Kanata TCP server (layer changes, action URIs)
+    /// Start listening for events from Kanata TCP server (layer changes, action URIs, key input)
     func startEventMonitoring(port: Int) {
         AppLogger.shared.log("🌐 [RuleCollectionsManager] Starting event monitoring on port \(port)")
         guard !TestEnvironment.isRunningTests else {
@@ -170,6 +170,28 @@ final class RuleCollectionsManager {
                     guard let self else { return }
                     await MainActor.run {
                         self.handleUnknownMessage(message)
+                    }
+                },
+                onKeyInput: { key, action in
+                    // Post notification for TCP-based physical key input events
+                    // Used by KeyboardVisualizationViewModel for overlay highlighting
+                    await MainActor.run {
+                        NotificationCenter.default.post(
+                            name: .kanataKeyInput,
+                            object: nil,
+                            userInfo: ["key": key, "action": action.rawValue.lowercased()]
+                        )
+                    }
+                },
+                onHoldActivated: { activation in
+                    // Post notification when tap-hold key transitions to hold state
+                    // Used by KeyboardVisualizationViewModel for showing hold labels
+                    await MainActor.run {
+                        NotificationCenter.default.post(
+                            name: .kanataHoldActivated,
+                            object: nil,
+                            userInfo: ["key": activation.key, "action": activation.action]
+                        )
                     }
                 }
             )

@@ -231,10 +231,31 @@ public enum KanataEvent: Sendable {
     case actionURI(KeyPathActionURI)
     /// Raw message received (non-keypath:// format)
     case rawMessage(String)
+    /// Key input event (physical key press/release)
+    case keyInput(key: String, action: KanataKeyAction, timestamp: UInt64)
+}
+
+/// Key action from Kanata TCP KeyInput events
+/// Note: Kanata uses serde(rename_all = "lowercase") so actions are lowercase in JSON
+public enum KanataKeyAction: String, Sendable {
+    case press = "press"
+    case release = "release"
+    case `repeat` = "repeat"
+}
+
+/// Hold activation info from Kanata TCP HoldActivated events
+/// Sent when a tap-hold key transitions to hold state after the hold threshold
+public struct KanataHoldActivation: Sendable {
+    /// Physical key name (e.g., "caps")
+    public let key: String
+    /// Hold action description (e.g., "lctl+lmet+lalt+lsft")
+    public let action: String
+    /// Timestamp in milliseconds since Kanata start
+    public let timestamp: UInt64
 }
 
 /// Monitors Kanata's TCP server for events.
-/// Handles `LayerChange`, `CurrentLayerName`, and `MessagePush` messages.
+/// Handles `LayerChange`, `CurrentLayerName`, `MessagePush`, and `KeyInput` messages.
 actor KanataEventListener {
     private var listenTask: Task<Void, Never>?
     private var pollTask: Task<Void, Never>?
@@ -242,6 +263,10 @@ actor KanataEventListener {
     private var layerHandler: (@Sendable (String) async -> Void)?
     private var actionURIHandler: (@Sendable (KeyPathActionURI) async -> Void)?
     private var unknownMessageHandler: (@Sendable (String) async -> Void)?
+    private var keyInputHandler: (@Sendable (String, KanataKeyAction) async -> Void)?
+    private var holdActivatedHandler: (@Sendable (KanataHoldActivation) async -> Void)?
+    /// Capabilities advertised by Kanata in HelloOk (e.g., "hold_activated").
+    private var capabilities: Set<String> = []
     private let listenerQueue = DispatchQueue(label: "com.keypath.event-listener")
 
     /// Start listening for Kanata events
@@ -250,11 +275,15 @@ actor KanataEventListener {
     ///   - onLayerChange: Called when layer changes (LayerChange or CurrentLayerName)
     ///   - onActionURI: Called when a `keypath://` URI is received via push-msg
     ///   - onUnknownMessage: Called for non-keypath:// messages (for debugging/errors)
+    ///   - onKeyInput: Called when a physical key is pressed/released (from Kanata's KeyInput events)
+    ///   - onHoldActivated: Called when a tap-hold key transitions to hold state
     func start(
         port: Int,
         onLayerChange: @escaping @Sendable (String) async -> Void,
         onActionURI: (@Sendable (KeyPathActionURI) async -> Void)? = nil,
-        onUnknownMessage: (@Sendable (String) async -> Void)? = nil
+        onUnknownMessage: (@Sendable (String) async -> Void)? = nil,
+        onKeyInput: (@Sendable (String, KanataKeyAction) async -> Void)? = nil,
+        onHoldActivated: (@Sendable (KanataHoldActivation) async -> Void)? = nil
     ) async {
         if self.port == port, listenTask != nil { return }
         await stop()
@@ -263,6 +292,8 @@ actor KanataEventListener {
         layerHandler = onLayerChange
         actionURIHandler = onActionURI
         unknownMessageHandler = onUnknownMessage
+        keyInputHandler = onKeyInput
+        holdActivatedHandler = onHoldActivated
         AppLogger.shared.log("🌐 [EventListener] Starting event listener on port \(port)")
         listenTask = Task(priority: .background) { [weak self] in
             guard let self else { return }
@@ -280,6 +311,8 @@ actor KanataEventListener {
         layerHandler = nil
         actionURIHandler = nil
         unknownMessageHandler = nil
+        keyInputHandler = nil
+        holdActivatedHandler = nil
     }
 
     private func listenLoop() async {
@@ -469,6 +502,49 @@ actor KanataEventListener {
                         await handler(messageString)
                     }
                 }
+            }
+            return
+        }
+
+        // Handle KeyInput events (physical key press/release from Kanata)
+        // Format from Kanata: {"KeyInput":{"key":"h","action":"press","t":12345}}
+        if let keyInput = json["KeyInput"] as? [String: Any],
+           let key = keyInput["key"] as? String,
+           let actionStr = keyInput["action"] as? String {
+            if let action = KanataKeyAction(rawValue: actionStr) {
+                AppLogger.shared.debug("⌨️ [EventListener] KeyInput: \(key) \(action)")
+                if let handler = keyInputHandler {
+                    await handler(key, action)
+                }
+            }
+            return
+        }
+
+        // Handle HelloOk (capability advertisement)
+        if let helloOk = json["HelloOk"] as? [String: Any] {
+            let caps = (helloOk["capabilities"] as? [String]) ?? []
+            capabilities = Set(caps.map { $0.lowercased() })
+            AppLogger.shared.log(
+                "🌐 [EventListener] HelloOk caps=\(caps.joined(separator: ",")) protocol=\(helloOk["protocol"] ?? "?")"
+            )
+            return
+        }
+
+        // Handle HoldActivated events (tap-hold key transitioned to hold state)
+        // Format from Kanata: {"HoldActivated":{"key":"caps","action":"lctl+lmet+lalt+lsft","t":12345}}
+        if let holdActivated = json["HoldActivated"] as? [String: Any],
+           let key = holdActivated["key"] as? String,
+           let action = holdActivated["action"] as? String,
+           let timestamp = holdActivated["t"] as? UInt64 {
+            // Respect capability advertisement when available; still process for backward compat
+            if capabilities.isEmpty || capabilities.contains("hold_activated") {
+                AppLogger.shared.log("🔒 [EventListener] HoldActivated: \(key) -> \(action)")
+                let activation = KanataHoldActivation(key: key, action: action, timestamp: timestamp)
+                if let handler = holdActivatedHandler {
+                    await handler(activation)
+                }
+            } else {
+                AppLogger.shared.debug("🔒 [EventListener] HoldActivated ignored (capability not advertised)")
             }
             return
         }

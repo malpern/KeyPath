@@ -278,6 +278,42 @@ actor LayerKeyMapper {
         return mapping
     }
 
+    /// Derive the hold-action display label for a specific physical key by simulating a long press.
+    /// Used when Kanata's HoldActivated event omits the action string.
+    /// - Parameters:
+    ///   - keyCode: macOS virtual key code
+    ///   - configPath: Kanata config path
+    ///   - startLayer: Layer to start the simulation in
+    /// - Returns: Display label for the hold action, or nil if not resolved
+    func holdDisplayLabel(
+        for keyCode: UInt16,
+        configPath: String,
+        startLayer: String
+    ) async throws -> String? {
+        let tcpName = OverlayKeyboardView.keyCodeToKanataName(keyCode)
+        let simName = toSimulatorKeyName(tcpName)
+
+        // Long press: hold for 400ms to exceed typical tap-hold timeouts (200ms default)
+        // Use simulateRaw to specify start layer and a long press
+        let simContent = "d:\(simName) t:400 u:\(simName)"
+        let result = try await simulatorService.simulateRaw(
+            simContent: simContent,
+            configPath: configPath,
+            startLayer: startLayer
+        )
+
+        // Find the first output press event — for dual-role keys this should be the hold action
+        if let outputKey = result.events.compactMap({ event -> String? in
+            if case let .output(_, action, key) = event, action == .press {
+                return key
+            }
+            return nil
+        }).first {
+            return kanataKeyToDisplayLabel(outputKey)
+        }
+        return nil
+    }
+
     // MARK: - Key Name Conversion
 
     /// Convert TCP key name (from OverlayKeyboardView.keyCodeToKanataName) to simulator-compatible name

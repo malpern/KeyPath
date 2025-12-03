@@ -23,14 +23,20 @@ struct OverlayKeycapView: View {
     var layerKeyInfo: LayerKeyInfo?
     /// Whether this key is emphasized (highlighted with accent color for layer hints)
     var isEmphasized: Bool = false
+    /// Hold label to display when tap-hold key is in hold state
+    var holdLabel: String?
 
     /// Size thresholds for typography adaptation
     private var isSmallSize: Bool { scale < 0.8 }
     private var isLargeSize: Bool { scale >= 1.5 }
 
-    /// The effective label to display (from layer mapping or physical key)
+    /// The effective label to display (hold label > layer mapping > physical key)
     private var effectiveLabel: String {
-        layerKeyInfo?.displayLabel ?? key.label
+        // When key is pressed with a hold label, show the hold label
+        if isPressed, let holdLabel {
+            return holdLabel
+        }
+        return layerKeyInfo?.displayLabel ?? key.label
     }
 
     /// Optical adjustments for current label
