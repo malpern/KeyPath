@@ -315,6 +315,10 @@ actor LayerKeyMapper {
                 } else if action == .release {
                     // Stop tracking at input release; hold outputs should be active just before this.
                     trackingOutputs = false
+                    // Preserve the last known non-empty set when we stop tracking
+                    if !pressedOutputs.isEmpty {
+                        lastNonEmptyOutputs = pressedOutputs
+                    }
                 }
             case let .output(t, action, key) where trackingOutputs:
                 if action == .press {
@@ -373,6 +377,11 @@ actor LayerKeyMapper {
             case "rctl", "rctrl", "rcontrol": "lctl"
             case "ralt": "lalt"
             case "rsft", "rshift", "shift": "lsft"
+            // Simulator-specific left-side modifier symbols (‹…›)
+            case "‹⎈": "lctl" // Control
+            case "‹◆": "lmet" // Command
+            case "‹⎇": "lalt" // Option
+            case "‹⇧": "lsft" // Shift
             default: key
             }
         })
