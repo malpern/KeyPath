@@ -302,18 +302,45 @@ actor LayerKeyMapper {
             startLayer: startLayer
         )
 
-        // Collect output press events; use earliest timestamp to detect combos (Hyper, Meh, etc.)
-        let outputPresses: [(UInt64, String)] = result.events.compactMap { event in
-            if case let .output(t, action, key) = event, action == .press {
-                return (t, key)
+        // Track net pressed output keys between the input press and its release.
+        var trackingOutputs = false
+        var pressedOutputs = Set<String>()
+        var maxPressWindowMs: UInt64 = 0
+
+        for event in result.events {
+            switch event {
+            case let .input(t, action, key) where key.lowercased() == simName.lowercased():
+                if action == .press {
+                    trackingOutputs = true
+                    maxPressWindowMs = t + 30 // allow 30ms of output settling
+                } else if action == .release {
+                    // Stop tracking at input release; hold outputs should be active just before this.
+                    break
+                }
+            case let .output(t, action, key) where trackingOutputs:
+                // Ignore outputs that arrive long after input press; hold combos usually settle quickly
+                if t > maxPressWindowMs { continue }
+                if action == .press {
+                    pressedOutputs.insert(key.lowercased())
+                } else if action == .release {
+                    pressedOutputs.remove(key.lowercased())
+                }
+            default:
+                continue
+            }
+        }
+
+        let keySet = pressedOutputs
+        if keySet.isEmpty {
+            // Fallback to first output press if we didn't catch any net presses
+            if let firstOutput = result.events.compactMap({ event -> String? in
+                if case let .output(_, action, key) = event, action == .press { return key }
+                return nil
+            }).first {
+                return kanataKeyToDisplayLabel(firstOutput)
             }
             return nil
         }
-        guard let firstTs = outputPresses.first?.0 else { return nil }
-        let keysAtFirstTs = outputPresses
-            .filter { $0.0 == firstTs }
-            .map { $0.1.lowercased() }
-        let keySet = Set(keysAtFirstTs)
 
         // Hyper detection (Ctrl+Cmd+Alt+Shift)
         let hyperSet: Set<String> = ["lctl", "lmet", "lalt", "lsft"]
@@ -326,12 +353,12 @@ actor LayerKeyMapper {
             return "◆"
         }
 
-        if keysAtFirstTs.count == 1, let only = keysAtFirstTs.first {
+        if keySet.count == 1, let only = keySet.first {
             return kanataKeyToDisplayLabel(only)
         }
 
         // Fallback: join display labels for combo
-        let labels = keysAtFirstTs.map { kanataKeyToDisplayLabel($0) }
+        let labels = keySet.map { kanataKeyToDisplayLabel($0) }.sorted()
         return labels.joined()
     }
 
