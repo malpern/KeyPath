@@ -305,32 +305,32 @@ actor LayerKeyMapper {
         // Track net pressed output keys between the input press and its release.
         var trackingOutputs = false
         var pressedOutputs = Set<String>()
-        var maxPressWindowMs: UInt64 = 0
+        var lastNonEmptyOutputs = Set<String>()
 
         for event in result.events {
             switch event {
-            case let .input(t, action, key) where key.lowercased() == simName.lowercased():
+            case let .input(_, action, key) where key.lowercased() == simName.lowercased():
                 if action == .press {
                     trackingOutputs = true
-                    maxPressWindowMs = t + 30 // allow 30ms of output settling
                 } else if action == .release {
                     // Stop tracking at input release; hold outputs should be active just before this.
-                    break
+                    trackingOutputs = false
                 }
             case let .output(t, action, key) where trackingOutputs:
-                // Ignore outputs that arrive long after input press; hold combos usually settle quickly
-                if t > maxPressWindowMs { continue }
                 if action == .press {
                     pressedOutputs.insert(key.lowercased())
                 } else if action == .release {
                     pressedOutputs.remove(key.lowercased())
+                }
+                if !pressedOutputs.isEmpty {
+                    lastNonEmptyOutputs = pressedOutputs
                 }
             default:
                 continue
             }
         }
 
-        let keySet = pressedOutputs
+        let keySet = !pressedOutputs.isEmpty ? pressedOutputs : lastNonEmptyOutputs
         if keySet.isEmpty {
             // Fallback to first output press if we didn't catch any net presses
             if let firstOutput = result.events.compactMap({ event -> String? in
@@ -342,23 +342,35 @@ actor LayerKeyMapper {
             return nil
         }
 
+        // Normalize modifier aliases
+        let normalizedSet: Set<String> = Set(keySet.map { key in
+            switch key {
+            case "cmd": "lmet"
+            case "rmet": "lmet"
+            case "rctl": "lctl"
+            case "ralt": "lalt"
+            case "rsft", "rshift": "lsft"
+            default: key
+            }
+        })
+
         // Hyper detection (Ctrl+Cmd+Alt+Shift)
         let hyperSet: Set<String> = ["lctl", "lmet", "lalt", "lsft"]
-        if keySet == hyperSet || keySet == Set(["lctl", "lmet", "lalt", "lshift"]) {
+        if normalizedSet == hyperSet || normalizedSet == Set(["lctl", "lmet", "lalt", "lshift"]) {
             return "✦"
         }
         // Meh detection (Ctrl+Alt+Shift)
         let mehSet: Set<String> = ["lctl", "lalt", "lsft"]
-        if keySet == mehSet {
+        if normalizedSet == mehSet {
             return "◆"
         }
 
-        if keySet.count == 1, let only = keySet.first {
+        if normalizedSet.count == 1, let only = normalizedSet.first {
             return kanataKeyToDisplayLabel(only)
         }
 
         // Fallback: join display labels for combo
-        let labels = keySet.map { kanataKeyToDisplayLabel($0) }.sorted()
+        let labels = normalizedSet.map { kanataKeyToDisplayLabel($0) }.sorted()
         return labels.joined()
     }
 
