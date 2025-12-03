@@ -309,8 +309,12 @@ actor LayerKeyMapper {
 
         for event in result.events {
             switch event {
-            case let .input(_, action, key) where key.lowercased() == simName.lowercased():
+            case let .input(_, action, _):
                 if action == .press {
+                    // Start tracking as soon as the simulated key is pressed. The simulator may
+                    // use display-style symbols (e.g. "⇪" for caps) instead of the simulator
+                    // name ("caps"), so key-matching is brittle. We only simulate one key per
+                    // run, so tracking from the first press is safe and avoids alias issues.
                     trackingOutputs = true
                 } else if action == .release {
                     // Stop tracking at input release; hold outputs should be active just before this.
@@ -320,7 +324,7 @@ actor LayerKeyMapper {
                         lastNonEmptyOutputs = pressedOutputs
                     }
                 }
-            case let .output(t, action, key) where trackingOutputs:
+            case let .output(_, action, key) where trackingOutputs:
                 if action == .press {
                     pressedOutputs.insert(key.lowercased())
                 } else if action == .release {
