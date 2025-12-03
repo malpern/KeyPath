@@ -253,6 +253,7 @@ struct ContentView: View {
                         AppLogger.shared.log(
                             "🔍 [ContentView] Starting at \(page.displayName) page after permission grant")
                     }
+                    LiveKeyboardOverlayController.shared.autoHideOnceForSettings()
                 }
                 .onDisappear {
                     // When wizard closes, call SimpleRuntimeCoordinator to handle the closure
@@ -265,6 +266,8 @@ struct ContentView: View {
                         // Do NOT trigger here to avoid duplicate validations
                         await kanataManager.updateStatus()
                     }
+
+                    LiveKeyboardOverlayController.shared.resetSettingsAutoHideGuard()
                 }
                 .environmentObject(kanataManager)
         }
