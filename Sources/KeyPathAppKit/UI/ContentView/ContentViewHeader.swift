@@ -24,6 +24,7 @@ struct ContentViewHeader: View {
                     }
                 )
                 .buttonStyle(PlainButtonStyle())
+                .focusable(false) // Prevent spacebar from triggering wizard when header gains focus
                 .accessibilityIdentifier("launch-installation-wizard-button")
                 .accessibilityLabel("Launch Installation Wizard")
                 .accessibilityHint("Click to open the KeyPath installation and setup wizard")

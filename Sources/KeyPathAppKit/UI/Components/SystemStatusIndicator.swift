@@ -58,6 +58,7 @@ struct SystemStatusIndicator: View {
             }
         }
         .buttonStyle(.plain)
+        .focusable(false) // Prevent space/enter focus activation on launch
         .help(validator.statusTooltip)
         .scaleEffect(isHovered ? 1.1 : 1.0)
         .animation(.easeInOut(duration: 0.15), value: isHovered)
