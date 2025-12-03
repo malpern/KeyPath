@@ -8,6 +8,12 @@ final class LayerKeyMapperLabelTests: XCTestCase {
         XCTAssertEqual(label, "✦")
     }
 
+    func testHyperDetectionWithPlainModifierNames() {
+        let outputs: Set<String> = ["lctl", "lmet", "lalt", "lsft"]
+        let label = LayerKeyMapper.labelForOutputKeys(outputs) { key in key }
+        XCTAssertEqual(label, "✦")
+    }
+
     func testMehDetectionWithMixedAliases() {
         let outputs: Set<String> = ["control", "lalt", "shift"]
         let label = LayerKeyMapper.labelForOutputKeys(outputs) { key in key }
