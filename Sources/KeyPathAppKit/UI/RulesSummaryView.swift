@@ -737,7 +737,10 @@ private struct ExpandableCollectionRow: View {
                                     }
                                 }
 
-                                Text("Timing: \(config.timing.tapWindow)ms tap, \(config.timing.holdDelay)ms hold")
+                                let hasOffsets = !config.timing.tapOffsets.isEmpty
+                                let quickTapText = config.timing.quickTapEnabled ? "Quick tap on" : "Quick tap off"
+                                let quickTapTerm = config.timing.quickTapEnabled && config.timing.quickTapTermMs > 0 ? " + \(config.timing.quickTapTermMs)ms" : ""
+                                Text("Timing: \(config.timing.tapWindow)ms tap\(quickTapTerm)\(hasOffsets ? " (+ per-key offsets)" : ""), \(config.timing.holdDelay)ms hold · \(quickTapText)")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }

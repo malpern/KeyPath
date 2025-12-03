@@ -505,14 +505,22 @@ public struct KanataConfiguration: Sendable {
         for key in config.enabledKeys {
             guard let modifier = config.modifierAssignments[key] else { continue }
 
+            let tapTimeout = max(
+                1,
+                config.timing.tapWindow
+                    + (config.timing.tapOffsets[key] ?? 0)
+                    + (config.timing.quickTapEnabled ? config.timing.quickTapTermMs : 0)
+            )
+            let holdTimeout = max(1, config.timing.holdDelay)
+
             // Create dual-role behavior: tap = letter, hold = modifier
             let behavior = DualRoleBehavior(
                 tapAction: key,
                 holdAction: modifier,
-                tapTimeout: config.timing.tapWindow,
-                holdTimeout: config.timing.holdDelay,
+                tapTimeout: tapTimeout,
+                holdTimeout: holdTimeout,
                 activateHoldOnOtherKey: true, // Best for home-row mods
-                quickTap: false,
+                quickTap: config.timing.quickTapEnabled,
                 customTapKeys: []
             )
 

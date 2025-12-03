@@ -65,6 +65,25 @@ struct HomeRowModsModalView: View {
                         Text("Which keys?")
                             .font(.headline)
 
+                        Picker("Preset", selection: Binding(
+                            get: { presetSelection(from: localConfig.modifierAssignments) },
+                            set: { preset in
+                                switch preset {
+                                case .macCAGS:
+                                    localConfig.modifierAssignments = HomeRowModsConfig.cagsMacDefault
+                                case .winGACS:
+                                    localConfig.modifierAssignments = HomeRowModsConfig.gacsWindows
+                                case .custom:
+                                    break
+                                }
+                            }
+                        )) {
+                            Text("Mac (CAGS: Cmd on index)").tag(HomeRowPreset.macCAGS)
+                            Text("Windows/Linux (GACS)").tag(HomeRowPreset.winGACS)
+                            Text("Custom").tag(HomeRowPreset.custom)
+                        }
+                        .pickerStyle(.segmented)
+
                         Picker("Key Selection", selection: Binding(
                             get: { localConfig.keySelection },
                             set: { newValue in
@@ -128,6 +147,70 @@ struct HomeRowModsModalView: View {
                                         .foregroundColor(.secondary)
                                 }
                             }
+                        }
+
+                        Toggle("Favor tap when another key is pressed (quick tap)", isOn: Binding(
+                            get: { localConfig.timing.quickTapEnabled },
+                            set: { localConfig.timing.quickTapEnabled = $0 }
+                        ))
+                        .toggleStyle(.checkbox)
+
+                        HStack {
+                            Text("Quick tap term")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            Slider(value: Binding(
+                                get: { Double(localConfig.timing.quickTapTermMs) },
+                                set: { localConfig.timing.quickTapTermMs = Int($0) }
+                            ), in: 0...80, step: 5)
+                            Text("\(localConfig.timing.quickTapTermMs) ms")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .frame(width: 60, alignment: .trailing)
+                        }
+                        .disabled(!localConfig.timing.quickTapEnabled)
+
+                        Toggle("Show per-key tap offsets", isOn: Binding(
+                            get: { localConfig.showAdvanced },
+                            set: { localConfig.showAdvanced = $0 }
+                        ))
+                        .toggleStyle(.checkbox)
+
+                        if localConfig.showAdvanced {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Per-key tap offsets (ms)")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+
+                                ForEach(chunks(of: HomeRowModsConfig.allKeys, size: 4), id: \.self) { row in
+                                    HStack(spacing: 12) {
+                                        ForEach(row, id: \.self) { key in
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                Text(key.uppercased())
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                                TextField("0", value: Binding(
+                                                    get: { localConfig.timing.tapOffsets[key] ?? 0 },
+                                                    set: { newValue in
+                                                        if newValue == 0 {
+                                                            localConfig.timing.tapOffsets.removeValue(forKey: key)
+                                                        } else {
+                                                            localConfig.timing.tapOffsets[key] = newValue
+                                                        }
+                                                    }
+                                                ), format: .number)
+                                                .textFieldStyle(.roundedBorder)
+                                                .frame(width: 70)
+                                            }
+                                        }
+                                        Spacer()
+                                    }
+                                }
+                                Text("Positive values extend the tap window for that key; leave blank/0 for default.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .transition(.opacity.combined(with: .move(edge: .top)))
                         }
                     }
                     .padding(.horizontal)
@@ -260,8 +343,8 @@ struct HomeRowModsModalView: View {
             VStack(spacing: 4) {
                 Text(symbol)
                     .font(.title2)
-                Text(label)
-                    .font(.caption)
+            Text(label)
+                .font(.caption)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
@@ -277,4 +360,24 @@ struct HomeRowModsModalView: View {
         }
         .buttonStyle(.plain)
     }
+}
+
+// MARK: - Helpers
+
+private func chunks<T>(of array: [T], size: Int) -> [[T]] {
+    stride(from: 0, to: array.count, by: size).map { start in
+        Array(array[start..<min(start + size, array.count)])
+    }
+}
+
+private enum HomeRowPreset: Hashable {
+    case macCAGS
+    case winGACS
+    case custom
+}
+
+private func presetSelection(from assignments: [String: String]) -> HomeRowPreset {
+    if assignments == HomeRowModsConfig.cagsMacDefault { return .macCAGS }
+    if assignments == HomeRowModsConfig.gacsWindows { return .winGACS }
+    return .custom
 }
