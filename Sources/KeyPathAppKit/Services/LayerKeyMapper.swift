@@ -480,7 +480,7 @@ actor LayerKeyMapper {
         case "leftctrl", "lctl": "⌃" // U+2303 Up Arrowhead (Control)
         case "rightctrl", "rctl": "⌃"
         // Common keys - Standard Mac symbols
-        case "space", "spc": "␣" // U+2423 Open Box (standard space symbol)
+        case "space", "spc", "sp": "" // Spacebar: show blank (the physical key shape indicates space)
         case "enter", "ret": "↩" // U+21A9 Return symbol
         case "backspace", "bspc": "⌫" // U+232B Delete to the Left
         case "tab": "⇥" // U+21E5 Rightwards Arrow to Bar
