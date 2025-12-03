@@ -175,7 +175,21 @@ struct RuleCollectionCatalog {
             category: .productivity,
             mappings: [
                 // Mapping will be generated based on selectedTapOutput and selectedHoldOutput
-                KeyMapping(input: "caps", output: "esc", description: "Tap: Escape, Hold: Hyper")
+                KeyMapping(
+                    input: "caps",
+                    output: "esc",
+                    description: "Tap: Escape, Hold: Hyper",
+                    behavior: .dualRole(
+                        DualRoleBehavior(
+                            tapAction: "esc",
+                            holdAction: "hyper",
+                            tapTimeout: 200,
+                            holdTimeout: 200,
+                            activateHoldOnOtherKey: false,
+                            quickTap: false
+                        )
+                    )
+                )
             ],
             isEnabled: true,
             isSystemDefault: true,
