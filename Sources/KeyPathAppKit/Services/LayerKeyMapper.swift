@@ -302,16 +302,37 @@ actor LayerKeyMapper {
             startLayer: startLayer
         )
 
-        // Find the first output press event — for dual-role keys this should be the hold action
-        if let outputKey = result.events.compactMap({ event -> String? in
-            if case let .output(_, action, key) = event, action == .press {
-                return key
+        // Collect output press events; use earliest timestamp to detect combos (Hyper, Meh, etc.)
+        let outputPresses: [(UInt64, String)] = result.events.compactMap { event in
+            if case let .output(t, action, key) = event, action == .press {
+                return (t, key)
             }
             return nil
-        }).first {
-            return kanataKeyToDisplayLabel(outputKey)
         }
-        return nil
+        guard let firstTs = outputPresses.first?.0 else { return nil }
+        let keysAtFirstTs = outputPresses
+            .filter { $0.0 == firstTs }
+            .map { $0.1.lowercased() }
+        let keySet = Set(keysAtFirstTs)
+
+        // Hyper detection (Ctrl+Cmd+Alt+Shift)
+        let hyperSet: Set<String> = ["lctl", "lmet", "lalt", "lsft"]
+        if keySet == hyperSet || keySet == Set(["lctl", "lmet", "lalt", "lshift"]) {
+            return "✦"
+        }
+        // Meh detection (Ctrl+Alt+Shift)
+        let mehSet: Set<String> = ["lctl", "lalt", "lsft"]
+        if keySet == mehSet {
+            return "◆"
+        }
+
+        if keysAtFirstTs.count == 1, let only = keysAtFirstTs.first {
+            return kanataKeyToDisplayLabel(only)
+        }
+
+        // Fallback: join display labels for combo
+        let labels = keysAtFirstTs.map { kanataKeyToDisplayLabel($0) }
+        return labels.joined()
     }
 
     // MARK: - Key Name Conversion
