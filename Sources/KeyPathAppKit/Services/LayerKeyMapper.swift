@@ -342,26 +342,27 @@ actor LayerKeyMapper {
             return nil
         }
 
-        // Normalize modifier aliases
+        // Normalize modifier aliases and be tolerant of naming variants
         let normalizedSet: Set<String> = Set(keySet.map { key in
             switch key {
-            case "cmd": "lmet"
+            case "cmd", "lcmd", "command", "lcommand", "meta": "lmet"
             case "rmet": "lmet"
-            case "rctl": "lctl"
+            case "lctrl", "ctrl", "control", "lcontrol": "lctl"
+            case "rctl", "rctrl", "rcontrol": "lctl"
             case "ralt": "lalt"
-            case "rsft", "rshift": "lsft"
+            case "rsft", "rshift", "shift": "lsft"
             default: key
             }
         })
 
         // Hyper detection (Ctrl+Cmd+Alt+Shift)
         let hyperSet: Set<String> = ["lctl", "lmet", "lalt", "lsft"]
-        if normalizedSet == hyperSet || normalizedSet == Set(["lctl", "lmet", "lalt", "lshift"]) {
+        if normalizedSet.isSuperset(of: hyperSet) || normalizedSet.isSuperset(of: Set(["lctl", "lmet", "lalt", "lshift"])) {
             return "✦"
         }
         // Meh detection (Ctrl+Alt+Shift)
         let mehSet: Set<String> = ["lctl", "lalt", "lsft"]
-        if normalizedSet == mehSet {
+        if normalizedSet.isSuperset(of: mehSet) {
             return "◆"
         }
 
