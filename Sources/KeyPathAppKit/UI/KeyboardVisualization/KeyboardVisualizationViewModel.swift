@@ -17,6 +17,14 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Deep fade level for full keyboard opacity (0 = normal, 1 = 5% visible)
     @Published var deepFadeAmount: CGFloat = 0
 
+    // MARK: - Timing Tunables
+
+    struct OverlayTiming {
+        /// Grace period to wait for a quick re-press before clearing hold state (seconds).
+        /// Trade-off: higher = less flicker, lower = less linger.
+        static let holdReleaseGrace: TimeInterval = 0.06
+    }
+
     // MARK: - Layer State
 
     /// Current Kanata layer name (e.g., "base", "nav", "symbols")
@@ -40,7 +48,6 @@ class KeyboardVisualizationViewModel: ObservableObject {
     private let holdLabelCacheTTL: TimeInterval = 5
     /// Pending delayed clears for hold-active keys to tolerate tap-hold-press jitter
     private var holdClearWorkItems: [UInt16: DispatchWorkItem] = [:]
-
     /// Key input notification observer
     private var keyInputObserver: Any?
     /// Hold activated notification observer
@@ -416,14 +423,16 @@ class KeyboardVisualizationViewModel: ObservableObject {
             return
         }
 
-        // Convert the action string to a display label
-        let displayLabel = Self.actionToDisplayLabel(action)
-        holdLabels[keyCode] = displayLabel
+        // Convert the action string to a display label; if empty, wait for simulator resolution.
+        if !action.isEmpty {
+            let displayLabel = Self.actionToDisplayLabel(action)
+            holdLabels[keyCode] = displayLabel
+        }
         holdActiveKeyCodes.insert(keyCode)
-        AppLogger.shared.info("🔒 [KeyboardViz] Hold activated: \(key) -> '\(displayLabel)' (from '\(action)')")
+        AppLogger.shared.info("🔒 [KeyboardViz] Hold activated: \(key) -> '\(holdLabels[keyCode] ?? "pending")' (from '\(action)')")
 
         // If Kanata omitted the action string, try to resolve the hold label via simulator
-        if action.isEmpty || displayLabel == "⬤" {
+        if action.isEmpty {
             // Check short-lived cache first
             if let cached = holdLabelCache[keyCode], Date().timeIntervalSince(cached.timestamp) < holdLabelCacheTTL {
                 holdLabels[keyCode] = cached.label
@@ -523,14 +532,20 @@ class KeyboardVisualizationViewModel: ObservableObject {
         switch action {
         case "press", "repeat":
             tcpPressedKeyCodes.insert(keyCode)
-            // Cancel any pending delayed clear for this key
-            if let work = holdClearWorkItems.removeValue(forKey: keyCode) {
-                work.cancel()
+            // If a hold is already active for this key, keep it active and cancel any pending clear.
+            if holdActiveKeyCodes.contains(keyCode) {
+                holdClearWorkItems[keyCode]?.cancel()
+                holdClearWorkItems.removeValue(forKey: keyCode)
+            } else {
+                // Cancel any pending delayed clear for this key
+                if let work = holdClearWorkItems.removeValue(forKey: keyCode) {
+                    work.cancel()
+                }
             }
             AppLogger.shared.debug("⌨️ [KeyboardViz] TCP KeyPress: \(key) -> keyCode \(keyCode)")
         case "release":
             tcpPressedKeyCodes.remove(keyCode)
-            // Defer clearing hold state to tolerate tap-hold-press sequences that emit rapid releases.
+            // Defer clearing hold state briefly to tolerate tap-hold-press sequences that emit rapid releases.
             let work = DispatchWorkItem { [weak self] in
                 guard let self else { return }
                 self.holdActiveKeyCodes.remove(keyCode)
@@ -543,16 +558,21 @@ class KeyboardVisualizationViewModel: ObservableObject {
             }
             holdClearWorkItems[keyCode]?.cancel()
             holdClearWorkItems[keyCode] = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: work)
+            DispatchQueue.main.asyncAfter(deadline: .now() + OverlayTiming.holdReleaseGrace, execute: work)
             AppLogger.shared.debug("⌨️ [KeyboardViz] TCP KeyRelease: \(key) -> keyCode \(keyCode)")
         default:
             break
+        }
+
+        if keyCode == 57 {
+            AppLogger.shared.debug(
+                "🧪 [KeyboardViz] caps state: tcpPressed=\(tcpPressedKeyCodes.contains(57)) holdActive=\(holdActiveKeyCodes.contains(57)) holdLabel=\(holdLabels[57] ?? "nil")"
+            )
         }
     }
 
     // MARK: - Test hooks (DEBUG only)
 
-    #if DEBUG
         /// Simulate a HoldActivated TCP event (used by unit tests).
         func simulateHoldActivated(key: String, action: String) {
             handleHoldActivated(key: key, action: action)
@@ -562,7 +582,6 @@ class KeyboardVisualizationViewModel: ObservableObject {
         func simulateTcpKeyInput(key: String, action: String) {
             handleTcpKeyInput(key: key, action: action)
         }
-    #endif
 
     /// Maps Kanata key names (e.g., "h", "j", "space") to macOS key codes
     /// This is the inverse of OverlayKeyboardView.keyCodeToKanataName()

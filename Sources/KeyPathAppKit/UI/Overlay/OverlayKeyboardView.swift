@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import KeyPathCore
 
 /// Keyboard view for the live overlay.
 /// Renders a full keyboard layout with keys highlighting based on key codes.
@@ -30,36 +31,11 @@ struct OverlayKeyboardView: View {
     var body: some View {
         GeometryReader { geometry in
             let scale = calculateScale(for: geometry.size)
+            let keys = layout.keys
 
             ZStack(alignment: .topLeading) {
-                ForEach(layout.keys) { key in
-                    // Prefer TCP physical keys; fall back to local pressed set if TCP data is unavailable
-                    let hasTcp = !effectivePressedKeyCodes.isEmpty
-                    let isPressed = hasTcp
-                        ? effectivePressedKeyCodes.contains(key.keyCode)
-                        : pressedKeyCodes.contains(key.keyCode)
-
-                    OverlayKeycapView(
-                        key: key,
-                        isPressed: isPressed,
-                        scale: scale,
-                        isDarkMode: isDarkMode,
-                        isCapsLockOn: isCapsLockOn,
-                        fadeAmount: fadeAmount,
-                        currentLayerName: currentLayerName,
-                        isLoadingLayerMap: isLoadingLayerMap,
-                        layerKeyInfo: layerKeyMap[key.keyCode],
-                        isEmphasized: emphasizedKeyCodes.contains(key.keyCode),
-                        holdLabel: holdLabels[key.keyCode]
-                    )
-                    .frame(
-                        width: keyWidth(for: key, scale: scale),
-                        height: keyHeight(for: key, scale: scale)
-                    )
-                    .position(
-                        x: keyPositionX(for: key, scale: scale),
-                        y: keyPositionY(for: key, scale: scale)
-                    )
+                ForEach(keys, id: \.id) { key in
+                    keyView(key: key, scale: scale)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -69,6 +45,42 @@ struct OverlayKeyboardView: View {
             // Update caps lock state when any key changes (captures toggle)
             isCapsLockOn = NSEvent.modifierFlags.contains(.capsLock)
         }
+    }
+
+    private func keyView(key: PhysicalKey, scale: CGFloat) -> some View {
+        // Prefer TCP physical keys; fall back to local pressed set if TCP data is unavailable
+        let hasTcp = !effectivePressedKeyCodes.isEmpty
+        let isPressed = hasTcp
+            ? effectivePressedKeyCodes.contains(key.keyCode)
+            : pressedKeyCodes.contains(key.keyCode)
+
+        if key.keyCode == 57, isPressed || holdLabels[key.keyCode] != nil {
+            AppLogger.shared.debug(
+                "🧪 [Overlay] keyCode=57 pressed=\(isPressed) holdLabel=\(holdLabels[key.keyCode] ?? "nil") layerLabel=\(layerKeyMap[key.keyCode]?.displayLabel ?? "nil")"
+            )
+        }
+
+        return OverlayKeycapView(
+            key: key,
+            isPressed: isPressed,
+            scale: scale,
+            isDarkMode: isDarkMode,
+            isCapsLockOn: isCapsLockOn,
+            fadeAmount: fadeAmount,
+            currentLayerName: currentLayerName,
+            isLoadingLayerMap: isLoadingLayerMap,
+            layerKeyInfo: layerKeyMap[key.keyCode],
+            isEmphasized: emphasizedKeyCodes.contains(key.keyCode),
+            holdLabel: holdLabels[key.keyCode]
+        )
+        .frame(
+            width: keyWidth(for: key, scale: scale),
+            height: keyHeight(for: key, scale: scale)
+        )
+        .position(
+            x: keyPositionX(for: key, scale: scale),
+            y: keyPositionY(for: key, scale: scale)
+        )
     }
 
     // MARK: - Layout Calculations

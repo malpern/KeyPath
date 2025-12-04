@@ -169,20 +169,27 @@ struct OverlayKeycapView: View {
     @ViewBuilder
     private var bottomAlignedContent: some View {
         // For wide modifier keys, prefer text labels over symbols
-        // First try effective label's wordLabel, then physical key's wordLabel, then fallback to physical label
+        // If a hold label is active (e.g., tap-hold -> Hyper), show it verbatim.
+        // Otherwise use the word-label for the effective label, then fall back to the physical key word-label.
         let physicalMetadata = LabelMetadata.forLabel(key.label)
-        let wordLabel = metadata.wordLabel ?? physicalMetadata.wordLabel ?? key.label
+        let wordLabel: String = {
+            if let holdLabel {
+                return holdLabel
+            }
+            return metadata.wordLabel ?? physicalMetadata.wordLabel ?? key.label
+        }()
         let isRight = key.isRightSideKey
+        let isHold = holdLabel != nil
 
         VStack {
             Spacer(minLength: 0)
             HStack {
                 if !isRight {
-                    labelText(wordLabel)
+                    labelText(wordLabel, isHoldLabel: isHold)
                     Spacer(minLength: 0)
                 } else {
                     Spacer(minLength: 0)
-                    labelText(wordLabel)
+                    labelText(wordLabel, isHoldLabel: isHold)
                 }
             }
             .padding(.leading, 4 * scale)
@@ -194,8 +201,12 @@ struct OverlayKeycapView: View {
     }
 
     @ViewBuilder
-    private func labelText(_ text: String) -> some View {
-        if isSmallSize {
+    private func labelText(_ text: String, isHoldLabel: Bool) -> some View {
+        // For hold labels (e.g., Hyper ✦) use a larger weighty glyph to make it stand out.
+        if isHoldLabel {
+            Text(text)
+                .font(.system(size: 12 * scale, weight: .semibold))
+        } else if isSmallSize {
             // Symbol only when tiny
             Text(key.label)
                 .font(.system(size: 10 * scale, weight: .regular))
@@ -324,7 +335,7 @@ struct OverlayKeycapView: View {
         VStack {
             Spacer(minLength: 0)
             HStack {
-                labelText("esc")
+                labelText("esc", isHoldLabel: false)
                 Spacer(minLength: 0)
             }
             .padding(.leading, 4 * scale)

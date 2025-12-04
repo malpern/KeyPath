@@ -198,6 +198,18 @@ If you see these, the issue is elsewhere:
 ### 1. Keyboard Becomes Unresponsive
 **Symptoms:**
 - No key input registers
+
+---
+
+## Lessons from the Hold-Label/Hyper Debugging (Dec 2025)
+
+- **Lock down emitters first**: Verify Kanata + simulator outputs (canonical key names, no glyphs) with unit tests before touching the overlay; prevents UI hacks chasing upstream drift.
+- **Instrument early, narrowly**: Add small, always-on log breadcrumbs at each hop (`KeyInput → HoldActivated → ViewModel state → Overlay render`) to see where labels drop.
+- **Tunable jitter handling**: Keep debounce/grace periods as named constants with comments on the trade-off (flicker vs. linger); makes rapid iteration safe.
+- **Separate behavior vs. presentation**: Handle tap/hold decisions upstream; keep overlay changes purely visual (e.g., label size/weight), reducing regression risk.
+- **Cache with intent and expiry**: Short TTL caches for simulator-resolved labels avoid redundant work while keeping stale values out.
+- **Simulator fidelity is critical**: Tests should assert simulator emits Kanata names (not glyphs) and expected action strings; a small mismatch caused the star label regression.
+- **Have a repeatable pipeline checklist**: A written “input to overlay” flow saves time when timing bugs appear again.
 - Kanata process running
 - Logs show connection errors
 
