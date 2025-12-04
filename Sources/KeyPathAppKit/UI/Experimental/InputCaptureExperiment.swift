@@ -710,8 +710,14 @@ class InputCaptureExperimentWindowController {
         )
         window.title = "Input Capture Experiment"
         window.contentView = NSHostingView(rootView: contentView)
-        window.center()
         window.isReleasedWhenClosed = false
+
+        // Persistent window position
+        window.setFrameAutosaveName("InputCaptureWindow")
+        if !window.setFrameUsingName("InputCaptureWindow") {
+            window.center()
+        }
+
         window.makeKeyAndOrderFront(nil)
 
         self.window = window

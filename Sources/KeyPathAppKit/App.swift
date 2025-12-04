@@ -193,6 +193,11 @@ public struct KeyPathApp: App {
                 }
                 .keyboardShortcut("i", modifiers: [.command, .shift])
 
+                Button("Mapper") {
+                    MapperWindowController.shared.showWindow(viewModel: viewModel)
+                }
+                .keyboardShortcut("m", modifiers: [.command, .shift])
+
                 Divider()
 
                 Button("How to Emergency Stop") {

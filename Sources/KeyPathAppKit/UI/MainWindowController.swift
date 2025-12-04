@@ -29,7 +29,6 @@ final class MainWindowController: NSWindowController {
 
         // Configure window properties
         window.title = ""
-        window.center()
         // Titled window with transparent titlebar & full-size content (Apple-recommended)
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
@@ -46,6 +45,11 @@ final class MainWindowController: NSWindowController {
         window.isRestorable = true
         window.tabbingMode = .disallowed
         window.collectionBehavior = [.moveToActiveSpace]
+
+        // Only center if no saved frame exists
+        if !window.setFrameUsingName("MainWindow") {
+            window.center()
+        }
 
         super.init(window: window)
 
