@@ -28,12 +28,18 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Hold labels for tap-hold keys that have transitioned to hold state
     /// Maps keyCode -> hold display label (e.g., "✦" for Hyper)
     @Published var holdLabels: [UInt16: String] = [:]
+    /// Keys currently in a hold-active state (set when HoldActivated fires).
+    /// Used to keep the key visually pressed even if tap-hold implementations
+    /// emit spurious release/press events while held.
+    private var holdActiveKeyCodes: Set<UInt16> = []
     /// Tracks keys currently undergoing async hold-label resolution to avoid duplicate simulator runs
     private var resolvingHoldLabels: Set<UInt16> = []
     /// Short-lived cache of resolved hold labels to avoid repeated simulator runs (keyCode -> (label, timestamp))
     private var holdLabelCache: [UInt16: (label: String, timestamp: Date)] = [:]
     /// Cache time-to-live in seconds
     private let holdLabelCacheTTL: TimeInterval = 5
+    /// Pending delayed clears for hold-active keys to tolerate tap-hold-press jitter
+    private var holdClearWorkItems: [UInt16: DispatchWorkItem] = [:]
 
     /// Key input notification observer
     private var keyInputObserver: Any?
@@ -59,9 +65,8 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Uses only Kanata TCP KeyInput events to show the actual physical keys pressed,
     /// not the transformed output keys from CGEvent tap.
     var effectivePressedKeyCodes: Set<UInt16> {
-        // Only use TCP physical keys - this shows what the user actually pressed,
-        // not what Kanata transformed it to (which CGEvent tap would show)
-        tcpPressedKeyCodes
+        // Use TCP physical keys and any keys currently in an active hold state.
+        tcpPressedKeyCodes.union(holdActiveKeyCodes)
     }
 
     /// Service for building layer key mappings
@@ -414,6 +419,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
         // Convert the action string to a display label
         let displayLabel = Self.actionToDisplayLabel(action)
         holdLabels[keyCode] = displayLabel
+        holdActiveKeyCodes.insert(keyCode)
         AppLogger.shared.info("🔒 [KeyboardViz] Hold activated: \(key) -> '\(displayLabel)' (from '\(action)')")
 
         // If Kanata omitted the action string, try to resolve the hold label via simulator
@@ -517,15 +523,27 @@ class KeyboardVisualizationViewModel: ObservableObject {
         switch action {
         case "press", "repeat":
             tcpPressedKeyCodes.insert(keyCode)
+            // Cancel any pending delayed clear for this key
+            if let work = holdClearWorkItems.removeValue(forKey: keyCode) {
+                work.cancel()
+            }
             AppLogger.shared.debug("⌨️ [KeyboardViz] TCP KeyPress: \(key) -> keyCode \(keyCode)")
         case "release":
             tcpPressedKeyCodes.remove(keyCode)
-            // Clear any hold label when key is released
-            if !tcpPressedKeyCodes.contains(keyCode), holdLabels[keyCode] != nil {
-                holdLabels.removeValue(forKey: keyCode)
-                holdLabelCache.removeValue(forKey: keyCode)
-                AppLogger.shared.debug("⌨️ [KeyboardViz] Cleared hold label for \(key)")
+            // Defer clearing hold state to tolerate tap-hold-press sequences that emit rapid releases.
+            let work = DispatchWorkItem { [weak self] in
+                guard let self else { return }
+                self.holdActiveKeyCodes.remove(keyCode)
+                if self.holdLabels[keyCode] != nil {
+                    self.holdLabels.removeValue(forKey: keyCode)
+                    self.holdLabelCache.removeValue(forKey: keyCode)
+                    AppLogger.shared.debug("⌨️ [KeyboardViz] Cleared hold label (delayed) for \(key)")
+                }
+                self.holdClearWorkItems.removeValue(forKey: keyCode)
             }
+            holdClearWorkItems[keyCode]?.cancel()
+            holdClearWorkItems[keyCode] = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: work)
             AppLogger.shared.debug("⌨️ [KeyboardViz] TCP KeyRelease: \(key) -> keyCode \(keyCode)")
         default:
             break
