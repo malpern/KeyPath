@@ -342,10 +342,14 @@ class KeyboardVisualizationViewModel: ObservableObject {
                 AppLogger.shared.debug("🗺️ [KeyboardViz] Using config: \(configPath)")
 
                 // Build mapping for current layer
-                let mapping = try await layerKeyMapper.getMapping(
+                var mapping = try await layerKeyMapper.getMapping(
                     for: currentLayerName,
                     configPath: configPath
                 )
+
+                // Augment mapping with app launch info from custom rules
+                let customRules = await CustomRulesStore.shared.loadRules()
+                mapping = self.augmentWithAppLaunchInfo(mapping: mapping, customRules: customRules)
 
                 // Update on main actor
                 await MainActor.run {
@@ -366,6 +370,58 @@ class KeyboardVisualizationViewModel: ObservableObject {
                 }
             }
         }
+    }
+
+    /// Augment layer mapping with app launch info from custom rules
+    /// - Parameters:
+    ///   - mapping: The base layer key mapping from the simulator
+    ///   - customRules: Custom rules to check for app launch patterns
+    /// - Returns: Mapping with app launch identifiers added where applicable
+    private func augmentWithAppLaunchInfo(
+        mapping: [UInt16: LayerKeyInfo],
+        customRules: [CustomRule]
+    ) -> [UInt16: LayerKeyInfo] {
+        var augmented = mapping
+
+        // Build a lookup of input key -> app identifier from custom rules
+        var appLaunchByInput: [String: String] = [:]
+        for rule in customRules where rule.isEnabled {
+            if let appId = Self.extractAppLaunchIdentifier(from: rule.output) {
+                appLaunchByInput[rule.input.lowercased()] = appId
+            }
+        }
+
+        // Update mapping entries where the input key has a launch action
+        for (keyCode, _) in mapping {
+            // Get the kanata key name for this keyCode
+            let keyName = OverlayKeyboardView.keyCodeToKanataName(keyCode).lowercased()
+
+            if let appId = appLaunchByInput[keyName] {
+                // Replace this entry with an app launch entry
+                augmented[keyCode] = LayerKeyInfo.appLaunch(appIdentifier: appId)
+                AppLogger.shared.debug("🗺️ [KeyboardViz] Key \(keyName)(\(keyCode)) -> app launch: \(appId)")
+            }
+        }
+
+        return augmented
+    }
+
+    /// Extract app identifier from a push-msg launch output string
+    /// - Parameter output: The kanata output string (e.g., "(push-msg \"launch:Safari\")")
+    /// - Returns: The app identifier if this is a launch action, nil otherwise
+    nonisolated static func extractAppLaunchIdentifier(from output: String) -> String? {
+        // Pattern: (push-msg "launch:AppName") or (push-msg "launch:com.bundle.id")
+        let pattern = #"\(push-msg\s+\"launch:([^\"]+)\"\)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []),
+              let match = regex.firstMatch(
+                  in: output,
+                  range: NSRange(output.startIndex..., in: output)
+              ),
+              let range = Range(match.range(at: 1), in: output)
+        else {
+            return nil
+        }
+        return String(output[range])
     }
 
     /// Invalidate cached mappings (call when config changes)

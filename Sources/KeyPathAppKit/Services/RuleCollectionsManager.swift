@@ -131,10 +131,11 @@ final class RuleCollectionsManager {
             }
         }
 
-        ruleCollections = storedCollections
+        ruleCollections = RuleCollectionDeduplicator.dedupe(storedCollections)
         customRules = storedCustomRules
         AppLogger.shared.log("📊 [RuleCollectionsManager] bootstrap: loaded \(customRules.count) custom rules from store")
         ensureDefaultCollectionsIfNeeded()
+        dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
 
         await regenerateConfigFromCollections()
@@ -235,7 +236,8 @@ final class RuleCollectionsManager {
 
     /// Replace all rule collections
     func replaceCollections(_ collections: [RuleCollection]) async {
-        ruleCollections = collections
+        ruleCollections = RuleCollectionDeduplicator.dedupe(collections)
+        dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
         await regenerateConfigFromCollections()
     }
@@ -276,6 +278,8 @@ final class RuleCollectionsManager {
             ruleCollections.append(newCollection)
         }
 
+        dedupeRuleCollectionsInPlace()
+
         // Special handling: If Leader Key collection is toggled off, reset all momentary activators to default (space)
         if id == RuleCollectionIdentifier.leaderKey, !isEnabled {
             await updateLeaderKey("space")
@@ -307,6 +311,7 @@ final class RuleCollectionsManager {
         } else {
             ruleCollections.append(collection)
         }
+        dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
         await regenerateConfigFromCollections()
     }
@@ -325,6 +330,7 @@ final class RuleCollectionsManager {
                     catalogCollection.mappings = [KeyMapping(input: inputKey, output: output, description: description)]
                 }
                 ruleCollections.append(catalogCollection)
+                dedupeRuleCollectionsInPlace()
                 refreshLayerIndicatorState()
                 await regenerateConfigFromCollections()
             }
@@ -339,6 +345,8 @@ final class RuleCollectionsManager {
             let description = ruleCollections[index].presetOptions.first { $0.output == output }?.label ?? "Custom"
             ruleCollections[index].mappings = [KeyMapping(input: inputKey, output: output, description: description)]
         }
+
+        dedupeRuleCollectionsInPlace()
 
         // Special handling: If this is the Leader Key collection, update all momentary activators
         if id == RuleCollectionIdentifier.leaderKey {
@@ -359,6 +367,7 @@ final class RuleCollectionsManager {
                 catalogCollection.selectedTapOutput = tapOutput
                 catalogCollection.isEnabled = true
                 ruleCollections.append(catalogCollection)
+                dedupeRuleCollectionsInPlace()
                 refreshLayerIndicatorState()
                 await regenerateConfigFromCollections()
             }
@@ -367,6 +376,7 @@ final class RuleCollectionsManager {
 
         ruleCollections[index].selectedTapOutput = tapOutput
         ruleCollections[index].isEnabled = true
+        dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
         await regenerateConfigFromCollections()
     }
@@ -380,6 +390,7 @@ final class RuleCollectionsManager {
                 catalogCollection.selectedHoldOutput = holdOutput
                 catalogCollection.isEnabled = true
                 ruleCollections.append(catalogCollection)
+                dedupeRuleCollectionsInPlace()
                 refreshLayerIndicatorState()
                 await regenerateConfigFromCollections()
             }
@@ -388,6 +399,7 @@ final class RuleCollectionsManager {
 
         ruleCollections[index].selectedHoldOutput = holdOutput
         ruleCollections[index].isEnabled = true
+        dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
         await regenerateConfigFromCollections()
     }
@@ -401,6 +413,7 @@ final class RuleCollectionsManager {
                 catalogCollection.homeRowModsConfig = config
                 catalogCollection.isEnabled = true
                 ruleCollections.append(catalogCollection)
+                dedupeRuleCollectionsInPlace()
                 refreshLayerIndicatorState()
                 await regenerateConfigFromCollections()
             }
@@ -410,6 +423,7 @@ final class RuleCollectionsManager {
         ruleCollections[index].homeRowModsConfig = config
         ruleCollections[index].isEnabled = true
 
+        dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
         await regenerateConfigFromCollections()
     }
@@ -432,6 +446,7 @@ final class RuleCollectionsManager {
             }
         }
 
+        dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
         await regenerateConfigFromCollections()
     }
@@ -523,6 +538,10 @@ final class RuleCollectionsManager {
         refreshLayerIndicatorState()
     }
 
+    private func dedupeRuleCollectionsInPlace() {
+        ruleCollections = RuleCollectionDeduplicator.dedupe(ruleCollections)
+    }
+
     private func refreshLayerIndicatorState() {
         let hasLayered = ruleCollections.contains { $0.isEnabled && $0.targetLayer != .base }
         if !hasLayered {
@@ -545,6 +564,10 @@ final class RuleCollectionsManager {
     }
 
     private func regenerateConfigFromCollections(skipReload: Bool = false) async {
+        dedupeRuleCollectionsInPlace()
+
+        AppLogger.shared.log("🔄 [RuleCollections] regenerateConfigFromCollections: \(ruleCollections.count) collections, \(customRules.count) custom rules")
+
         // INVARIANT: In production, ruleCollections should never be empty (at minimum, macOS Function Keys)
         // Tests may create isolated scenarios with empty collections, so only warn in debug builds
         if ruleCollections.isEmpty {
@@ -558,6 +581,7 @@ final class RuleCollectionsManager {
         }
 
         do {
+            AppLogger.shared.log("🔄 [RuleCollections] Calling configurationService.saveConfiguration...")
             // IMPORTANT: Save config FIRST (validates before writing)
             // Only persist to stores AFTER config is successfully written
             // This prevents store/config mismatch if validation fails
@@ -565,10 +589,12 @@ final class RuleCollectionsManager {
                 ruleCollections: ruleCollections,
                 customRules: customRules
             )
+            AppLogger.shared.log("✅ [RuleCollections] configurationService.saveConfiguration succeeded")
 
             // Config write succeeded - now persist to stores
             try await ruleCollectionStore.saveCollections(ruleCollections)
             try await customRulesStore.saveRules(customRules)
+            AppLogger.shared.log("✅ [RuleCollections] Stores persisted")
 
             // Play success sound when config is saved
             await MainActor.run {
@@ -580,6 +606,21 @@ final class RuleCollectionsManager {
             }
         } catch {
             AppLogger.shared.log("❌ [RuleCollections] Failed to regenerate config: \(error)")
+            AppLogger.shared.log("❌ [RuleCollections] Error details: \(String(describing: error))")
+
+            // Extract user-friendly error message
+            let userMessage: String
+            if let keyPathError = error as? KeyPathError,
+               case let .configuration(configError) = keyPathError,
+               case let .validationFailed(errors) = configError {
+                userMessage = "Configuration validation failed:\n\n" + errors.joined(separator: "\n")
+            } else {
+                userMessage = "Failed to save configuration: \(error.localizedDescription)"
+            }
+
+            // Notify user via callback
+            onError?(userMessage)
+
             await MainActor.run {
                 SoundManager.shared.playErrorSound()
             }
@@ -592,8 +633,9 @@ final class RuleCollectionsManager {
         Set(collection.mappings.map { KanataKeyConverter.convertToKanataKey($0.input) })
     }
 
-    private func normalizedActivator(for collection: RuleCollection) -> String? {
-        collection.momentaryActivator?.input.lowercased()
+    private func normalizedActivator(for collection: RuleCollection) -> (input: String, layer: RuleCollectionLayer)? {
+        guard let activator = collection.momentaryActivator else { return nil }
+        return (KanataKeyConverter.convertToKanataKey(activator.input), activator.targetLayer)
     }
 
     private func conflictInfo(for candidate: RuleCollection) -> RuleConflictInfo? {
@@ -609,9 +651,14 @@ final class RuleCollectionsManager {
             }
 
             if let act1 = candidateActivator,
-               let act2 = normalizedActivator(for: other),
-               act1 == act2 {
-                return RuleConflictInfo(source: .collection(other), keys: [act1])
+               let act2 = normalizedActivator(for: other) {
+                if act1 == act2 {
+                    // Identical momentary activators are treated as redundant, not conflicts
+                    continue
+                }
+                if act1.input == act2.input {
+                    return RuleConflictInfo(source: .collection(other), keys: [act1.input])
+                }
             }
         }
 

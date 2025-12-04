@@ -35,6 +35,7 @@ public struct KanataConfiguration: Sendable {
         if !resolvedCollections.contains(where: { $0.id == RuleCollectionIdentifier.macFunctionKeys }) {
             resolvedCollections.append(contentsOf: defaultSystemCollections)
         }
+        resolvedCollections = RuleCollectionDeduplicator.dedupe(resolvedCollections)
         let enabledCollections = resolvedCollections.filter(\.isEnabled)
         // Note: Disabled collections are NOT written to config (ADR-025: JSON stores are source of truth)
         let (rawBlocks, aliasDefinitions, extraLayers, chordMappings) = buildCollectionBlocks(from: enabledCollections)
@@ -127,14 +128,7 @@ public struct KanataConfiguration: Sendable {
             lines.append("  ;; No enabled collections")
         } else {
             for block in blocks {
-                lines.append(contentsOf: block.metadata)
-                if block.entries.isEmpty {
-                    lines.append("  ;; (no mappings)")
-                } else {
-                    for entry in block.entries {
-                        lines.append("  \(entry.sourceKey)")
-                    }
-                }
+                lines.append(contentsOf: KeyboardGridFormatter.renderDefsrc(block))
                 lines.append("")
             }
             if lines.last == "" { lines.removeLast() }
@@ -153,14 +147,7 @@ public struct KanataConfiguration: Sendable {
             lines.append("  ;; No enabled collections")
         } else {
             for block in blocks {
-                lines.append(contentsOf: block.metadata)
-                if block.entries.isEmpty {
-                    lines.append("  ;; (no mappings)")
-                } else {
-                    for entry in block.entries {
-                        lines.append("  \(valueProvider(entry))")
-                    }
-                }
+                lines.append(contentsOf: KeyboardGridFormatter.renderLayer(block, valueProvider: valueProvider))
                 lines.append("")
             }
             if lines.last == "" { lines.removeLast() }
@@ -340,8 +327,13 @@ public struct KanataConfiguration: Sendable {
                     let forkDef = buildForkDefinition(for: mapping)
                     aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: forkDef))
                     layerOutput = "@\(aliasName)"
+                } else if mapping.output.hasPrefix("(") {
+                    // Complex action (push-msg, multi, etc.) - needs alias
+                    let aliasName = actionAliasName(for: mapping, layer: collection.targetLayer)
+                    aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: mapping.output))
+                    layerOutput = "@\(aliasName)"
                 } else {
-                    // Simple output
+                    // Simple output (key name)
                     layerOutput = KanataKeyConverter.convertToKanataSequence(mapping.output)
                 }
 
@@ -400,6 +392,98 @@ public struct KanataConfiguration: Sendable {
         }
     }
 
+    /// Formats collection blocks into keyboard-shaped, padded rows for readability.
+    private enum KeyboardGridFormatter {
+        // Simple 60%/MacBook ANSI-ish layout expressed in Kanata key names
+        private static let layoutRows: [[String]] = [
+            ["esc", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12", "del"],
+            ["grv", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "min", "eql", "bspc"],
+            ["tab", "q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "[", "]", "\\"],
+            ["caps", "a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'", "ret"],
+            ["lsft", "z", "x", "c", "v", "b", "n", "m", ",", ".", "/", "rsft"],
+            ["lctl", "lalt", "lmet", "spc", "rmet", "ralt", "rctl"]
+        ]
+
+        private static let order: [String: Int] = {
+            var idx: [String: Int] = [:]
+            for (rowIndex, row) in layoutRows.enumerated() {
+                for (colIndex, key) in row.enumerated() {
+                    idx[key] = rowIndex * 100 + colIndex // wide spacing to keep row priority
+                }
+            }
+            return idx
+        }()
+
+        static func renderDefsrc(_ block: CollectionBlock) -> [String] {
+            guard !block.entries.isEmpty else {
+                return block.metadata + ["  ;; (no mappings)"]
+            }
+            let sorted = sortEntries(block.entries)
+            let body = renderGridLines(sorted) { $0.sourceKey }
+            return block.metadata + body
+        }
+
+        static func renderLayer(
+            _ block: CollectionBlock,
+            valueProvider: (LayerEntry) -> String
+        ) -> [String] {
+            guard !block.entries.isEmpty else {
+                return block.metadata + ["  ;; (no mappings)"]
+            }
+            let sorted = sortEntries(block.entries)
+            let body = renderGridLines(sorted, valueProvider: valueProvider)
+            return block.metadata + body
+        }
+
+        private static func sortEntries(_ entries: [LayerEntry]) -> [LayerEntry] {
+            entries.sorted { lhs, rhs in
+                let l = order[lhs.sourceKey] ?? Int.max
+                let r = order[rhs.sourceKey] ?? Int.max
+                if l == r {
+                    return lhs.sourceKey < rhs.sourceKey
+                }
+                return l < r
+            }
+        }
+
+        /// Render entries grouped into physical rows; rows without entries are skipped.
+        private static func renderGridLines(
+            _ entries: [LayerEntry],
+            valueProvider: (LayerEntry) -> String
+        ) -> [String] {
+            var rows: [[String]] = []
+            var remaining = entries
+
+            for layoutRow in layoutRows {
+                var tokens: [String] = []
+                for key in layoutRow {
+                    if let idx = remaining.firstIndex(where: { $0.sourceKey == key }) {
+                        let entry = remaining.remove(at: idx)
+                        tokens.append(valueProvider(entry))
+                    }
+                }
+                if !tokens.isEmpty {
+                    rows.append(tokens)
+                }
+            }
+
+            // Anything not in the known layout gets appended in a trailing row
+            if !remaining.isEmpty {
+                rows.append(remaining.map { valueProvider($0) })
+            }
+
+            return rows.map { "  " + padRow($0) }
+        }
+
+        private static func padRow(_ tokens: [String]) -> String {
+            let width = tokens.map(\.count).max() ?? 0
+            let padded = tokens.map { token in
+                token.padding(toLength: width, withPad: " ", startingAt: 0)
+            }
+            return padded.joined(separator: " ")
+        }
+    }
+
     /// Build a deterministic list of unmapped keys on the MacBook US layout to block in navigation layer.
     /// Excludes modifier keys and any keys already mapped.
     private static func navigationUnmappedKeys(
@@ -453,6 +537,15 @@ public struct KanataConfiguration: Sendable {
                 .replacingOccurrences(of: "-", with: "_")
                 .replacingOccurrences(of: " ", with: "_")
         return "beh_\(layer.kanataName)_\(sanitized)"
+    }
+
+    /// Generate alias name for complex actions (push-msg, multi, etc.)
+    private static func actionAliasName(for mapping: KeyMapping, layer: RuleCollectionLayer) -> String {
+        let sanitized =
+            mapping.input
+                .replacingOccurrences(of: "-", with: "_")
+                .replacingOccurrences(of: " ", with: "_")
+        return "act_\(layer.kanataName)_\(sanitized)"
     }
 
     /// Build fork definition for modifier-aware mappings
@@ -813,7 +906,9 @@ public final class ConfigurationService: FileConfigurationProviding {
         customRules: [CustomRule] = []
     ) async throws {
         // Custom rules come first so they take priority over preset collections
-        let combinedCollections = customRules.asRuleCollections() + ruleCollections
+        let combinedCollections = RuleCollectionDeduplicator.dedupe(
+            customRules.asRuleCollections() + ruleCollections
+        )
         let mappings = combinedCollections.enabledMappings()
         let configContent = KanataConfiguration.generateFromCollections(combinedCollections)
 

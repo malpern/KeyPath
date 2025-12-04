@@ -1,3 +1,4 @@
+import AppKit
 import KeyPathCore
 import SwiftUI
 
@@ -25,6 +26,8 @@ struct OverlayKeycapView: View {
     var isEmphasized: Bool = false
     /// Hold label to display when tap-hold key is in hold state
     var holdLabel: String?
+    /// Callback when key is clicked (not dragged)
+    var onKeyClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
 
     /// Size thresholds for typography adaptation
     private var isSmallSize: Bool { scale < 0.8 }
@@ -49,6 +52,22 @@ struct OverlayKeycapView: View {
         LabelMetadata.forLabel(effectiveLabel)
     }
 
+    /// State for hover-to-click behavior
+    @State private var isHovering = false
+    @State private var isClickable = false  // True after 100ms hover dwell
+    @State private var hoverTask: Task<Void, Never>?
+
+    /// Cached app icon for launch actions
+    @State private var appIcon: NSImage?
+
+    /// Dwell time before key becomes clickable (200ms)
+    private let clickableDwellTime: TimeInterval = 0.2
+
+    /// Whether this key has an app launch action
+    private var hasAppLaunch: Bool {
+        layerKeyInfo?.appLaunchIdentifier != nil
+    }
+
     var body: some View {
         ZStack {
             // Key background with subtle shadow
@@ -60,6 +79,13 @@ struct OverlayKeycapView: View {
                     RoundedRectangle(cornerRadius: cornerRadius)
                         .stroke(keyStroke, lineWidth: strokeWidth)
                 )
+
+            // Hover highlight outline (shows when clickable)
+            if isClickable {
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(Color.accentColor, lineWidth: 2 * scale)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
 
             // Glow layers for dark mode backlight effect
             // Glow increases as keyboard fades out for ethereal effect
@@ -85,33 +111,134 @@ struct OverlayKeycapView: View {
         .offset(y: isPressed && fadeAmount < 1 ? 0.75 * scale : 0)
         .animation(.spring(response: 0.15, dampingFraction: 0.6), value: isPressed)
         .animation(.easeOut(duration: 0.3), value: fadeAmount)
-        // Debug: uncomment to log key sizes
-        // .background(GeometryReader { proxy in
-        //     Color.clear
-        //         .onAppear { logSize(proxy.size) }
-        //         .onChange(of: proxy.size) { _, newSize in logSize(newSize) }
-        // })
+        .animation(.easeInOut(duration: 0.15), value: isClickable)
+        // Hover detection with dwell time (must be before contentShape for hit testing)
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            isHovering = hovering
+            if hovering {
+                // Start dwell timer
+                hoverTask = Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(Int(clickableDwellTime * 1000)))
+                    if !Task.isCancelled, isHovering {
+                        isClickable = true
+                    }
+                }
+            } else {
+                // Cancel timer and reset clickable state
+                hoverTask?.cancel()
+                hoverTask = nil
+                isClickable = false
+            }
+        }
+        // Gesture that only activates when clickable, otherwise passes through
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onEnded { _ in
+                    // Only handle click if we're in clickable state
+                    if isClickable, let onKeyClick {
+                        onKeyClick(key, layerKeyInfo)
+                    }
+                },
+            // When not clickable, let gestures pass through for window repositioning
+            isEnabled: isClickable
+        )
+        .onAppear {
+            loadAppIconIfNeeded()
+        }
+        .onChange(of: layerKeyInfo?.appLaunchIdentifier) { _, newValue in
+            if newValue != nil {
+                loadAppIconIfNeeded()
+            } else {
+                appIcon = nil
+            }
+        }
+    }
+
+    // MARK: - App Icon Loading
+
+    /// Load app icon for launch action if needed
+    private func loadAppIconIfNeeded() {
+        guard let appIdentifier = layerKeyInfo?.appLaunchIdentifier else {
+            appIcon = nil
+            return
+        }
+
+        // Try to find app by bundle identifier or name
+        if let appURL = findAppURL(for: appIdentifier) {
+            let icon = NSWorkspace.shared.icon(forFile: appURL.path)
+            icon.size = NSSize(width: 64, height: 64)
+            appIcon = icon
+        } else {
+            appIcon = nil
+        }
+    }
+
+    /// Find app URL by bundle identifier or name
+    private func findAppURL(for identifier: String) -> URL? {
+        // First try as bundle identifier
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: identifier) {
+            return url
+        }
+
+        // Try as app name in /Applications
+        let applicationsPath = "/Applications/\(identifier).app"
+        if FileManager.default.fileExists(atPath: applicationsPath) {
+            return URL(fileURLWithPath: applicationsPath)
+        }
+
+        // Try with capitalized first letter
+        let capitalizedPath = "/Applications/\(identifier.capitalized).app"
+        if FileManager.default.fileExists(atPath: capitalizedPath) {
+            return URL(fileURLWithPath: capitalizedPath)
+        }
+
+        return nil
     }
 
     // MARK: - Content Routing by Layout Role
 
     @ViewBuilder
     private var keyContent: some View {
-        switch key.layoutRole {
-        case .centered:
-            centeredContent
-        case .bottomAligned:
-            bottomAlignedContent
-        case .narrowModifier:
-            narrowModifierContent
-        case .functionKey:
-            functionKeyContent
-        case .arrow:
-            arrowContent
-        case .touchId:
-            touchIdContent
-        case .escKey:
-            escKeyContent
+        // App launch keys show app icon regardless of layout role
+        if hasAppLaunch {
+            appLaunchContent
+        } else {
+            switch key.layoutRole {
+            case .centered:
+                centeredContent
+            case .bottomAligned:
+                bottomAlignedContent
+            case .narrowModifier:
+                narrowModifierContent
+            case .functionKey:
+                functionKeyContent
+            case .arrow:
+                arrowContent
+            case .touchId:
+                touchIdContent
+            case .escKey:
+                escKeyContent
+            }
+        }
+    }
+
+    // MARK: - Layout: App Launch (shows app icon)
+
+    @ViewBuilder
+    private var appLaunchContent: some View {
+        if let icon = appIcon {
+            Image(nsImage: icon)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(4 * scale)
+        } else {
+            // Fallback while loading or if icon not found
+            Image(systemName: "app.fill")
+                .font(.system(size: 14 * scale, weight: .light))
+                .foregroundStyle(foregroundColor.opacity(0.6))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -119,8 +246,9 @@ struct OverlayKeycapView: View {
 
     @ViewBuilder
     private var centeredContent: some View {
-        // Use metadata for the effective label to get shift symbol (works for both remapped and physical keys)
-        if let shiftSymbol = metadata.shiftSymbol {
+        if let navSymbol = navOverlaySymbol {
+            navOverlayContent(arrow: navSymbol, letter: key.label)
+        } else if let shiftSymbol = metadata.shiftSymbol {
             // Dual content: shift symbol above, main below
             dualSymbolContent(main: effectiveLabel, shift: shiftSymbol)
         } else {
@@ -153,6 +281,32 @@ struct OverlayKeycapView: View {
                 .offset(y: mainAdj.verticalOffset * scale)
                 .foregroundStyle(foregroundColor)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Vim Nav Overlay (arrow + letter)
+
+    private var navOverlaySymbol: String? {
+        guard key.layoutRole == .centered, let info = layerKeyInfo else { return nil }
+        let arrowLabels: Set<String> = ["←", "→", "↑", "↓"]
+        if arrowLabels.contains(info.displayLabel) {
+            return info.displayLabel
+        }
+        return nil
+    }
+
+    @ViewBuilder
+    private func navOverlayContent(arrow: String, letter: String) -> some View {
+        VStack(spacing: 6 * scale) {
+            Text(arrow)
+                .font(.system(size: 12 * scale, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(isPressed ? 1.0 : 0.9))
+                .shadow(color: Color.black.opacity(0.25), radius: 1.5 * scale, y: 1 * scale)
+            Text(letter.uppercased())
+                .font(.system(size: 9.5 * scale, weight: .medium))
+                .foregroundStyle(Color.white.opacity(isPressed ? 0.8 : 0.65))
+        }
+        .padding(.top, 4 * scale)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 

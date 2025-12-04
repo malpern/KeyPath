@@ -13,6 +13,25 @@ struct LayerKeyInfo: Equatable, Sendable {
     let isTransparent: Bool
     /// Whether this is a layer switch key
     let isLayerSwitch: Bool
+    /// App identifier for launch action (bundle ID or app name)
+    /// When set, overlay should show app icon instead of text
+    let appLaunchIdentifier: String?
+
+    init(
+        displayLabel: String,
+        outputKey: String?,
+        outputKeyCode: UInt16?,
+        isTransparent: Bool,
+        isLayerSwitch: Bool,
+        appLaunchIdentifier: String? = nil
+    ) {
+        self.displayLabel = displayLabel
+        self.outputKey = outputKey
+        self.outputKeyCode = outputKeyCode
+        self.isTransparent = isTransparent
+        self.isLayerSwitch = isLayerSwitch
+        self.appLaunchIdentifier = appLaunchIdentifier
+    }
 
     /// Creates info for a normal key mapping
     static func mapped(displayLabel: String, outputKey: String, outputKeyCode: UInt16?) -> LayerKeyInfo {
@@ -44,6 +63,18 @@ struct LayerKeyInfo: Equatable, Sendable {
             outputKeyCode: nil,
             isTransparent: false,
             isLayerSwitch: true
+        )
+    }
+
+    /// Creates info for an app launch action
+    static func appLaunch(appIdentifier: String) -> LayerKeyInfo {
+        LayerKeyInfo(
+            displayLabel: "",
+            outputKey: nil,
+            outputKeyCode: nil,
+            isTransparent: false,
+            isLayerSwitch: false,
+            appLaunchIdentifier: appIdentifier
         )
     }
 }
@@ -234,42 +265,52 @@ actor LayerKeyMapper {
             } else if keyMapping.outputs.isEmpty {
                 // No output (blocked key)
                 mapping[keyCode] = .transparent(fallbackLabel: fallbackLabel)
-            } else {
-                // Convert all outputs to display labels and combine
-                var displayParts: [String] = []
-                var primaryOutputKey: String?
-                var primaryOutputKeyCode: UInt16?
+        } else {
+            // Convert all outputs to display labels and combine
+            var displayParts: [String] = []
+            var primaryOutputKey: String?
+            var primaryOutputKeyCode: UInt16?
 
-                for output in keyMapping.outputs {
-                    let label = kanataKeyToDisplayLabel(output)
+            for output in keyMapping.outputs {
+                let label = kanataKeyToDisplayLabel(output)
+                // Skip empties (e.g., spacebar) so we don't render "sp"/blank artifacts
+                if !label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     displayParts.append(label)
-                    // Use the non-modifier key as the primary (for dual highlighting)
-                    if !isModifierSymbol(output) {
-                        primaryOutputKey = output
-                        primaryOutputKeyCode = kanataKeyToKeyCode(output)
-                    }
                 }
+                // Use the non-modifier key as the primary (for dual highlighting)
+                if !isModifierSymbol(output) {
+                    primaryOutputKey = output
+                    primaryOutputKeyCode = kanataKeyToKeyCode(output)
+                }
+            }
 
-                let combinedLabel = displayParts.joined()
-                let outputKey = primaryOutputKey ?? keyMapping.outputs.first
+            let combinedLabel = displayParts.joined()
+            let finalLabel = combinedLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+            // Special-case spacebar: ensure display label stays blank
+            let normalizedInput = keyMapping.input.lowercased()
+            let normalizedOutputs = keyMapping.outputs.map { $0.lowercased() }
+            let isSpaceInput = ["space", "spacebar", "spc", "sp"].contains(normalizedInput)
+            let isSpaceOnlyOutput = Set(normalizedOutputs).isSubset(of: ["space", "spacebar", "spc", "sp"])
+            let displayLabel = (isSpaceInput || isSpaceOnlyOutput) ? "" : finalLabel
+            let outputKey = primaryOutputKey ?? keyMapping.outputs.first
 
-                if let outputKey {
-                    mapping[keyCode] = .mapped(
-                        displayLabel: combinedLabel,
-                        outputKey: outputKey,
-                        outputKeyCode: primaryOutputKeyCode
-                    )
-                    if outputKey.uppercased() != keyMapping.input.uppercased() {
-                        AppLogger.shared.debug("🗺️ [LayerKeyMapper] Mapped \(keyMapping.input)(\(keyCode)) -> \(outputKey)(\(combinedLabel))")
-                    }
-                } else {
-                    mapping[keyCode] = LayerKeyInfo(
-                        displayLabel: combinedLabel,
-                        outputKey: nil,
-                        outputKeyCode: nil,
-                        isTransparent: false,
-                        isLayerSwitch: false
-                    )
+            if let outputKey {
+                mapping[keyCode] = .mapped(
+                    displayLabel: displayLabel,
+                    outputKey: outputKey,
+                    outputKeyCode: primaryOutputKeyCode
+                )
+                if outputKey.uppercased() != keyMapping.input.uppercased() {
+                    AppLogger.shared.debug("🗺️ [LayerKeyMapper] Mapped \(keyMapping.input)(\(keyCode)) -> \(outputKey)(\(displayLabel))")
+                }
+            } else {
+                mapping[keyCode] = LayerKeyInfo(
+                    displayLabel: displayLabel,
+                    outputKey: nil,
+                    outputKeyCode: nil,
+                    isTransparent: false,
+                    isLayerSwitch: false
+                )
                 }
             }
         }
@@ -401,13 +442,24 @@ actor LayerKeyMapper {
             return "◆"
         }
 
+        // Spacebar output should render blank
+        if normalizedSet.count == 1, let only = normalizedSet.first,
+           ["space", "spacebar", "spc", "sp"].contains(only) {
+            return ""
+        }
+
         if normalizedSet.count == 1, let only = normalizedSet.first {
-            return displayForKey(only)
+            let label = displayForKey(only).trimmingCharacters(in: .whitespacesAndNewlines)
+            return label.isEmpty ? "" : label
         }
 
         // Fallback: join display labels for combo
-        let labels = normalizedSet.map { displayForKey($0) }.sorted()
-        return labels.joined()
+        let labels = normalizedSet
+            .map { displayForKey($0) }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .sorted()
+        return labels.isEmpty ? "" : labels.joined()
     }
 
     // MARK: - Key Name Conversion
