@@ -40,6 +40,34 @@ struct PhysicalLayout: Identifiable {
     let totalWidth: Double // For aspect ratio calculation
     let totalHeight: Double
 
+    /// Initialize with explicit dimensions
+    init(id: String, name: String, keys: [PhysicalKey], totalWidth: Double, totalHeight: Double) {
+        self.id = id
+        self.name = name
+        self.keys = keys
+        self.totalWidth = totalWidth
+        self.totalHeight = totalHeight
+    }
+
+    /// Initialize with auto-computed dimensions from keys
+    init(id: String, name: String, keys: [PhysicalKey]) {
+        self.id = id
+        self.name = name
+        self.keys = keys
+
+        // Compute dimensions from key positions
+        var maxX = 0.0
+        var maxY = 0.0
+        for key in keys {
+            let keyRight = key.x + key.width
+            let keyBottom = key.y + key.height
+            maxX = max(maxX, keyRight)
+            maxY = max(maxY, keyBottom)
+        }
+        totalWidth = maxX
+        totalHeight = maxY
+    }
+
     /// Registry of all known layouts
     // swiftformat:disable:next redundantSelf
     static let all: [PhysicalLayout] = [macBookUS, kinesisAdvantage360]
@@ -268,144 +296,29 @@ struct PhysicalLayout: Identifiable {
     // MARK: - Kinesis Advantage 360
 
     /// Kinesis Advantage 360 split ergonomic keyboard layout
-    /// Physical layout from: https://github.com/nickcoutsos/keymap-editor-contrib/blob/main/keyboard-data/adv360pro.json
-    /// Key mapping based on stock QWERTY layout from ZMK default keymap
+    /// Physical layout parsed from: Resources/Keyboards/adv360pro.json
+    /// Key mapping based on stock QWERTY layout from ZMK default keymap (see Kinesis360KeyMap.swift)
     static let kinesisAdvantage360: PhysicalLayout = {
-        var keys: [PhysicalKey] = []
+        // Try to load from bundled JSON first
+        // Override ID and name for consistent naming in KeyPath
+        if let layout = QMKLayoutParser.loadFromBundle(
+            filename: "adv360pro",
+            keyMapping: Kinesis360KeyMap.keyMapping,
+            idOverride: "kinesis-360",
+            nameOverride: "Kinesis Advantage 360"
+        ) {
+            return layout
+        }
 
-        // The Kinesis 360 has a split layout with:
-        // - Main key wells on left and right (cols 0-6 and 14-20 in the matrix)
-        // - Thumb clusters in the center with rotated keys (cols 7-9 and 11-13)
-        // - A gap between the halves for the split
-        //
-        // Stock QWERTY layout from ZMK default:
-        // Row 0: = 1 2 3 4 5 [Layer] | [Fn] 6 7 8 9 0 -
-        // Row 1: Tab Q W E R T | Y U I O P \
-        // Row 2: Esc A S D F G [Ctrl Alt Cmd Ctrl] H J K L ; '
-        // Row 3: Shift Z X C V B | N M , . / Shift
-        // Row 4: Fn ` Caps ← → [Home PgUp Bksp Del] | [Enter End PgDn] Space ↑ ↓ [ ] Fn
-
-        // Gap between left and right halves (in key units)
-        let splitGap = 3.5
-
-        // Helper to offset right-half keys
-        func rightX(_ baseX: Double) -> Double { baseX + splitGap + 7.0 }
-
-        // Row 0: Number row
-        // Left: = 1 2 3 4 5 Layer
-        keys.append(PhysicalKey(keyCode: 24, label: "=", x: 0, y: 0.25, width: 1.25))
-        keys.append(PhysicalKey(keyCode: 18, label: "1", x: 1.25, y: 0.25))
-        keys.append(PhysicalKey(keyCode: 19, label: "2", x: 2.25, y: 0))
-        keys.append(PhysicalKey(keyCode: 20, label: "3", x: 3.25, y: 0))
-        keys.append(PhysicalKey(keyCode: 21, label: "4", x: 4.25, y: 0))
-        keys.append(PhysicalKey(keyCode: 23, label: "5", x: 5.25, y: 0))
-        keys.append(PhysicalKey(keyCode: 0xFFFF, label: "Lyr", x: 6.25, y: 0))
-
-        // Right: Fn 6 7 8 9 0 -
-        keys.append(PhysicalKey(keyCode: 0xFFFF, label: "Fn", x: rightX(0), y: 0))
-        keys.append(PhysicalKey(keyCode: 22, label: "6", x: rightX(1), y: 0))
-        keys.append(PhysicalKey(keyCode: 26, label: "7", x: rightX(2), y: 0))
-        keys.append(PhysicalKey(keyCode: 28, label: "8", x: rightX(3), y: 0))
-        keys.append(PhysicalKey(keyCode: 25, label: "9", x: rightX(4), y: 0))
-        keys.append(PhysicalKey(keyCode: 29, label: "0", x: rightX(5), y: 0.25))
-        keys.append(PhysicalKey(keyCode: 27, label: "-", x: rightX(6), y: 0.25, width: 1.25))
-
-        // Row 1: QWERTY top row
-        // Left: Tab Q W E R T
-        keys.append(PhysicalKey(keyCode: 48, label: "⇥", x: 0, y: 1.25, width: 1.25))
-        keys.append(PhysicalKey(keyCode: 12, label: "q", x: 1.25, y: 1.25))
-        keys.append(PhysicalKey(keyCode: 13, label: "w", x: 2.25, y: 1))
-        keys.append(PhysicalKey(keyCode: 14, label: "e", x: 3.25, y: 1))
-        keys.append(PhysicalKey(keyCode: 15, label: "r", x: 4.25, y: 1))
-        keys.append(PhysicalKey(keyCode: 17, label: "t", x: 5.25, y: 1))
-
-        // Right: Y U I O P \
-        keys.append(PhysicalKey(keyCode: 16, label: "y", x: rightX(0), y: 1))
-        keys.append(PhysicalKey(keyCode: 32, label: "u", x: rightX(1), y: 1))
-        keys.append(PhysicalKey(keyCode: 34, label: "i", x: rightX(2), y: 1))
-        keys.append(PhysicalKey(keyCode: 31, label: "o", x: rightX(3), y: 1))
-        keys.append(PhysicalKey(keyCode: 35, label: "p", x: rightX(4), y: 1))
-        keys.append(PhysicalKey(keyCode: 42, label: "\\", x: rightX(5), y: 1.25, width: 1.25))
-
-        // Row 2: Home row
-        // Left: Esc A S D F G
-        keys.append(PhysicalKey(keyCode: 53, label: "esc", x: 0, y: 2.25, width: 1.25))
-        keys.append(PhysicalKey(keyCode: 0, label: "a", x: 1.25, y: 2.25))
-        keys.append(PhysicalKey(keyCode: 1, label: "s", x: 2.25, y: 2))
-        keys.append(PhysicalKey(keyCode: 2, label: "d", x: 3.25, y: 2))
-        keys.append(PhysicalKey(keyCode: 3, label: "f", x: 4.25, y: 2))
-        keys.append(PhysicalKey(keyCode: 5, label: "g", x: 5.25, y: 2))
-
-        // Right: H J K L ; '
-        keys.append(PhysicalKey(keyCode: 4, label: "h", x: rightX(0), y: 2))
-        keys.append(PhysicalKey(keyCode: 38, label: "j", x: rightX(1), y: 2))
-        keys.append(PhysicalKey(keyCode: 40, label: "k", x: rightX(2), y: 2))
-        keys.append(PhysicalKey(keyCode: 37, label: "l", x: rightX(3), y: 2))
-        keys.append(PhysicalKey(keyCode: 41, label: ";", x: rightX(4), y: 2))
-        keys.append(PhysicalKey(keyCode: 39, label: "'", x: rightX(5), y: 2.25, width: 1.25))
-
-        // Row 3: Bottom alpha row
-        // Left: Shift Z X C V B
-        keys.append(PhysicalKey(keyCode: 56, label: "⇧", x: 0, y: 3.25, width: 1.25))
-        keys.append(PhysicalKey(keyCode: 6, label: "z", x: 1.25, y: 3.25))
-        keys.append(PhysicalKey(keyCode: 7, label: "x", x: 2.25, y: 3))
-        keys.append(PhysicalKey(keyCode: 8, label: "c", x: 3.25, y: 3))
-        keys.append(PhysicalKey(keyCode: 9, label: "v", x: 4.25, y: 3))
-        keys.append(PhysicalKey(keyCode: 11, label: "b", x: 5.25, y: 3))
-
-        // Right: N M , . / Shift
-        keys.append(PhysicalKey(keyCode: 45, label: "n", x: rightX(0), y: 3))
-        keys.append(PhysicalKey(keyCode: 46, label: "m", x: rightX(1), y: 3))
-        keys.append(PhysicalKey(keyCode: 43, label: ",", x: rightX(2), y: 3))
-        keys.append(PhysicalKey(keyCode: 47, label: ".", x: rightX(3), y: 3))
-        keys.append(PhysicalKey(keyCode: 44, label: "/", x: rightX(4), y: 3))
-        keys.append(PhysicalKey(keyCode: 60, label: "⇧", x: rightX(5), y: 3.25, width: 1.25))
-
-        // Row 4: Function row
-        // Left: Fn ` Caps ← →
-        keys.append(PhysicalKey(keyCode: 0xFFFF, label: "Fn", x: 0, y: 4.25, width: 1.25))
-        keys.append(PhysicalKey(keyCode: 50, label: "`", x: 1.25, y: 4.25))
-        keys.append(PhysicalKey(keyCode: 57, label: "⇪", x: 2.25, y: 4))
-        keys.append(PhysicalKey(keyCode: 123, label: "◀", x: 3.25, y: 4))
-        keys.append(PhysicalKey(keyCode: 124, label: "▶", x: 4.25, y: 4))
-
-        // Right: Space ↑ ↓ [ ] Fn
-        keys.append(PhysicalKey(keyCode: 49, label: "␣", x: rightX(1), y: 4))
-        keys.append(PhysicalKey(keyCode: 126, label: "▲", x: rightX(2), y: 4))
-        keys.append(PhysicalKey(keyCode: 125, label: "▼", x: rightX(3), y: 4))
-        keys.append(PhysicalKey(keyCode: 33, label: "[", x: rightX(4), y: 4))
-        keys.append(PhysicalKey(keyCode: 30, label: "]", x: rightX(5), y: 4.25))
-        keys.append(PhysicalKey(keyCode: 0xFFFF, label: "Fn", x: rightX(6), y: 4.25, width: 1.25))
-
-        // Thumb clusters
-        // Left thumb cluster (rotated +15°)
-        let leftThumbX = 5.75
-        keys.append(PhysicalKey(keyCode: 59, label: "⌃", x: leftThumbX + 1, y: 3.25, rotation: 15)) // Ctrl
-        keys.append(PhysicalKey(keyCode: 58, label: "⌥", x: leftThumbX + 2, y: 3.25, rotation: 15)) // Alt
-        keys.append(PhysicalKey(keyCode: 115, label: "Home", x: leftThumbX, y: 4.25, height: 2, rotation: 15))
-        keys.append(PhysicalKey(keyCode: 116, label: "PgUp", x: leftThumbX + 1, y: 4.25, height: 2, rotation: 15))
-        keys.append(PhysicalKey(keyCode: 51, label: "⌫", x: leftThumbX + 2, y: 5.25, rotation: 15)) // Backspace
-        keys.append(PhysicalKey(keyCode: 117, label: "Del", x: leftThumbX + 1, y: 5.25, rotation: 15))
-
-        // Right thumb cluster (rotated -15°)
-        let rightThumbX = rightX(-2.5)
-        keys.append(PhysicalKey(keyCode: 55, label: "⌘", x: rightThumbX, y: 3.25, rotation: -15)) // Cmd
-        keys.append(PhysicalKey(keyCode: 59, label: "⌃", x: rightThumbX + 1, y: 3.25, rotation: -15)) // Ctrl
-        keys.append(PhysicalKey(keyCode: 36, label: "↩", x: rightThumbX, y: 5.25, rotation: -15)) // Enter
-        keys.append(PhysicalKey(keyCode: 119, label: "End", x: rightThumbX + 1, y: 4.25, height: 2, rotation: -15))
-        keys.append(PhysicalKey(keyCode: 121, label: "PgDn", x: rightThumbX + 2, y: 4.25, height: 2, rotation: -15))
-        keys.append(PhysicalKey(keyCode: 49, label: "␣", x: rightThumbX + 1, y: 5.25, rotation: -15)) // Space
-
-        // Calculate total dimensions
-        let totalWidth = rightX(5) + 1.25 // Right edge of rightmost key (wide key at position 5)
-        let totalHeight = 7.25 // Accounts for thumb cluster extension
-
+        // Fallback to a minimal layout if JSON parsing fails
+        // This should never happen in production, but provides graceful degradation
+        print("PhysicalLayout: Failed to load Kinesis 360 from JSON, using fallback")
         return PhysicalLayout(
             id: "kinesis-360",
             name: "Kinesis Advantage 360",
-            keys: keys,
-            totalWidth: totalWidth,
-            totalHeight: totalHeight
+            keys: [],
+            totalWidth: 18.75,
+            totalHeight: 7.25
         )
     }()
 }

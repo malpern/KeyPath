@@ -92,6 +92,9 @@ let package = Package(
             exclude: [
                 "InstallationWizard/README.md"
             ],
+            resources: [
+                .process("Resources/Keyboards")
+            ],
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ],
