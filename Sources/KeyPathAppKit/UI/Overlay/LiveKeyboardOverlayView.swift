@@ -5,23 +5,25 @@ import SwiftUI
 /// Shows a borderless floating keyboard that highlights keys as they are pressed.
 struct LiveKeyboardOverlayView: View {
     @ObservedObject var viewModel: KeyboardVisualizationViewModel
+    /// Callback when a key is clicked (not dragged) - for opening Mapper with preset values
+    var onKeyClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
 
     @Environment(\.colorScheme) private var colorScheme
+    @AppStorage("overlayLayoutId") private var selectedLayoutId: String = "macbook-us"
 
-    /// Constants matching OverlayKeyboardView for scale calculation
-    private let keyUnitSize: CGFloat = 32
-    private let keyGap: CGFloat = 2
-    private let layout = PhysicalLayout.macBookUS
+    /// The currently selected physical keyboard layout
+    private var activeLayout: PhysicalLayout {
+        PhysicalLayout.find(id: selectedLayoutId) ?? .macBookUS
+    }
 
     var body: some View {
-        GeometryReader { geometry in
-            let scale = calculateScale(for: geometry.size)
-            let cornerRadius = 10 * scale // Larger than keys for harmonious container feel
-            let fadeAmount: CGFloat = viewModel.fadeAmount
+        let cornerRadius: CGFloat = 10 // Fixed corner radius for glass container
+        let fadeAmount: CGFloat = viewModel.fadeAmount
 
+        VStack(spacing: 0) {
             // Main keyboard with directional shadow (light from above)
             OverlayKeyboardView(
-                layout: .macBookUS,
+                layout: activeLayout,
                 pressedKeyCodes: viewModel.pressedKeyCodes,
                 isDarkMode: isDark,
                 fadeAmount: fadeAmount,
@@ -30,38 +32,40 @@ struct LiveKeyboardOverlayView: View {
                 layerKeyMap: viewModel.layerKeyMap,
                 effectivePressedKeyCodes: viewModel.effectivePressedKeyCodes,
                 emphasizedKeyCodes: viewModel.emphasizedKeyCodes,
-                holdLabels: viewModel.holdLabels
+                holdLabels: viewModel.holdLabels,
+                onKeyClick: onKeyClick
             )
             .environmentObject(viewModel)
             .padding(10)
-            .background(
-                glassBackground(cornerRadius: cornerRadius, fadeAmount: fadeAmount)
-            )
-            // Resize/move handles on the keyboard background (not shadow area)
-            .windowResizeHandles()
-            .environmentObject(viewModel)
-            // Padding for shadow to fade naturally (asymmetric - more below)
-            .padding(.bottom, 25)
-            .padding(.horizontal, 15)
-            .padding(.top, 8)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .onHover { hovering in
-                if hovering { viewModel.noteInteraction() }
-            }
-            .background(MouseMoveMonitor { viewModel.noteInteraction() })
-            .opacity(0.11 + 0.89 * (1 - viewModel.deepFadeAmount))
-            // Animate deep fade smoothly; fade-in is instant
-            .animation(viewModel.deepFadeAmount > 0 ? .easeOut(duration: 0.3) : nil,
-                       value: viewModel.deepFadeAmount)
         }
+        .background(
+            glassBackground(cornerRadius: cornerRadius, fadeAmount: fadeAmount)
+        )
+        // Resize/move handles on the keyboard background (not shadow area)
+        .windowResizeHandles()
+        .environmentObject(viewModel)
+        // Minimal padding for shadow (just enough for bottom shadow)
+        .padding(.bottom, 20)
+        .padding(.horizontal, 4)
+        .padding(.top, 4)
+        .onHover { hovering in
+            if hovering { viewModel.noteInteraction() }
+        }
+        .background(MouseMoveMonitor { viewModel.noteInteraction() })
+        .opacity(0.11 + 0.89 * (1 - viewModel.deepFadeAmount))
+        // Animate deep fade smoothly; fade-in is instant
+        .animation(viewModel.deepFadeAmount > 0 ? .easeOut(duration: 0.3) : nil,
+                   value: viewModel.deepFadeAmount)
     }
+}
 
-    // MARK: - Styling
+// MARK: - LiveKeyboardOverlayView Styling Extension
 
-    private var isDark: Bool { colorScheme == .dark }
+extension LiveKeyboardOverlayView {
+    var isDark: Bool { colorScheme == .dark }
 
     @ViewBuilder
-    private func glassBackground(cornerRadius: CGFloat, fadeAmount: CGFloat) -> some View {
+    func glassBackground(cornerRadius: CGFloat, fadeAmount: CGFloat) -> some View {
         // Simulated "liquid glass" backdrop: adaptive material + tint + softened shadows.
         let tint = isDark
             ? Color.white.opacity(0.12 - 0.07 * fadeAmount)
@@ -86,15 +90,6 @@ struct LiveKeyboardOverlayView: View {
             .shadow(color: ambientShadow, radius: 14, x: 0, y: 14)
             .shadow(color: contactShadow, radius: 4, x: 0, y: 4)
             .animation(.easeOut(duration: 0.3), value: fadeAmount)
-    }
-
-    /// Calculate scale to match OverlayKeyboardView's scale calculation
-    private func calculateScale(for size: CGSize) -> CGFloat {
-        // Account for padding (10pt on each side)
-        let contentSize = CGSize(width: size.width - 20, height: size.height - 20)
-        let widthScale = contentSize.width / (layout.totalWidth * (keyUnitSize + keyGap))
-        let heightScale = contentSize.height / (layout.totalHeight * (keyUnitSize + keyGap))
-        return min(widthScale, heightScale)
     }
 }
 

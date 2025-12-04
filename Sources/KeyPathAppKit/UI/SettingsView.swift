@@ -9,6 +9,7 @@ import SwiftUI
 struct GeneralSettingsTabView: View {
     @EnvironmentObject var kanataManager: KanataViewModel
     @State private var settingsToastManager = WizardToastManager()
+    @AppStorage("overlayLayoutId") private var selectedLayoutId: String = "macbook-us"
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -103,6 +104,21 @@ struct GeneralSettingsTabView: View {
                         }
                         .pickerStyle(.radioGroup)
                         .labelsHidden()
+                    }
+
+                    // Overlay Settings
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Keyboard Overlay")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+
+                        Picker("Layout", selection: $selectedLayoutId) {
+                            ForEach(PhysicalLayout.all) { layout in
+                                Text(layout.name).tag(layout.id)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: 200)
                     }
                 }
 
