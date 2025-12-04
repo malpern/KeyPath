@@ -521,7 +521,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
         case "release":
             tcpPressedKeyCodes.remove(keyCode)
             // Clear any hold label when key is released
-            if holdLabels[keyCode] != nil {
+            if !tcpPressedKeyCodes.contains(keyCode), holdLabels[keyCode] != nil {
                 holdLabels.removeValue(forKey: keyCode)
                 holdLabelCache.removeValue(forKey: keyCode)
                 AppLogger.shared.debug("⌨️ [KeyboardViz] Cleared hold label for \(key)")

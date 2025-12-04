@@ -512,7 +512,7 @@ actor KanataEventListener {
            let key = keyInput["key"] as? String,
            let actionStr = keyInput["action"] as? String {
             if let action = KanataKeyAction(rawValue: actionStr) {
-                AppLogger.shared.debug("⌨️ [EventListener] KeyInput: \(key) \(action)")
+                AppLogger.shared.info("⌨️ [EventListener] KeyInput: \(key) \(action)")
                 if let handler = keyInputHandler {
                     await handler(key, action)
                 }
