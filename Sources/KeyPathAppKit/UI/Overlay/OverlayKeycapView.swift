@@ -54,7 +54,7 @@ struct OverlayKeycapView: View {
 
     /// State for hover-to-click behavior
     @State private var isHovering = false
-    @State private var isClickable = false  // True after 100ms hover dwell
+    @State private var isClickable = false // True after 100ms hover dwell
     @State private var hoverTask: Task<Void, Never>?
 
     /// Cached app icon for launch actions
@@ -420,22 +420,45 @@ struct OverlayKeycapView: View {
 
     @ViewBuilder
     private var functionKeyContent: some View {
-        let sfSymbol = LabelMetadata.sfSymbol(forKeyCode: key.keyCode)
+        // Check if this function key is remapped to a non-system key (regular letter/number)
+        // If so, show the remapped key in centered layout instead of function key layout
+        let remappedLabel = layerKeyInfo?.displayLabel
+        let sfSymbolResult = remappedLabel.flatMap { LabelMetadata.sfSymbol(forOutputLabel: $0) }
+        let hasSystemRemapping = sfSymbolResult != nil
+        let isRemappedToRegularKey = remappedLabel != nil && !hasSystemRemapping && remappedLabel != key.label
 
-        VStack(spacing: 0) {
-            if let symbol = sfSymbol {
-                Image(systemName: symbol)
-                    .font(.system(size: 8 * scale, weight: .regular))
-                    .foregroundStyle(foregroundColor)
+        if isRemappedToRegularKey {
+            // Show remapped key in centered style (e.g., F8 -> Q shows just "Q")
+            Text(remappedLabel!.uppercased())
+                .font(.system(size: 10 * scale, weight: .medium))
+                .foregroundStyle(foregroundColor)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            // Standard function key layout: SF symbol on top, F-key label below
+            let sfSymbol: String? = {
+                if let info = layerKeyInfo,
+                   let outputSymbol = LabelMetadata.sfSymbol(forOutputLabel: info.displayLabel) {
+                    return outputSymbol
+                }
+                // Fall back to physical key code
+                return LabelMetadata.sfSymbol(forKeyCode: key.keyCode)
+            }()
+
+            VStack(spacing: 0) {
+                if let symbol = sfSymbol {
+                    Image(systemName: symbol)
+                        .font(.system(size: 8 * scale, weight: .regular))
+                        .foregroundStyle(foregroundColor)
+                }
+                Spacer()
+                Text(key.label)
+                    .font(.system(size: 5.4 * scale, weight: .regular))
+                    .foregroundStyle(foregroundColor.opacity(0.6))
             }
-            Spacer()
-            Text(key.label)
-                .font(.system(size: 5.4 * scale, weight: .regular))
-                .foregroundStyle(foregroundColor.opacity(0.6))
+            .padding(.top, 4 * scale)
+            .padding(.bottom, 2 * scale)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .padding(.top, 4 * scale)
-        .padding(.bottom, 2 * scale)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Layout: Arrow

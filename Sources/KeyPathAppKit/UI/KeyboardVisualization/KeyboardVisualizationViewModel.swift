@@ -19,7 +19,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
     // MARK: - Timing Tunables
 
-    struct OverlayTiming {
+    enum OverlayTiming {
         /// Grace period to wait for a quick re-press before clearing hold state (seconds).
         /// Trade-off: higher = less flicker, lower = less linger.
         static let holdReleaseGrace: TimeInterval = 0.06
@@ -351,7 +351,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
                 let customRules = await CustomRulesStore.shared.loadRules()
                 let ruleCollections = await RuleCollectionStore.shared.loadCollections()
                 AppLogger.shared.info("🗺️ [KeyboardViz] Augmenting with \(customRules.count) custom rules and \(ruleCollections.count) collections")
-                mapping = self.augmentWithPushMsgActions(
+                mapping = augmentWithPushMsgActions(
                     mapping: mapping,
                     customRules: customRules,
                     ruleCollections: ruleCollections
@@ -460,21 +460,21 @@ class KeyboardVisualizationViewModel: ObservableObject {
     nonisolated static func systemActionDisplayLabel(_ action: String) -> String {
         switch action.lowercased() {
         case "dnd", "do-not-disturb", "donotdisturb", "focus":
-            return "Do Not Disturb"
+            "Do Not Disturb"
         case "spotlight":
-            return "Spotlight"
+            "Spotlight"
         case "dictation":
-            return "Dictation"
+            "Dictation"
         case "mission-control", "missioncontrol":
-            return "Mission Control"
+            "Mission Control"
         case "launchpad":
-            return "Launchpad"
+            "Launchpad"
         case "notification-center", "notificationcenter":
-            return "Notification Center"
+            "Notification Center"
         case "siri":
-            return "Siri"
+            "Siri"
         default:
-            return action.capitalized
+            action.capitalized
         }
     }
 
@@ -580,7 +580,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
             Task.detached { [weak self] in
                 guard let self else { return }
                 do {
-                    if let resolved = try await self.layerKeyMapper.holdDisplayLabel(
+                    if let resolved = try await layerKeyMapper.holdDisplayLabel(
                         for: keyCode,
                         configPath: configPath,
                         startLayer: layer
@@ -676,13 +676,13 @@ class KeyboardVisualizationViewModel: ObservableObject {
             // Defer clearing hold state briefly to tolerate tap-hold-press sequences that emit rapid releases.
             let work = DispatchWorkItem { [weak self] in
                 guard let self else { return }
-                self.holdActiveKeyCodes.remove(keyCode)
-                if self.holdLabels[keyCode] != nil {
-                    self.holdLabels.removeValue(forKey: keyCode)
-                    self.holdLabelCache.removeValue(forKey: keyCode)
+                holdActiveKeyCodes.remove(keyCode)
+                if holdLabels[keyCode] != nil {
+                    holdLabels.removeValue(forKey: keyCode)
+                    holdLabelCache.removeValue(forKey: keyCode)
                     AppLogger.shared.debug("⌨️ [KeyboardViz] Cleared hold label (delayed) for \(key)")
                 }
-                self.holdClearWorkItems.removeValue(forKey: keyCode)
+                holdClearWorkItems.removeValue(forKey: keyCode)
             }
             holdClearWorkItems[keyCode]?.cancel()
             holdClearWorkItems[keyCode] = work
@@ -701,15 +701,15 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
     // MARK: - Test hooks (DEBUG only)
 
-        /// Simulate a HoldActivated TCP event (used by unit tests).
-        func simulateHoldActivated(key: String, action: String) {
-            handleHoldActivated(key: key, action: action)
-        }
+    /// Simulate a HoldActivated TCP event (used by unit tests).
+    func simulateHoldActivated(key: String, action: String) {
+        handleHoldActivated(key: key, action: action)
+    }
 
-        /// Simulate a TCP KeyInput event (used by unit tests).
-        func simulateTcpKeyInput(key: String, action: String) {
-            handleTcpKeyInput(key: key, action: action)
-        }
+    /// Simulate a TCP KeyInput event (used by unit tests).
+    func simulateTcpKeyInput(key: String, action: String) {
+        handleTcpKeyInput(key: key, action: action)
+    }
 
     /// Maps Kanata key names (e.g., "h", "j", "space") to macOS key codes
     /// This is the inverse of OverlayKeyboardView.keyCodeToKanataName()
@@ -747,7 +747,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
             // Arrow keys
             "left": 123, "right": 124, "down": 125, "up": 126,
             // Delete key (forward delete)
-            "del": 117, "delete": 117,
+            "del": 117, "delete": 117
         ]
         return mapping[name.lowercased()]
     }

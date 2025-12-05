@@ -201,4 +201,42 @@ struct LabelMetadata {
         default: nil
         }
     }
+
+    /// SF Symbol lookup by simulator output name (e.g., "VolUp" -> "speaker.wave.3")
+    /// Used when a key is remapped to a media/system action
+    static func sfSymbol(forOutputLabel label: String) -> String? {
+        // Strip layer suffix like "[base layer]" that Mapper adds to notes
+        let cleanLabel = label.replacingOccurrences(
+            of: #"\s*\[[^\]]+\s+layer\]$"#,
+            with: "",
+            options: .regularExpression
+        )
+        switch cleanLabel {
+        // Media keys (simulator canonical names from keyberon KeyCode enum)
+        case "MediaPlayPause", "pp": return "playpause"
+        case "MediaNextSong", "next": return "forward"
+        case "MediaPreviousSong", "prev": return "backward"
+        // Volume keys (simulator outputs Mute/VolUp/VolDown)
+        case "Mute", "MediaMute", "mute": return "speaker.slash"
+        case "VolUp", "volu": return "speaker.wave.3"
+        case "VolDown", "voldwn", "vold": return "speaker.wave.1"
+        // Brightness keys
+        case "BrightnessUp", "brup": return "sun.max"
+        case "BrightnessDown", "brdn": return "sun.min"
+        // System actions (Do Not Disturb, etc.)
+        case "Do Not Disturb": return "moon"
+        case "Spotlight": return "magnifyingglass"
+        case "Mission Control": return "rectangle.3.group"
+        case "Launchpad": return "square.grid.3x3"
+        case "Dictation": return "mic"
+        case "Siri": return "waveform.circle"
+        case "Notification Center": return "bell"
+        // macOS system hotkey combos (from Mapper saving system actions as chords)
+        // These are the standard macOS keyboard shortcuts for function key actions
+        case "⌃⇧⌘Z": return "magnifyingglass" // Spotlight (Cmd+Ctrl+Shift+Z placeholder - actual key varies)
+        case "⌃⌘F": return "rectangle.3.group" // Mission Control
+        case "⌃⌘L": return "square.grid.3x3" // Launchpad
+        default: return nil
+        }
+    }
 }
