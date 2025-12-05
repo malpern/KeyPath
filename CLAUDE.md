@@ -18,17 +18,15 @@ Use this skill when generating or editing `.kbd` files, creating rules, or worki
 
 ## ⚠️ CURRENT SESSION STATUS
 
-**LATEST WORK:** Strangler Fig Façade Migration Complete (November 24, 2025)
+**LATEST WORK:** Release Milestone Feature Gating (December 5, 2025)
 
 **Recent Commits:**
-- Merge branch 'refactor/unify-service-layer': Strangler Fig façade migration
-  - Added health check APIs to InstallerEngine façade
-  - Migrated callers from direct LaunchDaemonInstaller usage
-  - Added InstallerEngineHealthCheckTests (11 tests)
-  - Updated documentation and status tracking
-- refactor: expose health check APIs via InstallerEngine façade
-- test: add InstallerEngine health check façade tests
-- docs: update refactoring plan with façade migration status
+- feat: add release milestone feature gating (R1/R2)
+  - R1: Installer + Custom Rules only (default)
+  - R2: Full features (Simulator, Overlay, Mapper, Rule Collections)
+  - Secret toggle: Ctrl+Option+Cmd+R cycles milestones
+  - Save button hidden until content entered
+  - UI cleanup (Settings layout, attribution in About only)
 
 **Previous Session Work:**
 - refactor: completed InstallerEngine migration (Phases 8-9)
@@ -67,6 +65,10 @@ Use this skill when generating or editing `.kbd` files, creating rules, or worki
 - **TCP Communication:** Primary protocol between KeyPath and Kanata (no authentication - see ADR-013)
 - **PermissionOracle:** Single source of truth for all permission detection (DO NOT BREAK)
 - **TCC-Safe Deployment:** Stable Developer ID signing preserves Input Monitoring permissions
+- **Release Milestones:** Feature gating via `ReleaseMilestone` enum in FeatureFlags.swift
+  - R1 (default): Installer + Custom Rules only
+  - R2: Simulator, Overlay, Mapper, Rule Collections, Virtual Keys Inspector
+  - Secret toggle: `Ctrl+Option+Cmd+R` cycles milestones at runtime
 
 ## Project Overview
 
