@@ -2,12 +2,14 @@
 
 <div align="center">
   <img src="https://github.com/user-attachments/assets/keypath-icon.png" alt="KeyPath" width="128" height="128"/>
-  
-  **Remap any key to any other key with a simple, native macOS app**
-  
+
+  **A macOS key remapper powered by [Kanata](https://github.com/jtroo/kanata)**
+
   [![macOS 15+](https://img.shields.io/badge/macOS-15%2B-blue.svg)](https://www.apple.com/macos/)
   [![Swift 6.0](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+  Created by [Micah Alpern](https://x.com/malpern)
 </div>
 
 ---
@@ -426,8 +428,12 @@ KeyPath stands on the shoulders of giants:
 
 <div align="center">
   <strong>Made with ❤️ for the macOS community</strong>
-  
+
   <p>If KeyPath helps you, consider ⭐ starring the repo!</p>
-  
+
   <p><em>KeyPath makes Kanata's power accessible to everyone—no command line required.</em></p>
+
+  ---
+
+  **[KeyPath on GitHub](https://github.com/malpern/KeyPath)** • **[Kanata on GitHub](https://github.com/jtroo/kanata)** • **[@malpern on X](https://x.com/malpern)**
 </div>

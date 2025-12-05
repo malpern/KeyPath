@@ -48,7 +48,7 @@ struct PermissionCard: View {
                 RoundedRectangle(cornerRadius: 10)
                     .stroke(Color.gray.opacity(0.15), lineWidth: 1)
             )
-            .cornerRadius(10)
+            .clipShape(.rect(cornerRadius: 10))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

@@ -1,6 +1,79 @@
 import Foundation
 import KeyPathCore
 
+// MARK: - Release Milestone Gating
+
+/// Controls which features are available in each release.
+///
+/// To prepare for a release:
+/// 1. Set `ReleaseMilestone.defaultMilestone` to the target milestone
+/// 2. Build and test - hidden features won't appear in UI
+/// 3. When ready for next release, bump the milestone
+///
+/// Features are cumulative - R2 includes everything from R1.
+///
+/// Secret toggle: Cmd+Option+Shift+R cycles through milestones at runtime.
+enum ReleaseMilestone: Int, Comparable, CaseIterable {
+    /// R1: Installer + Custom Rules Only (thin Kanata fork ~480 lines)
+    /// - Installation Wizard, Permissions, VHID Driver
+    /// - LaunchDaemon, Privileged Helper
+    /// - Rules Tab with Custom Rules only (no Rule Collections)
+    /// - Config Generation, Hot Reload, Validation
+    case r1_installer_rules = 1
+
+    /// R2: Full Features (full Kanata fork ~700 lines)
+    /// - Rule Collections (Vim, Caps Lock, Home Row Mods, etc.)
+    /// - Live Keyboard Overlay
+    /// - Mapper UI
+    /// - Simulator Tab
+    /// - HoldActivated telemetry, Action URIs, Virtual Keys Inspector
+    case r2_overlay_mapper = 2
+
+    /// The default milestone for this build. Change before release.
+    static let defaultMilestone: ReleaseMilestone = .r1_installer_rules
+
+    private static let userDefaultsKey = "KEYPATH_RELEASE_MILESTONE_OVERRIDE"
+
+    /// The current active milestone (may be overridden at runtime via secret toggle)
+    static var current: ReleaseMilestone {
+        if let override = UserDefaults.standard.object(forKey: userDefaultsKey) as? Int,
+           let milestone = ReleaseMilestone(rawValue: override)
+        {
+            return milestone
+        }
+        return defaultMilestone
+    }
+
+    /// Cycle to the next milestone (wraps around). Returns the new milestone.
+    @discardableResult
+    static func cycleToNext() -> ReleaseMilestone {
+        let allCases = ReleaseMilestone.allCases
+        guard let currentIndex = allCases.firstIndex(of: current) else {
+            return current
+        }
+        let nextIndex = (currentIndex + 1) % allCases.count
+        let next = allCases[nextIndex]
+        UserDefaults.standard.set(next.rawValue, forKey: userDefaultsKey)
+        return next
+    }
+
+    /// Reset to the default milestone for this build
+    static func resetToDefault() {
+        UserDefaults.standard.removeObject(forKey: userDefaultsKey)
+    }
+
+    var displayName: String {
+        switch self {
+        case .r1_installer_rules: "R1 (Installer + Rules)"
+        case .r2_overlay_mapper: "R2 (Full Features)"
+        }
+    }
+
+    static func < (lhs: ReleaseMilestone, rhs: ReleaseMilestone) -> Bool {
+        lhs.rawValue < rhs.rawValue
+    }
+}
+
 /// Centralized runtime flags for the current process.
 ///
 /// Avoids using environment variables for intra-process feature switches,
@@ -171,5 +244,38 @@ extension FeatureFlags {
 
     static func setUseUnifiedWizardRouter(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: useUnifiedWizardRouterKey)
+    }
+
+    // MARK: - Release Milestone Feature Gates
+
+    /// Simulator tab - available in R2+
+    static var simulatorEnabled: Bool {
+        ReleaseMilestone.current >= .r2_overlay_mapper
+    }
+
+    /// Live Keyboard Overlay - available in R2+
+    static var overlayEnabled: Bool {
+        ReleaseMilestone.current >= .r2_overlay_mapper
+    }
+
+    /// Mapper window - available in R2+
+    static var mapperEnabled: Bool {
+        ReleaseMilestone.current >= .r2_overlay_mapper
+    }
+
+    /// Input Capture Experiment - only in R2+ (will be removed before final R2)
+    static var inputCaptureExperimentEnabled: Bool {
+        ReleaseMilestone.current >= .r2_overlay_mapper
+    }
+
+    /// Virtual Keys Inspector - available in R2+ (requires simulator/overlay features)
+    static var virtualKeysInspectorEnabled: Bool {
+        ReleaseMilestone.current >= .r2_overlay_mapper
+    }
+
+    /// Rule Collections (Vim, Caps Lock, Home Row Mods, Leader Key, etc.) - available in R2+
+    /// Custom Rules are always available (R1+)
+    static var ruleCollectionsEnabled: Bool {
+        ReleaseMilestone.current >= .r2_overlay_mapper
     }
 }

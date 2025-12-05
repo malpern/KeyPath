@@ -440,7 +440,7 @@ struct KanataAccessibilityInstructionsSheet: View {
                     .padding(8)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color.secondary.opacity(0.1))
-                    .cornerRadius(6)
+                    .clipShape(.rect(cornerRadius: 6))
             }
             .padding(.horizontal, 24)
             .padding(.top, 20)

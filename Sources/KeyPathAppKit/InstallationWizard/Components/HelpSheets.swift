@@ -38,7 +38,7 @@ struct PermissionDetailsSheet: View {
                             .textSelection(.enabled)
                             .padding()
                             .background(Color(NSColor.textBackgroundColor))
-                            .cornerRadius(8)
+                            .clipShape(.rect(cornerRadius: 8))
 
                         Divider()
 
@@ -56,7 +56,7 @@ struct PermissionDetailsSheet: View {
                         .font(.subheadline)
                         .padding()
                         .background(Color.blue.opacity(0.1))
-                        .cornerRadius(8)
+                        .clipShape(.rect(cornerRadius: 8))
                     }
                     .padding()
                 }
@@ -156,7 +156,7 @@ struct InputMonitoringHelpSheet: View {
                     }
                     .padding()
                     .background(Color(NSColor.controlBackgroundColor))
-                    .cornerRadius(8)
+                    .clipShape(.rect(cornerRadius: 8))
 
                     if PermissionService.lastTCCAuthorizationDenied {
                         VStack(alignment: .leading, spacing: 8) {
@@ -174,7 +174,7 @@ struct InputMonitoringHelpSheet: View {
                         }
                         .padding()
                         .background(Color.orange.opacity(0.08))
-                        .cornerRadius(8)
+                        .clipShape(.rect(cornerRadius: 8))
                     }
 
                     VStack(spacing: 12) {
@@ -258,7 +258,7 @@ struct AccessibilityHelpSheet: View {
                     }
                     .padding()
                     .background(Color(NSColor.controlBackgroundColor))
-                    .cornerRadius(8)
+                    .clipShape(.rect(cornerRadius: 8))
 
                     VStack(spacing: 12) {
                         Button("Check Permission Status") {
@@ -368,7 +368,7 @@ struct BackgroundServicesHelpSheet: View {
                     }
                     .padding()
                     .background(Color(NSColor.controlBackgroundColor))
-                    .cornerRadius(8)
+                    .clipShape(.rect(cornerRadius: 8))
 
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Helpful Tools:")
@@ -382,7 +382,7 @@ struct BackgroundServicesHelpSheet: View {
                     }
                     .padding()
                     .background(Color.blue.opacity(0.1))
-                    .cornerRadius(8)
+                    .clipShape(.rect(cornerRadius: 8))
 
                     VStack(spacing: 12) {
                         HStack(spacing: 12) {

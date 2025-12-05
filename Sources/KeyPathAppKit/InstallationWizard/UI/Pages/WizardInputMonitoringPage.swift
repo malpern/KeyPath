@@ -421,7 +421,7 @@ struct StaleEntryCleanupInstructions: View {
                 }
                 .padding()
                 .background(Color.orange.opacity(0.05))
-                .cornerRadius(8)
+                .clipShape(.rect(cornerRadius: 8))
             }
 
             // Cleanup Instructions
@@ -440,7 +440,7 @@ struct StaleEntryCleanupInstructions: View {
             }
             .padding()
             .background(Color.blue.opacity(0.05))
-            .cornerRadius(8)
+            .clipShape(.rect(cornerRadius: 8))
 
             // Visual hint
             HStack {
@@ -532,7 +532,7 @@ struct KanataPermissionInstructionsSheet: View {
                     .padding(8)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color.secondary.opacity(0.1))
-                    .cornerRadius(6)
+                    .clipShape(.rect(cornerRadius: 6))
             }
             .padding(.horizontal, 24)
             .padding(.top, 20)

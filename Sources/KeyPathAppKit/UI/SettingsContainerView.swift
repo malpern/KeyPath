@@ -30,6 +30,18 @@ enum SettingsTab: Hashable, CaseIterable {
         case .advanced: "wrench.and.screwdriver"
         }
     }
+
+    /// Tabs available in the current release milestone
+    static var availableTabs: [SettingsTab] {
+        allCases.filter { tab in
+            switch tab {
+            case .simulator:
+                return FeatureFlags.simulatorEnabled
+            default:
+                return true
+            }
+        }
+    }
 }
 
 struct SettingsContainerView: View {
@@ -65,10 +77,14 @@ struct SettingsContainerView: View {
         .frame(minWidth: 680, maxWidth: 680, minHeight: 550, idealHeight: 700)
         .task { await refreshCanManageRules() }
         .onAppear {
-            LiveKeyboardOverlayController.shared.autoHideOnceForSettings()
+            if FeatureFlags.overlayEnabled {
+                LiveKeyboardOverlayController.shared.autoHideOnceForSettings()
+            }
         }
         .onDisappear {
-            LiveKeyboardOverlayController.shared.resetSettingsAutoHideGuard()
+            if FeatureFlags.overlayEnabled {
+                LiveKeyboardOverlayController.shared.resetSettingsAutoHideGuard()
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsGeneral)) { _ in
             selection = .general
@@ -88,7 +104,10 @@ struct SettingsContainerView: View {
             selection = canManageRules ? .rules : .status
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsSimulator)) { _ in
-            selection = .simulator
+            // Only navigate to simulator if enabled in current release
+            if FeatureFlags.simulatorEnabled {
+                selection = .simulator
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .wizardClosed)) { _ in
             Task { await refreshCanManageRules() }
@@ -117,7 +136,7 @@ private struct SettingsTabPicker: View {
 
     var body: some View {
         HStack(spacing: 24) {
-            ForEach(SettingsTab.allCases, id: \.self) { tab in
+            ForEach(SettingsTab.availableTabs, id: \.self) { tab in
                 let disabled = (tab == .rules && !rulesEnabled)
                 SettingsTabButton(
                     tab: tab,
@@ -608,7 +627,7 @@ struct VerboseLoggingToggle: View {
                 }
                 .padding(12)
                 .background(Color.orange.opacity(0.1))
-                .cornerRadius(8)
+                .clipShape(.rect(cornerRadius: 8))
             }
         }
         .alert("Service Restart Required", isPresented: $showingRestartAlert) {

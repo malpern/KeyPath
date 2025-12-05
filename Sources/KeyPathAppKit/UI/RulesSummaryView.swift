@@ -192,10 +192,13 @@ struct RulesTabView: View {
                         .padding(.vertical, 4)
 
                         // Collection Rows (sorted: enabled first, order stable during session)
-                        ForEach(sortedCollections) { collection in
-                            collectionRow(for: collection, scrollProxy: scrollProxy)
-                                .id("collection-\(collection.id.uuidString)")
-                                .padding(.vertical, 4)
+                        // Gated behind R2 - only Custom Rules are available in R1
+                        if FeatureFlags.ruleCollectionsEnabled {
+                            ForEach(sortedCollections) { collection in
+                                collectionRow(for: collection, scrollProxy: scrollProxy)
+                                    .id("collection-\(collection.id.uuidString)")
+                                    .padding(.vertical, 4)
+                            }
                         }
                     }
                     .padding(.vertical, 12)

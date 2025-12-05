@@ -293,7 +293,7 @@ enum WizardDesign {
                 content
                     .padding(WizardDesign.Spacing.cardPadding)
                     .background(WizardDesign.Colors.cardBackground)
-                    .cornerRadius(12)
+                    .clipShape(.rect(cornerRadius: 12))
                     .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
             }
         }
@@ -357,7 +357,7 @@ enum WizardDesign {
                 .padding(.horizontal, WizardDesign.Spacing.buttonPadding)
                 .padding(.vertical, WizardDesign.Spacing.elementGap)
                 .background(WizardDesign.Colors.primaryAction)
-                .cornerRadius(8)
+                .clipShape(.rect(cornerRadius: 8))
                 .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
                 .animation(WizardDesign.Animation.buttonFeedback, value: configuration.isPressed)
                 .disabled(isLoading)
@@ -429,7 +429,7 @@ enum WizardDesign {
                 .padding(.horizontal, WizardDesign.Spacing.buttonPadding)
                 .padding(.vertical, WizardDesign.Spacing.elementGap)
                 .background(WizardDesign.Colors.error)
-                .cornerRadius(8)
+                .clipShape(.rect(cornerRadius: 8))
                 .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
                 .animation(WizardDesign.Animation.buttonFeedback, value: configuration.isPressed)
                 .disabled(isLoading)

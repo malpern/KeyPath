@@ -43,7 +43,7 @@ struct SystemSettingsWaitingView: View {
                 }
                 .padding()
                 .background(Color(NSColor.controlBackgroundColor))
-                .cornerRadius(8)
+                .clipShape(.rect(cornerRadius: 8))
             }
 
             // Progress indicator
@@ -149,7 +149,7 @@ struct RestartRequiredView: View {
             }
             .padding()
             .background(Color(NSColor.controlBackgroundColor))
-            .cornerRadius(8)
+            .clipShape(.rect(cornerRadius: 8))
 
             // Action buttons
             HStack(spacing: 12) {

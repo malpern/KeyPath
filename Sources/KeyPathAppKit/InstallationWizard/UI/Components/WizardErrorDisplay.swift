@@ -56,7 +56,7 @@ struct WizardErrorDisplay: View {
                 }
                 .padding(WizardDesign.Spacing.cardPadding)
                 .background(WizardDesign.Colors.info.opacity(0.05))
-                .cornerRadius(8)
+                .clipShape(.rect(cornerRadius: 8))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(WizardDesign.Colors.info.opacity(0.2), lineWidth: 1)
@@ -124,7 +124,7 @@ struct WizardErrorToast: View {
         }
         .padding(WizardDesign.Spacing.cardPadding)
         .background(.regularMaterial)
-        .cornerRadius(8)
+        .clipShape(.rect(cornerRadius: 8))
         .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
         .opacity(isVisible ? 1.0 : 0.0)
         .scaleEffect(isVisible ? 1.0 : 0.8)
@@ -168,7 +168,7 @@ struct WizardErrorBanner: View {
         }
         .padding(WizardDesign.Spacing.cardPadding)
         .background(WizardDesign.Colors.error.opacity(0.05))
-        .cornerRadius(8)
+        .clipShape(.rect(cornerRadius: 8))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
                 .stroke(WizardDesign.Colors.error.opacity(0.3), lineWidth: 1)

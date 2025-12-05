@@ -333,14 +333,14 @@ private struct TabButton: View {
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(isSelected ? Color.white.opacity(0.3) : Color.secondary.opacity(0.2))
-                            .cornerRadius(8)
+                            .clipShape(.rect(cornerRadius: 8))
                     }
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
                 .background(isSelected ? Color.accentColor : Color.clear)
                 .foregroundStyle(isSelected ? .white : Color.primary)
-                .cornerRadius(8)
+                .clipShape(.rect(cornerRadius: 8))
             }
         )
         .buttonStyle(.plain)
@@ -384,7 +384,7 @@ private struct CategoryButton: View {
                 .padding(.vertical, 6)
                 .background(isSelected ? Color.accentColor : Color(NSColor.controlBackgroundColor))
                 .foregroundStyle(isSelected ? .white : Color.primary)
-                .cornerRadius(6)
+                .clipShape(.rect(cornerRadius: 6))
         }
         .buttonStyle(.plain)
     }
@@ -439,7 +439,7 @@ private struct InstalledMappingRow: View {
         }
         .padding()
         .background(Color(NSColor.controlBackgroundColor))
-        .cornerRadius(8)
+        .clipShape(.rect(cornerRadius: 8))
     }
 
     private var mappingDisplayName: String? {
@@ -510,7 +510,7 @@ private struct AvailablePresetRow: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(Color.accentColor)
-                    .cornerRadius(6)
+                    .clipShape(.rect(cornerRadius: 6))
                 }
             )
             .buttonStyle(.plain)
@@ -518,7 +518,7 @@ private struct AvailablePresetRow: View {
         }
         .padding()
         .background(Color(NSColor.controlBackgroundColor))
-        .cornerRadius(8)
+        .clipShape(.rect(cornerRadius: 8))
         .sheet(isPresented: $showConflictSheet) {
             if let existing = conflictingMapping {
                 ConflictMappingDialog(
@@ -621,7 +621,7 @@ private struct ConflictMappingDialog: View {
             }
             .padding(10)
             .background(Color(NSColor.controlBackgroundColor))
-            .cornerRadius(8)
+            .clipShape(.rect(cornerRadius: 8))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

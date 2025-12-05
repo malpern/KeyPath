@@ -110,35 +110,40 @@ struct ContentView: View {
             .padding(.horizontal, 4)
             .padding(.vertical, 2)
 
-            HStack {
-                Spacer()
-                Button(
-                    action: { debouncedSave() },
-                    label: {
-                        HStack {
-                            if kanataManager.saveStatus.isActive {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                                    .frame(width: 16, height: 16)
-                                Text(kanataManager.saveStatus.message)
-                                    .font(.caption)
-                            } else {
-                                Text("Save")
+            // Save button - only visible when input OR output has content
+            if recordingCoordinator.capturedInputSequence() != nil
+                || recordingCoordinator.capturedOutputSequence() != nil
+            {
+                HStack {
+                    Spacer()
+                    Button(
+                        action: { debouncedSave() },
+                        label: {
+                            HStack {
+                                if kanataManager.saveStatus.isActive {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                        .frame(width: 16, height: 16)
+                                    Text(kanataManager.saveStatus.message)
+                                        .font(.caption)
+                                } else {
+                                    Text("Save")
+                                }
                             }
+                            .frame(minWidth: 100)
                         }
-                        .frame(minWidth: 100)
-                    }
-                )
-                .buttonStyle(.borderedProminent)
-                .focusable(false) // Prevent keyboard activation on main page
-                .disabled(
-                    recordingCoordinator.capturedInputSequence() == nil
-                        || recordingCoordinator.capturedOutputSequence() == nil
-                        || kanataManager.saveStatus.isActive
-                )
-                .accessibilityIdentifier("save-mapping-button")
-                .accessibilityLabel("Save key mapping")
-                .accessibilityHint("Save the input and output key mapping to your configuration")
+                    )
+                    .buttonStyle(.borderedProminent)
+                    .focusable(false) // Prevent keyboard activation on main page
+                    .disabled(
+                        recordingCoordinator.capturedInputSequence() == nil
+                            || recordingCoordinator.capturedOutputSequence() == nil
+                            || kanataManager.saveStatus.isActive
+                    )
+                    .accessibilityIdentifier("save-mapping-button")
+                    .accessibilityLabel("Save key mapping")
+                    .accessibilityHint("Save the input and output key mapping to your configuration")
+                }
             }
 
             // Debug row removed in production UI

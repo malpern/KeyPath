@@ -90,12 +90,21 @@ public struct KeyPathApp: App {
             CommandGroup(replacing: .appInfo) {
                 Button("About KeyPath") {
                     let info = BuildInfo.current()
-                    let details = "Build \(info.build) • \(info.git) • \(info.date)"
+                    let credits = """
+                    A macOS key remapper powered by Kanata
+
+                    Created by Micah Alpern
+
+                    Build \(info.build) • \(info.git) • \(info.date)
+                    """
                     NSApplication.shared.orderFrontStandardAboutPanel(
                         options: [
                             NSApplication.AboutPanelOptionKey.credits: NSAttributedString(
-                                string: details,
-                                attributes: [NSAttributedString.Key.font: NSFont.systemFont(ofSize: 11)]
+                                string: credits,
+                                attributes: [
+                                    NSAttributedString.Key.font: NSFont.systemFont(ofSize: 11),
+                                    NSAttributedString.Key.foregroundColor: NSColor.secondaryLabelColor
+                                ]
                             ),
                             NSApplication.AboutPanelOptionKey.applicationName: "KeyPath",
                             NSApplication.AboutPanelOptionKey.applicationVersion: info.version,
@@ -127,15 +136,17 @@ public struct KeyPathApp: App {
                 )
                 .keyboardShortcut("r", modifiers: .command)
 
-                Button(
-                    action: {
-                        openPreferencesTab(.openSettingsSimulator)
-                    },
-                    label: {
-                        Label("Simulator…", systemImage: "keyboard")
-                    }
-                )
-                .keyboardShortcut("k", modifiers: .command)
+                if FeatureFlags.simulatorEnabled {
+                    Button(
+                        action: {
+                            openPreferencesTab(.openSettingsSimulator)
+                        },
+                        label: {
+                            Label("Simulator…", systemImage: "keyboard")
+                        }
+                    )
+                    .keyboardShortcut("k", modifiers: .command)
+                }
 
                 Button(
                     action: {
@@ -178,25 +189,31 @@ public struct KeyPathApp: App {
 
                 Divider()
 
-                Button(
-                    action: {
-                        LiveKeyboardOverlayController.shared.toggle()
-                    },
-                    label: {
-                        Label("Live Keyboard Overlay", systemImage: "keyboard.badge.eye")
+                if FeatureFlags.overlayEnabled {
+                    Button(
+                        action: {
+                            LiveKeyboardOverlayController.shared.toggle()
+                        },
+                        label: {
+                            Label("Live Keyboard Overlay", systemImage: "keyboard.badge.eye")
+                        }
+                    )
+                    .keyboardShortcut("y", modifiers: .command)
+                }
+
+                if FeatureFlags.inputCaptureExperimentEnabled {
+                    Button("Input Capture Experiment") {
+                        InputCaptureExperimentWindowController.shared.showWindow()
                     }
-                )
-                .keyboardShortcut("y", modifiers: .command)
-
-                Button("Input Capture Experiment") {
-                    InputCaptureExperimentWindowController.shared.showWindow()
+                    .keyboardShortcut("i", modifiers: [.command, .shift])
                 }
-                .keyboardShortcut("i", modifiers: [.command, .shift])
 
-                Button("Mapper") {
-                    MapperWindowController.shared.showWindow(viewModel: viewModel)
+                if FeatureFlags.mapperEnabled {
+                    Button("Mapper") {
+                        MapperWindowController.shared.showWindow(viewModel: viewModel)
+                    }
+                    .keyboardShortcut("m", modifiers: [.command, .shift])
                 }
-                .keyboardShortcut("m", modifiers: [.command, .shift])
 
                 Divider()
 
@@ -247,6 +264,31 @@ public struct KeyPathApp: App {
                 )
                 .keyboardShortcut("u", modifiers: [.control, .option, .command])
                 .hidden() // Hide from menu but keep keyboard shortcut active
+
+                // Secret milestone toggle: Ctrl+Option+Cmd+R cycles release milestones
+                Button(
+                    action: {
+                        let newMilestone = ReleaseMilestone.cycleToNext()
+                        AppLogger.shared.log("🔐 [Secret] Milestone switched to: \(newMilestone.displayName)")
+
+                        // Show brief notification
+                        let alert = NSAlert()
+                        alert.messageText = "Release Milestone Changed"
+                        alert.informativeText = "Now using: \(newMilestone.displayName)\n\nRestart the app to see UI changes."
+                        alert.alertStyle = .informational
+                        alert.addButton(withTitle: "OK")
+                        alert.addButton(withTitle: "Restart Now")
+                        let response = alert.runModal()
+                        if response == .alertSecondButtonReturn {
+                            AppRestarter.restart()
+                        }
+                    },
+                    label: {
+                        Text("") // Hidden menu item
+                    }
+                )
+                .keyboardShortcut("r", modifiers: [.control, .option, .command])
+                .hidden()
             }
 
             #if DEBUG
@@ -471,11 +513,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             AppLogger.shared.debug(
                 "🪟 [AppDelegate] Main window controller created (deferring show until activation)")
 
-            // Restore live keyboard overlay state from previous session
-            LiveKeyboardOverlayController.shared.restoreState()
-
-            // Configure overlay controller with viewModel for Mapper integration
-            LiveKeyboardOverlayController.shared.configure(kanataViewModel: vm)
+            // Restore live keyboard overlay state from previous session (R2+)
+            if FeatureFlags.overlayEnabled {
+                LiveKeyboardOverlayController.shared.restoreState()
+                // Configure overlay controller with viewModel for Mapper integration
+                LiveKeyboardOverlayController.shared.configure(kanataViewModel: vm)
+            }
 
             // Defer all window fronting until the first applicationDidBecomeActive event
             // to avoid AppKit display-cycle reentrancy during initial layout.

@@ -57,7 +57,7 @@ struct DiagnosticSummarySection: View {
         }
         .padding()
         .background(Color.red.opacity(0.1))
-        .cornerRadius(12)
+        .clipShape(.rect(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.red.opacity(0.3), lineWidth: 1)

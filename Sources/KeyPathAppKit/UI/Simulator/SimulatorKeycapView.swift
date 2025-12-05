@@ -30,7 +30,7 @@ struct SimulatorKeycapView: View {
             keyContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(currentBackgroundColor)
-                .cornerRadius(5)
+                .clipShape(.rect(cornerRadius: 5))
                 .overlay(
                     RoundedRectangle(cornerRadius: 5)
                         .stroke(currentBorderColor, lineWidth: currentBorderWidth)

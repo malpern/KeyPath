@@ -55,12 +55,6 @@ struct GeneralSettingsTabView: View {
                             .controlSize(.small)
                         }
                     }
-
-                    Divider()
-                        .padding(.vertical, 4)
-
-                    // Verbose Logging Toggle
-                    VerboseLoggingToggle()
                 }
                 .frame(minWidth: 220)
 
@@ -106,19 +100,30 @@ struct GeneralSettingsTabView: View {
                         .labelsHidden()
                     }
 
-                    // Overlay Settings
+                    // Verbose Logging
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Keyboard Overlay")
+                        Text("Verbose Logging")
                             .font(.headline)
                             .foregroundStyle(.secondary)
 
-                        Picker("Layout", selection: $selectedLayoutId) {
-                            ForEach(PhysicalLayout.all) { layout in
-                                Text(layout.name).tag(layout.id)
+                        VerboseLoggingToggle()
+                    }
+
+                    // Overlay Settings (R2+)
+                    if FeatureFlags.overlayEnabled {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Keyboard Overlay")
+                                .font(.headline)
+                                .foregroundStyle(.secondary)
+
+                            Picker("Layout", selection: $selectedLayoutId) {
+                                ForEach(PhysicalLayout.all) { layout in
+                                    Text(layout.name).tag(layout.id)
+                                }
                             }
+                            .pickerStyle(.menu)
+                            .frame(maxWidth: 200)
                         }
-                        .pickerStyle(.menu)
-                        .frame(maxWidth: 200)
                     }
                 }
 
@@ -127,12 +132,11 @@ struct GeneralSettingsTabView: View {
             .padding(.horizontal, 20)
             .padding(.top, 20)
 
-            Divider()
-                .padding(.vertical, 12)
-
-            // Virtual Keys Inspector
-            VirtualKeysInspectorView()
-                .padding(.horizontal, 20)
+            // Virtual Keys Inspector (R2+)
+            if FeatureFlags.virtualKeysInspectorEnabled {
+                VirtualKeysInspectorView()
+                    .padding(.horizontal, 20)
+            }
 
             Spacer()
         }
@@ -738,3 +742,4 @@ private struct StatusDetailRow: View {
         }
     }
 }
+

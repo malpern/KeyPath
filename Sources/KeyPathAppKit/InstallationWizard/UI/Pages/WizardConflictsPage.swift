@@ -301,7 +301,7 @@ struct CleanConflictsCard: View {
             .padding(WizardDesign.Spacing.pageVertical)
             .frame(maxWidth: 500)
             .background(Color(.controlBackgroundColor))
-            .cornerRadius(16)
+            .clipShape(.rect(cornerRadius: 16))
             .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 2)
         }
     }

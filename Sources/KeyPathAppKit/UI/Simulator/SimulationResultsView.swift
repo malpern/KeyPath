@@ -49,7 +49,7 @@ struct SimulationResultsView: View {
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.red.opacity(0.1))
-        .cornerRadius(8)
+        .clipShape(.rect(cornerRadius: 8))
         .padding()
     }
 
@@ -117,7 +117,7 @@ struct SimulationResultsView: View {
         }
         .padding()
         .background(Color(white: 0.95))
-        .cornerRadius(8)
+        .clipShape(.rect(cornerRadius: 8))
     }
 
     // MARK: - Output Keys Section
@@ -147,7 +147,7 @@ struct SimulationResultsView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(Color.green.opacity(0.15))
-        .cornerRadius(6)
+        .clipShape(.rect(cornerRadius: 6))
     }
 
     // MARK: - Layer Changes Section
@@ -230,7 +230,7 @@ struct SimulationResultsView: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(color)
-            .cornerRadius(4)
+            .clipShape(.rect(cornerRadius: 4))
     }
 
     // MARK: - Helpers

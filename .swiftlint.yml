@@ -67,3 +67,38 @@ custom_rules:
       - "**/*Test*.swift"  # Allow Process() in tests (they may need to test Process directly)
       - "Sources/**/ProcessLifecycleManager.swift"  # Legacy lifecycle utility (monitored separately)
       - "dev-tools/**"  # Allow Process() in dev tools
+
+  # Modern SwiftUI best practices (from Hacking with Swift article)
+  # https://www.hackingwithswift.com/articles/281/what-to-fix-in-ai-generated-swift-code
+
+  no_foreground_color:
+    name: "Deprecated foregroundColor"
+    regex: '\.foregroundColor\s*\('
+    message: "Use .foregroundStyle() instead of deprecated .foregroundColor()"
+    severity: warning
+    excluded:
+      - "dev-tools/**"  # Dev tools may use legacy APIs
+
+  no_corner_radius:
+    name: "Deprecated cornerRadius"
+    regex: '\.cornerRadius\s*\('
+    message: "Use .clipShape(.rect(cornerRadius:)) instead of deprecated .cornerRadius()"
+    severity: warning
+
+  no_navigation_view:
+    name: "Deprecated NavigationView"
+    regex: '\bNavigationView\s*\{'
+    message: "Use NavigationStack instead of deprecated NavigationView"
+    severity: warning
+
+  no_task_sleep_nanoseconds:
+    name: "Old Task.sleep API"
+    regex: 'Task\.sleep\s*\(\s*nanoseconds\s*:'
+    message: "Use Task.sleep(for: .seconds()) instead of nanoseconds"
+    severity: warning
+
+  no_array_enumerated:
+    name: "Array(enumerated()) anti-pattern"
+    regex: 'Array\s*\(\s*\w+\.enumerated\s*\(\s*\)\s*\)'
+    message: "Use .indices or direct ForEach with id: instead of Array(enumerated())"
+    severity: warning

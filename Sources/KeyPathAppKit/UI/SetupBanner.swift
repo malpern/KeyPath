@@ -38,7 +38,7 @@ struct SetupBanner: View {
                 }
                 .padding()
                 .background(Color.orange.opacity(0.1))
-                .cornerRadius(8)
+                .clipShape(.rect(cornerRadius: 8))
             }
             .padding()
             .transition(.move(edge: .top))

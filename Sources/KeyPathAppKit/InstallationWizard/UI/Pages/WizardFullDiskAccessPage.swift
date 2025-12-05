@@ -434,7 +434,7 @@ private struct FullDiskAccessDetailsSheet: View {
                     }
                     .padding()
                     .background(Color(NSColor.controlBackgroundColor))
-                    .cornerRadius(8)
+                    .clipShape(.rect(cornerRadius: 8))
 
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Benefits")
@@ -448,7 +448,7 @@ private struct FullDiskAccessDetailsSheet: View {
                     }
                     .padding()
                     .background(Color.green.opacity(0.08))
-                    .cornerRadius(8)
+                    .clipShape(.rect(cornerRadius: 8))
 
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Completely Optional")
@@ -462,7 +462,7 @@ private struct FullDiskAccessDetailsSheet: View {
                     }
                     .padding()
                     .background(Color.blue.opacity(0.08))
-                    .cornerRadius(8)
+                    .clipShape(.rect(cornerRadius: 8))
                 }
             }
         }

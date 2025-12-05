@@ -191,7 +191,7 @@ struct VirtualKeysInspectorView: View {
         .padding(.vertical, 6)
         .padding(.horizontal, 10)
         .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
-        .cornerRadius(6)
+        .clipShape(.rect(cornerRadius: 6))
     }
 
     private func testResultView(_ result: TestResult) -> some View {
@@ -212,7 +212,7 @@ struct VirtualKeysInspectorView: View {
         .font(.caption)
         .padding(8)
         .background(Color(nsColor: .controlBackgroundColor))
-        .cornerRadius(6)
+        .clipShape(.rect(cornerRadius: 6))
     }
 
     // MARK: - Actions

@@ -108,7 +108,7 @@ struct EventChip: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         .background(backgroundColor)
-        .cornerRadius(6)
+        .clipShape(.rect(cornerRadius: 6))
     }
 }
 

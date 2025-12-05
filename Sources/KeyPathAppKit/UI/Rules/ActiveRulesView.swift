@@ -114,7 +114,7 @@ private struct RuleCollectionRow: View {
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
                                     .background(Color(NSColor.controlBackgroundColor))
-                                    .cornerRadius(6)
+                                    .clipShape(.rect(cornerRadius: 6))
 
                                 Image(systemName: "arrow.right")
                                     .font(.callout)
@@ -126,7 +126,7 @@ private struct RuleCollectionRow: View {
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
                                     .background(Color(NSColor.controlBackgroundColor))
-                                    .cornerRadius(6)
+                                    .clipShape(.rect(cornerRadius: 6))
                             }
                             .padding(.vertical, 2)
                         }
@@ -244,7 +244,7 @@ private struct MappingTableView: View {
             }
         }
         .background(Color(NSColor.controlBackgroundColor).opacity(0.3))
-        .cornerRadius(8)
+        .clipShape(.rect(cornerRadius: 8))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
                 .strokeBorder(Color.gray.opacity(0.2), lineWidth: 1)

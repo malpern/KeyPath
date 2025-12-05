@@ -52,7 +52,7 @@ struct CustomKeyPopover: View {
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 4)
                                         .background(Color.accentColor.opacity(0.1))
-                                        .cornerRadius(4)
+                                        .clipShape(.rect(cornerRadius: 4))
                                 }
                                 .buttonStyle(.plain)
                             }
