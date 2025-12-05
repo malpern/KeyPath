@@ -474,6 +474,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // Restore live keyboard overlay state from previous session
             LiveKeyboardOverlayController.shared.restoreState()
 
+            // Configure overlay controller with viewModel for Mapper integration
+            LiveKeyboardOverlayController.shared.configure(kanataViewModel: vm)
+
             // Defer all window fronting until the first applicationDidBecomeActive event
             // to avoid AppKit display-cycle reentrancy during initial layout.
 

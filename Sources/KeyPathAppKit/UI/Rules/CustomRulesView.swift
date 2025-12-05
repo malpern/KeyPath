@@ -152,6 +152,11 @@ private struct CustomRuleRow: View {
     let onEdit: () -> Void
     let onDelete: () -> Void
 
+    /// Extract app identifier from push-msg launch output
+    private var appLaunchIdentifier: String? {
+        KeyboardVisualizationViewModel.extractAppLaunchIdentifier(from: rule.output)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 12) {
@@ -164,7 +169,13 @@ private struct CustomRuleRow: View {
                         Text("→")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        KeyCapChip(text: rule.output)
+
+                        // Show app icon + name for launch actions, otherwise show key chip
+                        if let appId = appLaunchIdentifier {
+                            AppLaunchChip(appIdentifier: appId)
+                        } else {
+                            KeyCapChip(text: rule.output)
+                        }
 
                         // Behavior summary on same line
                         if let behavior = rule.behavior {
@@ -318,5 +329,98 @@ private struct CustomRuleRow: View {
         }
 
         return prefix + result.capitalized
+    }
+}
+
+// MARK: - App Launch Chip
+
+/// Displays an app icon and name in a chip style for app launch actions
+private struct AppLaunchChip: View {
+    let appIdentifier: String
+
+    @State private var appIcon: NSImage?
+    @State private var appName: String?
+
+    var body: some View {
+        HStack(spacing: 6) {
+            // App icon
+            if let icon = appIcon {
+                Image(nsImage: icon)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 16, height: 16)
+            } else {
+                Image(systemName: "app.fill")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                    .frame(width: 16, height: 16)
+            }
+
+            // App name
+            Text(appName ?? appIdentifier)
+                .font(.caption)
+                .fontWeight(.medium)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.accentColor.opacity(0.15))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(Color.accentColor.opacity(0.3), lineWidth: 0.5)
+        )
+        .onAppear {
+            loadAppInfo()
+        }
+    }
+
+    private func loadAppInfo() {
+        let workspace = NSWorkspace.shared
+
+        // Try to find app by bundle identifier first
+        if let appURL = workspace.urlForApplication(withBundleIdentifier: appIdentifier) {
+            loadFromURL(appURL)
+            return
+        }
+
+        // Try common paths
+        let appName = appIdentifier.hasSuffix(".app") ? appIdentifier : "\(appIdentifier).app"
+        let commonPaths = [
+            "/Applications/\(appName)",
+            "/System/Applications/\(appName)",
+            "\(NSHomeDirectory())/Applications/\(appName)"
+        ]
+
+        for path in commonPaths {
+            let url = URL(fileURLWithPath: path)
+            if FileManager.default.fileExists(atPath: path) {
+                loadFromURL(url)
+                return
+            }
+        }
+
+        // Fallback: use identifier as name (capitalize it)
+        let parts = appIdentifier.replacingOccurrences(of: ".", with: " ")
+            .split(separator: " ")
+            .map { $0.capitalized }
+        self.appName = parts.last.map { String($0) } ?? appIdentifier
+    }
+
+    private func loadFromURL(_ url: URL) {
+        // Get icon
+        let icon = NSWorkspace.shared.icon(forFile: url.path)
+        icon.size = NSSize(width: 32, height: 32) // Request appropriate size
+        self.appIcon = icon
+
+        // Get app name from bundle
+        if let bundle = Bundle(url: url),
+           let name = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String {
+            self.appName = name
+        } else {
+            // Use filename without extension
+            self.appName = url.deletingPathExtension().lastPathComponent
+        }
     }
 }

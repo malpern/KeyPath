@@ -4,6 +4,8 @@ import SwiftUI
 /// Controls the floating live keyboard overlay window.
 /// Creates an always-on-top borderless window that shows the live keyboard state.
 /// Uses CGEvent tap for reliable key detection (same as "See Keymap" feature).
+import KeyPathCore
+
 @MainActor
 final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
@@ -16,6 +18,9 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     /// Duration within which we'll restore the overlay when settings closes (10 minutes)
     private let restoreWindowDuration: TimeInterval = 10 * 60
 
+    /// Reference to KanataViewModel for opening Mapper window
+    private weak var kanataViewModel: KanataViewModel?
+
     // MARK: - UserDefaults Keys
 
     private enum DefaultsKey {
@@ -24,7 +29,12 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         static let windowY = "LiveKeyboardOverlay.windowY"
         static let windowWidth = "LiveKeyboardOverlay.windowWidth"
         static let windowHeight = "LiveKeyboardOverlay.windowHeight"
+        /// Migration key to reset frame when aspect ratio changes
+        static let frameVersion = "LiveKeyboardOverlay.frameVersion"
     }
+
+    /// Current frame version - increment to reset saved frames after layout changes
+    private let currentFrameVersion = 2
 
     /// Shared instance for app-wide access
     static let shared = LiveKeyboardOverlayController()
@@ -77,6 +87,11 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         if defaults.bool(forKey: DefaultsKey.isVisible) {
             isVisible = true
         }
+    }
+
+    /// Configure the KanataViewModel reference for opening Mapper from overlay clicks
+    func configure(kanataViewModel: KanataViewModel) {
+        self.kanataViewModel = kanataViewModel
     }
 
     /// Show or hide the overlay window
@@ -141,6 +156,46 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         window?.orderOut(nil)
     }
 
+    // MARK: - Key Click Handling
+
+    /// Handle click on a key in the overlay - opens Mapper with preset values
+    private func handleKeyClick(key: PhysicalKey, layerInfo: LayerKeyInfo?) {
+        guard let kanataViewModel else {
+            AppLogger.shared.log("⚠️ [OverlayController] Cannot open Mapper - KanataViewModel not configured")
+            return
+        }
+
+        // Convert key code to kanata name for input label
+        let inputKey = OverlayKeyboardView.keyCodeToKanataName(key.keyCode)
+
+        // Get output from layer info
+        // For simple key mappings, use outputKey (e.g., "left", "esc")
+        // For complex actions (push-msg, app launch), outputKey is nil so use displayLabel
+        let outputKey: String
+        if let simpleOutput = layerInfo?.outputKey {
+            outputKey = simpleOutput
+        } else if let displayLabel = layerInfo?.displayLabel, !displayLabel.isEmpty {
+            // Complex action - pass displayLabel so Mapper shows what the key does
+            outputKey = displayLabel
+        } else {
+            // No mapping - key maps to itself
+            outputKey = inputKey
+        }
+
+        // Get current layer from the overlay's viewModel
+        let currentLayer = viewModel.currentLayerName
+
+        AppLogger.shared.log("🖱️ [OverlayController] Key clicked: \(key.label) (keyCode: \(key.keyCode)) -> \(outputKey) [layer: \(currentLayer)]")
+
+        // Open Mapper with preset values and current layer
+        MapperWindowController.shared.showWindow(
+            viewModel: kanataViewModel,
+            presetInput: inputKey,
+            presetOutput: outputKey,
+            layer: currentLayer
+        )
+    }
+
     private func saveWindowFrame() {
         guard let frame = window?.frame else { return }
         let defaults = UserDefaults.standard
@@ -152,6 +207,19 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
     private func restoreWindowFrame() -> NSRect? {
         let defaults = UserDefaults.standard
+
+        // Check frame version - if outdated, clear saved frame to apply new defaults
+        let savedVersion = defaults.integer(forKey: DefaultsKey.frameVersion)
+        if savedVersion < currentFrameVersion {
+            // Clear old frame data
+            defaults.removeObject(forKey: DefaultsKey.windowWidth)
+            defaults.removeObject(forKey: DefaultsKey.windowHeight)
+            defaults.removeObject(forKey: DefaultsKey.windowX)
+            defaults.removeObject(forKey: DefaultsKey.windowY)
+            defaults.set(currentFrameVersion, forKey: DefaultsKey.frameVersion)
+            return nil
+        }
+
         // Check if we have saved values (width > 0 means we've saved before)
         let width = defaults.double(forKey: DefaultsKey.windowWidth)
         guard width > 0 else { return nil }
@@ -177,11 +245,28 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     }
 
     private func createWindow() {
-        // Restore saved frame or use defaults
-        let savedFrame = restoreWindowFrame()
-        let initialSize = savedFrame?.size ?? NSSize(width: 580, height: 220)
+        // Keyboard aspect ratio: totalWidth / totalHeight ≈ 16.45 / 6.5 ≈ 2.53
+        // Account for: drag header (14pt), keyboard padding (10pt each side), bottom shadow padding (20pt)
+        // So total chrome = 14 (header) + 20 (kb top/bottom padding) + 20 (shadow) = 54pt vertical chrome
+        // Horizontal chrome = 10 (kb padding) * 2 + 4 (outer) * 2 = 28pt
+        let keyboardAspectRatio: CGFloat = 2.53
+        let verticalChrome: CGFloat = 54
+        let horizontalChrome: CGFloat = 28
 
-        let contentView = LiveKeyboardOverlayView(viewModel: viewModel)
+        // Restore saved frame or calculate from default height
+        let savedFrame = restoreWindowFrame()
+        let defaultHeight: CGFloat = 220
+        let keyboardHeight = defaultHeight - verticalChrome
+        let keyboardWidth = keyboardHeight * keyboardAspectRatio
+        let defaultWidth = keyboardWidth + horizontalChrome
+        let initialSize = savedFrame?.size ?? NSSize(width: defaultWidth, height: defaultHeight)
+
+        let contentView = LiveKeyboardOverlayView(
+            viewModel: viewModel,
+            onKeyClick: { [weak self] key, layerInfo in
+                self?.handleKeyClick(key: key, layerInfo: layerInfo)
+            }
+        )
 
         let hostingView = NSHostingView(rootView: contentView)
         hostingView.setFrameSize(initialSize)
@@ -209,9 +294,11 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         // Prevent the window from ever becoming key window (so it doesn't steal keyboard focus)
         // Note: This relies on OverlayWindow.canBecomeKey returning false
 
-        // Allow resize
-        window.minSize = NSSize(width: 400, height: 150)
-        window.maxSize = NSSize(width: 1200, height: 500)
+        // Allow resize - constrain to keyboard aspect ratio
+        // Min: 150pt height -> keyboard area = 96pt -> width = 96 * 2.53 + 28 = 271
+        // Max: 500pt height -> keyboard area = 446pt -> width = 446 * 2.53 + 28 = 1156
+        window.minSize = NSSize(width: 270, height: 150)
+        window.maxSize = NSSize(width: 1160, height: 500)
 
         // Restore saved position or default to bottom-right corner
         if let savedFrame {

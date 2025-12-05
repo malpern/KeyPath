@@ -114,7 +114,10 @@ class KanataViewModel: ObservableObject {
         // Show warning toast if there's a new warning
         if let warning = state.lastWarning, warning != lastWarning {
             lastWarning = warning
-            showToast(warning, type: .warning, duration: 5.0)
+            // Conflict warnings get 2x duration (10s vs 5s) since they're important
+            let isConflictWarning = warning.contains("conflicts")
+            let duration: TimeInterval = isConflictWarning ? 10.0 : 5.0
+            showToast(warning, type: .warning, duration: duration)
         } else {
             lastWarning = state.lastWarning
         }

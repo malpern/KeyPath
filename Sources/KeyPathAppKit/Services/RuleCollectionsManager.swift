@@ -467,16 +467,34 @@ final class RuleCollectionsManager {
             // Continue anyway - just a warning
         }
 
-        if let index = customRules.firstIndex(where: { $0.id == rule.id }) {
+        // Track state before change for potential rollback
+        let existingIndex = customRules.firstIndex(where: { $0.id == rule.id })
+        let previousRule = existingIndex.map { customRules[$0] }
+
+        if let index = existingIndex {
             AppLogger.shared.log("💾 [CustomRules] Updating existing rule at index \(index)")
             customRules[index] = rule
         } else {
             AppLogger.shared.log("💾 [CustomRules] Adding new rule (count will be \(customRules.count + 1))")
             customRules.append(rule)
         }
-        await regenerateConfigFromCollections(skipReload: skipReload)
-        AppLogger.shared.log("💾 [CustomRules] Save complete, customRules.count = \(customRules.count)")
-        return true
+
+        let success = await regenerateConfigFromCollections(skipReload: skipReload)
+
+        if success {
+            AppLogger.shared.log("💾 [CustomRules] Save complete, customRules.count = \(customRules.count)")
+        } else {
+            // Rollback: restore previous state on failure
+            AppLogger.shared.log("💾 [CustomRules] Save failed - rolling back changes")
+            if let previous = previousRule, let index = existingIndex {
+                customRules[index] = previous
+            } else {
+                customRules.removeAll { $0.id == rule.id }
+            }
+            AppLogger.shared.log("💾 [CustomRules] Rollback complete, customRules.count = \(customRules.count)")
+        }
+
+        return success
     }
 
     /// Toggle a custom rule on/off
@@ -563,7 +581,10 @@ final class RuleCollectionsManager {
         LayerIndicatorManager.shared.showLayer(display)
     }
 
-    private func regenerateConfigFromCollections(skipReload: Bool = false) async {
+    /// Regenerates the Kanata configuration from collections and custom rules.
+    /// Returns `true` on success, `false` if validation or saving fails.
+    @discardableResult
+    private func regenerateConfigFromCollections(skipReload: Bool = false) async -> Bool {
         dedupeRuleCollectionsInPlace()
 
         AppLogger.shared.log("🔄 [RuleCollections] regenerateConfigFromCollections: \(ruleCollections.count) collections, \(customRules.count) custom rules")
@@ -604,6 +625,8 @@ final class RuleCollectionsManager {
             if !skipReload {
                 await onRulesChanged?()
             }
+
+            return true
         } catch {
             AppLogger.shared.log("❌ [RuleCollections] Failed to regenerate config: \(error)")
             AppLogger.shared.log("❌ [RuleCollections] Error details: \(String(describing: error))")
@@ -624,6 +647,8 @@ final class RuleCollectionsManager {
             await MainActor.run {
                 SoundManager.shared.playErrorSound()
             }
+
+            return false
         }
     }
 

@@ -47,6 +47,7 @@ enum ResizeEdge: CaseIterable {
 /// A view modifier that adds resize handles to all edges of a borderless window.
 /// Provides forgiving hit targets and visual feedback during resize.
 /// Also handles window moving when dragging from the center.
+/// Option+drag from anywhere triggers resize (uses bottom-right corner behavior).
 struct WindowResizeHandles: ViewModifier {
     /// Width of edge hit targets
     let edgeWidth: CGFloat = 16
@@ -61,6 +62,7 @@ struct WindowResizeHandles: ViewModifier {
     @State private var activeEdge: ResizeEdge?
     @State private var isDragging = false
     @State private var isMoving = false
+    @State private var isOptionResizing = false
     @EnvironmentObject private var vizViewModel: KeyboardVisualizationViewModel
     @State private var initialFrame: NSRect = .zero
     @State private var initialMouseLocation: NSPoint = .zero
@@ -68,25 +70,46 @@ struct WindowResizeHandles: ViewModifier {
     func body(content: Content) -> some View {
         content
             // Move gesture on the main content (lower priority than resize)
+            // Option+drag = resize from bottom-right corner
             .gesture(
                 DragGesture(minimumDistance: 1, coordinateSpace: .global)
                     .onChanged { _ in
-                        if !isMoving {
+                        let optionHeld = NSEvent.modifierFlags.contains(.option)
+
+                        if !isMoving, !isOptionResizing {
                             if let window = findOverlayWindow() {
                                 initialFrame = window.frame
                                 initialMouseLocation = NSEvent.mouseLocation
                                 vizViewModel.noteInteraction()
                             }
-                            isMoving = true
+                            if optionHeld {
+                                isOptionResizing = true
+                                // Show resize cursor
+                                ResizeEdge.bottomRight.cursor.push()
+                            } else {
+                                isMoving = true
+                            }
                         }
-                        // Use global mouse position delta, not SwiftUI translation
+
                         let currentMouse = NSEvent.mouseLocation
                         let deltaX = currentMouse.x - initialMouseLocation.x
                         let deltaY = currentMouse.y - initialMouseLocation.y
-                        moveWindow(deltaX: deltaX, deltaY: deltaY)
+
+                        if isOptionResizing {
+                            // Option+drag = resize from bottom-right
+                            let delta = CGSize(width: deltaX, height: -deltaY)
+                            resizeWindow(edge: .bottomRight, translation: delta, from: initialFrame)
+                        } else {
+                            // Normal drag = move
+                            moveWindow(deltaX: deltaX, deltaY: deltaY)
+                        }
                     }
                     .onEnded { _ in
+                        if isOptionResizing {
+                            NSCursor.pop()
+                        }
                         isMoving = false
+                        isOptionResizing = false
                         vizViewModel.noteInteraction()
                     }
             )

@@ -347,9 +347,15 @@ class KeyboardVisualizationViewModel: ObservableObject {
                     configPath: configPath
                 )
 
-                // Augment mapping with app launch info from custom rules
+                // Augment mapping with push-msg actions from custom rules and rule collections
                 let customRules = await CustomRulesStore.shared.loadRules()
-                mapping = self.augmentWithAppLaunchInfo(mapping: mapping, customRules: customRules)
+                let ruleCollections = await RuleCollectionStore.shared.loadCollections()
+                AppLogger.shared.info("🗺️ [KeyboardViz] Augmenting with \(customRules.count) custom rules and \(ruleCollections.count) collections")
+                mapping = self.augmentWithPushMsgActions(
+                    mapping: mapping,
+                    customRules: customRules,
+                    ruleCollections: ruleCollections
+                )
 
                 // Update on main actor
                 await MainActor.run {
@@ -372,38 +378,104 @@ class KeyboardVisualizationViewModel: ObservableObject {
         }
     }
 
-    /// Augment layer mapping with app launch info from custom rules
+    /// Augment layer mapping with push-msg actions from custom rules and rule collections
+    /// Handles app launches, system actions, and other push-msg patterns
     /// - Parameters:
     ///   - mapping: The base layer key mapping from the simulator
-    ///   - customRules: Custom rules to check for app launch patterns
-    /// - Returns: Mapping with app launch identifiers added where applicable
-    private func augmentWithAppLaunchInfo(
+    ///   - customRules: Custom rules to check for push-msg patterns
+    ///   - ruleCollections: Preset rule collections to check for push-msg patterns
+    /// - Returns: Mapping with action info added where applicable
+    private func augmentWithPushMsgActions(
         mapping: [UInt16: LayerKeyInfo],
-        customRules: [CustomRule]
+        customRules: [CustomRule],
+        ruleCollections: [RuleCollection]
     ) -> [UInt16: LayerKeyInfo] {
         var augmented = mapping
 
-        // Build a lookup of input key -> app identifier from custom rules
-        var appLaunchByInput: [String: String] = [:]
-        for rule in customRules where rule.isEnabled {
-            if let appId = Self.extractAppLaunchIdentifier(from: rule.output) {
-                appLaunchByInput[rule.input.lowercased()] = appId
+        // Build lookups from input key -> LayerKeyInfo
+        var actionByInput: [String: LayerKeyInfo] = [:]
+
+        // First, process rule collections (lower priority - can be overridden by custom rules)
+        for collection in ruleCollections where collection.isEnabled {
+            for keyMapping in collection.mappings {
+                let input = keyMapping.input.lowercased()
+                if let info = Self.extractPushMsgInfo(from: keyMapping.output, description: keyMapping.description) {
+                    actionByInput[input] = info
+                }
             }
         }
 
-        // Update mapping entries where the input key has a launch action
-        for (keyCode, _) in mapping {
-            // Get the kanata key name for this keyCode
-            let keyName = OverlayKeyboardView.keyCodeToKanataName(keyCode).lowercased()
+        // Then, process custom rules (higher priority - overrides collections)
+        for rule in customRules where rule.isEnabled {
+            let input = rule.input.lowercased()
+            if let info = Self.extractPushMsgInfo(from: rule.output, description: rule.notes) {
+                actionByInput[input] = info
+            }
+        }
 
-            if let appId = appLaunchByInput[keyName] {
-                // Replace this entry with an app launch entry
-                augmented[keyCode] = LayerKeyInfo.appLaunch(appIdentifier: appId)
-                AppLogger.shared.debug("🗺️ [KeyboardViz] Key \(keyName)(\(keyCode)) -> app launch: \(appId)")
+        AppLogger.shared.info("🗺️ [KeyboardViz] Found \(actionByInput.count) push-msg actions")
+
+        // Update mapping entries
+        for (keyCode, _) in mapping {
+            let keyName = OverlayKeyboardView.keyCodeToKanataName(keyCode).lowercased()
+            if let info = actionByInput[keyName] {
+                augmented[keyCode] = info
+                AppLogger.shared.debug("🗺️ [KeyboardViz] Key \(keyName)(\(keyCode)) -> '\(info.displayLabel)'")
             }
         }
 
         return augmented
+    }
+
+    /// Extract LayerKeyInfo from a push-msg output string
+    /// Handles: launch:, system:, and generic push-msg patterns
+    nonisolated static func extractPushMsgInfo(from output: String, description: String?) -> LayerKeyInfo? {
+        // Pattern: (push-msg "type:value")
+        let pattern = #"\(push-msg\s+\"([^:\"]+):([^\"]+)\"\)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []),
+              let match = regex.firstMatch(in: output, range: NSRange(output.startIndex..., in: output)),
+              let typeRange = Range(match.range(at: 1), in: output),
+              let valueRange = Range(match.range(at: 2), in: output)
+        else {
+            return nil
+        }
+
+        let msgType = String(output[typeRange])
+        let msgValue = String(output[valueRange])
+
+        switch msgType {
+        case "launch":
+            return .appLaunch(appIdentifier: msgValue)
+        case "system":
+            // Use description if available, otherwise format the system action
+            let displayLabel = description ?? Self.systemActionDisplayLabel(msgValue)
+            return .systemAction(action: msgValue, description: displayLabel)
+        default:
+            // Generic push-msg - use description or message value
+            return .pushMsg(message: description ?? msgValue)
+        }
+    }
+
+    /// Get a human-readable label for a system action
+    nonisolated static func systemActionDisplayLabel(_ action: String) -> String {
+        switch action.lowercased() {
+        case "dnd", "do-not-disturb", "donotdisturb", "focus":
+            return "Do Not Disturb"
+        case "spotlight":
+            return "Spotlight"
+        case "dictation":
+            return "Dictation"
+        case "mission-control", "missioncontrol":
+            return "Mission Control"
+        case "launchpad":
+            return "Launchpad"
+        case "notification-center", "notificationcenter":
+            return "Notification Center"
+        case "siri":
+            return "Siri"
+        default:
+            return action.capitalized
+        }
     }
 
     /// Extract app identifier from a push-msg launch output string

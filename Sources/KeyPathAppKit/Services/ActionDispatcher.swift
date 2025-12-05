@@ -23,6 +23,7 @@ public enum ActionDispatchResult: Sendable {
 /// - `keypath://notify?title=X&body=Y` - Show user notification
 /// - `keypath://open/{url}` - Open URL in default browser
 /// - `keypath://fakekey/{name}/{action}` - Trigger Kanata virtual key (tap/press/release/toggle)
+/// - `keypath://system/{action}` - Trigger macOS system actions (mission-control, spotlight, dictation, dnd, launchpad, siri)
 @MainActor
 public final class ActionDispatcher {
     // MARK: - Singleton
@@ -64,6 +65,8 @@ public final class ActionDispatcher {
             return handleOpen(uri)
         case "fakekey", "vkey":
             return handleFakeKey(uri)
+        case "system":
+            return handleSystem(uri)
         default:
             let message = "Unknown action type: \(uri.action)"
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
@@ -311,6 +314,146 @@ public final class ActionDispatcher {
         }
 
         return .success
+    }
+
+    /// Trigger a macOS system action
+    /// Format: keypath://system/{action}
+    /// Actions: mission-control, spotlight, dictation, dnd, launchpad, notification-center, siri
+    private func handleSystem(_ uri: KeyPathActionURI) -> ActionDispatchResult {
+        guard let action = uri.target else {
+            let message = "system action requires action name: keypath://system/{action}"
+            AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
+            onError?(message)
+            return .missingTarget("system")
+        }
+
+        AppLogger.shared.log("⚙️ [ActionDispatcher] System action: \(action)")
+
+        switch action.lowercased() {
+        case "mission-control", "missioncontrol", "expose":
+            // Mission Control - open the app
+            let workspace = NSWorkspace.shared
+            if let appURL = workspace.urlForApplication(withBundleIdentifier: "com.apple.exposelauncher") {
+                workspace.openApplication(at: appURL, configuration: NSWorkspace.OpenConfiguration()) { _, error in
+                    if let error {
+                        AppLogger.shared.log("⚠️ [ActionDispatcher] Mission Control failed: \(error)")
+                    }
+                }
+                return .success
+            }
+            // Fallback: try opening Mission Control.app
+            let missionControlPaths = [
+                "/System/Applications/Mission Control.app",
+                "/Applications/Mission Control.app"
+            ]
+            for path in missionControlPaths {
+                if FileManager.default.fileExists(atPath: path) {
+                    workspace.openApplication(at: URL(fileURLWithPath: path), configuration: NSWorkspace.OpenConfiguration()) { _, _ in }
+                    return .success
+                }
+            }
+            onError?("Could not launch Mission Control")
+            return .failed("system", NSError(domain: "ActionDispatcher", code: 3))
+
+        case "spotlight":
+            // Spotlight - simulate Cmd+Space
+            simulateKeyboardShortcut(keyCode: 49, modifiers: .maskCommand) // Space = 49
+            return .success
+
+        case "dictation":
+            // Dictation - simulate pressing Fn key twice (or use accessibility)
+            // This is tricky - dictation trigger varies by macOS settings
+            // Try opening the Dictation preference pane or simulate double-Fn
+            simulateKeyboardShortcut(keyCode: 63, modifiers: []) // Fn key
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self.simulateKeyboardShortcut(keyCode: 63, modifiers: [])
+            }
+            return .success
+
+        case "dnd", "do-not-disturb", "donotdisturb", "focus":
+            // Do Not Disturb / Focus - use Shortcuts or Control Center
+            // On macOS 12+, can use Shortcuts app
+            let script = """
+            tell application "System Events"
+                tell process "Control Center"
+                    click menu bar item "Focus" of menu bar 1
+                end tell
+            end tell
+            """
+            runAppleScript(script)
+            return .success
+
+        case "launchpad":
+            // Launchpad - open the app
+            let workspace = NSWorkspace.shared
+            if let appURL = workspace.urlForApplication(withBundleIdentifier: "com.apple.launchpad.launcher") {
+                workspace.openApplication(at: appURL, configuration: NSWorkspace.OpenConfiguration()) { _, _ in }
+                return .success
+            }
+            onError?("Could not launch Launchpad")
+            return .failed("system", NSError(domain: "ActionDispatcher", code: 3))
+
+        case "notification-center", "notificationcenter", "notifications":
+            // Notification Center - click the clock/date in menu bar
+            let script = """
+            tell application "System Events"
+                tell process "Control Center"
+                    click menu bar item "Clock" of menu bar 1
+                end tell
+            end tell
+            """
+            runAppleScript(script)
+            return .success
+
+        case "siri":
+            // Siri - use the Siri app or hold Option+Space
+            let workspace = NSWorkspace.shared
+            if let appURL = workspace.urlForApplication(withBundleIdentifier: "com.apple.siri.launcher") {
+                workspace.openApplication(at: appURL, configuration: NSWorkspace.OpenConfiguration()) { _, _ in }
+                return .success
+            }
+            // Fallback: simulate Hold Cmd+Space (or just launch Siri)
+            simulateKeyboardShortcut(keyCode: 49, modifiers: [.maskCommand, .maskAlternate])
+            return .success
+
+        default:
+            let message = "Unknown system action: \(action). Supported: mission-control, spotlight, dictation, dnd, launchpad, notification-center, siri"
+            AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
+            onError?(message)
+            return .unknownAction(action)
+        }
+    }
+
+    /// Simulate a keyboard shortcut using CGEvent
+    private func simulateKeyboardShortcut(keyCode: CGKeyCode, modifiers: CGEventFlags) {
+        guard let source = CGEventSource(stateID: .hidSystemState) else { return }
+
+        // Key down
+        if let keyDown = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true) {
+            keyDown.flags = modifiers
+            keyDown.post(tap: .cghidEventTap)
+        }
+
+        // Key up
+        if let keyUp = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false) {
+            keyUp.flags = modifiers
+            keyUp.post(tap: .cghidEventTap)
+        }
+    }
+
+    /// Run an AppleScript
+    private func runAppleScript(_ script: String) {
+        Task.detached {
+            var error: NSDictionary?
+            if let scriptObject = NSAppleScript(source: script) {
+                scriptObject.executeAndReturnError(&error)
+                if let error {
+                    await MainActor.run {
+                        AppLogger.shared.log("⚠️ [ActionDispatcher] AppleScript error: \(error)")
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Notification Helper

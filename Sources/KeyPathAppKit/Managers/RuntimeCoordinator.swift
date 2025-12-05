@@ -808,6 +808,13 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         ruleCollectionsCoordinator.makeCustomRule(input: input, output: output)
     }
 
+    /// Creates or returns an existing custom rule for the given input key.
+    /// If a rule already exists with the same input, returns a copy with the same ID but updated output.
+    /// This prevents duplicate keys in the generated Kanata config.
+    func makeCustomRule(input: String, output: String) -> CustomRule {
+        ruleCollectionsCoordinator.makeCustomRule(input: input, output: output)
+    }
+
     func saveConfiguration(input: String, output: String) async throws {
         AppLogger.shared.log("💾 [RuntimeCoordinator] Saving configuration mapping")
 

@@ -227,4 +227,41 @@ final class RuleCollectionsManagerTests: XCTestCase {
         XCTAssertTrue(warningMessage?.contains("caps") ?? false, "Warning should mention the conflicting key")
         XCTAssertTrue(warningMessage?.contains("Last enabled rule wins") ?? false, "Warning should explain behavior")
     }
+
+    @MainActor
+    func testIdenticalMomentaryActivatorsDoNotWarn() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        var warningReceived: String?
+        manager.onWarning = { warningReceived = $0 }
+
+        let first = RuleCollection(
+            name: "Nav",
+            summary: "Navigation layer",
+            category: .navigation,
+            mappings: [KeyMapping(input: "h", output: "left")],
+            isEnabled: true,
+            targetLayer: .navigation,
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
+        )
+
+        let second = RuleCollection(
+            name: "Delete Enh",
+            summary: "Delete tweaks",
+            category: .navigation,
+            mappings: [KeyMapping(input: "d", output: "del")],
+            isEnabled: false,
+            targetLayer: .navigation,
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
+        )
+
+        await manager.replaceCollections([first, second])
+        await manager.toggleCollection(id: second.id, isEnabled: true)
+
+        XCTAssertNil(warningReceived, "Identical activators should not trigger a conflict warning")
+        let updated = manager.ruleCollections
+        XCTAssertNotNil(updated.first(where: { $0.id == first.id })?.momentaryActivator)
+        XCTAssertNil(updated.first(where: { $0.id == second.id })?.momentaryActivator)
+    }
 }

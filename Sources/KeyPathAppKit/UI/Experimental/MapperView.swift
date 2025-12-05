@@ -9,6 +9,61 @@ extension Notification.Name {
     static let mapperPresetValues = Notification.Name("KeyPath.MapperPresetValues")
 }
 
+// MARK: - Reset Button with Double-Click Support
+
+/// A button that handles single click (reset current) and double click (reset all).
+/// Uses a timer to distinguish between single and double clicks.
+private struct ResetButton: View {
+    let isEnabled: Bool
+    let onSingleClick: () -> Void
+    let onDoubleClick: () -> Void
+
+    @State private var clickCount = 0
+    @State private var clickTimer: Timer?
+
+    private let doubleClickDelay: TimeInterval = 0.3
+
+    var body: some View {
+        Label("Reset", systemImage: "arrow.counterclockwise")
+            .font(.caption)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color(NSColor.controlBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(Color.primary.opacity(0.2), lineWidth: 0.5)
+            )
+            .opacity(isEnabled ? 1.0 : 0.3)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                guard isEnabled else { return }
+                clickCount += 1
+
+                if clickCount == 1 {
+                    // Start timer to wait for potential second click
+                    clickTimer = Timer.scheduledTimer(withTimeInterval: doubleClickDelay, repeats: false) { _ in
+                        Task { @MainActor in
+                            if clickCount == 1 {
+                                onSingleClick()
+                            }
+                            clickCount = 0
+                        }
+                    }
+                } else if clickCount >= 2 {
+                    // Double click detected
+                    clickTimer?.invalidate()
+                    clickTimer = nil
+                    clickCount = 0
+                    onDoubleClick()
+                }
+            }
+            .help("Click: Reset mapping. Double-click: Reset all to defaults")
+    }
+}
+
 // MARK: - Mapper View
 
 /// Experimental key mapping page with visual keycap-based input/output capture.
@@ -27,6 +82,9 @@ struct MapperView: View {
     /// Error alert state
     @State private var showingErrorAlert = false
     @State private var errorAlertMessage = ""
+
+    /// Reset all confirmation dialog
+    @State private var showingResetAllConfirmation = false
 
     var body: some View {
         VStack(spacing: 12) {
@@ -54,6 +112,21 @@ struct MapperView: View {
 
                 Spacer()
 
+                // System action picker menu
+                Menu {
+                    ForEach(SystemActionInfo.allActions) { action in
+                        Button(action.name) {
+                            viewModel.selectSystemAction(action)
+                        }
+                    }
+                } label: {
+                    Image(systemName: "gearshape")
+                        .font(.caption)
+                }
+                .menuStyle(.borderlessButton)
+                .frame(width: 24)
+                .help("System action")
+
                 // App launcher picker button
                 Button {
                     viewModel.pickAppForOutput()
@@ -65,24 +138,21 @@ struct MapperView: View {
                 .controlSize(.small)
                 .help("Pick app to launch")
 
-                // Clear/reset button (always visible but disabled when nothing to clear)
-                Button {
-                    viewModel.clear()
-                } label: {
-                    Label("Reset", systemImage: "arrow.counterclockwise")
-                        .font(.caption)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .opacity(viewModel.canSave || viewModel.inputLabel != "a" || viewModel.outputLabel != "a" ? 1.0 : 0.3)
-                .disabled(!(viewModel.canSave || viewModel.inputLabel != "a" || viewModel.outputLabel != "a"))
-                .help("Reset mapping")
+                // Clear/reset button
+                // Single click: reset current mapping
+                // Double click: reset entire keyboard to defaults
+                ResetButton(
+                    isEnabled: viewModel.canSave || viewModel.inputLabel != "a" || viewModel.outputLabel != "a",
+                    onSingleClick: { viewModel.clear() },
+                    onDoubleClick: { showingResetAllConfirmation = true }
+                )
             }
             .padding(.horizontal, 4)
 
             // Keycaps for input and output
             MapperKeycapPair(
                 inputLabel: viewModel.inputLabel,
+                inputKeyCode: viewModel.inputKeyCode,
                 outputLabel: viewModel.outputLabel,
                 isRecordingInput: viewModel.isRecordingInput,
                 isRecordingOutput: viewModel.isRecordingOutput,
@@ -141,6 +211,16 @@ struct MapperView: View {
         } message: {
             Text(errorAlertMessage)
         }
+        .alert("Reset Entire Layout?", isPresented: $showingResetAllConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Yes, Reset", role: .destructive) {
+                Task {
+                    await viewModel.resetAllToDefaults(kanataManager: kanataManager.underlyingManager)
+                }
+            }
+        } message: {
+            Text("This will remove all custom rules and restore the keyboard to its default mappings.")
+        }
     }
 }
 
@@ -150,6 +230,7 @@ struct MapperView: View {
 /// or stacked vertically when content is too wide.
 private struct MapperKeycapPair: View {
     let inputLabel: String
+    let inputKeyCode: UInt16?
     let outputLabel: String
     let isRecordingInput: Bool
     let isRecordingOutput: Bool
@@ -167,6 +248,8 @@ private struct MapperKeycapPair: View {
     private var shouldStack: Bool {
         // Don't stack for app icons
         if outputAppInfo != nil { return false }
+        // Don't stack when input has keyCode (fixed-size overlay-style keycap)
+        if inputKeyCode != nil { return false }
         return inputLabel.count > verticalThreshold || outputLabel.count > verticalThreshold
     }
 
@@ -191,12 +274,12 @@ private struct MapperKeycapPair: View {
         HStack(spacing: 16) {
             Spacer(minLength: 0)
 
-            // Input keycap
+            // Input keycap - uses overlay-style rendering
             VStack(spacing: 8) {
-                MapperKeycapView(
+                MapperInputKeycap(
                     label: inputLabel,
+                    keyCode: inputKeyCode,
                     isRecording: isRecordingInput,
-                    maxWidth: maxWidth,
                     onTap: onInputTap
                 )
                 Text("Input")
@@ -209,7 +292,7 @@ private struct MapperKeycapPair: View {
                 .font(.title3)
                 .foregroundColor(.secondary)
 
-            // Output keycap
+            // Output keycap - shows result/action
             VStack(spacing: 8) {
                 MapperKeycapView(
                     label: outputLabel,
@@ -229,16 +312,16 @@ private struct MapperKeycapPair: View {
 
     private func verticalLayout(maxWidth: CGFloat) -> some View {
         VStack(spacing: 8) {
-            // Input keycap with label
+            // Input keycap with label - uses overlay-style rendering
             VStack(spacing: 6) {
                 Text("Input")
                     .font(.caption)
                     .foregroundColor(.secondary)
 
-                MapperKeycapView(
+                MapperInputKeycap(
                     label: inputLabel,
+                    keyCode: inputKeyCode,
                     isRecording: isRecordingInput,
-                    maxWidth: maxWidth,
                     onTap: onInputTap
                 )
             }
@@ -249,7 +332,7 @@ private struct MapperKeycapPair: View {
                 .foregroundColor(.secondary)
                 .padding(.vertical, 2)
 
-            // Output keycap with label
+            // Output keycap with label - shows result/action
             VStack(spacing: 6) {
                 MapperKeycapView(
                     label: outputLabel,
@@ -455,6 +538,301 @@ struct MapperKeycapView: View {
     }
 }
 
+// MARK: - Mapper Input Keycap (Overlay Style)
+
+/// Input keycap styled like the overlay keyboard - shows physical key appearance
+/// with function key icons, shift symbols, globe+fn, etc.
+struct MapperInputKeycap: View {
+    let label: String
+    let keyCode: UInt16?
+    let isRecording: Bool
+    let onTap: () -> Void
+
+    @State private var isHovered = false
+    @State private var isPressed = false
+
+    // Scale factor (overlay uses 1.0, mapper uses 2.5x)
+    private let scale: CGFloat = 2.5
+
+    // Sizing
+    private let baseSize: CGFloat = 100
+    private let cornerRadius: CGFloat = 10
+
+    /// Determine layout role from keyCode directly
+    private var layoutRole: KeycapLayoutRole {
+        guard let keyCode else { return .centered }
+
+        // Function keys: F1-F12 (keyCodes 122,120,99,118,96,97,98,100,101,109,103,111)
+        let functionKeyCodes: Set<UInt16> = [122, 120, 99, 118, 96, 97, 98, 100, 101, 109, 103, 111]
+        if functionKeyCodes.contains(keyCode) {
+            return .functionKey
+        }
+
+        // ESC key (keyCode 53)
+        if keyCode == 53 {
+            return .escKey
+        }
+
+        // Arrow keys (keyCodes 123,124,125,126)
+        let arrowKeyCodes: Set<UInt16> = [123, 124, 125, 126]
+        if arrowKeyCodes.contains(keyCode) {
+            return .arrow
+        }
+
+        // fn key (keyCode 63)
+        if keyCode == 63 {
+            return .narrowModifier
+        }
+
+        // Control/Option/Command (keyCodes 59,58,55,62,61,54)
+        let narrowModKeyCodes: Set<UInt16> = [59, 58, 55, 62, 61, 54]
+        if narrowModKeyCodes.contains(keyCode) {
+            return .narrowModifier
+        }
+
+        // Shift keys (keyCodes 56, 60)
+        let shiftKeyCodes: Set<UInt16> = [56, 60]
+        if shiftKeyCodes.contains(keyCode) {
+            return .bottomAligned
+        }
+
+        // Return/Delete/Tab/CapsLock - wide modifiers
+        let wideModKeyCodes: Set<UInt16> = [36, 51, 48, 57] // return, delete, tab, caps
+        if wideModKeyCodes.contains(keyCode) {
+            return .bottomAligned
+        }
+
+        // Default: centered
+        return .centered
+    }
+
+    private var labelMetadata: LabelMetadata {
+        LabelMetadata.forLabel(label)
+    }
+
+    var body: some View {
+        ZStack {
+            // Key background
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(backgroundColor)
+                .shadow(color: shadowColor, radius: shadowRadius, y: shadowOffset)
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .stroke(borderColor, lineWidth: isRecording ? 2 : 1)
+                )
+
+            // Content based on layout role
+            keyContent
+        }
+        .frame(width: baseSize, height: baseSize)
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+        .animation(.spring(response: 0.15, dampingFraction: 0.6), value: isPressed)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
+        .onTapGesture {
+            withAnimation(.spring(response: 0.1, dampingFraction: 0.8)) {
+                isPressed = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation(.spring(response: 0.1, dampingFraction: 0.8)) {
+                    isPressed = false
+                }
+            }
+            onTap()
+        }
+    }
+
+    // MARK: - Content Routing
+
+    @ViewBuilder
+    private var keyContent: some View {
+        switch layoutRole {
+        case .functionKey:
+            functionKeyContent
+        case .narrowModifier:
+            narrowModifierContent
+        case .escKey:
+            escKeyContent
+        case .bottomAligned:
+            bottomAlignedContent
+        case .arrow:
+            arrowContent
+        case .centered, .touchId:
+            centeredContent
+        }
+    }
+
+    // MARK: - Layout: Function Key (icon + label)
+
+    @ViewBuilder
+    private var functionKeyContent: some View {
+        let sfSymbol = keyCode.flatMap { LabelMetadata.sfSymbol(forKeyCode: $0) }
+
+        VStack(spacing: 4) {
+            if let symbol = sfSymbol {
+                Image(systemName: symbol)
+                    .font(.system(size: 24, weight: .regular))
+                    .foregroundStyle(foregroundColor)
+            }
+            Spacer()
+            Text(label.uppercased())
+                .font(.system(size: 14, weight: .regular))
+                .foregroundStyle(foregroundColor.opacity(0.6))
+        }
+        .padding(.top, 16)
+        .padding(.bottom, 8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Layout: Narrow Modifier (fn with globe)
+
+    @ViewBuilder
+    private var narrowModifierContent: some View {
+        if label.lowercased() == "fn" {
+            HStack(spacing: 8) {
+                Image(systemName: "globe")
+                    .font(.system(size: 20, weight: .regular))
+                Text("fn")
+                    .font(.system(size: 16, weight: .regular))
+            }
+            .foregroundStyle(foregroundColor)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            // Other narrow modifiers (ctrl, opt, cmd)
+            Text(label)
+                .font(.system(size: 28, weight: .light))
+                .foregroundStyle(foregroundColor)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    // MARK: - Layout: ESC Key (left-aligned + LED)
+
+    @ViewBuilder
+    private var escKeyContent: some View {
+        VStack {
+            // LED indicator (top-left)
+            HStack {
+                Circle()
+                    .fill(Color.white.opacity(0.15))
+                    .frame(width: 8, height: 8)
+                Spacer()
+            }
+            .padding(.leading, 12)
+            .padding(.top, 10)
+
+            Spacer()
+
+            // Bottom-left aligned text
+            HStack {
+                Text("esc")
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundStyle(foregroundColor)
+                Spacer()
+            }
+            .padding(.leading, 12)
+            .padding(.bottom, 10)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Layout: Bottom Aligned (wide modifiers)
+
+    @ViewBuilder
+    private var bottomAlignedContent: some View {
+        let wordLabel = labelMetadata.wordLabel ?? label
+
+        VStack {
+            Spacer()
+            HStack {
+                Text(wordLabel.lowercased())
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundStyle(foregroundColor)
+                Spacer()
+            }
+            .padding(.leading, 12)
+            .padding(.bottom, 10)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Layout: Arrow
+
+    @ViewBuilder
+    private var arrowContent: some View {
+        Text(label)
+            .font(.system(size: 24, weight: .regular))
+            .foregroundStyle(foregroundColor)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Layout: Centered (with optional shift symbol)
+
+    @ViewBuilder
+    private var centeredContent: some View {
+        if let shiftSymbol = labelMetadata.shiftSymbol {
+            // Dual symbol: shift above, main below
+            VStack(spacing: 6) {
+                Text(shiftSymbol)
+                    .font(.system(size: 22, weight: .light))
+                    .foregroundStyle(foregroundColor.opacity(0.6))
+                Text(label.uppercased())
+                    .font(.system(size: 28, weight: .medium))
+                    .foregroundStyle(foregroundColor)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            // Single centered content
+            Text(label.uppercased())
+                .font(.system(size: 32, weight: .medium))
+                .foregroundStyle(foregroundColor)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    // MARK: - Styling
+
+    private var foregroundColor: Color {
+        Color(red: 0.88, green: 0.93, blue: 1.0)
+            .opacity(isPressed ? 1.0 : 0.88)
+    }
+
+    private var backgroundColor: Color {
+        if isRecording {
+            Color.accentColor
+        } else if isHovered {
+            Color(white: 0.15)
+        } else {
+            Color(white: 0.08)
+        }
+    }
+
+    private var borderColor: Color {
+        if isRecording {
+            Color.accentColor.opacity(0.8)
+        } else if isHovered {
+            Color.white.opacity(0.3)
+        } else {
+            Color.white.opacity(0.15)
+        }
+    }
+
+    private var shadowColor: Color {
+        Color.black.opacity(0.5)
+    }
+
+    private var shadowRadius: CGFloat {
+        isPressed ? 1 : 2
+    }
+
+    private var shadowOffset: CGFloat {
+        isPressed ? 1 : 2
+    }
+}
+
 // MARK: - Mapper View Model
 
 /// Info about a selected app for launch action
@@ -471,6 +849,29 @@ struct AppLaunchInfo: Equatable {
     }
 }
 
+/// Info about a selected system action
+struct SystemActionInfo: Equatable, Identifiable {
+    let id: String // The action identifier (e.g., "dnd", "spotlight")
+    let name: String // Human-readable name
+    let sfSymbol: String // SF Symbol icon name
+
+    /// The kanata output string for this system action
+    var kanataOutput: String {
+        "(push-msg \"system:\(id)\")"
+    }
+
+    /// All available system actions
+    static let allActions: [SystemActionInfo] = [
+        SystemActionInfo(id: "spotlight", name: "🔍 Spotlight", sfSymbol: "magnifyingglass"),
+        SystemActionInfo(id: "mission-control", name: "🪟 Mission Control", sfSymbol: "rectangle.3.group"),
+        SystemActionInfo(id: "launchpad", name: "🚀 Launchpad", sfSymbol: "square.grid.3x3"),
+        SystemActionInfo(id: "dnd", name: "🌙 Do Not Disturb", sfSymbol: "moon.fill"),
+        SystemActionInfo(id: "notification-center", name: "🔔 Notification Center", sfSymbol: "bell.fill"),
+        SystemActionInfo(id: "dictation", name: "🎤 Dictation", sfSymbol: "mic.fill"),
+        SystemActionInfo(id: "siri", name: "🗣️ Siri", sfSymbol: "waveform.circle.fill"),
+    ]
+}
+
 @MainActor
 class MapperViewModel: ObservableObject {
     @Published var inputLabel: String = "a"
@@ -483,6 +884,10 @@ class MapperViewModel: ObservableObject {
     @Published var currentLayer: String = "base"
     /// Selected app for launch action (nil = normal key output)
     @Published var selectedApp: AppLaunchInfo?
+    /// Selected system action (nil = normal key output)
+    @Published var selectedSystemAction: SystemActionInfo?
+    /// Key code of the captured input (for overlay-style rendering)
+    @Published var inputKeyCode: UInt16?
 
     private var inputSequence: KeySequence?
     private var outputSequence: KeySequence?
@@ -501,7 +906,7 @@ class MapperViewModel: ObservableObject {
     private let sequenceFinalizeDelay: TimeInterval = 0.8
 
     var canSave: Bool {
-        inputSequence != nil && (outputSequence != nil || selectedApp != nil)
+        inputSequence != nil && (outputSequence != nil || selectedApp != nil || selectedSystemAction != nil)
     }
 
     func configure(kanataManager: RuntimeCoordinator) {
@@ -606,6 +1011,7 @@ class MapperViewModel: ObservableObject {
     private func startInputRecording() {
         isRecordingInput = true
         inputSequence = nil
+        inputKeyCode = nil
         inputLabel = "..."
         statusMessage = "Press keys (sequence supported)"
         statusIsError = false
@@ -642,6 +1048,10 @@ class MapperViewModel: ObservableObject {
                 if isInput {
                     self.inputSequence = sequence
                     self.inputLabel = sequence.displayString
+                    // Store first key's keyCode for overlay-style rendering
+                    if let firstKey = sequence.keys.first {
+                        self.inputKeyCode = UInt16(firstKey.keyCode)
+                    }
                 } else {
                     self.outputSequence = sequence
                     self.outputLabel = sequence.displayString
@@ -698,6 +1108,7 @@ class MapperViewModel: ObservableObject {
         // If we stopped without capturing anything, restore default label
         if inputSequence == nil {
             inputLabel = "a"
+            inputKeyCode = nil
         }
         if outputSequence == nil {
             outputLabel = "a"
@@ -740,13 +1151,12 @@ class MapperViewModel: ObservableObject {
             // Convert currentLayer string to RuleCollectionLayer
             let targetLayer = layerFromString(currentLayer)
 
-            let customRule = CustomRule(
-                input: inputKanata,
-                output: outputKanata,
-                isEnabled: true,
-                notes: "Created via Mapper [\(currentLayer) layer]",
-                targetLayer: targetLayer
-            )
+            // Use makeCustomRule to reuse existing rule ID for the same input key
+            // This prevents duplicate keys in defsrc which causes Kanata validation errors
+            var customRule = kanataManager.makeCustomRule(input: inputKanata, output: outputKanata)
+            customRule.notes = "Created via Mapper [\(currentLayer) layer]"
+            customRule.targetLayer = targetLayer
+
             _ = await kanataManager.saveCustomRule(customRule, skipReload: true)
 
             // Track the saved rule ID for potential clearing
@@ -772,7 +1182,9 @@ class MapperViewModel: ObservableObject {
         outputLabel = "a"
         inputSequence = nil
         outputSequence = nil
+        inputKeyCode = nil
         selectedApp = nil
+        selectedSystemAction = nil
         statusMessage = nil
     }
 
@@ -780,6 +1192,7 @@ class MapperViewModel: ObservableObject {
     func clear() {
         stopRecording()
         selectedApp = nil
+        selectedSystemAction = nil
 
         // Delete the saved rule if we have one
         if let ruleID = lastSavedRuleID, let manager = kanataManager {
@@ -811,6 +1224,34 @@ class MapperViewModel: ObservableObject {
             // No context - reset to default
             reset()
             AppLogger.shared.log("🧹 [MapperViewModel] Cleared mapping (no key context)")
+        }
+    }
+
+    /// Reset entire keyboard to default mappings (clears all custom rules and collections)
+    func resetAllToDefaults(kanataManager: RuntimeCoordinator) async {
+        stopRecording()
+
+        do {
+            try await kanataManager.resetToDefaultConfig()
+
+            // Reset local state
+            reset()
+            lastSavedRuleID = nil
+            originalInputKey = nil
+            originalOutputKey = nil
+            originalLayer = nil
+            currentLayer = "base"
+
+            // Notify overlay to refresh
+            NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
+
+            statusMessage = "✓ Reset to defaults"
+            statusIsError = false
+            AppLogger.shared.log("🔄 [MapperViewModel] Reset entire keyboard to defaults")
+        } catch {
+            statusMessage = "Reset failed: \(error.localizedDescription)"
+            statusIsError = true
+            AppLogger.shared.error("❌ [MapperViewModel] Reset all failed: \(error)")
         }
     }
 
@@ -851,6 +1292,7 @@ class MapperViewModel: ObservableObject {
         )
 
         selectedApp = appInfo
+        selectedSystemAction = nil // Clear any system action selection
         outputLabel = appName
         outputSequence = nil // Clear any key sequence output
 
@@ -887,13 +1329,11 @@ class MapperViewModel: ObservableObject {
 
         AppLogger.shared.log("🚀 [MapperViewModel] Creating rule: input='\(inputKanata)' output='\(app.kanataOutput)' layer=\(targetLayer)")
 
-        let customRule = CustomRule(
-            input: inputKanata,
-            output: app.kanataOutput,
-            isEnabled: true,
-            notes: "Launch \(app.name) [\(currentLayer) layer]",
-            targetLayer: targetLayer
-        )
+        // Use makeCustomRule to reuse existing rule ID for the same input key
+        // This prevents duplicate keys in defsrc which causes Kanata validation errors
+        var customRule = kanataManager.makeCustomRule(input: inputKanata, output: app.kanataOutput)
+        customRule.notes = "Launch \(app.name) [\(currentLayer) layer]"
+        customRule.targetLayer = targetLayer
 
         let success = await kanataManager.saveCustomRule(customRule, skipReload: false)
         AppLogger.shared.log("🚀 [MapperViewModel] saveCustomRule returned: \(success)")
@@ -905,6 +1345,64 @@ class MapperViewModel: ObservableObject {
             statusMessage = "✓ Saved"
             statusIsError = false
             AppLogger.shared.log("✅ [MapperViewModel] Saved app launch: \(inputSeq.displayString) → launch:\(app.name) [layer: \(currentLayer)]")
+        } else {
+            statusMessage = "Failed to save"
+            statusIsError = true
+            AppLogger.shared.error("❌ [MapperViewModel] saveCustomRule returned false")
+        }
+
+        isSaving = false
+    }
+
+    /// Select a system action for the output
+    func selectSystemAction(_ action: SystemActionInfo) {
+        selectedSystemAction = action
+        selectedApp = nil // Clear any app selection
+        outputSequence = nil // Clear any key sequence output
+        outputLabel = action.name
+
+        AppLogger.shared.log("⚙️ [MapperViewModel] Selected system action: \(action.name) (\(action.id))")
+
+        // Auto-save if input is already set
+        if let manager = kanataManager, inputSequence != nil {
+            AppLogger.shared.log("⚙️ [MapperViewModel] Input already set, auto-saving...")
+            Task {
+                await saveSystemActionMapping(kanataManager: manager)
+            }
+        }
+    }
+
+    /// Save a mapping that triggers a system action
+    private func saveSystemActionMapping(kanataManager: RuntimeCoordinator) async {
+        AppLogger.shared.log("⚙️ [MapperViewModel] saveSystemActionMapping called")
+
+        guard let inputSeq = inputSequence, let action = selectedSystemAction else {
+            statusMessage = "Set input key first"
+            statusIsError = true
+            return
+        }
+
+        isSaving = true
+        statusMessage = nil
+
+        let inputKanata = convertSequenceToKanataFormat(inputSeq)
+        let targetLayer = layerFromString(currentLayer)
+
+        AppLogger.shared.log("⚙️ [MapperViewModel] Creating rule: input='\(inputKanata)' output='\(action.kanataOutput)' layer=\(targetLayer)")
+
+        var customRule = kanataManager.makeCustomRule(input: inputKanata, output: action.kanataOutput)
+        customRule.notes = "\(action.name) [\(currentLayer) layer]"
+        customRule.targetLayer = targetLayer
+
+        let success = await kanataManager.saveCustomRule(customRule, skipReload: false)
+        AppLogger.shared.log("⚙️ [MapperViewModel] saveCustomRule returned: \(success)")
+
+        if success {
+            lastSavedRuleID = customRule.id
+            NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
+            statusMessage = "✓ Saved"
+            statusIsError = false
+            AppLogger.shared.log("✅ [MapperViewModel] Saved system action: \(inputSeq.displayString) → \(action.name) [layer: \(currentLayer)]")
         } else {
             statusMessage = "Failed to save"
             statusIsError = true

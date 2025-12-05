@@ -19,6 +19,8 @@ struct OverlayKeyboardView: View {
     var emphasizedKeyCodes: Set<UInt16> = []
     /// Hold labels for tap-hold keys in hold state: keyCode -> display label
     var holdLabels: [UInt16: String] = [:]
+    /// Callback when a key is clicked (not dragged) - for opening Mapper
+    var onKeyClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
 
     /// Track caps lock state from system
     @State private var isCapsLockOn: Bool = NSEvent.modifierFlags.contains(.capsLock)
@@ -71,7 +73,8 @@ struct OverlayKeyboardView: View {
             isLoadingLayerMap: isLoadingLayerMap,
             layerKeyInfo: layerKeyMap[key.keyCode],
             isEmphasized: emphasizedKeyCodes.contains(key.keyCode),
-            holdLabel: holdLabels[key.keyCode]
+            holdLabel: holdLabels[key.keyCode],
+            onKeyClick: onKeyClick
         )
         .frame(
             width: keyWidth(for: key, scale: scale),

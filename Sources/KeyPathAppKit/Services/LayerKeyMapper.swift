@@ -67,14 +67,45 @@ struct LayerKeyInfo: Equatable, Sendable {
     }
 
     /// Creates info for an app launch action
+    /// - Parameter appIdentifier: The app name or bundle ID
+    /// - Note: displayLabel is set to the app identifier for consumers that need text
+    ///         (like Mapper), while appLaunchIdentifier enables icon rendering
     static func appLaunch(appIdentifier: String) -> LayerKeyInfo {
         LayerKeyInfo(
-            displayLabel: "",
+            displayLabel: appIdentifier, // Use app name as display label
             outputKey: nil,
             outputKeyCode: nil,
             isTransparent: false,
             isLayerSwitch: false,
             appLaunchIdentifier: appIdentifier
+        )
+    }
+
+    /// Creates info for a system action (DND, Spotlight, etc.)
+    /// - Parameters:
+    ///   - action: The system action name (e.g., "dnd", "spotlight")
+    ///   - description: Human-readable description for display
+    static func systemAction(action: String, description: String) -> LayerKeyInfo {
+        LayerKeyInfo(
+            displayLabel: description,
+            outputKey: nil,
+            outputKeyCode: nil,
+            isTransparent: false,
+            isLayerSwitch: false,
+            appLaunchIdentifier: nil
+        )
+    }
+
+    /// Creates info for a generic push-msg action
+    /// - Parameter message: The message content for display
+    static func pushMsg(message: String) -> LayerKeyInfo {
+        LayerKeyInfo(
+            displayLabel: message,
+            outputKey: nil,
+            outputKeyCode: nil,
+            isTransparent: false,
+            isLayerSwitch: false,
+            appLaunchIdentifier: nil
         )
     }
 }

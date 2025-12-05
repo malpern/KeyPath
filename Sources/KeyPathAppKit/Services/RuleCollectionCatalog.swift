@@ -27,11 +27,15 @@ struct RuleCollectionCatalog {
         RuleCollection(
             id: RuleCollectionIdentifier.macFunctionKeys,
             name: "macOS Function Keys",
-            summary: "Preserves brightness, volume, and media control keys (F1-F12).",
+            summary: "Preserves brightness, volume, media, and system control keys (F1-F12).",
             category: .system,
             mappings: [
                 KeyMapping(input: "f1", output: "brdn", description: "Brightness down"),
                 KeyMapping(input: "f2", output: "brup", description: "Brightness up"),
+                KeyMapping(input: "f3", output: #"(push-msg "system:mission-control")"#, description: "Mission Control"),
+                KeyMapping(input: "f4", output: #"(push-msg "system:spotlight")"#, description: "Spotlight"),
+                KeyMapping(input: "f5", output: #"(push-msg "system:dictation")"#, description: "Dictation"),
+                KeyMapping(input: "f6", output: #"(push-msg "system:dnd")"#, description: "Do Not Disturb"),
                 KeyMapping(input: "f7", output: "prev", description: "Previous track"),
                 KeyMapping(input: "f8", output: "pp", description: "Play / Pause"),
                 KeyMapping(input: "f9", output: "next", description: "Next track"),

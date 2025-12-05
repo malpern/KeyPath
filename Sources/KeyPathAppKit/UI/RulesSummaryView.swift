@@ -853,6 +853,11 @@ private struct MappingRowView: View {
 
     @State private var isHovered = false
 
+    /// Extract app identifier from push-msg launch output
+    private var appLaunchIdentifier: String? {
+        KeyboardVisualizationViewModel.extractAppLaunchIdentifier(from: mapping.output)
+    }
+
     private var isEditable: Bool {
         onEditMapping != nil
     }
@@ -870,14 +875,9 @@ private struct MappingRowView: View {
                                 .foregroundColor(.accentColor)
                             Text(leaderKeyDisplay)
                                 .font(.body.monospaced().weight(.semibold))
-                                .foregroundColor(.primary)
+                                .foregroundColor(KeycapStyle.textColor)
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule()
-                                .fill(Color(NSColor.controlBackgroundColor))
-                        )
+                        .modifier(KeycapStyle())
 
                         Text("+")
                             .font(.body)
@@ -886,27 +886,22 @@ private struct MappingRowView: View {
 
                     Text(prettyKeyName(mapping.input))
                         .font(.body.monospaced().weight(.semibold))
-                        .foregroundColor(.primary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule()
-                                .fill(Color(NSColor.controlBackgroundColor))
-                        )
+                        .foregroundColor(KeycapStyle.textColor)
+                        .modifier(KeycapStyle())
 
                     Image(systemName: "arrow.right")
                         .font(.body.weight(.medium))
                         .foregroundColor(.secondary)
 
-                    Text(prettyKeyName(mapping.output))
-                        .font(.body.monospaced().weight(.semibold))
-                        .foregroundColor(.primary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule()
-                                .fill(Color(NSColor.controlBackgroundColor))
-                        )
+                    // Show app icon + name for launch actions, otherwise show key chip
+                    if let appId = appLaunchIdentifier {
+                        AppLaunchChip(appIdentifier: appId)
+                    } else {
+                        Text(prettyKeyName(mapping.output))
+                            .font(.body.monospaced().weight(.semibold))
+                            .foregroundColor(KeycapStyle.textColor)
+                            .modifier(KeycapStyle())
+                    }
 
                     // Show rule name/title if provided
                     if let title = mapping.description, !title.isEmpty {
@@ -1926,5 +1921,128 @@ private struct MappingTableContent: View {
                 .replacingOccurrences(of: "pgdn", with: "Pg↓")
                 .replacingOccurrences(of: "esc", with: "⎋")
         }.joined(separator: " ")
+    }
+}
+
+// MARK: - Keycap Style
+
+/// View modifier that applies overlay-style keycap appearance
+private struct KeycapStyle: ViewModifier {
+    /// Text color matching overlay keycaps (light blue-white)
+    static let textColor = Color(red: 0.88, green: 0.93, blue: 1.0)
+
+    /// Background color matching overlay keycaps (dark gray)
+    static let backgroundColor = Color(white: 0.12)
+
+    /// Corner radius matching overlay keycaps
+    static let cornerRadius: CGFloat = 6
+
+    func body(content: Content) -> some View {
+        content
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: Self.cornerRadius)
+                    .fill(Self.backgroundColor)
+                    .shadow(color: .black.opacity(0.4), radius: 1, y: 1)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Self.cornerRadius)
+                    .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
+            )
+    }
+}
+
+// MARK: - App Launch Chip
+
+/// Displays an app icon and name in a keycap style for app launch actions
+private struct AppLaunchChip: View {
+    let appIdentifier: String
+
+    @State private var appIcon: NSImage?
+    @State private var appName: String?
+
+    var body: some View {
+        HStack(spacing: 6) {
+            // App icon
+            if let icon = appIcon {
+                Image(nsImage: icon)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 16, height: 16)
+            } else {
+                Image(systemName: "app.fill")
+                    .font(.system(size: 12))
+                    .foregroundColor(KeycapStyle.textColor.opacity(0.6))
+                    .frame(width: 16, height: 16)
+            }
+
+            // App name
+            Text(appName ?? appIdentifier)
+                .font(.body.monospaced().weight(.semibold))
+                .foregroundColor(KeycapStyle.textColor)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: KeycapStyle.cornerRadius)
+                .fill(Color.accentColor.opacity(0.25))
+                .shadow(color: .black.opacity(0.4), radius: 1, y: 1)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: KeycapStyle.cornerRadius)
+                .stroke(Color.accentColor.opacity(0.4), lineWidth: 0.5)
+        )
+        .onAppear {
+            loadAppInfo()
+        }
+    }
+
+    private func loadAppInfo() {
+        let workspace = NSWorkspace.shared
+
+        // Try to find app by bundle identifier first
+        if let appURL = workspace.urlForApplication(withBundleIdentifier: appIdentifier) {
+            loadFromURL(appURL)
+            return
+        }
+
+        // Try common paths
+        let appName = appIdentifier.hasSuffix(".app") ? appIdentifier : "\(appIdentifier).app"
+        let commonPaths = [
+            "/Applications/\(appName)",
+            "/System/Applications/\(appName)",
+            "\(NSHomeDirectory())/Applications/\(appName)"
+        ]
+
+        for path in commonPaths {
+            let url = URL(fileURLWithPath: path)
+            if FileManager.default.fileExists(atPath: path) {
+                loadFromURL(url)
+                return
+            }
+        }
+
+        // Fallback: use identifier as name (capitalize it)
+        let parts = appIdentifier.replacingOccurrences(of: ".", with: " ")
+            .split(separator: " ")
+            .map { $0.capitalized }
+        self.appName = parts.last.map { String($0) } ?? appIdentifier
+    }
+
+    private func loadFromURL(_ url: URL) {
+        // Get icon
+        let icon = NSWorkspace.shared.icon(forFile: url.path)
+        icon.size = NSSize(width: 32, height: 32) // Request appropriate size
+        self.appIcon = icon
+
+        // Get app name from bundle
+        if let bundle = Bundle(url: url),
+           let name = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String {
+            self.appName = name
+        } else {
+            // Use filename without extension
+            self.appName = url.deletingPathExtension().lastPathComponent
+        }
     }
 }

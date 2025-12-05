@@ -944,6 +944,38 @@ class ConfigurationServiceTests: XCTestCase {
         XCTAssertTrue(config.contains("(lsft rsft) caps"), "Chord syntax should be correct")
     }
 
+    func testKeyboardGridFormattingKeepsLayoutOrder() {
+        let collection = RuleCollection(
+            name: "Grid",
+            summary: "layout",
+            category: .custom,
+            mappings: [
+                KeyMapping(input: "q", output: "q"),
+                KeyMapping(input: "p", output: "p"),
+                KeyMapping(input: "space", output: "space")
+            ],
+            isEnabled: true
+        )
+
+        let config = KanataConfiguration.generateFromCollections([collection])
+        let defsrc = extractDefsrc(from: config)
+        let rows = defsrc.split(separator: "\n").map(String.init)
+
+        guard let rowWithQ = rows.first(where: { $0.contains("q") && $0.contains("p") }) else {
+            XCTFail("Expected a row containing q and p in keyboard order")
+            return
+        }
+        let qPos = rowWithQ.range(of: "q")!.lowerBound
+        let pPos = rowWithQ.range(of: "p")!.lowerBound
+        XCTAssertLessThan(qPos, pPos, "q should appear before p following physical layout")
+
+        let spaceRow = rows.first { $0.contains("spc") }
+        XCTAssertNotNil(spaceRow, "Space bar row should be present")
+        if let row = spaceRow {
+            XCTAssertTrue(row.contains("spc"), "Space should be rendered as spc for defsrc")
+        }
+    }
+
     /// Helper to extract defsrc section
     private func extractDefsrc(from config: String) -> String {
         guard let start = config.range(of: "(defsrc") else { return "" }
