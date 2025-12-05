@@ -54,8 +54,8 @@ struct PermissionCard: View {
         .buttonStyle(.plain)
         .disabled(status != .notStarted)
         .accessibilityLabel(Text(verbatim: status == .notStarted
-            ? "Open System Settings for \(appName)"
-            : "\(appName) status \(String(describing: status))"))
+                ? "Open System Settings for \(appName)"
+                : "\(appName) status \(String(describing: status))"))
     }
 
     @ViewBuilder

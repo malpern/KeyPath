@@ -114,7 +114,7 @@ struct CloseButton: View {
                             isHovering
                                 ? Color(NSColor.tertiaryLabelColor).opacity(0.7)
                                 : Color(NSColor.tertiaryLabelColor).opacity(0.5))
-                        )
+                )
         }
         .buttonStyle(.plain)
         .help("Return to Overview")

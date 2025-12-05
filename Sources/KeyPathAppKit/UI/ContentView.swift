@@ -312,13 +312,13 @@ struct ContentView: View {
                 let timeSinceRestore = Date().timeIntervalSince1970 - restoreTime
                 if timeSinceRestore < 300 { // Within 5 minutes
                     AppLogger.shared.log("🔄 [ContentView] Found wizard restore point '\(restorePoint)' - auto-opening wizard")
-                        // Delay slightly to ensure UI is ready
-                        Task { @MainActor in
-                            try await Task.sleep(for: .milliseconds(500))
-                            showingInstallationWizard = true
-                        }
+                    // Delay slightly to ensure UI is ready
+                    Task { @MainActor in
+                        try await Task.sleep(for: .milliseconds(500))
+                        showingInstallationWizard = true
                     }
                 }
+            }
 
             // Set up notification handlers for recovery actions
             setupRecoveryActionHandlers()

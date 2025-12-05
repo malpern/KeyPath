@@ -21,12 +21,11 @@ This page now tracks three buckets: **Done**, **Deferred**, and **Still To Do**.
 ## Still To Do
 - **Complex:**
   - Split **ConfigurationService** into focused files (largest remaining “god” class).
-- **Housekeeping:** Commit/clean pending workspace changes when ready.
-- **Maintenance:** VHID driver install path updated to bundled installer (deprecated download path removed).
+- **Deferred:** PrivilegedOperationsCoordinator refactor (only if future work touches it).
 
 ## Order of Operations (recommended)
 1) Write a small plan for ConfigurationService extraction (file boundaries, ownership) and execute with tests.
-2) Re-assess need for PrivilegedOperationsCoordinator refactor; schedule only if upcoming work touches it.
+2) Re-assess need for PrivilegedOperationsCoordinator refactor only when relevant work appears.
 
 ## Verification Status
 - `swift test -q` reports all 181 tests passing (the runner exits non-zero occasionally; logs confirm pass).

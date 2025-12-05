@@ -564,35 +564,16 @@ public actor PermissionOracle {
     // Execute sqlite3 query with timeout protection
     // This is a minimal, defensive implementation that avoids external dependencies
     private func runSQLiteQuery(dbPath: String, sql: String, timeout: Double) async -> String? {
-        await withCheckedContinuation { continuation in
-            Task.detached {
-                let task = Process()
-                task.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
-                task.arguments = [dbPath, sql]
-
-                let pipe = Pipe()
-                task.standardOutput = pipe
-                task.standardError = pipe
-
-                var output: String?
-                do {
-                    try task.run()
-                    // Implement a simple timeout by dispatching a kill if needed
-                    let deadline = DispatchTime.now() + timeout
-                    DispatchQueue.global().asyncAfter(deadline: deadline) {
-                        if task.isRunning {
-                            task.terminate() // best-effort timeout protection
-                        }
-                    }
-                    task.waitUntilExit()
-                    let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                    output = String(data: data, encoding: .utf8)
-                } catch {
-                    AppLogger.shared.log("❌ [Oracle] sqlite3 query failed: \(error)")
-                    output = nil
-                }
-                continuation.resume(returning: output)
-            }
+        do {
+            let result = try await SubprocessRunner.shared.run(
+                "/usr/bin/sqlite3",
+                args: [dbPath, sql],
+                timeout: timeout
+            )
+            return result.stdout
+        } catch {
+            AppLogger.shared.log("❌ [Oracle] sqlite3 query failed: \(error)")
+            return nil
         }
     }
 }

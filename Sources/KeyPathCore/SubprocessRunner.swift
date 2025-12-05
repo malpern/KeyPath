@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 // MARK: - Protocol
 
@@ -188,21 +189,21 @@ public actor SubprocessRunner: SubprocessRunning {
 // MARK: - Run Context
 
 private final class RunContext: @unchecked Sendable {
-    private let resumeQueue = DispatchQueue(label: "com.keypath.subprocess.resume")
+    private let lock = OSAllocatedUnfairLock()
     private var hasResumed = false
     private var continuation: CheckedContinuation<ProcessResult, Error>?
 
     var timeoutTask: Task<Void, Never>?
 
     func setContinuation(_ continuation: CheckedContinuation<ProcessResult, Error>) {
-        resumeQueue.sync {
+        lock.withLock {
             self.continuation = continuation
         }
     }
 
     @discardableResult
     func resume(with result: Result<ProcessResult, Error>) -> Bool {
-        resumeQueue.sync {
+        lock.withLock {
             guard !hasResumed else { return false }
             hasResumed = true
             continuation?.resume(with: result)

@@ -187,10 +187,6 @@ public enum CustomRuleValidator {
     public static func validate(_ rule: CustomRule) -> [ValidationError] {
         var errors: [ValidationError] = []
 
-        if rule.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            errors.append(.emptyTitle)
-        }
-
         errors.append(contentsOf: validateKeys(input: rule.input, output: rule.output))
 
         // If we already have empties, skip further checks

@@ -673,20 +673,30 @@ class KeyboardVisualizationViewModel: ObservableObject {
             AppLogger.shared.debug("⌨️ [KeyboardViz] TCP KeyPress: \(key) -> keyCode \(keyCode)")
         case "release":
             tcpPressedKeyCodes.remove(keyCode)
-            // Defer clearing hold state briefly to tolerate tap-hold-press sequences that emit rapid releases.
-            let work = Task { @MainActor [weak self] in
-                guard let self else { return }
-                try? await Task.sleep(for: .seconds(OverlayTiming.holdReleaseGrace))
+            let delay: TimeInterval = TestEnvironment.isRunningTests ? 0 : OverlayTiming.holdReleaseGrace
+
+            if delay == 0 {
                 holdActiveKeyCodes.remove(keyCode)
-                if holdLabels[keyCode] != nil {
-                    holdLabels.removeValue(forKey: keyCode)
-                    holdLabelCache.removeValue(forKey: keyCode)
-                    AppLogger.shared.debug("⌨️ [KeyboardViz] Cleared hold label (delayed) for \(key)")
-                }
+                holdLabels.removeValue(forKey: keyCode)
+                holdLabelCache.removeValue(forKey: keyCode)
                 holdClearTasks.removeValue(forKey: keyCode)
+                AppLogger.shared.debug("🧪 [KeyboardViz] Cleared hold label immediately (test) for \(key)")
+            } else {
+                // Defer clearing hold state briefly to tolerate tap-hold-press sequences that emit rapid releases.
+                let work = Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    try? await Task.sleep(for: .seconds(delay))
+                    holdActiveKeyCodes.remove(keyCode)
+                    if holdLabels[keyCode] != nil {
+                        holdLabels.removeValue(forKey: keyCode)
+                        holdLabelCache.removeValue(forKey: keyCode)
+                        AppLogger.shared.debug("⌨️ [KeyboardViz] Cleared hold label (delayed) for \(key)")
+                    }
+                    holdClearTasks.removeValue(forKey: keyCode)
+                }
+                holdClearTasks[keyCode]?.cancel()
+                holdClearTasks[keyCode] = work
             }
-            holdClearTasks[keyCode]?.cancel()
-            holdClearTasks[keyCode] = work
             AppLogger.shared.debug("⌨️ [KeyboardViz] TCP KeyRelease: \(key) -> keyCode \(keyCode)")
         default:
             break

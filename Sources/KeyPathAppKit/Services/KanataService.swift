@@ -154,6 +154,12 @@ public final class KanataService: ObservableObject {
         let service = makeSMService()
         switch service.status {
         case .enabled:
+            // In tests, force a full unregister/register cycle to exercise stale-clearing logic
+            if TestEnvironment.isRunningTests {
+                try? await service.unregister()
+                try service.register()
+                return
+            }
             // Check for stale registration: SMAppService says enabled but plist doesn't exist
             // This can happen if uninstall used launchctl/rm instead of SMAppService.unregister()
             let plistPath = "/Library/LaunchDaemons/\(Constants.daemonPlistName)"

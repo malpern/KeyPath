@@ -161,7 +161,7 @@ public enum KanataKeyConverter {
         "leftbrace": "[",
         "rightbrace": "]",
         "leftbracket": "[",
-        "rightbracket": "]",
+        "rightbracket": "]"
     ]
 
     /// Determine if a string should be converted to a macro (typed character by character)
@@ -204,6 +204,6 @@ public enum KanataKeyConverter {
         "f16", "f17", "f18", "f19", "f20",
         // Kanata media/system outputs
         "brdn", "brup", "mission_control", "launchpad",
-        "prev", "pp", "next", "mute", "vold", "volu",
+        "prev", "pp", "next", "mute", "vold", "volu"
     ]
 }
