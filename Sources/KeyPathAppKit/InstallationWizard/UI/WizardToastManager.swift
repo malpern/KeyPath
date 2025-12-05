@@ -167,13 +167,13 @@ struct WizardToastView: View {
                         .fill(Color(NSColor.controlBackgroundColor)) // Adapts to dark mode
                         .frame(width: 16, height: 16)
                     Image(systemName: toast.icon)
-                        .foregroundColor(toast.color)
+                        .foregroundStyle(toast.color)
                         .font(.system(size: 16, weight: .medium))
                 }
 
                 Text(toast.message)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                     .multilineTextAlignment(.leading)
 
                 Spacer()
@@ -181,7 +181,7 @@ struct WizardToastView: View {
                 Button(action: onDismiss) {
                     Image(systemName: "xmark")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Dismiss notification")

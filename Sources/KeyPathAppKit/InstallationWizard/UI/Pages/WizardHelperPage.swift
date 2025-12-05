@@ -131,7 +131,7 @@ struct WizardHelperPage: View {
             ZStack {
                 Image(systemName: "shield.checkered")
                     .font(.system(size: 115, weight: .light))
-                    .foregroundColor(WizardDesign.Colors.success)
+                    .foregroundStyle(WizardDesign.Colors.success)
                     .symbolRenderingMode(.hierarchical)
                     .modifier(AvailabilitySymbolBounce())
 
@@ -141,7 +141,7 @@ struct WizardHelperPage: View {
                         Spacer()
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 40, weight: .medium))
-                            .foregroundColor(WizardDesign.Colors.success)
+                            .foregroundStyle(WizardDesign.Colors.success)
                             .background(WizardDesign.Colors.wizardBackground)
                             .clipShape(Circle())
                             .offset(x: 15, y: -5)
@@ -154,13 +154,13 @@ struct WizardHelperPage: View {
             // Contextual Headline
             Text("Privileged Helper Ready")
                 .font(.system(size: 23, weight: .semibold, design: .default))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
                 .multilineTextAlignment(.center)
 
             // Description
             Text(helperVersion != nil ? "Version \(helperVersion!) — system operations available" : "System operations available without password prompts.")
                 .font(.system(size: 15, weight: .regular))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
             // Inline action status
@@ -175,7 +175,7 @@ struct WizardHelperPage: View {
                 VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
                     HStack(spacing: 12) {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
+                            .foregroundStyle(.green)
                         Text("XPC Communication")
                             .font(.headline)
                             .fontWeight(.semibold)
@@ -183,7 +183,7 @@ struct WizardHelperPage: View {
 
                     HStack(spacing: 12) {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
+                            .foregroundStyle(.green)
                         Text("System Operations Available")
                             .font(.headline)
                             .fontWeight(.semibold)
@@ -222,7 +222,7 @@ struct WizardHelperPage: View {
             ZStack {
                 Image(systemName: "shield.checkered")
                     .font(.system(size: 115, weight: .light))
-                    .foregroundColor(isInstalled ? WizardDesign.Colors.warning : WizardDesign.Colors.error)
+                    .foregroundStyle(isInstalled ? WizardDesign.Colors.warning : WizardDesign.Colors.error)
                     .symbolRenderingMode(.hierarchical)
 
                 // Warning/Error overlay
@@ -231,7 +231,7 @@ struct WizardHelperPage: View {
                         Spacer()
                         Image(systemName: isInstalled ? "exclamationmark.triangle.fill" : "xmark.circle.fill")
                             .font(.system(size: 40, weight: .medium))
-                            .foregroundColor(
+                            .foregroundStyle(
                                 isInstalled ? WizardDesign.Colors.warning : WizardDesign.Colors.error
                             )
                             .background(WizardDesign.Colors.wizardBackground)
@@ -246,13 +246,13 @@ struct WizardHelperPage: View {
             // Contextual Headline
             Text(contextualHeadline)
                 .font(.system(size: 23, weight: .semibold, design: .default))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
                 .multilineTextAlignment(.center)
 
             // Description
             Text(contextualDescription)
                 .font(.system(size: 15, weight: .regular))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 

@@ -238,9 +238,9 @@ public enum KanataEvent: Sendable {
 /// Key action from Kanata TCP KeyInput events
 /// Note: Kanata uses serde(rename_all = "lowercase") so actions are lowercase in JSON
 public enum KanataKeyAction: String, Sendable {
-    case press = "press"
-    case release = "release"
-    case `repeat` = "repeat"
+    case press
+    case release
+    case `repeat`
 }
 
 /// Hold activation info from Kanata TCP HoldActivated events
@@ -322,7 +322,7 @@ actor KanataEventListener {
                 try await connectAndStream(port: port)
             } catch {
                 AppLogger.shared.debug("🌐 [EventListener] stream ended: \(error.localizedDescription)")
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                try? await Task.sleep(for: .seconds(1))
             }
         }
     }
@@ -349,7 +349,7 @@ actor KanataEventListener {
         pollTask = Task(priority: .background) { [weak self, weak connection] in
             guard let self, let connection else { return }
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 500_000_000)
+                try? await Task.sleep(for: .milliseconds(500))
                 try? await send(
                     jsonObject: ["RequestCurrentLayerName": [:] as [String: String]], over: connection
                 )

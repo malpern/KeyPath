@@ -16,20 +16,20 @@ struct EmergencyStopPauseCard: View {
 
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.title2)
-                        .foregroundColor(.orange)
+                        .foregroundStyle(.orange)
                 }
 
                 // Content
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Emergency Stop Activated")
                         .font(.headline)
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
 
                     Text(
                         "Keyboard remapping has been paused for safety. Press the restart button below to resume."
                     )
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 }
 
@@ -64,7 +64,7 @@ struct EmergencyStopPauseCard: View {
                         .padding(.horizontal, 20)
                         .padding(.vertical, 10)
                         .background(Color.accentColor)
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .cornerRadius(8)
                     }
                 )

@@ -17,7 +17,7 @@ struct WizardActionSection: View {
             if let description = statusDescription {
                 Text(description)
                     .font(WizardDesign.Typography.caption)
-                    .foregroundColor(WizardDesign.Colors.secondaryText)
+                    .foregroundStyle(WizardDesign.Colors.secondaryText)
                     .multilineTextAlignment(.center)
             }
 

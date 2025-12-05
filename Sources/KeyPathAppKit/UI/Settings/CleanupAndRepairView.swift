@@ -62,14 +62,14 @@ struct CleanupAndRepairView: View {
                 "This will unregister the helper, remove stale artifacts, and re-register it from /Applications/KeyPath.app. You may be prompted for an administrator password."
             )
             .font(.system(size: 12))
-            .foregroundColor(.secondary)
+            .foregroundStyle(.secondary)
 
             // Duplicate copies hint + reveal
             if duplicateCopies.count > 1 {
                 HStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.circle.fill").foregroundColor(.orange)
+                    Image(systemName: "exclamationmark.circle.fill").foregroundStyle(.orange)
                     Text("Multiple KeyPath.app copies detected. Remove extras to avoid stale approvals.")
-                        .font(.system(size: 12)).foregroundColor(.secondary)
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
                     Spacer()
                     Button("Reveal Copies") {
                         for p in duplicateCopies {
@@ -106,7 +106,7 @@ struct CleanupAndRepairView: View {
                 }
                 if started, !maintenance.isRunning {
                     Image(systemName: succeeded ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundColor(succeeded ? .green : .red)
+                        .foregroundStyle(succeeded ? .green : Color.red)
                 }
                 Spacer()
                 Button(maintenance.isRunning ? "Working…" : "Run Cleanup") {
@@ -130,7 +130,7 @@ struct CleanupAndRepairView: View {
             // Health status header
             HStack(spacing: 8) {
                 Image(systemName: errorMonitor.healthStatus.icon)
-                    .foregroundColor(statusColor)
+                    .foregroundStyle(statusColor)
                     .font(.system(size: 16))
 
                 Text(healthStatusText)
@@ -150,7 +150,7 @@ struct CleanupAndRepairView: View {
 
             Text("Monitoring Kanata stderr for critical errors. Only severe issues are shown here.")
                 .font(.system(size: 12))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
 
             // Error list
             ScrollView {
@@ -158,13 +158,13 @@ struct CleanupAndRepairView: View {
                     VStack(spacing: 12) {
                         Image(systemName: "checkmark.circle")
                             .font(.system(size: 48))
-                            .foregroundColor(.green)
+                            .foregroundStyle(.green)
                         Text("No errors detected")
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         Text("Kanata is running smoothly")
                             .font(.system(size: 12))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 40)
@@ -187,7 +187,7 @@ struct CleanupAndRepairView: View {
             HStack {
                 Text("\(errorMonitor.recentErrors.count) errors logged (last 100)")
                     .font(.system(size: 11))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                 Spacer()
             }
         }
@@ -198,7 +198,7 @@ struct CleanupAndRepairView: View {
         HStack(alignment: .top, spacing: 10) {
             // Severity icon
             Image(systemName: error.severity.icon)
-                .foregroundColor(severityColor(error.severity))
+                .foregroundStyle(severityColor(error.severity))
                 .font(.system(size: 14))
                 .frame(width: 20)
 
@@ -206,7 +206,7 @@ struct CleanupAndRepairView: View {
                 HStack {
                     Text(error.timestampString)
                         .font(.system(.caption, design: .monospaced))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
 
                     Text(error.severity.rawValue.uppercased())
                         .font(.system(size: 9, weight: .bold))
@@ -216,7 +216,7 @@ struct CleanupAndRepairView: View {
                             RoundedRectangle(cornerRadius: 3)
                                 .fill(severityColor(error.severity).opacity(0.2))
                         )
-                        .foregroundColor(severityColor(error.severity))
+                        .foregroundStyle(severityColor(error.severity))
                 }
 
                 Text(error.message)
@@ -225,7 +225,7 @@ struct CleanupAndRepairView: View {
 
                 Text(error.rawLine)
                     .font(.system(size: 10, design: .monospaced))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }

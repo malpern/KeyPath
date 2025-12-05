@@ -9,14 +9,14 @@ struct SetupBanner: View {
             VStack(spacing: 12) {
                 HStack {
                     Image(systemName: "exclamationmark.circle.fill")
-                        .foregroundColor(.orange)
+                        .foregroundStyle(.orange)
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Complete Setup")
                             .font(.headline)
                         Text("Grant permissions to enable keyboard remapping")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
 
                     Spacer()
@@ -31,7 +31,7 @@ struct SetupBanner: View {
                         isDismissed = true
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
                 }

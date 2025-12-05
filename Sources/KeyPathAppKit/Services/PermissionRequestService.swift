@@ -105,7 +105,7 @@ final class PermissionRequestService {
     /// Request both permissions (convenience for wizard flows).
     func requestAllPermissions() async -> (inputMonitoring: Bool, accessibility: Bool) {
         let im = requestInputMonitoringPermission()
-        try? await Task.sleep(nanoseconds: 500_000_000) // small delay
+        try? await Task.sleep(for: .milliseconds(500)) // small delay
         let ax = requestAccessibilityPermission()
         return (im, ax)
     }

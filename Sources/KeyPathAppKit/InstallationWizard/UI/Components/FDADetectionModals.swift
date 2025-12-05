@@ -22,7 +22,7 @@ struct SystemSettingsWaitingView: View {
             // Icon
             Image(systemName: "gear.badge.checkmark")
                 .font(.system(size: 60))
-                .foregroundColor(.blue)
+                .foregroundStyle(.blue)
                 .symbolRenderingMode(.hierarchical)
 
             // Title
@@ -34,7 +34,7 @@ struct SystemSettingsWaitingView: View {
             VStack(spacing: 12) {
                 Text("Please complete these steps:")
                     .font(.headline)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 VStack(alignment: .leading, spacing: 8) {
                     InstructionRow(number: 1, text: "Find KeyPath in the app list")
@@ -55,11 +55,11 @@ struct SystemSettingsWaitingView: View {
                 if timeRemaining > 0 {
                     Text("Checking for permission... \(timeRemaining)s remaining")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 } else {
                     Text("Detection timeout - restart may be required")
                         .font(.caption)
-                        .foregroundColor(.orange)
+                        .foregroundStyle(.orange)
                 }
             }
 
@@ -108,7 +108,7 @@ struct RestartRequiredView: View {
 
                 Image(systemName: "arrow.clockwise.circle.fill")
                     .font(.system(size: 50))
-                    .foregroundColor(.orange)
+                    .foregroundStyle(.orange)
                     .symbolRenderingMode(.hierarchical)
             }
 
@@ -121,13 +121,13 @@ struct RestartRequiredView: View {
             VStack(spacing: 12) {
                 Text("Full Disk Access requires KeyPath to restart")
                     .font(.headline)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 Text(
                     "After granting Full Disk Access in System Settings, KeyPath needs to restart for the permission to take effect. The wizard will resume where you left off after restarting."
                 )
                 .font(.body)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
             }
@@ -136,15 +136,15 @@ struct RestartRequiredView: View {
             // What will happen
             VStack(alignment: .leading, spacing: 8) {
                 Label("Your wizard progress will be saved", systemImage: "checkmark.circle.fill")
-                    .foregroundColor(.green)
+                    .foregroundStyle(.green)
                     .font(.subheadline)
 
                 Label("KeyPath will quit and you'll need to reopen it", systemImage: "info.circle.fill")
-                    .foregroundColor(.blue)
+                    .foregroundStyle(.blue)
                     .font(.subheadline)
 
                 Label("The wizard will continue from this page", systemImage: "arrow.right.circle.fill")
-                    .foregroundColor(.blue)
+                    .foregroundStyle(.blue)
                     .font(.subheadline)
             }
             .padding()
@@ -173,7 +173,7 @@ struct RestartRequiredView: View {
             // Alternative option
             Text("Tip: You can also manually quit and reopen KeyPath")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .padding(.top, 8)
         }
         .padding(32)
@@ -197,12 +197,12 @@ private struct InstructionRow: View {
 
                 Text("\(number)")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.blue)
+                    .foregroundStyle(.blue)
             }
 
             Text(text)
                 .font(.body)
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
 
             Spacer()
@@ -225,7 +225,7 @@ struct FDASuccessAnimationView: View {
 
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 60))
-                    .foregroundColor(.green)
+                    .foregroundStyle(.green)
                     .scaleEffect(isAnimating ? 1.1 : 1.0)
             }
             .animation(.spring(response: 0.5, dampingFraction: 0.6), value: isAnimating)
@@ -236,7 +236,7 @@ struct FDASuccessAnimationView: View {
 
             Text("Enhanced diagnostics are now available")
                 .font(.body)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .onAppear {
             isAnimating = true

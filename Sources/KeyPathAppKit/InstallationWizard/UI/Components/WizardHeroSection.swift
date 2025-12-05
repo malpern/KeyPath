@@ -61,14 +61,14 @@ struct WizardHeroSection: View {
             // Title
             Text(title)
                 .font(.system(size: 23, weight: .semibold, design: .default))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
 
             // Subtitle
             Text(subtitle)
                 .font(.system(size: 17, weight: .regular))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
             // Optional action button
@@ -99,7 +99,7 @@ struct WizardHeroSection: View {
             // Main icon
             Image(systemName: icon)
                 .font(.system(size: 115, weight: .light))
-                .foregroundColor(iconColor)
+                .foregroundStyle(iconColor)
                 .symbolRenderingMode(.hierarchical)
                 .modifier(AvailabilitySymbolBounce())
 
@@ -126,7 +126,7 @@ struct WizardHeroSection: View {
                 Spacer()
                 Image(systemName: icon)
                     .font(.system(size: overlaySize == .large ? 40 : 24, weight: .medium))
-                    .foregroundColor(color)
+                    .foregroundStyle(color)
                     .background(WizardDesign.Colors.wizardBackground)
                     .clipShape(Circle())
                     .offset(
@@ -237,12 +237,12 @@ struct InlineStatusView: View {
                 case .success:
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 16))
-                        .foregroundColor(WizardDesign.Colors.success)
+                        .foregroundStyle(WizardDesign.Colors.success)
 
                 case .error:
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 16))
-                        .foregroundColor(WizardDesign.Colors.error)
+                        .foregroundStyle(WizardDesign.Colors.error)
 
                 case .idle:
                     EmptyView()
@@ -252,7 +252,7 @@ struct InlineStatusView: View {
             // Status message
             Text(message)
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(status.color)
+                .foregroundStyle(status.color)
                 .multilineTextAlignment(.center)
         }
         .padding(.horizontal, WizardDesign.Spacing.cardPadding)

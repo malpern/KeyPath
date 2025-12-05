@@ -11,7 +11,7 @@ struct FormRow<Content: View>: View {
         HStack(alignment: .center, spacing: 16) {
             Text(label)
                 .frame(width: 180, alignment: .trailing)
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
 
             content()
 
@@ -36,7 +36,7 @@ struct FormSection<Content: View>: View {
             if let header {
                 Text(header)
                     .font(.headline)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                     .padding(.horizontal, 20)
                     .padding(.top, 24)
                     .padding(.bottom, 12)
@@ -73,7 +73,7 @@ struct StatusRow: View {
 
             Text(status)
                 .font(.body)
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
 
             Spacer()
         }
@@ -109,7 +109,8 @@ struct ActionButtonRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            ForEach(Array(buttons.enumerated()), id: \.offset) { _, button in
+            ForEach(buttons.indices, id: \.self) { index in
+                let button = buttons[index]
                 buttonView(for: button)
             }
             Spacer()
@@ -153,12 +154,12 @@ struct InfoRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon)
-                .foregroundColor(iconColor)
+                .foregroundStyle(iconColor)
                 .frame(width: 20)
 
             Text(text)
                 .font(.body)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             Spacer()
@@ -185,19 +186,19 @@ struct SimpleListItem: View {
             HStack(spacing: 12) {
                 if let icon {
                     Image(systemName: icon)
-                        .foregroundColor(.blue)
+                        .foregroundStyle(.blue)
                         .frame(width: 24)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.body)
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
 
                     if let subtitle {
                         Text(subtitle)
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
 
@@ -206,7 +207,7 @@ struct SimpleListItem: View {
                 if action != nil {
                     Image(systemName: "chevron.right")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
             .padding(.vertical, 8)

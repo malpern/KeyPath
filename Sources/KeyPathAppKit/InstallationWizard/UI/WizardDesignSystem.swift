@@ -318,7 +318,7 @@ enum WizardDesign {
 
             func body(content: Content) -> some View {
                 content
-                    .foregroundColor(colorForStatus(status))
+                    .foregroundStyle(colorForStatus(status))
                     .font(WizardDesign.Typography.status)
             }
 
@@ -346,13 +346,13 @@ enum WizardDesign {
                     if isLoading {
                         ProgressView()
                             .scaleEffect(0.6)
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .progressViewStyle(CircularProgressViewStyle(tint: Color.white))
                     } else {
                         configuration.label
                     }
                 }
                 .font(WizardDesign.Typography.button)
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .frame(minWidth: 120, minHeight: 26) // Fixed minimum dimensions for primary buttons (20% height reduction)
                 .padding(.horizontal, WizardDesign.Spacing.buttonPadding)
                 .padding(.vertical, WizardDesign.Spacing.elementGap)
@@ -383,7 +383,7 @@ enum WizardDesign {
                     }
                 }
                 .font(WizardDesign.Typography.button)
-                .foregroundColor(
+                .foregroundStyle(
                     configuration.isPressed
                         ? WizardDesign.Colors.wizardBackground // Invert for clear pressed feedback
                         : WizardDesign.Colors.primaryAction
@@ -418,13 +418,13 @@ enum WizardDesign {
                     if isLoading {
                         ProgressView()
                             .scaleEffect(0.6)
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .progressViewStyle(CircularProgressViewStyle(tint: Color.white))
                     } else {
                         configuration.label
                     }
                 }
                 .font(WizardDesign.Typography.button)
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .frame(minWidth: 120, minHeight: 26) // Fixed minimum dimensions (20% height reduction)
                 .padding(.horizontal, WizardDesign.Spacing.buttonPadding)
                 .padding(.vertical, WizardDesign.Spacing.elementGap)
@@ -455,7 +455,7 @@ enum WizardDesign {
                 ) {
                     Text(content)
                         .font(WizardDesign.Typography.body)
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                         .multilineTextAlignment(alignment)
                         .frame(maxWidth: .infinity, alignment: alignment == .center ? .center : .leading)
 
@@ -543,23 +543,24 @@ enum WizardDesign {
                         // Standardized title (23pt)
                         Text(title)
                             .font(.system(size: 23, weight: .semibold, design: .default))
-                            .foregroundColor(.primary)
+                            .foregroundStyle(.primary)
                             .multilineTextAlignment(.center)
                             .lineLimit(2)
 
                         // Standardized subtitle (17pt)
                         Text(subtitle)
                             .font(.system(size: 17, weight: .regular))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
 
                         // Action links below the subheader (if provided)
                         if let actionLinks, !actionLinks.isEmpty {
                             HStack(spacing: WizardDesign.Spacing.itemGap) {
-                                ForEach(Array(actionLinks.enumerated()), id: \.offset) { index, link in
+                                ForEach(actionLinks.indices, id: \.self) { index in
+                                    let link = actionLinks[index]
                                     if index > 0 {
                                         Text("•")
-                                            .foregroundColor(.secondary)
+                                            .foregroundStyle(.secondary)
                                     }
 
                                     Button(link.title) {
@@ -647,7 +648,7 @@ enum WizardDesign {
                     // Main icon
                     Image(systemName: mainIcon)
                         .font(.system(size: size.mainSize, weight: .light))
-                        .foregroundColor(mainColor)
+                        .foregroundStyle(mainColor)
                         .symbolRenderingMode(.hierarchical)
                         .modifier(AvailabilitySymbolBounce())
 
@@ -657,7 +658,7 @@ enum WizardDesign {
                             Spacer()
                             Image(systemName: overlayIcon)
                                 .font(.system(size: size.overlaySize, weight: .medium))
-                                .foregroundColor(overlayColor)
+                                .foregroundStyle(overlayColor)
                                 .background(
                                     transparentOverlay
                                         ? Color.clear
@@ -847,12 +848,12 @@ struct WizardStatusItem: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(WizardDesign.Typography.body)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 if let subtitle {
                     Text(subtitle)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -861,7 +862,7 @@ struct WizardStatusItem: View {
             // Navigation indicator
             if isNavigable {
                 Image(systemName: "chevron.right")
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .font(.caption)
             }
         }
@@ -910,7 +911,7 @@ struct AnimatedStatusIcon: View {
                             .fill(Color(NSColor.controlBackgroundColor)) // Adapts to dark mode
                             .frame(width: 16, height: 16)
                         Image(systemName: finalStateIcon)
-                            .foregroundColor(finalStateColor)
+                            .foregroundStyle(finalStateColor)
                             .font(.system(size: 16))
                     }
                     .modifier(AvailabilitySymbolBounce())
@@ -922,7 +923,7 @@ struct AnimatedStatusIcon: View {
                 } else {
                     // Initial clock state
                     Image(systemName: "clock.fill")
-                        .foregroundColor(WizardDesign.Colors.inProgress)
+                        .foregroundStyle(WizardDesign.Colors.inProgress)
                         .font(.system(size: 16))
                         .onAppear {
                             // Animate to final state immediately (no delay)
@@ -937,13 +938,13 @@ struct AnimatedStatusIcon: View {
                 case .notStarted:
                     // Empty circle
                     Image(systemName: "circle")
-                        .foregroundColor(WizardDesign.Colors.secondaryText)
+                        .foregroundStyle(WizardDesign.Colors.secondaryText)
                         .font(.system(size: 16))
 
                 case .inProgress:
                     // Animated clock
                     Image(systemName: "clock.fill")
-                        .foregroundColor(WizardDesign.Colors.inProgress)
+                        .foregroundStyle(WizardDesign.Colors.inProgress)
                         .font(.system(size: 16))
 
                 case .warning:
@@ -953,7 +954,7 @@ struct AnimatedStatusIcon: View {
                             .fill(Color(NSColor.controlBackgroundColor)) // Adapts to dark mode
                             .frame(width: 16, height: 16)
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(WizardDesign.Colors.warning)
+                            .foregroundStyle(WizardDesign.Colors.warning)
                             .font(.system(size: 16))
                     }
                     .modifier(AvailabilitySymbolBounce())
@@ -965,7 +966,7 @@ struct AnimatedStatusIcon: View {
                             .fill(Color(NSColor.controlBackgroundColor)) // Adapts to dark mode
                             .frame(width: 16, height: 16)
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(WizardDesign.Colors.success)
+                            .foregroundStyle(WizardDesign.Colors.success)
                             .font(.system(size: 16))
                     }
                     .modifier(AvailabilitySymbolBounce())
@@ -977,7 +978,7 @@ struct AnimatedStatusIcon: View {
                             .fill(Color(NSColor.controlBackgroundColor)) // Adapts to dark mode
                             .frame(width: 16, height: 16)
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(WizardDesign.Colors.error)
+                            .foregroundStyle(WizardDesign.Colors.error)
                             .font(.system(size: 16))
                     }
                     .modifier(AvailabilitySymbolBounce())
@@ -1028,7 +1029,7 @@ struct WizardPageHeader: View {
             // Icon - green checkmark circle fills the space
             Image(systemName: icon)
                 .font(.system(size: WizardDesign.Layout.statusCircleSize))
-                .foregroundColor(status.color)
+                .foregroundStyle(status.color)
 
             // Title
             Text(title)
@@ -1039,7 +1040,7 @@ struct WizardPageHeader: View {
             if !subtitle.isEmpty {
                 Text(subtitle)
                     .font(WizardDesign.Typography.subtitle)
-                    .foregroundColor(WizardDesign.Colors.secondaryText)
+                    .foregroundStyle(WizardDesign.Colors.secondaryText)
                     .multilineTextAlignment(.center)
                     .wizardContentSpacing()
             }

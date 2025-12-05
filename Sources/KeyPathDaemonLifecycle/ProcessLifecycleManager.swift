@@ -189,7 +189,7 @@ public final class ProcessLifecycleManager: @unchecked Sendable {
         }
 
         // Wait for processes to terminate
-        try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+        try? await Task.sleep(for: .seconds(1))
 
         // Force kill any remaining
         let remainingConflicts = await detectConflicts()

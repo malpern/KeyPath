@@ -163,21 +163,21 @@ struct CleanConflictsCard: View {
                 // Large Warning Icon
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 48))
-                    .foregroundColor(WizardDesign.Colors.warning)
+                    .foregroundStyle(WizardDesign.Colors.warning)
 
                 // Primary Message - Large, Readable
                 VStack(spacing: WizardDesign.Spacing.labelGap) {
                     Text("Conflicting Processes Found")
                         .font(.title2)
                         .fontWeight(.semibold)
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                         .multilineTextAlignment(.center)
 
                     Text(
                         "\(conflictCount) process\(conflictCount == 1 ? "" : "es") must be stopped before continuing"
                     )
                     .font(.body)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                 }
 
@@ -229,7 +229,7 @@ struct CleanConflictsCard: View {
                             if isFixing || isPerformingPermanentFix {
                                 ProgressView()
                                     .scaleEffect(0.8)
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .progressViewStyle(CircularProgressViewStyle(tint: Color.white))
                             }
                             Text(
                                 isFixing || isPerformingPermanentFix
@@ -250,10 +250,10 @@ struct CleanConflictsCard: View {
                 if showSuccessMessage {
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
+                            .foregroundStyle(.green)
                         Text(statusMessage)
                             .font(.subheadline)
-                            .foregroundColor(.green)
+                            .foregroundStyle(.green)
                     }
                     .padding(.top, 8)
                     .transition(.opacity.combined(with: .move(edge: .top)))
@@ -262,10 +262,10 @@ struct CleanConflictsCard: View {
                 if showErrorMessage {
                     HStack(spacing: 8) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.orange)
+                            .foregroundStyle(.orange)
                         Text(statusMessage)
                             .font(.subheadline)
-                            .foregroundColor(.orange)
+                            .foregroundStyle(.orange)
                     }
                     .padding(.top, 8)
                     .transition(.opacity.combined(with: .move(edge: .top)))
@@ -286,7 +286,7 @@ struct CleanConflictsCard: View {
                                 Text(showingDetails ? "Hide technical details" : "Show technical details")
                                     .font(.subheadline)
                             }
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         }
                     )
                     .buttonStyle(.link)
@@ -384,7 +384,7 @@ struct TechnicalDetailsView: View {
             Text("Process Details")
                 .font(.headline)
                 .fontWeight(.semibold)
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
 
             if isLoadingConflicts {
                 HStack {
@@ -392,7 +392,7 @@ struct TechnicalDetailsView: View {
                         .scaleEffect(0.7)
                     Text("Detecting processes...")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             } else {
                 // Show managed processes with green checks
@@ -401,7 +401,7 @@ struct TechnicalDetailsView: View {
                         Text("KeyPath Managed Processes")
                             .font(.subheadline)
                             .fontWeight(.medium)
-                            .foregroundColor(.green)
+                            .foregroundStyle(.green)
 
                         ForEach(result.managedProcesses.indices, id: \.self) { index in
                             let process = result.managedProcesses[index]
@@ -427,9 +427,9 @@ struct TechnicalDetailsView: View {
                         Text("External Conflicts")
                             .font(.subheadline)
                             .fontWeight(.medium)
-                            .foregroundColor(.red)
+                            .foregroundStyle(.red)
 
-                        ForEach(Array(processDetails.enumerated()), id: \.offset) { _, detail in
+                        ForEach(processDetails, id: \.self) { detail in
                             if detail.hasPrefix("•") {
                                 let processText = detail.replacingOccurrences(of: "• ", with: "")
 
@@ -454,7 +454,7 @@ struct TechnicalDetailsView: View {
                 if conflictDetectionResult?.managedProcesses.isEmpty != false, processDetails.isEmpty {
                     Text("No processes detected")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .italic()
                 }
             }
@@ -504,18 +504,18 @@ struct ProcessRow: View {
         HStack(alignment: .center, spacing: 12) {
             // Status indicator
             Image(systemName: statusIcon)
-                .foregroundColor(statusColor)
+                .foregroundStyle(statusColor)
                 .font(.system(size: 16, weight: .medium))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(processName)
                     .font(.custom("Courier New", size: 14))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Text("\(processDescription) (PID: \(pid))")
                     .font(.custom("Courier New", size: 12))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
 
             Spacer()

@@ -75,12 +75,12 @@ struct LayerIndicatorView: View {
         VStack(spacing: 4) {
             Text("LAYER")
                 .font(.system(size: 10, weight: .medium, design: .monospaced))
-                .foregroundColor(.white.opacity(0.6))
+                .foregroundStyle(.white.opacity(0.6))
                 .tracking(2)
 
             Text(layerName.uppercased())
                 .font(.system(size: 24, weight: .bold, design: .monospaced))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
         }
         .frame(width: 200, height: 60)
         .background(

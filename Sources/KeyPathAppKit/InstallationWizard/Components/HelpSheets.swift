@@ -162,7 +162,7 @@ struct InputMonitoringHelpSheet: View {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack(spacing: 8) {
                                 Image(systemName: "exclamationmark.triangle.fill")
-                                    .foregroundColor(.orange)
+                                    .foregroundStyle(.orange)
                                 Text("To verify kanata’s permission, please grant Full Disk Access to KeyPath.")
                             }
                             Button("Open Full Disk Access Settings") {
@@ -306,7 +306,7 @@ struct BackgroundServicesHelpSheet: View {
                             "Karabiner background services may not appear in System Settings by default. You need to manually add them as Login Items:"
                         )
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
 
                         Text("How to add Login Items:")
                             .font(.headline)
@@ -351,10 +351,10 @@ struct BackgroundServicesHelpSheet: View {
                                     Text("Add these two applications (drag & drop or use + button):")
                                     Text("• Karabiner-Elements Non-Privileged Agents.app")
                                         .font(.system(.caption, design: .monospaced))
-                                        .foregroundColor(.secondary)
+                                        .foregroundStyle(.secondary)
                                     Text("• Karabiner-Elements Privileged Daemons.app")
                                         .font(.system(.caption, design: .monospaced))
-                                        .foregroundColor(.secondary)
+                                        .foregroundStyle(.secondary)
                                 }
                             }
                             HStack(alignment: .top) {

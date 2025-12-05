@@ -147,13 +147,13 @@ struct CustomRuleEditorView: View {
                     KeyCapChip(text: input.isEmpty ? "?" : input)
                     Text("→")
                         .font(.title3)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     KeyCapChip(text: output.isEmpty ? "?" : output)
                 }
 
                 Text(displayName)
                     .font(.title3.weight(.semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 // Description editor - appears on hover
                 if isHoveringHeader || isEditingDescription || !description.isEmpty {
@@ -161,7 +161,7 @@ struct CustomRuleEditorView: View {
                         TextField("Description", text: $description, axis: .vertical)
                             .textFieldStyle(.plain)
                             .font(.body.italic())
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .lineLimit(1 ... 3)
                             .onSubmit {
                                 isEditingDescription = false
@@ -182,7 +182,7 @@ struct CustomRuleEditorView: View {
                             if !description.isEmpty {
                                 Text(description)
                                     .font(.body.italic())
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                                     .lineLimit(2)
                                     .onTapGesture {
                                         isEditingDescription = true
@@ -197,7 +197,7 @@ struct CustomRuleEditorView: View {
                             } else {
                                 Text("Description")
                                     .font(.body.italic())
-                                    .foregroundColor(.secondary.opacity(0.6))
+                                    .foregroundStyle(Color.secondary.opacity(0.6))
                                     .onTapGesture {
                                         isEditingDescription = true
                                     }
@@ -221,7 +221,7 @@ struct CustomRuleEditorView: View {
                         showDeleteConfirmation = true
                     } label: {
                         Image(systemName: "trash")
-                            .foregroundColor(.red.opacity(0.8))
+                            .foregroundStyle(.red.opacity(0.8))
                     }
                     .buttonStyle(.plain)
                     .focusable(false)
@@ -259,7 +259,7 @@ struct CustomRuleEditorView: View {
                     if let error = validationError {
                         Text(error)
                             .font(.callout)
-                            .foregroundColor(.red)
+                            .foregroundStyle(.red)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
@@ -371,7 +371,7 @@ struct CustomRuleEditorView: View {
             }) {
                 Image(systemName: "xmark.circle.fill")
                     .font(.body)
-                    .foregroundColor(Color(NSColor.tertiaryLabelColor))
+                    .foregroundStyle(Color(NSColor.tertiaryLabelColor))
                     .scaleEffect(isPressed ? 0.9 : isHovered ? 1.1 : 1.0)
                     .opacity(isHovered ? 0.8 : 0.6)
             }
@@ -413,7 +413,7 @@ struct CustomRuleEditorView: View {
             // Label on left
             Text(label)
                 .font(.body)
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
                 .frame(width: 100, alignment: .leading)
 
             // Input field and button
@@ -427,15 +427,15 @@ struct CustomRuleEditorView: View {
                         if isRecording.wrappedValue {
                             Text("Press a key...")
                                 .font(.body)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         } else if key.wrappedValue.isEmpty {
                             Text("Click to record")
                                 .font(.body)
-                                .foregroundColor(.secondary.opacity(0.5))
+                                .foregroundStyle(Color.secondary.opacity(0.5))
                         } else {
                             Text(KeyDisplayName.display(for: key.wrappedValue))
                                 .font(.body.weight(.semibold))
-                                .foregroundColor(.primary)
+                                .foregroundStyle(.primary)
                         }
 
                         Spacer()
@@ -477,7 +477,7 @@ struct CustomRuleEditorView: View {
                 } label: {
                     Image(systemName: isRecording.wrappedValue ? "stop.fill" : "record.circle")
                         .font(.title3)
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .frame(width: buttonSize, height: buttonSize)
                         .background(
                             RoundedRectangle(cornerRadius: cornerRadius)
@@ -511,7 +511,7 @@ struct CustomRuleEditorView: View {
 
                 Text("Hold, Double Tap, etc.")
                     .font(.body)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                     .onTapGesture {
                         showAdvanced.toggle()
                     }
@@ -569,7 +569,7 @@ struct CustomRuleEditorView: View {
                             VStack(alignment: .leading, spacing: 12) {
                                 Text("Hold Behavior:")
                                     .font(.body.weight(.medium))
-                                    .foregroundColor(.primary)
+                                    .foregroundStyle(.primary)
 
                                 VStack(alignment: .leading, spacing: 10) {
                                     ForEach(HoldBehaviorType.allCases, id: \.self) { behaviorType in
@@ -580,7 +580,7 @@ struct CustomRuleEditorView: View {
                                                     syncBehavior()
                                                 } label: {
                                                     Image(systemName: holdBehavior == behaviorType ? "checkmark.circle.fill" : "circle")
-                                                        .foregroundColor(holdBehavior == behaviorType ? .accentColor : .secondary)
+                                                        .foregroundStyle(holdBehavior == behaviorType ? .accentColor : Color.secondary)
                                                         .font(.body)
                                                 }
                                                 .buttonStyle(.plain)
@@ -588,14 +588,14 @@ struct CustomRuleEditorView: View {
 
                                                 Text(behaviorType.rawValue)
                                                     .font(.body)
-                                                    .foregroundColor(.primary)
+                                                    .foregroundStyle(.primary)
                                             }
 
                                             // Description for selected behavior
                                             if holdBehavior == behaviorType {
                                                 Text(behaviorType.description)
                                                     .font(.caption)
-                                                    .foregroundColor(.secondary)
+                                                    .foregroundStyle(.secondary)
                                                     .padding(.leading, 28)
                                                     .fixedSize(horizontal: false, vertical: true)
                                             }
@@ -608,7 +608,7 @@ struct CustomRuleEditorView: View {
                                     VStack(alignment: .leading, spacing: 6) {
                                         Text("Keys that trigger early tap:")
                                             .font(.caption)
-                                            .foregroundColor(.secondary)
+                                            .foregroundStyle(.secondary)
                                         TextField("e.g., a s d f", text: $customTapKeysText)
                                             .textFieldStyle(.roundedBorder)
                                             .frame(width: 200)
@@ -617,7 +617,7 @@ struct CustomRuleEditorView: View {
                                             }
                                         Text("Space or comma separated. Press these keys to trigger tap instead of hold.")
                                             .font(.caption2)
-                                            .foregroundColor(.secondary.opacity(0.7))
+                                            .foregroundStyle(Color.secondary.opacity(0.7))
                                             .fixedSize(horizontal: false, vertical: true)
                                     }
                                     .padding(.leading, 28)
@@ -684,7 +684,7 @@ struct CustomRuleEditorView: View {
                                     } label: {
                                         Image(systemName: "minus.circle.fill")
                                             .font(.title3)
-                                            .foregroundColor(.secondary)
+                                            .foregroundStyle(.secondary)
                                     }
                                     .buttonStyle(.plain)
                                     .focusable(false)
@@ -702,9 +702,9 @@ struct CustomRuleEditorView: View {
                         } label: {
                             HStack(spacing: 4) {
                                 Image(systemName: "plus.circle")
-                                    .foregroundColor(.accentColor)
+                                    .foregroundStyle(Color.accentColor)
                                 Text("Add Triple Tap, etc.")
-                                    .foregroundColor(.primary)
+                                    .foregroundStyle(.primary)
                             }
                             .font(.body)
                         }
@@ -718,7 +718,7 @@ struct CustomRuleEditorView: View {
                         HStack(spacing: 12) {
                             Text("Timing (ms)")
                                 .font(.body)
-                                .foregroundColor(.primary)
+                                .foregroundStyle(.primary)
                                 .frame(width: 100, alignment: .leading)
 
                             Group {
@@ -727,14 +727,14 @@ struct CustomRuleEditorView: View {
                                     VStack(alignment: .leading, spacing: 8) {
                                         Text("Separate timeouts:")
                                             .font(.caption)
-                                            .foregroundColor(.secondary)
+                                            .foregroundStyle(.secondary)
 
                                         VStack(alignment: .leading, spacing: 6) {
                                             HStack(spacing: 12) {
                                                 VStack(alignment: .leading, spacing: 4) {
                                                     Text("Tap window")
                                                         .font(.caption)
-                                                        .foregroundColor(.secondary)
+                                                        .foregroundStyle(.secondary)
                                                     TextField("200", value: $tapTimeout, format: .number)
                                                         .textFieldStyle(.roundedBorder)
                                                         .frame(width: 80)
@@ -752,7 +752,7 @@ struct CustomRuleEditorView: View {
                                                 VStack(alignment: .leading, spacing: 4) {
                                                     Text("Hold delay")
                                                         .font(.caption)
-                                                        .foregroundColor(.secondary)
+                                                        .foregroundStyle(.secondary)
                                                     TextField("200", value: $holdTimeout, format: .number)
                                                         .textFieldStyle(.roundedBorder)
                                                         .frame(width: 80)
@@ -770,7 +770,7 @@ struct CustomRuleEditorView: View {
 
                                             Text("Tap window: time before tap becomes hold. Hold delay: time before hold activates.")
                                                 .font(.caption2)
-                                                .foregroundColor(.secondary.opacity(0.7))
+                                                .foregroundStyle(Color.secondary.opacity(0.7))
                                                 .fixedSize(horizontal: false, vertical: true)
                                         }
                                     }
@@ -812,7 +812,7 @@ struct CustomRuleEditorView: View {
                             } label: {
                                 Image(systemName: "gearshape")
                                     .font(.body)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                                     .frame(width: 24, height: 24)
                             }
                             .buttonStyle(.plain)
@@ -847,7 +847,7 @@ struct CustomRuleEditorView: View {
             // Label on left
             Text(label)
                 .font(.body)
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
                 .frame(width: 100, alignment: .leading)
 
             // Input field
@@ -859,15 +859,15 @@ struct CustomRuleEditorView: View {
                     if isRecording.wrappedValue {
                         Text("Press a key...")
                             .font(.body)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     } else if key.wrappedValue.isEmpty {
                         Text("Optional")
                             .font(.body)
-                            .foregroundColor(.secondary.opacity(0.4))
+                            .foregroundStyle(Color.secondary.opacity(0.4))
                     } else {
                         Text(KeyDisplayName.display(for: key.wrappedValue))
                             .font(.body.weight(.semibold))
-                            .foregroundColor(.primary)
+                            .foregroundStyle(.primary)
                     }
 
                     Spacer()
@@ -917,7 +917,7 @@ struct CustomRuleEditorView: View {
             } label: {
                 Image(systemName: isRecording.wrappedValue ? "stop.fill" : "record.circle")
                     .font(.title3)
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .frame(width: buttonSize, height: buttonSize)
                     .background(
                         RoundedRectangle(cornerRadius: cornerRadius)

@@ -4,14 +4,14 @@ struct InstallerView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 20) {
                 Text("Installer")
                     .font(.title)
 
                 Text("This installer is not yet implemented.")
                     .font(.body)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
 
                 Text("Please use the command line installer:")
                     .font(.headline)
@@ -21,11 +21,11 @@ struct InstallerView: View {
                         .font(.system(.body, design: .monospaced))
                         .padding()
                         .background(Color.gray.opacity(0.1))
-                        .cornerRadius(8)
+                        .clipShape(.rect(cornerRadius: 8))
 
                     Text("This will install Kanata and set up the LaunchDaemon service.")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()

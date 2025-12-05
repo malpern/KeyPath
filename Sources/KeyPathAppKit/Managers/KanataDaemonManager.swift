@@ -575,7 +575,7 @@ class KanataDaemonManager {
 
         // 4. Verify service started OR is pending approval
         // Give it a moment to start or transition to requiresApproval
-        try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+        try await Task.sleep(for: .seconds(2)) // 2 seconds
 
         let finalStatus = getStatus()
         let isRegistered = Self.isRegisteredViaSMAppService()

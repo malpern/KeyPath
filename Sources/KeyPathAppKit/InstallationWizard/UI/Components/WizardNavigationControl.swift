@@ -20,8 +20,8 @@ struct WizardNavigationControl: View {
                 }) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 14, weight: .medium)) // 25% larger (11 * 1.25 = 13.75 ≈ 14)
-                        .foregroundColor(
-                            navigationCoordinator.canNavigateBack ? .primary : .secondary.opacity(0.4)
+                        .foregroundStyle(
+                            navigationCoordinator.canNavigateBack ? Color.primary : Color.secondary.opacity(0.4)
                         )
                         .frame(width: 25, height: 25) // 25% larger (20 * 1.25 = 25)
                 }
@@ -41,8 +41,8 @@ struct WizardNavigationControl: View {
                 }) {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 14, weight: .medium)) // 25% larger
-                        .foregroundColor(
-                            navigationCoordinator.canNavigateForward ? .primary : .secondary.opacity(0.4)
+                        .foregroundStyle(
+                            navigationCoordinator.canNavigateForward ? Color.primary : Color.secondary.opacity(0.4)
                         )
                         .frame(width: 25, height: 25) // 25% larger
                 }
@@ -104,7 +104,7 @@ struct CloseButton: View {
         } label: {
             Image(systemName: "xmark")
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(Color(NSColor.secondaryLabelColor)) // More subtle symbol color
+                .foregroundStyle(Color(NSColor.secondaryLabelColor)) // More subtle symbol color
                 .frame(width: 20, height: 20)
                 .background(
                     Circle()

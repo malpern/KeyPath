@@ -29,11 +29,12 @@ struct EventSequenceView: View {
         if taps.isEmpty {
             Text("Click keys to queue events")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         } else {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
-                    ForEach(Array(taps.enumerated()), id: \.element.id) { index, tap in
+                    ForEach(taps.indices, id: \.self) { index in
+                        let tap = taps[index]
                         EventChip(tap: tap, index: index + 1)
                     }
                 }
@@ -93,12 +94,12 @@ struct EventChip: View {
             // Index badge
             Text("\(index)")
                 .font(.system(size: 10, weight: .medium))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
 
             // Key press/release indicator (tap) or timer icon (hold)
             Text(icon)
                 .font(.system(size: 10))
-                .foregroundColor(accentColor)
+                .foregroundStyle(accentColor)
 
             // Key label
             Text(tap.displayLabel)

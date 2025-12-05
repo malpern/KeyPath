@@ -18,12 +18,12 @@ struct WizardErrorDisplay: View {
             VStack(spacing: WizardDesign.Spacing.elementGap) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 32))
-                    .foregroundColor(WizardDesign.Colors.error)
+                    .foregroundStyle(WizardDesign.Colors.error)
 
                 Text(error.userMessage)
                     .font(WizardDesign.Typography.body)
                     .multilineTextAlignment(.center)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
             }
 
             // Recovery suggestions
@@ -31,21 +31,22 @@ struct WizardErrorDisplay: View {
                 VStack(alignment: .leading, spacing: WizardDesign.Spacing.labelGap) {
                     Text("Here's how to fix this:")
                         .font(WizardDesign.Typography.subsectionTitle)
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
 
                     VStack(alignment: .leading, spacing: WizardDesign.Spacing.labelGap) {
-                        ForEach(Array(error.recoveryActions.enumerated()), id: \.offset) { index, action in
+                        ForEach(error.recoveryActions.indices, id: \.self) { index in
+                            let action = error.recoveryActions[index]
                             HStack(alignment: .top, spacing: WizardDesign.Spacing.labelGap) {
                                 // Step number
                                 Text("\(index + 1).")
                                     .font(.system(size: 14, weight: .medium, design: .monospaced))
-                                    .foregroundColor(WizardDesign.Colors.info)
+                                    .foregroundStyle(WizardDesign.Colors.info)
                                     .frame(width: 20, alignment: .leading)
 
                                 // Step description
                                 Text(action)
                                     .font(.system(size: 14))
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                                     .multilineTextAlignment(.leading)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                             }
@@ -93,19 +94,19 @@ struct WizardErrorToast: View {
             // Error icon
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 16))
-                .foregroundColor(WizardDesign.Colors.error)
+                .foregroundStyle(WizardDesign.Colors.error)
 
             // Error message
             VStack(alignment: .leading, spacing: 4) {
                 Text(error.userMessage)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                     .multilineTextAlignment(.leading)
 
                 if let firstAction = error.recoveryActions.first {
                     Text(firstAction)
                         .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .multilineTextAlignment(.leading)
                 }
             }
@@ -116,7 +117,7 @@ struct WizardErrorToast: View {
             Button(action: onDismiss) {
                 Image(systemName: "xmark")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
         }
@@ -140,17 +141,17 @@ struct WizardErrorBanner: View {
             // Error icon
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 20))
-                .foregroundColor(WizardDesign.Colors.error)
+                .foregroundStyle(WizardDesign.Colors.error)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(error.userMessage)
                     .font(WizardDesign.Typography.status)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 if let suggestion = error.recoverySuggestion {
                     Text(suggestion)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
             }

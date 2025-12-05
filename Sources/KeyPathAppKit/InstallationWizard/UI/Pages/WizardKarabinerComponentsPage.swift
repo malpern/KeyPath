@@ -56,7 +56,7 @@ struct WizardKarabinerComponentsPage: View {
                             if showAllItems {
                                 HStack(spacing: 12) {
                                     Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
+                                        .foregroundStyle(.green)
                                     HStack(spacing: 0) {
                                         Text("Karabiner Driver")
                                             .font(.headline)
@@ -75,8 +75,8 @@ struct WizardKarabinerComponentsPage: View {
                                         systemName: componentStatus(for: .backgroundServices) == .completed
                                             ? "checkmark.circle.fill" : "xmark.circle.fill"
                                     )
-                                    .foregroundColor(
-                                        componentStatus(for: .backgroundServices) == .completed ? .green : .red)
+                                    .foregroundStyle(
+                                        componentStatus(for: .backgroundServices) == .completed ? .green : Color.red)
                                     HStack(spacing: 0) {
                                         Text("Background Services")
                                             .font(.headline)

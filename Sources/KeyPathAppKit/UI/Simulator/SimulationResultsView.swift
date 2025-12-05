@@ -24,11 +24,11 @@ struct SimulationResultsView: View {
         VStack(spacing: 12) {
             Image(systemName: "keyboard")
                 .font(.system(size: 40))
-                .foregroundColor(.secondary.opacity(0.5))
+                .foregroundStyle(Color.secondary.opacity(0.5))
 
             Text("Click keys above, then Run to simulate")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
@@ -40,11 +40,11 @@ struct SimulationResultsView: View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Simulation Error", systemImage: "exclamationmark.triangle.fill")
                 .font(.headline)
-                .foregroundColor(.red)
+                .foregroundStyle(.red)
 
             Text(error.localizedDescription)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -84,7 +84,7 @@ struct SimulationResultsView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Duration")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                 Text("\(result.durationMs)ms")
                     .font(.system(.body, design: .monospaced))
             }
@@ -96,7 +96,7 @@ struct SimulationResultsView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Final Layer")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                 Text(result.finalLayer ?? "base")
                     .font(.system(.body, design: .monospaced))
             }
@@ -108,7 +108,7 @@ struct SimulationResultsView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Events")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                 Text("\(result.events.count)")
                     .font(.system(.body, design: .monospaced))
             }
@@ -162,7 +162,7 @@ struct SimulationResultsView: View {
                     HStack {
                         Text("\(t)ms")
                             .font(.system(.caption, design: .monospaced))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .frame(width: 60, alignment: .trailing)
 
                         Text(from)
@@ -170,11 +170,11 @@ struct SimulationResultsView: View {
 
                         Image(systemName: "arrow.right")
                             .font(.caption2)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
 
                         Text(to)
                             .font(.system(.caption, design: .monospaced, weight: .semibold))
-                            .foregroundColor(.blue)
+                            .foregroundStyle(.blue)
                     }
                 }
             }
@@ -188,7 +188,8 @@ struct SimulationResultsView: View {
             Text("Event Timeline")
                 .font(.headline)
 
-            ForEach(Array(result.events.enumerated()), id: \.offset) { _, event in
+            ForEach(result.events.indices, id: \.self) { index in
+                let event = result.events[index]
                 timelineRow(event)
             }
         }
@@ -199,7 +200,7 @@ struct SimulationResultsView: View {
             // Timestamp
             Text("\(event.timestamp)ms")
                 .font(.system(.caption, design: .monospaced))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .frame(width: 60, alignment: .trailing)
 
             // Event type badge
@@ -225,7 +226,7 @@ struct SimulationResultsView: View {
 
         return Text(label)
             .font(.system(size: 9, weight: .bold, design: .monospaced))
-            .foregroundColor(.white)
+            .foregroundStyle(.white)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(color)

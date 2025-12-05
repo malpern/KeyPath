@@ -632,13 +632,12 @@ final class RuleCollectionsManager {
             AppLogger.shared.log("❌ [RuleCollections] Error details: \(String(describing: error))")
 
             // Extract user-friendly error message
-            let userMessage: String
-            if let keyPathError = error as? KeyPathError,
-               case let .configuration(configError) = keyPathError,
-               case let .validationFailed(errors) = configError {
-                userMessage = "Configuration validation failed:\n\n" + errors.joined(separator: "\n")
+            let userMessage = if let keyPathError = error as? KeyPathError,
+                                 case let .configuration(configError) = keyPathError,
+                                 case let .validationFailed(errors) = configError {
+                "Configuration validation failed:\n\n" + errors.joined(separator: "\n")
             } else {
-                userMessage = "Failed to save configuration: \(error.localizedDescription)"
+                "Failed to save configuration: \(error.localizedDescription)"
             }
 
             // Notify user via callback

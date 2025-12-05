@@ -337,7 +337,7 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
 
             // For atomic writes, the file might be temporarily gone
             // Wait a brief moment and check again
-            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            try? await Task.sleep(for: .milliseconds(100)) // 100ms
 
             if FileManager.default.fileExists(atPath: path) {
                 AppLogger.shared.log("📁 [FileWatcher] File reappeared - atomic write completed")
@@ -361,7 +361,7 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
         // Schedule debounce task to handle rapid file changes
         debounceTask = Task { [weak self] in
             guard let self else { return }
-            try? await Task.sleep(nanoseconds: UInt64(debounceDelay * 1_000_000_000))
+            try? await Task.sleep(for: .seconds(debounceDelay))
             await processFileChange()
         }
     }

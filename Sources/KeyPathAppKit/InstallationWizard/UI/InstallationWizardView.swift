@@ -80,7 +80,7 @@ struct InstallationWizardView: View {
                     .overlay(
                         Rectangle()
                             .frame(height: 1)
-                            .foregroundColor(Color.gray.opacity(0.15)),
+                            .foregroundStyle(Color.gray.opacity(0.15)),
                         alignment: .bottom
                     )
                     Spacer()

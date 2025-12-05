@@ -126,7 +126,7 @@ public final class KanataService: ObservableObject {
         // Start polling for status updates (every 2 seconds)
         statusTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 2_000_000_000) // 2s
+                try? await Task.sleep(for: .seconds(2)) // 2s
                 if let self {
                     await refreshStatus()
                 } else {
@@ -248,7 +248,7 @@ public final class KanataService: ObservableObject {
         // 6. Wait for launchd
         // Give it up to 1.5 seconds to appear, checking every 0.3s
         for _ in 0 ..< 5 {
-            try? await Task.sleep(nanoseconds: 300_000_000) // 0.3s
+            try? await Task.sleep(for: .milliseconds(300)) // 0.3s
             await refreshStatus()
             if case .running = state { break }
         }
@@ -286,7 +286,7 @@ public final class KanataService: ObservableObject {
         try await unregisterDaemon()
 
         // Verify cleanup
-        try? await Task.sleep(nanoseconds: 200_000_000) // 0.2s
+        try? await Task.sleep(for: .milliseconds(200)) // 0.2s
         try? PIDFileManager.removePID()
         await pidCache.invalidateCache()
         await refreshStatus()
@@ -314,7 +314,7 @@ public final class KanataService: ObservableObject {
     public func restart() async throws {
         AppLogger.shared.log("cycles [KanataService] Restart requested")
         try await stop()
-        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s wait
+        try? await Task.sleep(for: .milliseconds(500)) // 0.5s wait
         try await start()
     }
 

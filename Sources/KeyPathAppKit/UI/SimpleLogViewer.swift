@@ -22,7 +22,7 @@ struct SimpleLogViewer: View {
                 Button(action: openInFinder) {
                     Text(logPath)
                         .font(.caption.monospaced())
-                        .foregroundColor(.blue)
+                        .foregroundStyle(.blue)
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
@@ -55,7 +55,7 @@ struct SimpleLogViewer: View {
                         ProgressView()
                             .scaleEffect(0.7)
                         Text("Loading...")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding()
@@ -65,7 +65,7 @@ struct SimpleLogViewer: View {
                             ? "No logs yet...\nLogs will appear here when KeyPath runs." : logContent
                     )
                     .font(.system(.caption, design: .monospaced))
-                    .foregroundColor(logContent.isEmpty ? .secondary : .primary)
+                    .foregroundStyle(logContent.isEmpty ? Color.secondary : Color.primary)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .topLeading)
                     .padding(12)

@@ -42,7 +42,7 @@ struct WizardAccessibilityPage: View {
                         VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
                             HStack(spacing: 12) {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
+                                    .foregroundStyle(.green)
                                 HStack(spacing: 0) {
                                     Text("KeyPath.app")
                                         .font(.headline)
@@ -55,7 +55,7 @@ struct WizardAccessibilityPage: View {
 
                             HStack(spacing: 12) {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
+                                    .foregroundStyle(.green)
                                 HStack(spacing: 0) {
                                     Text("kanata")
                                         .font(.headline)
@@ -101,7 +101,7 @@ struct WizardAccessibilityPage: View {
                     if !isRunningFromApplicationsFolder {
                         Text("For the smoothest setup, move KeyPath to /Applications and relaunch.")
                             .font(.system(size: 13))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                             .padding(.top, WizardDesign.Spacing.elementGap)
                     }
@@ -120,7 +120,7 @@ struct WizardAccessibilityPage: View {
                                 systemName: keyPathAccessibilityStatus == .completed
                                     ? "checkmark.circle.fill" : "xmark.circle.fill"
                             )
-                            .foregroundColor(keyPathAccessibilityStatus == .completed ? .green : .red)
+                            .foregroundStyle(keyPathAccessibilityStatus == .completed ? .green : Color.red)
                             HStack(spacing: 0) {
                                 Text("KeyPath.app")
                                     .font(.headline)
@@ -148,7 +148,7 @@ struct WizardAccessibilityPage: View {
                                 systemName: kanataAccessibilityStatus == .completed
                                     ? "checkmark.circle.fill" : "xmark.circle.fill"
                             )
-                            .foregroundColor(kanataAccessibilityStatus == .completed ? .green : .red)
+                            .foregroundStyle(kanataAccessibilityStatus == .completed ? .green : Color.red)
                             HStack(spacing: 0) {
                                 Text("kanata")
                                     .font(.headline)
@@ -408,7 +408,7 @@ struct KanataAccessibilityInstructionsSheet: View {
             VStack(spacing: 12) {
                 Image(systemName: "plus.circle.fill")
                     .font(.system(size: 48))
-                    .foregroundColor(.accentColor)
+                    .foregroundStyle(Color.accentColor)
 
                 Text("Add kanata to Accessibility")
                     .font(.title2)
@@ -430,11 +430,11 @@ struct KanataAccessibilityInstructionsSheet: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Path to kanata:")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
 
                 Text(kanataPath)
                     .font(.system(size: 11, design: .monospaced))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .lineLimit(2)
                     .truncationMode(.middle)
                     .padding(8)
@@ -474,14 +474,14 @@ private struct AccessibilityInstructionRow: View {
         HStack(alignment: .top, spacing: 12) {
             Text("\(number)")
                 .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .frame(width: 24, height: 24)
                 .background(Color.accentColor)
                 .clipShape(Circle())
 
             Text(text)
                 .font(.body)
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }

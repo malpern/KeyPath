@@ -21,7 +21,7 @@ struct SummaryItemView: View {
         HStack(spacing: WizardDesign.Spacing.iconGap) {
             Image(systemName: icon)
                 .font(WizardDesign.Typography.subsectionTitle)
-                .foregroundColor(iconColor)
+                .foregroundStyle(iconColor)
                 .frame(width: 30)
 
             Text(title)
@@ -54,22 +54,22 @@ struct SummaryItemView: View {
         switch status {
         case .completed:
             Image(systemName: "checkmark.circle.fill")
-                .foregroundColor(WizardDesign.Colors.success)
+                .foregroundStyle(WizardDesign.Colors.success)
                 .font(WizardDesign.Typography.subsectionTitle)
         case .inProgress:
             ProgressView()
                 .scaleEffect(0.7)
         case .warning:
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundColor(WizardDesign.Colors.warning)
+                .foregroundStyle(WizardDesign.Colors.warning)
                 .font(WizardDesign.Typography.subsectionTitle)
         case .failed:
             Image(systemName: "xmark.circle.fill")
-                .foregroundColor(WizardDesign.Colors.error)
+                .foregroundStyle(WizardDesign.Colors.error)
                 .font(WizardDesign.Typography.subsectionTitle)
         case .notStarted:
             Image(systemName: "circle")
-                .foregroundColor(WizardDesign.Colors.secondaryText.opacity(0.5))
+                .foregroundStyle(WizardDesign.Colors.secondaryText.opacity(0.5))
                 .font(WizardDesign.Typography.subsectionTitle)
         }
     }
@@ -103,7 +103,7 @@ struct InstallationItemView: View {
                     .font(WizardDesign.Typography.subsectionTitle)
                 Text(description)
                     .font(WizardDesign.Typography.caption)
-                    .foregroundColor(WizardDesign.Colors.secondaryText)
+                    .foregroundStyle(WizardDesign.Colors.secondaryText)
             }
 
             Spacer()
@@ -121,21 +121,21 @@ struct InstallationItemView: View {
         switch status {
         case .completed:
             Image(systemName: "checkmark.circle.fill")
-                .foregroundColor(WizardDesign.Colors.success)
+                .foregroundStyle(WizardDesign.Colors.success)
                 .font(WizardDesign.Typography.sectionTitle)
         case .inProgress:
             ProgressView()
         case .warning:
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundColor(WizardDesign.Colors.warning)
+                .foregroundStyle(WizardDesign.Colors.warning)
                 .font(WizardDesign.Typography.sectionTitle)
         case .failed:
             Image(systemName: "xmark.circle.fill")
-                .foregroundColor(WizardDesign.Colors.error)
+                .foregroundStyle(WizardDesign.Colors.error)
                 .font(WizardDesign.Typography.sectionTitle)
         case .notStarted:
             Image(systemName: "circle.dashed")
-                .foregroundColor(WizardDesign.Colors.secondaryText.opacity(0.5))
+                .foregroundStyle(WizardDesign.Colors.secondaryText.opacity(0.5))
                 .font(WizardDesign.Typography.sectionTitle)
         }
     }
@@ -156,17 +156,17 @@ struct IssueCardView: View {
             HStack(spacing: WizardDesign.Spacing.iconGap) {
                 Image(systemName: issue.severity.icon)
                     .font(.title2)
-                    .foregroundColor(issue.severity.color)
+                    .foregroundStyle(issue.severity.color)
                     .frame(width: 24)
 
                 VStack(alignment: .leading, spacing: WizardDesign.Spacing.labelGap / 2) {
                     Text(issue.title)
                         .font(WizardDesign.Typography.subsectionTitle)
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
 
                     Text(issue.description)
                         .font(WizardDesign.Typography.body)
-                        .foregroundColor(WizardDesign.Colors.secondaryText)
+                        .foregroundStyle(WizardDesign.Colors.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
@@ -186,12 +186,12 @@ struct IssueCardView: View {
                     Text("Action Required:")
                         .font(.caption)
                         .fontWeight(.medium)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
 
                     HStack {
                         Text(userAction)
                             .font(.caption)
-                            .foregroundColor(.blue)
+                            .foregroundStyle(.blue)
 
                         Spacer()
 
@@ -261,14 +261,14 @@ struct WizardProgressView: View {
             HStack {
                 Text(description)
                     .font(WizardDesign.Typography.caption)
-                    .foregroundColor(WizardDesign.Colors.secondaryText)
+                    .foregroundStyle(WizardDesign.Colors.secondaryText)
 
                 Spacer()
 
                 Text("\(Int(progress * 100))%")
                     .font(WizardDesign.Typography.caption)
                     .fontWeight(.medium)
-                    .foregroundColor(WizardDesign.Colors.secondaryText)
+                    .foregroundStyle(WizardDesign.Colors.secondaryText)
             }
         }
     }
@@ -283,7 +283,8 @@ struct PageDotsIndicator: View {
     var body: some View {
         let pages = WizardPage.orderedPages
         HStack(spacing: WizardDesign.Spacing.labelGap) {
-            ForEach(Array(pages.enumerated()), id: \.1) { index, page in
+            ForEach(pages.indices, id: \.self) { index in
+                let page = pages[index]
                 let deemphasized = false // Helper status checked elsewhere
                 PageDot(
                     isCurrent: currentPage == page,

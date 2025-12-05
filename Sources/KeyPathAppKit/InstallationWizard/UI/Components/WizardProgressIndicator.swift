@@ -47,14 +47,14 @@ struct WizardProgressIndicator: View {
             HStack {
                 Text(title)
                     .font(.system(size: 13))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
 
                 Spacer()
 
                 if !isIndeterminate {
                     Text("\(Int(progress * 100))%")
                         .font(.system(size: 13, design: .monospaced))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
         }
@@ -118,7 +118,7 @@ struct WizardOperationProgress: View {
         // Just the spinning gear - no text, no progress bar, minimal padding
         Image(systemName: "gear")
             .font(.system(size: 32))
-            .foregroundColor(.secondary)
+            .foregroundStyle(.secondary)
             .rotationEffect(.degrees(rotationAngle))
             .onAppear {
                 withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {

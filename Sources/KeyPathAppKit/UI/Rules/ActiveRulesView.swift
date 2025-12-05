@@ -11,14 +11,14 @@ struct ActiveRulesView: View {
             VStack(spacing: 12) {
                 Image(systemName: "list.bullet")
                     .font(.system(size: 48))
-                    .foregroundColor(.secondary.opacity(0.5))
+                    .foregroundStyle(Color.secondary.opacity(0.5))
                 Text("No active key mappings")
                     .font(.title3)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                 Button(action: openConfigInEditor) {
                     Text("Edit your configuration to add key remapping rules.")
                         .font(.body)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .opacity(isHoveringEmptyState ? 0.7 : 1.0)
                 }
                 .buttonStyle(.plain)
@@ -70,11 +70,11 @@ private struct RuleCollectionRow: View {
                         .font(.headline)
                     Text(collection.summary)
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     if let activationDescription {
                         Label(activationDescription, systemImage: "hand.point.up.left")
                             .font(.caption)
-                            .foregroundColor(.accentColor)
+                            .foregroundStyle(Color.accentColor)
                     }
                 }
 
@@ -93,7 +93,7 @@ private struct RuleCollectionRow: View {
 
                 Button(action: { isExpanded.toggle() }) {
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
             }
@@ -108,7 +108,7 @@ private struct RuleCollectionRow: View {
                             HStack(spacing: 8) {
                                 Text(mappingDescription(for: mapping))
                                     .font(.callout.monospaced().weight(.medium))
-                                    .foregroundColor(.primary)
+                                    .foregroundStyle(.primary)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
                                     .background(Color(NSColor.controlBackgroundColor))
@@ -116,11 +116,11 @@ private struct RuleCollectionRow: View {
 
                                 Image(systemName: "arrow.right")
                                     .font(.callout)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
 
                                 Text(mapping.output)
                                     .font(.callout.monospaced().weight(.medium))
-                                    .foregroundColor(.primary)
+                                    .foregroundStyle(.primary)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
                                     .background(Color(NSColor.controlBackgroundColor))
@@ -132,7 +132,7 @@ private struct RuleCollectionRow: View {
                         if collection.mappings.count > 8 {
                             Text("+\(collection.mappings.count - 8) more…")
                                 .font(.callout)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                                 .padding(.top, 4)
                         }
                     }
@@ -156,12 +156,12 @@ private extension RuleCollectionRow {
             let text = String(icon.dropFirst(5))
             Text(text)
                 .font(.system(size: 14, weight: .bold, design: .monospaced))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .frame(width: 24, height: 24)
         } else {
             Image(systemName: icon)
                 .font(.system(size: 24))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -253,7 +253,7 @@ private struct MappingTableView: View {
     private func headerCell(_ text: String, width: CGFloat, alignment: Alignment = .center, color: Color = .secondary) -> some View {
         Text(text)
             .font(.caption.weight(.semibold))
-            .foregroundColor(color)
+            .foregroundStyle(color)
             .frame(width: width, alignment: alignment)
     }
 
@@ -261,7 +261,7 @@ private struct MappingTableView: View {
     private func keyCell(_ text: String, width: CGFloat) -> some View {
         Text(text)
             .font(.callout.monospaced().weight(.medium))
-            .foregroundColor(.primary)
+            .foregroundStyle(.primary)
             .frame(width: width, alignment: .center)
     }
 
@@ -269,7 +269,7 @@ private struct MappingTableView: View {
     private func actionCell(_ text: String, width: CGFloat) -> some View {
         Text(text)
             .font(.callout.monospaced())
-            .foregroundColor(.secondary)
+            .foregroundStyle(.secondary)
             .frame(width: width, alignment: .leading)
     }
 
@@ -278,12 +278,12 @@ private struct MappingTableView: View {
         if let text {
             Text(text)
                 .font(.callout.monospaced())
-                .foregroundColor(color.opacity(0.8))
+                .foregroundStyle(color.opacity(0.8))
                 .frame(width: width, alignment: .leading)
         } else {
             Text("—")
                 .font(.callout)
-                .foregroundColor(.secondary.opacity(0.3))
+                .foregroundStyle(Color.secondary.opacity(0.3))
                 .frame(width: width, alignment: .center)
         }
     }

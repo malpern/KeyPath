@@ -31,7 +31,7 @@ struct CustomRulesView: View {
                         .font(.headline)
                     Text("These rules stay separate from presets so you can manage them independently.")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button {
@@ -53,17 +53,17 @@ struct CustomRulesView: View {
                     VStack(spacing: 12) {
                         Image(systemName: "square.and.pencil")
                             .font(.system(size: 48, weight: .ultraLight))
-                            .foregroundColor(.secondary.opacity(0.3))
+                            .foregroundStyle(Color.secondary.opacity(0.3))
 
                         VStack(spacing: 4) {
                             Text("No Custom Rules Yet")
                                 .font(.title3)
                                 .fontWeight(.medium)
-                                .foregroundColor(.primary)
+                                .foregroundStyle(.primary)
 
                             Text("Create personalized key mappings")
                                 .font(.subheadline)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                     }
 
@@ -168,7 +168,7 @@ private struct CustomRuleRow: View {
                         KeyCapChip(text: rule.input)
                         Text("→")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
 
                         // Show app icon + name for launch actions, otherwise show key chip
                         if let appId = appLaunchIdentifier {
@@ -188,7 +188,7 @@ private struct CustomRuleRow: View {
                     if let notes = rule.notes, !notes.isEmpty {
                         Text(notes)
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
 
@@ -235,18 +235,19 @@ private struct CustomRuleRow: View {
                 if behaviorItems.isEmpty {
                     EmptyView()
                 } else {
-                    ForEach(Array(behaviorItems.enumerated()), id: \.offset) { itemIndex, item in
+                    ForEach(behaviorItems.indices, id: \.self) { itemIndex in
+                        let item = behaviorItems[itemIndex]
                         if itemIndex > 0 {
                             Text("•")
                                 .font(.caption)
-                                .foregroundColor(.secondary.opacity(0.5))
+                                .foregroundStyle(Color.secondary.opacity(0.5))
                         }
                         behaviorItem(icon: item.0, label: item.1, key: item.2)
                     }
                 }
             }
         }
-        .foregroundColor(.secondary)
+        .foregroundStyle(.secondary)
     }
 
     // Extract tap dance steps (skip index 0 which is single tap = output)
@@ -352,7 +353,7 @@ private struct AppLaunchChip: View {
             } else {
                 Image(systemName: "app.fill")
                     .font(.system(size: 12))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .frame(width: 16, height: 16)
             }
 
@@ -404,7 +405,7 @@ private struct AppLaunchChip: View {
         // Fallback: use identifier as name (capitalize it)
         let parts = appIdentifier.replacingOccurrences(of: ".", with: " ")
             .split(separator: " ")
-            .map { $0.capitalized }
+            .map(\.capitalized)
         self.appName = parts.last.map { String($0) } ?? appIdentifier
     }
 
@@ -412,15 +413,15 @@ private struct AppLaunchChip: View {
         // Get icon
         let icon = NSWorkspace.shared.icon(forFile: url.path)
         icon.size = NSSize(width: 32, height: 32) // Request appropriate size
-        self.appIcon = icon
+        appIcon = icon
 
         // Get app name from bundle
         if let bundle = Bundle(url: url),
            let name = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String {
-            self.appName = name
+            appName = name
         } else {
             // Use filename without extension
-            self.appName = url.deletingPathExtension().lastPathComponent
+            appName = url.deletingPathExtension().lastPathComponent
         }
     }
 }

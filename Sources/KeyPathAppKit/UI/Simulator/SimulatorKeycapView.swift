@@ -79,11 +79,11 @@ struct SimulatorKeycapView: View {
                         Spacer(minLength: 0)
                         Text(wordLabel)
                             .font(.system(size: 9, weight: .medium, design: .rounded))
-                            .foregroundColor(foregroundColor)
+                            .foregroundStyle(foregroundColor)
                     } else {
                         Text(wordLabel)
                             .font(.system(size: 9, weight: .medium, design: .rounded))
-                            .foregroundColor(foregroundColor)
+                            .foregroundStyle(foregroundColor)
                         Spacer(minLength: 0)
                     }
                 }
@@ -94,7 +94,7 @@ struct SimulatorKeycapView: View {
             // Standard centered content
             Text(displayLabel)
                 .font(.system(size: fontSize, weight: .semibold, design: .rounded))
-                .foregroundColor(foregroundColor)
+                .foregroundStyle(foregroundColor)
         }
     }
 

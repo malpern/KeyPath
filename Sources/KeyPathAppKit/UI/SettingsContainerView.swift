@@ -150,7 +150,7 @@ private struct SettingsTabButton: View {
             VStack(spacing: 8) {
                 Image(systemName: tab.icon)
                     .font(.system(size: 28, weight: .regular))
-                    .foregroundColor(disabled ? Color.secondary.opacity(0.35)
+                    .foregroundStyle(disabled ? Color.secondary.opacity(0.35)
                         : (isSelected ? Color.accentColor : Color.secondary))
                     .frame(width: 54, height: 54)
                     .background(
@@ -168,8 +168,8 @@ private struct SettingsTabButton: View {
 
                 Text(tab.title)
                     .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
-                    .foregroundColor(disabled ? .secondary.opacity(0.6)
-                        : (isSelected ? .primary : .secondary))
+                    .foregroundStyle(disabled ? Color.secondary.opacity(0.6)
+                        : (isSelected ? Color.primary : Color.secondary))
             }
             .frame(width: 120)
             .contentShape(Rectangle())
@@ -187,13 +187,13 @@ private struct RulesDisabledView: View {
         VStack(spacing: 16) {
             Image(systemName: "power")
                 .font(.system(size: 40, weight: .semibold))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
             Text("Turn on Kanata to manage rules.")
                 .font(.title3.weight(.semibold))
             Text("Start the service on the Status tab, then return to manage rules.")
                 .font(.callout)
                 .multilineTextAlignment(.center)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .padding(.horizontal, 40)
             Button(action: onOpenStatus) {
                 Label("Go to Status", systemImage: "arrow.right.circle.fill")
@@ -237,7 +237,7 @@ struct AdvancedSettingsTabView: View {
 
                             Image(systemName: "trash.circle.fill")
                                 .font(.system(size: 40))
-                                .foregroundColor(.red)
+                                .foregroundStyle(.red)
                         }
 
                         VStack(spacing: 4) {
@@ -266,7 +266,7 @@ struct AdvancedSettingsTabView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Privileged Helper")
                             .font(.headline)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
 
                         HStack(spacing: 10) {
                             HelperStatusDot(color: helperInstalled ? .green : .orange)
@@ -309,11 +309,11 @@ struct AdvancedSettingsTabView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Emergency Recovery")
                             .font(.headline)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
 
                         Text("Use when service is wedged and won't respond")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
 
                         Button {
                             showingResetEverythingConfirmation = true
@@ -336,7 +336,7 @@ struct AdvancedSettingsTabView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("⚠️ Multiple Installations")
                         .font(.headline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
 
                     duplicateAppsSection
                 }
@@ -399,7 +399,7 @@ struct AdvancedSettingsTabView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundColor(.orange)
+                    .foregroundStyle(.orange)
                     .font(.title2)
 
                 VStack(alignment: .leading, spacing: 6) {
@@ -410,19 +410,19 @@ struct AdvancedSettingsTabView: View {
                         "Extra copies can cause stale TCC approvals and permission issues. We recommend keeping only the copy in /Applications."
                     )
                     .font(.footnote)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                     Text("Copies found at:")
                         .font(.caption.weight(.medium))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .padding(.top, 4)
 
                     VStack(alignment: .leading, spacing: 2) {
                         ForEach(duplicateAppCopies, id: \.self) { path in
                             Text("• \(path)")
                                 .font(.caption.monospaced())
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -551,13 +551,13 @@ private struct AdvancedDuplicateCallout: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundColor(.orange)
+                    .foregroundStyle(.orange)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Detected \(count) KeyPath installations.")
                         .font(.subheadline.weight(.semibold))
                     Text("Extra copies can cause stale approvals. Remove extras to keep permissions healthy.")
                         .font(.footnote)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 Spacer()
             }
@@ -595,14 +595,14 @@ struct VerboseLoggingToggle: View {
             if verboseLogging {
                 HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(.orange)
+                        .foregroundStyle(.orange)
                         .font(.caption)
 
                     Text(
                         "Trace logging generates large log files. Use for debugging key repeat or performance issues only."
                     )
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                 }
                 .padding(12)
                 .background(Color.orange.opacity(0.1))

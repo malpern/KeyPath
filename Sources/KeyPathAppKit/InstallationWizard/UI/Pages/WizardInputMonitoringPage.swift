@@ -44,7 +44,7 @@ struct WizardInputMonitoringPage: View {
                         VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
                             HStack(spacing: 12) {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
+                                    .foregroundStyle(.green)
                                 HStack(spacing: 0) {
                                     Text("KeyPath.app")
                                         .font(.headline)
@@ -57,7 +57,7 @@ struct WizardInputMonitoringPage: View {
 
                             HStack(spacing: 12) {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
+                                    .foregroundStyle(.green)
                                 HStack(spacing: 0) {
                                     Text("kanata")
                                         .font(.headline)
@@ -107,7 +107,7 @@ struct WizardInputMonitoringPage: View {
                                 systemName: keyPathInputMonitoringStatus == .completed
                                     ? "checkmark.circle.fill" : "xmark.circle.fill"
                             )
-                            .foregroundColor(keyPathInputMonitoringStatus == .completed ? .green : .red)
+                            .foregroundStyle(keyPathInputMonitoringStatus == .completed ? .green : Color.red)
                             HStack(spacing: 0) {
                                 Text("KeyPath.app")
                                     .font(.headline)
@@ -132,7 +132,7 @@ struct WizardInputMonitoringPage: View {
                                 systemName: kanataInputMonitoringStatus == .completed
                                     ? "checkmark.circle.fill" : "xmark.circle.fill"
                             )
-                            .foregroundColor(kanataInputMonitoringStatus == .completed ? .green : .red)
+                            .foregroundStyle(kanataInputMonitoringStatus == .completed ? .green : Color.red)
                             HStack(spacing: 0) {
                                 Text("kanata")
                                     .font(.headline)
@@ -393,13 +393,13 @@ struct StaleEntryCleanupInstructions: View {
             VStack(alignment: .leading, spacing: 8) {
                 Label("Old KeyPath Entries Detected", systemImage: "exclamationmark.triangle.fill")
                     .font(.headline)
-                    .foregroundColor(.orange)
+                    .foregroundStyle(.orange)
 
                 Text(
                     "We've detected possible old or duplicate KeyPath entries that need to be cleaned up before granting new permissions."
                 )
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
             }
 
             // Show detected issues
@@ -412,10 +412,10 @@ struct StaleEntryCleanupInstructions: View {
                     ForEach(staleEntryDetails, id: \.self) { detail in
                         HStack(alignment: .top, spacing: 6) {
                             Text("•")
-                                .foregroundColor(.orange)
+                                .foregroundStyle(.orange)
                             Text(detail)
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -445,10 +445,10 @@ struct StaleEntryCleanupInstructions: View {
             // Visual hint
             HStack {
                 Image(systemName: "lightbulb.fill")
-                    .foregroundColor(.yellow)
+                    .foregroundStyle(.yellow)
                 Text("Tip: Entries with warning icons are from old or moved installations")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
             .padding(.horizontal)
 
@@ -474,12 +474,12 @@ struct CleanupStep: View {
             Text("\(number).")
                 .font(.caption)
                 .fontWeight(.bold)
-                .foregroundColor(.blue)
+                .foregroundStyle(.blue)
                 .frame(width: 20, alignment: .leading)
 
             Text(text)
                 .font(.caption)
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
         }
     }
 }
@@ -500,7 +500,7 @@ struct KanataPermissionInstructionsSheet: View {
             VStack(spacing: 12) {
                 Image(systemName: "plus.circle.fill")
                     .font(.system(size: 48))
-                    .foregroundColor(.accentColor)
+                    .foregroundStyle(Color.accentColor)
 
                 Text("Add kanata to Input Monitoring")
                     .font(.title2)
@@ -522,11 +522,11 @@ struct KanataPermissionInstructionsSheet: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Path to kanata:")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
 
                 Text(kanataPath)
                     .font(.system(size: 11, design: .monospaced))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .lineLimit(2)
                     .truncationMode(.middle)
                     .padding(8)
@@ -566,14 +566,14 @@ private struct InstructionRow: View {
         HStack(alignment: .top, spacing: 12) {
             Text("\(number)")
                 .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .frame(width: 24, height: 24)
                 .background(Color.accentColor)
                 .clipShape(Circle())
 
             Text(text)
                 .font(.body)
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }

@@ -22,10 +22,10 @@ struct PermissionCard: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(appName)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                 Text(appPath)
                     .font(.system(size: 11))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
@@ -57,7 +57,7 @@ struct PermissionCard: View {
         switch status {
         case .completed:
             Image(systemName: "checkmark.circle.fill")
-                .foregroundColor(.green)
+                .foregroundStyle(.green)
                 .font(.system(size: 16, weight: .semibold))
                 .accessibilityLabel("Granted")
         case .inProgress:
@@ -66,12 +66,12 @@ struct PermissionCard: View {
                 .accessibilityLabel("Checking")
         case .warning:
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundColor(.orange)
+                .foregroundStyle(.orange)
                 .font(.system(size: 16, weight: .semibold))
                 .accessibilityLabel("Warning")
         case .failed:
             Image(systemName: "exclamationmark.circle.fill")
-                .foregroundColor(.red)
+                .foregroundStyle(.red)
                 .font(.system(size: 16, weight: .semibold))
                 .accessibilityLabel("Error")
         case .notStarted:
@@ -83,7 +83,7 @@ struct PermissionCard: View {
                 .controlSize(.small)
                 .help("Open System Settings to grant access")
                 Image(systemName: "xmark.circle.fill")
-                    .foregroundColor(.red)
+                    .foregroundStyle(.red)
                     .font(.system(size: 16, weight: .semibold))
                     .accessibilityHidden(true)
             }

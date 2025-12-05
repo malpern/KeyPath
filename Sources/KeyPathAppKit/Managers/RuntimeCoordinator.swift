@@ -435,7 +435,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
             SoundManager.shared.playWarningSound()
             // Clear warning after it's been delivered to prevent re-triggering
             Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 100_000_000) // 100ms delay
+                try? await Task.sleep(for: .milliseconds(100)) // 100ms delay
                 self?.lastWarning = nil
             }
         }

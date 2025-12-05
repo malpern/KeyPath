@@ -144,7 +144,7 @@ actor KanataTCPClient {
         } catch {
             if shouldRetry(error) {
                 AppLogger.shared.debug("🌐 [TCP] ensureConnection retry after backoff: \(error)")
-                try? await Task.sleep(nanoseconds: UInt64(retryBackoffSeconds * 1_000_000_000))
+                try? await Task.sleep(for: .seconds(retryBackoffSeconds))
                 // Reset any half-open state
                 closeConnection()
                 return try await ensureConnectionCore()
@@ -169,7 +169,7 @@ actor KanataTCPClient {
 
         // Wait if already connecting
         while isConnecting {
-            try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            try await Task.sleep(for: .milliseconds(100)) // 100ms
         }
 
         // Check again after waiting
@@ -767,7 +767,7 @@ actor KanataTCPClient {
         } catch {
             if shouldRetry(error) {
                 AppLogger.shared.debug("🌐 [TCP] send retry after backoff: \(error)")
-                try? await Task.sleep(nanoseconds: UInt64(retryBackoffSeconds * 1_000_000_000))
+                try? await Task.sleep(for: .seconds(retryBackoffSeconds))
                 closeConnection()
                 return try await sendCore(data)
             }
@@ -1190,7 +1190,7 @@ private func withTimeout<T: Sendable>(
 
         // Add a timeout task
         group.addTask {
-            try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            try await Task.sleep(for: .seconds(seconds))
             throw TimeoutError()
         }
 

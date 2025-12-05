@@ -49,7 +49,7 @@ struct WizardFullDiskAccessPage: View {
                 ZStack {
                     Image(systemName: "folder")
                         .font(.system(size: 115, weight: .light))
-                        .foregroundColor(
+                        .foregroundStyle(
                             hasFullDiskAccess ? WizardDesign.Colors.success : WizardDesign.Colors.info
                         )
                         .symbolRenderingMode(.hierarchical)
@@ -61,7 +61,7 @@ struct WizardFullDiskAccessPage: View {
                             Spacer()
                             Image(systemName: hasFullDiskAccess ? "checkmark.circle.fill" : "circle")
                                 .font(.system(size: 40, weight: .medium))
-                                .foregroundColor(
+                                .foregroundStyle(
                                     hasFullDiskAccess
                                         ? WizardDesign.Colors.success : WizardDesign.Colors.secondaryText
                                 )
@@ -78,7 +78,7 @@ struct WizardFullDiskAccessPage: View {
                 // Larger headline (19pt + 20% = 23pt)
                 Text(hasFullDiskAccess ? "Full Disk Access" : "Enable Full Disk Access (optional)")
                     .font(.system(size: 23, weight: .semibold, design: .default))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
 
@@ -89,7 +89,7 @@ struct WizardFullDiskAccessPage: View {
                         : "Optional: Enhanced diagnostics and automatic issue resolution"
                 )
                 .font(.system(size: 17, weight: .regular))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
                 // Help link below subheader (only when FDA not granted)
@@ -380,17 +380,17 @@ private struct BenefitRow: View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 20))
-                .foregroundColor(.blue)
+                .foregroundStyle(.blue)
                 .frame(width: 24)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 Text(description)
                     .font(.system(size: 12))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -429,7 +429,7 @@ private struct FullDiskAccessDetailsSheet: View {
                             "A macOS security feature that allows KeyPath to read system permission databases for better diagnostics."
                         )
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     }
                     .padding()
                     .background(Color(NSColor.controlBackgroundColor))
@@ -443,7 +443,7 @@ private struct FullDiskAccessDetailsSheet: View {
                             "• More accurate issue detection\n• Better automatic fixes\n• Clearer error messages"
                         )
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     }
                     .padding()
                     .background(Color.green.opacity(0.08))
@@ -457,7 +457,7 @@ private struct FullDiskAccessDetailsSheet: View {
                             "KeyPath works fine without this permission. You can skip this step and grant it later if needed."
                         )
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     }
                     .padding()
                     .background(Color.blue.opacity(0.08))

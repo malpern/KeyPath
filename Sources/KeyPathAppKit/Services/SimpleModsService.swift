@@ -90,7 +90,7 @@ public final class SimpleModsService: ObservableObject {
         // Apply changes
         applyDebounceTask?.cancel()
         applyDebounceTask = Task {
-            try? await Task.sleep(nanoseconds: UInt64(debounceDelay * 1_000_000_000))
+            try? await Task.sleep(for: .seconds(debounceDelay))
             await applyChanges()
         }
     }
@@ -112,7 +112,7 @@ public final class SimpleModsService: ObservableObject {
         // Apply changes
         applyDebounceTask?.cancel()
         applyDebounceTask = Task {
-            try? await Task.sleep(nanoseconds: UInt64(debounceDelay * 1_000_000_000))
+            try? await Task.sleep(for: .seconds(debounceDelay))
             await applyChanges()
         }
     }
@@ -133,7 +133,7 @@ public final class SimpleModsService: ObservableObject {
         // Debounce apply
         applyDebounceTask?.cancel()
         applyDebounceTask = Task {
-            try? await Task.sleep(nanoseconds: UInt64(debounceDelay * 1_000_000_000))
+            try? await Task.sleep(for: .seconds(debounceDelay))
             await applyChanges()
         }
     }
@@ -253,7 +253,7 @@ public final class SimpleModsService: ObservableObject {
             // Health check
             if let manager = kanataManager {
                 AppLogger.shared.log("🏥 [SimpleMods] Health check after reload...")
-                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1s
+                try? await Task.sleep(for: .seconds(1)) // 1s
 
                 let context = await manager.inspectSystemContext()
                 let isHealthy = context.services.kanataRunning

@@ -95,7 +95,7 @@ struct InputCaptureExperimentView: View {
                     .font(.headline)
                 Text("Press keys, drag apps, or drop files")
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
             Spacer()
             Button(action: { viewModel.clearAll() }) {
@@ -103,7 +103,7 @@ struct InputCaptureExperimentView: View {
                     .font(.subheadline)
             }
             .buttonStyle(.plain)
-            .foregroundColor(.secondary)
+            .foregroundStyle(.secondary)
             .opacity(viewModel.capturedInputs.isEmpty ? 0.5 : 1)
             .disabled(viewModel.capturedInputs.isEmpty)
         }
@@ -155,18 +155,18 @@ struct InputCaptureExperimentView: View {
 
                 Image(systemName: isRecording ? "waveform" : "keyboard")
                     .font(.system(size: 24))
-                    .foregroundColor(isRecording ? .accentColor : .secondary)
+                    .foregroundStyle(isRecording ? .accentColor : Color.secondary)
                     .symbolEffect(.pulse, isActive: isRecording)
             }
 
             Text(isRecording ? "Listening for keys..." : "Press keys or drag items here")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
 
             if !isRecording {
                 Text("⌘ ⇧ ⌥ ⌃ + any key")
                     .font(.caption)
-                    .foregroundColor(.secondary.opacity(0.7))
+                    .foregroundStyle(Color.secondary.opacity(0.7))
             }
         }
     }
@@ -207,7 +207,7 @@ struct InputCaptureExperimentView: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: isRecording ? "stop.circle.fill" : "record.circle")
-                        .foregroundColor(isRecording ? .red : .primary)
+                        .foregroundStyle(isRecording ? .red : Color.primary)
                     Text(isRecording ? "Stop" : "Record Keys")
                 }
                 .frame(maxWidth: .infinity)
@@ -255,7 +255,7 @@ struct InputCaptureExperimentView: View {
         HStack {
             Text("Experiment: Testing visual input capture")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
 
             Spacer()
 
@@ -336,7 +336,7 @@ struct InputChipView: View {
                 Button(action: onDelete) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 16))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
                 .offset(x: 6, y: -6)
@@ -376,14 +376,14 @@ struct InputChipView: View {
             // Key name
             Text(keyInput.displayName)
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
         }
     }
 
     private func modifierBadge(_ symbol: String) -> some View {
         Text(symbol)
             .font(.system(size: 12, weight: .medium))
-            .foregroundColor(.secondary)
+            .foregroundStyle(.secondary)
             .padding(.horizontal, 4)
             .padding(.vertical, 2)
             .background(Color(NSColor.controlBackgroundColor))
@@ -399,16 +399,16 @@ struct InputChipView: View {
             } else {
                 Image(systemName: "app.fill")
                     .font(.system(size: 16))
-                    .foregroundColor(.accentColor)
+                    .foregroundStyle(Color.accentColor)
             }
 
             Text(appInput.name)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
 
             Image(systemName: "arrow.up.forward.app")
                 .font(.system(size: 10))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -416,11 +416,11 @@ struct InputChipView: View {
         HStack(spacing: 8) {
             Image(systemName: "link")
                 .font(.system(size: 14))
-                .foregroundColor(.accentColor)
+                .foregroundStyle(Color.accentColor)
 
             Text(urlInput.title)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
                 .lineLimit(1)
         }
     }
@@ -558,7 +558,7 @@ struct AppPickerView: View {
             // Search field
             HStack {
                 Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                 TextField("Search apps...", text: $searchText)
                     .textFieldStyle(.plain)
             }
@@ -581,7 +581,7 @@ struct AppPickerView: View {
                                         .frame(width: 24, height: 24)
                                 }
                                 Text(app.name)
-                                    .foregroundColor(.primary)
+                                    .foregroundStyle(.primary)
                                 Spacer()
                             }
                             .padding(.horizontal, 12)

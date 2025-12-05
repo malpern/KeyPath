@@ -41,7 +41,7 @@ struct WizardKanataComponentsPage: View {
                             // Kanata Binary (always shown in success state)
                             HStack(spacing: 12) {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
+                                    .foregroundStyle(.green)
                                 HStack(spacing: 0) {
                                     Text("Kanata Binary")
                                         .font(.headline)
@@ -56,7 +56,7 @@ struct WizardKanataComponentsPage: View {
                             if componentStatus(for: "Kanata Service") == .completed {
                                 HStack(spacing: 12) {
                                     Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
+                                        .foregroundStyle(.green)
                                     HStack(spacing: 0) {
                                         Text("Kanata Service")
                                             .font(.headline)

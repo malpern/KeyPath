@@ -54,7 +54,7 @@ struct SystemStatusIndicator: View {
                 // Status icon
                 iconView()
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(iconColor)
+                    .foregroundStyle(iconColor)
             }
         }
         .buttonStyle(.plain)

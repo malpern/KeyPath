@@ -134,10 +134,10 @@ final class DiagnosticsManager: @preconcurrency DiagnosticsManaging {
                     }
 
                     // Check every 2 seconds
-                    try await Task.sleep(nanoseconds: 2_000_000_000)
+                    try await Task.sleep(for: .seconds(2))
                 } catch {
                     AppLogger.shared.log("⚠️ [DiagnosticsManager] Error reading log file: \(error)")
-                    try? await Task.sleep(nanoseconds: 5_000_000_000) // Wait 5 seconds before retry
+                    try? await Task.sleep(for: .seconds(5)) // Wait 5 seconds before retry
                 }
             }
 

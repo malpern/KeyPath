@@ -1049,7 +1049,7 @@ public final class ConfigurationService: FileConfigurationProviding {
 
         // Give the service a brief warmup after (re)install before attempting TCP
         if managementState == .smappserviceActive {
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+            try? await Task.sleep(for: .milliseconds(500)) // 0.5s
         }
 
         // Skip TCP if Kanata service isn't healthy yet (avoid connection-refused storm)

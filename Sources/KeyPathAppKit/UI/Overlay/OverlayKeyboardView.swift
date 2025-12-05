@@ -1,6 +1,6 @@
 import AppKit
-import SwiftUI
 import KeyPathCore
+import SwiftUI
 
 /// Keyboard view for the live overlay.
 /// Renders a full keyboard layout with keys highlighting based on key codes.

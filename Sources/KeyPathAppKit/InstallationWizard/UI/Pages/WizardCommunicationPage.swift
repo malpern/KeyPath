@@ -40,7 +40,7 @@ struct WizardCommunicationPage: View {
                     ZStack {
                         Image(systemName: "globe")
                             .font(.system(size: 115, weight: .light))
-                            .foregroundColor(commStatus.globeColor)
+                            .foregroundStyle(commStatus.globeColor)
                             .symbolRenderingMode(.hierarchical)
                             .modifier(BounceIfAvailable())
 
@@ -49,7 +49,7 @@ struct WizardCommunicationPage: View {
                                 Spacer()
                                 Image(systemName: commStatus.overlayIcon)
                                     .font(.system(size: commStatus.isSuccess ? 32 : 24, weight: .medium))
-                                    .foregroundColor(commStatus.globeColor)
+                                    .foregroundStyle(commStatus.globeColor)
                                     .background(WizardDesign.Colors.wizardBackground)
                                     .clipShape(Circle())
                                     .offset(x: commStatus.isSuccess ? 12 : 8, y: commStatus.isSuccess ? -4 : -3)
@@ -62,12 +62,12 @@ struct WizardCommunicationPage: View {
 
                     Text("TCP Communication")
                         .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                         .multilineTextAlignment(.center)
 
                     Text(commStatus.message)
                         .font(WizardDesign.Typography.body)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -113,14 +113,14 @@ struct WizardCommunicationPage: View {
                             ProgressView().scaleEffect(0.8)
                             Text("Checking communication server...")
                                 .font(WizardDesign.Typography.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                     } else if case .authTesting = commStatus {
                         VStack {
                             ProgressView().scaleEffect(0.8)
                             Text("Setting up secure connection...")
                                 .font(WizardDesign.Typography.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                     } else {
                         WizardButton("Re-check Status", style: .primary) {

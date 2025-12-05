@@ -116,7 +116,7 @@ struct WizardSystemStatusOverview: View {
                 } else {
                     Color.clear
                         .onAppear { containerHeight = proxy.size.height }
-                        .onChange(of: proxy.size.height) { newValue in
+                        .onChange(of: proxy.size.height) { _, newValue in
                             containerHeight = newValue
                         }
                 }

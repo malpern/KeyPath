@@ -689,7 +689,7 @@ struct ContentView: View {
             }
 
             // Wait briefly for Kanata to resume
-            try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
+            try? await Task.sleep(for: .milliseconds(500)) // 500ms
             serviceState = await kanataManager.currentServiceState()
         }
 
@@ -878,11 +878,11 @@ private struct ToastView: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: iconName)
-                .foregroundColor(iconColor)
+                .foregroundStyle(iconColor)
 
             Text(message)
                 .font(.body)
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)

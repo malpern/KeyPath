@@ -102,7 +102,7 @@ struct WizardSummaryPage: View {
                     // Spinning gear during validation - continuous rotation
                     Image(systemName: "gear")
                         .font(.system(size: WizardDesign.Layout.statusCircleSize))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .rotationEffect(.degrees(gearRotation))
                         .onAppear {
                             // Start continuous rotation when gear appears
@@ -118,7 +118,7 @@ struct WizardSummaryPage: View {
                     // Final state icon (error or success) - simple fade transition
                     Image(systemName: headerIconName)
                         .font(.system(size: WizardDesign.Layout.statusCircleSize))
-                        .foregroundColor(headerIconColor)
+                        .foregroundStyle(headerIconColor)
                         .modifier(AvailabilitySymbolBounce())
                 }
             }

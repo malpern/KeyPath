@@ -9,19 +9,19 @@ struct DiagnosticSummaryView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundColor(.orange)
+                    .foregroundStyle(.orange)
                     .font(.title2)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("System Issues Detected")
                         .font(.headline)
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
 
                     Text(
                         "\(criticalIssues.count) critical issue\(criticalIssues.count == 1 ? "" : "s") need attention"
                     )
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                 }
 
                 Spacer()
@@ -31,7 +31,7 @@ struct DiagnosticSummaryView: View {
                     label: {
                         Text("View Details")
                             .font(.subheadline)
-                            .foregroundColor(.blue)
+                            .foregroundStyle(.blue)
                     }
                 )
                 .buttonStyle(.plain)
@@ -44,7 +44,7 @@ struct DiagnosticSummaryView: View {
                         systemName: issue.severity == .critical
                             ? "exclamationmark.circle.fill" : "xmark.circle.fill"
                     )
-                    .foregroundColor(issue.severity == .critical ? .red : .orange)
+                    .foregroundStyle(issue.severity == .critical ? .red : .orange)
                     .font(.caption)
                     .padding(.top, 2)
 
@@ -52,12 +52,12 @@ struct DiagnosticSummaryView: View {
                         Text(issue.title)
                             .font(.caption)
                             .fontWeight(.medium)
-                            .foregroundColor(.primary)
+                            .foregroundStyle(.primary)
 
                         if !issue.description.isEmpty {
                             Text(issue.description)
                                 .font(.caption2)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
@@ -69,7 +69,7 @@ struct DiagnosticSummaryView: View {
                     "... and \(criticalIssues.count - 2) more issue\(criticalIssues.count - 2 == 1 ? "" : "s")"
                 )
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .padding(.leading, 16)
             }
         }

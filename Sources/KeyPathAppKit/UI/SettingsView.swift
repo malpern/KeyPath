@@ -18,18 +18,18 @@ struct GeneralSettingsTabView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Logs")
                         .font(.headline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
 
                     HStack(spacing: 30) {
                         // KeyPath Log
                         VStack(spacing: 8) {
                             Image(systemName: "doc.text.fill")
                                 .font(.system(size: 40))
-                                .foregroundColor(.blue)
+                                .foregroundStyle(.blue)
 
                             Text("KeyPath log")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
 
                             Button("Open") {
                                 openLogFile(NSHomeDirectory() + "/Library/Logs/KeyPath/keypath-debug.log")
@@ -42,11 +42,11 @@ struct GeneralSettingsTabView: View {
                         VStack(spacing: 8) {
                             Image(systemName: "doc.text.fill")
                                 .font(.system(size: 40))
-                                .foregroundColor(.green)
+                                .foregroundStyle(.green)
 
                             Text("Kanata log")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
 
                             Button("Open") {
                                 openLogFile("/var/log/kanata.log")
@@ -70,7 +70,7 @@ struct GeneralSettingsTabView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Capture Mode")
                             .font(.headline)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
 
                         Picker(
                             "",
@@ -90,7 +90,7 @@ struct GeneralSettingsTabView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Recording Behavior")
                             .font(.headline)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
 
                         Picker(
                             "",
@@ -110,7 +110,7 @@ struct GeneralSettingsTabView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Keyboard Overlay")
                             .font(.headline)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
 
                         Picker("Layout", selection: $selectedLayoutId) {
                             ForEach(PhysicalLayout.all) { layout in
@@ -375,7 +375,7 @@ struct StatusSettingsTabView: View {
                                     ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
                             )
                             .font(.system(size: 40))
-                            .foregroundColor(isSystemHealthy ? .green : .orange)
+                            .foregroundStyle(isSystemHealthy ? .green : .orange)
                         }
 
                         VStack(spacing: 4) {
@@ -386,7 +386,7 @@ struct StatusSettingsTabView: View {
                             if let issue = primaryIssueDetail {
                                 Text(issue.message)
                                     .font(.footnote)
-                                    .foregroundColor(issue.level.tintColor)
+                                    .foregroundStyle(issue.level.tintColor)
                                     .multilineTextAlignment(.center)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
@@ -399,7 +399,7 @@ struct StatusSettingsTabView: View {
                                 let activeCount = enabledCollections + enabledCustomRules
                                 Text("\(activeCount) active rule\(activeCount == 1 ? "" : "s")")
                                     .font(.body)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                             }
                             .buttonStyle(.plain)
                         }
@@ -431,7 +431,7 @@ struct StatusSettingsTabView: View {
 
                         Text(effectiveServiceRunning ? "ON" : "OFF")
                             .font(.body.weight(.medium))
-                            .foregroundColor(effectiveServiceRunning ? .green : .secondary)
+                            .foregroundStyle(effectiveServiceRunning ? .green : Color.secondary)
                     }
                 }
                 .frame(minWidth: 220)
@@ -440,7 +440,7 @@ struct StatusSettingsTabView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Permissions")
                         .font(.headline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
 
                     VStack(alignment: .leading, spacing: 8) {
                         PermissionStatusRow(
@@ -618,7 +618,7 @@ private struct PermissionStatusRow: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: icon)
-                .foregroundColor(statusColor)
+                .foregroundStyle(statusColor)
                 .frame(width: 20)
 
             Text(title)
@@ -628,7 +628,7 @@ private struct PermissionStatusRow: View {
 
             if let granted {
                 Image(systemName: granted ? "checkmark.circle.fill" : "xmark.circle.fill")
-                    .foregroundColor(granted ? .green : .red)
+                    .foregroundStyle(granted ? .green : Color.red)
                     .font(.body)
             } else {
                 ProgressView()
@@ -706,7 +706,7 @@ private struct StatusDetailRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: detail.icon)
-                .foregroundColor(detail.level.tintColor)
+                .foregroundStyle(detail.level.tintColor)
                 .font(.body)
                 .padding(.top, 2)
 
@@ -716,7 +716,7 @@ private struct StatusDetailRow: View {
 
                 Text(detail.message)
                     .font(.footnote)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 

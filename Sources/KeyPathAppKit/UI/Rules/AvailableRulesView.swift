@@ -23,7 +23,7 @@ struct AvailableRulesView: View {
                 if availableCollections.isEmpty {
                     Text("All built-in collections are active.")
                         .font(.callout)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .padding()
                 }
             }
@@ -55,7 +55,7 @@ private struct AvailableRuleCollectionCard: View {
                 if let icon = collection.icon {
                     Image(systemName: icon)
                         .font(.title2)
-                        .foregroundColor(.blue)
+                        .foregroundStyle(.blue)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -63,7 +63,7 @@ private struct AvailableRuleCollectionCard: View {
                         .font(.headline)
                     Text(collection.summary)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
@@ -101,7 +101,7 @@ private struct AvailableRuleCollectionCard: View {
                         if collection.mappings.count > 6 {
                             Text("+\(collection.mappings.count - 6) more")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }

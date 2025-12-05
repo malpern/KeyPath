@@ -26,17 +26,17 @@ struct StartConfirmationDialog: View {
                         .overlay {
                             Image(systemName: "keyboard")
                                 .font(.system(size: 36, weight: .medium))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                         }
 
                     Text("Ready to Start KeyPath")
                         .font(.title2)
                         .fontWeight(.semibold)
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
 
                     Text("KeyPath will now start the keyboard remapping service.")
                         .font(.body)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
                 .padding(.top, 32)
@@ -51,7 +51,7 @@ struct StartConfirmationDialog: View {
                         HStack(spacing: 8) {
                             Image(systemName: "exclamationmark.shield")
                                 .font(.title3)
-                                .foregroundColor(.orange)
+                                .foregroundStyle(.orange)
 
                             Text("Emergency Stop")
                                 .font(.headline)
@@ -60,7 +60,7 @@ struct StartConfirmationDialog: View {
 
                         Text("If the keyboard becomes unresponsive, press:")
                             .font(.body)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
 
                         // Visual keyboard keys
@@ -70,28 +70,28 @@ struct StartConfirmationDialog: View {
                             Text("+")
                                 .font(.title2)
                                 .fontWeight(.medium)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
 
                             KeyCapView(text: "␣", label: "Space")
 
                             Text("+")
                                 .font(.title2)
                                 .fontWeight(.medium)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
 
                             KeyCapView(text: "⎋", label: "Esc")
                         }
 
                         Text("(Press all three keys at the same time)")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .italic()
 
                         Text(
                             "This will immediately stop the remapping service and restore normal keyboard function."
                         )
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.top, 8)
                     }
@@ -117,7 +117,7 @@ struct StartConfirmationDialog: View {
                                 Text("Start KeyPath")
                                     .fontWeight(.semibold)
                             }
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 48)
                             .background(Color.blue.gradient)
@@ -138,7 +138,7 @@ struct StartConfirmationDialog: View {
                         label: {
                             Text("Cancel")
                                 .fontWeight(.medium)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 44)
                         }
@@ -173,7 +173,7 @@ struct KeyCapView: View {
     var body: some View {
         VStack(spacing: 6) {
             RoundedRectangle(cornerRadius: 8)
-                .foregroundColor(Color(NSColor.controlBackgroundColor))
+                .foregroundStyle(Color(NSColor.controlBackgroundColor))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(Color(NSColor.separatorColor), lineWidth: 1)
@@ -182,14 +182,14 @@ struct KeyCapView: View {
                 .overlay(
                     Text(text)
                         .font(.system(size: 18, weight: .medium, design: .monospaced))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                 )
                 .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
 
             Text(label)
                 .font(.caption2)
                 .fontWeight(.medium)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
     }
 }

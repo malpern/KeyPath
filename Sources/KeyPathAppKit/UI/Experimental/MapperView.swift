@@ -97,7 +97,7 @@ struct MapperView: View {
                         .frame(width: 6, height: 6)
                     Text(viewModel.currentLayer.lowercased())
                         .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
@@ -106,7 +106,7 @@ struct MapperView: View {
                 if let message = viewModel.statusMessage {
                     Text(message)
                         .font(.caption2)
-                        .foregroundColor(viewModel.statusIsError ? .red : .secondary)
+                        .foregroundStyle(viewModel.statusIsError ? .red : Color.secondary)
                         .lineLimit(1)
                 }
 
@@ -293,13 +293,13 @@ private struct MapperKeycapPair: View {
                 )
                 Text("Input")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
 
             // Arrow indicator
             Image(systemName: "arrow.right")
                 .font(.title3)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
 
             // Output keycap - shows result/action
             VStack(spacing: 8) {
@@ -313,7 +313,7 @@ private struct MapperKeycapPair: View {
                 )
                 Text(outputTypeLabel)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
 
             Spacer(minLength: 0)
@@ -326,7 +326,7 @@ private struct MapperKeycapPair: View {
             VStack(spacing: 6) {
                 Text("Input")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
 
                 MapperInputKeycap(
                     label: inputLabel,
@@ -339,7 +339,7 @@ private struct MapperKeycapPair: View {
             // Arrow indicator
             Image(systemName: "arrow.down")
                 .font(.body)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .padding(.vertical, 2)
 
             // Output keycap with label - shows result/action
@@ -355,7 +355,7 @@ private struct MapperKeycapPair: View {
 
                 Text(outputTypeLabel)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
         }
     }

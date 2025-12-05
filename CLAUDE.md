@@ -2,6 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Swift Best Practices
+
+**Reference for modern Swift and SwiftUI development:**
+@~/.claude/commands/swift-best-practices.md
+
+This skill combines Paul Hudson's anti-patterns with Pete Steinmeyer's modern SwiftUI architecture guidance. Use it for code reviews, new features, and Phase 2-5 refactoring work.
+
 ## ⚠️ CURRENT SESSION STATUS
 
 **LATEST WORK:** Strangler Fig Façade Migration Complete (November 24, 2025)

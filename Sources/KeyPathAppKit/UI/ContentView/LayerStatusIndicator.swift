@@ -14,7 +14,7 @@ struct LayerStatusIndicator: View {
                 .frame(width: 8, height: 8)
             Text(isBaseLayer ? "Base Layer" : "\(currentLayerName) Layer")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 4)

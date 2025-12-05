@@ -15,7 +15,7 @@ final class TitlebarHeaderAccessory: NSTitlebarAccessoryViewController {
                 Spacer(minLength: 0)
                 Text(stamp)
                     .font(.system(size: 10))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .padding(.trailing, 8)
                     .help(path)
             }

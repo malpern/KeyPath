@@ -336,7 +336,7 @@ class KanataViewModel: ObservableObject {
         toastType = type
 
         toastTask = Task {
-            try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
+            try? await Task.sleep(for: .seconds(duration))
             guard !Task.isCancelled else { return }
             toastMessage = nil
         }

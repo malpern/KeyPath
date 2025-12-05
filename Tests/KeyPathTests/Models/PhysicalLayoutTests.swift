@@ -1,5 +1,5 @@
-import Testing
 @testable import KeyPathAppKit
+import Testing
 
 /// Tests for PhysicalLayout model and registry
 struct PhysicalLayoutTests {

@@ -10,7 +10,7 @@ struct EmergencyStopDialog: View {
             VStack(spacing: 16) {
                 Image(systemName: isActivated ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                     .font(.system(size: 64))
-                    .foregroundColor(isActivated ? .green : .orange)
+                    .foregroundStyle(isActivated ? .green : .orange)
 
                 Text(isActivated ? "Emergency Stop Activated" : "Emergency Stop")
                     .font(.system(size: 32, weight: .bold))
@@ -20,7 +20,7 @@ struct EmergencyStopDialog: View {
                         "The emergency stop sequence was detected and Kanata has been stopped. Keyboard remapping is now paused."
                     )
                     .font(.body)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
                 } else {
@@ -28,7 +28,7 @@ struct EmergencyStopDialog: View {
                         "For Kanata (the keyboard remapper) the emergency stop shortcut is Left Control + Space + Escape (using their physical key positions, not after any remapping)."
                     )
                     .font(.body)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
                 }
@@ -42,17 +42,17 @@ struct EmergencyStopDialog: View {
                     HStack(spacing: 12) {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.title3)
-                            .foregroundColor(.green)
+                            .foregroundStyle(.green)
                         Text("Keyboard remapping has been safely stopped")
                             .font(.headline)
-                            .foregroundColor(.primary)
+                            .foregroundStyle(.primary)
                         Spacer()
                     }
 
                     HStack(spacing: 12) {
                         Image(systemName: "info.circle.fill")
                             .font(.title3)
-                            .foregroundColor(.blue)
+                            .foregroundStyle(.blue)
                         Text(
                             "You can restart the service when ready by clicking the restart button in the main window"
                         )
@@ -64,7 +64,7 @@ struct EmergencyStopDialog: View {
                     VStack(spacing: 16) {
                         Text("Emergency stop sequence used:")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
 
                         HStack(spacing: 16) {
                             EmergencyStopKeyButton(
@@ -77,7 +77,7 @@ struct EmergencyStopDialog: View {
                             Text("+")
                                 .font(.title2)
                                 .fontWeight(.bold)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
 
                             EmergencyStopKeyButton(
                                 keyLabel: "Space",
@@ -89,7 +89,7 @@ struct EmergencyStopDialog: View {
                             Text("+")
                                 .font(.title2)
                                 .fontWeight(.bold)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
 
                             EmergencyStopKeyButton(
                                 keyLabel: "Escape",
@@ -118,7 +118,7 @@ struct EmergencyStopDialog: View {
 
                         Text("+")
                             .font(.system(size: 36, weight: .bold))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .padding(.vertical)
 
                         EmergencyStopKeyButton(
@@ -130,7 +130,7 @@ struct EmergencyStopDialog: View {
 
                         Text("+")
                             .font(.system(size: 36, weight: .bold))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .padding(.vertical)
 
                         EmergencyStopKeyButton(
@@ -146,17 +146,17 @@ struct EmergencyStopDialog: View {
                         HStack(spacing: 12) {
                             Image(systemName: "info.circle.fill")
                                 .font(.title3)
-                                .foregroundColor(.blue)
+                                .foregroundStyle(.blue)
                             Text("Important: Use physical key positions, not after any remapping")
                                 .font(.headline)
-                                .foregroundColor(.primary)
+                                .foregroundStyle(.primary)
                             Spacer()
                         }
 
                         HStack(spacing: 12) {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.title3)
-                                .foregroundColor(.green)
+                                .foregroundStyle(.green)
                             Text("Kanata will immediately stop all remapping")
                                 .font(.body)
                             Spacer()
@@ -165,7 +165,7 @@ struct EmergencyStopDialog: View {
                         HStack(spacing: 12) {
                             Image(systemName: "arrow.clockwise.circle.fill")
                                 .font(.title3)
-                                .foregroundColor(.orange)
+                                .foregroundStyle(.orange)
                             Text("Restart KeyPath to re-enable remapping")
                                 .font(.body)
                             Spacer()
@@ -211,11 +211,11 @@ struct EmergencyStopKeyButton: View {
             VStack(spacing: isSmall ? 4 : 8) {
                 Text(keySymbol)
                     .font(.system(size: isSmall ? 32 : 48, weight: .medium))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 Text(keyLabel)
                     .font(isSmall ? .subheadline : .headline)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
             }
             .frame(width: isSmall ? 100 : 140, height: isSmall ? 70 : 100)
             .background(
@@ -231,7 +231,7 @@ struct EmergencyStopKeyButton: View {
             // Description
             Text(description)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
     }

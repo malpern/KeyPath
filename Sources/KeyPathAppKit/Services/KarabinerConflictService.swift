@@ -190,7 +190,7 @@ final class KarabinerConflictService: KarabinerConflictManaging {
             let broker = brokerFactory()
             try await engine.disableKarabinerGrabber(using: broker)
             // Verify no conflicting processes remain
-            try? await Task.sleep(nanoseconds: 500_000_000)
+            try? await Task.sleep(for: .milliseconds(500))
             let success = await verifyConflictingProcessesStopped()
             if success {
                 AppLogger.shared.log("✅ [Conflict] Karabiner grabber disabled and processes stopped")
@@ -361,7 +361,7 @@ final class KarabinerConflictService: KarabinerConflictManaging {
 
                         // Perform additional verification
                         Task {
-                            try? await Task.sleep(nanoseconds: 1_000_000_000)
+                            try? await Task.sleep(for: .seconds(1))
                             await self.verifyKarabinerGrabberRemoval()
                         }
 

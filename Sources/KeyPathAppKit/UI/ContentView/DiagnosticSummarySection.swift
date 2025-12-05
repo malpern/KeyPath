@@ -10,12 +10,12 @@ struct DiagnosticSummarySection: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: "stethoscope")
-                    .foregroundColor(.red)
+                    .foregroundStyle(.red)
                     .font(.headline)
 
                 Text("System Issues Detected")
                     .font(.headline)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 Spacer()
 
@@ -34,7 +34,7 @@ struct DiagnosticSummarySection: View {
                         Text(issue.severity.emoji)
                         Text(issue.title)
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         Spacer()
                         if issue.canAutoFix {
                             Button("Fix") {
@@ -51,7 +51,7 @@ struct DiagnosticSummarySection: View {
                 if criticalIssues.count > 3 {
                     Text("... and \(criticalIssues.count - 3) more issues")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
         }

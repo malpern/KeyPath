@@ -537,8 +537,8 @@ final class PrivilegedOperationsCoordinator {
     // restore these values: verifyTimeout=3.0, verifyInterval=120ms, settleDelay=300ms
     // The original conservative timings handle slow/loaded systems better.
     private static let vhidVerifyTimeoutSeconds: Double = 1.5 // Was: 3.0
-    private static let vhidVerifyIntervalNanos: UInt64 = 100_000_000 // 100ms, was: 120ms
-    private static let vhidSettleDelayNanos: UInt64 = 150_000_000 // 150ms, was: 300ms
+    private static let vhidVerifyInterval: Duration = .milliseconds(100) // 100ms, was: 120ms
+    private static let vhidSettleDelay: Duration = .milliseconds(150) // 150ms, was: 300ms
 
     private func helperRestartKarabinerDaemonVerified() async throws -> Bool {
         AppLogger.shared.log("🔐 [PrivCoordinator] Helper path: verified restart of Karabiner daemon")
@@ -586,12 +586,12 @@ final class PrivilegedOperationsCoordinator {
                     "✅ [PrivCoordinator] Verified: VirtualHIDDevice daemon healthy after helper restart")
                 return true
             }
-            try await Task.sleep(nanoseconds: Self.vhidVerifyIntervalNanos)
+            try await Task.sleep(for: Self.vhidVerifyInterval)
         }
         AppLogger.shared.log("🔎 [PrivCoordinator] Verification loop completed after \(loopCount) iterations, timed out")
 
         // 4) Single post-verify check (removed repair cascade - user can retry if needed)
-        try await Task.sleep(nanoseconds: Self.vhidSettleDelayNanos)
+        try await Task.sleep(for: Self.vhidSettleDelay)
         let postLoaded = await ServiceHealthChecker.shared.isServiceLoaded(
             serviceID: "com.keypath.karabiner-vhiddaemon")
         let postHealth = await ServiceHealthChecker.shared.isServiceHealthy(
@@ -831,7 +831,7 @@ final class PrivilegedOperationsCoordinator {
         }
 
         // Small settle - optimized from 300ms to 150ms
-        try await Task.sleep(nanoseconds: Self.vhidSettleDelayNanos)
+        try await Task.sleep(for: Self.vhidSettleDelay)
 
         // Start via kickstart if service exists; otherwise start directly
         if hasService {
@@ -874,7 +874,7 @@ final class PrivilegedOperationsCoordinator {
                     "✅ [PrivCoordinator] Restart verified: daemon is healthy (single instance)")
                 return true
             }
-            try await Task.sleep(nanoseconds: Self.vhidVerifyIntervalNanos)
+            try await Task.sleep(for: Self.vhidVerifyInterval)
         }
 
         // Final diagnostics (removed repair cascade - user can retry if needed)

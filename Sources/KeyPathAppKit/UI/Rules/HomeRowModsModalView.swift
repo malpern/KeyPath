@@ -34,7 +34,7 @@ struct HomeRowModsModalView: View {
                 Spacer()
                 Button(action: onCancel) {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .font(.title3)
                 }
                 .buttonStyle(.plain)
@@ -117,7 +117,7 @@ struct HomeRowModsModalView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Tap window")
                                     .font(.subheadline)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                                 HStack {
                                     TextField("", value: Binding(
                                         get: { localConfig.timing.tapWindow },
@@ -127,14 +127,14 @@ struct HomeRowModsModalView: View {
                                         .frame(width: 80)
                                     Text("ms")
                                         .font(.subheadline)
-                                        .foregroundColor(.secondary)
+                                        .foregroundStyle(.secondary)
                                 }
                             }
 
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Hold delay")
                                     .font(.subheadline)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                                 HStack {
                                     TextField("", value: Binding(
                                         get: { localConfig.timing.holdDelay },
@@ -144,7 +144,7 @@ struct HomeRowModsModalView: View {
                                         .frame(width: 80)
                                     Text("ms")
                                         .font(.subheadline)
-                                        .foregroundColor(.secondary)
+                                        .foregroundStyle(.secondary)
                                 }
                             }
                         }
@@ -158,14 +158,14 @@ struct HomeRowModsModalView: View {
                         HStack {
                             Text("Quick tap term")
                                 .font(.subheadline)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                             Slider(value: Binding(
                                 get: { Double(localConfig.timing.quickTapTermMs) },
                                 set: { localConfig.timing.quickTapTermMs = Int($0) }
-                            ), in: 0...80, step: 5)
+                            ), in: 0 ... 80, step: 5)
                             Text("\(localConfig.timing.quickTapTermMs) ms")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                                 .frame(width: 60, alignment: .trailing)
                         }
                         .disabled(!localConfig.timing.quickTapEnabled)
@@ -180,7 +180,7 @@ struct HomeRowModsModalView: View {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Per-key tap offsets (ms)")
                                     .font(.subheadline)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
 
                                 ForEach(chunks(of: HomeRowModsConfig.allKeys, size: 4), id: \.self) { row in
                                     HStack(spacing: 12) {
@@ -188,7 +188,7 @@ struct HomeRowModsModalView: View {
                                             VStack(alignment: .leading, spacing: 4) {
                                                 Text(key.uppercased())
                                                     .font(.caption)
-                                                    .foregroundColor(.secondary)
+                                                    .foregroundStyle(.secondary)
                                                 TextField("0", value: Binding(
                                                     get: { localConfig.timing.tapOffsets[key] ?? 0 },
                                                     set: { newValue in
@@ -199,8 +199,8 @@ struct HomeRowModsModalView: View {
                                                         }
                                                     }
                                                 ), format: .number)
-                                                .textFieldStyle(.roundedBorder)
-                                                .frame(width: 70)
+                                                    .textFieldStyle(.roundedBorder)
+                                                    .frame(width: 70)
                                             }
                                         }
                                         Spacer()
@@ -208,7 +208,7 @@ struct HomeRowModsModalView: View {
                                 }
                                 Text("Positive values extend the tap window for that key; leave blank/0 for default.")
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                             }
                             .transition(.opacity.combined(with: .move(edge: .top)))
                         }
@@ -258,7 +258,7 @@ struct HomeRowModsModalView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Select keys:")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
 
             HStack(spacing: 8) {
                 ForEach(HomeRowModsConfig.allKeys, id: \.self) { key in
@@ -272,7 +272,7 @@ struct HomeRowModsModalView: View {
                         Text(key.uppercased())
                             .font(.caption)
                             .fontWeight(.medium)
-                            .foregroundColor(localConfig.enabledKeys.contains(key) ? .white : .primary)
+                            .foregroundStyle(localConfig.enabledKeys.contains(key) ? .white : Color.primary)
                             .frame(width: 40, height: 40)
                             .background(
                                 RoundedRectangle(cornerRadius: 8)
@@ -304,7 +304,7 @@ struct HomeRowModsModalView: View {
                     }
                 }) {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
             }
@@ -343,8 +343,8 @@ struct HomeRowModsModalView: View {
             VStack(spacing: 4) {
                 Text(symbol)
                     .font(.title2)
-            Text(label)
-                .font(.caption)
+                Text(label)
+                    .font(.caption)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
@@ -352,7 +352,7 @@ struct HomeRowModsModalView: View {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(isSelected ? .accentColor : Color(NSColor.controlBackgroundColor))
             )
-            .foregroundColor(isSelected ? .white : .primary)
+            .foregroundStyle(isSelected ? .white : Color.primary)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(isSelected ? .accentColor : Color.secondary.opacity(0.2), lineWidth: isSelected ? 2 : 1)
@@ -366,7 +366,7 @@ struct HomeRowModsModalView: View {
 
 private func chunks<T>(of array: [T], size: Int) -> [[T]] {
     stride(from: 0, to: array.count, by: size).map { start in
-        Array(array[start..<min(start + size, array.count)])
+        Array(array[start ..< min(start + size, array.count)])
     }
 }
 

@@ -14,18 +14,18 @@ struct StatusMessageView: View {
 
                 Image(systemName: iconName)
                     .font(.system(size: 28))
-                    .foregroundColor(iconColor)
+                    .foregroundStyle(iconColor)
             }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(messageTitle)
                     .font(.headline)
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
 
                 if let subtitle = messageSubtitle {
                     Text(subtitle)
                         .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundStyle(.white.opacity(0.9))
                 }
             }
 

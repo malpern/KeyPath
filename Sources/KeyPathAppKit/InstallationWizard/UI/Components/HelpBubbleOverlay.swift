@@ -101,13 +101,13 @@ enum HelpBubbleOverlay {
             HStack(spacing: 10) {
                 Text(message)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.black)
+                    .foregroundStyle(.black)
                     .padding(.vertical, 10)
                     .padding(.leading, 14)
                 Button(action: onClose) {
                     Image(systemName: "xmark")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.black.opacity(0.7))
+                        .foregroundStyle(.black.opacity(0.7))
                         .padding(8)
                 }
                 .buttonStyle(.plain)

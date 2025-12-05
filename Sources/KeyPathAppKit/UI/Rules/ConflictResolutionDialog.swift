@@ -38,10 +38,10 @@ struct ConflictResolutionDialog: View {
                     VStack(spacing: 8) {
                         Image(systemName: "hand.raised.fill")
                             .font(.system(size: 32))
-                            .foregroundColor(.orange)
+                            .foregroundStyle(.orange)
                         Text("Hold")
                             .font(.caption.weight(.medium))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     .frame(width: 80)
 
@@ -52,10 +52,10 @@ struct ConflictResolutionDialog: View {
                     VStack(spacing: 8) {
                         Image(systemName: "hand.tap.fill")
                             .font(.system(size: 32))
-                            .foregroundColor(.purple)
+                            .foregroundStyle(.purple)
                         Text("Tap Dance")
                             .font(.caption.weight(.medium))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     .frame(width: 80)
                 }
@@ -66,7 +66,7 @@ struct ConflictResolutionDialog: View {
 
                 Text("Kanata can't detect both hold duration and tap count on the same key. Which behavior do you want to keep?")
                     .font(.body)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 20)
@@ -142,13 +142,13 @@ struct ConflictResolutionDialog: View {
             if let conflict = pendingConflict, !conflict.existingHoldAction.isEmpty {
                 HStack(spacing: 12) {
                     Image(systemName: "hand.raised.fill")
-                        .foregroundColor(.orange)
+                        .foregroundStyle(.orange)
                         .frame(width: 24)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Current Hold Action")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         Text(KeyDisplayName.display(for: conflict.existingHoldAction))
                             .font(.body.weight(.medium))
                     }
@@ -166,25 +166,26 @@ struct ConflictResolutionDialog: View {
             if let conflict = pendingConflict, !conflict.existingTapDanceActions.isEmpty {
                 HStack(spacing: 12) {
                     Image(systemName: "hand.tap.fill")
-                        .foregroundColor(.purple)
+                        .foregroundStyle(.purple)
                         .frame(width: 24)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Current Tap Dance Actions")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         HStack(spacing: 8) {
-                            ForEach(Array(conflict.existingTapDanceActions.enumerated()), id: \.offset) { index, action in
+                            ForEach(conflict.existingTapDanceActions.indices, id: \.self) { index in
+                                let action = conflict.existingTapDanceActions[index]
                                 HStack(spacing: 4) {
                                     Text("\(index + 2)×")
                                         .font(.caption)
-                                        .foregroundColor(.secondary)
+                                        .foregroundStyle(.secondary)
                                     Text(KeyDisplayName.display(for: action))
                                         .font(.body.weight(.medium))
                                 }
                                 if index < conflict.existingTapDanceActions.count - 1 {
                                     Text("•")
-                                        .foregroundColor(.secondary)
+                                        .foregroundStyle(.secondary)
                                 }
                             }
                         }

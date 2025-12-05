@@ -121,7 +121,7 @@ public enum PIDFileManager {
             kill(record.pid, SIGTERM)
 
             // Wait a moment
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+            try? await Task.sleep(for: .milliseconds(500))
 
             // Force kill if still running
             if isProcessRunning(pid: record.pid) {

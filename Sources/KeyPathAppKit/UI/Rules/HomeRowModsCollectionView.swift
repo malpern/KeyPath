@@ -46,7 +46,7 @@ struct HomeRowModsCollectionView: View {
                     .padding(.vertical, 8)
                 }
                 .buttonStyle(.plain)
-                .foregroundColor(.accentColor)
+                .foregroundStyle(Color.accentColor)
             }
 
             // Modifier picker (contextual, appears when key is selected)
@@ -124,7 +124,7 @@ struct HomeRowModsCollectionView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Tap window")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         HStack {
                             TextField("", value: Binding(
                                 get: { config.timing.tapWindow },
@@ -137,14 +137,14 @@ struct HomeRowModsCollectionView: View {
                                 .frame(width: 80)
                             Text("ms")
                                 .font(.subheadline)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                     }
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Hold delay")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         HStack {
                             TextField("", value: Binding(
                                 get: { config.timing.holdDelay },
@@ -157,7 +157,7 @@ struct HomeRowModsCollectionView: View {
                                 .frame(width: 80)
                             Text("ms")
                                 .font(.subheadline)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -174,17 +174,17 @@ struct HomeRowModsCollectionView: View {
                 HStack {
                     Text("Quick tap term")
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     Slider(value: Binding(
                         get: { Double(config.timing.quickTapTermMs) },
                         set: { newValue in
                             config.timing.quickTapTermMs = Int(newValue)
                             updateConfig()
                         }
-                    ), in: 0...80, step: 5)
+                    ), in: 0 ... 80, step: 5)
                     Text("\(config.timing.quickTapTermMs) ms")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .frame(width: 60, alignment: .trailing)
                 }
                 .disabled(!config.timing.quickTapEnabled)
@@ -202,7 +202,7 @@ struct HomeRowModsCollectionView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Per-key tap offsets (ms)")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
 
                         ForEach(chunks(of: HomeRowModsConfig.allKeys, size: 4), id: \.self) { row in
                             HStack(spacing: 12) {
@@ -210,7 +210,7 @@ struct HomeRowModsCollectionView: View {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(key.uppercased())
                                             .font(.caption)
-                                            .foregroundColor(.secondary)
+                                            .foregroundStyle(.secondary)
                                         TextField("0", value: Binding(
                                             get: { config.timing.tapOffsets[key] ?? 0 },
                                             set: { newValue in
@@ -222,8 +222,8 @@ struct HomeRowModsCollectionView: View {
                                                 updateConfig()
                                             }
                                         ), format: .number)
-                                        .textFieldStyle(.roundedBorder)
-                                        .frame(width: 70)
+                                            .textFieldStyle(.roundedBorder)
+                                            .frame(width: 70)
                                     }
                                 }
                                 Spacer()
@@ -231,7 +231,7 @@ struct HomeRowModsCollectionView: View {
                         }
                         Text("Positive values extend the tap window per key; leave 0 for default.")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
@@ -253,7 +253,7 @@ struct HomeRowModsCollectionView: View {
                 .padding(.vertical, 8)
             }
             .buttonStyle(.plain)
-            .foregroundColor(.secondary)
+            .foregroundStyle(.secondary)
         }
         .padding()
         .background(
@@ -268,7 +268,7 @@ struct HomeRowModsCollectionView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Select keys:")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
 
             HStack(spacing: 8) {
                 ForEach(HomeRowModsConfig.allKeys, id: \.self) { key in
@@ -283,7 +283,7 @@ struct HomeRowModsCollectionView: View {
                         Text(key.uppercased())
                             .font(.caption)
                             .fontWeight(.medium)
-                            .foregroundColor(config.enabledKeys.contains(key) ? .white : .primary)
+                            .foregroundStyle(config.enabledKeys.contains(key) ? .white : Color.primary)
                             .frame(width: 40, height: 40)
                             .background(
                                 RoundedRectangle(cornerRadius: 8)
@@ -315,7 +315,7 @@ struct HomeRowModsCollectionView: View {
                     }
                 }) {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
             }
@@ -364,7 +364,7 @@ struct HomeRowModsCollectionView: View {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(isSelected ? .accentColor : Color(NSColor.controlBackgroundColor))
             )
-            .foregroundColor(isSelected ? .white : .primary)
+            .foregroundStyle(isSelected ? .white : Color.primary)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(isSelected ? .accentColor : Color.secondary.opacity(0.2), lineWidth: isSelected ? 2 : 1)
@@ -375,27 +375,27 @@ struct HomeRowModsCollectionView: View {
 
     // MARK: - Helpers
 
-private func updateConfig() {
-    onConfigChanged(config)
-}
+    private func updateConfig() {
+        onConfigChanged(config)
+    }
 
-private enum HomeRowPreset: Hashable {
-    case macCAGS
-    case winGACS
-    case custom
-}
+    private enum HomeRowPreset: Hashable {
+        case macCAGS
+        case winGACS
+        case custom
+    }
 
-private func presetSelection(from assignments: [String: String]) -> HomeRowPreset {
-    if assignments == HomeRowModsConfig.cagsMacDefault { return .macCAGS }
-    if assignments == HomeRowModsConfig.gacsWindows { return .winGACS }
-    return .custom
-}
+    private func presetSelection(from assignments: [String: String]) -> HomeRowPreset {
+        if assignments == HomeRowModsConfig.cagsMacDefault { return .macCAGS }
+        if assignments == HomeRowModsConfig.gacsWindows { return .winGACS }
+        return .custom
+    }
 }
 
 // MARK: - Helpers
 
 private func chunks<T>(of array: [T], size: Int) -> [[T]] {
     stride(from: 0, to: array.count, by: size).map { start in
-        Array(array[start..<min(start + size, array.count)])
+        Array(array[start ..< min(start + size, array.count)])
     }
 }

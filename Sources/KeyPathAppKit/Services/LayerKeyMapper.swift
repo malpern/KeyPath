@@ -85,7 +85,7 @@ struct LayerKeyInfo: Equatable, Sendable {
     /// - Parameters:
     ///   - action: The system action name (e.g., "dnd", "spotlight")
     ///   - description: Human-readable description for display
-    static func systemAction(action: String, description: String) -> LayerKeyInfo {
+    static func systemAction(action _: String, description: String) -> LayerKeyInfo {
         LayerKeyInfo(
             displayLabel: description,
             outputKey: nil,
@@ -296,52 +296,52 @@ actor LayerKeyMapper {
             } else if keyMapping.outputs.isEmpty {
                 // No output (blocked key)
                 mapping[keyCode] = .transparent(fallbackLabel: fallbackLabel)
-        } else {
-            // Convert all outputs to display labels and combine
-            var displayParts: [String] = []
-            var primaryOutputKey: String?
-            var primaryOutputKeyCode: UInt16?
-
-            for output in keyMapping.outputs {
-                let label = kanataKeyToDisplayLabel(output)
-                // Skip empties (e.g., spacebar) so we don't render "sp"/blank artifacts
-                if !label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    displayParts.append(label)
-                }
-                // Use the non-modifier key as the primary (for dual highlighting)
-                if !isModifierSymbol(output) {
-                    primaryOutputKey = output
-                    primaryOutputKeyCode = kanataKeyToKeyCode(output)
-                }
-            }
-
-            let combinedLabel = displayParts.joined()
-            let finalLabel = combinedLabel.trimmingCharacters(in: .whitespacesAndNewlines)
-            // Special-case spacebar: ensure display label stays blank
-            let normalizedInput = keyMapping.input.lowercased()
-            let normalizedOutputs = keyMapping.outputs.map { $0.lowercased() }
-            let isSpaceInput = ["space", "spacebar", "spc", "sp"].contains(normalizedInput)
-            let isSpaceOnlyOutput = Set(normalizedOutputs).isSubset(of: ["space", "spacebar", "spc", "sp"])
-            let displayLabel = (isSpaceInput || isSpaceOnlyOutput) ? "" : finalLabel
-            let outputKey = primaryOutputKey ?? keyMapping.outputs.first
-
-            if let outputKey {
-                mapping[keyCode] = .mapped(
-                    displayLabel: displayLabel,
-                    outputKey: outputKey,
-                    outputKeyCode: primaryOutputKeyCode
-                )
-                if outputKey.uppercased() != keyMapping.input.uppercased() {
-                    AppLogger.shared.debug("🗺️ [LayerKeyMapper] Mapped \(keyMapping.input)(\(keyCode)) -> \(outputKey)(\(displayLabel))")
-                }
             } else {
-                mapping[keyCode] = LayerKeyInfo(
-                    displayLabel: displayLabel,
-                    outputKey: nil,
-                    outputKeyCode: nil,
-                    isTransparent: false,
-                    isLayerSwitch: false
-                )
+                // Convert all outputs to display labels and combine
+                var displayParts: [String] = []
+                var primaryOutputKey: String?
+                var primaryOutputKeyCode: UInt16?
+
+                for output in keyMapping.outputs {
+                    let label = kanataKeyToDisplayLabel(output)
+                    // Skip empties (e.g., spacebar) so we don't render "sp"/blank artifacts
+                    if !label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        displayParts.append(label)
+                    }
+                    // Use the non-modifier key as the primary (for dual highlighting)
+                    if !isModifierSymbol(output) {
+                        primaryOutputKey = output
+                        primaryOutputKeyCode = kanataKeyToKeyCode(output)
+                    }
+                }
+
+                let combinedLabel = displayParts.joined()
+                let finalLabel = combinedLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+                // Special-case spacebar: ensure display label stays blank
+                let normalizedInput = keyMapping.input.lowercased()
+                let normalizedOutputs = keyMapping.outputs.map { $0.lowercased() }
+                let isSpaceInput = ["space", "spacebar", "spc", "sp"].contains(normalizedInput)
+                let isSpaceOnlyOutput = Set(normalizedOutputs).isSubset(of: ["space", "spacebar", "spc", "sp"])
+                let displayLabel = (isSpaceInput || isSpaceOnlyOutput) ? "" : finalLabel
+                let outputKey = primaryOutputKey ?? keyMapping.outputs.first
+
+                if let outputKey {
+                    mapping[keyCode] = .mapped(
+                        displayLabel: displayLabel,
+                        outputKey: outputKey,
+                        outputKeyCode: primaryOutputKeyCode
+                    )
+                    if outputKey.uppercased() != keyMapping.input.uppercased() {
+                        AppLogger.shared.debug("🗺️ [LayerKeyMapper] Mapped \(keyMapping.input)(\(keyCode)) -> \(outputKey)(\(displayLabel))")
+                    }
+                } else {
+                    mapping[keyCode] = LayerKeyInfo(
+                        displayLabel: displayLabel,
+                        outputKey: nil,
+                        outputKeyCode: nil,
+                        isTransparent: false,
+                        isLayerSwitch: false
+                    )
                 }
             }
         }

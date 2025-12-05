@@ -110,7 +110,7 @@ public actor SubprocessRunner: SubprocessRunning {
                 // Set up timeout task
                 runContext.timeoutTask = Task {
                     do {
-                        try await Task.sleep(nanoseconds: UInt64(timeoutInterval * 1_000_000_000))
+                        try await Task.sleep(for: .seconds(timeoutInterval))
                     } catch {
                         // Task cancelled (process finished or parent cancelled)
                         return

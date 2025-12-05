@@ -20,7 +20,7 @@ struct ContentViewHeader: View {
                     label: {
                         Image(systemName: "keyboard")
                             .font(.title2)
-                            .foregroundColor(.blue)
+                            .foregroundStyle(.blue)
                     }
                 )
                 .buttonStyle(PlainButtonStyle())
@@ -39,7 +39,7 @@ struct ContentViewHeader: View {
                 HStack(spacing: 6) {
                     Text("System")
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
 
                     SystemStatusIndicator(
                         validator: validator,
@@ -54,7 +54,7 @@ struct ContentViewHeader: View {
 
             Text("Record keyboard shortcuts and create custom key mappings")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .offset(y: 2)
 

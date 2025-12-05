@@ -21,11 +21,11 @@ private struct ToastView: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: iconName)
-                .foregroundColor(iconColor)
+                .foregroundStyle(iconColor)
 
             Text(message)
                 .font(.body)
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -572,26 +572,26 @@ private struct ExpandableCollectionRow: View {
                         HStack(spacing: 4) {
                             Text(name)
                                 .font(.headline)
-                                .foregroundColor(.primary)
+                                .foregroundStyle(.primary)
                             if count > 0, showZeroState || onEditMapping != nil {
                                 // Show count for custom rules section only
                                 Text("(\(count))")
                                     .font(.headline)
                                     .fontWeight(.regular)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                             }
                         }
 
                         if let desc = description {
                             Text(desc)
                                 .font(.subheadline)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
 
                         if layerActivator != nil {
                             Label("Hold \(leaderKeyDisplay)", systemImage: "hand.point.up.left")
                                 .font(.caption)
-                                .foregroundColor(.accentColor)
+                                .foregroundStyle(Color.accentColor)
                         }
                     }
 
@@ -642,7 +642,7 @@ private struct ExpandableCollectionRow: View {
                     VStack(spacing: 12) {
                         Text("No rules yet")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
 
                         Button {
                             onCreate()
@@ -686,7 +686,7 @@ private struct ExpandableCollectionRow: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Tap keys for letters, hold for modifiers")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
 
                         // Summary of current configuration
                         if !config.enabledKeys.isEmpty {
@@ -697,7 +697,7 @@ private struct ExpandableCollectionRow: View {
                                         VStack(alignment: .leading, spacing: 4) {
                                             Text("Left hand")
                                                 .font(.caption)
-                                                .foregroundColor(.secondary)
+                                                .foregroundStyle(.secondary)
                                             HStack(spacing: 6) {
                                                 ForEach(HomeRowModsConfig.leftHandKeys, id: \.self) { key in
                                                     if config.enabledKeys.contains(key) {
@@ -719,7 +719,7 @@ private struct ExpandableCollectionRow: View {
                                         VStack(alignment: .leading, spacing: 4) {
                                             Text("Right hand")
                                                 .font(.caption)
-                                                .foregroundColor(.secondary)
+                                                .foregroundStyle(.secondary)
                                             HStack(spacing: 6) {
                                                 ForEach(HomeRowModsConfig.rightHandKeys, id: \.self) { key in
                                                     if config.enabledKeys.contains(key) {
@@ -742,7 +742,7 @@ private struct ExpandableCollectionRow: View {
                                 let quickTapTerm = config.timing.quickTapEnabled && config.timing.quickTapTermMs > 0 ? " + \(config.timing.quickTapTermMs)ms" : ""
                                 Text("Timing: \(config.timing.tapWindow)ms tap\(quickTapTerm)\(hasOffsets ? " (+ per-key offsets)" : ""), \(config.timing.holdDelay)ms hold · \(quickTapText)")
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                             }
                             .padding(.vertical, 8)
                             .padding(.horizontal, 12)
@@ -811,7 +811,7 @@ private struct ExpandableCollectionRow: View {
             let text = String(icon.dropFirst(5))
             Text(text)
                 .font(.system(size: 14, weight: .bold, design: .monospaced))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .frame(width: 24, height: 24)
         } else if icon.hasPrefix("resource:") {
             let resourceName = String(icon.dropFirst(9))
@@ -825,12 +825,12 @@ private struct ExpandableCollectionRow: View {
                 // Fallback to system image
                 Image(systemName: "questionmark.circle")
                     .font(.system(size: 24))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
         } else {
             Image(systemName: icon)
                 .font(.system(size: 24))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -872,26 +872,26 @@ private struct MappingRowView: View {
                         HStack(spacing: 4) {
                             Text("Hold")
                                 .font(.body.monospaced().weight(.semibold))
-                                .foregroundColor(.accentColor)
+                                .foregroundStyle(Color.accentColor)
                             Text(leaderKeyDisplay)
                                 .font(.body.monospaced().weight(.semibold))
-                                .foregroundColor(KeycapStyle.textColor)
+                                .foregroundStyle(KeycapStyle.textColor)
                         }
                         .modifier(KeycapStyle())
 
                         Text("+")
                             .font(.body)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
 
                     Text(prettyKeyName(mapping.input))
                         .font(.body.monospaced().weight(.semibold))
-                        .foregroundColor(KeycapStyle.textColor)
+                        .foregroundStyle(KeycapStyle.textColor)
                         .modifier(KeycapStyle())
 
                     Image(systemName: "arrow.right")
                         .font(.body.weight(.medium))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
 
                     // Show app icon + name for launch actions, otherwise show key chip
                     if let appId = appLaunchIdentifier {
@@ -899,7 +899,7 @@ private struct MappingRowView: View {
                     } else {
                         Text(prettyKeyName(mapping.output))
                             .font(.body.monospaced().weight(.semibold))
-                            .foregroundColor(KeycapStyle.textColor)
+                            .foregroundStyle(KeycapStyle.textColor)
                             .modifier(KeycapStyle())
                     }
 
@@ -907,7 +907,7 @@ private struct MappingRowView: View {
                     if let title = mapping.description, !title.isEmpty {
                         Text(title)
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
 
                     // Behavior summary for custom rules on same line
@@ -929,7 +929,7 @@ private struct MappingRowView: View {
                             } label: {
                                 Image(systemName: "pencil")
                                     .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(.secondary.opacity(isHovered ? 1 : 0.5))
+                                    .foregroundStyle(Color.secondary.opacity(isHovered ? 1 : 0.5))
                                     .frame(width: 28, height: 28)
                                     .contentShape(Rectangle())
                             }
@@ -942,7 +942,7 @@ private struct MappingRowView: View {
                             } label: {
                                 Image(systemName: "trash")
                                     .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(.secondary.opacity(isHovered ? 1 : 0.5))
+                                    .foregroundStyle(Color.secondary.opacity(isHovered ? 1 : 0.5))
                                     .frame(width: 28, height: 28)
                                     .contentShape(Rectangle())
                             }
@@ -995,18 +995,19 @@ private struct MappingRowView: View {
                 if behaviorItems.isEmpty {
                     EmptyView()
                 } else {
-                    ForEach(Array(behaviorItems.enumerated()), id: \.offset) { itemIndex, item in
+                    ForEach(behaviorItems.indices, id: \.self) { itemIndex in
+                        let item = behaviorItems[itemIndex]
                         if itemIndex > 0 {
                             Text("•")
                                 .font(.caption)
-                                .foregroundColor(.secondary.opacity(0.5))
+                                .foregroundStyle(Color.secondary.opacity(0.5))
                         }
                         behaviorItem(icon: item.0, label: item.1, key: item.2)
                     }
                 }
             }
         }
-        .foregroundColor(.secondary)
+        .foregroundStyle(.secondary)
     }
 
     // Extract tap dance steps (skip index 0 which is single tap = output)
@@ -1127,7 +1128,7 @@ private struct CreateRuleButton: View {
 
                 Image(systemName: "plus.circle.fill")
                     .font(.system(size: 40))
-                    .foregroundColor(iconColor)
+                    .foregroundStyle(iconColor)
             }
             .scaleEffect(isMouseDown ? 0.95 : (isAnyHovered ? 1.05 : 1.0))
             .animation(.easeInOut(duration: 0.15), value: isAnyHovered)
@@ -1261,7 +1262,7 @@ private struct SingleKeyPickerContent: View {
             if let preset = selectedPreset {
                 Text(preset.description)
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .padding(.horizontal, 4)
                     .transition(.opacity)
                     .id(preset.output)
@@ -1269,7 +1270,7 @@ private struct SingleKeyPickerContent: View {
                 HStack {
                     Text("Custom key: \(selectedOutput)")
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     Spacer()
                     Button("Edit") {
                         customKeyInput = selectedOutput
@@ -1345,7 +1346,7 @@ private struct TapHoldPickerContent: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("TAP")
                     .font(.caption.weight(.semibold))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
 
                 HStack(spacing: 0) {
                     ForEach(tapOptions) { preset in
@@ -1391,7 +1392,7 @@ private struct TapHoldPickerContent: View {
                 if let preset = selectedTapPreset {
                     Text(preset.description)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .padding(.horizontal, 4)
                 }
             }
@@ -1400,7 +1401,7 @@ private struct TapHoldPickerContent: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("HOLD")
                     .font(.caption.weight(.semibold))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
 
                 HStack(spacing: 0) {
                     ForEach(holdOptions) { preset in
@@ -1446,7 +1447,7 @@ private struct TapHoldPickerContent: View {
                 if let preset = selectedHoldPreset {
                     Text(preset.description)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .padding(.horizontal, 4)
                 }
             }
@@ -1455,11 +1456,11 @@ private struct TapHoldPickerContent: View {
             if capsLockLost {
                 HStack(spacing: 8) {
                     Image(systemName: "lightbulb.fill")
-                        .foregroundColor(.yellow)
+                        .foregroundStyle(.yellow)
                         .font(.caption)
                     Text("Lost Caps Lock? Enable \"Backup Caps Lock\" to get it back via Both Shifts.")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 .padding(10)
                 .background(
@@ -1540,7 +1541,7 @@ private struct CustomKeyPopover: View {
                 if !keyInput.isEmpty, !isValidKey {
                     Text("Unknown key name")
                         .font(.caption)
-                        .foregroundColor(.orange)
+                        .foregroundStyle(.orange)
                 }
             }
 
@@ -1584,7 +1585,7 @@ private struct PickerSegment: View {
         Button(action: action) {
             Text(label)
                 .font(.subheadline.weight(isSelected ? .semibold : .regular))
-                .foregroundColor(isSelected ? .white : .primary)
+                .foregroundStyle(isSelected ? .white : Color.primary)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
                 .frame(minWidth: 70)
@@ -1696,7 +1697,7 @@ private struct MappingTableContent: View {
             .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
 
             // Data rows
-            ForEach(Array(mappings.enumerated()), id: \.element.id) { _, mapping in
+            ForEach(mappings, id: \.id) { mapping in
                 // Section break separator (extra whitespace)
                 if mapping.sectionBreak {
                     Spacer()
@@ -1740,14 +1741,14 @@ private struct MappingTableContent: View {
     private func headerCell(_ text: String, color: Color = .secondary) -> some View {
         Text(text)
             .font(.subheadline.weight(.semibold))
-            .foregroundColor(color)
+            .foregroundStyle(color)
     }
 
     @ViewBuilder
     private func keyCell(_ text: String) -> some View {
         Text(formatKeyForDisplay(text))
             .font(.body.monospaced().bold())
-            .foregroundColor(.primary)
+            .foregroundStyle(.primary)
             .fixedSize(horizontal: true, vertical: false)
     }
 
@@ -1755,7 +1756,7 @@ private struct MappingTableContent: View {
     private func descriptionCell(_ text: String?) -> some View {
         Text(text ?? "")
             .font(.body)
-            .foregroundColor(.primary.opacity(0.8))
+            .foregroundStyle(.primary.opacity(0.8))
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -1763,7 +1764,7 @@ private struct MappingTableContent: View {
     private func actionCell(_ text: String) -> some View {
         Text(text)
             .font(.body.monospaced())
-            .foregroundColor(.secondary)
+            .foregroundStyle(.secondary)
             .fixedSize(horizontal: true, vertical: false)
             .frame(maxWidth: .infinity)
     }
@@ -1773,13 +1774,13 @@ private struct MappingTableContent: View {
         if let text {
             Text(text)
                 .font(.body.monospaced())
-                .foregroundColor(color.opacity(0.9))
+                .foregroundStyle(color.opacity(0.9))
                 .fixedSize(horizontal: true, vertical: false)
                 .frame(maxWidth: .infinity)
         } else {
             Text("—")
                 .font(.body)
-                .foregroundColor(.secondary.opacity(0.3))
+                .foregroundStyle(Color.secondary.opacity(0.3))
                 .frame(maxWidth: .infinity)
         }
     }
@@ -1973,14 +1974,14 @@ private struct AppLaunchChip: View {
             } else {
                 Image(systemName: "app.fill")
                     .font(.system(size: 12))
-                    .foregroundColor(KeycapStyle.textColor.opacity(0.6))
+                    .foregroundStyle(KeycapStyle.textColor.opacity(0.6))
                     .frame(width: 16, height: 16)
             }
 
             // App name
             Text(appName ?? appIdentifier)
                 .font(.body.monospaced().weight(.semibold))
-                .foregroundColor(KeycapStyle.textColor)
+                .foregroundStyle(KeycapStyle.textColor)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
@@ -2026,7 +2027,7 @@ private struct AppLaunchChip: View {
         // Fallback: use identifier as name (capitalize it)
         let parts = appIdentifier.replacingOccurrences(of: ".", with: " ")
             .split(separator: " ")
-            .map { $0.capitalized }
+            .map(\.capitalized)
         self.appName = parts.last.map { String($0) } ?? appIdentifier
     }
 
@@ -2034,15 +2035,15 @@ private struct AppLaunchChip: View {
         // Get icon
         let icon = NSWorkspace.shared.icon(forFile: url.path)
         icon.size = NSSize(width: 32, height: 32) // Request appropriate size
-        self.appIcon = icon
+        appIcon = icon
 
         // Get app name from bundle
         if let bundle = Bundle(url: url),
            let name = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String {
-            self.appName = name
+            appName = name
         } else {
             // Use filename without extension
-            self.appName = url.deletingPathExtension().lastPathComponent
+            appName = url.deletingPathExtension().lastPathComponent
         }
     }
 }

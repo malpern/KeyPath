@@ -50,7 +50,7 @@ struct SimpleModsView: View {
                 // Search bar
                 HStack {
                     Image(systemName: "magnifyingglass")
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     TextField("Search mappings...", text: $searchText)
                         .textFieldStyle(.plain)
                 }
@@ -91,7 +91,7 @@ struct SimpleModsView: View {
                             .scaleEffect(0.8)
                         Text("Applying changes...")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     .padding()
                 }
@@ -340,7 +340,7 @@ private struct TabButton: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
                 .background(isSelected ? Color.accentColor : Color.clear)
-                .foregroundColor(isSelected ? .white : .primary)
+                .foregroundStyle(isSelected ? .white : Color.primary)
                 .cornerRadius(8)
             }
         )
@@ -358,12 +358,12 @@ private struct EmptyStateView: View {
         VStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 48))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
             Text(title)
                 .font(.headline)
             Text(message)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
@@ -384,7 +384,7 @@ private struct CategoryButton: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .background(isSelected ? Color.accentColor : Color(NSColor.controlBackgroundColor))
-                .foregroundColor(isSelected ? .white : .primary)
+                .foregroundStyle(isSelected ? .white : Color.primary)
                 .cornerRadius(6)
         }
         .buttonStyle(.plain)
@@ -406,7 +406,7 @@ private struct InstalledMappingRow: View {
                 HStack(spacing: 8) {
                     KeyCapChip(text: mapping.fromKey)
                     Text("→")
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     KeyCapChip(text: mapping.toKey)
                 }
             }
@@ -431,7 +431,7 @@ private struct InstalledMappingRow: View {
                 },
                 label: {
                     Image(systemName: "trash")
-                        .foregroundColor(.red)
+                        .foregroundStyle(.red)
                 }
             )
             .buttonStyle(.plain)
@@ -477,13 +477,13 @@ private struct AvailablePresetRow: View {
                 HStack(spacing: 8) {
                     KeyCapChip(text: preset.fromKey)
                     Text("→")
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     KeyCapChip(text: preset.toKey)
                 }
                 if let tip = helpfulDescription {
                     Text(tip)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -506,7 +506,7 @@ private struct AvailablePresetRow: View {
                         Text("Add")
                     }
                     .font(.caption)
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(Color.accentColor)
@@ -589,7 +589,7 @@ private struct ConflictMappingDialog: View {
                 .font(.title3)
                 .bold()
             Text("You already have this key mapped. Choose which mapping to keep.")
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 16) {
@@ -613,10 +613,10 @@ private struct ConflictMappingDialog: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
             HStack(spacing: 8) {
                 KeyCapChip(text: fromKey)
-                Text("→").foregroundColor(.secondary)
+                Text("→").foregroundStyle(.secondary)
                 KeyCapChip(text: toKey)
             }
             .padding(10)
@@ -636,7 +636,7 @@ struct KeyCapChip: View {
     var body: some View {
         Text(text)
             .font(.caption)
-            .foregroundColor(isHovered ? Color(NSColor.windowBackgroundColor) : Color.primary)
+            .foregroundStyle(isHovered ? Color(NSColor.windowBackgroundColor) : Color.primary)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(
@@ -666,11 +666,11 @@ struct HomeRowKeyChipSmall: View {
             if !symbol.isEmpty {
                 Text(symbol)
                     .font(.system(size: 12))
-                    .foregroundColor(isHovered ? Color(NSColor.windowBackgroundColor).opacity(0.8) : Color.secondary)
+                    .foregroundStyle(isHovered ? Color(NSColor.windowBackgroundColor).opacity(0.8) : Color.secondary)
             }
         }
         .frame(width: 36, height: 40)
-        .foregroundColor(isHovered ? Color(NSColor.windowBackgroundColor) : Color.primary)
+        .foregroundStyle(isHovered ? Color(NSColor.windowBackgroundColor) : Color.primary)
         .background(
             RoundedRectangle(cornerRadius: 6)
                 .fill(isHovered ? Color.primary : Color(NSColor.controlBackgroundColor))

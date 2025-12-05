@@ -81,10 +81,10 @@ struct MappingBehaviorEditor: View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Output")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
             Text("Configure the output key in the field above.")
                 .font(.caption2)
-                .foregroundColor(.secondary.opacity(0.8))
+                .foregroundStyle(Color.secondary.opacity(0.8))
         }
     }
 
@@ -121,7 +121,7 @@ struct MappingBehaviorEditor: View {
                     HStack {
                         Text("Tap")
                             .frame(width: 60, alignment: .leading)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         TextField("e.g. a, esc", text: $tapAction)
                             .textFieldStyle(.roundedBorder)
                             .onChange(of: tapAction) { _, _ in syncBehaviorFromState() }
@@ -129,7 +129,7 @@ struct MappingBehaviorEditor: View {
                     HStack {
                         Text("Hold")
                             .frame(width: 60, alignment: .leading)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         TextField("e.g. lctl, lmet", text: $holdAction)
                             .textFieldStyle(.roundedBorder)
                             .onChange(of: holdAction) { _, _ in syncBehaviorFromState() }
@@ -143,7 +143,7 @@ struct MappingBehaviorEditor: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("Tapping term")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         Spacer()
                         Stepper(
                             "\(tapTimeout) ms",
@@ -159,7 +159,7 @@ struct MappingBehaviorEditor: View {
                             HStack {
                                 Text("Hold timeout")
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                                 Spacer()
                                 Stepper(
                                     "\(holdTimeout) ms",
@@ -186,7 +186,7 @@ struct MappingBehaviorEditor: View {
                             Text("Activate hold on other key")
                             Text("Hold triggers when you press another key")
                                 .font(.caption2)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                     }
                     .onChange(of: activateHoldOnOtherKey) { _, _ in syncBehaviorFromState() }
@@ -196,7 +196,7 @@ struct MappingBehaviorEditor: View {
                             Text("Quick tap")
                             Text("Fast taps always register as tap")
                                 .font(.caption2)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                     }
                     .onChange(of: quickTap) { _, _ in syncBehaviorFromState() }
@@ -217,7 +217,7 @@ struct MappingBehaviorEditor: View {
             GroupBox("Pattern Window") {
                 HStack {
                     Text("Time to register taps")
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     Spacer()
                     Stepper(
                         "\(tapDanceWindow) ms",
@@ -236,7 +236,7 @@ struct MappingBehaviorEditor: View {
                         HStack {
                             Text(tapDanceSteps[index].label)
                                 .frame(width: 80, alignment: .leading)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                                 .font(.caption)
                             TextField("action", text: Binding(
                                 get: { tapDanceSteps[index].action },
@@ -253,7 +253,7 @@ struct MappingBehaviorEditor: View {
                                     syncBehaviorFromState()
                                 } label: {
                                     Image(systemName: "minus.circle")
-                                        .foregroundColor(.red)
+                                        .foregroundStyle(.red)
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -286,11 +286,11 @@ struct MappingBehaviorEditor: View {
             HStack {
                 Text("Kanata syntax:")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                 Spacer()
                 Text(previewSyntax)
                     .font(.system(.caption, design: .monospaced))
-                    .foregroundColor(.accentColor)
+                    .foregroundStyle(Color.accentColor)
                     .textSelection(.enabled)
             }
             .padding(.vertical, 2)

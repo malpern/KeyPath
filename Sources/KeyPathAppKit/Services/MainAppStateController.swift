@@ -268,7 +268,7 @@ class MainAppStateController: ObservableObject {
             checksPerformed += 1
             AppLogger.shared.debug(
                 "⏳ [MainAppStateController] Waiting for Kanata service... (\(checksPerformed)/\(maxChecks))")
-            try? await Task.sleep(nanoseconds: UInt64(checkInterval * 1_000_000_000))
+            try? await Task.sleep(for: .seconds(checkInterval))
             serviceStatus = await InstallerEngine().getServiceStatus()
         }
 
@@ -303,7 +303,7 @@ class MainAppStateController: ObservableObject {
             snapshot = try await withThrowingTaskGroup(of: SystemSnapshot.self) { group in
                 group.addTask { await validator.checkSystem() }
                 group.addTask {
-                    try await Task.sleep(nanoseconds: 12_000_000_000) // 12s watchdog
+                    try await Task.sleep(for: .seconds(12)) // 12s watchdog
                     throw ValidationError.timeout
                 }
                 guard let first = try await group.next() else {

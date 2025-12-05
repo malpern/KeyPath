@@ -50,7 +50,7 @@ final class ProcessManager: ProcessManaging, @unchecked Sendable {
 
         if success {
             // Wait a moment for service to initialize
-            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+            try? await Task.sleep(for: .seconds(1)) // 1 second
 
             // Verify service started successfully
             let serviceStatus = await checkLaunchDaemonStatus()
@@ -140,7 +140,7 @@ final class ProcessManager: ProcessManaging, @unchecked Sendable {
 
     func verifyNoConflicts() async {
         // Wait a moment for any conflicts to surface
-        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        try? await Task.sleep(for: .milliseconds(500)) // 0.5 seconds
 
         let conflicts = await processLifecycleManager.detectConflicts()
         let managedProcesses = conflicts.managedProcesses
@@ -189,7 +189,7 @@ final class ProcessManager: ProcessManaging, @unchecked Sendable {
         let ok = await PrivilegedOperationsProvider.shared.stopKanataService()
         if ok {
             // Wait a moment for graceful shutdown
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            try? await Task.sleep(for: .seconds(1))
         }
         return ok
     }

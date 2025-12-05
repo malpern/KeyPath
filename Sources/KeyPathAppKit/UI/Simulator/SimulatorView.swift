@@ -64,7 +64,7 @@ struct SimulatorView: View {
                         .font(.headline)
                     Text("Click to tap • Long-press to hold • Type to add keys")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
@@ -96,7 +96,7 @@ struct SimulatorView: View {
         HStack(spacing: 4) {
             Text("Delay:")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
 
             TextField("", value: $viewModel.defaultDelayMs, format: .number)
                 .textFieldStyle(.roundedBorder)
@@ -104,7 +104,7 @@ struct SimulatorView: View {
 
             Text("ms")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
     }
 }

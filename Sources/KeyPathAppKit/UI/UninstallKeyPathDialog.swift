@@ -18,7 +18,7 @@ struct UninstallKeyPathDialog: View {
                 // Success state
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 48))
-                    .foregroundColor(.green)
+                    .foregroundStyle(.green)
 
                 Text("Uninstall Complete")
                     .font(.title2.bold())
@@ -26,14 +26,14 @@ struct UninstallKeyPathDialog: View {
                 // Confirmation/working state
                 Image(systemName: "trash.circle.fill")
                     .font(.system(size: 48))
-                    .foregroundColor(.red)
+                    .foregroundStyle(.red)
 
                 Text("Uninstall KeyPath?")
                     .font(.title2.bold())
 
                 Text("This will remove all services, helpers, and the app. Your configuration file will be preserved.")
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
 
                 // Status
@@ -42,7 +42,7 @@ struct UninstallKeyPathDialog: View {
                         .scaleEffect(0.8)
                 } else if let error = lastError {
                     Label(error, systemImage: "exclamationmark.triangle")
-                        .foregroundColor(.orange)
+                        .foregroundStyle(.orange)
                         .font(.caption)
                 }
 

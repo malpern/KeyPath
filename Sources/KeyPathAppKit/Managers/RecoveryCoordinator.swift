@@ -59,7 +59,7 @@ final class RecoveryCoordinator {
 
         // Step 2: Wait for system to release keyboard control
         AppLogger.shared.log("🔧 [Recovery] Step 2: Waiting 2 seconds for keyboard release...")
-        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+        try? await Task.sleep(for: .seconds(2)) // 2 seconds
 
         // Step 3: Restart VirtualHID daemon
         AppLogger.shared.log("🔧 [Recovery] Step 3: Attempting to restart Karabiner daemon...")
@@ -72,7 +72,7 @@ final class RecoveryCoordinator {
 
         // Step 4: Wait before retry
         AppLogger.shared.log("🔧 [Recovery] Step 4: Waiting 3 seconds before retry...")
-        try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+        try? await Task.sleep(for: .seconds(3)) // 3 seconds
 
         // Step 5: Try restarting Kanata service
         AppLogger.shared.log(
@@ -192,7 +192,7 @@ final class RecoveryCoordinator {
         do {
             try await killAllKanataProcesses()
             // Small settle to ensure processes exit
-            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            try? await Task.sleep(for: .milliseconds(100)) // 100ms
             AppLogger.shared.log("🛑 [Mappings] Paused by killing Kanata processes")
             return true
         } catch {
@@ -208,7 +208,7 @@ final class RecoveryCoordinator {
         let success = await restartService("Resume after recording")
         if success {
             // Give it a brief moment to come up
-            try? await Task.sleep(nanoseconds: 200_000_000)
+            try? await Task.sleep(for: .milliseconds(200))
             AppLogger.shared.info("🚀 [Mappings] Resumed by restarting service")
         } else {
             AppLogger.shared.warn("⚠️ [Mappings] Failed to resume mappings")

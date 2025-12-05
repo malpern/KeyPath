@@ -66,7 +66,7 @@ struct HomeRowKeyboardView: View {
             // Helper text
             Text("Tap for letter, hold for modifier")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .padding()
         .background(
@@ -108,17 +108,17 @@ struct HomeRowKeyChip: View {
             // Key label
             Text(keyDisplay)
                 .font(.system(size: 18, weight: .medium))
-                .foregroundColor(textColor)
+                .foregroundStyle(textColor)
 
             // Modifier symbol
             if modifier != nil, isEnabled {
                 Text(modifierDisplay)
                     .font(.system(size: 14, weight: .regular))
-                    .foregroundColor(textColor.opacity(0.8))
+                    .foregroundStyle(textColor.opacity(0.8))
             } else if !isEnabled {
                 Text("—")
                     .font(.system(size: 14))
-                    .foregroundColor(.secondary.opacity(0.5))
+                    .foregroundStyle(Color.secondary.opacity(0.5))
             }
         }
         .frame(width: 64, height: 64)
