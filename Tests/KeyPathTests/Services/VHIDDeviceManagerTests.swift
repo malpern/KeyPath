@@ -238,4 +238,102 @@ final class VHIDDeviceManagerTests: XCTestCase {
             "VHIDDeviceManager should use bundled version as single source of truth"
         )
     }
+
+    // MARK: - Version Parsing Edge Cases
+
+    func testHasVersionMismatch_InvalidVersionFormat_ReturnsNoMismatch() {
+        // Invalid version strings should not trigger mismatch (fail-safe)
+        VHIDDeviceManager.testInstalledVersionProvider = { "abc" }
+        let mgr = VHIDDeviceManager()
+        XCTAssertFalse(mgr.hasVersionMismatch(), "Invalid version 'abc' should not trigger mismatch")
+    }
+
+    func testHasVersionMismatch_EmptyVersion_ReturnsNoMismatch() {
+        VHIDDeviceManager.testInstalledVersionProvider = { "" }
+        let mgr = VHIDDeviceManager()
+        XCTAssertFalse(mgr.hasVersionMismatch(), "Empty version should not trigger mismatch")
+    }
+
+    func testHasVersionMismatch_PartialVersion_ReturnsNoMismatch() {
+        // Version without patch component
+        VHIDDeviceManager.testInstalledVersionProvider = { "6.0" }
+        let mgr = VHIDDeviceManager()
+        // Should parse major as 6 and match required 6
+        XCTAssertFalse(mgr.hasVersionMismatch(), "Partial version '6.0' should match major 6")
+    }
+
+    func testHasVersionMismatch_OldMajorVersions() {
+        // Test older driver versions
+        for oldVersion in ["3.0.0", "4.0.0", "4.2.1"] {
+            VHIDDeviceManager.testInstalledVersionProvider = { oldVersion }
+            let mgr = VHIDDeviceManager()
+            XCTAssertTrue(mgr.hasVersionMismatch(), "v\(oldVersion) should mismatch v6 required")
+        }
+    }
+
+    func testHasVersionMismatch_FutureMajorVersions() {
+        // Test hypothetical future versions - should be incompatible since major differs
+        for futureVersion in ["7.0.0", "8.0.0", "10.0.0"] {
+            VHIDDeviceManager.testInstalledVersionProvider = { futureVersion }
+            let mgr = VHIDDeviceManager()
+            XCTAssertTrue(mgr.hasVersionMismatch(), "v\(futureVersion) should mismatch v6 required (different major)")
+        }
+    }
+
+    func testHasVersionMismatch_V6Variants_AllCompatible() {
+        // Test various v6.x.y versions - all should be compatible
+        for v6Variant in ["6.0.0", "6.0.1", "6.1.0", "6.2.3", "6.99.99"] {
+            VHIDDeviceManager.testInstalledVersionProvider = { v6Variant }
+            let mgr = VHIDDeviceManager()
+            XCTAssertFalse(mgr.hasVersionMismatch(), "v\(v6Variant) should be compatible with v6 required")
+        }
+    }
+
+    func testGetVersionMismatchMessage_NoVersionInstalled_ReturnsNil() {
+        VHIDDeviceManager.testInstalledVersionProvider = { nil }
+        let mgr = VHIDDeviceManager()
+        XCTAssertNil(mgr.getVersionMismatchMessage(), "No driver installed should return nil message")
+    }
+
+    func testGetVersionMismatchMessage_InvalidVersion_ReturnsNil() {
+        VHIDDeviceManager.testInstalledVersionProvider = { "invalid" }
+        let mgr = VHIDDeviceManager()
+        XCTAssertNil(mgr.getVersionMismatchMessage(), "Invalid version should return nil message")
+    }
+
+    func testGetVersionMismatchMessage_ContainsActionableInfo() {
+        VHIDDeviceManager.testInstalledVersionProvider = { "5.0.0" }
+        let mgr = VHIDDeviceManager()
+        let message = mgr.getVersionMismatchMessage()
+        XCTAssertNotNil(message)
+        // Message should explain the issue and mention KeyPath will fix it
+        XCTAssertTrue(message?.contains("KeyPath will install") ?? false, "Message should mention KeyPath will fix")
+        XCTAssertTrue(message?.contains("Kanata") ?? false, "Message should mention Kanata")
+    }
+
+    // MARK: - Detection Method Tests
+
+    func testDetectInstallation_ReturnsBasedOnFileExistence() {
+        // This test verifies the method exists and returns a bool
+        // Actual file check depends on system state
+        let mgr = VHIDDeviceManager()
+        _ = mgr.detectInstallation() // Should not crash
+    }
+
+    func testDetectActivation_ReturnsBasedOnDaemonExistence() {
+        let mgr = VHIDDeviceManager()
+        _ = mgr.detectActivation() // Should not crash
+    }
+
+    func testGetInstalledVersion_UsesTestSeam() {
+        VHIDDeviceManager.testInstalledVersionProvider = { "6.0.0" }
+        let mgr = VHIDDeviceManager()
+        XCTAssertEqual(mgr.getInstalledVersion(), "6.0.0")
+    }
+
+    func testGetInstalledVersion_NilWhenNoProvider() {
+        VHIDDeviceManager.testInstalledVersionProvider = { nil }
+        let mgr = VHIDDeviceManager()
+        XCTAssertNil(mgr.getInstalledVersion())
+    }
 }
