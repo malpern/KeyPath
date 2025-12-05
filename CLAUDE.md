@@ -9,6 +9,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This skill combines Paul Hudson's anti-patterns with Pete Steinmeyer's modern SwiftUI architecture guidance. Use it for code reviews, new features, and Phase 2-5 refactoring work.
 
+## Kanata Configuration
+
+**Reference for writing valid Kanata configs:**
+@~/.claude/skills/kanata-config/SKILL.md
+
+Use this skill when generating or editing `.kbd` files, creating rules, or working with Kanata syntax (defalias, deflayer, tap-hold, etc.). Always validate configs with `kanata --check` before deploying.
+
 ## ⚠️ CURRENT SESSION STATUS
 
 **LATEST WORK:** Strangler Fig Façade Migration Complete (November 24, 2025)
