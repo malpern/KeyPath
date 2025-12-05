@@ -546,11 +546,10 @@ struct StatusSettingsTabView: View {
            context.components.launchDaemonServicesHealthy || context.services.karabinerDaemonRunning,
            refreshRetryScheduled == false {
             refreshRetryScheduled = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                Task {
-                    refreshRetryScheduled = false
-                    await refreshStatus()
-                }
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1))
+                refreshRetryScheduled = false
+                await refreshStatus()
             }
         }
     }

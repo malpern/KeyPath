@@ -79,7 +79,8 @@ struct ExpandableCollectionRow: View {
                     // Auto-scroll to show expanded content
                     if isExpanded, let id = scrollID, let proxy = scrollProxy {
                         // Delay slightly to allow expansion animation to begin
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        Task { @MainActor in
+                            try? await Task.sleep(for: .milliseconds(100))
                             withAnimation(.easeInOut(duration: 0.3)) {
                                 proxy.scrollTo(id, anchor: .top)
                             }

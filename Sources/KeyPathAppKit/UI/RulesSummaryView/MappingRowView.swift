@@ -103,6 +103,7 @@ struct MappingRowView: View {
                                         .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityLabel("Edit mapping")
                             }
 
                             if let onDelete = onDeleteMapping {
@@ -116,6 +117,7 @@ struct MappingRowView: View {
                                         .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityLabel("Delete mapping")
                             }
 
                             // Spacer for alignment

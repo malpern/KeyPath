@@ -79,7 +79,8 @@ struct SettingsContainerView: View {
         .onReceive(NotificationCenter.default.publisher(for: .showDiagnostics)) { _ in
             selection = .advanced
             // Post another notification to switch to errors tab within advanced settings
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(100))
                 NotificationCenter.default.post(name: .showErrorsTab, object: nil)
             }
         }

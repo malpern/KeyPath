@@ -232,7 +232,7 @@ actor KanataTCPClient {
 
             // Timeout task (use the configured timeout value)
             group.addTask {
-                try await Task.sleep(nanoseconds: UInt64(self.timeout * 1_000_000_000))
+                try await Task.sleep(for: .seconds(self.timeout))
                 newConnection.cancel() // Cancel the connection on timeout
                 throw KeyPathError.communication(.timeout)
             }
@@ -589,7 +589,7 @@ actor KanataTCPClient {
                 }
 
                 group.addTask {
-                    try await Task.sleep(nanoseconds: UInt64(timeoutMs + 1000) * 1_000_000)
+                    try await Task.sleep(for: .milliseconds(Int(timeoutMs + 1000)))
                     throw KeyPathError.communication(.timeout)
                 }
 
@@ -622,7 +622,7 @@ actor KanataTCPClient {
                 }
 
                 group.addTask {
-                    try await Task.sleep(nanoseconds: UInt64(timeoutMs + 1000) * 1_000_000)
+                    try await Task.sleep(for: .milliseconds(Int(timeoutMs + 1000)))
                     throw KeyPathError.communication(.timeout)
                 }
 
@@ -788,7 +788,7 @@ actor KanataTCPClient {
 
             // Timeout task
             group.addTask {
-                try await Task.sleep(nanoseconds: UInt64(self.timeout * 1_000_000_000))
+                try await Task.sleep(for: .seconds(self.timeout))
                 throw KeyPathError.communication(.timeout)
             }
 

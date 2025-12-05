@@ -43,6 +43,9 @@ final class ConfigHotReloadService {
     private var configurationService: ConfigurationService?
     private var reloadHandler: (() async -> Bool)?
     private var configParser: ((String) throws -> [KeyMapping])?
+    var serviceHealthProvider: @Sendable () async -> KanataHealthSnapshot = {
+        await InstallerEngine().checkKanataServiceHealth()
+    }
 
     /// UI feedback callbacks
     var callbacks = Callbacks()
@@ -161,8 +164,8 @@ final class ConfigHotReloadService {
             // Also check if Kanata process is actually running - if service is "active" but
             // process isn't running yet, we shouldn't show an error.
             // IMPORTANT: Run this off MainActor to avoid blocking UI - InstallerEngine spawns subprocesses.
-            let isProcessRunning = await Task.detached {
-                await InstallerEngine().checkKanataServiceHealth().isRunning
+            let isProcessRunning = await Task.detached { [serviceHealthProvider] in
+                await serviceHealthProvider().isRunning
             }.value
 
             if smState == .smappservicePending || smState.needsInstallation || !isProcessRunning {
