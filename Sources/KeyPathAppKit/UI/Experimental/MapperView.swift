@@ -117,8 +117,10 @@ struct MapperView: View {
                 // System action picker menu
                 Menu {
                     ForEach(SystemActionInfo.allActions) { action in
-                        Button(action.name) {
+                        Button {
                             viewModel.selectSystemAction(action)
+                        } label: {
+                            Label(action.name, systemImage: action.sfSymbol)
                         }
                     }
                 } label: {
@@ -170,7 +172,7 @@ struct MapperView: View {
                 isRecordingInput: viewModel.isRecordingInput,
                 isRecordingOutput: viewModel.isRecordingOutput,
                 outputAppInfo: viewModel.selectedApp,
-                outputSFSymbol: viewModel.outputSFSymbol,
+                outputSystemActionInfo: viewModel.selectedSystemAction,
                 onInputTap: { viewModel.toggleInputRecording() },
                 onOutputTap: { viewModel.toggleOutputRecording() }
             )
@@ -255,7 +257,7 @@ private struct MapperKeycapPair: View {
     let isRecordingInput: Bool
     let isRecordingOutput: Bool
     var outputAppInfo: AppLaunchInfo?
-    var outputSFSymbol: String?
+    var outputSystemActionInfo: SystemActionInfo?
     let onInputTap: () -> Void
     let onOutputTap: () -> Void
 
@@ -267,11 +269,18 @@ private struct MapperKeycapPair: View {
 
     /// Whether to use vertical (stacked) layout
     private var shouldStack: Bool {
-        // Don't stack for app icons
-        if outputAppInfo != nil { return false }
+        // Don't stack for app icons or system actions
+        if outputAppInfo != nil || outputSystemActionInfo != nil { return false }
         // Don't stack when input has keyCode (fixed-size overlay-style keycap)
         if inputKeyCode != nil { return false }
         return inputLabel.count > verticalThreshold || outputLabel.count > verticalThreshold
+    }
+
+    /// Label for the output keycap
+    private var outputTypeLabel: String {
+        if outputAppInfo != nil { return "Launch" }
+        if outputSystemActionInfo != nil { return "Action" }
+        return "Output"
     }
 
     var body: some View {
@@ -320,10 +329,10 @@ private struct MapperKeycapPair: View {
                     isRecording: isRecordingOutput,
                     maxWidth: maxWidth,
                     appInfo: outputAppInfo,
-                    sfSymbol: outputSFSymbol,
+                    systemActionInfo: outputSystemActionInfo,
                     onTap: onOutputTap
                 )
-                Text(outputAppInfo != nil ? "Launch" : "Output")
+                Text(outputTypeLabel)
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -361,11 +370,11 @@ private struct MapperKeycapPair: View {
                     isRecording: isRecordingOutput,
                     maxWidth: maxWidth,
                     appInfo: outputAppInfo,
-                    sfSymbol: outputSFSymbol,
+                    systemActionInfo: outputSystemActionInfo,
                     onTap: onOutputTap
                 )
 
-                Text(outputAppInfo != nil ? "Launch" : "Output")
+                Text(outputTypeLabel)
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -378,13 +387,13 @@ private struct MapperKeycapPair: View {
 /// Large (2x scale) keycap styled like the overlay keyboard.
 /// Click to start/stop recording key input. Width grows to fit content up to maxWidth,
 /// then text wraps to multiple lines up to maxHeight, then text shrinks to fit.
-/// Can also display an app icon + name for launch actions.
+/// Can also display an app icon + name for launch actions, or SF Symbol for system actions.
 struct MapperKeycapView: View {
     let label: String
     let isRecording: Bool
     var maxWidth: CGFloat = .infinity
     var appInfo: AppLaunchInfo?
-    var sfSymbol: String? // SF Symbol icon for system actions
+    var systemActionInfo: SystemActionInfo?
     let onTap: () -> Void
 
     @State private var isHovered = false
@@ -396,7 +405,8 @@ struct MapperKeycapView: View {
     private let maxHeightMultiplier: CGFloat = 1.5 // Max height is 1.5x base (150pt)
     private let horizontalPadding: CGFloat = 20 // Padding for text
     private let verticalPadding: CGFloat = 14 // Padding top/bottom
-    private let baseFontSize: CGFloat = 32 // Match MapperInputKeycap (32pt)
+    private let baseFontSize: CGFloat = 36 // Base font size for text
+    private let outputFontSize: CGFloat = 42 // Emphasized size for output content (icons, letters, actions)
     private let minFontSize: CGFloat = 12 // Minimum font size when shrinking
     private let cornerRadius: CGFloat = 10 // Match MapperInputKeycap
 
@@ -410,29 +420,39 @@ struct MapperKeycapView: View {
         baseWidth
     }
 
-    /// Dynamic font size - starts at 32pt, shrinks for long content
+    /// Calculate font size - shrinks if content won't fit in max height (for input keycaps)
     private var dynamicFontSize: CGFloat {
-        guard maxWidth < .infinity else { return baseFontSize }
+        dynamicFontSizeFor(baseFontSize)
+    }
+
+    /// Calculate output font size - shrinks if content won't fit (for output keycaps)
+    private var dynamicOutputFontSize: CGFloat {
+        dynamicFontSizeFor(outputFontSize)
+    }
+
+    /// Calculate dynamic font size based on a given base size
+    private func dynamicFontSizeFor(_ baseSize: CGFloat) -> CGFloat {
+        guard maxWidth < .infinity else { return baseSize }
 
         // Calculate how many lines we'd need at base font size
         let availableTextWidth = maxWidth - horizontalPadding * 2
-        let charWidth: CGFloat = baseFontSize * 0.6
+        let charWidth: CGFloat = baseSize * 0.6
         let contentWidth = CGFloat(label.count) * charWidth
         let linesNeeded = ceil(contentWidth / availableTextWidth)
 
         // Calculate height needed at base font size
-        let lineHeight: CGFloat = baseFontSize * 1.3
+        let lineHeight: CGFloat = baseSize * 1.3
         let heightNeeded = linesNeeded * lineHeight + verticalPadding * 2
 
         // If it fits in max height, use base font size
         if heightNeeded <= maxHeight {
-            return baseFontSize
+            return baseSize
         }
 
         // Otherwise, calculate what font size would fit
         let availableTextHeight = maxHeight - verticalPadding * 2
         let scaleFactor = availableTextHeight / (linesNeeded * lineHeight)
-        let newFontSize = baseFontSize * scaleFactor
+        let newFontSize = baseSize * scaleFactor
 
         return max(minFontSize, newFontSize)
     }
@@ -463,14 +483,15 @@ struct MapperKeycapView: View {
                         .stroke(borderColor, lineWidth: isRecording ? 2 : 1)
                 )
 
-            // Content: app icon + name, SF Symbol icon, or key label
+            // Content: app icon + name, system action SF Symbol, or key label
+            // All output types use outputFontSize for consistent emphasis
             if let app = appInfo {
                 // App launch mode: show icon + name
                 VStack(spacing: 6) {
                     Image(nsImage: app.icon)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 48, height: 48)
+                        .frame(width: outputFontSize * 1.3, height: outputFontSize * 1.3) // Scale with outputFontSize
                         .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
 
                     Text(app.name)
@@ -480,22 +501,20 @@ struct MapperKeycapView: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-            } else if let symbol = sfSymbol {
-                // System action mode: show SF Symbol icon (match input keycap size)
-                Image(systemName: symbol)
-                    .font(.system(size: 24, weight: .regular)) // Match MapperInputKeycap function key size
+            } else if let systemAction = systemActionInfo {
+                // System action mode: show SF Symbol
+                Image(systemName: systemAction.sfSymbol)
+                    .font(.system(size: outputFontSize, weight: .medium))
                     .foregroundStyle(foregroundColor)
-                    .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity) // Center in available space
             } else {
                 // Key label - wraps to multiple lines, shrinks if needed
                 // Match INPUT keycap sizing for symbols
                 Text(label)
-                    .font(.system(size: label.count <= 2 ? 24 : dynamicFontSize, weight: .medium))
+                    .font(.system(size: dynamicOutputFontSize, weight: .medium))
                     .foregroundStyle(foregroundColor)
                     .multilineTextAlignment(.center)
                     .lineSpacing(2)
-                    .minimumScaleFactor(minFontSize / baseFontSize)
+                    .minimumScaleFactor(minFontSize / outputFontSize)
                     .padding(.horizontal, horizontalPadding)
                     .padding(.vertical, verticalPadding / 2)
             }
@@ -888,28 +907,77 @@ struct AppLaunchInfo: Equatable {
     }
 }
 
-/// Info about a selected system action
+/// Info about a selected system action or media key
 struct SystemActionInfo: Equatable, Identifiable {
-    let id: String // The action identifier (e.g., "dnd", "spotlight")
+    let id: String // The action identifier (e.g., "dnd", "spotlight", "pp" for play/pause)
     let name: String // Human-readable name
     let sfSymbol: String // SF Symbol icon name
+    /// If non-nil, this is a direct keycode output (e.g., "pp", "prev", "next")
+    /// If nil, this is a push-msg system action
+    let kanataKeycode: String?
+    /// Canonical name returned by kanata simulator (e.g., "MediaTrackPrevious", "MediaPlayPause")
+    let simulatorName: String?
 
-    /// The kanata output string for this system action
-    var kanataOutput: String {
-        "(push-msg \"system:\(id)\")"
+    init(id: String, name: String, sfSymbol: String, kanataKeycode: String? = nil, simulatorName: String? = nil) {
+        self.id = id
+        self.name = name
+        self.sfSymbol = sfSymbol
+        self.kanataKeycode = kanataKeycode
+        self.simulatorName = simulatorName
     }
 
-    /// All available system actions
-    /// Uses non-.fill SF Symbol variants to match input keycap rendering for visual consistency
+    /// The kanata output string for this action
+    var kanataOutput: String {
+        if let keycode = kanataKeycode {
+            return keycode
+        }
+        return "(push-msg \"system:\(id)\")"
+    }
+
+    /// Whether this is a media key (direct keycode) vs push-msg action
+    var isMediaKey: Bool {
+        kanataKeycode != nil
+    }
+
+    /// All available system actions and media keys
+    /// SF Symbols match macOS function key icons (non-filled variants)
     static let allActions: [SystemActionInfo] = [
+        // Push-msg system actions
         SystemActionInfo(id: "spotlight", name: "Spotlight", sfSymbol: "magnifyingglass"),
         SystemActionInfo(id: "mission-control", name: "Mission Control", sfSymbol: "rectangle.3.group"),
         SystemActionInfo(id: "launchpad", name: "Launchpad", sfSymbol: "square.grid.3x3"),
         SystemActionInfo(id: "dnd", name: "Do Not Disturb", sfSymbol: "moon"),
         SystemActionInfo(id: "notification-center", name: "Notification Center", sfSymbol: "bell"),
         SystemActionInfo(id: "dictation", name: "Dictation", sfSymbol: "mic"),
-        SystemActionInfo(id: "siri", name: "Siri", sfSymbol: "waveform.circle")
+        SystemActionInfo(id: "siri", name: "Siri", sfSymbol: "waveform.circle"),
+        // Media keys (direct keycodes)
+        // simulatorName is the canonical name returned by kanata simulator (from keyberon KeyCode enum)
+        SystemActionInfo(id: "play-pause", name: "Play/Pause", sfSymbol: "playpause", kanataKeycode: "pp", simulatorName: "MediaPlayPause"),
+        SystemActionInfo(id: "next-track", name: "Next Track", sfSymbol: "forward", kanataKeycode: "next", simulatorName: "MediaNextSong"),
+        SystemActionInfo(id: "prev-track", name: "Previous Track", sfSymbol: "backward", kanataKeycode: "prev", simulatorName: "MediaPreviousSong"),
+        SystemActionInfo(id: "mute", name: "Mute", sfSymbol: "speaker.slash", kanataKeycode: "mute", simulatorName: "Mute"),
+        SystemActionInfo(id: "volume-up", name: "Volume Up", sfSymbol: "speaker.wave.3", kanataKeycode: "volu", simulatorName: "VolUp"),
+        SystemActionInfo(id: "volume-down", name: "Volume Down", sfSymbol: "speaker.wave.1", kanataKeycode: "voldwn", simulatorName: "VolDown"),
+        SystemActionInfo(id: "brightness-up", name: "Brightness Up", sfSymbol: "sun.max", kanataKeycode: "brup", simulatorName: "BrightnessUp"),
+        SystemActionInfo(id: "brightness-down", name: "Brightness Down", sfSymbol: "sun.min", kanataKeycode: "brdown", simulatorName: "BrightnessDown")
     ]
+
+    /// Look up a SystemActionInfo by its kanata output (keycode, display name, or simulator name)
+    static func find(byOutput output: String) -> SystemActionInfo? {
+        // Check by name first (for display labels from overlay)
+        if let action = allActions.first(where: { $0.name == output }) {
+            return action
+        }
+        // Check by kanata keycode (for direct key outputs like "pp", "next")
+        if let action = allActions.first(where: { $0.kanataKeycode == output }) {
+            return action
+        }
+        // Check by simulator canonical name (e.g., "MediaTrackPrevious", "MediaPlayPause")
+        if let action = allActions.first(where: { $0.simulatorName == output }) {
+            return action
+        }
+        return nil
+    }
 }
 
 @MainActor
@@ -948,87 +1016,18 @@ class MapperViewModel: ObservableObject {
     /// Original layer from overlay click
     private var originalLayer: String?
 
+    /// State saved before starting output recording (for restore on cancel)
+    private var savedOutputLabel: String?
+    private var savedOutputSequence: KeySequence?
+    private var savedSelectedApp: AppLaunchInfo?
+    private var savedSelectedSystemAction: SystemActionInfo?
+
     /// Delay before finalizing a sequence capture (allows for multi-key sequences)
     private let sequenceFinalizeDelay: TimeInterval = 0.8
 
     var canSave: Bool {
         inputSequence != nil && (outputSequence != nil || selectedApp != nil || selectedSystemAction != nil || selectedURL != nil)
     }
-
-    /// SF Symbol for the selected system action (if any)
-    var outputSFSymbol: String? {
-        // Check if a system action is selected
-        if let action = selectedSystemAction {
-            return action.sfSymbol
-        }
-
-        // Check if output sequence contains a media key or function key
-        if let sequence = outputSequence,
-           let firstKey = sequence.keys.first?.baseKey.uppercased() {
-            // Debug: log the key name to help with mapping
-            AppLogger.shared.log("🔍 [MapperViewModel] Looking up SF Symbol for key: '\(firstKey)'")
-            if let symbol = Self.mediaKeySymbols[firstKey] {
-                AppLogger.shared.log("✅ [MapperViewModel] Found SF Symbol: \(symbol)")
-                return symbol
-            } else {
-                AppLogger.shared.log("❌ [MapperViewModel] No SF Symbol mapping for: '\(firstKey)'")
-            }
-        }
-
-        return nil
-    }
-
-    /// Mapping of media keys and function keys to SF Symbol icons
-    /// Uses non-.fill variants to match input keycap rendering for visual consistency
-    private static let mediaKeySymbols: [String: String] = [
-        // Media controls (match function keys F7-F9)
-        "PREVIOUSSONG": "backward",
-        "MEDIAPREVIOUSSONG": "backward",
-        "PREVIOUSTRACK": "backward",
-        "NEXTSONG": "forward",
-        "MEDIANEXTSONG": "forward",
-        "NEXTTRACK": "forward",
-        "PLAYPAUSE": "playpause",
-        "MEDIAPLAYPAUSE": "playpause",
-        "PLAY": "play",
-        "PAUSE": "pause",
-        "STOP": "stop",
-
-        // Volume (match function keys F10-F12)
-        "MUTE": "speaker.slash",
-        "VOLUMEUP": "speaker.wave.3",
-        "VOLUMEDOWN": "speaker.wave.1",
-        "VOLUP": "speaker.wave.3",
-        "VOLDWN": "speaker.wave.1",
-        "VOLDOWN": "speaker.wave.1",
-
-        // Brightness (match function keys F1-F2)
-        "BRIGHTNESSUP": "sun.max",
-        "BRIGHTNESSDOWN": "sun.min",
-        "BRUP": "sun.max",
-        "BRDWN": "sun.min",
-        "BRDOWN": "sun.min",
-
-        // Mission Control / Exposé (match function key F3-F4)
-        "MISSIONCONTROL": "rectangle.3.group",
-        "EXPOSE": "rectangle.3.group",
-        "LAUNCHPAD": "square.grid.3x3",
-
-        // Spotlight & Dictation (match function keys F4-F5)
-        "SPOTLIGHT": "magnifyingglass",
-        "DICTATION": "mic",
-
-        // Keyboard backlight
-        "KBDILLUMUP": "light.max",
-        "KBDILLUMDOWN": "light.min",
-        "KBDILLUMTOGGLE": "lightbulb",
-
-        // Function/Globe key
-        "FN": "globe",
-        "FUNCTION": "globe",
-        "K4": "globe", // Kanata representation
-        "64": "globe" // Key code
-    ]
 
     func configure(kanataManager: RuntimeCoordinator) {
         self.kanataManager = kanataManager
@@ -1052,16 +1051,16 @@ class MapperViewModel: ObservableObject {
 
         // Clear any previously saved rule ID since we're starting fresh
         lastSavedRuleID = nil
+        selectedApp = nil
+        selectedSystemAction = nil
 
         // Set the layer
         if let layer {
             currentLayer = layer
         }
 
-        // Set the labels (display-friendly versions)
+        // Set the input label and sequence
         inputLabel = formatKeyForDisplay(input)
-        outputLabel = formatKeyForDisplay(output)
-
         // Create simple key sequences for the presets
         // Use provided keyCode if available (from overlay), otherwise 0 as placeholder
         let keyCodeToUse = inputKeyCode ?? 0
@@ -1069,10 +1068,22 @@ class MapperViewModel: ObservableObject {
             keys: [KeyPress(baseKey: input, modifiers: [], keyCode: Int64(keyCodeToUse))],
             captureMode: .single
         )
-        outputSequence = KeySequence(
-            keys: [KeyPress(baseKey: output, modifiers: [], keyCode: 0)],
-            captureMode: .single
-        )
+
+        // Check if output is a system action or media key
+        if let systemAction = SystemActionInfo.find(byOutput: output) {
+            // It's a system action/media key - set selectedSystemAction for SF Symbol rendering
+            selectedSystemAction = systemAction
+            outputLabel = systemAction.name
+            outputSequence = nil
+            AppLogger.shared.log("🗺️ [MapperViewModel] Preset output is system action: \(systemAction.name)")
+        } else {
+            // Regular key mapping
+            outputLabel = formatKeyForDisplay(output)
+            outputSequence = KeySequence(
+                keys: [KeyPress(baseKey: output, modifiers: [], keyCode: 0)],
+                captureMode: .single
+            )
+        }
 
         // Store the keyCode for proper keycap rendering
         if let inputKeyCode {
@@ -1180,9 +1191,18 @@ class MapperViewModel: ObservableObject {
     }
 
     private func startOutputRecording() {
+        // Save current output state before recording (for restore on cancel)
+        savedOutputLabel = outputLabel
+        savedOutputSequence = outputSequence
+        savedSelectedApp = selectedApp
+        savedSelectedSystemAction = selectedSystemAction
+
         isRecordingOutput = true
         outputSequence = nil
         outputLabel = "..."
+        // Clear system action/app so keycap shows recording state
+        selectedSystemAction = nil
+        selectedApp = nil
         statusMessage = "Press keys (sequence supported)"
         statusIsError = false
         startCapture(isInput: false)
@@ -1211,7 +1231,11 @@ class MapperViewModel: ObservableObject {
                     self.inputLabel = sequence.displayString
                     // Store first key's keyCode for overlay-style rendering
                     if let firstKey = sequence.keys.first {
-                        self.inputKeyCode = UInt16(firstKey.keyCode)
+                        let keyCode = UInt16(firstKey.keyCode)
+                        self.inputKeyCode = keyCode
+
+                        // Look up current mapping for this key and update output
+                        self.lookupAndSetOutput(forKeyCode: keyCode)
                     }
                 } else {
                     self.outputSequence = sequence
@@ -1229,6 +1253,50 @@ class MapperViewModel: ObservableObject {
                     }
                 }
             }
+        }
+    }
+
+    /// Look up the current output for a key code from the overlay's layer map
+    private func lookupAndSetOutput(forKeyCode keyCode: UInt16) {
+        // Clear any selected app/system action since we're switching keys
+        selectedApp = nil
+        selectedSystemAction = nil
+
+        // Look up the current mapping from the overlay controller
+        if let mapping = LiveKeyboardOverlayController.shared.lookupCurrentMapping(forKeyCode: keyCode) {
+            // Check if this is a system action or media key
+            if let systemAction = SystemActionInfo.find(byOutput: mapping.output) {
+                // It's a system action/media key - set selectedSystemAction for SF Symbol rendering
+                selectedSystemAction = systemAction
+                outputLabel = systemAction.name
+                outputSequence = nil
+                AppLogger.shared.log("🔍 [MapperViewModel] Key \(keyCode) is system action: \(systemAction.name)")
+            } else {
+                // Regular key mapping
+                outputLabel = formatKeyForDisplay(mapping.output)
+                outputSequence = KeySequence(
+                    keys: [KeyPress(baseKey: mapping.output, modifiers: [], keyCode: 0)],
+                    captureMode: .single
+                )
+            }
+
+            // Store original context for reset
+            originalInputKey = mapping.inputKey
+            originalOutputKey = mapping.output
+            originalLayer = LiveKeyboardOverlayController.shared.currentLayerName
+            currentLayer = originalLayer ?? "base"
+
+            AppLogger.shared.log("🔍 [MapperViewModel] Key \(keyCode) maps to: \(mapping.output) in layer \(currentLayer)")
+        } else {
+            // No mapping found - default to key maps to itself
+            let inputKey = OverlayKeyboardView.keyCodeToKanataName(keyCode)
+            outputLabel = formatKeyForDisplay(inputKey)
+            outputSequence = KeySequence(
+                keys: [KeyPress(baseKey: inputKey, modifiers: [], keyCode: 0)],
+                captureMode: .single
+            )
+            originalInputKey = inputKey
+            originalOutputKey = inputKey
         }
     }
 
@@ -1271,17 +1339,37 @@ class MapperViewModel: ObservableObject {
         finalizeTimer?.invalidate()
         finalizeTimer = nil
         keyboardCapture?.stopCapture()
+
+        let wasRecordingOutput = isRecordingOutput
         isRecordingInput = false
         isRecordingOutput = false
 
-        // If we stopped without capturing anything, restore default label
+        // If we stopped without capturing anything, restore previous state
         if inputSequence == nil {
             inputLabel = "a"
             inputKeyCode = nil
         }
-        if outputSequence == nil {
-            outputLabel = "a"
+
+        // For output: restore saved state if nothing was captured during this recording session
+        if wasRecordingOutput, outputSequence == nil {
+            // Restore previous output state
+            if let savedLabel = savedOutputLabel {
+                outputLabel = savedLabel
+                outputSequence = savedOutputSequence
+                selectedApp = savedSelectedApp
+                selectedSystemAction = savedSelectedSystemAction
+            } else {
+                // No saved state, default to "a"
+                outputLabel = "a"
+            }
         }
+
+        // Clear saved state
+        savedOutputLabel = nil
+        savedOutputSequence = nil
+        savedSelectedApp = nil
+        savedSelectedSystemAction = nil
+
         statusMessage = nil
     }
 
@@ -1375,17 +1463,26 @@ class MapperViewModel: ObservableObject {
 
         // Reset to original key context if opened from overlay, otherwise default
         if let origInput = originalInputKey, let origOutput = originalOutputKey {
-            // Re-apply the original presets (this resets sequences too)
+            // Re-apply the original presets
             inputLabel = formatKeyForDisplay(origInput)
-            outputLabel = formatKeyForDisplay(origOutput)
             inputSequence = KeySequence(
                 keys: [KeyPress(baseKey: origInput, modifiers: [], keyCode: 0)],
                 captureMode: .single
             )
-            outputSequence = KeySequence(
-                keys: [KeyPress(baseKey: origOutput, modifiers: [], keyCode: 0)],
-                captureMode: .single
-            )
+
+            // Check if original output is a system action or media key
+            if let systemAction = SystemActionInfo.find(byOutput: origOutput) {
+                selectedSystemAction = systemAction
+                outputLabel = systemAction.name
+                outputSequence = nil
+            } else {
+                outputLabel = formatKeyForDisplay(origOutput)
+                outputSequence = KeySequence(
+                    keys: [KeyPress(baseKey: origOutput, modifiers: [], keyCode: 0)],
+                    captureMode: .single
+                )
+            }
+
             statusMessage = nil
             AppLogger.shared.log("🧹 [MapperViewModel] Reset to original key: \(origInput) → \(origOutput)")
         } else {
