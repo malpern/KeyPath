@@ -254,7 +254,7 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
         case Action.openAccessibility.rawValue:
             NotificationCenter.default.post(name: .openAccessibilitySettings, object: nil)
         case Action.openApp.rawValue:
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 NSApplication.shared.activate(ignoringOtherApps: true)
             }
         default:

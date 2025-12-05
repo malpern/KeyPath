@@ -274,7 +274,7 @@ final class KarabinerConflictService: KarabinerConflictManaging {
 
     private func requestPermissionToDisableKarabiner() async -> Bool {
         await withCheckedContinuation { continuation in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 if TestEnvironment.isRunningTests {
                     AppLogger.shared.log("🧪 [Karabiner] Auto-consenting in test environment (no NSAlert)")
                     continuation.resume(returning: true)

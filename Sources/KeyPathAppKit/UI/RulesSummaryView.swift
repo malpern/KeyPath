@@ -612,7 +612,6 @@ private struct ExpandableCollectionRow: View {
                     .labelsHidden()
                     .toggleStyle(.switch)
                     .tint(.blue)
-                    .onTapGesture {} // Prevents toggle from triggering row expansion
                 }
                 .padding(12)
                 .contentShape(Rectangle())
@@ -863,103 +862,111 @@ private struct MappingRowView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
-                // Mapping content
+        Button {
+            if let onEdit = onEditMapping {
+                onEdit(mapping.id)
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
-                    // Show layer activator if present
-                    if layerActivator != nil {
-                        HStack(spacing: 4) {
-                            Text("Hold")
-                                .font(.body.monospaced().weight(.semibold))
-                                .foregroundStyle(Color.accentColor)
-                            Text(leaderKeyDisplay)
-                                .font(.body.monospaced().weight(.semibold))
-                                .foregroundStyle(KeycapStyle.textColor)
+                    // Mapping content
+                    HStack(spacing: 8) {
+                        // Show layer activator if present
+                        if layerActivator != nil {
+                            HStack(spacing: 4) {
+                                Text("Hold")
+                                    .font(.body.monospaced().weight(.semibold))
+                                    .foregroundStyle(Color.accentColor)
+                                Text(leaderKeyDisplay)
+                                    .font(.body.monospaced().weight(.semibold))
+                                    .foregroundStyle(KeycapStyle.textColor)
+                            }
+                            .modifier(KeycapStyle())
+
+                            Text("+")
+                                .font(.body)
+                                .foregroundStyle(.secondary)
                         }
-                        .modifier(KeycapStyle())
 
-                        Text("+")
-                            .font(.body)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Text(prettyKeyName(mapping.input))
-                        .font(.body.monospaced().weight(.semibold))
-                        .foregroundStyle(KeycapStyle.textColor)
-                        .modifier(KeycapStyle())
-
-                    Image(systemName: "arrow.right")
-                        .font(.body.weight(.medium))
-                        .foregroundStyle(.secondary)
-
-                    // Show app icon + name for launch actions, otherwise show key chip
-                    if let appId = appLaunchIdentifier {
-                        AppLaunchChip(appIdentifier: appId)
-                    } else {
-                        Text(prettyKeyName(mapping.output))
+                        Text(prettyKeyName(mapping.input))
                             .font(.body.monospaced().weight(.semibold))
                             .foregroundStyle(KeycapStyle.textColor)
                             .modifier(KeycapStyle())
-                    }
 
-                    // Show rule name/title if provided
-                    if let title = mapping.description, !title.isEmpty {
-                        Text(title)
-                            .font(.subheadline)
+                        Image(systemName: "arrow.right")
+                            .font(.body.weight(.medium))
                             .foregroundStyle(.secondary)
-                    }
 
-                    // Behavior summary for custom rules on same line
-                    if let behavior = mapping.behavior {
-                        behaviorSummaryView(behavior: behavior)
-                    }
-
-                    Spacer(minLength: 0)
-                }
-
-                Spacer()
-
-                // Action buttons - subtle icons that appear on hover
-                if onEditMapping != nil || onDeleteMapping != nil {
-                    HStack(spacing: 4) {
-                        if let onEdit = onEditMapping {
-                            Button {
-                                onEdit(mapping.id)
-                            } label: {
-                                Image(systemName: "pencil")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundStyle(Color.secondary.opacity(isHovered ? 1 : 0.5))
-                                    .frame(width: 28, height: 28)
-                                    .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
+                        // Show app icon + name for launch actions, otherwise show key chip
+                        if let appId = appLaunchIdentifier {
+                            AppLaunchChip(appIdentifier: appId)
+                        } else {
+                            Text(prettyKeyName(mapping.output))
+                                .font(.body.monospaced().weight(.semibold))
+                                .foregroundStyle(KeycapStyle.textColor)
+                                .modifier(KeycapStyle())
                         }
 
-                        if let onDelete = onDeleteMapping {
-                            Button {
-                                onDelete(mapping.id)
-                            } label: {
-                                Image(systemName: "trash")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundStyle(Color.secondary.opacity(isHovered ? 1 : 0.5))
-                                    .frame(width: 28, height: 28)
-                                    .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
+                        // Show rule name/title if provided
+                        if let title = mapping.description, !title.isEmpty {
+                            Text(title)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
                         }
 
-                        // Spacer for alignment
-                        Spacer()
-                            .frame(width: 0)
+                        // Behavior summary for custom rules on same line
+                        if let behavior = mapping.behavior {
+                            behaviorSummaryView(behavior: behavior)
+                        }
+
+                        Spacer(minLength: 0)
+                    }
+
+                    Spacer()
+
+                    // Action buttons - subtle icons that appear on hover
+                    if onEditMapping != nil || onDeleteMapping != nil {
+                        HStack(spacing: 4) {
+                            if let onEdit = onEditMapping {
+                                Button {
+                                    onEdit(mapping.id)
+                                } label: {
+                                    Image(systemName: "pencil")
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundStyle(Color.secondary.opacity(isHovered ? 1 : 0.5))
+                                        .frame(width: 28, height: 28)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            }
+
+                            if let onDelete = onDeleteMapping {
+                                Button {
+                                    onDelete(mapping.id)
+                                } label: {
+                                    Image(systemName: "trash")
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundStyle(Color.secondary.opacity(isHovered ? 1 : 0.5))
+                                        .frame(width: 28, height: 28)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            }
+
+                            // Spacer for alignment
+                            Spacer()
+                                .frame(width: 0)
+                        }
                     }
                 }
             }
+            .padding(.leading, 48)
+            .padding(.trailing, 12)
+            .padding(.vertical, 4)
+            .padding(.horizontal, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.leading, 48)
-        .padding(.trailing, 12)
-        .padding(.vertical, 4)
-        .padding(.horizontal, 8)
+        .buttonStyle(.plain)
         .background(
             RoundedRectangle(cornerRadius: 8)
                 .fill(isHovered && isEditable ? Color.primary.opacity(0.03) : Color.clear)
@@ -973,11 +980,6 @@ private struct MappingRowView: View {
                 } else {
                     NSCursor.pop()
                 }
-            }
-        }
-        .onTapGesture {
-            if let onEdit = onEditMapping {
-                onEdit(mapping.id)
             }
         }
     }

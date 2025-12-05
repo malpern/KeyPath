@@ -341,6 +341,7 @@ struct InputChipView: View {
                 .buttonStyle(.plain)
                 .offset(x: 6, y: -6)
                 .transition(.scale.combined(with: .opacity))
+                .accessibilityLabel("Delete")
             }
         }
     }

@@ -365,8 +365,9 @@ public final class ActionDispatcher {
             // This is tricky - dictation trigger varies by macOS settings
             // Try opening the Dictation preference pane or simulate double-Fn
             simulateKeyboardShortcut(keyCode: 63, modifiers: []) // Fn key
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                self.simulateKeyboardShortcut(keyCode: 63, modifiers: [])
+            Task { @MainActor in
+                try await Task.sleep(for: .milliseconds(100))
+                simulateKeyboardShortcut(keyCode: 63, modifiers: [])
             }
             return .success
 

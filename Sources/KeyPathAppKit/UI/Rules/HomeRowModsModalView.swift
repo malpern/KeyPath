@@ -38,6 +38,7 @@ struct HomeRowModsModalView: View {
                         .font(.title3)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Close")
             }
             .padding()
 

@@ -180,34 +180,38 @@ struct CustomRuleEditorView: View {
                     } else {
                         HStack(spacing: 4) {
                             if !description.isEmpty {
-                                Text(description)
-                                    .font(.body.italic())
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(2)
-                                    .onTapGesture {
-                                        isEditingDescription = true
+                                Button {
+                                    isEditingDescription = true
+                                } label: {
+                                    Text(description)
+                                        .font(.body.italic())
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(2)
+                                }
+                                .buttonStyle(.plain)
+                                .onHover { hovering in
+                                    if hovering {
+                                        NSCursor.iBeam.push()
+                                    } else {
+                                        NSCursor.pop()
                                     }
-                                    .onHover { hovering in
-                                        if hovering {
-                                            NSCursor.iBeam.push()
-                                        } else {
-                                            NSCursor.pop()
-                                        }
-                                    }
+                                }
                             } else {
-                                Text("Description")
-                                    .font(.body.italic())
-                                    .foregroundStyle(Color.secondary.opacity(0.6))
-                                    .onTapGesture {
-                                        isEditingDescription = true
+                                Button {
+                                    isEditingDescription = true
+                                } label: {
+                                    Text("Description")
+                                        .font(.body.italic())
+                                        .foregroundStyle(Color.secondary.opacity(0.6))
+                                }
+                                .buttonStyle(.plain)
+                                .onHover { hovering in
+                                    if hovering {
+                                        NSCursor.iBeam.push()
+                                    } else {
+                                        NSCursor.pop()
                                     }
-                                    .onHover { hovering in
-                                        if hovering {
-                                            NSCursor.iBeam.push()
-                                        } else {
-                                            NSCursor.pop()
-                                        }
-                                    }
+                                }
                             }
                         }
                         .frame(maxWidth: 200)
@@ -459,12 +463,6 @@ struct CustomRuleEditorView: View {
                             lineWidth: isRecording.wrappedValue ? 2 : 1
                         )
                 )
-                .onTapGesture {
-                    if !isRecording.wrappedValue, !anyOtherRecording(except: isRecording) {
-                        isRecording.wrappedValue = true
-                        startKeyCapture(into: key, isRecording: isRecording)
-                    }
-                }
 
                 // Record button
                 Button {
@@ -509,12 +507,14 @@ struct CustomRuleEditorView: View {
                     .toggleStyle(.switch)
                     .labelsHidden()
 
-                Text("Hold, Double Tap, etc.")
-                    .font(.body)
-                    .foregroundStyle(.primary)
-                    .onTapGesture {
-                        showAdvanced.toggle()
-                    }
+                Button {
+                    showAdvanced.toggle()
+                } label: {
+                    Text("Hold, Double Tap, etc.")
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                }
+                .buttonStyle(.plain)
 
                 Spacer()
             }
@@ -891,16 +891,6 @@ struct CustomRuleEditorView: View {
                         lineWidth: isRecording.wrappedValue ? 2 : 1
                     )
             )
-            .onTapGesture {
-                if !isRecording.wrappedValue, !anyOtherRecording(except: isRecording) {
-                    // Check if we should show conflict dialog
-                    if let check = onAttemptRecord, !check() {
-                        return // Blocked by conflict
-                    }
-                    isRecording.wrappedValue = true
-                    startKeyCapture(into: key, isRecording: isRecording)
-                }
-            }
 
             // Record button
             Button {

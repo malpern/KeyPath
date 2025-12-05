@@ -53,6 +53,11 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
 
     /// All home row keys
     public static let allKeys = leftHandKeys + rightHandKeys
+
+    /// Validate that the configuration is valid
+    public func isValid() -> Bool {
+        !enabledKeys.isEmpty && !modifierAssignments.isEmpty && timing.isValid()
+    }
 }
 
 /// Key selection mode for home row mods
@@ -127,4 +132,9 @@ public struct TimingConfig: Codable, Equatable, Sendable {
     }
 
     public static let `default` = TimingConfig()
+
+    /// Validate that timing values are within acceptable ranges
+    public func isValid() -> Bool {
+        tapWindow > 0 && holdDelay > 0 && quickTapTermMs >= 0
+    }
 }

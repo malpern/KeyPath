@@ -11,9 +11,6 @@ struct StartConfirmationDialog: View {
             // Background overlay
             Color.black.opacity(0.4)
                 .ignoresSafeArea()
-                .onTapGesture {
-                    // Don't dismiss on background tap - this is an important confirmation
-                }
 
             // Dialog content
             VStack(spacing: 0) {
@@ -106,7 +103,8 @@ struct StartConfirmationDialog: View {
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 isPresented = false
                             }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            Task { @MainActor in
+                                try await Task.sleep(for: .milliseconds(200))
                                 onConfirm()
                             }
                         },
@@ -131,7 +129,8 @@ struct StartConfirmationDialog: View {
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 isPresented = false
                             }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            Task { @MainActor in
+                                try await Task.sleep(for: .milliseconds(200))
                                 onCancel()
                             }
                         },

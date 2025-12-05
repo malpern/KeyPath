@@ -1060,9 +1060,7 @@ private struct TapGestureModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         if isNavigable, let action {
-            content.onTapGesture {
-                action()
-            }
+            content.onTapGesture(perform: action)
         } else {
             content
         }

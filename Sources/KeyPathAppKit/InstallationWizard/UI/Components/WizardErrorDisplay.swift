@@ -120,6 +120,7 @@ struct WizardErrorToast: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Dismiss error")
         }
         .padding(WizardDesign.Spacing.cardPadding)
         .background(.regularMaterial)

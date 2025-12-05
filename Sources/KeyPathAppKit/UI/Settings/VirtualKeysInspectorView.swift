@@ -50,6 +50,7 @@ struct VirtualKeysInspectorView: View {
                 }
                 .buttonStyle(.borderless)
                 .help("Refresh")
+                .accessibilityLabel("Refresh virtual keys")
             }
 
             Text("Virtual keys defined in your config can be triggered via deep links")
@@ -170,6 +171,7 @@ struct VirtualKeysInspectorView: View {
             }
             .buttonStyle(.borderless)
             .help("Copy deep link URL")
+            .accessibilityLabel("Copy deep link")
 
             // Test button
             Button(action: { Task { await testKey(key) } }) {
@@ -181,6 +183,7 @@ struct VirtualKeysInspectorView: View {
                     Image(systemName: "play.fill")
                 }
             }
+            .accessibilityLabel(testingKey == key.name ? "Testing" : "Test virtual key")
             .buttonStyle(.borderless)
             .disabled(testingKey != nil)
             .help("Test this virtual key")

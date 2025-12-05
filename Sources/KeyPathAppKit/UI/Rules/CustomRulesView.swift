@@ -213,6 +213,7 @@ private struct CustomRuleRow: View {
                         .padding(.leading, 4)
                 }
                 .menuStyle(.borderlessButton)
+                .accessibilityLabel("Options")
             }
         }
         .padding(14)

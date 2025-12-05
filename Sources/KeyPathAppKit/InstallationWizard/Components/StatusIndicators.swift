@@ -32,9 +32,7 @@ struct SummaryItemView: View {
             statusIcon
         }
         .contentShape(Rectangle())
-        .onTapGesture {
-            onTap?()
-        }
+        .onTapGesture(perform: onTap ?? {})
         .background(Color.clear)
         .help(onTap != nil ? "Click to open settings" : "")
     }
@@ -328,7 +326,7 @@ private struct PageDot: View {
             )
             .scaleEffect(isCurrent ? 1.2 : 1.0)
             .animation(WizardDesign.Animation.buttonFeedback, value: isCurrent)
-            .onTapGesture { onTap() }
+            .onTapGesture(perform: onTap)
             .help(helpText)
             .accessibilityLabel("Navigate to \(page.displayName)")
             .accessibilityValue(accessibilityValue)

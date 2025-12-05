@@ -96,6 +96,8 @@ private struct RuleCollectionRow: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(isExpanded ? "Collapse" : "Expand")
+                .accessibilityHint("Show or hide mapping details")
             }
 
             if isExpanded {

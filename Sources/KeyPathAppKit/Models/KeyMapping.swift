@@ -47,6 +47,13 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
         shiftedOutput != nil || ctrlOutput != nil
     }
 
+    /// Validate this key mapping
+    /// - Returns: True if the mapping is valid (has non-empty input and output)
+    public func isValid() -> Bool {
+        !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     private enum CodingKeys: String, CodingKey {
         case id, input, output, shiftedOutput, ctrlOutput, description, sectionBreak, behavior
     }

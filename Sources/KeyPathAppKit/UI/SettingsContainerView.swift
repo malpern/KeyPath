@@ -177,6 +177,7 @@ private struct SettingsTabButton: View {
         .buttonStyle(.plain)
         .focusEffectDisabled()
         .disabled(disabled)
+        .accessibilityLabel(tab.title)
     }
 }
 

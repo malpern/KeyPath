@@ -393,11 +393,11 @@ public class KeyboardCapture: ObservableObject {
                     baseKey: "⚠️ Couldn't start recording", modifiers: [], timestamp: Date(), keyCode: -1
                 )
                 let seq = KeySequence(keys: [kp], captureMode: .single)
-                DispatchQueue.main.async { cb(seq) }
+                cb(seq)
                 // Do not nil-out the callback until after dispatch
                 sequenceCallback = nil
             } else if let cb = captureCallback {
-                DispatchQueue.main.async { cb("⚠️ Couldn't start recording") }
+                cb("⚠️ Couldn't start recording")
                 captureCallback = nil
             }
             return
@@ -461,22 +461,20 @@ public class KeyboardCapture: ObservableObject {
         lastCapturedKey = keyPress
         lastCaptureAt = now
 
-        DispatchQueue.main.async {
-            // Handle legacy callback if set (for backward compatibility)
-            if self.sequenceCallback == nil, let legacyCallback = self.captureCallback {
-                legacyCallback(keyName)
+        // Handle legacy callback if set (for backward compatibility)
+        if sequenceCallback == nil, let legacyCallback = captureCallback {
+            legacyCallback(keyName)
 
-                if !self.isContinuous {
-                    self.stopCapture()
-                } else {
-                    self.resetPauseTimer()
-                }
-                return
+            if !isContinuous {
+                stopCapture()
+            } else {
+                resetPauseTimer()
             }
-
-            // Handle new sequence capture
-            self.processKeyPress(keyPress)
+            return
         }
+
+        // Handle new sequence capture
+        processKeyPress(keyPress)
     }
 
     private func processKeyPress(_ keyPress: KeyPress) {
@@ -689,9 +687,7 @@ public class KeyboardCapture: ObservableObject {
                pressedKeys.contains(escapeKey) {
                 AppLogger.shared.log("🚨 [Emergency] Kanata emergency stop sequence detected!")
 
-                DispatchQueue.main.async {
-                    self.emergencyCallback?()
-                }
+                emergencyCallback?()
 
                 // Clear the set to prevent repeated triggers
                 pressedKeys.removeAll()

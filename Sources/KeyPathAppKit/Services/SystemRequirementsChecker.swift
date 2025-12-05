@@ -181,7 +181,8 @@ final class SystemRequirementsChecker {
             } else {
                 AppLogger.shared.info("✅ [Finder] Revealed kanata in Finder: \(kanataPath)")
                 // Call callback after delay to allow Finder to open
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                Task { @MainActor in
+                    try await Task.sleep(for: .seconds(1))
                     onRevealed?()
                 }
             }

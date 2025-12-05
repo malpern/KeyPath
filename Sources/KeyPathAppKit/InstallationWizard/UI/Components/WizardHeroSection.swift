@@ -114,9 +114,7 @@ struct WizardHeroSection: View {
                 iconHovering = hovering
             }
         }
-        .onTapGesture {
-            iconTapAction?()
-        }
+        .onTapGesture(perform: iconTapAction ?? {})
     }
 
     @ViewBuilder

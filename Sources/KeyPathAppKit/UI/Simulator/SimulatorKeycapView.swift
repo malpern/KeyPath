@@ -42,9 +42,7 @@ struct SimulatorKeycapView: View {
             }
             .scaleEffect(showAsPressed ? 0.95 : (isHovered ? 1.02 : 1.0))
             .animation(.easeInOut(duration: 0.08), value: showAsPressed)
-            .onTapGesture {
-                onTap()
-            }
+            .onTapGesture(perform: onTap)
             .onLongPressGesture(minimumDuration: 0.4, pressing: { pressing in
                 withAnimation(.easeInOut(duration: 0.1)) {
                     isPressed = pressing

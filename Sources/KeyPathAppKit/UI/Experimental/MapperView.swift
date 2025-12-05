@@ -24,43 +24,45 @@ private struct ResetButton: View {
     private let doubleClickDelay: TimeInterval = 0.3
 
     var body: some View {
-        Label("Reset", systemImage: "arrow.counterclockwise")
-            .font(.caption)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color(NSColor.controlBackgroundColor))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(Color.primary.opacity(0.2), lineWidth: 0.5)
-            )
-            .opacity(isEnabled ? 1.0 : 0.3)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                guard isEnabled else { return }
-                clickCount += 1
+        Button {
+            guard isEnabled else { return }
+            clickCount += 1
 
-                if clickCount == 1 {
-                    // Start timer to wait for potential second click
-                    clickTimer = Timer.scheduledTimer(withTimeInterval: doubleClickDelay, repeats: false) { _ in
-                        Task { @MainActor in
-                            if clickCount == 1 {
-                                onSingleClick()
-                            }
-                            clickCount = 0
+            if clickCount == 1 {
+                // Start timer to wait for potential second click
+                clickTimer = Timer.scheduledTimer(withTimeInterval: doubleClickDelay, repeats: false) { _ in
+                    Task { @MainActor in
+                        if clickCount == 1 {
+                            onSingleClick()
                         }
+                        clickCount = 0
                     }
-                } else if clickCount >= 2 {
-                    // Double click detected
-                    clickTimer?.invalidate()
-                    clickTimer = nil
-                    clickCount = 0
-                    onDoubleClick()
                 }
+            } else if clickCount >= 2 {
+                // Double click detected
+                clickTimer?.invalidate()
+                clickTimer = nil
+                clickCount = 0
+                onDoubleClick()
             }
-            .help("Click: Reset mapping. Double-click: Reset all to defaults")
+        } label: {
+            Label("Reset", systemImage: "arrow.counterclockwise")
+                .font(.caption)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+        }
+        .buttonStyle(.plain)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color(NSColor.controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(Color.primary.opacity(0.2), lineWidth: 0.5)
+        )
+        .opacity(isEnabled ? 1.0 : 0.3)
+        .contentShape(Rectangle())
+        .help("Click: Reset mapping. Double-click: Reset all to defaults")
     }
 }
 
@@ -139,6 +141,7 @@ struct MapperView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .help("Pick app to launch")
+                .accessibilityLabel("Pick app")
 
                 // Clear/reset button
                 // Single click: reset current mapping
@@ -502,7 +505,10 @@ struct MapperKeycapView: View {
                     .padding(.vertical, verticalPadding / 2)
             }
         }
-        .frame(width: appInfo != nil ? 120 : keycapWidth, height: appInfo != nil ? 100 : keycapHeight)
+        .frame(
+            width: appInfo != nil ? 120 : (systemActionInfo != nil ? 100 : keycapWidth),
+            height: appInfo != nil ? 100 : (systemActionInfo != nil ? 100 : keycapHeight)
+        )
         .scaleEffect(isPressed ? 0.95 : 1.0)
         .animation(.spring(response: 0.15, dampingFraction: 0.6), value: isPressed)
         .animation(.spring(response: 0.2, dampingFraction: 0.8), value: keycapHeight)
@@ -516,7 +522,8 @@ struct MapperKeycapView: View {
             withAnimation(.spring(response: 0.1, dampingFraction: 0.8)) {
                 isPressed = true
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            Task { @MainActor in
+                try await Task.sleep(for: .milliseconds(100))
                 withAnimation(.spring(response: 0.1, dampingFraction: 0.8)) {
                     isPressed = false
                 }
@@ -665,7 +672,8 @@ struct MapperInputKeycap: View {
             withAnimation(.spring(response: 0.1, dampingFraction: 0.8)) {
                 isPressed = true
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            Task { @MainActor in
+                try await Task.sleep(for: .milliseconds(100))
                 withAnimation(.spring(response: 0.1, dampingFraction: 0.8)) {
                     isPressed = false
                 }
