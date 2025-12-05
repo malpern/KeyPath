@@ -39,14 +39,10 @@ struct EmergencyStopPauseCard: View {
                 Button(
                     action: {
                         isRestarting = true
-                        Task {
-                            await MainActor.run {
-                                onRestart()
-                                // Reset after a moment
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                                    isRestarting = false
-                                }
-                            }
+                        Task { @MainActor in
+                            onRestart()
+                            try await Task.sleep(for: .seconds(1))
+                            isRestarting = false
                         }
                     },
                     label: {

@@ -26,42 +26,46 @@ struct SimulatorKeycapView: View {
     }
 
     var body: some View {
-        keyContent
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(currentBackgroundColor)
-            .cornerRadius(5)
-            .overlay(
-                RoundedRectangle(cornerRadius: 5)
-                    .stroke(currentBorderColor, lineWidth: currentBorderWidth)
-            )
-            .shadow(color: shadowColor, radius: shadowRadius, y: shadowOffset)
-            .onHover { hovering in
-                withAnimation(.easeInOut(duration: 0.1)) {
-                    isHovered = hovering
+        Button(action: onTap) {
+            keyContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(currentBackgroundColor)
+                .cornerRadius(5)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5)
+                        .stroke(currentBorderColor, lineWidth: currentBorderWidth)
+                )
+                .shadow(color: shadowColor, radius: shadowRadius, y: shadowOffset)
+                .scaleEffect(showAsPressed ? 0.95 : (isHovered ? 1.02 : 1.0))
+        }
+        .buttonStyle(.plain)
+        .animation(.easeInOut(duration: 0.08), value: showAsPressed)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isHovered = hovering
+            }
+        }
+        .onLongPressGesture(minimumDuration: 0.4, pressing: { pressing in
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isPressed = pressing
+                if pressing {
+                    isHolding = false
                 }
             }
-            .scaleEffect(showAsPressed ? 0.95 : (isHovered ? 1.02 : 1.0))
-            .animation(.easeInOut(duration: 0.08), value: showAsPressed)
-            .onTapGesture(perform: onTap)
-            .onLongPressGesture(minimumDuration: 0.4, pressing: { pressing in
-                withAnimation(.easeInOut(duration: 0.1)) {
-                    isPressed = pressing
-                    if pressing {
-                        isHolding = false
-                    }
-                }
-            }) {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    isHolding = true
-                }
-                onHold()
-                // Reset holding state after brief feedback
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    withAnimation {
-                        isHolding = false
-                    }
+        }) {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHolding = true
+            }
+            onHold()
+            // Reset holding state after brief feedback
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(300))
+                withAnimation {
+                    isHolding = false
                 }
             }
+        }
+        .accessibilityLabel("Key \(displayLabel)")
     }
 
     // MARK: - Key Content

@@ -318,6 +318,7 @@ struct HomeRowModsCollectionView: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Close modifier picker")
             }
 
             HStack(spacing: 12) {

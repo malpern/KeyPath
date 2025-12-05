@@ -37,7 +37,7 @@ final class SimpleModsSmokeTests: XCTestCase {
         XCTAssertTrue(added, "Could not find a mapping candidate to add")
 
         // Wait for debounce apply to write the file
-        try? await Task.sleep(nanoseconds: 600_000_000) // 600ms
+        try? await Task.sleep(for: .milliseconds(600)) // 600ms
 
         // Trigger engine reload with wait semantics
         let reload = await client.reloadConfig(timeoutMs: 3000)

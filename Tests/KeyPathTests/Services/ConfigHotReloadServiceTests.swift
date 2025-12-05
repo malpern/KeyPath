@@ -26,6 +26,9 @@ final class ConfigHotReloadServiceTests: XCTestCase {
         configService = ConfigurationService(configDirectory: NSTemporaryDirectory())
         reloadHandlerCalled = false
         reloadHandlerResult = true
+        service.serviceHealthProvider = {
+            KanataHealthSnapshot(isRunning: false, isResponding: false)
+        }
 
         service.configure(
             configurationService: configService,
@@ -167,7 +170,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
         _ = await service.handleExternalChange(configPath: tempFile.path)
 
         // Wait for reset callback (using short test delay set in setUp)
-        try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+        try? await Task.sleep(for: .milliseconds(50)) // 50ms
 
         XCTAssertTrue(detectedCalled, "onDetected should be called")
         XCTAssertTrue(validatingCalled, "onValidating should be called")
@@ -195,7 +198,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
         let result = await service.handleExternalChange(configPath: tempFile.path)
 
         // Wait for reset callback (using short test delay set in setUp)
-        try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+        try? await Task.sleep(for: .milliseconds(50)) // 50ms
 
         XCTAssertTrue(detectedCalled, "onDetected should be called")
         // In test environment, service is unavailable (process not running)

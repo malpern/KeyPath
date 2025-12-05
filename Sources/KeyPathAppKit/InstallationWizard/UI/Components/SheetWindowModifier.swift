@@ -11,7 +11,8 @@ struct SheetWindowModifier: ViewModifier {
             .onAppear {
                 // Customize the sheet window appearance when it appears
                 // Use a slight delay to ensure the window is fully created
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(100))
                     // Find the sheet window
                     for window in NSApp.windows {
                         // Check if this is a sheet window (has a parent or is a sheet)

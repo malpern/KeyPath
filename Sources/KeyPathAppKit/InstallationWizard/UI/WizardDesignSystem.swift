@@ -1060,7 +1060,10 @@ private struct TapGestureModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         if isNavigable, let action {
-            content.onTapGesture(perform: action)
+            Button(action: action) {
+                content
+            }
+            .buttonStyle(.plain)
         } else {
             content
         }

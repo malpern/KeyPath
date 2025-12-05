@@ -104,6 +104,15 @@ public extension CustomRule {
             targetLayer: targetLayer
         )
     }
+
+    /// Inline validation helper for UI/forms
+    func validationErrors(existingRules: [CustomRule] = []) -> [CustomRuleValidator.ValidationError] {
+        var errors = CustomRuleValidator.validate(self)
+        if let conflict = CustomRuleValidator.checkConflict(for: self, against: existingRules) {
+            errors.append(conflict)
+        }
+        return errors
+    }
 }
 
 public extension Sequence<CustomRule> {

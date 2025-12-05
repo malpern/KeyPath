@@ -86,51 +86,63 @@ struct WizardSummaryPage: View {
             }
 
             // Icon - absolutely positioned, independent of text
-            ZStack {
-                // Hover ring exactly centered with the icon
+            Button {
+                // Toggle showAll when in issues mode; animate list transition
                 if headerMode == .issues {
-                    Circle()
-                        .stroke(Color.primary.opacity(iconHovering ? 0.15 : 0.0), lineWidth: 2)
-                        .frame(
-                            width: WizardDesign.Layout.statusCircleSize + 8,
-                            height: WizardDesign.Layout.statusCircleSize + 8
-                        )
-                        .allowsHitTesting(false)
+                    fadeMaskOpacity = 1.0
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        showAllItems.toggle()
+                        fadeMaskOpacity = 0.0
+                    }
                 }
+            } label: {
+                ZStack {
+                    // Hover ring exactly centered with the icon
+                    if headerMode == .issues {
+                        Circle()
+                            .stroke(Color.primary.opacity(iconHovering ? 0.15 : 0.0), lineWidth: 2)
+                            .frame(
+                                width: WizardDesign.Layout.statusCircleSize + 8,
+                                height: WizardDesign.Layout.statusCircleSize + 8
+                            )
+                            .allowsHitTesting(false)
+                    }
 
-                if headerMode == .validating {
-                    // Spinning gear during validation - continuous rotation
-                    Image(systemName: "gear")
-                        .font(.system(size: WizardDesign.Layout.statusCircleSize))
-                        .foregroundStyle(.secondary)
-                        .rotationEffect(.degrees(gearRotation))
-                        .onAppear {
-                            // Start continuous rotation when gear appears
-                            withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {
-                                gearRotation = 360
+                    if headerMode == .validating {
+                        // Spinning gear during validation - continuous rotation
+                        Image(systemName: "gear")
+                            .font(.system(size: WizardDesign.Layout.statusCircleSize))
+                            .foregroundStyle(.secondary)
+                            .rotationEffect(.degrees(gearRotation))
+                            .onAppear {
+                                // Start continuous rotation when gear appears
+                                withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {
+                                    gearRotation = 360
+                                }
                             }
-                        }
-                        .onDisappear {
-                            // Stop rotation when gear disappears
-                            gearRotation = 0
-                        }
-                } else {
-                    // Final state icon (error or success) - simple fade transition
-                    Image(systemName: headerIconName)
-                        .font(.system(size: WizardDesign.Layout.statusCircleSize))
-                        .foregroundStyle(headerIconColor)
-                        .modifier(AvailabilitySymbolBounce())
+                            .onDisappear {
+                                // Stop rotation when gear disappears
+                                gearRotation = 0
+                            }
+                    } else {
+                        // Final state icon (error or success) - simple fade transition
+                        Image(systemName: headerIconName)
+                            .font(.system(size: WizardDesign.Layout.statusCircleSize))
+                            .foregroundStyle(headerIconColor)
+                            .modifier(AvailabilitySymbolBounce())
+                    }
                 }
+                .frame(
+                    width: WizardDesign.Layout.statusCircleSize, height: WizardDesign.Layout.statusCircleSize
+                )
+                .contentShape(Circle())
             }
-            .frame(
-                width: WizardDesign.Layout.statusCircleSize, height: WizardDesign.Layout.statusCircleSize
-            )
+            .buttonStyle(.plain)
             .frame(maxWidth: .infinity) // Center horizontally
             .padding(.top, iconTopPadding) // Icon pinned from top (issues icon closer by 30%)
             .offset(y: iconVerticalTweak) // Optical alignment tweak shared with hover ring
             .zIndex(1)
             .animation(nil, value: showAllItems) // Keep header stable during list toggles
-            .contentShape(Circle())
             .onHover { hovering in
                 if headerMode == .issues {
                     iconHovering = hovering
@@ -138,17 +150,7 @@ struct WizardSummaryPage: View {
                     iconHovering = false
                 }
             }
-            .onTapGesture {
-                // Toggle showAll when in issues mode; animate list transition
-                if headerMode == .issues {
-                    // Brief white cross-fade to mask internal list relayout
-                    fadeMaskOpacity = 1.0
-                    withAnimation(.easeInOut(duration: 0.18)) {
-                        showAllItems.toggle()
-                        fadeMaskOpacity = 0.0
-                    }
-                }
-            }
+            .disabled(headerMode != .issues)
             .transition(.opacity) // Simple opacity transition, no scaling
             .onAppear {
                 // Initialize header mode based on validation state

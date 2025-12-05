@@ -34,6 +34,7 @@ struct SetupBanner: View {
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Dismiss setup banner")
                 }
                 .padding()
                 .background(Color.orange.opacity(0.1))

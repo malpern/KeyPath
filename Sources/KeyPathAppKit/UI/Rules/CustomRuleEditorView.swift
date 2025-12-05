@@ -230,6 +230,7 @@ struct CustomRuleEditorView: View {
                     .buttonStyle(.plain)
                     .focusable(false)
                     .help("Delete rule")
+                    .accessibilityLabel("Delete rule")
                 }
             }
             .padding(.horizontal, 20)
@@ -688,6 +689,7 @@ struct CustomRuleEditorView: View {
                                     }
                                     .buttonStyle(.plain)
                                     .focusable(false)
+                                    .accessibilityLabel("Remove tap step")
                                 }
                             }
                         }
@@ -979,7 +981,8 @@ struct CustomRuleEditorView: View {
         }
 
         // Timeout after 10 seconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(10))
             if isRecording.wrappedValue {
                 isRecording.wrappedValue = false
                 if let m = monitor { NSEvent.removeMonitor(m) }
@@ -1254,6 +1257,8 @@ struct CustomRuleEditorView: View {
         let errors = CustomRuleValidator.validate(rule, existingRules: existingRules)
         if let firstError = errors.first {
             switch firstError {
+            case .emptyTitle:
+                validationError = "Title cannot be empty"
             case let .invalidInputKey(key):
                 validationError = "Invalid input key: \(key)"
             case let .invalidOutputKey(key):

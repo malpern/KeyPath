@@ -11,7 +11,7 @@ struct SimpleModsView: View {
     @State private var showErrorMessage = false
     @State private var showSuccessMessage = false
     @State private var statusMessage = ""
-    @State private var statusMessageTimer: DispatchWorkItem?
+    @State private var statusMessageTask: Task<Void, Never>?
     @State private var previousMappingCount = 0
 
     enum TabSelection {
@@ -299,18 +299,17 @@ struct SimpleModsView: View {
     }
 
     private func showToast(_ message: String, isError: Bool) {
-        statusMessageTimer?.cancel()
+        statusMessageTask?.cancel()
         statusMessage = message
         showErrorMessage = isError
         showSuccessMessage = !isError
 
         // Auto-dismiss after duration
-        let workItem = DispatchWorkItem {
+        statusMessageTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(isError ? 5.0 : 3.0))
             showErrorMessage = false
             showSuccessMessage = false
         }
-        statusMessageTimer = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + (isError ? 5.0 : 3.0), execute: workItem)
     }
 }
 
@@ -436,6 +435,7 @@ private struct InstalledMappingRow: View {
             )
             .buttonStyle(.plain)
             .disabled(service.isApplying)
+            .accessibilityLabel("Remove mapping")
         }
         .padding()
         .background(Color(NSColor.controlBackgroundColor))

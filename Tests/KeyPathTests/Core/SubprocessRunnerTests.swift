@@ -206,7 +206,7 @@ final class SubprocessRunnerTests: XCTestCase {
         }
 
         // Allow the process to start
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        try? await Task.sleep(for: .milliseconds(200))
 
         longRunningTask.cancel()
 

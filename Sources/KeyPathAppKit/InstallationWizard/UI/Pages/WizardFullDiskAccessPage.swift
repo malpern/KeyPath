@@ -153,7 +153,8 @@ struct WizardFullDiskAccessPage: View {
                     showingSystemSettingsWait = false
                     AppLogger.shared.log("⏱️ [Wizard] FDA detection timed out - showing restart prompt")
                     // Show restart required modal after a brief delay
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(300))
                         showingRestartRequired = true
                     }
                 },

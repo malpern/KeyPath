@@ -20,7 +20,8 @@ struct InstallationWizardView: View {
 
         // Auto-dismiss after 6 seconds if not updated
         let marker = statusBannerTimestamp
-        DispatchQueue.main.asyncAfter(deadline: .now() + 6.0) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(6))
             // Ensure we only clear if timestamp matches (no newer message arrived)
             if marker == statusBannerTimestamp {
                 statusBannerMessage = nil
@@ -126,7 +127,7 @@ struct InstallationWizardView: View {
         .onChange(of: isValidating) { _, newValue in
             if newValue {
                 // Clear focus when validation starts
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     NSApp.keyWindow?.makeFirstResponder(nil)
                     if let window = NSApp.keyWindow, let contentView = window.contentView {
                         disableFocusRings(in: contentView)
@@ -1328,7 +1329,7 @@ struct InstallationWizardView: View {
         stopLoginItemsApprovalPolling()
 
         // Use DispatchQueue to ensure immediate execution
-        DispatchQueue.main.async {
+        Task { @MainActor in
             // Trigger StartupValidator refresh before dismissing
             // This ensures main screen status updates after wizard changes
             NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
@@ -1456,7 +1457,7 @@ struct InstallationWizardView: View {
 
     private func showStartConfirmation() async -> Bool {
         await withCheckedContinuation { continuation in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 startConfirmationResult = continuation
                 showingStartConfirmation = true
             }

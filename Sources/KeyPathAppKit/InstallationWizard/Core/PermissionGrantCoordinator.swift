@@ -109,7 +109,8 @@ class PermissionGrantCoordinator: ObservableObject {
     }
 
     private func quitApplication() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(500))
             NSApp.terminate(nil)
         }
     }
@@ -264,13 +265,11 @@ class PermissionGrantCoordinator: ObservableObject {
 
     private func showUserFeedback(_ message: String) {
         // Send notification to ContentView to show user feedback
-        DispatchQueue.main.async {
-            NotificationCenter.default.post(
-                name: NSNotification.Name("ShowUserFeedback"),
-                object: nil,
-                userInfo: ["message": message]
-            )
-        }
+        NotificationCenter.default.post(
+            name: NSNotification.Name("ShowUserFeedback"),
+            object: nil,
+            userInfo: ["message": message]
+        )
     }
 
     func reopenWizard(for permissionType: CoordinatorPermissionType) {

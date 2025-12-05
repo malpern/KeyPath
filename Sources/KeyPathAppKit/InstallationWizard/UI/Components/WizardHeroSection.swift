@@ -86,6 +86,22 @@ struct WizardHeroSection: View {
 
     @ViewBuilder
     private var iconView: some View {
+        if let iconTapAction {
+            Button(action: iconTapAction) {
+                iconStack
+            }
+            .buttonStyle(.plain)
+            .contentShape(Circle())
+            .onHover { hovering in
+                iconHovering = hovering
+            }
+            .accessibilityLabel("Open \(title)")
+        } else {
+            iconStack
+        }
+    }
+
+    private var iconStack: some View {
         ZStack {
             // Hover ring - only show if icon is tappable
             if iconTapAction != nil {
@@ -109,12 +125,6 @@ struct WizardHeroSection: View {
             }
         }
         .contentShape(Circle())
-        .onHover { hovering in
-            if iconTapAction != nil {
-                iconHovering = hovering
-            }
-        }
-        .onTapGesture(perform: iconTapAction ?? {})
     }
 
     @ViewBuilder

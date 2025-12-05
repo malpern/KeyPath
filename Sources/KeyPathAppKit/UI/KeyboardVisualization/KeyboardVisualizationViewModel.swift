@@ -47,7 +47,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Cache time-to-live in seconds
     private let holdLabelCacheTTL: TimeInterval = 5
     /// Pending delayed clears for hold-active keys to tolerate tap-hold-press jitter
-    private var holdClearWorkItems: [UInt16: DispatchWorkItem] = [:]
+    private var holdClearTasks: [UInt16: Task<Void, Never>] = [:]
     /// Key input notification observer
     private var keyInputObserver: Any?
     /// Hold activated notification observer
@@ -662,11 +662,11 @@ class KeyboardVisualizationViewModel: ObservableObject {
             tcpPressedKeyCodes.insert(keyCode)
             // If a hold is already active for this key, keep it active and cancel any pending clear.
             if holdActiveKeyCodes.contains(keyCode) {
-                holdClearWorkItems[keyCode]?.cancel()
-                holdClearWorkItems.removeValue(forKey: keyCode)
+                holdClearTasks[keyCode]?.cancel()
+                holdClearTasks.removeValue(forKey: keyCode)
             } else {
                 // Cancel any pending delayed clear for this key
-                if let work = holdClearWorkItems.removeValue(forKey: keyCode) {
+                if let work = holdClearTasks.removeValue(forKey: keyCode) {
                     work.cancel()
                 }
             }
@@ -674,19 +674,19 @@ class KeyboardVisualizationViewModel: ObservableObject {
         case "release":
             tcpPressedKeyCodes.remove(keyCode)
             // Defer clearing hold state briefly to tolerate tap-hold-press sequences that emit rapid releases.
-            let work = DispatchWorkItem { [weak self] in
+            let work = Task { @MainActor [weak self] in
                 guard let self else { return }
+                try? await Task.sleep(for: .seconds(OverlayTiming.holdReleaseGrace))
                 holdActiveKeyCodes.remove(keyCode)
                 if holdLabels[keyCode] != nil {
                     holdLabels.removeValue(forKey: keyCode)
                     holdLabelCache.removeValue(forKey: keyCode)
                     AppLogger.shared.debug("⌨️ [KeyboardViz] Cleared hold label (delayed) for \(key)")
                 }
-                holdClearWorkItems.removeValue(forKey: keyCode)
+                holdClearTasks.removeValue(forKey: keyCode)
             }
-            holdClearWorkItems[keyCode]?.cancel()
-            holdClearWorkItems[keyCode] = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + OverlayTiming.holdReleaseGrace, execute: work)
+            holdClearTasks[keyCode]?.cancel()
+            holdClearTasks[keyCode] = work
             AppLogger.shared.debug("⌨️ [KeyboardViz] TCP KeyRelease: \(key) -> keyCode \(keyCode)")
         default:
             break

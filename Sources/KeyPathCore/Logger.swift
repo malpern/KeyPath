@@ -115,7 +115,7 @@ public final class AppLogger {
         }
 
         // Start automatic flush timer
-        DispatchQueue.main.async {
+        Task { @MainActor in
             self.flushTimer = Timer.scheduledTimer(withTimeInterval: self.flushInterval, repeats: true) {
                 _ in
                 self.flushBuffer()

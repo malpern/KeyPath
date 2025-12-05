@@ -161,7 +161,8 @@ struct RestartRequiredView: View {
                 Button(isRestarting ? "Restarting..." : "Restart KeyPath") {
                     isRestarting = true
                     // Small delay for UI feedback
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(500))
                         onRestart()
                     }
                 }

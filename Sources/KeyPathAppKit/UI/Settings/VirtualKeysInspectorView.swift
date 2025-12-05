@@ -242,7 +242,8 @@ struct VirtualKeysInspectorView: View {
         withAnimation {
             testResult = .success("Copied: \(url)")
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
             withAnimation {
                 if case .success = testResult {
                     testResult = nil
@@ -293,7 +294,8 @@ struct VirtualKeysInspectorView: View {
             }
 
             // Clear result after delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(3))
                 withAnimation {
                     testResult = nil
                 }

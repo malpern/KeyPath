@@ -32,7 +32,8 @@ final class FeatureFlags {
     func activateStartupMode(timeoutSeconds: Double = 5.0) {
         stateQueue.sync { _startupModeActive = true }
         if timeoutSeconds > 0 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + timeoutSeconds) { [weak self] in
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(timeoutSeconds))
                 guard let self else { return }
                 if startupModeActive {
                     deactivateStartupMode()

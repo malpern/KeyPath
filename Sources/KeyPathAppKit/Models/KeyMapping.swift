@@ -47,11 +47,36 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
         shiftedOutput != nil || ctrlOutput != nil
     }
 
-    /// Validate this key mapping
-    /// - Returns: True if the mapping is valid (has non-empty input and output)
+    /// Validation errors for this mapping (input/output and optional modifier outputs)
+    public func validationErrors(
+        existingMappings: [KeyMapping] = []
+    ) -> [CustomRuleValidator.ValidationError] {
+        var errors = CustomRuleValidator.validateKeys(input: input, output: output)
+
+        if let shiftedOutput {
+            errors.append(contentsOf: CustomRuleValidator.validateKeys(input: input, output: shiftedOutput)
+                .filter { $0 != .emptyInput }) // Avoid duplicate empty-input error
+        }
+
+        if let ctrlOutput {
+            errors.append(contentsOf: CustomRuleValidator.validateKeys(input: input, output: ctrlOutput)
+                .filter { $0 != .emptyInput })
+        }
+
+        // Check for conflicts on input key
+        let normalizedInput = CustomRuleValidator.normalizeKey(input)
+        if let conflict = existingMappings.first(
+            where: { $0.id != id && CustomRuleValidator.normalizeKey($0.input) == normalizedInput }
+        ) {
+            errors.append(.conflict(with: conflict.description ?? "existing mapping", key: normalizedInput))
+        }
+
+        return errors
+    }
+
+    /// Backwards-compatible check used in UI
     public func isValid() -> Bool {
-        !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-            !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        validationErrors().isEmpty
     }
 
     private enum CodingKeys: String, CodingKey {

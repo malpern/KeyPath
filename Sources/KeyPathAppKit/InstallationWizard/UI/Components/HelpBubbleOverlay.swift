@@ -7,7 +7,7 @@ enum HelpBubbleOverlay {
     private static var window: NSWindow?
     private static var globalMonitor: Any?
     private static var localMonitor: Any?
-    private static var autoDismissWorkItem: DispatchWorkItem?
+    private static var autoDismissTask: Task<Void, Never>?
 
     /// Show a floating help bubble near a screen point. Automatically dismisses after duration seconds.
     static func show(
@@ -53,12 +53,12 @@ enum HelpBubbleOverlay {
         window = win
 
         // Auto dismiss with cancelable work item
-        let work = DispatchWorkItem {
+        autoDismissTask?.cancel()
+        autoDismissTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(duration))
             dismiss()
             onDismiss?()
         }
-        autoDismissWorkItem = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: work)
 
         // Dismiss on any mouse click (global + local to be safe)
         globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [
@@ -77,10 +77,8 @@ enum HelpBubbleOverlay {
     }
 
     static func dismiss() {
-        if let work = autoDismissWorkItem {
-            work.cancel()
-            autoDismissWorkItem = nil
-        }
+        autoDismissTask?.cancel()
+        autoDismissTask = nil
         if let gm = globalMonitor {
             NSEvent.removeMonitor(gm)
             globalMonitor = nil

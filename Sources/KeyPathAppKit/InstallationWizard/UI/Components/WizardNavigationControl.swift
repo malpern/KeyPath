@@ -27,6 +27,7 @@ struct WizardNavigationControl: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(!navigationCoordinator.canNavigateBack)
+                .accessibilityLabel("Previous step")
 
                 // Separator
                 Rectangle()
@@ -48,6 +49,7 @@ struct WizardNavigationControl: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(!navigationCoordinator.canNavigateForward)
+                .accessibilityLabel("Next step")
             }
             .padding(.horizontal, 6) // Increased from 4 (25% larger + extra)
             .padding(.vertical, 3) // Increased from 2 (25% larger + extra)
@@ -112,10 +114,11 @@ struct CloseButton: View {
                             isHovering
                                 ? Color(NSColor.tertiaryLabelColor).opacity(0.7)
                                 : Color(NSColor.tertiaryLabelColor).opacity(0.5))
-                )
+                        )
         }
         .buttonStyle(.plain)
         .help("Return to Overview")
+        .accessibilityLabel("Close wizard")
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovering = hovering

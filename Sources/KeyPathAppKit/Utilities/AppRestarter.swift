@@ -27,7 +27,8 @@ enum AppRestarter {
         task.arguments = ["-n", appPath]
 
         // Schedule the relaunch after a delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(delay))
             do {
                 try task.run()
                 AppLogger.shared.log("✅ [AppRestarter] Relaunch scheduled")

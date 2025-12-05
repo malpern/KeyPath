@@ -97,7 +97,7 @@ struct WizardSystemStatusOverview: View {
         .background(Color.clear)
         .onAppear {
             // Aggressively disable focus ring on underlying NSView
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 if let window = NSApp.keyWindow,
                    let contentView = window.contentView {
                     disableFocusRings(in: contentView)
@@ -740,7 +740,7 @@ private struct HoverableRow<Content: View>: View {
     }
 
     var body: some View {
-        content()
+        let base = content()
             .padding(.vertical, WizardDesign.Spacing.labelGap)
             .padding(.horizontal, WizardDesign.Spacing.cardPadding)
             .contentShape(Rectangle())
@@ -760,10 +760,14 @@ private struct HoverableRow<Content: View>: View {
                     self.hovering = hovering
                 }
             }
-            .onTapGesture {
-                if isNavigable {
-                    onTap?()
-                }
+
+        if isNavigable {
+            Button(action: { onTap?() }) {
+                base
             }
+            .buttonStyle(.plain)
+        } else {
+            base
+        }
     }
 }

@@ -821,12 +821,6 @@ actor HelperManager {
         }
     }
 
-    func downloadAndInstallCorrectVHIDDriver() async throws {
-        try await executeXPCCall("downloadAndInstallCorrectVHIDDriver") { proxy, reply in
-            proxy.downloadAndInstallCorrectVHIDDriver(reply: reply)
-        }
-    }
-
     func installBundledVHIDDriver(pkgPath: String) async throws {
         try await executeXPCCall("installBundledVHIDDriver") { proxy, reply in
             proxy.installBundledVHIDDriver(pkgPath: pkgPath, reply: reply)

@@ -30,7 +30,7 @@ final class RecordingCoordinatorTests: XCTestCase {
 
         coordinator.toggleInputRecording()
         // Wait for async permission check and state update
-        try? await Task.sleep(nanoseconds: 150_000_000)
+        try? await Task.sleep(for: .milliseconds(150))
 
         XCTAssertFalse(coordinator.isInputRecording())
         XCTAssertEqual(
@@ -48,7 +48,7 @@ final class RecordingCoordinatorTests: XCTestCase {
 
         coordinator.toggleInputRecording()
         // Wait for recording to start
-        try? await Task.sleep(nanoseconds: 50_000_000)
+        try? await Task.sleep(for: .milliseconds(50))
 
         XCTAssertTrue(coordinator.isInputRecording())
         XCTAssertTrue(coordinator.inputDisplayText().hasPrefix("Press"))
@@ -59,7 +59,7 @@ final class RecordingCoordinatorTests: XCTestCase {
         captureStub.triggerCapture(with: sequence)
         // Wait for callback to process and stop recording
         // Increase wait time to ensure async callback completes
-        try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
+        try? await Task.sleep(for: .milliseconds(500)) // 500ms
 
         // Recording should stop after capture callback fires
         // Add a small retry loop for async operations
@@ -69,7 +69,7 @@ final class RecordingCoordinatorTests: XCTestCase {
                 recordingStopped = true
                 break
             }
-            try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+            try? await Task.sleep(for: .milliseconds(50)) // 50ms
         }
 
         XCTAssertTrue(
@@ -90,7 +90,7 @@ final class RecordingCoordinatorTests: XCTestCase {
 
         coordinator.toggleOutputRecording()
         // Wait for async permission check and state update
-        try? await Task.sleep(nanoseconds: 50_000_000)
+        try? await Task.sleep(for: .milliseconds(50))
 
         XCTAssertFalse(coordinator.isOutputRecording())
         XCTAssertEqual(

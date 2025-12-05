@@ -58,7 +58,7 @@ final class ServiceBootstrapperTests: XCTestCase {
         XCTAssertTrue(immediately, "Service should be recently restarted immediately")
 
         // Wait longer than warm-up window
-        try? await Task.sleep(nanoseconds: 150_000_000) // 150ms
+        try? await Task.sleep(for: .milliseconds(150)) // 150ms
 
         // Should no longer be recently restarted (with 0.1s window)
         let afterDelay = ServiceBootstrapper.wasRecentlyRestarted(serviceID, within: 0.1)
@@ -127,7 +127,7 @@ final class ServiceBootstrapperTests: XCTestCase {
         XCTAssertTrue(immediately, "Should be true immediately after restart")
 
         // Wait longer than window
-        try? await Task.sleep(nanoseconds: 150_000_000) // 150ms
+        try? await Task.sleep(for: .milliseconds(150)) // 150ms
 
         // Should be false with short window
         let afterDelay = ServiceBootstrapper.hadRecentRestart(within: 0.1)

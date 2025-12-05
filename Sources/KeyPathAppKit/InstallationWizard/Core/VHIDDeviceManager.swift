@@ -43,7 +43,7 @@ final class VHIDDeviceManager: @unchecked Sendable {
     /// Publish a step update (thread-safe, dispatches to main for UI)
     private static func reportStep(_ step: String) {
         AppLogger.shared.log("📊 [VHIDManager] Step: \(step)")
-        DispatchQueue.main.async {
+        Task { @MainActor in
             stepProgress.send(step)
         }
     }

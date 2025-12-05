@@ -73,7 +73,7 @@ struct ContentView: View {
     @State private var saveDebounceTimer: Timer?
     private let saveDebounceDelay: TimeInterval = 0.1
 
-    @State private var statusMessageTimer: DispatchWorkItem?
+    @State private var statusMessageTask: Task<Void, Never>?
 
     @State private var lastInputDisabledReason: String = ""
     @State private var lastOutputDisabledReason: String = ""
@@ -312,12 +312,13 @@ struct ContentView: View {
                 let timeSinceRestore = Date().timeIntervalSince1970 - restoreTime
                 if timeSinceRestore < 300 { // Within 5 minutes
                     AppLogger.shared.log("🔄 [ContentView] Found wizard restore point '\(restorePoint)' - auto-opening wizard")
-                    // Delay slightly to ensure UI is ready
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        showingInstallationWizard = true
+                        // Delay slightly to ensure UI is ready
+                        Task { @MainActor in
+                            try await Task.sleep(for: .milliseconds(500))
+                            showingInstallationWizard = true
+                        }
                     }
                 }
-            }
 
             // Set up notification handlers for recovery actions
             setupRecoveryActionHandlers()
@@ -342,7 +343,7 @@ struct ContentView: View {
             // Status monitoring now handled centrally by SimpleRuntimeCoordinator
             // Defer these UI state reads to the next runloop to avoid doing work
             // during the initial display cycle (prevents AppKit layout reentrancy).
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 logInputDisabledReason()
                 logOutputDisabledReason()
             }
@@ -420,7 +421,8 @@ struct ContentView: View {
                     await stateController.revalidate()
                 }
 
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(500))
                     startEmergencyMonitoringIfPossible()
                 }
             }
@@ -483,18 +485,17 @@ struct ContentView: View {
 
     private func showStatusMessage(message: String) {
         // Cancel any existing timer to ensure consistent 5-second display
-        statusMessageTimer?.cancel()
+        statusMessageTask?.cancel()
 
         // Show message as toast
         statusMessage = message
         showStatusMessage = true
 
         // Hide after 5 seconds with simple animation
-        let workItem = DispatchWorkItem {
+        statusMessageTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(5))
             showStatusMessage = false
         }
-        statusMessageTimer = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: workItem)
     }
 
     private func openSystemStatusSettings() {
@@ -622,11 +623,10 @@ struct ContentView: View {
                 kanataManager: kanataManager.underlyingManager // Phase 4: Business logic needs underlying manager
             ) { _ in
                 // Show wizard after service restart completes to display results
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(1))
                     // Reopen wizard to the appropriate permission page
-                    PermissionGrantCoordinator.shared.reopenWizard(
-                        for: permissionType
-                    )
+                    PermissionGrantCoordinator.shared.reopenWizard(for: permissionType)
                 }
             }
 
@@ -728,7 +728,8 @@ struct ContentView: View {
                || reasonLower.contains("failed") || reasonLower.contains("reload") {
                 // TCP connectivity issues - open wizard directly to Communication page
                 showStatusMessage(message: "⚠️ Service connection failed - opening setup wizard...")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                Task { @MainActor in
+                    try await Task.sleep(for: .milliseconds(500))
                     NotificationCenter.default.post(name: .openInstallationWizard, object: nil)
                 }
                 return
@@ -781,7 +782,8 @@ struct ContentView: View {
         // Open wizard to help diagnose and fix the issue
         let errorDesc = error.localizedDescription
         showStatusMessage(message: "⚠️ \(errorDesc)")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+        Task { @MainActor in
+            try await Task.sleep(for: .seconds(1))
             NotificationCenter.default.post(name: .openInstallationWizard, object: nil)
         }
     }

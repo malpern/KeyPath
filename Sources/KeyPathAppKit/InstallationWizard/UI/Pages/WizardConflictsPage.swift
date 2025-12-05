@@ -197,7 +197,8 @@ struct CleanConflictsCard: View {
                                 showErrorMessage = true
 
                                 // Hide error message after a few seconds
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                                Task { @MainActor in
+                                    try? await Task.sleep(for: .seconds(4))
                                     showErrorMessage = false
                                 }
                             } else {

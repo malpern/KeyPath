@@ -15,41 +15,47 @@ struct PermissionCard: View {
     private let trailingAreaWidth: CGFloat = 160
 
     var body: some View {
-        HStack(spacing: 12) {
-            appIcon
-                .frame(width: 24, height: 24)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(appName)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.primary)
-                Text(appPath)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-
-            Spacer()
-
-            trailingStatusView
-                .frame(width: trailingAreaWidth, alignment: .trailing)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.gray.opacity(0.15), lineWidth: 1)
-        )
-        .cornerRadius(10)
-        .contentShape(Rectangle())
-        .onTapGesture {
+        Button {
             if status == .notStarted {
                 openSystemPreferences()
             }
+        } label: {
+            HStack(spacing: 12) {
+                appIcon
+                    .frame(width: 24, height: 24)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(appName)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.primary)
+                    Text(appPath)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+
+                Spacer()
+
+                trailingStatusView
+                    .frame(width: trailingAreaWidth, alignment: .trailing)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color(nsColor: .controlBackgroundColor))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color.gray.opacity(0.15), lineWidth: 1)
+            )
+            .cornerRadius(10)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .disabled(status != .notStarted)
+        .accessibilityLabel(Text(verbatim: status == .notStarted
+            ? "Open System Settings for \(appName)"
+            : "\(appName) status \(String(describing: status))"))
     }
 
     @ViewBuilder
@@ -124,16 +130,16 @@ struct PermissionCard: View {
             }
 
             // Small delay to ensure wizard closes before opening settings
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            Task { @MainActor in
+                try await Task.sleep(for: .milliseconds(300))
                 if let url = URL(
                     string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
                     NSWorkspace.shared.open(url)
                 }
 
                 // Reveal kanata binary in Finder shortly after opening settings (always reveal kanata)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
-                    kanataManager.revealKanataInFinder()
-                }
+                try await Task.sleep(for: .milliseconds(900))
+                kanataManager.revealKanataInFinder()
             }
         } else if permissionType == "Accessibility" {
             // For Accessibility, open settings immediately without closing wizard
@@ -149,7 +155,8 @@ struct PermissionCard: View {
             }
 
             // Then open Karabiner folder in Finder after a short delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            Task { @MainActor in
+                try await Task.sleep(for: .milliseconds(500))
                 let karabinerPath = "/Library/Application Support/org.pqrs/Karabiner-Elements/"
                 if let url = URL(
                     string:

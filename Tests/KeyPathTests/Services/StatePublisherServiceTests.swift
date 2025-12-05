@@ -89,13 +89,13 @@ final class StatePublisherServiceTests: XCTestCase {
         }
 
         // Wait for initial state
-        try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+        try? await Task.sleep(for: .milliseconds(50)) // 50ms
 
         // Trigger state changes
         counter = 1
         publisher.notifyStateChanged()
 
-        try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+        try? await Task.sleep(for: .milliseconds(50)) // 50ms
 
         counter = 2
         publisher.notifyStateChanged()
@@ -140,7 +140,7 @@ final class StatePublisherServiceTests: XCTestCase {
         }
 
         // Wait for subscription to be set up
-        try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        try? await Task.sleep(for: .milliseconds(100)) // 100ms
 
         // Trigger update
         stateCounter = 1

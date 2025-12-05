@@ -155,6 +155,7 @@ public enum CustomRuleValidator {
     public enum ValidationError: LocalizedError, Equatable {
         case emptyInput
         case emptyOutput
+        case emptyTitle
         case invalidInputKey(String)
         case invalidOutputKey(String)
         case selfMapping
@@ -166,6 +167,8 @@ public enum CustomRuleValidator {
                 "Input key cannot be empty"
             case .emptyOutput:
                 "Output key cannot be empty"
+            case .emptyTitle:
+                "Title cannot be empty"
             case let .invalidInputKey(key):
                 "Invalid input key: '\(key)'"
             case let .invalidOutputKey(key):
@@ -184,10 +187,32 @@ public enum CustomRuleValidator {
     public static func validate(_ rule: CustomRule) -> [ValidationError] {
         var errors: [ValidationError] = []
 
-        let trimmedInput = rule.input.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedOutput = rule.output.trimmingCharacters(in: .whitespacesAndNewlines)
+        if rule.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            errors.append(.emptyTitle)
+        }
 
-        // Check for empty values
+        errors.append(contentsOf: validateKeys(input: rule.input, output: rule.output))
+
+        // If we already have empties, skip further checks
+        guard errors.allSatisfy({ $0 != .emptyInput && $0 != .emptyOutput }) else { return errors }
+
+        // Check for self-mapping (again after normalization to cover aliases)
+        let normalizedInput = normalizeKey(rule.input)
+        let normalizedOutput = normalizeKey(rule.output)
+        if normalizedInput == normalizedOutput {
+            errors.append(.selfMapping)
+        }
+
+        return errors
+    }
+
+    /// Validate a simple input/output pair shared by multiple models.
+    public static func validateKeys(input: String, output: String) -> [ValidationError] {
+        var errors: [ValidationError] = []
+
+        let trimmedInput = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedOutput = output.trimmingCharacters(in: .whitespacesAndNewlines)
+
         if trimmedInput.isEmpty {
             errors.append(.emptyInput)
         }
@@ -195,25 +220,19 @@ public enum CustomRuleValidator {
             errors.append(.emptyOutput)
         }
 
-        // If both are empty, return early
         if !errors.isEmpty {
             return errors
         }
 
-        // Validate input key (should be a single key)
         if !isValidKey(trimmedInput) {
             errors.append(.invalidInputKey(trimmedInput))
         }
 
-        // Validate output (can be single key or sequence with modifiers)
         let outputTokens = tokenize(trimmedOutput)
-        for token in outputTokens {
-            if !isValidKeyOrModified(token) {
-                errors.append(.invalidOutputKey(token))
-            }
+        for token in outputTokens where !isValidKeyOrModified(token) {
+            errors.append(.invalidOutputKey(token))
         }
 
-        // Check for self-mapping
         let normalizedInput = normalizeKey(trimmedInput)
         let normalizedOutput = normalizeKey(trimmedOutput)
         if normalizedInput == normalizedOutput {

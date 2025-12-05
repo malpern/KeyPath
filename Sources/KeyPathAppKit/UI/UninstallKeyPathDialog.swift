@@ -10,7 +10,7 @@ struct UninstallKeyPathDialog: View {
     @State private var lastError: String?
     @State private var didSucceed = false
     @State private var hasScheduledQuit = false
-    @State private var autoQuitWorkItem: DispatchWorkItem?
+    @State private var autoQuitTask: Task<Void, Never>?
 
     var body: some View {
         VStack(spacing: 20) {
@@ -98,14 +98,13 @@ struct UninstallKeyPathDialog: View {
     private func scheduleQuit() {
         guard !hasScheduledQuit else { return }
         hasScheduledQuit = true
-        let work = DispatchWorkItem {
+        autoQuitTask?.cancel()
+        autoQuitTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
             // Must dismiss the modal sheet first, then terminate to avoid the NSBeep.
             dismiss()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                NSApplication.shared.terminate(nil)
-            }
+            try? await Task.sleep(for: .milliseconds(300))
+            NSApplication.shared.terminate(nil)
         }
-        autoQuitWorkItem = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0, execute: work)
     }
 }

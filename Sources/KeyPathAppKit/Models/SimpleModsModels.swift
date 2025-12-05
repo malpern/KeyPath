@@ -27,6 +27,22 @@ public struct SimpleMapping: Identifiable, Sendable, Equatable {
         self.lineRange = lineRange
         self.checksum = checksum
     }
+
+    public func validationErrors(existing: [SimpleMapping] = [])
+        -> [CustomRuleValidator.ValidationError]
+    {
+        var errors = CustomRuleValidator.validateKeys(input: fromKey, output: toKey)
+
+        // Conflict: same input already mapped to different output
+        let normalizedInput = CustomRuleValidator.normalizeKey(fromKey)
+        if let conflict = existing.first(
+            where: { $0.id != id && CustomRuleValidator.normalizeKey($0.fromKey) == normalizedInput }
+        ) {
+            errors.append(.conflict(with: conflict.toKey, key: normalizedInput))
+        }
+
+        return errors
+    }
 }
 
 /// Preset mapping definition for the catalog
@@ -52,6 +68,10 @@ public struct SimpleModPreset: Identifiable, Sendable {
         self.category = category
         self.fromKey = fromKey
         self.toKey = toKey
+    }
+
+    public func validationErrors() -> [CustomRuleValidator.ValidationError] {
+        CustomRuleValidator.validateKeys(input: fromKey, output: toKey)
     }
 }
 

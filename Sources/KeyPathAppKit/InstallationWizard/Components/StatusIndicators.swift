@@ -18,6 +18,19 @@ struct SummaryItemView: View {
     }
 
     var body: some View {
+        if let onTap {
+            Button(action: onTap) {
+                content
+            }
+            .buttonStyle(.plain)
+            .background(Color.clear)
+            .help("Click to open settings")
+        } else {
+            content
+        }
+    }
+
+    private var content: some View {
         HStack(spacing: WizardDesign.Spacing.iconGap) {
             Image(systemName: icon)
                 .font(WizardDesign.Typography.subsectionTitle)
@@ -32,9 +45,6 @@ struct SummaryItemView: View {
             statusIcon
         }
         .contentShape(Rectangle())
-        .onTapGesture(perform: onTap ?? {})
-        .background(Color.clear)
-        .help(onTap != nil ? "Click to open settings" : "")
     }
 
     var iconColor: Color {
@@ -315,24 +325,26 @@ private struct PageDot: View {
     let onTap: () -> Void
 
     var body: some View {
-        Circle()
-            .fill(dotFill)
-            .frame(width: isDeemphasized ? 7 : 8, height: isDeemphasized ? 7 : 8)
-            .overlay(
-                Circle()
-                    .stroke(
-                        isDeemphasized ? WizardDesign.Colors.secondaryText.opacity(0.25) : .clear, lineWidth: 1
-                    )
-            )
-            .scaleEffect(isCurrent ? 1.2 : 1.0)
-            .animation(WizardDesign.Animation.buttonFeedback, value: isCurrent)
-            .onTapGesture(perform: onTap)
-            .help(helpText)
-            .accessibilityLabel("Navigate to \(page.displayName)")
-            .accessibilityValue(accessibilityValue)
-            .accessibilityAddTraits(isCurrent ? [.isSelected, .isButton] : .isButton)
-            .accessibilityHint("Double-tap to go to \(page.displayName) setup step")
-            .accessibilityIdentifier("wizard-step-\(index + 1)-\(page.accessibilityIdentifier)")
+        Button(action: onTap) {
+            Circle()
+                .fill(dotFill)
+                .frame(width: isDeemphasized ? 7 : 8, height: isDeemphasized ? 7 : 8)
+                .overlay(
+                    Circle()
+                        .stroke(
+                            isDeemphasized ? WizardDesign.Colors.secondaryText.opacity(0.25) : .clear, lineWidth: 1
+                        )
+                )
+                .scaleEffect(isCurrent ? 1.2 : 1.0)
+                .animation(WizardDesign.Animation.buttonFeedback, value: isCurrent)
+        }
+        .buttonStyle(.plain)
+        .help(helpText)
+        .accessibilityLabel("Navigate to \(page.displayName)")
+        .accessibilityValue(accessibilityValue)
+        .accessibilityAddTraits(isCurrent ? [.isSelected, .isButton] : .isButton)
+        .accessibilityHint("Double-tap to go to \(page.displayName) setup step")
+        .accessibilityIdentifier("wizard-step-\(index + 1)-\(page.accessibilityIdentifier)")
     }
 
     private var dotFill: Color {
