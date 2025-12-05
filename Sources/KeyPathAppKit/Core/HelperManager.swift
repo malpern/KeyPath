@@ -8,16 +8,65 @@ import ServiceManagement
 /// This manager handles the XPC connection lifecycle and provides async/await wrappers
 /// around the helper's XPC protocol methods.
 ///
-/// Design:
+/// # Design
 /// - Actor to serialize connection state without @unchecked Sendable.
 /// - SMJobBless calls hop to MainActor for Authorization UI safety.
+///
+/// # State Machine
+/// ```
+/// ┌─────────────────┐
+/// │  notInstalled   │ ◄── Initial state when helper not found
+/// └────────┬────────┘
+///          │ installHelper()
+///          ▼
+/// ┌─────────────────┐
+/// │requiresApproval │ ◄── SMAppService needs user approval in System Settings
+/// └────────┬────────┘
+///          │ User approves in System Settings → Login Items
+///          ▼
+/// ┌─────────────────────────┐
+/// │registeredButUnresponsive│ ◄── Registered but XPC communication fails
+/// └────────┬────────────────┘
+///          │ XPC connection succeeds
+///          ▼
+/// ┌─────────────────┐
+/// │    healthy      │ ◄── Helper running, XPC responds, version OK
+/// └─────────────────┘
+/// ```
+///
+/// # State Determination (getHelperHealth)
+/// 1. Check SMAppService.status for `.requiresApproval` → return `.requiresApproval`
+/// 2. Check isHelperInstalled() → false → return `.notInstalled`
+/// 3. Try XPC version + functionality check → success → return `.healthy(version)`
+/// 4. Fallback → return `.registeredButUnresponsive`
+///
+/// # Recovery Strategies
+/// - `.notInstalled` → Call `installHelper()` to register with SMAppService
+/// - `.requiresApproval` → Guide user to System Settings → Login Items
+/// - `.registeredButUnresponsive` → Try `clearConnection()` then reconnect
+/// - Signature mismatch → App restart required (XPC validates code signatures)
+///
+/// # XPC Timeout Strategy
+/// All XPC calls use `executeXPCCall()` which implements:
+/// - 30-second default timeout (configurable)
+/// - Race between callback completion and timeout
+/// - Automatic connection cache invalidation on timeout
+/// - See inline comments in `executeXPCCall()` for implementation details
 actor HelperManager {
     // MARK: - Helper Health State
 
+    /// Represents the health state of the privileged helper.
+    ///
+    /// State transitions follow a linear progression from installation to healthy,
+    /// with the possibility of falling back to unresponsive if XPC communication fails.
     enum HealthState: Equatable {
+        /// Helper binary not found or not registered with launchd
         case notInstalled
+        /// SMAppService requires user approval in System Settings → Login Items
         case requiresApproval(String?)
+        /// Helper is registered but XPC communication is failing
         case registeredButUnresponsive(String?)
+        /// Helper is running and responding to XPC calls
         case healthy(version: String?)
     }
 
@@ -235,6 +284,17 @@ actor HelperManager {
             let proxy = try await getRemoteProxy { _ in /* proxy error handled by timeout path */ }
             return await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
                 let sema = DispatchSemaphore(value: 0)
+
+                // MARK: @unchecked Sendable - Legitimate Use
+
+                // This class bridges XPC callback patterns to async/await with timeout.
+                // Why @unchecked Sendable is necessary here:
+                // 1. XPC proxy objects (HelperProtocol) are not Sendable in Swift 6
+                // 2. Task groups require captured values to be Sendable
+                // 3. We can't use structured concurrency (withTaskGroup) for XPC timeout
+                // 4. The semaphore + holder pattern is the standard bridge for callback→async
+                // 5. Thread safety: single writer (XPC callback), single reader (timeout path)
+                // See: https://forums.swift.org/t/sendable-and-nscoder-and-other-objc-types/61610
                 final class VersionHolder: @unchecked Sendable {
                     var value: String?
                 }
@@ -538,27 +598,40 @@ actor HelperManager {
         }
     }
 
-    /// Determine helper health state using SMAppService, launchctl, and XPC
+    /// Determine helper health state using SMAppService, launchctl, and XPC.
+    ///
+    /// This is the primary entry point for callers to determine if the helper is ready for use.
+    /// The function checks multiple layers in priority order:
+    ///
+    /// 1. **SMAppService approval** - If the service needs user approval, return early
+    /// 2. **Installation check** - Verify the helper binary exists and is registered
+    /// 3. **XPC communication** - Attempt to communicate with the helper
+    ///
+    /// - Returns: The current `HealthState` of the helper
+    ///
+    /// - Note: This function may take several seconds if XPC communication times out.
+    ///   Consider caching the result for UI updates.
     func getHelperHealth() async -> HealthState {
         let svc = Self.smServiceFactory(Self.helperPlistName)
         let smStatus = svc.status
 
-        // Approval explicitly required
+        // Step 1: Check if SMAppService requires user approval
         if smStatus == .requiresApproval {
             return .requiresApproval("Approval required in System Settings → Login Items.")
         }
 
+        // Step 2: Check if helper is installed (binary exists, launchd knows about it)
         let installed = await isHelperInstalled()
         if !installed {
             return .notInstalled
         }
 
-        // Fast path: if XPC responds, we are healthy
+        // Step 3: Test XPC communication - if it works, we're healthy
         if let version = await getHelperVersion(), await testHelperFunctionality() {
             return .healthy(version: version)
         }
 
-        // Installed but XPC failing
+        // Step 4: Installed but XPC failing - likely needs restart or has stale connection
         return .registeredButUnresponsive("Helper registered but XPC communication failed")
     }
 
@@ -641,7 +714,15 @@ actor HelperManager {
         let proxy = try await getRemoteProxy { _ in }
 
         // Execute with timeout to prevent infinite hangs when XPC connection is interrupted
-        // Use a class with lock for thread-safe completion tracking
+        // MARK: @unchecked Sendable - Legitimate Use
+
+        // CompletionState coordinates between XPC callback and timeout paths.
+        // Why @unchecked Sendable is necessary here:
+        // 1. XPC proxy objects (HelperProtocol) are not Sendable in Swift 6
+        // 2. Can't use withTaskGroup - capturing non-Sendable proxy fails compilation
+        // 3. This is the standard pattern for callback→async bridge with timeout
+        // 4. Thread safety: NSLock guards the _completed flag for atomic try-complete
+        // 5. Exactly two writers race: XPC callback vs timeout, lock ensures only one wins
         final class CompletionState: @unchecked Sendable {
             private var _completed = false
             private let lock = NSLock()

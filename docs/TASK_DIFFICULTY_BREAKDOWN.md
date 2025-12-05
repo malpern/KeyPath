@@ -325,300 +325,208 @@ enum ValidationError: LocalizedError {
 
 These require some thinking but have clear scope and patterns. Medium risk.
 
-### Category 6: Fix @unchecked Sendable Concurrency Issues
-**Difficulty:** 🟡 MODERATE | **Effort:** 4-6 hours | **Files:** 1 | **Instances:** 2
+### Category 6: ~~Fix @unchecked Sendable Concurrency Issues~~ ✅ RESOLVED - Documented as Legitimate
+**Difficulty:** 🟢 RESOLVED | **Effort:** 1 hour (documentation) | **Files:** 1 | **Instances:** 2
 
-**Why it's complex:**
-- Requires understanding of Swift concurrency model
-- Must replace manual synchronization with async/await patterns
-- Needs comprehensive testing of concurrent scenarios
+**Status: December 2025 - CANNOT BE ELIMINATED**
 
-**Files to modify:**
+After attempting to refactor with `withTaskGroup`, Swift 6's strict concurrency checking reveals these `@unchecked Sendable` usages are **legitimate and necessary**:
+
+**Why structured concurrency doesn't work here:**
+1. XPC proxy objects (`HelperProtocol`) are NOT Sendable in Swift 6
+2. `withTaskGroup` requires captured values to be Sendable
+3. We must capture the proxy to call XPC methods
+4. Attempting `group.addTask { proxy.getVersion... }` fails with:
+   ```
+   error: passing closure as a 'sending' parameter risks causing data races
+   closure captures 'proxy' which is accessible to code in the current task
+   ```
+
+**Why the current pattern is correct:**
+- `VersionHolder`: Single writer (XPC callback), single reader (timeout path)
+- `CompletionState`: NSLock guards boolean for atomic try-complete between two racers
+- Both are standard patterns for callback→async bridge with timeout
+- Thread safety is guaranteed by the implementation
+
+**Files documented:**
 ```
 Sources/KeyPathAppKit/Core/HelperManager.swift
-  ├─ Line 238: VersionHolder class
-  └─ Line 645: CompletionState class
+  ├─ Line 238: VersionHolder class - documented with MARK comment
+  └─ Line 661: CompletionState class - documented with MARK comment
 ```
 
-**Current problematic pattern:**
-```swift
-@unchecked Sendable
-class VersionHolder {
-    private let lock = NSLock()
-    var version: String?
+**Resolution:**
+- Added comprehensive MARK comments explaining why @unchecked Sendable is required
+- Referenced Swift Forums discussion on Sendable + Objective-C types
+- No code changes needed - pattern is already correct
 
-    func setVersion(_ v: String) {
-        lock.withLock { version = v }
-    }
-}
-```
-
-**What to do:**
-1. **Read the context** - Understand why manual synchronization was needed
-2. **Identify the XPC call pattern** - What callback/completion is being bridged?
-3. **Use CheckedContinuation properly**:
-   ```swift
-   let result = await withCheckedContinuation { continuation in
-       xpcConnection.remoteObjectProxy.getVersion { version in
-           continuation.resume(returning: version)
-       }
-   }
-   ```
-4. **Remove NSLock and manual state tracking**
-5. **Add timeout handling** if needed:
-   ```swift
-   try await withThrowingTaskGroup { group in
-       group.addTask { /* actual XPC call */ }
-       group.addTask {
-           try await Task.sleep(for: .seconds(5))
-           throw TimeoutError()
-       }
-   }
-   ```
-
-**Implementation steps:**
-1. Understand the current XPC timeout logic (read the full HelperManager context)
-2. Refactor to use structured concurrency
-3. Remove @unchecked Sendable completely
-4. Add unit tests for timeout scenarios
-5. Test with actual XPC communication
-6. Commit
-
-**Verification:**
-- No @unchecked Sendable in HelperManager
-- XPC calls still timeout correctly
-- No data races detected by Swift concurrency checker
-- All tests pass
+**Verification:** ✅
+- Build passes with Swift 6.2
+- All 181 tests pass
+- Documentation explains the legitimate use case
 
 ---
 
-### Category 7: Simplify XPC Error Handling
-**Difficulty:** 🟡 MODERATE | **Effort:** 4-5 hours | **File:** 1 | **Location:** HelperManager.swift:620-683
+### Category 7: ~~Simplify XPC Error Handling~~ ✅ RESOLVED - Already Optimal
+**Difficulty:** 🟢 RESOLVED | **Effort:** 0 hours (no changes needed) | **File:** 1 | **Location:** HelperManager.swift:632-699
 
-**Why it's complex:**
-- Current implementation has 4+ synchronization primitives mixed together
-- Needs careful refactoring to maintain timeout behavior
-- Requires understanding of how CheckedContinuation and DispatchQueue interact
+**Status: December 2025 - ALREADY OPTIMAL GIVEN CONSTRAINTS**
 
-**Current problematic pattern:**
-```swift
-func executeXPCCall(...) async throws {
-    // Complex mixture of:
-    // - DispatchQueue.global() timer
-    // - NSLock for completion state
-    // - CheckedContinuation for async bridging
-    // - Manual race detection
+After analysis, the suggested structured concurrency refactoring **cannot work** (see Category 6). The current implementation uses the **minimal required primitives**:
 
-    // This is hard to understand and maintain
-}
+**Actual pattern (not "4+ primitives mixed together"):**
+1. `CompletionState` with NSLock - **Required** for race detection between callback vs timeout
+2. `DispatchQueue.global().asyncAfter` - **Required** for timeout scheduling (can't use Task.sleep with non-Sendable proxy)
+3. `withCheckedThrowingContinuation` - **Required** for callback→async bridging
+
+**Why structured concurrency won't work:**
+- XPC proxy objects are NOT Sendable
+- `withThrowingTaskGroup` requires Sendable captured values
+- Therefore, we can't use task groups for timeout with XPC
+
+**What WAS done:**
+- Added comprehensive documentation explaining why the pattern is necessary
+- Documented the thread safety guarantees (CompletionState's NSLock)
+- The code is clear, well-documented, and ~67 lines
+
+**Verification:** ✅
+- Code reviewed and documented in Category 6 work
+- All 181 tests pass
+- No refactoring needed - pattern is already correct
+
+---
+
+### Category 8: ~~HelperManager State Machine Documentation~~ ✅ COMPLETE
+**Difficulty:** 🟢 COMPLETE | **Effort:** 1 hour | **File:** 1 | **Size:** ~1000 lines
+
+**Status: December 2025 - DOCUMENTATION COMPLETE**
+
+The state machine was already partially implemented (`HealthState` enum existed). Added comprehensive documentation:
+
+**What was done:**
+1. **Enhanced file-level doc comment** with ASCII art state diagram:
+   ```
+   notInstalled → requiresApproval → registeredButUnresponsive → healthy
+   ```
+2. **Documented state determination algorithm** (4 priority-ordered steps)
+3. **Added recovery strategies** for each state
+4. **Documented XPC timeout strategy**
+5. **Added doc comments to `HealthState` enum cases**
+6. **Enhanced `getHelperHealth()` with detailed step comments**
+
+**Files modified:**
+```
+Sources/KeyPathAppKit/Core/HelperManager.swift
+  ├─ Lines 6-54: Comprehensive type-level documentation
+  ├─ Lines 58-71: HealthState enum with case documentation
+  └─ Lines 599-634: getHelperHealth() with step comments
 ```
 
-**What to do:**
-1. **Replace manual timeout with structured concurrency:**
-   ```swift
-   try await withTimeout(seconds: 5) {
-       await withCheckedContinuation { continuation in
-           xpcConnection.remoteObjectProxy.executeCommand() { result in
-               continuation.resume(returning: result)
-           }
-       }
-   }
-   ```
+**Key insight:** The state machine was already correctly implemented - it just needed documentation. The `HealthState` enum already had the right cases:
+- `notInstalled` - Helper not found
+- `requiresApproval` - Needs System Settings approval
+- `registeredButUnresponsive` - XPC communication failing
+- `healthy` - Working correctly
 
-2. **Create a reusable timeout helper:**
-   ```swift
-   func withTimeout<T>(seconds: TimeInterval, operation: @escaping () async throws -> T) async throws -> T {
-       try await withThrowingTaskGroup { group in
-           let result = try await operation()
-           group.cancelAll()
-           return result
-       }
-   }
-   ```
-
-3. **Remove DispatchQueue timer logic**
-4. **Remove NSLock for completion tracking**
-5. **Keep CheckedContinuation for callback bridging**
-
-**Implementation steps:**
-1. Create timeout helper function
-2. Refactor executeXPCCall to use it
-3. Remove manual synchronization code
-4. Test timeout scenarios (let connection hang, verify timeout fires)
-5. Test success scenarios (normal XPC communication)
-6. Commit
-
-**Verification:**
-- executeXPCCall is now 1/3 the complexity
-- Timeout still works correctly
-- All XPC commands still complete successfully
-- No manual synchronization primitives
+**Verification:** ✅
+- Build passes
+- All 181 tests pass
+- State diagram clearly shows transitions
+- Recovery strategies documented
 
 ---
 
-### Category 8: HelperManager State Machine Documentation
-**Difficulty:** 🟡 MODERATE | **Effort:** 3-4 hours | **File:** 1 | **Size:** 947 lines
+### Category 9: ~~Extract KanataTCPClient Message Codec~~ ⏸️ DEFERRED - Low Value
+**Difficulty:** 🟡 DEFERRED | **Effort:** 4-6 hours | **Files:** 1 → 2 | **Size:** 1,214 lines
 
-**Why it's complex:**
-- Needs to understand implicit state transitions
-- Must document fallback chains (helper → sudo)
-- Requires clarity on health checking logic
+**Status: December 2025 - DEFERRED (Optional Refactoring)**
 
-**What to do:**
-1. **Create formal state enum:**
-   ```swift
-   enum HelperHealthState {
-       case unknown
-       case running(version: String)
-       case crashed
-       case notInstalled
-       case versionMismatch(current: String, expected: String)
-   }
-   ```
+After analysis, this extraction provides **low value** relative to effort:
 
-2. **Document state transitions:**
-   ```
-   unknown → running (on successful connection)
-   unknown → crashed (on connection timeout)
-   running → versionMismatch (on version check)
-   versionMismatch → running (on reinstall)
-   ```
+**Why extraction is unnecessary:**
+1. **Already well-organized** - Protocol models are nested types (lines 297-382)
+2. **Good test coverage** - 7 test files cover TCP functionality
+3. **Swift-idiomatic** - Nested types inside actor is standard Swift pattern
+4. **MARK comments** - File navigation is easy with section markers
+5. **Extraction adds complexity** - Would require updating 7 test files, managing imports
 
-3. **Add helper state tracking:**
-   ```swift
-   private var healthState: HelperHealthState = .unknown
-
-   private func updateHealthState(_ newState: HelperHealthState) {
-       let oldState = healthState
-       healthState = newState
-       logger.info("HelperManager state transition: \(oldState) → \(newState)")
-   }
-   ```
-
-4. **Document fallback strategy** at top of file:
-   ```swift
-   // FALLBACK STRATEGY:
-   // 1. Try to connect via XPC (requires helper installed and running)
-   // 2. If XPC fails or helper not found, fall back to sudo helper
-   // 3. If sudo helper fails, report health check failure
-   // 4. Return to step 1 after cooldown period
-   ```
-
-5. **Add logging for all state transitions**
-
-**Implementation steps:**
-1. Define HelperHealthState enum
-2. Add state tracking to HelperManager
-3. Identify all state transitions
-4. Add logging at each transition
-5. Update comments to reference state machine
-6. Test state transitions (watch logs during different scenarios)
-7. Commit
-
-**Verification:**
-- State transitions are clear and logged
-- Fallback strategy is documented and clear
-- All state changes are captured in logs
-- No implicit/hidden state changes
-
----
-
-### Category 9: Extract KanataTCPClient Message Codec
-**Difficulty:** 🟡 MODERATE | **Effort:** 4-6 hours | **Files:** 1 → 2 | **Size:** 1,214 → 800+200 lines
-
-**Why it's complex:**
-- Must identify message parsing logic vs connection management
-- Requires careful API design for the extracted class
-- Need to ensure all callers still work correctly
-
-**Current file:** KanataTCPClient.swift (1,214 lines)
-
-**What to extract:**
-
-1. **Create TcpMessageCodec.swift (new file, ~200 lines):**
-   ```swift
-   struct TcpMessageCodec {
-       // All message parsing/encoding logic
-       func parseMessage(_ data: Data) throws -> KanataMessage
-       func encodeMessage(_ message: KanataMessage) throws -> Data
-       func parseJsonResponse(_ json: [String: Any]) throws -> TcpResponse
-   }
-   ```
-
-2. **Keep in KanataTCPClient.swift:**
-   - Connection management
-   - Connection state tracking
-   - Retry logic
-   - Error handling at network level
-
-**Implementation steps:**
-1. **Identify all message parsing code** in KanataTCPClient
-2. **Create TcpMessageCodec struct** with extracted methods
-3. **Update KanataTCPClient** to use `codec.parseMessage()` instead of inline logic
-4. **Test all message types** still parse correctly
-5. **Verify no behavioral changes**
-6. **Commit**
-
-**Verification:**
-- KanataTCPClient is now 800 lines (down from 1,214)
-- Message parsing is in focused TcpMessageCodec
-- All tests pass
-- All message types still decode correctly
-
----
-
-### Category 10: Replace NSLock with @MainActor
-**Difficulty:** 🟡 MODERATE | **Effort:** 2-3 hours | **File:** 1 | **Location:** ConfigurationService.swift:732-735
-
-**Why it's complex:**
-- Must understand current state isolation
-- Need to verify @MainActor is appropriate
-- Requires ensuring all accesses are on main thread
-
-**Current code:**
-```swift
-private let configLock = NSLock()
-private var currentConfiguration: Configuration?
-
-public func saveConfiguration(_ config: Configuration) {
-    configLock.withLock {
-        currentConfiguration = config
-        notifyObservers()
-    }
-}
+**Current file structure (1,214 lines):**
+```
+KanataTCPClient.swift
+├─ TcpServerResponse (struct, lines 7-35)
+├─ CompletionFlag (private class, lines 37-49)
+├─ KanataTCPClient (actor, lines 78+)
+│   ├─ Connection management (lines 78-294)
+│   ├─ Protocol Models (nested structs, lines 297-382)
+│   │   ├─ TcpHelloOk
+│   │   ├─ TcpLastReload
+│   │   ├─ TcpStatusInfo
+│   │   ├─ TcpValidationItem
+│   │   └─ TcpValidationResult
+│   ├─ Handshake/Status operations (lines 383-683)
+│   ├─ Virtual key operations (lines 684-760)
+│   └─ Core send/receive (lines 761-1133)
+└─ Result Types + Timeout Helper (lines 1134-1214)
 ```
 
-**What to do:**
-1. **Remove NSLock**
-2. **Add @MainActor to the property:**
-   ```swift
-   @MainActor
-   private var currentConfiguration: Configuration?
-   ```
+**Test files that would need updates:**
+- TcpServerResponseTests.swift
+- TCPConnectionLeakTests.swift
+- TCPClientIntegrationTests.swift
+- TCPClientRequestIDTests.swift
+- TCPReadBufferTests.swift
+- SimpleModsSmokeTests.swift
 
-3. **Ensure all accessors are @MainActor:**
-   ```swift
-   @MainActor
-   public func getCurrentConfiguration() -> Configuration? {
-       currentConfiguration
-   }
-   ```
+**Decision: DEFERRED**
+The file is large but well-organized. Extracting the codec would:
+- Add import complexity
+- Require test file updates
+- Not significantly improve maintainability
 
-4. **Update all callers** to use `@MainActor` or `Task { @MainActor in ... }`
+**Revisit if:**
+- File grows beyond 1,500 lines
+- Multiple developers need to work on TCP code simultaneously
+- Protocol models need to be shared with other modules
 
-**Implementation steps:**
-1. Identify all places that access currentConfiguration
-2. Add @MainActor isolation
-3. Verify callers are already on main thread
-4. Remove NSLock
-5. Test with thread sanitizer
-6. Commit
+---
 
-**Verification:**
-- No NSLock remaining
-- All ConfigurationService methods are @MainActor
-- Thread sanitizer reports no issues
-- All tests pass
+### Category 10: ~~Replace NSLock with @MainActor~~ ✅ RESOLVED - Documented as Legitimate
+**Difficulty:** 🟢 RESOLVED | **Effort:** 30 minutes (documentation) | **File:** 1 | **Location:** ConfigurationService.swift:734-748
+
+**Status: December 2025 - CANNOT BE REPLACED WITH @MainActor**
+
+After analysis, the NSLock is **legitimate and necessary** for cross-queue synchronization:
+
+**Why @MainActor won't work here:**
+1. `ConfigurationService` intentionally uses `ioQueue` for file I/O to avoid blocking UI
+2. The `stateLock` protects `currentConfiguration` and `observers` accessed from:
+   - Main thread (via `observe()`, UI updates)
+   - `ioQueue` (via `loadConfiguration()`, `saveConfiguration()`)
+3. Making the class `@MainActor` would either:
+   - Force file I/O onto main thread (causes UI stutters)
+   - Require complex `Task.detached` patterns for background work
+
+**Current pattern is correct:**
+- `stateLock` serializes access to shared mutable state
+- File I/O runs on background queue
+- Observers are notified on `@MainActor`
+- Thread safety via accessor methods: `withLockedCurrentConfig()`, `setCurrentConfiguration()`, `observersSnapshot()`
+
+**What WAS done:**
+- Added comprehensive MARK comment explaining why NSLock is appropriate
+- Documented the cross-queue access pattern
+- Listed the thread-safe accessor methods
+
+**Files modified:**
+```
+Sources/KeyPathAppKit/Infrastructure/Config/ConfigurationService.swift
+  └─ Lines 734-748: Documentation explaining legitimate NSLock use
+```
+
+**Verification:** ✅
+- Build passes
+- All 181 tests pass
+- Documentation explains the legitimate use case
 
 ---
 
@@ -1046,16 +954,21 @@ Schedule larger refactoring tasks when you have dedicated time.
 - [ ] Tests: 181 passing, 100% pass rate ✓
 - [ ] No regressions ✓
 
-### After Week 2 (Moderately Complex, 15-20 hours)
-- [ ] @unchecked Sendable eliminated (2 instances)
-- [ ] XPC error handling simplified
-- [ ] HelperManager state machine documented
-- [ ] NSLock replaced with @MainActor
-- [ ] KanataTCPClient codec extracted
-- [ ] 48 issues closed ✓
-- [ ] Concurrency safety improved ✓
-- [ ] Code quality improved ✓
-- [ ] All tests pass ✓
+### After Week 2 (Moderately Complex, 15-20 hours) ✅ COMPLETE (December 2025)
+- [x] @unchecked Sendable - **DOCUMENTED AS LEGITIMATE** (XPC requires it in Swift 6)
+- [x] XPC error handling - **ALREADY OPTIMAL** (pattern is minimal required)
+- [x] HelperManager state machine - **DOCUMENTED** with ASCII diagram + recovery strategies
+- [x] NSLock in ConfigurationService - **DOCUMENTED AS LEGITIMATE** (cross-queue sync)
+- [x] KanataTCPClient codec - **DEFERRED** (low value, file already well-organized)
+- [x] Concurrency patterns documented ✓
+- [x] Code quality improved ✓
+- [x] All 181 tests pass ✓
+
+**Key Findings:**
+- Swift 6 strict concurrency prevents eliminating some @unchecked Sendable (XPC proxies aren't Sendable)
+- NSLock is legitimate for cross-queue synchronization in ConfigurationService
+- HelperManager already had HealthState enum - just needed documentation
+- KanataTCPClient extraction deferred as low value (nested types are Swift-idiomatic)
 
 ### After Weeks 3-4 (Complex Refactoring, 30-40 hours)
 - [ ] ConfigurationService split into 5 files

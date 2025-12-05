@@ -728,9 +728,24 @@ public final class ConfigurationService: FileConfigurationProviding {
     private var fileWatcher: FileWatcher?
     private var observers: [@Sendable (Config) async -> Void] = []
 
-    // Perform blocking file I/O off the main actor
+    // Perform blocking file I/O off the main actor to avoid UI stutters
     private let ioQueue = DispatchQueue(label: "com.keypath.configservice.io", qos: .utility)
-    // Protect shared state when accessed from multiple threads
+
+    // MARK: NSLock - Legitimate Use for Cross-Queue Synchronization
+
+    // This lock protects `currentConfiguration` and `observers` which are accessed from:
+    // 1. Main thread (via observe(), getCurrentConfiguration(), etc.)
+    // 2. ioQueue (via loadConfiguration(), saveConfiguration(), etc.)
+    //
+    // Why NOT @MainActor:
+    // - File I/O (readFileAsync, writeFileAsync) must run off main thread
+    // - Making the class @MainActor would either block UI or require complex detached tasks
+    // - The current pattern is simpler and correct
+    //
+    // Thread safety is guaranteed by accessing shared state only via:
+    // - withLockedCurrentConfig()
+    // - setCurrentConfiguration()
+    // - observersSnapshot()
     private let stateLock = NSLock()
 
     // MARK: - Initialization
