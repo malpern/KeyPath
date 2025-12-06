@@ -135,6 +135,7 @@ struct CustomRuleEditorView: View {
     private let existingRule: CustomRule?
     private let existingRules: [CustomRule]
     private let mode: Mode
+    private let isStandalone: Bool // When true, acts as home screen (no close button, resets after save)
     let onSave: (CustomRule) -> Void
     let onDelete: ((CustomRule) -> Void)?
     let onPauseMappings: (() async -> Bool)?
@@ -157,6 +158,7 @@ struct CustomRuleEditorView: View {
     init(
         rule: CustomRule?,
         existingRules: [CustomRule] = [],
+        isStandalone: Bool = false,
         onSave: @escaping (CustomRule) -> Void,
         onDelete: ((CustomRule) -> Void)? = nil,
         onPauseMappings: (() async -> Bool)? = nil,
@@ -164,6 +166,7 @@ struct CustomRuleEditorView: View {
     ) {
         existingRule = rule
         self.existingRules = existingRules
+        self.isStandalone = isStandalone
         self.onSave = onSave
         self.onDelete = onDelete
         self.onPauseMappings = onPauseMappings
@@ -245,24 +248,26 @@ struct CustomRuleEditorView: View {
         VStack(spacing: 0) {
             // Header with close button and left-aligned title
             HStack {
-                // Close button
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.secondary)
+                // Close button (hidden in standalone mode)
+                if !isStandalone {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .focusable(false)
+                    .keyboardShortcut(.cancelAction)
+                    .help("Close")
                 }
-                .buttonStyle(.plain)
-                .focusable(false)
-                .keyboardShortcut(.cancelAction)
-                .help("Close")
 
                 // Title (left-aligned after close button)
                 Text("KeyPath")
                     .font(.headline)
                     .foregroundStyle(.primary)
-                    .padding(.leading, 8)
+                    .padding(.leading, isStandalone ? 0 : 8)
 
                 Spacer()
 
@@ -446,7 +451,16 @@ struct CustomRuleEditorView: View {
         validationError = nil
         onSave(rule)
         showToast(message: "Saved", isError: false)
-        // Don't dismiss - let user continue editing or close manually
+
+        // In standalone mode, reset form after save so user can create another rule
+        if isStandalone {
+            // Delay reset slightly so user sees the "Saved" toast
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(800))
+                resetForm()
+            }
+        }
+        // In sheet mode, don't dismiss - let user continue editing or close manually
     }
 
     /// Show a brief toast notification
