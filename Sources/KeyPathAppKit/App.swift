@@ -118,10 +118,10 @@ public struct KeyPathApp: App {
             CommandGroup(replacing: .newItem) {
                 Button(
                     action: {
-                        openPreferencesTab(.openSettingsAdvanced)
+                        openSettingsWithSmartDefault()
                     },
                     label: {
-                        Label("Repair/Remove…", systemImage: "wrench.and.screwdriver")
+                        Label("Settings…", systemImage: "gearshape")
                     }
                 )
                 .keyboardShortcut(",", modifiers: .command)
@@ -167,6 +167,13 @@ public struct KeyPathApp: App {
                     }
                 )
                 .keyboardShortcut("l", modifiers: .command)
+
+                Divider()
+
+                Button("MAIN (TMP)") {
+                    NotificationCenter.default.post(name: NSNotification.Name("ShowMainView"), object: nil)
+                }
+                .keyboardShortcut("m", modifiers: .command)
 
                 Divider()
 
@@ -349,14 +356,25 @@ private func openPreferencesTab(_ notification: Notification.Name) {
     // Post notification first to ensure tab switches when window opens
     NotificationCenter.default.post(name: notification, object: nil)
 
+    openSettingsWindow()
+}
+
+/// Opens settings window without specifying a tab (uses smart default based on system health)
+@MainActor
+private func openSettingsWithSmartDefault() {
+    AppLogger.shared.log("🎯 [App] Opening settings with smart default")
+    openSettingsWindow()
+}
+
+@MainActor
+private func openSettingsWindow() {
     // macOS 14+: The Settings menu item is automatically created by SwiftUI
     // Find it in the app menu and trigger it programmatically
     if let appMenu = NSApp.mainMenu?.items.first?.submenu {
         for item in appMenu.items {
             // Look for the "Settings..." menu item (standard name on macOS)
             if item.title.contains("Settings") || item.title.contains("Preferences"),
-               let action = item.action
-            {
+               let action = item.action {
                 AppLogger.shared.log("✅ [App] Found Settings menu item, triggering it")
                 NSApp.activate(ignoringOtherApps: true)
                 NSApp.sendAction(action, to: item.target, from: item)
