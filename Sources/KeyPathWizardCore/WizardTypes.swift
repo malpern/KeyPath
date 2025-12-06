@@ -5,7 +5,8 @@ import SwiftUI
 // MARK: - Core Types
 
 /// Represents the current page in the installation wizard
-public enum WizardPage: String, CaseIterable, Sendable {
+public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
+    public var id: String { rawValue }
     case summary = "Summary"
     case helper = "Privileged Helper"
     case fullDiskAccess = "Full Disk Access"
