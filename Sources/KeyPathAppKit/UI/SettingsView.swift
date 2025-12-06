@@ -172,7 +172,7 @@ struct GeneralSettingsTabView: View {
 struct StatusSettingsTabView: View {
     @EnvironmentObject var kanataManager: KanataViewModel
 
-    @State private var showingInstallationWizard = false
+    @State private var wizardInitialPage: WizardPage? // nil = don't show wizard
     @State private var showSetupBanner = false
     @State private var permissionSnapshot: PermissionOracle.Snapshot?
     @State private var systemContext: SystemContext?
@@ -271,7 +271,7 @@ struct StatusSettingsTabView: View {
             icon: "pause.circle",
             level: .warning,
             action: StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
-                showingInstallationWizard = true
+                wizardInitialPage = .summary
             }
         )
     }
@@ -354,7 +354,7 @@ struct StatusSettingsTabView: View {
         VStack(alignment: .leading, spacing: 0) {
             if FeatureFlags.allowOptionalWizard, showSetupBanner {
                 SetupBanner {
-                    showingInstallationWizard = true
+                    wizardInitialPage = .summary
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
@@ -370,12 +370,15 @@ struct StatusSettingsTabView: View {
                                 .fill(isSystemHealthy ? Color.green.opacity(0.15) : Color.orange.opacity(0.15))
                                 .frame(width: 80, height: 80)
 
-                            Image(
-                                systemName: isSystemHealthy
-                                    ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
-                            )
-                            .font(.system(size: 40))
-                            .foregroundColor(isSystemHealthy ? .green : .orange)
+                            Button(action: { wizardInitialPage = .summary }) {
+                                Image(
+                                    systemName: isSystemHealthy
+                                        ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
+                                )
+                                .font(.system(size: 40))
+                                .foregroundColor(isSystemHealthy ? .green : .orange)
+                            }
+                            .buttonStyle(.plain)
                         }
 
                         VStack(spacing: 4) {
@@ -446,32 +449,36 @@ struct StatusSettingsTabView: View {
                         PermissionStatusRow(
                             title: "KeyPath Accessibility",
                             icon: "lock.shield",
-                            granted: permissionSnapshot?.keyPath.accessibility.isReady
+                            granted: permissionSnapshot?.keyPath.accessibility.isReady,
+                            onTap: { wizardInitialPage = .accessibility }
                         )
 
                         PermissionStatusRow(
                             title: "KeyPath Input Monitoring",
                             icon: "keyboard",
-                            granted: permissionSnapshot?.keyPath.inputMonitoring.isReady
+                            granted: permissionSnapshot?.keyPath.inputMonitoring.isReady,
+                            onTap: { wizardInitialPage = .inputMonitoring }
                         )
 
                         PermissionStatusRow(
                             title: "Kanata Accessibility",
                             icon: "lock.shield",
-                            granted: permissionSnapshot?.kanata.accessibility.isReady
+                            granted: permissionSnapshot?.kanata.accessibility.isReady,
+                            onTap: { wizardInitialPage = .accessibility }
                         )
 
                         PermissionStatusRow(
                             title: "Kanata Input Monitoring",
                             icon: "keyboard",
-                            granted: permissionSnapshot?.kanata.inputMonitoring.isReady
+                            granted: permissionSnapshot?.kanata.inputMonitoring.isReady,
+                            onTap: { wizardInitialPage = .inputMonitoring }
                         )
                     }
 
                     // Wizard button (primary - Enter key triggers)
                     if let snapshot = permissionSnapshot {
                         if snapshot.isSystemReady {
-                            Button(action: { showingInstallationWizard = true }) {
+                            Button(action: { wizardInitialPage = .summary }) {
                                 Label("Install wizard…", systemImage: "wand.and.stars.inverse")
                             }
                             .buttonStyle(.bordered)
@@ -496,14 +503,14 @@ struct StatusSettingsTabView: View {
         .frame(maxHeight: 350)
         .settingsBackground()
         .withToasts(settingsToastManager)
-        .sheet(isPresented: $showingInstallationWizard) {
-            InstallationWizardView(initialPage: nil)
+        .sheet(item: $wizardInitialPage) { page in
+            InstallationWizardView(initialPage: page)
                 .customizeSheetWindow()
                 .environmentObject(kanataManager)
         }
         .alert("Permissions Required", isPresented: $showingPermissionAlert) {
             Button("Open Wizard") {
-                showingInstallationWizard = true
+                wizardInitialPage = .summary
             }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -614,28 +621,33 @@ private struct PermissionStatusRow: View {
     let title: String
     let icon: String
     let granted: Bool?
+    let onTap: (() -> Void)?
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon)
-                .foregroundColor(statusColor)
-                .frame(width: 20)
+        Button(action: { onTap?() }) {
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .foregroundColor(statusColor)
+                    .frame(width: 20)
 
-            Text(title)
-                .font(.body)
-
-            Spacer()
-
-            if let granted {
-                Image(systemName: granted ? "checkmark.circle.fill" : "xmark.circle.fill")
-                    .foregroundColor(granted ? .green : .red)
+                Text(title)
                     .font(.body)
-            } else {
-                ProgressView()
-                    .scaleEffect(0.5)
-                    .frame(width: 16, height: 16)
+
+                Spacer()
+
+                if let granted {
+                    Image(systemName: granted ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        .foregroundColor(granted ? .green : .red)
+                        .font(.body)
+                } else {
+                    ProgressView()
+                        .scaleEffect(0.5)
+                        .frame(width: 16, height: 16)
+                }
             }
         }
+        .buttonStyle(.plain)
+        .disabled(onTap == nil)
     }
 
     private var statusColor: Color {
