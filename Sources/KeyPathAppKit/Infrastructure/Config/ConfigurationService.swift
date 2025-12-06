@@ -31,10 +31,20 @@ public struct KanataConfiguration: Sendable {
     /// Generate configuration content from rule collections.
     /// Flattens enabled collections to `defsrc`/`deflayer` for backward compatibility with Kanata config format.
     public static func generateFromCollections(_ collections: [RuleCollection]) -> String {
-        var resolvedCollections = collections.isEmpty ? defaultSystemCollections : collections
-        if !resolvedCollections.contains(where: { $0.id == RuleCollectionIdentifier.macFunctionKeys }) {
-            resolvedCollections.append(contentsOf: defaultSystemCollections)
+        var resolvedCollections: [RuleCollection]
+
+        // R1: Don't auto-add macOS Function Keys - only custom rules
+        // R2+: Auto-add macOS Function Keys as fallback
+        if FeatureFlags.ruleCollectionsEnabled {
+            resolvedCollections = collections.isEmpty ? defaultSystemCollections : collections
+            if !resolvedCollections.contains(where: { $0.id == RuleCollectionIdentifier.macFunctionKeys }) {
+                resolvedCollections.append(contentsOf: defaultSystemCollections)
+            }
+        } else {
+            // R1: Use exactly what was passed, no auto-additions
+            resolvedCollections = collections
         }
+
         resolvedCollections = RuleCollectionDeduplicator.dedupe(resolvedCollections)
         let enabledCollections = resolvedCollections.filter(\.isEnabled)
         // Note: Disabled collections are NOT written to config (ADR-025: JSON stores are source of truth)
@@ -926,9 +936,19 @@ public final class ConfigurationService: FileConfigurationProviding {
         ruleCollections: [RuleCollection],
         customRules: [CustomRule] = []
     ) async throws {
+        // R1: Only custom rules, no rule collections
+        // R2+: Custom rules + rule collections
+        let collectionsToInclude: [RuleCollection]
+        if FeatureFlags.ruleCollectionsEnabled {
+            collectionsToInclude = ruleCollections
+        } else {
+            // R1: Exclude all rule collections - only custom rules
+            collectionsToInclude = []
+        }
+
         // Custom rules come first so they take priority over preset collections
         let combinedCollections = RuleCollectionDeduplicator.dedupe(
-            customRules.asRuleCollections() + ruleCollections
+            customRules.asRuleCollections() + collectionsToInclude
         )
         let mappings = combinedCollections.enabledMappings()
         let configContent = KanataConfiguration.generateFromCollections(combinedCollections)

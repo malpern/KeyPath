@@ -15,11 +15,12 @@ import Foundation
 public enum KanataKeyConverter {
     /// Convert KeyPath key to Kanata key format for use inside macros.
     ///
-    /// Inside macros, chord syntax like `M-right` requires UPPERCASE modifier prefixes.
-    /// This method preserves the case of modifier prefixes (M-, A-, C-, S-).
+    /// Inside macros:
+    /// - Chord syntax like `M-right` requires UPPERCASE modifier prefixes
+    /// - Bare digit keys (0-9) are parsed as millisecond delays, so must use Digit0-Digit9
     ///
     /// - Parameter input: The key name to convert
-    /// - Returns: The Kanata-formatted key name with preserved modifier prefix case
+    /// - Returns: The Kanata-formatted key name suitable for macro context
     public static func convertToKanataKeyForMacro(_ input: String) -> String {
         // Known modifier prefixes that must remain uppercase in macro context
         // Order matters - check longer prefixes first
@@ -27,22 +28,24 @@ public enum KanataKeyConverter {
 
         for prefix in modifierPrefixes {
             if input.hasPrefix(prefix) {
-                // Preserve uppercase prefix, convert base key
+                // Preserve uppercase prefix, convert base key (with forMacro for digits)
                 let baseKey = String(input.dropFirst(prefix.count))
-                let convertedBase = convertToKanataKey(baseKey)
+                let convertedBase = convertToKanataKey(baseKey, forMacro: true)
                 return prefix + convertedBase
             }
         }
 
-        // No modifier prefix - use standard conversion
-        return convertToKanataKey(input)
+        // No modifier prefix - use standard conversion with forMacro flag
+        return convertToKanataKey(input, forMacro: true)
     }
 
     /// Convert KeyPath input key to Kanata key format.
     ///
     /// - Parameter input: The key name to convert (e.g., "caps lock", "command", "space")
+    /// - Parameter forMacro: If true, converts digit keys to their Kanata names (e.g., "1" → "Digit1")
+    ///                       since bare numbers in macros are interpreted as millisecond delays
     /// - Returns: The Kanata-formatted key name (e.g., "caps", "lmet", "spc")
-    public static func convertToKanataKey(_ input: String) -> String {
+    public static func convertToKanataKey(_ input: String, forMacro: Bool = false) -> String {
         let lowercased = input.lowercased()
 
         // Check if we have a specific mapping
@@ -50,9 +53,22 @@ public enum KanataKeyConverter {
             return mapped
         }
 
-        // For single characters, return as-is
+        // For single characters
         if lowercased.count == 1 {
+            // IMPORTANT: In macros, bare digit keys (0-9) are parsed as millisecond delays
+            // We must use their full key names (Digit0-Digit9) instead
+            if forMacro, let char = lowercased.first, char.isNumber {
+                return "Digit\(char)"
+            }
             return lowercased
+        }
+
+        // For multi-character tokens in macro context that are purely numeric (e.g., "10", "200")
+        // These would be parsed as delays, so we need to split into individual Digit keys
+        // Return a space-separated sequence that the caller can embed in the macro
+        if forMacro, !input.isEmpty, input.allSatisfy({ $0.isNumber }) {
+            let digitKeys = input.map { "Digit\($0)" }
+            return digitKeys.joined(separator: " ")
         }
 
         // For tokens that would break Kanata syntax, replace parens explicitly
@@ -83,11 +99,11 @@ public enum KanataKeyConverter {
             return ""
         }
 
-        // Multiple whitespace-separated tokens (e.g., "cmd space") → chord/sequence
+        // Multiple whitespace-separated tokens (e.g., "1 2 3 4") → macro sequence
         if tokens.count > 1 {
             // Use convertToKanataKeyForMacro to preserve uppercase modifier prefixes
             let kanataKeys = tokens.map { convertToKanataKeyForMacro($0) }
-            return "(\(kanataKeys.joined(separator: " ")))"
+            return "(macro \(kanataKeys.joined(separator: " ")))"
         }
 
         // Single token - check if it's a text sequence to type (e.g., "123", "hello")
@@ -97,14 +113,24 @@ public enum KanataKeyConverter {
         // Convert to macro for typing each character
         if singleToken.count > 1, shouldConvertToMacro(singleToken) {
             // Split into individual characters and convert each to a key
+            // Use convertToKanataKeyForMacro to handle digits (0-9 → Digit0-Digit9)
             let characters = Array(singleToken)
-            let keys = characters.map { String($0) }
+            let keys = characters.map { convertToKanataKeyForMacro(String($0)) }
             return "(macro \(keys.joined(separator: " ")))"
         }
 
-        // Single key: use convertToKanataKeyForMacro to preserve uppercase modifier prefixes
-        // (e.g., A-right, M-left, M-S-g) which are valid in both macro and deflayer contexts
-        return convertToKanataKeyForMacro(singleToken)
+        // Single key output (not in a macro)
+        // Handle modifier prefixes separately to preserve uppercase (M-, A-, C-, S-)
+        let modifierPrefixes = ["M-S-", "C-S-", "A-S-", "M-", "A-", "C-", "S-"]
+        for prefix in modifierPrefixes {
+            if singleToken.hasPrefix(prefix) {
+                let baseKey = String(singleToken.dropFirst(prefix.count))
+                let convertedBase = convertToKanataKey(baseKey, forMacro: false)
+                return prefix + convertedBase
+            }
+        }
+        // No modifier prefix - standard conversion (digits are fine as bare numbers outside macros)
+        return convertToKanataKey(singleToken, forMacro: false)
     }
 
     // MARK: - Private Helpers

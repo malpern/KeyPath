@@ -14,9 +14,10 @@ struct CustomRuleEditorView: View {
     @State private var isEnabled: Bool
     @State private var behavior: MappingBehavior?
     @State private var showAdvanced: Bool = false
-    @State private var isRecordingInput: Bool = false
-    @State private var isRecordingOutput: Bool = false
+    @State private var recordingState = RecordingStateTracker()
     @State private var validationError: String?
+    @State private var ruleValidationErrors: [CustomRuleValidator.ValidationError] = []
+    @State private var showValidationAlert = false
     @State private var showDeleteConfirmation = false
     @State private var description: String = ""
     @State private var isEditingDescription: Bool = false
@@ -26,8 +27,9 @@ struct CustomRuleEditorView: View {
     @State private var holdAction: String = ""
     @State private var tapDanceSteps: [(label: String, action: String)] = []
     @State private var tappingTerm: Int = 200
-    @State private var isRecordingHold: Bool = false
     @State private var recordingTapDanceIndex: Int?
+    @State private var keyboardCapture: KeyboardCapture?
+    @State private var sequenceFinalizeTimer: Timer?
 
     // Conflict dialog state
     @State private var showConflictDialog: Bool = false
@@ -70,8 +72,59 @@ struct CustomRuleEditorView: View {
     @State private var tapTimeout: Int = 200
     @State private var holdTimeout: Int = 200
 
+    internal enum RecordingField: Equatable {
+        case input
+        case output
+        case hold
+        case tapDance(index: Int)
+    }
+
+    internal struct RecordingStateTracker {
+        private(set) var active: RecordingField?
+        private(set) var isInput = false
+        private(set) var isOutput = false
+        private(set) var isHold = false
+
+        mutating func begin(_ field: RecordingField) {
+            cancel()
+            active = field
+            switch field {
+            case .input: isInput = true
+            case .output: isOutput = true
+            case .hold: isHold = true
+            case .tapDance: break // handled separately by index in view state
+            }
+        }
+
+        mutating func cancel() {
+            active = nil
+            isInput = false
+            isOutput = false
+            isHold = false
+        }
+
+        func isRecording(_ field: RecordingField, tapDanceIndex: Int?) -> Bool {
+            switch field {
+            case .input: return isInput
+            case .output: return isOutput
+            case .hold: return isHold
+            case let .tapDance(index): return tapDanceIndex == index
+            }
+        }
+    }
+
     private var tapDanceStepLabels: [String] {
         ["Double Tap", "Triple Tap", "Quad Tap", "Quint Tap", "Sext Tap", "Sept Tap", "Oct Tap"]
+    }
+
+    /// Label for the "Add next tap step" button - shows what will be added next
+    private var nextTapStepLabel: String {
+        let nextIndex = tapDanceSteps.count
+        if nextIndex < tapDanceStepLabels.count {
+            return "Add \(tapDanceStepLabels[nextIndex])"
+        } else {
+            return "Add \(nextIndex + 2) Taps"
+        }
     }
 
     /// Default tap dance steps with only Double Tap
@@ -84,6 +137,16 @@ struct CustomRuleEditorView: View {
     private let mode: Mode
     let onSave: (CustomRule) -> Void
     let onDelete: ((CustomRule) -> Void)?
+    let onPauseMappings: (() async -> Bool)?
+    let onResumeMappings: (() async -> Bool)?
+
+    @State private var mappingsPaused: Bool = false
+    @State private var autoSaveTimer: Timer?
+
+    // Toast state
+    @State private var showToast: Bool = false
+    @State private var toastMessage: String = ""
+    @State private var toastIsError: Bool = false
 
     // Consistent sizing
     private let fieldHeight: CGFloat = 44
@@ -95,12 +158,16 @@ struct CustomRuleEditorView: View {
         rule: CustomRule?,
         existingRules: [CustomRule] = [],
         onSave: @escaping (CustomRule) -> Void,
-        onDelete: ((CustomRule) -> Void)? = nil
+        onDelete: ((CustomRule) -> Void)? = nil,
+        onPauseMappings: (() async -> Bool)? = nil,
+        onResumeMappings: (() async -> Bool)? = nil
     ) {
         existingRule = rule
         self.existingRules = existingRules
         self.onSave = onSave
         self.onDelete = onDelete
+        self.onPauseMappings = onPauseMappings
+        self.onResumeMappings = onResumeMappings
         if let rule {
             _customName = State(initialValue: rule.title)
             _input = State(initialValue: rule.input)
@@ -126,138 +193,117 @@ struct CustomRuleEditorView: View {
         if !customName.isEmpty {
             return customName
         } else if !input.isEmpty || !output.isEmpty {
-            let inputDisplay = input.isEmpty ? "?" : KeyDisplayName.display(for: input)
-            let outputDisplay = output.isEmpty ? "?" : KeyDisplayName.display(for: output)
+            let inputDisplay = input.isEmpty ? "?" : displayLabel(for: input)
+            let outputDisplay = output.isEmpty ? "?" : displayLabel(for: output)
             return "\(inputDisplay) → \(outputDisplay)"
         } else {
             return "New Rule"
         }
     }
 
-    private var canSave: Bool {
-        !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    private var trimmedInput: String {
+        input.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var trimmedOutput: String {
+        output.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var hasRequiredFields: Bool {
+        !trimmedInput.isEmpty && !trimmedOutput.isEmpty
+    }
+
+    private var isRuleValid: Bool {
+        hasRequiredFields && ruleValidationErrors.isEmpty
+    }
+
+    /// Compute the ideal height based on content
+    private var idealHeight: CGFloat {
+        // Chrome: header (44) + scroll content padding (32 top+bottom) + bottom safe area (16)
+        let chrome: CGFloat = 92
+        var total = chrome + keycapRegionHeight
+
+        // Controls row (Hold/Double Tap toggle + Pause button) - always visible
+        // Button height (~24) + vertical padding (16 top + 20 bottom for breathing room)
+        let controlsRowHeight: CGFloat = 60
+
+        if showAdvanced {
+            let holdHeight: CGFloat = holdAction.isEmpty ? 60 : 140
+            let tapDanceHeight = CGFloat(max(tapDanceSteps.count, 1)) * 78
+            let timingHeight: CGFloat = showTimingAdvanced ? 100 : 60
+            let addResetHeight: CGFloat = 44 // add step + reset row
+            total += controlsRowHeight + holdHeight + tapDanceHeight + timingHeight + addResetHeight
+        } else {
+            total += controlsRowHeight
+        }
+
+        // Cap to avoid runaway height but allow plenty of room for long sequences
+        return min(total, 760)
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header - simple title, no divider
+            // Header with close button and left-aligned title
             HStack {
-                HStack(spacing: 8) {
-                    KeyCapChip(text: input.isEmpty ? "?" : input)
-                    Text("→")
-                        .font(.title3)
+                // Close button
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 14))
                         .foregroundStyle(.secondary)
-                    KeyCapChip(text: output.isEmpty ? "?" : output)
                 }
+                .buttonStyle(.plain)
+                .focusable(false)
+                .keyboardShortcut(.cancelAction)
+                .help("Close")
 
-                Text(displayName)
-                    .font(.title3.weight(.semibold))
+                // Title (left-aligned after close button)
+                Text("KeyPath")
+                    .font(.headline)
                     .foregroundStyle(.primary)
-
-                // Description editor - appears on hover
-                if isHoveringHeader || isEditingDescription || !description.isEmpty {
-                    if isEditingDescription {
-                        TextField("Description", text: $description, axis: .vertical)
-                            .textFieldStyle(.plain)
-                            .font(.body.italic())
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1 ... 3)
-                            .onSubmit {
-                                isEditingDescription = false
-                            }
-                            .onExitCommand {
-                                isEditingDescription = false
-                            }
-                            .frame(maxWidth: 200)
-                            .onHover { hovering in
-                                if hovering {
-                                    NSCursor.iBeam.push()
-                                } else {
-                                    NSCursor.pop()
-                                }
-                            }
-                    } else {
-                        HStack(spacing: 4) {
-                            if !description.isEmpty {
-                                Button {
-                                    isEditingDescription = true
-                                } label: {
-                                    Text(description)
-                                        .font(.body.italic())
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(2)
-                                }
-                                .buttonStyle(.plain)
-                                .onHover { hovering in
-                                    if hovering {
-                                        NSCursor.iBeam.push()
-                                    } else {
-                                        NSCursor.pop()
-                                    }
-                                }
-                            } else {
-                                Button {
-                                    isEditingDescription = true
-                                } label: {
-                                    Text("Description")
-                                        .font(.body.italic())
-                                        .foregroundStyle(Color.secondary.opacity(0.6))
-                                }
-                                .buttonStyle(.plain)
-                                .onHover { hovering in
-                                    if hovering {
-                                        NSCursor.iBeam.push()
-                                    } else {
-                                        NSCursor.pop()
-                                    }
-                                }
-                            }
-                        }
-                        .frame(maxWidth: 200)
-                    }
-                }
+                    .padding(.leading, 8)
 
                 Spacer()
 
+                // Reset button - clears form to start fresh
+                Button {
+                    resetForm()
+                } label: {
+                    Image(systemName: "arrow.counterclockwise")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .focusable(false)
+                .help("Reset form")
+
+                // Delete button (edit mode only)
                 if mode == .edit, onDelete != nil {
                     Button {
                         showDeleteConfirmation = true
                     } label: {
                         Image(systemName: "trash")
+                            .font(.system(size: 14))
                             .foregroundStyle(.red.opacity(0.8))
                     }
                     .buttonStyle(.plain)
                     .focusable(false)
                     .help("Delete rule")
-                    .accessibilityLabel("Delete rule")
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-            .padding(.bottom, 16)
-            .onHover { hovering in
-                isHoveringHeader = hovering
-            }
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
 
-            // Content
+            // Content - scrolls only when needed
             ScrollView {
-                VStack(spacing: spacing) {
-                    // Start
-                    keyInputField(
-                        label: "Start",
-                        key: $input,
-                        isRecording: $isRecordingInput
-                    )
+                VStack(spacing: 0) {
+                    // Input/Output keycap pair (R2 style)
+                    keycapPairSection
+                        .padding(.bottom, 16)
 
-                    // Finish
-                    keyInputField(
-                        label: "Finish",
-                        key: $output,
-                        isRecording: $isRecordingOutput
-                    )
-
-                    // Advanced options - using native Toggle for reveal
+                    // Advanced options - positioned directly below keycaps
                     advancedSection
 
                     // Validation error
@@ -266,21 +312,39 @@ struct CustomRuleEditorView: View {
                             .font(.callout)
                             .foregroundStyle(.red)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, 12)
                     }
                 }
-                .padding(20)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 16)
             }
 
-            Divider()
-
-            // Footer buttons
-            footer
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
         }
-        .frame(width: 460, height: showAdvanced ? 540 : 340)
+        .frame(width: 460, height: idealHeight)
         .animation(.easeInOut(duration: 0.25), value: showAdvanced)
+        .animation(.easeInOut(duration: 0.25), value: tapDanceSteps.count)
         .background(Color(NSColor.windowBackgroundColor))
+        .overlay(alignment: .bottom) {
+            if showToast {
+                HStack(spacing: 6) {
+                    Image(systemName: toastIsError ? "xmark.circle.fill" : "checkmark.circle.fill")
+                        .foregroundStyle(toastIsError ? .red : .green)
+                        .font(.system(size: 14))
+                    Text(toastMessage)
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color(NSColor.controlBackgroundColor))
+                        .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+                )
+                .padding(.bottom, 12)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
         .alert("Delete Rule?", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
@@ -304,11 +368,88 @@ struct CustomRuleEditorView: View {
                 }
             )
         }
+        .alert("Invalid Rule", isPresented: $showValidationAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(validationError ?? "Please fix the highlighted fields.")
+        }
         .onAppear {
             initializeFromBehavior()
             // Ensure Double Tap is shown when advanced is enabled
             if showAdvanced, tapDanceSteps.isEmpty {
                 tapDanceSteps = defaultTapDanceSteps
+            }
+            refreshValidation()
+        }
+        .onDisappear {
+            cancelActiveRecording()
+            autoSaveTimer?.invalidate()
+            // Resume mappings if they were paused when dialog closes
+            if mappingsPaused, let resume = onResumeMappings {
+                Task {
+                    let _ = await resume()
+                }
+            }
+        }
+        .onChange(of: input) { _, _ in
+            refreshValidation()
+            scheduleAutoSave()
+        }
+        .onChange(of: output) { _, _ in
+            refreshValidation()
+            scheduleAutoSave()
+        }
+    }
+
+    /// Schedule auto-save after a short debounce when both input and output are filled
+    private func scheduleAutoSave() {
+        // Cancel previous timer
+        autoSaveTimer?.invalidate()
+
+        // Only auto-save if both fields are filled and valid
+        guard hasRequiredFields else { return }
+
+        // Debounce: wait 600ms after last change before saving
+        autoSaveTimer = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: false) { _ in
+            Task { @MainActor in
+                autoSaveIfValid()
+            }
+        }
+    }
+
+    /// Auto-save the rule if it's valid (no user confirmation needed)
+    private func autoSaveIfValid() {
+        syncBehavior()
+        let rule = buildRuleForValidation()
+        let errors = CustomRuleValidator.validate(rule, existingRules: existingRules)
+        ruleValidationErrors = errors
+
+        // Only auto-save if there are no validation errors
+        guard errors.isEmpty else {
+            validationError = errors.first?.errorDescription
+            showToast(message: errors.first?.errorDescription ?? "Validation failed", isError: true)
+            return
+        }
+
+        // Clear any previous error and save
+        validationError = nil
+        onSave(rule)
+        showToast(message: "Saved", isError: false)
+        // Don't dismiss - let user continue editing or close manually
+    }
+
+    /// Show a brief toast notification
+    private func showToast(message: String, isError: Bool) {
+        toastMessage = message
+        toastIsError = isError
+        withAnimation(.easeInOut(duration: 0.2)) {
+            showToast = true
+        }
+
+        // Auto-hide after delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + (isError ? 2.5 : 1.5)) {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                self.showToast = false
             }
         }
     }
@@ -337,15 +478,11 @@ struct CustomRuleEditorView: View {
             switch conflict.attemptedField {
             case let .tapDance(index):
                 if index < tapDanceSteps.count {
-                    recordingTapDanceIndex = index
-                    startKeyCapture(
-                        into: Binding(
+                    beginRecording(
+                        for: .tapDance(index: index),
+                        key: Binding(
                             get: { tapDanceSteps[index].action },
                             set: { tapDanceSteps[index].action = $0; syncBehavior() }
-                        ),
-                        isRecording: Binding(
-                            get: { recordingTapDanceIndex == index },
-                            set: { if !$0 { recordingTapDanceIndex = nil } }
                         )
                     )
                 }
@@ -356,8 +493,7 @@ struct CustomRuleEditorView: View {
 
         // If keeping hold, start recording in hold field
         if case .keepHold = choice, case .hold = conflict.attemptedField {
-            isRecordingHold = true
-            startKeyCapture(into: $holdAction, isRecording: $isRecordingHold)
+            beginRecording(for: .hold, key: $holdAction)
         }
 
         pendingConflict = nil
@@ -406,119 +542,258 @@ struct CustomRuleEditorView: View {
         }
     }
 
-    // MARK: - Key Input Field
+    // MARK: - Keycap Pair Section (responsive, Mapper-style)
+
+    private var keycapPairSection: some View {
+        let windowWidth: CGFloat = 460
+        let horizontalPadding: CGFloat = 24
+        let contentWidth = windowWidth - horizontalPadding * 2
+        let horizontalKeycapMaxWidth = (contentWidth - 60) / 2 // room for arrow + gaps
+        let shouldStack = shouldStackKeycaps(
+            inputLabel: inputDisplayLabel,
+            outputLabel: outputDisplayLabel,
+            maxWidth: horizontalKeycapMaxWidth
+        )
+
+        return VStack(spacing: shouldStack ? 14 : 18) {
+            if shouldStack {
+                VStack(spacing: 10) {
+                    keycapColumn(
+                        label: "Input",
+                        isRecording: recordingState.isInput,
+                        text: inputDisplayLabel,
+                        maxWidth: contentWidth,
+                        onTap: { toggleRecording(for: .input, binding: $input) },
+                        onClear: input.isEmpty ? nil : {
+                            input = ""
+                            syncBehavior()
+                            refreshValidation()
+                        }
+                    )
+
+                    Image(systemName: "arrow.down")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+
+                    keycapColumn(
+                        label: "Output",
+                        isRecording: recordingState.isOutput,
+                        text: outputDisplayLabel,
+                        maxWidth: contentWidth,
+                        onTap: { toggleRecording(for: .output, binding: $output) },
+                        onClear: output.isEmpty ? nil : {
+                            output = ""
+                            syncBehavior()
+                            refreshValidation()
+                        }
+                    )
+                }
+            } else {
+                HStack(spacing: 18) {
+                    keycapColumn(
+                        label: "Input",
+                        isRecording: recordingState.isInput,
+                        text: inputDisplayLabel,
+                        maxWidth: horizontalKeycapMaxWidth,
+                        onTap: { toggleRecording(for: .input, binding: $input) },
+                        onClear: input.isEmpty ? nil : { input = ""; syncBehavior() }
+                    )
+
+                    Image(systemName: "arrow.right")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+
+                    keycapColumn(
+                        label: "Output",
+                        isRecording: recordingState.isOutput,
+                        text: outputDisplayLabel,
+                        maxWidth: horizontalKeycapMaxWidth,
+                        onTap: { toggleRecording(for: .output, binding: $output) },
+                        onClear: output.isEmpty ? nil : { output = ""; syncBehavior() }
+                    )
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
 
     @ViewBuilder
-    private func keyInputField(
+    private func keycapColumn(
         label: String,
-        key: Binding<String>,
-        isRecording: Binding<Bool>
+        isRecording: Bool,
+        text: String,
+        maxWidth: CGFloat,
+        onTap: @escaping () -> Void,
+        onClear: (() -> Void)?
     ) -> some View {
-        HStack(spacing: 12) {
-            // Label on left
+        // Hide label once user has entered content (text is not placeholder "?")
+        let hasContent = text != "?"
+
+        VStack(spacing: 8) {
+            ResponsiveKeycapView(
+                label: text,
+                isRecording: isRecording,
+                maxWidth: maxWidth,
+                onTap: onTap,
+                onClear: onClear
+            )
+            // Keep label space reserved to prevent layout shift
             Text(label)
-                .font(.body)
-                .foregroundStyle(.primary)
-                .frame(width: 100, alignment: .leading)
-
-            // Input field and button
-            HStack(spacing: 12) {
-                // Input field
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: cornerRadius)
-                        .fill(Color(NSColor.controlBackgroundColor))
-
-                    HStack {
-                        if isRecording.wrappedValue {
-                            Text("Press a key...")
-                                .font(.body)
-                                .foregroundStyle(.secondary)
-                        } else if key.wrappedValue.isEmpty {
-                            Text("Click to record")
-                                .font(.body)
-                                .foregroundStyle(Color.secondary.opacity(0.5))
-                        } else {
-                            Text(KeyDisplayName.display(for: key.wrappedValue))
-                                .font(.body.weight(.semibold))
-                                .foregroundStyle(.primary)
-                        }
-
-                        Spacer()
-
-                        // Clear button - visible in dark mode with subtle hover/click states
-                        if !key.wrappedValue.isEmpty, !isRecording.wrappedValue {
-                            ClearButton {
-                                key.wrappedValue = ""
-                                syncBehavior()
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                }
-                .frame(height: fieldHeight)
-                .focusable(false)
-                .overlay(
-                    RoundedRectangle(cornerRadius: cornerRadius)
-                        .stroke(
-                            isRecording.wrappedValue ? Color.accentColor : Color.secondary.opacity(0.2),
-                            lineWidth: isRecording.wrappedValue ? 2 : 1
-                        )
-                )
-
-                // Record button
-                Button {
-                    if isRecording.wrappedValue {
-                        isRecording.wrappedValue = false
-                    } else if !anyOtherRecording(except: isRecording) {
-                        isRecording.wrappedValue = true
-                        startKeyCapture(into: key, isRecording: isRecording)
-                    }
-                } label: {
-                    Image(systemName: isRecording.wrappedValue ? "stop.fill" : "record.circle")
-                        .font(.title3)
-                        .foregroundStyle(.white)
-                        .frame(width: buttonSize, height: buttonSize)
-                        .background(
-                            RoundedRectangle(cornerRadius: cornerRadius)
-                                .fill(isRecording.wrappedValue ? Color.red : Color.accentColor)
-                        )
-                }
-                .buttonStyle(.plain)
-                .focusable(false)
-            }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .opacity(hasContent ? 0 : 1)
         }
     }
 
-    private func anyOtherRecording(except current: Binding<Bool>) -> Bool {
-        let allRecordings = [
-            $isRecordingInput, $isRecordingOutput,
-            $isRecordingHold
-        ]
-        let hasTapDanceRecording = recordingTapDanceIndex != nil
-        return allRecordings.contains { $0.wrappedValue && $0.wrappedValue != current.wrappedValue } || hasTapDanceRecording
+    private func shouldStackKeycaps(inputLabel: String, outputLabel: String, maxWidth: CGFloat) -> Bool {
+        // Heuristic: stack when either label would exceed available width at base size
+        let baseFont: CGFloat = 26
+        let padding: CGFloat = 20
+        let available = maxWidth - padding * 2
+        func needsWrap(_ text: String) -> Bool {
+            let estimatedWidth = CGFloat(text.count) * baseFont * 0.6
+            return estimatedWidth > available
+        }
+        return needsWrap(inputLabel) || needsWrap(outputLabel)
+    }
+
+    /// Estimated height for current keycap content to grow window height accordingly.
+    private var keycapRegionHeight: CGFloat {
+        // Match layout assumption of window width 460 with padding used above
+        let windowWidth: CGFloat = 460
+        let contentWidth = windowWidth - 24 * 2
+        let horizontalKeycapMaxWidth = (contentWidth - 60) / 2
+        let stack = shouldStackKeycaps(
+            inputLabel: inputDisplayLabel,
+            outputLabel: outputDisplayLabel,
+            maxWidth: horizontalKeycapMaxWidth
+        )
+
+        let inputHeight = ResponsiveKeycapView.estimatedHeight(
+            label: inputDisplayLabel,
+            maxWidth: stack ? contentWidth : horizontalKeycapMaxWidth
+        )
+        let outputHeight = ResponsiveKeycapView.estimatedHeight(
+            label: outputDisplayLabel,
+            maxWidth: stack ? contentWidth : horizontalKeycapMaxWidth
+        )
+
+        // Labels always reserve space (hidden via opacity, not removed)
+        // Caption label height + spacing
+        let labelAndArrowPadding: CGFloat = stack ? 36 : 32
+
+        if stack {
+            return inputHeight + outputHeight + labelAndArrowPadding
+        } else {
+            return max(inputHeight, outputHeight) + labelAndArrowPadding
+        }
+    }
+
+    private var inputDisplayLabel: String {
+        input.isEmpty ? "?" : displayLabel(for: input)
+    }
+
+    private var outputDisplayLabel: String {
+        output.isEmpty ? "?" : displayLabel(for: output)
+    }
+
+    private func cancelActiveRecording() {
+        keyboardCapture?.stopCapture()
+        sequenceFinalizeTimer?.invalidate()
+
+        recordingState.cancel()
+        recordingTapDanceIndex = nil
+    }
+
+    private func beginRecording(for field: RecordingField, key: Binding<String>) {
+        cancelActiveRecording()
+
+        recordingState.begin(field)
+        if case let .tapDance(index) = field {
+            recordingTapDanceIndex = index
+        }
+
+        startKeyCapture(into: key, field: field)
+    }
+
+    private func isRecording(_ field: RecordingField) -> Bool {
+        recordingState.isRecording(field, tapDanceIndex: recordingTapDanceIndex)
+    }
+
+    private func toggleRecording(for field: RecordingField, binding: Binding<String>) {
+        if recordingState.active == field {
+            cancelActiveRecording()
+        } else {
+            beginRecording(for: field, key: binding)
+        }
     }
 
     // MARK: - Advanced Section
 
     private var advancedSection: some View {
-        VStack(alignment: .leading, spacing: spacing) {
-            // Toggle with switch on left, label on right, left aligned
-            HStack(spacing: 8) {
-                Toggle("", isOn: $showAdvanced)
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-
+        VStack(spacing: 12) {
+            // Compact action buttons - centered below keycaps with breathing room
+            HStack(spacing: 20) {
+                // Hold/Double Tap toggle
                 Button {
                     showAdvanced.toggle()
                 } label: {
-                    Text("Hold, Double Tap, etc.")
-                        .font(.body)
-                        .foregroundStyle(.primary)
+                    HStack(spacing: 5) {
+                        Image(systemName: showAdvanced ? "minus.circle.fill" : "plus.circle")
+                            .font(.system(size: 14))
+                            .foregroundStyle(showAdvanced ? Color.secondary : Color.blue)
+                        Text("Hold / Double Tap")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .buttonStyle(.plain)
+                .focusable(false)
 
-                Spacer()
+                // Pause mappings button (only shown if callback is provided)
+                if onPauseMappings != nil {
+                    Button {
+                        // Optimistic UI: update immediately, then call async
+                        let newState = !mappingsPaused
+                        mappingsPaused = newState
+
+                        Task {
+                            if newState {
+                                // We optimistically set to paused, now actually pause
+                                if let pause = onPauseMappings {
+                                    let actuallyPaused = await pause()
+                                    // Revert if it failed
+                                    if !actuallyPaused {
+                                        await MainActor.run { mappingsPaused = false }
+                                    }
+                                }
+                            } else {
+                                // We optimistically set to resumed, now actually resume
+                                if let resume = onResumeMappings {
+                                    let actuallyResumed = await resume()
+                                    // Revert if it failed (resumed returns true on success)
+                                    if !actuallyResumed {
+                                        await MainActor.run { mappingsPaused = true }
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: mappingsPaused ? "play.circle.fill" : "pause.circle")
+                                .font(.system(size: 14))
+                                .foregroundStyle(mappingsPaused ? .green : .orange)
+                            Text(mappingsPaused ? "Resume" : "Pause")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .focusable(false)
+                }
             }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
             .onChange(of: showAdvanced) { _, isExpanded in
                 if isExpanded {
                     // Initialize with Double Tap by default (always shown)
@@ -526,6 +801,7 @@ struct CustomRuleEditorView: View {
                         tapDanceSteps = defaultTapDanceSteps
                     }
                 } else {
+                    cancelActiveRecording()
                     behavior = nil
                     holdAction = ""
                     tapDanceSteps = []
@@ -539,14 +815,19 @@ struct CustomRuleEditorView: View {
                 }
             }
 
-            if showAdvanced {
-                VStack(alignment: .leading, spacing: spacing) {
+        if showAdvanced {
+            // Align under Input keycap: window 460, padding 40, center layout
+            // Input keycap left edge is ~96pt from content edge, keycap is 80pt
+            // For 60pt keycaps, offset by (80-60)/2 = 10pt to center under Input
+            let advancedLeftPadding: CGFloat = 106
+
+            VStack(alignment: .leading, spacing: spacing + 4) {
                     // Hold action with progressive disclosure
                     VStack(alignment: .leading, spacing: 8) {
                         actionField(
                             label: "On Hold",
                             key: $holdAction,
-                            isRecording: $isRecordingHold,
+                            field: .hold,
                             onAttemptRecord: {
                                 // Check for conflict before recording
                                 if tapDanceSteps.contains(where: { !$0.action.isEmpty }) {
@@ -626,7 +907,7 @@ struct CustomRuleEditorView: View {
                                     .transition(.opacity.combined(with: .move(edge: .top)))
                                 }
                             }
-                            .padding(.leading, 112) // Align with input fields
+                            .padding(.leading, 76) // Offset from keycap for sub-options
                             .padding(.top, 4)
                             .transition(.opacity.combined(with: .move(edge: .top)))
                             .animation(.easeInOut(duration: 0.2), value: holdAction.isEmpty)
@@ -637,30 +918,21 @@ struct CustomRuleEditorView: View {
                     VStack(alignment: .leading, spacing: spacing) {
                         ForEach(Array(tapDanceSteps.indices), id: \.self) { index in
                             HStack(spacing: 8) {
-                                actionField(
-                                    label: tapDanceSteps[index].label,
-                                    key: Binding(
-                                        get: { tapDanceSteps[index].action },
-                                        set: { newValue in
-                                            tapDanceSteps[index].action = newValue
-                                            syncBehavior()
-                                        }
-                                    ),
-                                    isRecording: Binding(
-                                        get: { recordingTapDanceIndex == index },
-                                        set: { isRecording in
-                                            if isRecording {
-                                                recordingTapDanceIndex = index
-                                            } else {
-                                                recordingTapDanceIndex = nil
-                                            }
-                                        }
-                                    ),
-                                    onAttemptRecord: {
-                                        // Check for conflict before recording
-                                        if !holdAction.isEmpty {
-                                            pendingConflict = BehaviorConflict(
-                                                attemptedField: .tapDance(index: index),
+                        actionField(
+                            label: tapDanceSteps[index].label,
+                            key: Binding(
+                                get: { tapDanceSteps[index].action },
+                                set: { newValue in
+                                    tapDanceSteps[index].action = newValue
+                                    syncBehavior()
+                                }
+                            ),
+                            field: .tapDance(index: index),
+                            onAttemptRecord: {
+                                // Check for conflict before recording
+                                if !holdAction.isEmpty {
+                                    pendingConflict = BehaviorConflict(
+                                        attemptedField: .tapDance(index: index),
                                                 existingHoldAction: holdAction,
                                                 existingTapDanceActions: tapDanceSteps.map(\.action).filter { !$0.isEmpty }
                                             )
@@ -683,7 +955,7 @@ struct CustomRuleEditorView: View {
                                         tapDanceSteps.remove(at: index)
                                         syncBehavior()
                                     } label: {
-                                        Image(systemName: "minus.circle.fill")
+                                        Image(systemName: "minus.circle")
                                             .font(.title3)
                                             .foregroundStyle(.secondary)
                                     }
@@ -694,7 +966,7 @@ struct CustomRuleEditorView: View {
                             }
                         }
 
-                        // Add step button (Triple Tap, Quad Tap, etc.)
+                        // Add step button (Triple Tap, Quad Tap, etc.) - subtle style
                         Button {
                             let nextIndex = tapDanceSteps.count
                             let label = nextIndex < tapDanceStepLabels.count
@@ -702,26 +974,26 @@ struct CustomRuleEditorView: View {
                                 : "\(nextIndex + 2) Taps"
                             tapDanceSteps.append((label: label, action: ""))
                         } label: {
-                            HStack(spacing: 4) {
+                            HStack(spacing: 6) {
                                 Image(systemName: "plus.circle")
-                                    .foregroundStyle(Color.accentColor)
-                                Text("Add Triple Tap, etc.")
-                                    .foregroundStyle(.primary)
+                                    .font(.system(size: 16))
+                                    .foregroundStyle(.blue)
+                                Text(nextTapStepLabel)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
                             }
-                            .font(.body)
                         }
                         .buttonStyle(.plain)
                         .focusable(false)
-                        .padding(.leading, 112) // Align with input fields
                     }
 
                     // Timing with progressive disclosure
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 12) {
                             Text("Timing (ms)")
-                                .font(.body)
-                                .foregroundStyle(.primary)
-                                .frame(width: 100, alignment: .leading)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .frame(width: 80, alignment: .leading)
 
                             Group {
                                 if showTimingAdvanced {
@@ -833,6 +1105,7 @@ struct CustomRuleEditorView: View {
                     }
                 }
                 .padding(.top, 8)
+                .padding(.leading, advancedLeftPadding)
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
@@ -842,82 +1115,41 @@ struct CustomRuleEditorView: View {
     private func actionField(
         label: String,
         key: Binding<String>,
-        isRecording: Binding<Bool>,
+        field: RecordingField,
         onAttemptRecord: (() -> Bool)? = nil // Returns true if OK to record, false to block
     ) -> some View {
-        HStack(spacing: 12) {
-            // Label on left
-            Text(label)
-                .font(.body)
-                .foregroundStyle(.primary)
-                .frame(width: 100, alignment: .leading)
-
-            // Input field
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(Color(NSColor.controlBackgroundColor))
-
-                HStack {
-                    if isRecording.wrappedValue {
-                        Text("Press a key...")
-                            .font(.body)
-                            .foregroundStyle(.secondary)
-                    } else if key.wrappedValue.isEmpty {
-                        Text("Optional")
-                            .font(.body)
-                            .foregroundStyle(Color.secondary.opacity(0.4))
-                    } else {
-                        Text(KeyDisplayName.display(for: key.wrappedValue))
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(.primary)
+        HStack(spacing: 16) {
+            // Keycap-style input
+            EditorKeycapView(
+                label: key.wrappedValue.isEmpty ? "?" : displayLabel(for: key.wrappedValue),
+                isRecording: isRecording(field),
+                isEmpty: key.wrappedValue.isEmpty,
+                size: 60,
+                onTap: {
+                    if recordingState.active == field {
+                        cancelActiveRecording()
+                        return
                     }
 
-                    Spacer()
-
-                    // Clear button
-                    if !key.wrappedValue.isEmpty, !isRecording.wrappedValue {
-                        ClearButton {
-                            key.wrappedValue = ""
-                            syncBehavior()
-                        }
-                    }
-                }
-                .padding(.horizontal, 16)
-            }
-            .frame(height: fieldHeight)
-            .focusable(false)
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .stroke(
-                        isRecording.wrappedValue ? Color.accentColor : Color.secondary.opacity(0.2),
-                        lineWidth: isRecording.wrappedValue ? 2 : 1
-                    )
-            )
-
-            // Record button
-            Button {
-                if isRecording.wrappedValue {
-                    isRecording.wrappedValue = false
-                } else if !anyOtherRecording(except: isRecording) {
                     // Check if we should show conflict dialog
                     if let check = onAttemptRecord, !check() {
                         return // Blocked by conflict
                     }
-                    isRecording.wrappedValue = true
-                    startKeyCapture(into: key, isRecording: isRecording)
+
+                    beginRecording(for: field, key: key)
+                },
+                onClear: key.wrappedValue.isEmpty ? nil : {
+                    key.wrappedValue = ""
+                    syncBehavior()
                 }
-            } label: {
-                Image(systemName: isRecording.wrappedValue ? "stop.fill" : "record.circle")
-                    .font(.title3)
-                    .foregroundStyle(.white)
-                    .frame(width: buttonSize, height: buttonSize)
-                    .background(
-                        RoundedRectangle(cornerRadius: cornerRadius)
-                            .fill(isRecording.wrappedValue ? Color.red : Color.accentColor)
-                    )
-            }
-            .buttonStyle(.plain)
-            .focusable(false)
+            )
+
+            // Label to the right
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            Spacer()
         }
     }
 
@@ -934,159 +1166,301 @@ struct CustomRuleEditorView: View {
         syncBehavior()
     }
 
+    private func resetForm() {
+        // Reset basic fields
+        input = ""
+        output = ""
+        customName = ""
+        description = ""
+        isEnabled = true
+        validationError = nil
+        ruleValidationErrors = []
+        showValidationAlert = false
+
+        // Reset advanced section
+        showAdvanced = false
+        resetAdvanced()
+
+        // Stop any recording
+        cancelActiveRecording()
+    }
+
     // MARK: - Footer
 
     private var footer: some View {
-        HStack {
-            Button("Cancel") {
-                dismiss()
-            }
-            .keyboardShortcut(.cancelAction)
-            .focusable(false)
-
-            Spacer()
-
-            Button(mode == .create ? "Add" : "Save") {
-                saveRule()
-            }
-            .keyboardShortcut(.defaultAction)
-            .buttonStyle(.borderedProminent)
-            .focusable(false)
-            .disabled(!canSave)
-        }
+        EmptyView()
     }
 
     // MARK: - Key Capture
 
-    private func startKeyCapture(into key: Binding<String>, isRecording: Binding<Bool>) {
-        var monitor: Any?
-        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            // Escape cancels recording
-            if event.keyCode == 53 {
-                isRecording.wrappedValue = false
-                if let m = monitor {
-                    NSEvent.removeMonitor(m)
-                }
-                return nil
-            }
+    private func startKeyCapture(into key: Binding<String>, field: RecordingField) {
+        // Stop any previous sequence capture/monitors
+        keyboardCapture?.stopCapture()
+        sequenceFinalizeTimer?.invalidate()
 
-            let keyName = Self.keyNameFromEvent(event)
-            key.wrappedValue = keyName
-            isRecording.wrappedValue = false
-            syncBehavior()
-            if let m = monitor {
-                NSEvent.removeMonitor(m)
-            }
-            return nil
+        if keyboardCapture == nil {
+            keyboardCapture = KeyboardCapture()
         }
 
-        // Timeout after 10 seconds
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(10))
-            if isRecording.wrappedValue {
-                isRecording.wrappedValue = false
-                if let m = monitor { NSEvent.removeMonitor(m) }
+        guard let capture = keyboardCapture else { return }
+
+        capture.startSequenceCapture(mode: .sequence) { [self] sequence in
+            Task { @MainActor in
+                // Convert captured sequence to canonical kanata string and update field
+                let kanataString = Self.convertSequenceToKanataFormat(sequence)
+                key.wrappedValue = kanataString
+                syncBehavior()
+                refreshValidation()
+
+                // Restart finalize timer to end recording after user stops typing
+                sequenceFinalizeTimer?.invalidate()
+                sequenceFinalizeTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: false) { _ in
+                    Task { @MainActor in
+                        cancelActiveRecording()
+                    }
+                }
             }
         }
     }
 
-    private static func keyNameFromEvent(_ event: NSEvent) -> String {
-        let keyCode = event.keyCode
-        let modifiers = event.modifierFlags
+// MARK: - Sequence Helpers (borrowed from Mapper)
 
-        var prefix = ""
-        if modifiers.contains(.command) { prefix += "M-" }
-        if modifiers.contains(.control) { prefix += "C-" }
-        if modifiers.contains(.option) { prefix += "A-" }
-        if modifiers.contains(.shift) { prefix += "S-" }
+    private static func convertSequenceToKanataFormat(_ sequence: KeySequence) -> String {
+        let keyStrings = sequence.keys.map { keyPress -> String in
+            var result = keyPress.baseKey.lowercased()
 
-        let keyName = switch keyCode {
-        case 0: "a"
-        case 1: "s"
-        case 2: "d"
-        case 3: "f"
-        case 4: "h"
-        case 5: "g"
-        case 6: "z"
-        case 7: "x"
-        case 8: "c"
-        case 9: "v"
-        case 11: "b"
-        case 12: "q"
-        case 13: "w"
-        case 14: "e"
-        case 15: "r"
-        case 16: "y"
-        case 17: "t"
-        case 18: "1"
-        case 19: "2"
-        case 20: "3"
-        case 21: "4"
-        case 22: "6"
-        case 23: "5"
-        case 24: "="
-        case 25: "9"
-        case 26: "7"
-        case 27: "-"
-        case 28: "8"
-        case 29: "0"
-        case 30: "]"
-        case 31: "o"
-        case 32: "u"
-        case 33: "["
-        case 34: "i"
-        case 35: "p"
-        case 36: "ret"
-        case 37: "l"
-        case 38: "j"
-        case 39: "'"
-        case 40: "k"
-        case 41: ";"
-        case 42: "\\"
-        case 43: ","
-        case 44: "/"
-        case 45: "n"
-        case 46: "m"
-        case 47: "."
-        case 48: "tab"
-        case 49: "spc"
-        case 50: "`"
-        case 51: "bspc"
-        case 53: "esc"
-        case 55: "lmet"
-        case 56: "lsft"
-        case 57: "caps"
-        case 58: "lalt"
-        case 59: "lctl"
-        case 60: "rsft"
-        case 61: "ralt"
-        case 62: "rctl"
-        case 63: "fn"
-        case 96: "f5"
-        case 97: "f6"
-        case 98: "f7"
-        case 99: "f3"
-        case 100: "f8"
-        case 101: "f9"
-        case 103: "f11"
-        case 105: "f13"
-        case 107: "f14"
-        case 109: "f10"
-        case 111: "f12"
-        case 113: "f15"
-        case 118: "f4"
-        case 119: "end"
-        case 120: "f2"
-        case 121: "pgdn"
-        case 122: "f1"
-        case 123: "left"
-        case 124: "right"
-        case 125: "down"
-        case 126: "up"
-        default: "k\(keyCode)"
+            // Special key name normalization
+            let keyMap: [String: String] = [
+                "space": "spc",
+                "return": "ret",
+                "enter": "ret",
+                "escape": "esc",
+                "backspace": "bspc",
+                "delete": "del"
+            ]
+            if let mapped = keyMap[result] {
+                result = mapped
+            }
+
+            // Apply modifiers to base key
+            var parts: [String] = []
+            if keyPress.modifiers.contains(.command) { parts.append("M-") }
+            if keyPress.modifiers.contains(.control) { parts.append("C-") }
+            if keyPress.modifiers.contains(.option) { parts.append("A-") }
+            if keyPress.modifiers.contains(.shift) { parts.append("S-") }
+            parts.append(result)
+
+            return parts.joined()
         }
 
-        return prefix + keyName
+        // Join with spaces to create kanata sequence
+        return keyStrings.joined(separator: " ")
+    }
+
+    private func displayLabel(for keyString: String) -> String {
+        keyString
+            .split(separator: " ")
+            .map { KeyDisplayName.display(for: String($0)) }
+            .joined(separator: " ")
+    }
+
+    // MARK: - Responsive Keycap (Mapper-style, tuned for Editor)
+
+    private struct ResponsiveKeycapView: View {
+        let label: String
+        let isRecording: Bool
+        let maxWidth: CGFloat
+        let onTap: () -> Void
+        let onClear: (() -> Void)?
+
+        @State private var isHovered = false
+        @State private var isPressed = false
+
+        // Sizing constants (smaller than Mapper output keycaps but still flexible)
+        private static let baseHeight: CGFloat = 96
+        private static let maxHeightMultiplier: CGFloat = 1.5
+        private static let minWidth: CGFloat = 96
+        private static let horizontalPadding: CGFloat = 18
+        private static let verticalPadding: CGFloat = 12
+        private static let baseFontSize: CGFloat = 26
+        private static let minFontSize: CGFloat = 12
+        private static let cornerRadius: CGFloat = 12
+
+        private var hasLiveLabel: Bool {
+            !(label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || label == "?")
+        }
+
+        private var keycapWidth: CGFloat {
+            let charWidth = dynamicFontSize * 0.6
+            let contentWidth = CGFloat(label.count) * charWidth + Self.horizontalPadding * 2
+            let naturalWidth = max(Self.minWidth, contentWidth)
+            return min(naturalWidth, maxWidth)
+        }
+
+        private var keycapHeight: CGFloat {
+            ResponsiveKeycapView.estimatedHeight(label: label, maxWidth: maxWidth)
+        }
+
+        private var dynamicFontSize: CGFloat {
+            Self.dynamicFontSize(label: label, maxWidth: maxWidth)
+        }
+
+        var body: some View {
+            ZStack {
+                Button {
+                    withAnimation(.spring(response: 0.12, dampingFraction: 0.8)) {
+                        isPressed = true
+                    }
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(90))
+                        withAnimation(.spring(response: 0.12, dampingFraction: 0.8)) {
+                            isPressed = false
+                        }
+                    }
+                    onTap()
+                } label: {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: Self.cornerRadius)
+                            .fill(backgroundColor)
+                            .shadow(color: .black.opacity(0.45), radius: isPressed ? 1 : 2, y: isPressed ? 1 : 2)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: Self.cornerRadius)
+                                    .stroke(borderColor, lineWidth: isRecording ? 2 : 1)
+                            )
+
+                        if hasLiveLabel {
+                            // Show the actual key label
+                            Text(label)
+                                .font(.system(size: dynamicFontSize, weight: .medium))
+                                .foregroundStyle(foregroundColor)
+                                .multilineTextAlignment(.center)
+                                .lineSpacing(2)
+                                .minimumScaleFactor(Self.minFontSize / Self.baseFontSize)
+                                .padding(.horizontal, Self.horizontalPadding)
+                                .padding(.vertical, Self.verticalPadding / 1.4)
+                        } else {
+                            // Empty state: show keyboard icon
+                            Image(systemName: "keyboard.badge.eye")
+                                .font(.system(size: 28, weight: .medium))
+                                .foregroundStyle(isRecording ? foregroundColor : foregroundColor.opacity(0.4))
+                        }
+                    }
+                    .frame(width: keycapWidth, height: keycapHeight)
+                    .scaleEffect(isPressed ? 0.95 : 1.0)
+                    // Stable REC badge anchored to top-left of the keycap
+                    .overlay(alignment: .topLeading) {
+                        if isRecording {
+                            HStack(spacing: 5) {
+                                Circle()
+                                    .fill(Color.red)
+                                    .frame(width: 8, height: 8)
+                                Text("REC")
+                                    .font(.caption2.weight(.semibold))
+                            }
+                            .foregroundStyle(Color.red.opacity(0.9))
+                            .padding(8)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                .focusable(false)
+                .animation(.spring(response: 0.18, dampingFraction: 0.75), value: isPressed)
+                .animation(.easeInOut(duration: 0.2), value: keycapHeight)
+                .onHover { hovering in
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        isHovered = hovering
+                    }
+                }
+
+                // Clear button
+                if let onClear, !isRecording {
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Button {
+                                onClear()
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.white.opacity(0.7))
+                                    .background(
+                                        Circle()
+                                            .fill(Color.black.opacity(0.35))
+                                            .frame(width: 18, height: 18)
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                            .focusable(false)
+                            .offset(x: 6, y: -6)
+                        }
+                        Spacer()
+                    }
+                    .frame(width: keycapWidth, height: keycapHeight)
+                }
+            }
+        }
+
+        // MARK: - Styling
+
+        private var foregroundColor: Color {
+            Color(red: 0.88, green: 0.93, blue: 1.0)
+                .opacity(isPressed ? 1.0 : 0.88)
+        }
+
+        private var backgroundColor: Color {
+            if isRecording {
+                Color.accentColor
+            } else if isHovered {
+                Color(white: 0.15)
+            } else {
+                Color(white: 0.08)
+            }
+        }
+
+        private var borderColor: Color {
+            if isRecording {
+                Color.accentColor.opacity(0.8)
+            } else if isHovered {
+                Color.white.opacity(0.28)
+            } else {
+                Color.white.opacity(0.15)
+            }
+        }
+
+        // MARK: - Metrics helpers
+
+        private static func dynamicFontSize(label: String, maxWidth: CGFloat) -> CGFloat {
+            guard maxWidth < .infinity else { return baseFontSize }
+
+            let availableWidth = maxWidth - horizontalPadding * 2
+            let charWidth: CGFloat = baseFontSize * 0.6
+            let contentWidth = CGFloat(label.count) * charWidth
+            let linesNeeded = max(1, ceil(contentWidth / availableWidth))
+
+            let lineHeight = baseFontSize * 1.25
+            let heightNeeded = linesNeeded * lineHeight + verticalPadding * 2
+            let maxHeight = baseHeight * maxHeightMultiplier
+
+            if heightNeeded <= maxHeight {
+                return baseFontSize
+            }
+
+            let availableHeight = maxHeight - verticalPadding * 2
+            let scale = availableHeight / (linesNeeded * lineHeight)
+            return max(minFontSize, baseFontSize * scale)
+        }
+
+        static func estimatedHeight(label: String, maxWidth: CGFloat) -> CGFloat {
+            let fontSize = dynamicFontSize(label: label, maxWidth: maxWidth)
+            let availableWidth = maxWidth - horizontalPadding * 2
+            let charWidth = fontSize * 0.6
+            let contentWidth = CGFloat(label.count) * charWidth
+            let linesNeeded = max(1, ceil(contentWidth / availableWidth))
+            let lineHeight = fontSize * 1.25
+            let naturalHeight = linesNeeded * lineHeight + verticalPadding * 2
+            let maxHeight = baseHeight * maxHeightMultiplier
+            return min(max(baseHeight, naturalHeight), maxHeight)
+        }
     }
 
     // MARK: - Behavior Sync
@@ -1227,23 +1601,10 @@ struct CustomRuleEditorView: View {
 
     // MARK: - Save
 
-    private func saveRule() {
-        let trimmedInput = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedOutput = output.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if trimmedInput.isEmpty {
-            validationError = "Input key required"
-            return
-        }
-        if trimmedOutput.isEmpty {
-            validationError = "Output key required"
-            return
-        }
-
-        syncBehavior()
-
+    private func buildRuleForValidation() -> CustomRule {
         let trimmedDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
-        let rule = CustomRule(
+
+        return CustomRule(
             id: existingRule?.id ?? UUID(),
             title: customName,
             input: trimmedInput,
@@ -1253,28 +1614,155 @@ struct CustomRuleEditorView: View {
             createdAt: existingRule?.createdAt ?? Date(),
             behavior: behavior
         )
+    }
 
-        let errors = CustomRuleValidator.validate(rule, existingRules: existingRules)
-        if let firstError = errors.first {
-            switch firstError {
-            case .emptyTitle:
-                validationError = "Title cannot be empty"
-            case let .invalidInputKey(key):
-                validationError = "Invalid input key: \(key)"
-            case let .invalidOutputKey(key):
-                validationError = "Invalid output key: \(key)"
-            case .selfMapping:
-                validationError = "Input and output are the same"
-            case let .conflict(name, _):
-                validationError = "Conflicts with '\(name)'"
-            case .emptyInput, .emptyOutput:
-                validationError = "Keys cannot be empty"
-            }
-            return
+    @discardableResult
+    private func refreshValidation(showAlert: Bool = false) -> [CustomRuleValidator.ValidationError] {
+        guard hasRequiredFields else {
+            ruleValidationErrors = []
+            validationError = nil
+            return []
         }
 
-        onSave(rule)
-        dismiss()
+        let rule = buildRuleForValidation()
+        let errors = CustomRuleValidator.validate(rule, existingRules: existingRules)
+        ruleValidationErrors = errors
+        validationError = errors.first?.errorDescription
+
+        if showAlert, !errors.isEmpty {
+            showValidationAlert = true
+        }
+
+        return errors
+    }
+}
+
+// MARK: - Editor Keycap View (R2 Style)
+
+/// Dark keycap-style button for recording key input
+private struct EditorKeycapView: View {
+    let label: String
+    let isRecording: Bool
+    let isEmpty: Bool
+    var size: CGFloat = 80
+    let onTap: () -> Void
+    let onClear: (() -> Void)?
+
+    @State private var isHovered = false
+    @State private var isPressed = false
+
+    // Sizing
+    private var cornerRadius: CGFloat { size > 70 ? 12 : 10 }
+    private var fontSize: CGFloat { size > 70 ? 24 : 18 }
+    private var emptyFontSize: CGFloat { size > 70 ? 32 : 24 }
+    private var recordingIconSize: CGFloat { size > 70 ? 24 : 18 }
+
+    var body: some View {
+        ZStack {
+            Button {
+                withAnimation(.spring(response: 0.1, dampingFraction: 0.8)) {
+                    isPressed = true
+                }
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(100))
+                    withAnimation(.spring(response: 0.1, dampingFraction: 0.8)) {
+                        isPressed = false
+                    }
+                }
+                onTap()
+            } label: {
+                ZStack {
+                    // Background
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(backgroundColor)
+                        .shadow(color: .black.opacity(0.5), radius: isPressed ? 1 : 2, y: isPressed ? 1 : 2)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: cornerRadius)
+                                .stroke(borderColor, lineWidth: isRecording ? 2 : 1)
+                        )
+
+                    // Content
+                    if isEmpty {
+                        // Empty state: show keyboard icon
+                        Image(systemName: "keyboard.badge.eye")
+                            .font(.system(size: recordingIconSize, weight: .medium))
+                            .foregroundStyle(isRecording ? foregroundColor : foregroundColor.opacity(0.4))
+                    } else {
+                        Text(label)
+                            .font(.system(size: fontSize, weight: .medium))
+                            .foregroundStyle(foregroundColor)
+                            .minimumScaleFactor(0.5)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, size > 70 ? 8 : 4)
+                    }
+                }
+                .frame(width: size, height: size)
+                .scaleEffect(isPressed ? 0.95 : 1.0)
+            }
+            .buttonStyle(.plain)
+            .focusable(false)
+            .animation(.spring(response: 0.15, dampingFraction: 0.6), value: isPressed)
+            .onHover { hovering in
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    isHovered = hovering
+                }
+            }
+
+            // Clear button (top-right corner)
+            if let onClear, !isRecording {
+                VStack {
+                    HStack {
+                        Spacer()
+                        Button {
+                            onClear()
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 16))
+                                .foregroundStyle(.white.opacity(0.6))
+                                .background(
+                                    Circle()
+                                        .fill(Color.black.opacity(0.3))
+                                        .frame(width: 18, height: 18)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .focusable(false)
+                        .offset(x: 6, y: -6)
+                    }
+                    Spacer()
+                }
+                .frame(width: size, height: size)
+                .opacity(isHovered ? 1 : 0)
+            }
+        }
+    }
+
+    // MARK: - Styling (matching overlay keycap dark style)
+
+    private var foregroundColor: Color {
+        Color(red: 0.88, green: 0.93, blue: 1.0)
+            .opacity(isPressed ? 1.0 : 0.88)
+    }
+
+    private var backgroundColor: Color {
+        if isRecording {
+            Color.accentColor
+        } else if isHovered {
+            Color(white: 0.15)
+        } else {
+            Color(white: 0.08)
+        }
+    }
+
+    private var borderColor: Color {
+        if isRecording {
+            Color.accentColor.opacity(0.8)
+        } else if isHovered {
+            Color.white.opacity(0.3)
+        } else {
+            Color.white.opacity(0.15)
+        }
     }
 }
 

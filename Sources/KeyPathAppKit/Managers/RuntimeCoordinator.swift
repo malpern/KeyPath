@@ -1130,18 +1130,29 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
             AppLogger.shared.log("⚠️ [Reset] No safety backup created (missing/invalid existing config)")
         }
 
-        // Get ALL collections from catalog, then disable everything except macOS Function Keys
-        // This ensures the UI shows all collections with correct enabled/disabled state after reset
-        let catalog = RuleCollectionCatalog()
-        let allCollections = catalog.defaultCollections().map { collection -> RuleCollection in
-            var modified = collection
-            // Only enable macOS Function Keys - everything else is OFF
-            modified.isEnabled = (collection.id == RuleCollectionIdentifier.macFunctionKeys)
-            return modified
+        // R1: Empty config (no collections, only custom rules which are cleared)
+        // R2+: Enable macOS Function Keys only
+        let allCollections: [RuleCollection]
+        let enabledCollections: [RuleCollection]
+
+        if FeatureFlags.ruleCollectionsEnabled {
+            // Get ALL collections from catalog, then disable everything except macOS Function Keys
+            // This ensures the UI shows all collections with correct enabled/disabled state after reset
+            let catalog = RuleCollectionCatalog()
+            allCollections = catalog.defaultCollections().map { collection -> RuleCollection in
+                var modified = collection
+                // Only enable macOS Function Keys - everything else is OFF
+                modified.isEnabled = (collection.id == RuleCollectionIdentifier.macFunctionKeys)
+                return modified
+            }
+            enabledCollections = allCollections.filter(\.isEnabled)
+        } else {
+            // R1: No collections at all
+            allCollections = []
+            enabledCollections = []
         }
 
-        // Generate config from only enabled collections (just macOS Function Keys)
-        let enabledCollections = allCollections.filter(\.isEnabled)
+        // Generate config from enabled collections (empty in R1, macOS Function Keys in R2+)
         let defaultConfig = KanataConfiguration.generateFromCollections(enabledCollections)
         let configURL = URL(fileURLWithPath: configPath)
 
