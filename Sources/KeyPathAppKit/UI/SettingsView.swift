@@ -750,10 +750,12 @@ struct StatusSettingsTabView: View {
         .settingsBackground()
         .withToasts(settingsToastManager)
         .sheet(item: $wizardInitialPage) { page in
-            _ = AppLogger.shared.log("🔍 [SettingsView] Sheet creating wizard with initialPage = \(page)")
             InstallationWizardView(initialPage: page)
                 .customizeSheetWindow()
                 .environmentObject(kanataManager)
+                .onAppear {
+                    AppLogger.shared.log("🔍 [SettingsView] Sheet creating wizard with initialPage = \(page)")
+                }
         }
         .alert("Permissions Required", isPresented: $showingPermissionAlert) {
             Button("Open Wizard") {

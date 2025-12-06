@@ -46,16 +46,25 @@ enum SettingsTab: Hashable, CaseIterable {
 
 struct SettingsContainerView: View {
     @EnvironmentObject var kanataManager: KanataViewModel
-    @State private var selection: SettingsTab = .advanced // Default to Repair/Remove for now
+    @State private var selection: SettingsTab? // nil until smart default is determined
     @State private var canManageRules: Bool = true
+    @State private var explicitTabRequested: Bool = false // Track if user chose a specific tab
+
+    /// The effective selection for display (uses .rules as fallback while loading)
+    private var effectiveSelection: SettingsTab {
+        selection ?? .rules
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            SettingsTabPicker(selection: $selection, rulesEnabled: canManageRules)
+            SettingsTabPicker(selection: Binding(
+                get: { effectiveSelection },
+                set: { selection = $0 }
+            ), rulesEnabled: canManageRules)
                 .padding(.bottom, 12)
 
             Group {
-                switch selection {
+                switch effectiveSelection {
                 case .general:
                     GeneralSettingsTabView()
                 case .status:
@@ -75,7 +84,9 @@ struct SettingsContainerView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(minWidth: 680, maxWidth: 680, minHeight: 550, idealHeight: 700)
-        .task { await refreshCanManageRules() }
+        .task {
+            await determineInitialTab()
+        }
         .onAppear {
             if FeatureFlags.overlayEnabled {
                 LiveKeyboardOverlayController.shared.autoHideOnceForSettings()
@@ -87,12 +98,19 @@ struct SettingsContainerView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsGeneral)) { _ in
+            explicitTabRequested = true
             selection = .general
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsStatus)) { _ in
+            explicitTabRequested = true
+            selection = .status
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openSettingsSystemStatus)) { _ in
+            explicitTabRequested = true
             selection = .status
         }
         .onReceive(NotificationCenter.default.publisher(for: .showDiagnostics)) { _ in
+            explicitTabRequested = true
             selection = .advanced
             // Post another notification to switch to errors tab within advanced settings
             Task { @MainActor in
@@ -101,11 +119,13 @@ struct SettingsContainerView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsRules)) { _ in
+            explicitTabRequested = true
             selection = canManageRules ? .rules : .status
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsSimulator)) { _ in
             // Only navigate to simulator if enabled in current release
             if FeatureFlags.simulatorEnabled {
+                explicitTabRequested = true
                 selection = .simulator
             }
         }
@@ -113,7 +133,36 @@ struct SettingsContainerView: View {
             Task { await refreshCanManageRules() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsAdvanced)) { _ in
+            explicitTabRequested = true
             selection = .advanced
+        }
+    }
+
+    /// Determine initial tab: if user explicitly requested a tab, respect it.
+    /// Otherwise, go to Rules if system is healthy, or Status if there are issues.
+    private func determineInitialTab() async {
+        // First check system health
+        let context = await kanataManager.inspectSystemContext()
+        let isHealthy = context.services.isHealthy && context.permissions.isSystemReady
+
+        await MainActor.run {
+            canManageRules = context.services.isHealthy && context.services.kanataRunning
+
+            // If user already explicitly requested a tab via menu, don't override
+            if explicitTabRequested {
+                // Just ensure rules tab respects canManageRules
+                if selection == .rules, !canManageRules {
+                    selection = .status
+                }
+                return
+            }
+
+            // Smart default: Rules if healthy, Status if there are issues
+            if isHealthy, canManageRules {
+                selection = .rules
+            } else {
+                selection = .status
+            }
         }
     }
 
