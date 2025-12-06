@@ -336,10 +336,11 @@ struct CustomRuleEditorView: View {
                 .padding(.vertical, 16)
             }
         }
-        .frame(width: 460, height: idealHeight)
+        .frame(width: isStandalone ? nil : 460, height: isStandalone ? nil : idealHeight)
+        .frame(maxWidth: isStandalone ? .infinity : nil, maxHeight: isStandalone ? .infinity : nil)
         .animation(.easeInOut(duration: 0.25), value: showAdvanced)
         .animation(.easeInOut(duration: 0.25), value: tapDanceSteps.count)
-        .background(Color(NSColor.windowBackgroundColor))
+        .background(isStandalone ? Color.clear : Color(NSColor.windowBackgroundColor))
         .overlay(alignment: .bottom) {
             if showToast {
                 HStack(spacing: 6) {
