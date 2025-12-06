@@ -36,9 +36,9 @@ enum SettingsTab: Hashable, CaseIterable {
         allCases.filter { tab in
             switch tab {
             case .simulator:
-                return FeatureFlags.simulatorEnabled
+                FeatureFlags.simulatorEnabled
             default:
-                return true
+                true
             }
         }
     }

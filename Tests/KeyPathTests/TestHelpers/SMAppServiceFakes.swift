@@ -1,6 +1,6 @@
 import Foundation
-import ServiceManagement
 @testable import KeyPathAppKit
+import ServiceManagement
 
 /// Test double for SMAppService (helper registration/status scenarios)
 /// Note: Renamed to avoid conflict with private FakeSMAppService in HelperManagerTests
@@ -83,9 +83,9 @@ enum FakeSMAppServiceError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .registrationFailed:
-            return "Failed to register helper"
+            "Failed to register helper"
         case .unregistrationFailed:
-            return "Failed to unregister helper"
+            "Failed to unregister helper"
         }
     }
 }

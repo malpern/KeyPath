@@ -345,44 +345,6 @@ final class TCPClientRobustnessTests: KeyPathTestCase {
         XCTAssertEqual(status.request_id, 99)
     }
 
-    /// Test TcpValidationResult parsing with errors and warnings
-    func testValidationResultParsing() throws {
-        let json = """
-        {"errors":[{"code":"E001","message":"Syntax error","line":42,"column":10}],"warnings":[{"code":"W001","message":"Deprecated syntax"}],"request_id":123}
-        """
-        let data = json.data(using: .utf8)!
-        let result = try JSONDecoder().decode(
-            KanataTCPClient.TcpValidationResult.self, from: data
-        )
-
-        XCTAssertEqual(result.errors.count, 1)
-        XCTAssertEqual(result.errors[0].code, "E001")
-        XCTAssertEqual(result.errors[0].message, "Syntax error")
-        XCTAssertEqual(result.errors[0].line, 42)
-        XCTAssertEqual(result.errors[0].column, 10)
-
-        XCTAssertEqual(result.warnings.count, 1)
-        XCTAssertEqual(result.warnings[0].code, "W001")
-        XCTAssertEqual(result.warnings[0].message, "Deprecated syntax")
-
-        XCTAssertEqual(result.request_id, 123)
-    }
-
-    /// Test TcpValidationResult with no line/column info
-    func testValidationResultMinimal() throws {
-        let json = """
-        {"errors":[],"warnings":[],"request_id":456}
-        """
-        let data = json.data(using: .utf8)!
-        let result = try JSONDecoder().decode(
-            KanataTCPClient.TcpValidationResult.self, from: data
-        )
-
-        XCTAssertTrue(result.errors.isEmpty)
-        XCTAssertTrue(result.warnings.isEmpty)
-        XCTAssertEqual(result.request_id, 456)
-    }
-
     // MARK: - Capability Checking Tests
 
     /// Test hasCapabilities with all required capabilities present
@@ -437,35 +399,6 @@ final class TCPClientRobustnessTests: KeyPathTestCase {
     }
 
     // MARK: - Result Type Tests
-
-    /// Test TCPValidationResult cases
-    func testValidationResultCases() {
-        let success = TCPValidationResult.success
-        let failure = TCPValidationResult.failure(errors: ["Error 1", "Error 2"])
-        let networkError = TCPValidationResult.networkError("Connection failed")
-
-        // Verify we can switch on cases
-        switch success {
-        case .success:
-            break
-        default:
-            XCTFail("Expected success case")
-        }
-
-        switch failure {
-        case let .failure(errors):
-            XCTAssertEqual(errors.count, 2)
-        default:
-            XCTFail("Expected failure case")
-        }
-
-        switch networkError {
-        case let .networkError(msg):
-            XCTAssertEqual(msg, "Connection failed")
-        default:
-            XCTFail("Expected networkError case")
-        }
-    }
 
     /// Test TCPReloadResult cases and helpers
     func testReloadResultHelpers() {
@@ -551,12 +484,12 @@ final class TCPClientRobustnessTests: KeyPathTestCase {
         let client = KanataTCPClient(port: 37001)
 
         var data = Data()
-        data.append(contentsOf: [0x00, 0x01, 0xFF, 0xFE])  // Binary bytes
-        data.append(0x0A)  // Newline
+        data.append(contentsOf: [0x00, 0x01, 0xFF, 0xFE]) // Binary bytes
+        data.append(0x0A) // Newline
 
         let result = client.extractFirstLine(from: data)
         XCTAssertNotNil(result)
-        XCTAssertEqual(result!.line.count, 5)  // 4 bytes + newline
+        XCTAssertEqual(result!.line.count, 5) // 4 bytes + newline
         XCTAssertTrue(result!.remaining.isEmpty)
     }
 

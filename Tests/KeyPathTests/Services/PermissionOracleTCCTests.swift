@@ -114,7 +114,7 @@ struct PermissionOracleTCCTests {
 
         // Make 10 rapid calls
         var snapshots: [PermissionOracle.Snapshot] = []
-        for _ in 0..<10 {
+        for _ in 0 ..< 10 {
             let snapshot = await oracle.currentSnapshot()
             snapshots.append(snapshot)
         }
@@ -546,10 +546,11 @@ struct PermissionOracleTCCTests {
 }
 
 // MARK: - Test Helper Functions
+
 // These replicate the private implementation for testing purposes
 // They should match the behavior in PermissionOracle.swift
 
-fileprivate func testNormalizePathForTCC(_ path: String) -> String {
+private func testNormalizePathForTCC(_ path: String) -> String {
     // Replicate private normalizePathForTCC implementation
     if path.contains("/build/KeyPath.app/") || path.contains("/.build") {
         if let range = path.range(of: "/KeyPath.app/") {
@@ -560,7 +561,7 @@ fileprivate func testNormalizePathForTCC(_ path: String) -> String {
     return path
 }
 
-fileprivate func testEscapeSQLiteLiteral(_ s: String) -> String {
+private func testEscapeSQLiteLiteral(_ s: String) -> String {
     // Replicate private escapeSQLiteLiteral implementation
     s.replacingOccurrences(of: "'", with: "''")
 }

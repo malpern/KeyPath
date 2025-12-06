@@ -291,7 +291,8 @@ struct WizardHelperPage: View {
 
             // If approval is required, offer a quick link to System Settings
             if case let .error(message) = actionStatus,
-               message.localizedCaseInsensitiveContains("approval required") {
+               message.localizedCaseInsensitiveContains("approval required")
+            {
                 Button("Open System Settings → Login Items") {
                     openLoginItemsSettings()
                 }
@@ -424,7 +425,8 @@ struct WizardHelperPage: View {
 
         Task {
             if let next = await navigationCoordinator.getNextPage(for: systemState, issues: issues),
-               next != navigationCoordinator.currentPage {
+               next != navigationCoordinator.currentPage
+            {
                 navigationCoordinator.navigateToPage(next)
             } else {
                 navigationCoordinator.navigateToPage(.summary)

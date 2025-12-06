@@ -348,7 +348,8 @@ struct WizardKanataServicePage: View {
 
         Task {
             if let nextPage = await navigationCoordinator.getNextPage(for: systemState, issues: issues),
-               nextPage != navigationCoordinator.currentPage {
+               nextPage != navigationCoordinator.currentPage
+            {
                 navigationCoordinator.navigateToPage(nextPage)
             } else {
                 navigationCoordinator.navigateToPage(.summary)
@@ -357,7 +358,8 @@ struct WizardKanataServicePage: View {
     }
 
     private var primaryCTAConfiguration:
-        (label: String, action: () -> Void, disabled: Bool)? {
+        (label: String, action: () -> Void, disabled: Bool)?
+    {
         switch serviceStatus {
         case .running:
             nil

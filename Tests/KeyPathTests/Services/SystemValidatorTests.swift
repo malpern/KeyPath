@@ -160,7 +160,7 @@ struct SystemValidatorTests {
     // MARK: - Test Mode Behavior
 
     @Test("Test mode returns stub snapshot immediately")
-    func testModeStubSnapshot() async {
+    func modeStubSnapshot() async {
         await setupTest()
 
         let processManager = ProcessLifecycleManager()

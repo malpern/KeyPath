@@ -51,7 +51,7 @@ extension SubprocessRunnerFake {
 
     /// Get all arguments passed to a specific command
     func getArguments(for executable: String) -> [[String]] {
-        executedCommands.filter { $0.executable == executable }.map { $0.args }
+        executedCommands.filter { $0.executable == executable }.map(\.args)
     }
 
     /// Verify command was called with specific arguments

@@ -29,7 +29,8 @@ public struct SimpleMapping: Identifiable, Sendable, Equatable {
     }
 
     public func validationErrors(existing: [SimpleMapping] = [])
-        -> [CustomRuleValidator.ValidationError] {
+        -> [CustomRuleValidator.ValidationError]
+    {
         var errors = CustomRuleValidator.validateKeys(input: fromKey, output: toKey)
 
         // Conflict: same input already mapped to different output

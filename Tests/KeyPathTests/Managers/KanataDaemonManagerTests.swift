@@ -20,7 +20,7 @@ final class KanataDaemonManagerTests: KeyPathAsyncTestCase {
 
         // Inject mock factory
         KanataDaemonManager.smServiceFactory = { [unowned self] _ in
-            self.mockService
+            mockService
         }
 
         manager = KanataDaemonManager.shared
@@ -517,7 +517,7 @@ final class KanataDaemonManagerTests: KeyPathAsyncTestCase {
         mockService.simulateStatus(.enabled)
 
         var statuses: [ServiceManagement.SMAppService.Status] = []
-        for _ in 0..<10 {
+        for _ in 0 ..< 10 {
             statuses.append(manager.getStatus())
         }
 
@@ -531,7 +531,7 @@ final class KanataDaemonManagerTests: KeyPathAsyncTestCase {
         mockService.simulateStatus(.enabled)
 
         var states: [KanataDaemonManager.ServiceManagementState] = []
-        for _ in 0..<10 {
+        for _ in 0 ..< 10 {
             let state = await manager.refreshManagementState()
             states.append(state)
         }

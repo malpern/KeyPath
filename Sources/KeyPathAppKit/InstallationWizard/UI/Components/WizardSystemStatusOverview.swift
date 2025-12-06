@@ -99,7 +99,8 @@ struct WizardSystemStatusOverview: View {
             // Aggressively disable focus ring on underlying NSView
             Task { @MainActor in
                 if let window = NSApp.keyWindow,
-                   let contentView = window.contentView {
+                   let contentView = window.contentView
+                {
                     disableFocusRings(in: contentView)
                 }
             }
@@ -534,7 +535,8 @@ struct WizardSystemStatusOverview: View {
     // MARK: - Filtering helper (shared with tests)
 
     static func filteredDisplayItems(_ items: [StatusItemModel], showAllItems: Bool)
-        -> [StatusItemModel] {
+        -> [StatusItemModel]
+    {
         if showAllItems { return items }
         // Show all incomplete items, even if their prerequisites are still pending; ordering is preserved.
         return items.filter { $0.status != .completed }

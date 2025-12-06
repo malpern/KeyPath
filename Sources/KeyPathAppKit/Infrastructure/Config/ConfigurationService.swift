@@ -160,7 +160,8 @@ public struct KanataConfiguration: Sendable {
     // Note: renderDisabledCollections removed - disabled collections not written to config (ADR-025)
 
     private static func metadataLines(for collection: RuleCollection, indent: String, status: String)
-        -> [String] {
+        -> [String]
+    {
         [
             "\(indent);; === Collection: \(collection.name) (\(status)) ===",
             "\(indent);; UUID: \(collection.id.uuidString)",
@@ -358,7 +359,8 @@ public struct KanataConfiguration: Sendable {
 
             // For Vim collection: optionally block unmapped keys in navigation layer
             if collection.id == RuleCollectionIdentifier.vimNavigation,
-               collection.targetLayer != .base {
+               collection.targetLayer != .base
+            {
                 let mappedKeys = layerMappedKeys[collection.targetLayer] ?? Set(entries.map(\.sourceKey))
                 let activatorKey = collection.momentaryActivator.map { KanataKeyConverter.convertToKanataKey($0.input) } ?? ""
                 let extraKeys = Self.navigationUnmappedKeys(
@@ -827,7 +829,8 @@ public final class ConfigurationService: FileConfigurationProviding {
     }
 
     public func observe(_ onChange: @Sendable @escaping (Config) async -> Void)
-        -> ConfigurationObservationToken {
+        -> ConfigurationObservationToken
+    {
         var index = 0
         stateLock.lock()
         observers.append(onChange)
@@ -1039,7 +1042,11 @@ public final class ConfigurationService: FileConfigurationProviding {
         }
     }
 
-    /// Validate configuration content using TCP if available, else CLI
+    /// Validate configuration content using CLI (kanata --check)
+    ///
+    /// Note: TCP validation was removed because upstream Kanata doesn't support validating
+    /// config content over TCP (only file paths). The CLI approach is reliable and works
+    /// regardless of whether Kanata is running.
     public func validateConfiguration(_ config: String) async -> (isValid: Bool, errors: [String]) {
         AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION START ==========")
         AppLogger.shared.log("🔍 [Validation] Config size: \(config.count) characters")
@@ -1051,60 +1058,9 @@ public final class ConfigurationService: FileConfigurationProviding {
             return result
         }
 
-        // If the service isn't managed/approved yet, skip TCP to avoid long timeouts
-        let managementState = await KanataDaemonManager.shared.refreshManagementState()
-        let tcpCapableStates: Set<KanataDaemonManager.ServiceManagementState> = [
-            .smappserviceActive, .legacyActive, .conflicted
-        ]
-        if !tcpCapableStates.contains(managementState) {
-            AppLogger.shared.log(
-                "🌐 [Validation] TCP validation skipped (service state=\(managementState)); using CLI"
-            )
-            let cliResult = await validateConfigWithCLI(config)
-            AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
-            return cliResult
-        }
-
-        // Give the service a brief warmup after (re)install before attempting TCP
-        if managementState == .smappserviceActive {
-            try? await Task.sleep(for: .milliseconds(500)) // 0.5s
-        }
-
-        // Skip TCP if Kanata service isn't healthy yet (avoid connection-refused storm)
-        let daemonStatus = await InstallerEngine().getServiceStatus()
-        if !daemonStatus.kanataServiceHealthy {
-            AppLogger.shared.log(
-                "🌐 [Validation] TCP validation skipped (kanata not healthy yet); using CLI"
-            )
-            let cliResult = await validateConfigWithCLI(config)
-            AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
-            return cliResult
-        }
-
-        // Try TCP validation first
-        let tcpPort = PreferencesService.shared.tcpServerPort
-        let tcpClient = KanataTCPClient(port: tcpPort)
-
-        let tcpResult = await tcpClient.validateConfig(config)
-
-        // FIX #1: Explicitly close connection to prevent file descriptor leak
-        await tcpClient.cancelInflightAndCloseConnection()
-
-        switch tcpResult {
-        case .success:
-            AppLogger.shared.log("🌐 [Validation] TCP validation PASSED")
-            AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
-            return (true, [])
-        case let .failure(errors):
-            AppLogger.shared.log("🌐 [Validation] TCP validation FAILED with \(errors.count) errors")
-            AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
-            return (false, errors)
-        case .networkError:
-            AppLogger.shared.log("🌐 [Validation] TCP validation unavailable, falling back to CLI")
-            let cliResult = await validateConfigWithCLI(config)
-            AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
-            return cliResult
-        }
+        let cliResult = await validateConfigWithCLI(config)
+        AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
+        return cliResult
     }
 
     /// Validate configuration via CLI (kanata --check)
@@ -1207,7 +1163,8 @@ public final class ConfigurationService: FileConfigurationProviding {
     /// Backs up a failed config and applies safe default, returning backup path
     public func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping])
         async throws
-        -> String {
+        -> String
+    {
         AppLogger.shared.log("🛡️ [Config] Backing up failed config and applying safe default")
 
         // Create backup directory if it doesn't exist
@@ -1258,7 +1215,8 @@ public final class ConfigurationService: FileConfigurationProviding {
     /// Repair configuration using rule-based strategies (keeps output Kanata-compatible).
     public func repairConfiguration(config: String, errors: [String], mappings: [KeyMapping])
         async throws
-        -> String {
+        -> String
+    {
         AppLogger.shared.log("🔧 [Config] Performing rule-based repair for \(errors.count) errors")
 
         // Common repair strategies

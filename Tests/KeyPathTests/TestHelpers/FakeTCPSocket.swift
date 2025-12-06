@@ -1,6 +1,6 @@
 import Foundation
-import Network
 @testable import KeyPathAppKit
+import Network
 
 /// Fake TCP socket for testing KanataTCPClient without a real server
 @MainActor
@@ -10,7 +10,7 @@ final class FakeTCPSocket {
     var shouldFailConnection: Bool = false
     var shouldTimeout: Bool = false
     var responseDelay: TimeInterval = 0.0
-    var chunkSize: Int? = nil
+    var chunkSize: Int?
     var shouldDropConnection: Bool = false
     private(set) var readCount: Int = 0
     private(set) var sentData: [Data] = []
@@ -132,7 +132,7 @@ final class FakeTCPSocket {
 
         let response = responseQueue.removeFirst()
 
-        if let chunkSize = chunkSize, response.count > chunkSize {
+        if let chunkSize, response.count > chunkSize {
             let chunk = Data(response.prefix(chunkSize))
             let remaining = Data(response.dropFirst(chunkSize))
             responseQueue.insert(remaining, at: 0)
@@ -181,13 +181,13 @@ enum FakeTCPError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .connectionDropped:
-            return "Connection dropped"
+            "Connection dropped"
         case .timeout:
-            return "Read timeout"
+            "Read timeout"
         case .noDataAvailable:
-            return "No data available to read"
+            "No data available to read"
         case .connectionFailed:
-            return "Connection failed"
+            "Connection failed"
         }
     }
 }
@@ -206,7 +206,7 @@ struct TCPClientTestHarness {
 }
 
 final class BufferedReadSimulator {
-    private var buffer: Data = Data()
+    private var buffer: Data = .init()
 
     func addResponses(_ responses: [String]) {
         for response in responses {

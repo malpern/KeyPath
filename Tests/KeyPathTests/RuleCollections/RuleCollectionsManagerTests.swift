@@ -235,7 +235,8 @@ final class RuleCollectionsManagerTests: KeyPathAsyncTestCase {
 
         // Check that Vim's activator is back to "space"
         if let vim = manager.ruleCollections.first(where: { $0.id == RuleCollectionIdentifier.vimNavigation }),
-           let activator = vim.momentaryActivator {
+           let activator = vim.momentaryActivator
+        {
             XCTAssertEqual(activator.input, "space", "Disabling leader key should reset activators to space")
         }
     }
@@ -786,7 +787,6 @@ final class RuleCollectionsManagerTests: KeyPathAsyncTestCase {
 
         XCTAssertNotNil(warningReceived, "Should invoke warning callback for conflicts")
     }
-
 
     // MARK: - Existing Tests (Preserved)
 
