@@ -230,10 +230,11 @@ struct RulesTabView: View {
         .sheet(isPresented: $isPresentingNewRule) {
             CustomRuleEditorView(
                 rule: nil,
-                existingRules: kanataManager.customRules
-            ) { newRule in
-                _ = Task { await kanataManager.saveCustomRule(newRule) }
-            }
+                existingRules: kanataManager.customRules,
+                onSave: { newRule in
+                    _ = Task { await kanataManager.saveCustomRule(newRule) }
+                }
+            )
         }
         .sheet(item: $homeRowModsEditState) { editState in
             HomeRowModsModalView(
@@ -256,10 +257,11 @@ struct RulesTabView: View {
         .sheet(item: $editingRule) { rule in
             CustomRuleEditorView(
                 rule: rule,
-                existingRules: kanataManager.customRules
-            ) { updatedRule in
-                _ = Task { await kanataManager.saveCustomRule(updatedRule) }
-            }
+                existingRules: kanataManager.customRules,
+                onSave: { updatedRule in
+                    _ = Task { await kanataManager.saveCustomRule(updatedRule) }
+                }
+            )
         }
         .alert("Reset Configuration?", isPresented: $showingResetConfirmation) {
             Button("Cancel", role: .cancel) {}

@@ -138,10 +138,6 @@ struct CustomRuleEditorView: View {
     private let isStandalone: Bool // When true, acts as home screen (no close button, resets after save)
     let onSave: (CustomRule) -> Void
     let onDelete: ((CustomRule) -> Void)?
-    let onPauseMappings: (() async -> Bool)?
-    let onResumeMappings: (() async -> Bool)?
-
-    @State private var mappingsPaused: Bool = false
     @State private var autoSaveTimer: Timer?
 
     // Toast state
@@ -160,17 +156,13 @@ struct CustomRuleEditorView: View {
         existingRules: [CustomRule] = [],
         isStandalone: Bool = false,
         onSave: @escaping (CustomRule) -> Void,
-        onDelete: ((CustomRule) -> Void)? = nil,
-        onPauseMappings: (() async -> Bool)? = nil,
-        onResumeMappings: (() async -> Bool)? = nil
+        onDelete: ((CustomRule) -> Void)? = nil
     ) {
         existingRule = rule
         self.existingRules = existingRules
         self.isStandalone = isStandalone
         self.onSave = onSave
         self.onDelete = onDelete
-        self.onPauseMappings = onPauseMappings
-        self.onResumeMappings = onResumeMappings
         if let rule {
             _customName = State(initialValue: rule.title)
             _input = State(initialValue: rule.input)
@@ -401,12 +393,6 @@ struct CustomRuleEditorView: View {
         .onDisappear {
             cancelActiveRecording()
             autoSaveTimer?.invalidate()
-            // Resume mappings if they were paused when dialog closes
-            if mappingsPaused, let resume = onResumeMappings {
-                Task {
-                    _ = await resume()
-                }
-            }
         }
         .onChange(of: input) { _, _ in
             refreshValidation()
@@ -775,48 +761,6 @@ struct CustomRuleEditorView: View {
                 }
                 .buttonStyle(.plain)
                 .focusable(false)
-
-                // Pause mappings button (only shown if callback is provided)
-                if onPauseMappings != nil {
-                    Button {
-                        // Optimistic UI: update immediately, then call async
-                        let newState = !mappingsPaused
-                        mappingsPaused = newState
-
-                        Task {
-                            if newState {
-                                // We optimistically set to paused, now actually pause
-                                if let pause = onPauseMappings {
-                                    let actuallyPaused = await pause()
-                                    // Revert if it failed
-                                    if !actuallyPaused {
-                                        await MainActor.run { mappingsPaused = false }
-                                    }
-                                }
-                            } else {
-                                // We optimistically set to resumed, now actually resume
-                                if let resume = onResumeMappings {
-                                    let actuallyResumed = await resume()
-                                    // Revert if it failed (resumed returns true on success)
-                                    if !actuallyResumed {
-                                        await MainActor.run { mappingsPaused = true }
-                                    }
-                                }
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 5) {
-                            Image(systemName: mappingsPaused ? "play.circle.fill" : "pause.circle")
-                                .font(.system(size: 14))
-                                .foregroundStyle(mappingsPaused ? .green : .orange)
-                            Text(mappingsPaused ? "Resume" : "Pause")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .focusable(false)
-                }
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)

@@ -33,9 +33,7 @@ struct RootView: View {
                     isStandalone: true,
                     onSave: { newRule in
                         Task { await viewModel.saveCustomRule(newRule) }
-                    },
-                    onPauseMappings: { await viewModel.underlyingManager.pauseMappings() },
-                    onResumeMappings: { await viewModel.underlyingManager.resumeMappings() }
+                    }
                 )
                 .transition(.opacity)
             }
