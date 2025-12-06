@@ -72,14 +72,14 @@ struct CustomRuleEditorView: View {
     @State private var tapTimeout: Int = 200
     @State private var holdTimeout: Int = 200
 
-    internal enum RecordingField: Equatable {
+    enum RecordingField: Equatable {
         case input
         case output
         case hold
         case tapDance(index: Int)
     }
 
-    internal struct RecordingStateTracker {
+    struct RecordingStateTracker {
         private(set) var active: RecordingField?
         private(set) var isInput = false
         private(set) var isOutput = false
@@ -105,10 +105,10 @@ struct CustomRuleEditorView: View {
 
         func isRecording(_ field: RecordingField, tapDanceIndex: Int?) -> Bool {
             switch field {
-            case .input: return isInput
-            case .output: return isOutput
-            case .hold: return isHold
-            case let .tapDance(index): return tapDanceIndex == index
+            case .input: isInput
+            case .output: isOutput
+            case .hold: isHold
+            case let .tapDance(index): tapDanceIndex == index
             }
         }
     }
@@ -266,6 +266,18 @@ struct CustomRuleEditorView: View {
 
                 Spacer()
 
+                // Settings button - opens Settings window
+                Button {
+                    openSettings()
+                } label: {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .focusable(false)
+                .help("Open Settings")
+
                 // Reset button - clears form to start fresh
                 Button {
                     resetForm()
@@ -318,7 +330,6 @@ struct CustomRuleEditorView: View {
                 .padding(.horizontal, 24)
                 .padding(.vertical, 16)
             }
-
         }
         .frame(width: 460, height: idealHeight)
         .animation(.easeInOut(duration: 0.25), value: showAdvanced)
@@ -387,7 +398,7 @@ struct CustomRuleEditorView: View {
             // Resume mappings if they were paused when dialog closes
             if mappingsPaused, let resume = onResumeMappings {
                 Task {
-                    let _ = await resume()
+                    _ = await resume()
                 }
             }
         }
@@ -449,7 +460,7 @@ struct CustomRuleEditorView: View {
         // Auto-hide after delay
         DispatchQueue.main.asyncAfter(deadline: .now() + (isError ? 2.5 : 1.5)) {
             withAnimation(.easeInOut(duration: 0.2)) {
-                self.showToast = false
+                showToast = false
             }
         }
     }
@@ -815,13 +826,13 @@ struct CustomRuleEditorView: View {
                 }
             }
 
-        if showAdvanced {
-            // Align under Input keycap: window 460, padding 40, center layout
-            // Input keycap left edge is ~96pt from content edge, keycap is 80pt
-            // For 60pt keycaps, offset by (80-60)/2 = 10pt to center under Input
-            let advancedLeftPadding: CGFloat = 106
+            if showAdvanced {
+                // Align under Input keycap: window 460, padding 40, center layout
+                // Input keycap left edge is ~96pt from content edge, keycap is 80pt
+                // For 60pt keycaps, offset by (80-60)/2 = 10pt to center under Input
+                let advancedLeftPadding: CGFloat = 106
 
-            VStack(alignment: .leading, spacing: spacing + 4) {
+                VStack(alignment: .leading, spacing: spacing + 4) {
                     // Hold action with progressive disclosure
                     VStack(alignment: .leading, spacing: 8) {
                         actionField(
@@ -918,21 +929,21 @@ struct CustomRuleEditorView: View {
                     VStack(alignment: .leading, spacing: spacing) {
                         ForEach(Array(tapDanceSteps.indices), id: \.self) { index in
                             HStack(spacing: 8) {
-                        actionField(
-                            label: tapDanceSteps[index].label,
-                            key: Binding(
-                                get: { tapDanceSteps[index].action },
-                                set: { newValue in
-                                    tapDanceSteps[index].action = newValue
-                                    syncBehavior()
-                                }
-                            ),
-                            field: .tapDance(index: index),
-                            onAttemptRecord: {
-                                // Check for conflict before recording
-                                if !holdAction.isEmpty {
-                                    pendingConflict = BehaviorConflict(
-                                        attemptedField: .tapDance(index: index),
+                                actionField(
+                                    label: tapDanceSteps[index].label,
+                                    key: Binding(
+                                        get: { tapDanceSteps[index].action },
+                                        set: { newValue in
+                                            tapDanceSteps[index].action = newValue
+                                            syncBehavior()
+                                        }
+                                    ),
+                                    field: .tapDance(index: index),
+                                    onAttemptRecord: {
+                                        // Check for conflict before recording
+                                        if !holdAction.isEmpty {
+                                            pendingConflict = BehaviorConflict(
+                                                attemptedField: .tapDance(index: index),
                                                 existingHoldAction: holdAction,
                                                 existingTapDanceActions: tapDanceSteps.map(\.action).filter { !$0.isEmpty }
                                             )
@@ -1185,6 +1196,25 @@ struct CustomRuleEditorView: View {
         cancelActiveRecording()
     }
 
+    private func openSettings() {
+        // Open settings window without specifying a tab (smart default)
+        if let appMenu = NSApp.mainMenu?.items.first?.submenu {
+            for item in appMenu.items {
+                if item.title.contains("Settings") || item.title.contains("Preferences"),
+                   let action = item.action {
+                    NSApp.sendAction(action, to: item.target, from: item)
+                    return
+                }
+            }
+        }
+        // Fallback
+        if #available(macOS 13, *) {
+            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        } else {
+            NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+        }
+    }
+
     // MARK: - Footer
 
     private var footer: some View {
@@ -1193,7 +1223,7 @@ struct CustomRuleEditorView: View {
 
     // MARK: - Key Capture
 
-    private func startKeyCapture(into key: Binding<String>, field: RecordingField) {
+    private func startKeyCapture(into key: Binding<String>, field _: RecordingField) {
         // Stop any previous sequence capture/monitors
         keyboardCapture?.stopCapture()
         sequenceFinalizeTimer?.invalidate()
@@ -1223,7 +1253,7 @@ struct CustomRuleEditorView: View {
         }
     }
 
-// MARK: - Sequence Helpers (borrowed from Mapper)
+    // MARK: - Sequence Helpers (borrowed from Mapper)
 
     private static func convertSequenceToKanataFormat(_ sequence: KeySequence) -> String {
         let keyStrings = sequence.keys.map { keyPress -> String in
