@@ -43,7 +43,7 @@ struct RuleCollectionCatalog {
                 KeyMapping(input: "f11", output: "vold", description: "Volume down"),
                 KeyMapping(input: "f12", output: "volu", description: "Volume up")
             ],
-            isEnabled: true,
+            isEnabled: false, // R1: Disabled by default - users enable via Rules UI (R2)
             isSystemDefault: true,
             icon: "applelogo",
             targetLayer: .base,
@@ -138,7 +138,7 @@ struct RuleCollectionCatalog {
                 // === Line operations ===
                 KeyMapping(input: "o", output: "M-right ret", shiftedOutput: "up M-right ret", description: "Open line below / above")
             ],
-            isEnabled: true,
+            isEnabled: false,
             isSystemDefault: true,
             icon: "resource:vim-icon",
             tags: ["vim", "navigation", "editing", "selection"],
@@ -195,7 +195,7 @@ struct RuleCollectionCatalog {
                     )
                 )
             ],
-            isEnabled: true,
+            isEnabled: false,
             isSystemDefault: true,
             icon: "capslock",
             tags: ["caps lock", "hyper", "escape", "control", "meh", "productivity", "tap-hold"],
