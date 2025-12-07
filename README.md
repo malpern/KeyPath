@@ -60,6 +60,10 @@ Kanata's configuration language uses [S-expressions](https://en.wikipedia.org/wi
 - **Sequences** — Vim-style leader key workflows
 - **Input chords** — Press multiple keys simultaneously for a different action
 
+<div align="center">
+  <img src="docs/images/example-config.png" alt="Example Kanata Config" width="600"/>
+</div>
+
 This isn't a toy DSL—it's a full configuration language that can express behaviors impossible in JSON-based tools. See the [Kanata configuration guide](https://github.com/jtroo/kanata/blob/main/docs/config.adoc) for the complete reference.
 
 **The best part:** Start with KeyPath's UI, and graduate to hand-editing only when you want to. Your visual rules and manual edits coexist in the same file.
