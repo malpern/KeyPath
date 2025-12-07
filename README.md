@@ -1,7 +1,7 @@
 # KeyPath
 
 <div align="center">
-  <img src="docs/images/keypath-poster.png" alt="KeyPath" width="600"/>
+  <img src="docs/images/keypath-poster.png" alt="KeyPath" width="210"/>
 
   **Remap any key on your Mac. No terminal required.**
 
