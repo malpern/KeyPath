@@ -35,6 +35,10 @@ struct CustomRuleEditorView: View {
     @State private var showConflictDialog: Bool = false
     @State private var pendingConflict: BehaviorConflict?
 
+    // Standalone mode controls state
+    @State private var systemHasProblems: Bool = false
+    @EnvironmentObject private var kanataManager: KanataViewModel
+
     // Hold behavior type (radio button selection)
     enum HoldBehaviorType: String, CaseIterable {
         case basic = "Basic"
@@ -138,6 +142,7 @@ struct CustomRuleEditorView: View {
     private let isStandalone: Bool // When true, acts as home screen (no close button, resets after save)
     let onSave: (CustomRule) -> Void
     let onDelete: ((CustomRule) -> Void)?
+    let onShowWizard: (() -> Void)?
     @State private var autoSaveTimer: Timer?
 
     // Toast state
@@ -156,13 +161,15 @@ struct CustomRuleEditorView: View {
         existingRules: [CustomRule] = [],
         isStandalone: Bool = false,
         onSave: @escaping (CustomRule) -> Void,
-        onDelete: ((CustomRule) -> Void)? = nil
+        onDelete: ((CustomRule) -> Void)? = nil,
+        onShowWizard: (() -> Void)? = nil
     ) {
         existingRule = rule
         self.existingRules = existingRules
         self.isStandalone = isStandalone
         self.onSave = onSave
         self.onDelete = onDelete
+        self.onShowWizard = onShowWizard
         if let rule {
             _customName = State(initialValue: rule.title)
             _input = State(initialValue: rule.input)
@@ -212,6 +219,11 @@ struct CustomRuleEditorView: View {
         hasRequiredFields && ruleValidationErrors.isEmpty
     }
 
+    /// Number of active (enabled) custom rules - used for the indicator at the bottom
+    private var activeRulesCount: Int {
+        kanataManager.customRules.filter(\.isEnabled).count
+    }
+
     /// Compute the ideal height based on content
     private var idealHeight: CGFloat {
         // Chrome: header (44) + scroll content padding (32 top+bottom) + bottom safe area (16)
@@ -238,121 +250,96 @@ struct CustomRuleEditorView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header with close button and left-aligned title
-            HStack {
-                // Close button (hidden in standalone mode)
-                if !isStandalone {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 14))
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .focusable(false)
-                    .keyboardShortcut(.cancelAction)
-                    .help("Close")
-                }
-
-                // Title (left-aligned after close button)
-                Text("KeyPath")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                    .padding(.leading, isStandalone ? 0 : 8)
-
-                Spacer()
-
-                // Settings button - opens Settings window
-                Button {
-                    openSettings()
-                } label: {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .focusable(false)
-                .help("Open Settings")
-
-                // Reset button - clears form to start fresh
-                Button {
-                    resetForm()
-                } label: {
-                    Image(systemName: "arrow.counterclockwise")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .focusable(false)
-                .help("Reset form")
-
-                // Delete button (edit mode only)
-                if mode == .edit, onDelete != nil {
-                    Button {
-                        showDeleteConfirmation = true
-                    } label: {
-                        Image(systemName: "trash")
-                            .font(.system(size: 14))
-                            .foregroundStyle(.red.opacity(0.8))
-                    }
-                    .buttonStyle(.plain)
-                    .focusable(false)
-                    .help("Delete rule")
-                }
+            // Controls bar for standalone mode (below titlebar)
+            if isStandalone {
+                standaloneControlsBar
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
 
             // Content - scrolls only when needed
-            ScrollView {
-                VStack(spacing: 0) {
-                    // Input/Output keycap pair (R2 style)
-                    keycapPairSection
-                        .padding(.bottom, 16)
+            GeometryReader { geometry in
+                ScrollView {
+                    VStack(spacing: 0) {
+                        // Input/Output keycap pair (R2 style)
+                        keycapPairSection
+                            .padding(.bottom, 16)
 
-                    // Advanced options - positioned directly below keycaps
-                    advancedSection
+                        // Advanced options - positioned directly below keycaps
+                        advancedSection
 
-                    // Validation error
-                    if let error = validationError {
-                        Text(error)
-                            .font(.callout)
-                            .foregroundStyle(.red)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.top, 12)
+                        // Validation error
+                        if let error = validationError {
+                            Text(error)
+                                .font(.callout)
+                                .foregroundStyle(.red)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.top, 12)
+                        }
                     }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 16)
+                    // In standalone mode, center content vertically until it needs to scroll
+                    .frame(minHeight: isStandalone ? geometry.size.height : 0, alignment: .center)
                 }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 16)
             }
         }
         .frame(width: isStandalone ? nil : 460, height: isStandalone ? nil : idealHeight)
         .frame(maxWidth: isStandalone ? .infinity : nil, maxHeight: isStandalone ? .infinity : nil)
+        .preference(key: WindowHeightPreferenceKey.self, value: isStandalone ? idealHeight : 0)
         .animation(.easeInOut(duration: 0.25), value: showAdvanced)
         .animation(.easeInOut(duration: 0.25), value: tapDanceSteps.count)
         .background(isStandalone ? Color.clear : Color(NSColor.windowBackgroundColor))
-        .overlay(alignment: .bottom) {
-            if showToast {
-                HStack(spacing: 6) {
-                    Image(systemName: toastIsError ? "xmark.circle.fill" : "checkmark.circle.fill")
-                        .foregroundStyle(toastIsError ? .red : .green)
-                        .font(.system(size: 14))
-                    Text(toastMessage)
-                        .font(.subheadline)
-                        .foregroundStyle(.primary)
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(NSColor.controlBackgroundColor))
-                        .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
-                )
-                .padding(.bottom, 12)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+        .safeAreaInset(edge: .top, spacing: 0) {
+            // In standalone mode, header is in the native titlebar accessory
+            // In sheet mode, show the SwiftUI header
+            if !isStandalone {
+                sheetHeader
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ResetRuleEditorForm"))) { _ in
+            resetForm()
+        }
+        .overlay(alignment: .bottom) {
+            VStack(spacing: 8) {
+                if showToast {
+                    HStack(spacing: 6) {
+                        Image(systemName: toastIsError ? "xmark.circle.fill" : "checkmark.circle.fill")
+                            .foregroundStyle(toastIsError ? .red : .green)
+                            .font(.system(size: 14))
+                        Text(toastMessage)
+                            .font(.subheadline)
+                            .foregroundStyle(.primary)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color(NSColor.controlBackgroundColor))
+                            .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+                    )
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+
+                // Active rules indicator - shown when there are enabled rules (standalone mode only)
+                if isStandalone, activeRulesCount > 0 {
+                    Text("\(activeRulesCount) active rule\(activeRulesCount == 1 ? "" : "s")")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .onTapGesture {
+                            openRulesSettings()
+                        }
+                        .onHover { hovering in
+                            if hovering {
+                                NSCursor.pointingHand.push()
+                            } else {
+                                NSCursor.pop()
+                            }
+                        }
+                }
+            }
+            .padding(.bottom, 12)
+            .animation(.easeInOut(duration: 0.3), value: activeRulesCount)
         }
         .alert("Delete Rule?", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
@@ -394,6 +381,7 @@ struct CustomRuleEditorView: View {
             cancelActiveRecording()
             autoSaveTimer?.invalidate()
         }
+        .focusEffectDisabled()
         .onChange(of: input) { _, _ in
             refreshValidation()
             scheduleAutoSave()
@@ -1160,7 +1148,8 @@ struct CustomRuleEditorView: View {
         if let appMenu = NSApp.mainMenu?.items.first?.submenu {
             for item in appMenu.items {
                 if item.title.contains("Settings") || item.title.contains("Preferences"),
-                   let action = item.action {
+                   let action = item.action
+                {
                     NSApp.sendAction(action, to: item.target, from: item)
                     return
                 }
@@ -1171,6 +1160,143 @@ struct CustomRuleEditorView: View {
             NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
         } else {
             NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+        }
+    }
+
+    private func openRulesSettings() {
+        // Open settings window and navigate to the Rules tab
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        NotificationCenter.default.post(name: .openSettingsRules, object: nil)
+    }
+
+    // MARK: - Controls Bar (Standalone Mode)
+
+    /// Controls bar for standalone mode - sits below titlebar, right-aligned
+    @ViewBuilder
+    private var standaloneControlsBar: some View {
+        HStack(spacing: 16) {
+            // Status indicator on the left - only shown when there are problems
+            if systemHasProblems {
+                Button {
+                    onShowWizard?()
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 24))
+                            .foregroundStyle(.orange)
+                        Text("Setup needed")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.9))
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(Color.white.opacity(0.1))
+                    )
+                }
+                .buttonStyle(.plain)
+                .help("Open Installation Wizard")
+            }
+
+            Spacer()
+
+            Button {
+                openSettings()
+            } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 18))
+                    .foregroundStyle(.white)
+            }
+            .buttonStyle(.plain)
+            .help("Open Settings")
+
+            Button {
+                resetForm()
+            } label: {
+                Image(systemName: "arrow.counterclockwise")
+                    .font(.system(size: 18))
+                    .foregroundStyle(.white)
+            }
+            .buttonStyle(.plain)
+            .help("Reset form")
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 8)
+        .task {
+            // Check system health on appear
+            await checkSystemHealth()
+        }
+    }
+
+    /// Check system health to update status indicator
+    private func checkSystemHealth() async {
+        let context = await kanataManager.inspectSystemContext()
+        let hasProblems = !context.permissions.isSystemReady || !context.services.isHealthy
+        await MainActor.run {
+            systemHasProblems = hasProblems
+        }
+    }
+
+    // MARK: - Header Views
+
+    /// Header for sheet (modal) mode
+    @ViewBuilder
+    private var sheetHeader: some View {
+        HStack {
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .focusable(false)
+            .keyboardShortcut(.cancelAction)
+            .help("Close")
+
+            Text("KeyPath")
+                .font(.headline)
+                .foregroundStyle(.primary)
+                .padding(.leading, 8)
+
+            Spacer()
+
+            Button {
+                openSettings()
+            } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .focusable(false)
+            .help("Open Settings")
+
+            Button {
+                resetForm()
+            } label: {
+                Image(systemName: "arrow.counterclockwise")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .focusable(false)
+            .help("Reset form")
+
+            if mode == .edit, onDelete != nil {
+                Button {
+                    showDeleteConfirmation = true
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.red.opacity(0.8))
+                }
+                .buttonStyle(.plain)
+                .focusable(false)
+                .help("Delete rule")
+            }
         }
     }
 

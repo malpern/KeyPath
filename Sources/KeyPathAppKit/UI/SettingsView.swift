@@ -10,55 +10,92 @@ struct GeneralSettingsTabView: View {
     @EnvironmentObject var kanataManager: KanataViewModel
     @State private var settingsToastManager = WizardToastManager()
     @AppStorage("overlayLayoutId") private var selectedLayoutId: String = "macbook-us"
+    @State private var localServiceRunning: Bool? // Optimistic local state for instant toggle feedback
+    @State private var systemContext: SystemContext?
+
+    private var isServiceRunning: Bool {
+        systemContext?.services.kanataRunning ?? false
+    }
+
+    /// Effective service running state: use local optimistic value if set, otherwise actual state
+    private var effectiveServiceRunning: Bool {
+        localServiceRunning ?? isServiceRunning
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 40) {
-                // Left: Logs
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Logs")
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
+                // Left: On/Off Hero Section
+                VStack(spacing: 16) {
+                    // Big on/off icon
+                    ZStack {
+                        Circle()
+                            .fill(effectiveServiceRunning ? Color.green.opacity(0.15) : Color.secondary.opacity(0.1))
+                            .frame(width: 80, height: 80)
 
-                    HStack(spacing: 30) {
-                        // KeyPath Log
-                        VStack(spacing: 8) {
-                            Image(systemName: "doc.text.fill")
-                                .font(.system(size: 40))
-                                .foregroundStyle(.blue)
-
-                            Text("KeyPath log")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-
-                            Button("Open") {
-                                openLogFile(NSHomeDirectory() + "/Library/Logs/KeyPath/keypath-debug.log")
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                        }
-
-                        // Kanata Log
-                        VStack(spacing: 8) {
-                            Image(systemName: "doc.text.fill")
-                                .font(.system(size: 40))
-                                .foregroundStyle(.green)
-
-                            Text("Kanata log")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-
-                            Button("Open") {
-                                openLogFile("/var/log/kanata.log")
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                        }
+                        Image(systemName: effectiveServiceRunning ? "power.circle.fill" : "power.circle")
+                            .font(.system(size: 44))
+                            .foregroundStyle(effectiveServiceRunning ? .green : .secondary)
                     }
-                }
-                .frame(minWidth: 220)
 
-                // Right: Recording Settings
+                    // Toggle with ON/OFF label
+                    HStack(spacing: 12) {
+                        Toggle(
+                            "",
+                            isOn: Binding(
+                                get: { effectiveServiceRunning },
+                                set: { newValue in
+                                    localServiceRunning = newValue
+                                    Task {
+                                        if newValue {
+                                            let success = await kanataManager.startKanata(reason: "General tab toggle")
+                                            await MainActor.run {
+                                                if success {
+                                                    settingsToastManager.showSuccess("KeyPath activated")
+                                                } else {
+                                                    settingsToastManager.showError("Start failed")
+                                                    localServiceRunning = nil
+                                                }
+                                            }
+                                        } else {
+                                            let success = await kanataManager.stopKanata(reason: "General tab toggle")
+                                            await MainActor.run {
+                                                if success {
+                                                    settingsToastManager.showInfo("KeyPath deactivated")
+                                                } else {
+                                                    settingsToastManager.showError("Stop failed")
+                                                    localServiceRunning = nil
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            )
+                        )
+                        .toggleStyle(.switch)
+                        .controlSize(.large)
+
+                        Text(effectiveServiceRunning ? "ON" : "OFF")
+                            .font(.body.weight(.medium))
+                            .foregroundStyle(effectiveServiceRunning ? .green : Color.secondary)
+                    }
+
+                    // Active rules count
+                    Button(action: {
+                        NotificationCenter.default.post(name: .openSettingsRules, object: nil)
+                    }) {
+                        let enabledCollections = kanataManager.ruleCollections.filter(\.isEnabled).count
+                        let enabledCustomRules = kanataManager.customRules.filter(\.isEnabled).count
+                        let activeCount = enabledCollections + enabledCustomRules
+                        Text("\(activeCount) active rule\(activeCount == 1 ? "" : "s")")
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .frame(minWidth: 180)
+
+                // Right: Settings
                 VStack(alignment: .leading, spacing: 20) {
                     // Capture Mode
                     VStack(alignment: .leading, spacing: 8) {
@@ -73,8 +110,8 @@ struct GeneralSettingsTabView: View {
                                 set: { PreferencesService.shared.isSequenceMode = $0 }
                             )
                         ) {
-                            Text("Sequences - Keys one after another").tag(true)
-                            Text("Combos - Keys together").tag(false)
+                            Label("Sequences — Keys one after another", systemImage: "arrow.forward.to.line").tag(true)
+                            Label("Combos — Keys pressed together", systemImage: "square.stack.3d.up").tag(false)
                         }
                         .pickerStyle(.radioGroup)
                         .labelsHidden()
@@ -93,20 +130,40 @@ struct GeneralSettingsTabView: View {
                                 set: { PreferencesService.shared.applyMappingsDuringRecording = $0 }
                             )
                         ) {
-                            Text("Record physical keys (pause KeyPath)").tag(false)
-                            Text("Record with KeyPath mappings running").tag(true)
+                            Label("Record physical keys (pause remapping)", systemImage: "keyboard").tag(false)
+                            Label("Record with remapping active", systemImage: "bolt").tag(true)
                         }
                         .pickerStyle(.radioGroup)
                         .labelsHidden()
                     }
 
-                    // Verbose Logging
+                    // Verbose Logging with log buttons underneath
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Verbose Logging")
                             .font(.headline)
                             .foregroundStyle(.secondary)
 
                         VerboseLoggingToggle()
+
+                        // Log file buttons
+                        HStack(spacing: 12) {
+                            Button {
+                                openLogFile(NSHomeDirectory() + "/Library/Logs/KeyPath/keypath-debug.log")
+                            } label: {
+                                Label("KeyPath Log", systemImage: "doc.text")
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+
+                            Button {
+                                openLogFile("/var/log/kanata.log")
+                            } label: {
+                                Label("Kanata Log", systemImage: "doc.text")
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                        .padding(.top, 4)
                     }
 
                     // Overlay Settings (R2+)
@@ -142,6 +199,25 @@ struct GeneralSettingsTabView: View {
         }
         .settingsBackground()
         .withToasts(settingsToastManager)
+        .onChange(of: isServiceRunning) { _, _ in
+            localServiceRunning = nil
+        }
+        .task {
+            await refreshStatus()
+            // Background refresh every 5 seconds
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(5))
+                guard !Task.isCancelled else { break }
+                await refreshStatus()
+            }
+        }
+    }
+
+    private func refreshStatus() async {
+        let context = await kanataManager.inspectSystemContext()
+        await MainActor.run {
+            systemContext = context
+        }
     }
 
     private func openLogFile(_ filePath: String) {
@@ -193,7 +269,6 @@ struct StatusSettingsTabView: View {
     @State private var settingsToastManager = WizardToastManager()
     @State private var showingPermissionAlert = false
     @State private var refreshRetryScheduled = false
-    @State private var localServiceRunning: Bool? // Optimistic local state for instant toggle feedback
     @State private var gearRotation: Double = 0
     @State private var wizardInitialPage: WizardPage? // nil = don't show, non-nil = show with that page
 
@@ -206,15 +281,6 @@ struct StatusSettingsTabView: View {
             return Color.secondary.opacity(0.15)
         }
         return isSystemHealthy ? Color.green.opacity(0.15) : Color.orange.opacity(0.15)
-    }
-
-    private var isServiceRunning: Bool {
-        systemContext?.services.kanataRunning ?? false
-    }
-
-    /// Effective service running state: use local optimistic value if set, otherwise actual state
-    private var effectiveServiceRunning: Bool {
-        localServiceRunning ?? isServiceRunning
     }
 
     private var isSystemHealthy: Bool {
@@ -596,48 +662,35 @@ struct StatusSettingsTabView: View {
 
             // System Status Hero Section
             HStack(alignment: .top, spacing: 40) {
-                // Large status indicator with centered toggle
+                // Large status indicator with action button
                 VStack(spacing: 16) {
                     VStack(spacing: 12) {
-                        // Clickable status icon - opens wizard
-                        Button(action: {
-                            wizardInitialPage = .summary
-                        }) {
-                            ZStack {
-                                Circle()
-                                    .fill(heroIconBackgroundColor)
-                                    .frame(width: 80, height: 80)
+                        // Status icon
+                        ZStack {
+                            Circle()
+                                .fill(heroIconBackgroundColor)
+                                .frame(width: 80, height: 80)
 
-                                if isLoading {
-                                    // Spinning gear while loading
-                                    Image(systemName: "gear")
-                                        .font(.system(size: 40))
-                                        .foregroundStyle(.secondary)
-                                        .rotationEffect(.degrees(gearRotation))
-                                        .onAppear {
-                                            withAnimation(.linear(duration: 2).repeatForever(autoreverses: false)) {
-                                                gearRotation = 360
-                                            }
-                                        }
-                                } else {
-                                    Image(
-                                        systemName: isSystemHealthy
-                                            ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
-                                    )
+                            if isLoading {
+                                // Spinning gear while loading
+                                Image(systemName: "gear")
                                     .font(.system(size: 40))
-                                    .foregroundStyle(isSystemHealthy ? .green : .orange)
-                                }
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        .onHover { hovering in
-                            if hovering {
-                                NSCursor.pointingHand.push()
+                                    .foregroundStyle(.secondary)
+                                    .rotationEffect(.degrees(gearRotation))
+                                    .onAppear {
+                                        withAnimation(.linear(duration: 2).repeatForever(autoreverses: false)) {
+                                            gearRotation = 360
+                                        }
+                                    }
                             } else {
-                                NSCursor.pop()
+                                Image(
+                                    systemName: isSystemHealthy
+                                        ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
+                                )
+                                .font(.system(size: 40))
+                                .foregroundStyle(isSystemHealthy ? .green : .orange)
                             }
                         }
-                        .help("Open Installation Wizard")
 
                         VStack(spacing: 4) {
                             Text(systemHealthMessage)
@@ -651,48 +704,30 @@ struct StatusSettingsTabView: View {
                                     .multilineTextAlignment(.center)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
-
-                            Button(action: {
-                                NotificationCenter.default.post(name: .openSettingsRules, object: nil)
-                            }) {
-                                let enabledCollections = kanataManager.ruleCollections.filter(\.isEnabled).count
-                                let enabledCustomRules = kanataManager.customRules.filter(\.isEnabled).count
-                                let activeCount = enabledCollections + enabledCustomRules
-                                Text("\(activeCount) active rule\(activeCount == 1 ? "" : "s")")
-                                    .font(.body)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .buttonStyle(.plain)
                         }
                     }
 
-                    // Centered toggle
-                    HStack(spacing: 12) {
-                        Toggle(
-                            "",
-                            isOn: Binding(
-                                get: { effectiveServiceRunning },
-                                set: { newValue in
-                                    // Optimistic update: change UI immediately
-                                    localServiceRunning = newValue
-                                    // Then trigger async operation
-                                    Task {
-                                        if newValue {
-                                            await startViaInstallerEngine()
-                                        } else {
-                                            await stopViaInstallerEngine()
-                                        }
-                                        await refreshStatus()
-                                    }
-                                }
-                            )
-                        )
-                        .toggleStyle(.switch)
-                        .controlSize(.large)
-
-                        Text(effectiveServiceRunning ? "ON" : "OFF")
-                            .font(.body.weight(.medium))
-                            .foregroundStyle(effectiveServiceRunning ? .green : Color.secondary)
+                    // Primary action button under status icon
+                    if !isLoading {
+                        if isSystemHealthy {
+                            // Subtle "Launch Wizard" when everything is OK
+                            Button(action: {
+                                wizardInitialPage = .summary
+                            }) {
+                                Label("Launch Wizard", systemImage: "wand.and.stars")
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.regular)
+                        } else {
+                            // Prominent "Fix it" when there's a problem
+                            Button(action: {
+                                wizardInitialPage = .summary
+                            }) {
+                                Label("Fix it", systemImage: "wand.and.stars")
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.regular)
+                        }
                     }
                 }
                 .frame(minWidth: 220)
@@ -717,25 +752,6 @@ struct StatusSettingsTabView: View {
                                 }
                             )
                         }
-                    }
-
-                    // Wizard button - always go to summary when clicking the button directly
-                    if isSystemHealthy {
-                        Button(action: {
-                            wizardInitialPage = .summary
-                        }) {
-                            Label("Install wizard…", systemImage: "wand.and.stars.inverse")
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                    } else {
-                        Button(action: {
-                            wizardInitialPage = .summary
-                        }) {
-                            Label("Fix issues…", systemImage: "wand.and.stars")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
                     }
                 }
 
@@ -769,16 +785,18 @@ struct StatusSettingsTabView: View {
         }
         .task {
             await refreshStatus()
+            // Start background refresh timer (every 5 seconds)
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(5))
+                guard !Task.isCancelled else { break }
+                await refreshStatus()
+            }
         }
         // Removed legacy onReceive(currentState)
         .onReceive(NotificationCenter.default.publisher(for: .wizardClosed)) { _ in
             Task {
                 await refreshStatus()
             }
-        }
-        .onChange(of: isServiceRunning) { _, _ in
-            // Sync local optimistic state when actual service state updates
-            localServiceRunning = nil
         }
     }
 
@@ -800,64 +818,13 @@ struct StatusSettingsTabView: View {
         // If services look “starting” (daemons loaded/healthy but kanata not yet running), retry once shortly.
         if !context.services.kanataRunning,
            context.components.launchDaemonServicesHealthy || context.services.karabinerDaemonRunning,
-           refreshRetryScheduled == false {
+           refreshRetryScheduled == false
+        {
             refreshRetryScheduled = true
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(1))
                 refreshRetryScheduled = false
                 await refreshStatus()
-            }
-        }
-    }
-
-    private func startViaInstallerEngine() async {
-        await MainActor.run {
-            settingsToastManager.showInfo("Starting…")
-        }
-
-        let started = await kanataManager.startKanata(reason: "Status tab start button")
-        await refreshStatus()
-
-        await MainActor.run {
-            if started {
-                settingsToastManager.showSuccess("KeyPath activated")
-            } else {
-                let reason = kanataManager.lastError ?? "Service did not start"
-                settingsToastManager.showError("Start failed: \(reason)")
-            }
-        }
-    }
-
-    private func openConfigInEditor() {
-        let url = URL(fileURLWithPath: kanataManager.configPath)
-        openFileInPreferredEditor(url)
-    }
-
-    private func openBackupsFolder() {
-        let backupsPath = "\(NSHomeDirectory())/.config/keypath/.backups"
-        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: backupsPath)
-    }
-
-    private func resetToDefaultConfig() {
-        Task {
-            do {
-                try await kanataManager.resetToDefaultConfig()
-                settingsToastManager.showSuccess("Configuration reset to default")
-            } catch {
-                settingsToastManager.showError("Reset failed: \(error.localizedDescription)")
-            }
-        }
-    }
-
-    private func stopViaInstallerEngine() async {
-        let stopped = await kanataManager.stopKanata(reason: "Status tab stop button")
-        await refreshStatus()
-        await MainActor.run {
-            if stopped {
-                settingsToastManager.showInfo("KeyPath deactivated")
-            } else {
-                let reason = kanataManager.lastError ?? "Service did not stop"
-                settingsToastManager.showError("Stop failed: \(reason)")
             }
         }
     }

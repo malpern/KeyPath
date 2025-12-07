@@ -187,13 +187,14 @@ final class UninstallCoordinator: ObservableObject {
     }
 
     private static func defaultRunWithAdminPrivileges(scriptURL: URL, deleteConfig: Bool) async
-        -> AppleScriptResult {
+        -> AppleScriptResult
+    {
         // Use PrivilegedCommandRunner which respects TestEnvironment.useSudoForPrivilegedOps
         // Run on a background thread to avoid blocking the main actor
         let configFlag = deleteConfig ? " --delete-config" : ""
         let command = "KEYPATH_UNINSTALL_ASSUME_YES=1 '\(scriptURL.path)' --assume-yes\(configFlag)"
 
-        let result = await Task.detached(priority: .userInitiated) {
+        let result = await Task.detached(priority: .userInitiated) { @Sendable () -> PrivilegedCommandRunner.Result in
             PrivilegedCommandRunner.execute(
                 command: command,
                 prompt: "KeyPath needs to uninstall system services."
