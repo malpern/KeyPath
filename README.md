@@ -60,13 +60,18 @@ That's it. Your keyboard is now remapped.
 
 ---
 
-## Safety
+## System Requirements
 
-KeyPath requires two permissions to work:
+KeyPath needs a few things to work:
+
 - **Input Monitoring** — to see your key presses
 - **Accessibility** — to send the remapped keys
+- **Karabiner VirtualHID Driver** — creates the virtual keyboard device
+- **Admin password** — to install the background service (one-time)
 
-The setup wizard handles both automatically.
+The setup wizard handles all of this automatically.
+
+## Safety
 
 **Emergency stop:** If something goes wrong, press `Ctrl + Space + Esc` to instantly disable all remappings.
 
