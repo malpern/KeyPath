@@ -1,10 +1,10 @@
-// swift-tools-version: 6.2
+// swift-tools-version: 6.0
 import PackageDescription
 
 let package = Package(
     name: "KeyPath",
     platforms: [
-        .macOS(.v26)
+        .macOS(.v14)
     ],
     products: [
         .library(
@@ -132,6 +132,16 @@ let package = Package(
             ],
             swiftSettings: [
                 .swiftLanguageMode(.v6)
+            ],
+            linkerSettings: [
+                // Embed Info.plist into __TEXT,__info_plist section
+                // Required for SMAppService privileged helpers on macOS 13+
+                .unsafeFlags([
+                    "-Xlinker", "-sectcreate",
+                    "-Xlinker", "__TEXT",
+                    "-Xlinker", "__info_plist",
+                    "-Xlinker", "Sources/KeyPathHelper/Info.plist"
+                ])
             ]
         ),
         // SMAppService POC test utility
