@@ -547,13 +547,13 @@ class ConfigurationServiceTests: XCTestCase {
     }
 
     func testConvertToKanataSequence_TextMacro_Numbers() {
-        // Test that "123" converts to (macro 1 2 3)
+        // Test that "123" converts to (macro Digit1 Digit2 Digit3)
         let result = KanataKeyConverter.convertToKanataSequence("123")
         XCTAssertTrue(result.hasPrefix("(macro "), "Number sequence should be wrapped in macro")
-        XCTAssertTrue(result.contains("1"), "Should contain 1")
-        XCTAssertTrue(result.contains("2"), "Should contain 2")
-        XCTAssertTrue(result.contains("3"), "Should contain 3")
-        XCTAssertEqual(result, "(macro 1 2 3)", "Should generate correct macro syntax")
+        XCTAssertTrue(result.contains("Digit1"), "Should contain Digit1")
+        XCTAssertTrue(result.contains("Digit2"), "Should contain Digit2")
+        XCTAssertTrue(result.contains("Digit3"), "Should contain Digit3")
+        XCTAssertEqual(result, "(macro Digit1 Digit2 Digit3)", "Should generate correct macro syntax")
     }
 
     func testConvertToKanataSequence_TextMacro_Letters() {
@@ -585,7 +585,7 @@ class ConfigurationServiceTests: XCTestCase {
         let config = KanataConfiguration.generateFromMappings(mappings)
 
         // Check that deflayer contains the macro
-        XCTAssertTrue(config.contains("(macro 1 2 3)"), "Config should contain macro for text sequence")
+        XCTAssertTrue(config.contains("(macro Digit1 Digit2 Digit3)"), "Config should contain macro for text sequence")
         XCTAssertTrue(config.contains("(defsrc"), "Config should have defsrc")
         XCTAssertTrue(config.contains("(deflayer base"), "Config should have deflayer")
     }

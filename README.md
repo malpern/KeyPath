@@ -72,6 +72,10 @@ This isn't a toy DSL—it's a full configuration language that can express behav
 
 **The best part:** Start with KeyPath's UI, and graduate to hand-editing only when you want to. Your visual rules and manual edits coexist in the same file.
 
+### Clear feedback when validation fails
+
+If Kanata rejects a generated config, KeyPath now surfaces a dedicated modal that lists every error, offers a one-click copy button, and links directly to the on-disk config and diagnostics panel. No more guessing why a save failed—grab the exact kanata output, jump into your editor, or open System Status without leaving the app.
+
 ---
 
 ## Home Row Mods—Finally Reliable on Mac
@@ -79,7 +83,7 @@ This isn't a toy DSL—it's a full configuration language that can express behav
 **KeyPath is the only Mac tool that enables [Home Row Mods](https://precondition.github.io/home-row-mods) in pure software with reliability comparable to hardware firmware like QMK or ZMK.**
 
 <div align="center">
-  <img src="docs/images/home-row-mods.webp" alt="Home Row Mods Diagram" width="500"/>
+  <img src="docs/images/mac-hrm.png" alt="Home Row Mods Diagram" width="500"/>
 </div>
 
 ### What are Home Row Mods?
@@ -108,9 +112,33 @@ Kanata implements **eight distinct tap-hold strategies**, each designed for diff
 | `tap-hold-tap-keys` | Fast typists | Specific keys always trigger tap, never early hold |
 | `tap-hold-except-keys` | Fine-tuning | Certain keys bypass hold detection entirely |
 
-The key insight: **hold detection shouldn't be purely time-based**. It should consider *what else you're doing*. If you press `F` (mapped to Shift) and then `J`, you probably want `Shift+J`. But if you press `F` then `G` then `H` in rapid succession, you're typing—not modifying.
+**The key insight:** hold detection shouldn't be purely time-based. It should consider *what else you're doing*. If you press `F` (mapped to Shift) and then `J`, you probably want `Shift+J`. But if you press `F` then `G` then `H` in rapid succession, you're typing—not modifying.
 
-Kanata's `tap-hold-press` and `tap-hold-tap-keys` strategies implement exactly this logic, matching the "permissive hold" and "hold on other key press" behaviors found in QMK/ZMK firmware. KeyPath exposes these strategies through a simple UI toggle—no config syntax required.
+### Why KeyPath + Kanata deliver reliable HRM
+
+1. **Firmware-style state machine, not just timeouts.** Kanata’s tap-hold engine mirrors QMK/ZMK with strategies like `tap-hold-press`, `tap-hold-release`, and per-key exception lists. Karabiner (timeout-only) and Hammerspoon/kmod scripts lack that nuanced “hold when another key is pressed” logic, so they misfire under real typing speed.
+2. **Layer-aware, canonical config output.** Kanata natively understands `layer-while-held`, momentary activators, and dual-role keys. HRM is expressed in the same language you’d use on a custom keyboard and survives regen/reload cycles; there’s no fragile JSON/Lua glue.
+3. **Product UX built around HRM.** KeyPath exposes Kanata’s advanced tap-hold knobs (timings, per-key toggles, quick tap rules) through a dedicated editor and provides guardrails like the validation-failure modal. Karabiner/Hammerspoon give raw config access but no first-class HRM tooling, so every tweak is hand-edited and easy to break.
+
+### Kanata vs. Karabiner-Elements vs. Hammerspoon
+
+Kanata isn't trying to replace Karabiner or Hammerspoon for everything. For many general remaps those tools are great. But for HRM specifically, Kanata’s firmware-grade tap-hold engine is in a different league. Instead of bolting a timeout onto macOS key events, Kanata runs a dedicated state machine that understands simultaneous presses, layer activators, and per-key exceptions. KeyPath rides on top of that engine to give you a point-and-click UX. Here's how they compare:
+
+| Capability | Kanata + KeyPath | Karabiner-Elements | Hammerspoon |
+|------------|------------------|--------------------|-------------|
+| Tap-hold strategies | Multiple built-ins (`tap-hold-press`, `tap-hold-release`, `tap-hold-tap-keys`, etc.) | Single timeout (`to_if_alone`, `to_if_held_down`) | Requires custom Lua logic |
+| Early hold activation when another key is pressed | ✅ Native support | ❌ Timeout only | ⚠️ Possible but manual scripting |
+| Per-key tap exceptions / bypass lists | ✅ (`tap-hold-tap-keys`, `tap-hold-except-keys`) | ❌ | ⚠️ Manual Lua |
+| Layer-aware HRM (momentary layers, `layer-while-held`) | ✅ First-class concepts | ⚠️ Workarounds via complex JSON | ⚠️ DIY modal layer code |
+| UI for tuning HRM (timings, per-key config) | ✅ KeyPath editor with live preview | ❌ JSON editing | ❌ Lua scripting |
+| Reliability at high typing speed | ✅ Matches QMK/ZMK semantics | ❌ Frequent misfires due to timeout-only detection | ⚠️ Depends on custom code quality |
+| Config readability | ✅ Kanata Lisp with comments + generated sections | ⚠️ Deep nested JSON | ⚠️ Arbitrary Lua |
+
+In short, Kanata on macOS gives you the same HRM semantics you'd expect from firmware, without needing to flash a keyboard. Karabiner and Hammerspoon can approximate HRM, but they lack the nuanced state tracking needed to avoid misfires under real typing workloads.
+
+### Where QMK/ZMK still go further
+
+Hardware firmware such as QMK and ZMK still have headroom KeyPath hasn’t reached yet: bilateral combos, hold-per-finger heuristics, and highly customized priority rules (see [this QMK deep dive](https://www.reddit.com/r/ErgoMechKeyboards/comments/1f18d8h/i_have_fixed_home_row_mods_in_qmk_for_everyone/)). Those projects can coordinate across thumb clusters, read matrix-level timing, and run combo detection before the OS ever sees a key. KeyPath’s HRM is firmware-grade for most workflows, but if you want experimental combo models or split-keyboard-specific logic, QMK/ZMK remains the bleeding edge. Our goal is to keep closing that gap while retaining a macOS-native UX.
 
 **Learn more:**
 - [Home Row Mods Guide](https://precondition.github.io/home-row-mods) — The canonical introduction
@@ -142,6 +170,21 @@ Kanata's `tap-hold-press` and `tap-hold-tap-keys` strategies implement exactly t
 4. **Create** your first rule and click Save
 
 That's it. Your keyboard is now remapped.
+
+### Documentation
+
+For complete documentation, see the **KeyPath Configuration Guide**:
+- **[HTML Version](docs/KEYPATH_GUIDE.html)** (recommended) - Formatted for easy reading
+- **[AsciiDoc Source](docs/KEYPATH_GUIDE.adoc)** - Source file for editing
+
+The guide covers:
+- Detailed feature explanations
+- Advanced behaviors (tap-hold, tap-dance)
+- Action URI system (`keypath://` deep links)
+- Command-line interface reference
+- Troubleshooting guide
+
+**Note:** To rebuild the HTML version after editing the `.adoc` file, run `./Scripts/build-docs.sh`
 
 ---
 
@@ -255,6 +298,7 @@ KeyPath stands on the shoulders of giants. These tools have shaped the Mac autom
 - **[Karabiner-Elements](https://karabiner-elements.pqrs.org/)** — The OG Mac keyboard remapper. Widely used, JSON-based configuration.
 - **[Keyboard Maestro](https://www.keyboardmaestro.com/)** — The Swiss Army knife of Mac automation.
 - **[Hammerspoon](https://www.hammerspoon.org/)** — Lua-powered automation for power users.
+- **[LeaderKey](https://leaderkey.app/)** — App launcher and workflow hub built around Vim-style leader sequences.
 - **[Raycast](https://www.raycast.com/)** — Modern launcher with extensible commands.
 
 ---

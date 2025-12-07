@@ -194,6 +194,11 @@ class KanataDaemonManager {
         let svc = Self.smServiceFactory(Self.kanataPlistName)
         if svc.status == .enabled { return true }
 
+        if TestEnvironment.isTestMode {
+            // In tests, rely solely on the SMAppService status to avoid touching real launchctl state
+            return false
+        }
+
         // Best-effort check: does launchd know about the job?
         do {
             let result = try await SubprocessRunner.shared.launchctl("print", ["system/\(Self.kanataServiceID)"])
@@ -323,74 +328,71 @@ class KanataDaemonManager {
         }
         AppLogger.shared.log("✅ [KanataDaemonManager] macOS version OK for SMAppService")
 
-        if TestEnvironment.isTestMode {
-            AppLogger.shared.log(
-                "🧪 [KanataDaemonManager] Test mode detected – bypassing bundle validation")
-            let svc = Self.smServiceFactory(Self.kanataPlistName)
-            try svc.register()
-            AppLogger.shared.log("✅ [KanataDaemonManager] Test registration completed")
-            return
-        }
-
-        // Validate plist exists in app bundle
-        // Check both the expected location (for build scripts) and bundle resources (for SPM builds)
-        let bundlePath = Bundle.main.bundlePath
-        let expectedPlistPath = "\(bundlePath)/Contents/Library/LaunchDaemons/\(Self.kanataPlistName)"
-        AppLogger.shared.log("🔍 [KanataDaemonManager] Bundle path: \(bundlePath)")
-        AppLogger.shared.log("🔍 [KanataDaemonManager] Checking for plist at: \(expectedPlistPath)")
-
-        // First check the expected location (build scripts place it here)
-        if FileManager.default.fileExists(atPath: expectedPlistPath) {
-            AppLogger.shared.log(
-                "✅ [KanataDaemonManager] Found plist at expected location: \(expectedPlistPath)")
-            if let plist = NSDictionary(contentsOfFile: expectedPlistPath) as? [String: Any],
-               let args = plist["ProgramArguments"] as? [String],
-               let first = args.first,
-               !first.contains("kanata-launcher") {
-                AppLogger.shared.log(
-                    "❌ [KanataDaemonManager] Plist ProgramArguments missing kanata-launcher wrapper (found: \(first))"
-                )
-                throw KanataDaemonError.registrationFailed(
-                    "Bundled Kanata plist not updated to use kanata-launcher. Rebuild KeyPath before registering."
-                )
-            }
-        } else if let resourcePath = Bundle.main.path(
-            forResource: "com.keypath.kanata", ofType: "plist"
-        ) {
-            // Found in bundle resources (SPM build) - this is acceptable
-            AppLogger.shared.log(
-                "ℹ️ [KanataDaemonManager] Found plist in bundle resources: \(resourcePath)")
-            if let plist = NSDictionary(contentsOfFile: resourcePath) as? [String: Any],
-               let args = plist["ProgramArguments"] as? [String],
-               let first = args.first,
-               !first.contains("kanata-launcher") {
-                AppLogger.shared.log(
-                    "❌ [KanataDaemonManager] Resource plist missing kanata-launcher wrapper (found: \(first))"
-                )
-                throw KanataDaemonError.registrationFailed(
-                    "Bundled Kanata plist not updated to use kanata-launcher. Rebuild KeyPath before registering."
-                )
-            }
-        } else {
-            AppLogger.shared.log(
-                "❌ [KanataDaemonManager] Plist not found in app bundle (checked: \(expectedPlistPath) and bundle resources)"
-            )
-            throw KanataDaemonError.registrationFailed(
-                "Plist not found in app bundle (checked: \(expectedPlistPath) and bundle resources)")
-        }
-
-        // Validate kanata binary exists in app bundle
-        let kanataPath = "\(bundlePath)/Contents/Library/KeyPath/kanata"
-        AppLogger.shared.log("🔍 [KanataDaemonManager] Checking for Kanata binary at: \(kanataPath)")
-        guard FileManager.default.fileExists(atPath: kanataPath) else {
-            AppLogger.shared.log("❌ [KanataDaemonManager] Kanata binary not found at: \(kanataPath)")
-            throw KanataDaemonError.registrationFailed(
-                "Kanata binary not found in app bundle: \(kanataPath)")
-        }
-        AppLogger.shared.log("✅ [KanataDaemonManager] Kanata binary found")
-
         let svc = Self.smServiceFactory(Self.kanataPlistName)
         let initialStatus = svc.status
+
+        if TestEnvironment.isTestMode {
+            AppLogger.shared.log(
+                "🧪 [KanataDaemonManager] Test mode detected – skipping bundle validation but exercising registration state machine"
+            )
+        } else {
+            // Validate plist exists in app bundle
+            // Check both the expected location (for build scripts) and bundle resources (for SPM builds)
+            let bundlePath = Bundle.main.bundlePath
+            let expectedPlistPath = "\(bundlePath)/Contents/Library/LaunchDaemons/\(Self.kanataPlistName)"
+            AppLogger.shared.log("🔍 [KanataDaemonManager] Bundle path: \(bundlePath)")
+            AppLogger.shared.log("🔍 [KanataDaemonManager] Checking for plist at: \(expectedPlistPath)")
+
+            // First check the expected location (build scripts place it here)
+            if FileManager.default.fileExists(atPath: expectedPlistPath) {
+                AppLogger.shared.log(
+                    "✅ [KanataDaemonManager] Found plist at expected location: \(expectedPlistPath)")
+                if let plist = NSDictionary(contentsOfFile: expectedPlistPath) as? [String: Any],
+                   let args = plist["ProgramArguments"] as? [String],
+                   let first = args.first,
+                   !first.contains("kanata-launcher") {
+                    AppLogger.shared.log(
+                        "❌ [KanataDaemonManager] Plist ProgramArguments missing kanata-launcher wrapper (found: \(first))"
+                    )
+                    throw KanataDaemonError.registrationFailed(
+                        "Bundled Kanata plist not updated to use kanata-launcher. Rebuild KeyPath before registering."
+                    )
+                }
+            } else if let resourcePath = Bundle.main.path(
+                forResource: "com.keypath.kanata", ofType: "plist"
+            ) {
+                // Found in bundle resources (SPM build) - this is acceptable
+                AppLogger.shared.log(
+                    "ℹ️ [KanataDaemonManager] Found plist in bundle resources: \(resourcePath)")
+                if let plist = NSDictionary(contentsOfFile: resourcePath) as? [String: Any],
+                   let args = plist["ProgramArguments"] as? [String],
+                   let first = args.first,
+                   !first.contains("kanata-launcher") {
+                    AppLogger.shared.log(
+                        "❌ [KanataDaemonManager] Resource plist missing kanata-launcher wrapper (found: \(first))"
+                    )
+                    throw KanataDaemonError.registrationFailed(
+                        "Bundled Kanata plist not updated to use kanata-launcher. Rebuild KeyPath before registering."
+                    )
+                }
+            } else {
+                AppLogger.shared.log(
+                    "❌ [KanataDaemonManager] Plist not found in app bundle (checked: \(expectedPlistPath) and bundle resources)"
+                )
+                throw KanataDaemonError.registrationFailed(
+                    "Plist not found in app bundle (checked: \(expectedPlistPath) and bundle resources)")
+            }
+
+            // Validate kanata binary exists in app bundle
+            let kanataPath = "\(bundlePath)/Contents/Library/KeyPath/kanata"
+            AppLogger.shared.log("🔍 [KanataDaemonManager] Checking for Kanata binary at: \(kanataPath)")
+            guard FileManager.default.fileExists(atPath: kanataPath) else {
+                AppLogger.shared.log("❌ [KanataDaemonManager] Kanata binary not found at: \(kanataPath)")
+                throw KanataDaemonError.registrationFailed(
+                    "Kanata binary not found in app bundle: \(kanataPath)")
+            }
+            AppLogger.shared.log("✅ [KanataDaemonManager] Kanata binary found")
+        }
         AppLogger.shared.log(
             "🔍 [KanataDaemonManager] SMAppService created with plist name: \(Self.kanataPlistName)")
         AppLogger.shared.log(

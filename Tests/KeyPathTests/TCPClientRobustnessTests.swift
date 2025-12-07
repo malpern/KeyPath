@@ -169,7 +169,7 @@ final class TCPClientRobustnessTests: KeyPathTestCase {
         // Null value - JSONSerialization can handle it (doesn't return a parseable object for this use case)
         let nullJson = "null".data(using: .utf8)!
         do {
-            _ = try JSONSerialization.jsonObject(with: nullJson)
+            _ = try JSONSerialization.jsonObject(with: nullJson, options: .fragmentsAllowed)
             // If it succeeds, that's fine - null is valid JSON
         } catch {
             XCTFail("Should be able to parse null JSON: \(error)")
@@ -178,7 +178,7 @@ final class TCPClientRobustnessTests: KeyPathTestCase {
         // Number - JSONSerialization can handle it
         let numberJson = "42".data(using: .utf8)!
         do {
-            _ = try JSONSerialization.jsonObject(with: numberJson)
+            _ = try JSONSerialization.jsonObject(with: numberJson, options: .fragmentsAllowed)
             // If it succeeds, that's fine - number is valid JSON
         } catch {
             XCTFail("Should be able to parse number JSON: \(error)")
@@ -187,7 +187,7 @@ final class TCPClientRobustnessTests: KeyPathTestCase {
         // String - JSONSerialization can handle it
         let stringJson = #""hello""#.data(using: .utf8)!
         do {
-            _ = try JSONSerialization.jsonObject(with: stringJson)
+            _ = try JSONSerialization.jsonObject(with: stringJson, options: .fragmentsAllowed)
             // If it succeeds, that's fine - string is valid JSON
         } catch {
             XCTFail("Should be able to parse string JSON: \(error)")
@@ -393,8 +393,11 @@ final class TCPClientRobustnessTests: KeyPathTestCase {
         XCTAssertNotNil(result)
 
         // Should stop at \n (0x0A), keeping \r as part of line
-        let line = String(data: result!.line, encoding: .utf8)!
-        XCTAssertTrue(line.hasSuffix("\n"))
+        let lineData = result!.line
+        XCTAssertEqual(lineData.last, 0x0A, "Line should end with LF")
+        if lineData.count >= 2 {
+            XCTAssertEqual(lineData[lineData.count - 2], 0x0D, "Line should retain CR before LF")
+        }
     }
 
     /// Test line extraction with binary data before newline

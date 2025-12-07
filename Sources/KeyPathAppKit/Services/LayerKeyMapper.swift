@@ -225,37 +225,43 @@ actor LayerKeyMapper {
 
         // Simulate each key independently to avoid tap-hold interference
         // Run in parallel for performance
-        let results = await withTaskGroup(of: (UInt16, String, SimulatorKeyMappingResult?).self) { group in
+        let results: [(UInt16, String, SimulatorKeyMappingResult?)]
+        do {
+            results = try await withThrowingTaskGroup(of: (UInt16, String, SimulatorKeyMappingResult?).self) { group in
             for key in physicalKeys {
                 let tcpName = OverlayKeyboardView.keyCodeToKanataName(key.keyCode)
                 let simName = toSimulatorKeyName(tcpName)
                 let keyCode = key.keyCode
                 let label = key.label
 
-                group.addTask {
-                    // Single key: press, wait 50ms, release, then wait 250ms for tap-hold to resolve.
-                    // Tap-hold behaviors need time after release to determine if it was a tap (the
-                    // typical threshold is 200ms, so 250ms ensures the tap fires).
-                    let simContent = "d:\(simName) t:50 u:\(simName) t:250"
-                    do {
-                        let result = try await self.simulatorService.simulateKeyMapping(
-                            simContent: simContent,
-                            configPath: configPath,
-                            startLayer: startLayer
-                        )
-                        return (keyCode, label, result)
-                    } catch {
-                        AppLogger.shared.debug("🗺️ [LayerKeyMapper] Simulation failed for \(simName): \(error)")
-                        return (keyCode, label, nil)
+                    group.addTask {
+                        // Single key: press, wait 50ms, release, then wait 250ms for tap-hold to resolve.
+                        // Tap-hold behaviors need time after release to determine if it was a tap (the
+                        // typical threshold is 200ms, so 250ms ensures the tap fires).
+                        let simContent = "d:\(simName) t:50 u:\(simName) t:250"
+                        do {
+                            let result = try await self.simulatorService.simulateKeyMapping(
+                                simContent: simContent,
+                                configPath: configPath,
+                                startLayer: startLayer
+                            )
+                            return (keyCode, label, result)
+                        } catch SimulatorError.keyMappingModeUnavailable {
+                            throw SimulatorError.keyMappingModeUnavailable
+                        } catch {
+                            AppLogger.shared.debug("🗺️ [LayerKeyMapper] Simulation failed for \(simName): \(error)")
+                            return (keyCode, label, nil)
+                        }
                     }
                 }
+                var collected: [(UInt16, String, SimulatorKeyMappingResult?)] = []
+                for try await result in group {
+                    collected.append(result)
+                }
+                return collected
             }
-
-            var collected: [(UInt16, String, SimulatorKeyMappingResult?)] = []
-            for await result in group {
-                collected.append(result)
-            }
-            return collected
+        } catch SimulatorError.keyMappingModeUnavailable {
+            throw SimulatorError.keyMappingModeUnavailable
         }
 
         // Process results

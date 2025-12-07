@@ -791,7 +791,8 @@ final class RuleCollectionsManagerTests: KeyPathAsyncTestCase {
 
     func testGenerateConfigIncludesMomentaryActivatorAlias() {
         let catalog = RuleCollectionCatalog()
-        let vim = catalog.defaultCollections().first { $0.id == RuleCollectionIdentifier.vimNavigation }!
+        var vim = catalog.defaultCollections().first { $0.id == RuleCollectionIdentifier.vimNavigation }!
+        vim.isEnabled = true
 
         let config = KanataConfiguration.generateFromCollections([vim])
 

@@ -116,12 +116,20 @@ actor SimulatorService {
         try simContent.write(to: simFile, atomically: true, encoding: .utf8)
         defer { try? fileManager.removeItem(at: simFile) }
 
-        let jsonData = try await runSimulator(
-            configPath: configPath,
-            simFilePath: simFile.path,
-            startLayer: startLayer,
-            keyMappingMode: true
-        )
+        let jsonData: Data
+        do {
+            jsonData = try await runSimulator(
+                configPath: configPath,
+                simFilePath: simFile.path,
+                startLayer: startLayer,
+                keyMappingMode: true
+            )
+        } catch let SimulatorError.processFailedWithCode(code, message) {
+            if message.contains("--key-mapping") {
+                throw SimulatorError.keyMappingModeUnavailable
+            }
+            throw SimulatorError.processFailedWithCode(code, message)
+        }
 
         return try JSONDecoder().decode(SimulatorKeyMappingResult.self, from: jsonData)
     }

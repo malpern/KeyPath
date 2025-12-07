@@ -1130,26 +1130,51 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
             AppLogger.shared.log("⚠️ [Reset] No safety backup created (missing/invalid existing config)")
         }
 
-        // R1: Empty config (no collections, only custom rules which are cleared)
-        // R2+: Enable macOS Function Keys only
+        // Always ship with macOS Function Keys enabled so hardware media keys keep working.
+        let catalog = RuleCollectionCatalog()
+        let catalogCollections = catalog.defaultCollections()
+        let macCollectionTemplate = catalogCollections.first {
+            $0.id == RuleCollectionIdentifier.macFunctionKeys
+        } ?? RuleCollection(
+            id: RuleCollectionIdentifier.macFunctionKeys,
+            name: "macOS Function Keys",
+            summary: "Preserves brightness, volume, and media control keys (F1–F12).",
+            category: .system,
+            mappings: [
+                KeyMapping(input: "f1", output: "brdn"),
+                KeyMapping(input: "f2", output: "brup"),
+                KeyMapping(input: "f3", output: #"(push-msg "system:mission-control")"#),
+                KeyMapping(input: "f4", output: #"(push-msg "system:spotlight")"#),
+                KeyMapping(input: "f5", output: #"(push-msg "system:dictation")"#),
+                KeyMapping(input: "f6", output: #"(push-msg "system:dnd")"#),
+                KeyMapping(input: "f7", output: "prev"),
+                KeyMapping(input: "f8", output: "pp"),
+                KeyMapping(input: "f9", output: "next"),
+                KeyMapping(input: "f10", output: "mute"),
+                KeyMapping(input: "f11", output: "vold"),
+                KeyMapping(input: "f12", output: "volu")
+            ],
+            isEnabled: true,
+            isSystemDefault: true
+        )
+
         let allCollections: [RuleCollection]
         let enabledCollections: [RuleCollection]
 
         if FeatureFlags.ruleCollectionsEnabled {
-            // Get ALL collections from catalog, then disable everything except macOS Function Keys
-            // This ensures the UI shows all collections with correct enabled/disabled state after reset
-            let catalog = RuleCollectionCatalog()
-            allCollections = catalog.defaultCollections().map { collection -> RuleCollection in
+            // Enable only macOS Function Keys; keep other collections available but disabled.
+            allCollections = catalogCollections.map { collection -> RuleCollection in
                 var modified = collection
-                // Only enable macOS Function Keys - everything else is OFF
                 modified.isEnabled = (collection.id == RuleCollectionIdentifier.macFunctionKeys)
                 return modified
             }
             enabledCollections = allCollections.filter(\.isEnabled)
         } else {
-            // R1: No collections at all
-            allCollections = []
-            enabledCollections = []
+            // R1: Only macOS Function Keys are present/enabled.
+            var macOnly = macCollectionTemplate
+            macOnly.isEnabled = true
+            allCollections = [macOnly]
+            enabledCollections = allCollections
         }
 
         // Generate config from enabled collections (empty in R1, macOS Function Keys in R2+)
