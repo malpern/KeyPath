@@ -119,7 +119,7 @@ Communication between the UI and the Root Daemon happens via **TCP**.
 ## Visual Architecture Diagram
 
 For a detailed visual guide to component relationships and data flow, see:
-**[Architecture Diagram](docs/ARCHITECTURE_DIAGRAM.md)** - Mermaid diagrams showing:
+**[Architecture Diagram](ARCHITECTURE_DIAGRAM.md)** - Mermaid diagrams showing:
 - System overview with all components
 - Data flow sequences (key mapping, installation wizard)
 - Component responsibilities
@@ -185,6 +185,49 @@ swift test           # Uses direct sudo path
 ```
 
 For detailed implementation, see `docs/archive/HELPER.md`.
+
+## Release Milestones
+
+KeyPath uses feature gating via `ReleaseMilestone` enum in `FeatureFlags.swift` to control which features are available in each release:
+
+### R1: Installer + Custom Rules (Current Release)
+
+**Core Components:**
+- **InstallerEngine**: Primary façade for installation/repair/uninstall operations
+- **PermissionOracle**: Single source of truth for permission detection
+- **RuntimeCoordinator**: Service orchestration and lifecycle management
+- **KanataViewModel**: MVVM UI layer with @Published properties
+- **ConfigurationService**: Config file I/O and validation
+- **Custom Rules**: User-defined key mappings with Tap-Hold & Tap-Dance support
+
+**Features:**
+- Installation Wizard with auto-remediation
+- LaunchDaemon service management
+- Privileged Helper (SMAppService)
+- Custom Rules editor
+- Config generation and hot reload
+- Action URI system (launch, layer, rule, notify, open, fakekey)
+
+**Not Included:**
+- Rule Collections (Vim, Caps Lock, Home Row Mods, etc.)
+- Live Keyboard Overlay
+- Mapper UI
+- Simulator Tab
+- Virtual Keys Inspector
+
+### R2: Full Features (Future Release)
+
+Adds to R1:
+- **RuleCollectionsManager**: Pre-built rule sets
+- **Overlay System**: Live keyboard visualization
+- **Mapper UI**: Graphical keyboard layout editor
+- **Simulator**: Test configs without applying them
+- **Virtual Keys Inspector**: UI for viewing/testing virtual keys
+
+**Technical Details:**
+- R1 uses thin Kanata fork (~480 lines)
+- R2 uses full Kanata fork (~700 lines)
+- Secret toggle: `Ctrl+Option+Cmd+R` cycles milestones at runtime (development only)
 
 ## Development Guidelines
 
