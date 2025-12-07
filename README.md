@@ -3,7 +3,7 @@
 <div align="center">
   <img src="docs/images/keypath-poster.png" alt="KeyPath" width="400"/>
 
-  **Powerful keyboard remapping for Mac—comfort and simplicity, without the learning curve.**
+  **A more comfortable, more powerful keyboard.**
 
   [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-blue.svg)](https://www.apple.com/macos/)
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -11,9 +11,7 @@
 
 ---
 
-## Comfort & Simplicity
-
-**Improve your keyboard comfort**—without the learning curve.
+## Simple to Start
 
 KeyPath lets you remap keys and create custom shortcuts **just by pressing them**. No config files to edit. No syntax to learn. No terminal commands. Just press the key you want to change, press what you want it to become, and you're done.
 
@@ -32,12 +30,10 @@ KeyPath lets you remap keys and create custom shortcuts **just by pressing them*
 
 <div align="center">
   <a href="https://github.com/jtroo/kanata">
-    <img src="https://github.com/jtroo/kanata/raw/main/assets/kanata-icon.svg" alt="Kanata" width="80"/>
+    <img src="https://github.com/jtroo/kanata/raw/main/assets/kanata-icon.svg" alt="Kanata" width="120"/>
   </a>
 
-  **Powered by [Kanata](https://github.com/jtroo/kanata)**
-
-  *Created by [jtroo](https://github.com/jtroo)*
+  **Powered by [Kanata](https://github.com/jtroo/kanata)** · *Created by [jtroo](https://github.com/jtroo)*
 </div>
 
 Under the hood, KeyPath is built on **Kanata**—a cross-platform keyboard remapping engine that's significantly more capable than tools like Karabiner-Elements or KMonad.
