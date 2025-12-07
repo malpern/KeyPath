@@ -208,6 +208,7 @@ KeyPath bundles [Kanata](https://github.com/jtroo/kanata) (LGPL-3.0). See [THIRD
 - **[Keyboard Maestro](https://www.keyboardmaestro.com/)** — Swiss Army knife of Mac automation
 - **[Hammerspoon](https://www.hammerspoon.org/)** — Lua-powered automation
 - **[Raycast](https://www.raycast.com/)** — Modern launcher with extensible commands
+- **[LeaderKey](https://github.com/mikker/LeaderKey.app)** — Vim-inspired nested shortcuts for Mac
 
 ---
 
