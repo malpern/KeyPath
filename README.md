@@ -44,7 +44,7 @@ Under the hood, KeyPath is built on **Kanata**—a cross-platform keyboard remap
 |------------|------------------|-------------------|
 | **[True layers](https://anniecherkaev.com/principles-for-keyboard-layouts)** | Keys change meaning based on active layer—compose layers, toggle them, or hold to activate | Profiles are global; layer-like behavior requires complex JSON rules |
 | **[Reliable tap-hold](https://thomasbaart.nl/2018/12/09/qmk-basics-tap-and-hold-actions/)** | Multiple detection strategies (`tap-hold-press`, `tap-hold-release`, etc.) for different use cases | Basic tap-hold with less tuning options |
-| **Composable conditions** | Combine timing, layer state, and key history into a single rule | Conditions are separate JSON objects, harder to compose |
+| **[Composable conditions](https://github.com/jtroo/kanata/blob/main/docs/config.adoc#switch)** | Combine timing, layer state, and key history into a single rule | Conditions are separate JSON objects, harder to compose |
 | **[Low latency](https://danluu.com/keyboard-latency/)** | Purpose-built for real-time input; runs as a system daemon | Also low-latency, but JSON parsing and rule matching can add overhead |
 
 **KeyPath gives you Kanata's power through a visual interface.** You get the best of both worlds: firmware-level capability, zero config-file friction.
