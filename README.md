@@ -1,7 +1,7 @@
 # KeyPath
 
 <div align="center">
-  <img src="docs/images/keypath-icon.png" alt="KeyPath" width="256" height="256"/>
+  <img src="docs/images/keypath-logo.png" alt="KeyPath" width="256" height="256"/>
 
   **Remap any key on your Mac. No terminal required.**
 
@@ -35,6 +35,10 @@ Changes apply instantly. No restart needed.
 4. **Create** your first rule and click Save
 
 That's it. Your keyboard is now remapped.
+
+<div align="center">
+  <img src="docs/images/screens/1-home-screen.png" alt="KeyPath Rule Editor" width="600"/>
+</div>
 
 ---
 
@@ -70,12 +74,39 @@ The setup wizard handles both automatically.
 
 ---
 
+## Settings
+
+Open Settings with **Cmd+,** or click the gear icon.
+
+<div align="center">
+  <img src="docs/images/screens/2-status-settings.png" alt="Status Settings" width="600"/>
+</div>
+
+- **Status** — See system health at a glance. All green checkmarks means everything's working. Click "Launch Wizard" to fix any issues.
+
+<div align="center">
+  <img src="docs/images/screens/3-rules-settings.png" alt="Rules Settings" width="600"/>
+</div>
+
+- **Rules** — View and manage your custom rules. Toggle rules on/off, edit, or delete them.
+
+<div align="center">
+  <img src="docs/images/screens/4-general-settings.png" alt="General Settings" width="600"/>
+</div>
+
+- **General** — Configure capture mode, recording behavior, and access logs for troubleshooting.
+
+<div align="center">
+  <img src="docs/images/screens/5-repair-remove-settings.png" alt="Repair/Remove Settings" width="600"/>
+</div>
+
+- **Repair/Remove** — Cleanup & Repair fixes common issues. Reset Everything is for when the service is wedged.
+
+---
+
 ## Uninstall
 
-File → Uninstall KeyPath, or:
-```bash
-sudo ./Scripts/uninstall.sh
-```
+To completely remove KeyPath: **Settings → Repair/Remove → Uninstall**
 
 ---
 
