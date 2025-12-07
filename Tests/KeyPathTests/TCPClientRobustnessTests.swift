@@ -8,82 +8,6 @@ import Network
 /// without requiring a real TCP server connection.
 @MainActor
 final class TCPClientRobustnessTests: KeyPathTestCase {
-    // MARK: - Response Matching Tests
-
-    /// Test request_id extraction from various JSON response formats
-    func testExtractRequestIDFromTopLevel() {
-        let client = KanataTCPClient(port: 37001)
-
-        // Top-level request_id
-        let json1 = #"{"status":"Ok","request_id":42}"#.data(using: .utf8)!
-        XCTAssertEqual(client._testExtractRequestId(from: json1), 42)
-
-        // Nested in message type
-        let json2 = #"{"HelloOk":{"version":"1.10.0","request_id":99}}"#.data(using: .utf8)!
-        XCTAssertEqual(client._testExtractRequestId(from: json2), 99)
-
-        // No request_id
-        let json3 = #"{"status":"Ok"}"#.data(using: .utf8)!
-        XCTAssertNil(client._testExtractRequestId(from: json3))
-    }
-
-    /// Test request_id extraction handles numeric types correctly
-    func testExtractRequestIDNumericTypes() {
-        let client = KanataTCPClient(port: 37001)
-
-        // Integer
-        let json1 = #"{"request_id":123}"#.data(using: .utf8)!
-        XCTAssertEqual(client._testExtractRequestId(from: json1), 123)
-
-        // Large number
-        let json2 = #"{"request_id":18446744073709551615}"#.data(using: .utf8)!
-        XCTAssertNotNil(client._testExtractRequestId(from: json2))
-
-        // String-encoded number (some servers might do this)
-        let json3 = #"{"request_id":"456"}"#.data(using: .utf8)!
-        XCTAssertEqual(client._testExtractRequestId(from: json3), 456)
-    }
-
-    /// Test request_id extraction from deeply nested structures
-    func testExtractRequestIDDeepNesting() {
-        let client = KanataTCPClient(port: 37001)
-
-        // Nested in StatusInfo
-        let statusJson = """
-        {"StatusInfo":{"engine_version":"1.10.0","uptime_s":100,"ready":true,"request_id":77}}
-        """
-        let statusData = statusJson.data(using: .utf8)!
-        XCTAssertEqual(client._testExtractRequestId(from: statusData), 77)
-
-        // Nested in ValidationResult
-        let validationJson = """
-        {"ValidationResult":{"errors":[],"warnings":[],"request_id":88}}
-        """
-        let validationData = validationJson.data(using: .utf8)!
-        XCTAssertEqual(client._testExtractRequestId(from: validationData), 88)
-    }
-
-    /// Test request_id extraction handles malformed JSON gracefully
-    func testExtractRequestIDMalformedJSON() {
-        let client = KanataTCPClient(port: 37001)
-
-        // Invalid JSON
-        let invalid1 = "not json".data(using: .utf8)!
-        XCTAssertNil(client._testExtractRequestId(from: invalid1))
-
-        // Empty data
-        let empty = Data()
-        XCTAssertNil(client._testExtractRequestId(from: empty))
-
-        // Incomplete JSON
-        let incomplete = #"{"request_id":"#.data(using: .utf8)!
-        XCTAssertNil(client._testExtractRequestId(from: incomplete))
-
-        // JSON array instead of object
-        let array = #"[{"request_id":1}]"#.data(using: .utf8)!
-        XCTAssertNil(client._testExtractRequestId(from: array))
-    }
-
     // MARK: - Message Handling Tests
 
     /// Test parsing of fake-key broadcast messages
@@ -304,7 +228,7 @@ final class TCPClientRobustnessTests: KeyPathTestCase {
     /// Test TcpHelloOk parsing with full fields
     func testHelloOkFullParsing() throws {
         let json = """
-        {"version":"1.10.0","protocol":1,"capabilities":["reload","validate"],"request_id":42}
+        {"version":"1.10.0","protocol":1,"capabilities":["reload","validate"]}
         """
         let data = json.data(using: .utf8)!
         let hello = try JSONDecoder().decode(KanataTCPClient.TcpHelloOk.self, from: data)
@@ -312,7 +236,6 @@ final class TCPClientRobustnessTests: KeyPathTestCase {
         XCTAssertEqual(hello.version, "1.10.0")
         XCTAssertEqual(hello.protocolVersion, 1)
         XCTAssertEqual(hello.capabilities, ["reload", "validate"])
-        XCTAssertEqual(hello.request_id, 42)
     }
 
     /// Test TcpHelloOk parsing with minimal fields (backward compat)
@@ -326,13 +249,12 @@ final class TCPClientRobustnessTests: KeyPathTestCase {
         XCTAssertEqual(hello.version, "kanata")
         XCTAssertEqual(hello.protocolVersion, 1)
         XCTAssertTrue(hello.capabilities.isEmpty)
-        XCTAssertNil(hello.request_id)
     }
 
     /// Test TcpStatusInfo parsing
     func testStatusInfoParsing() throws {
         let json = """
-        {"engine_version":"1.10.0","uptime_s":1234,"ready":true,"last_reload":{"ok":true,"at":"2024-01-01","duration_ms":50,"epoch":1234567890},"request_id":99}
+        {"engine_version":"1.10.0","uptime_s":1234,"ready":true,"last_reload":{"ok":true,"at":1704067200}}
         """
         let data = json.data(using: .utf8)!
         let status = try JSONDecoder().decode(KanataTCPClient.TcpStatusInfo.self, from: data)
@@ -342,18 +264,17 @@ final class TCPClientRobustnessTests: KeyPathTestCase {
         XCTAssertTrue(status.ready)
         XCTAssertNotNil(status.last_reload)
         XCTAssertEqual(status.last_reload?.ok, true)
-        XCTAssertEqual(status.request_id, 99)
+        XCTAssertEqual(status.last_reload?.at, 1704067200)
     }
 
     // MARK: - Capability Checking Tests
 
     /// Test hasCapabilities with all required capabilities present
-    func testHasCapabilitiesAllPresent() {
-        let hello = KanataTCPClient.TcpHelloOk(
-            version: "1.10.0",
-            protocolVersion: 1,
-            capabilities: ["reload", "validate", "status", "fakekey"]
-        )
+    func testHasCapabilitiesAllPresent() throws {
+        let json = """
+        {"version":"1.10.0","protocol":1,"capabilities":["reload","validate","status","fakekey"]}
+        """
+        let hello = try JSONDecoder().decode(KanataTCPClient.TcpHelloOk.self, from: json.data(using: .utf8)!)
 
         XCTAssertTrue(hello.hasCapabilities(["reload"]))
         XCTAssertTrue(hello.hasCapabilities(["reload", "validate"]))
@@ -362,12 +283,11 @@ final class TCPClientRobustnessTests: KeyPathTestCase {
     }
 
     /// Test hasCapabilities with missing capabilities
-    func testHasCapabilitiesSomeMissing() {
-        let hello = KanataTCPClient.TcpHelloOk(
-            version: "1.10.0",
-            protocolVersion: 1,
-            capabilities: ["reload", "status"]
-        )
+    func testHasCapabilitiesSomeMissing() throws {
+        let json = """
+        {"version":"1.10.0","protocol":1,"capabilities":["reload","status"]}
+        """
+        let hello = try JSONDecoder().decode(KanataTCPClient.TcpHelloOk.self, from: json.data(using: .utf8)!)
 
         XCTAssertTrue(hello.hasCapabilities(["reload"]))
         XCTAssertFalse(hello.hasCapabilities(["validate"]))
@@ -376,23 +296,21 @@ final class TCPClientRobustnessTests: KeyPathTestCase {
     }
 
     /// Test hasCapabilities with empty requirements
-    func testHasCapabilitiesEmptyRequired() {
-        let hello = KanataTCPClient.TcpHelloOk(
-            version: "1.10.0",
-            protocolVersion: 1,
-            capabilities: ["reload"]
-        )
+    func testHasCapabilitiesEmptyRequired() throws {
+        let json = """
+        {"version":"1.10.0","protocol":1,"capabilities":["reload"]}
+        """
+        let hello = try JSONDecoder().decode(KanataTCPClient.TcpHelloOk.self, from: json.data(using: .utf8)!)
 
         XCTAssertTrue(hello.hasCapabilities([]))
     }
 
     /// Test hasCapabilities with empty server capabilities
-    func testHasCapabilitiesEmptyServer() {
-        let hello = KanataTCPClient.TcpHelloOk(
-            version: "1.10.0",
-            protocolVersion: 1,
-            capabilities: []
-        )
+    func testHasCapabilitiesEmptyServer() throws {
+        let json = """
+        {"version":"1.10.0","protocol":1,"capabilities":[]}
+        """
+        let hello = try JSONDecoder().decode(KanataTCPClient.TcpHelloOk.self, from: json.data(using: .utf8)!)
 
         XCTAssertTrue(hello.hasCapabilities([]))
         XCTAssertFalse(hello.hasCapabilities(["reload"]))
@@ -542,23 +460,17 @@ final class TCPClientRobustnessTests: KeyPathTestCase {
 
     /// Test parsing of protocol messages
     func testProtocolMessageParsing() throws {
-        // TcpHelloOk encoding (note: request_id is not encoded, it's receive-only)
-        let hello = KanataTCPClient.TcpHelloOk(
-            version: "1.10.0",
-            protocolVersion: 1,
-            capabilities: ["reload", "validate"],
-            request_id: 42
-        )
-        let helloData = try JSONEncoder().encode(hello)
+        // TcpHelloOk round-trip encoding/decoding
+        let helloJson = """
+        {"version":"1.10.0","protocol":1,"capabilities":["reload","validate"]}
+        """
         let helloDecoded = try JSONDecoder().decode(
-            KanataTCPClient.TcpHelloOk.self, from: helloData
+            KanataTCPClient.TcpHelloOk.self, from: helloJson.data(using: .utf8)!
         )
 
-        XCTAssertEqual(helloDecoded.version, hello.version)
-        XCTAssertEqual(helloDecoded.protocolVersion, hello.protocolVersion)
-        XCTAssertEqual(helloDecoded.capabilities, hello.capabilities)
-        // request_id is not encoded (it's receive-only from server)
-        XCTAssertNil(helloDecoded.request_id)
+        XCTAssertEqual(helloDecoded.version, "1.10.0")
+        XCTAssertEqual(helloDecoded.protocolVersion, 1)
+        XCTAssertEqual(helloDecoded.capabilities, ["reload", "validate"])
 
         // TcpServerResponse parsing (decode only - no memberwise init)
         let responseJson = #"{"status":"Ok"}"#

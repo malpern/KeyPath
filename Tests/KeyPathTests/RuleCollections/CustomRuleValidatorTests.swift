@@ -163,6 +163,16 @@ final class CustomRuleValidatorTests: XCTestCase {
         XCTAssertTrue(errors.contains(.selfMapping))
     }
 
+    func testValidateSelfReferenceSequenceIsAllowed() {
+        // Self-reference in output is allowed because Kanata's macro output goes
+        // to the virtual HID (to apps), not back through its input interception.
+        // e.g., 1 -> 1234 outputs "1234" without causing an infinite loop.
+        let rule = CustomRule(input: "1", output: "1 2 3 4")
+        let errors = CustomRuleValidator.validate(rule)
+
+        XCTAssertTrue(errors.isEmpty, "Self-reference should be allowed: \(errors)")
+    }
+
     func testValidateValidRule() {
         let rule = CustomRule(input: "caps", output: "esc")
         let errors = CustomRuleValidator.validate(rule)
@@ -300,8 +310,7 @@ final class CustomRuleValidatorTests: XCTestCase {
 
         // Common keys like lmet should appear before less common ones
         if let lmetIndex = suggestions.firstIndex(of: "lmet"),
-           let leftIndex = suggestions.firstIndex(of: "left")
-        {
+           let leftIndex = suggestions.firstIndex(of: "left") {
             // Both should be present
             XCTAssertNotNil(lmetIndex)
             XCTAssertNotNil(leftIndex)

@@ -29,8 +29,7 @@ final class SimpleModsSmokeTests: XCTestCase {
         let candidateMappings = [("f1", "f2"), ("2", "3"), ("caps", "escape")]
         var added = false
         for (fromKey, toKey) in candidateMappings
-            where !service.installedMappings.contains(where: { $0.fromKey == fromKey && $0.toKey == toKey })
-        {
+            where !service.installedMappings.contains(where: { $0.fromKey == fromKey && $0.toKey == toKey }) {
             service.addMapping(fromKey: fromKey, toKey: toKey)
             added = true
             break
@@ -49,11 +48,15 @@ final class SimpleModsSmokeTests: XCTestCase {
             XCTFail("Reload did not succeed: \(reload)")
         }
 
-        // Fetch status; expect last_reload duration to be present for UI toast
+        // Fetch status; expect last_reload to be present after reload
         let status = try await client.getStatus()
-        XCTAssertTrue(
-            status.last_reload?.duration_ms != nil,
-            "Expected last_reload.duration_ms to be present for UI toast"
+        XCTAssertNotNil(
+            status.last_reload,
+            "Expected last_reload to be present after successful reload"
         )
+        if let last = status.last_reload {
+            XCTAssertTrue(last.ok, "last_reload.ok should be true after successful reload")
+            XCTAssertGreaterThan(last.at, 0, "last_reload.at should be a valid timestamp")
+        }
     }
 }

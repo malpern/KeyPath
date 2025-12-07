@@ -41,9 +41,8 @@ final class TCPClientIntegrationTests: XCTestCase {
         let status = try await client.getStatus()
         // last_reload is optional; if present validate shape
         if let last = status.last_reload {
-            // Kanata 1.10.0 returns 'at' instead of 'epoch'
-            let hasTimingInfo = last.at != nil || last.epoch != nil
-            XCTAssertTrue(hasTimingInfo, "last_reload should have timing info")
+            // last_reload has ok (bool) and at (Unix epoch seconds)
+            XCTAssertGreaterThan(last.at, 0, "last_reload.at should be a valid Unix timestamp")
         }
     }
 
@@ -80,10 +79,7 @@ final class TCPClientIntegrationTests: XCTestCase {
                 return XCTFail("Expected last_reload present after reload")
             }
             XCTAssertTrue(last.ok, "last_reload.ok should be true after successful reload")
-            // Kanata 1.10.0 returns 'at' field; newer versions may add duration_ms/epoch
-            // At least one timing field should be present
-            let hasTimingInfo = last.at != nil || last.duration_ms != nil || last.epoch != nil
-            XCTAssertTrue(hasTimingInfo, "last_reload should have timing info (at, duration_ms, or epoch)")
+            XCTAssertGreaterThan(last.at, 0, "last_reload.at should be a valid Unix timestamp")
         case let .failure(error, _):
             XCTFail("Reload(wait) did not succeed: \(error)")
         case let .networkError(msg):
