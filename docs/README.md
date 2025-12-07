@@ -2,27 +2,24 @@
 
 This directory contains all documentation for the KeyPath project.
 
-## Files
+## Getting Started
 
-- **[DEBUGGING_KANATA.md](DEBUGGING_KANATA.md)** - Comprehensive debugging guide for Kanata integration issues
-- **[CONTEXT.md](CONTEXT.md)** - Project history and architectural evolution
+- **[NEW_DEVELOPER_GUIDE.md](NEW_DEVELOPER_GUIDE.md)** - Start here if you're new to the codebase
 - **[KANATA_SETUP.md](KANATA_SETUP.md)** - Setup instructions for Kanata integration
 - **[KANATA_MACOS_SETUP_GUIDE.md](KANATA_MACOS_SETUP_GUIDE.md)** - macOS-specific setup guide
+
+## Troubleshooting
+
+- **[DEBUGGING_KANATA.md](DEBUGGING_KANATA.md)** - Comprehensive debugging guide for Kanata integration issues
+- **[FAQ.md](FAQ.md)** - Frequently asked questions
 - **[SAFETY_FEATURES.md](SAFETY_FEATURES.md)** - Safety and security considerations
 
-## Quick Links
+## Architecture
 
-- **Troubleshooting**: Start with [DEBUGGING_KANATA.md](DEBUGGING_KANATA.md)
-- **Initial Setup**: See [KANATA_SETUP.md](KANATA_SETUP.md)
-- **Project History**: Read [CONTEXT.md](CONTEXT.md)
+- **[ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md)** - Visual system architecture
+- **[ACTION_URI_SYSTEM.md](ACTION_URI_SYSTEM.md)** - `keypath://` URL scheme documentation
+- **[KANATA_OVERLAY_ARCHITECTURE.md](KANATA_OVERLAY_ARCHITECTURE.md)** - Live keyboard overlay design
 
-## To-Do (current priorities)
+## Historical Reference
 
-- Route all Wizard auto-fix flows through `InstallerEngine` (remove direct subprocess/AppleScript paths).
-- Add façade parity/regression tests to ensure UI/CLI auto-fix paths stay on the façade.
-- Replace UI permission probes with async `PermissionOracle` checks (remove `Thread.sleep` polling).
-- (Done) Remove BundledRuntimeCoordinator AppleScript install path; façade handles bundled install.
-- Debug scripts updated to call `InstallerEngine` (legacy `LaunchDaemonInstaller` logic removed).
-- Removed `Scripts/archive/deprecated-tests` (deprecated integration/UI tests).
-- Refresh or delete stale lint artifacts (`swiftlint-report.txt`, `lint_issues.json`).
-- Add lint: block `SubprocessRunner`/`PrivilegedOperationsCoordinator` in `WizardAutoFixer.swift` (script: `Scripts/lint-no-subprocess-in-autofixer.sh`).
+- **[archive/](archive/)** - Completed refactorings, research, and design decisions

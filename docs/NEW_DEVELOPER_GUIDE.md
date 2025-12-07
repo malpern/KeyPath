@@ -18,8 +18,9 @@ KeyPath is a macOS application that provides keyboard remapping using Kanata as 
 1. README.md                          - What KeyPath does, how to build it
 2. ARCHITECTURE.md                    - System design and permission hierarchy
 3. CLAUDE.md                          - Critical architecture patterns and ADRs
-4. Sources/KeyPath/App.swift          - Entry point and initialization flow
-5. This guide (NEW_DEVELOPER_GUIDE.md)
+4. Sources/KeyPathApp/Main.swift      - Entry point (dispatches to CLI or GUI)
+5. Sources/KeyPathAppKit/App.swift    - SwiftUI app definition
+6. This guide (NEW_DEVELOPER_GUIDE.md)
 ```
 
 ### 2. Run the Project (5 minutes)

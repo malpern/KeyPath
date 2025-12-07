@@ -228,20 +228,27 @@ func testAsyncOperation() async throws {
 
 ```
 Sources/
-├── KeyPathAppKit/          # Main app code
-│   ├── App.swift           # App entry point
+├── KeyPathApp/             # App executable entry point
+│   └── Main.swift          # Dispatches to CLI or GUI based on args
+├── KeyPathAppKit/          # Main app code (shared library)
+│   ├── App.swift           # SwiftUI app definition
+│   ├── CLI/                # CLI commands (install, repair, status, etc.)
 │   ├── Core/               # Core types, protocols, helper manager
 │   ├── Infrastructure/     # Config service, key converter
 │   ├── InstallationWizard/ # Setup wizard (Core/ and UI/)
 │   ├── Managers/           # RuntimeCoordinator, diagnostics, recovery
+│   ├── MenuBar/            # Menu bar controller
 │   ├── Models/             # Data models (CustomRule, VirtualKey, etc.)
+│   ├── Resources/          # Assets and resources
 │   ├── Services/           # Business logic services
 │   ├── UI/                 # SwiftUI views and ViewModels
 │   └── Utilities/          # Helpers (Logger, FeatureFlags, etc.)
+├── KeyPathCLI/             # Standalone CLI executable entry point
 ├── KeyPathCore/            # Shared core utilities
+├── KeyPathDaemonLifecycle/ # LaunchDaemon management
 ├── KeyPathHelper/          # Privileged helper (XPC)
 ├── KeyPathPermissions/     # PermissionOracle
-└── KeyPathDaemonLifecycle/ # LaunchDaemon management
+└── KeyPathWizardCore/      # Wizard shared types (SystemSnapshot, WizardTypes)
 
 Tests/KeyPathTests/         # Test files
 ```
