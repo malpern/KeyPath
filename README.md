@@ -1,11 +1,9 @@
 # KeyPath
 
 <div align="center">
-  <img src="docs/images/keypath-icon.png" alt="KeyPath" width="128" height="128"/>
+  <img src="docs/images/keypath-icon.png" alt="KeyPath" width="256" height="256"/>
 
   **Remap any key on your Mac. No terminal required.**
-
-  *Made for the macOS community.*
 
   [![macOS 15+](https://img.shields.io/badge/macOS-15%2B-blue.svg)](https://www.apple.com/macos/)
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -110,5 +108,9 @@ MIT — see [LICENSE](LICENSE)
 ---
 
 <div align="center">
+  <strong>Made with love for the macOS community</strong>
+
+  <p>If KeyPath helps you, consider starring the repo!</p>
+
   <a href="https://github.com/malpern/KeyPath">GitHub</a> ・ <a href="https://x.com/malpern">@malpern</a>
 </div>
