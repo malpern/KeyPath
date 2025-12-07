@@ -134,7 +134,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for more.
 
 ## License
 
-MIT — see [LICENSE](LICENSE)
+KeyPath (the Swift application) is released under the **MIT License** — see [LICENSE](LICENSE)
+
+KeyPath bundles [Kanata](https://github.com/jtroo/kanata), which is licensed under **LGPL-3.0**. See [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for details.
 
 ---
 

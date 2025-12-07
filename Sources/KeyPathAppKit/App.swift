@@ -95,6 +95,9 @@ public struct KeyPathApp: App {
 
                     Created by Micah Alpern
 
+                    Kanata engine by jtroo (LGPL-3.0)
+                    github.com/jtroo/kanata
+
                     Build \(info.build) • \(info.git) • \(info.date)
                     """
                     NSApplication.shared.orderFrontStandardAboutPanel(
@@ -167,13 +170,6 @@ public struct KeyPathApp: App {
                     }
                 )
                 .keyboardShortcut("l", modifiers: .command)
-
-                Divider()
-
-                Button("MAIN (TMP)") {
-                    NotificationCenter.default.post(name: NSNotification.Name("ShowMainView"), object: nil)
-                }
-                .keyboardShortcut("m", modifiers: .command)
 
                 Divider()
 
@@ -374,7 +370,8 @@ private func openSettingsWindow() {
         for item in appMenu.items {
             // Look for the "Settings..." menu item (standard name on macOS)
             if item.title.contains("Settings") || item.title.contains("Preferences"),
-               let action = item.action {
+               let action = item.action
+            {
                 AppLogger.shared.log("✅ [App] Found Settings menu item, triggering it")
                 NSApp.activate(ignoringOtherApps: true)
                 NSApp.sendAction(action, to: item.target, from: item)
