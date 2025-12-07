@@ -21,9 +21,15 @@ KeyPath is a native macOS application that simplifies the usage of the powerful 
 │                        System Integration Layer                         │
 │                                                                         │
 │  ┌─────────────────┐  ┌────────────────────┐  ┌──────────────────────┐  │
-│  │ PermissionOracle│  │    KanataManager   │  │    InstallerEngine   │  │
+│  │ PermissionOracle│  │ RuntimeCoordinator │  │    InstallerEngine   │  │
 │  │ (Truth Source)  │  │ (Service Control)  │  │   (Setup Façade)     │  │
 │  └─────────────────┘  └────────────────────┘  └──────────────────────┘  │
+│                        │                                              │
+│                        ▼                                              │
+│              ┌─────────────────────┐                                  │
+│              │  KanataViewModel    │                                  │
+│              │  (MVVM UI Layer)     │                                  │
+│              └─────────────────────┘                                  │
 └───────────┬──────────────────┬────────────────────────┬─────────────────┘
             │                  │                        │
             ▼                  ▼                        ▼
@@ -42,7 +48,22 @@ KeyPath uses a dedicated Actor, `PermissionOracle`, to manage the complex state 
 *   **Caching**: Results are cached for ~1.5s to balance UI responsiveness with system load.
 *   **Principle**: Never bypass the Oracle. If the Oracle says permission is denied, the UI must reflect that, even if other heuristics suggest otherwise.
 
-### 2. InstallerEngine: The Setup Façade
+### 2. RuntimeCoordinator: Service Orchestration
+The `RuntimeCoordinator` orchestrates Kanata process lifecycle and configuration management.
+*   **Business Logic Layer**: Handles all runtime operations (start/stop/restart, config management, TCP communication).
+*   **Not ObservableObject**: Keeps business logic independent of SwiftUI reactivity.
+*   **State Snapshots**: Provides `getCurrentUIState()` for ViewModel synchronization.
+*   **Extension-Based Architecture**: Split across multiple files (~2,820 lines total) organized by concern (Lifecycle, Configuration, Engine, EventTaps, Output).
+*   **MVVM Separation**: UI state is handled by `KanataViewModel`, which observes coordinator state changes.
+
+### 3. KanataViewModel: MVVM UI Layer
+The `KanataViewModel` provides a thin adapter between SwiftUI views and `RuntimeCoordinator`.
+*   **ObservableObject**: Owns all `@Published` properties for SwiftUI reactivity.
+*   **Thin Adapter**: No business logic—delegates all actions to `RuntimeCoordinator`.
+*   **Event-Driven Updates**: Observes coordinator state changes via `AsyncStream` (not polling).
+*   **Separation of Concerns**: Keeps UI reactivity separate from business logic.
+
+### 4. InstallerEngine: The Setup Façade
 The `InstallerEngine` provides a unified, declarative API for all installation, repair, and uninstall operations.
 *   **Declarative API**: `run(intent: .install)` handles everything.
 *   **State-Driven Planning**: `inspectSystem()` -> `makePlan()` -> `execute()`.
@@ -50,19 +71,20 @@ The `InstallerEngine` provides a unified, declarative API for all installation, 
 *   **Unified Reporting**: Returns structured `InstallerReport` for UI and logging.
 *   **Supersedes**: Replaces ad-hoc logic in `WizardAutoFixer` and direct manager calls.
 
-### 3. State-Driven Installation Wizard
+### 5. State-Driven Installation Wizard
 The installation wizard is not a linear script but a state machine.
-*   **Pure Function Detection**: `SystemStatusChecker` examines the system state (permissions, drivers, processes) without side effects.
+*   **Pure Function Detection**: `SystemValidator` examines the system state (permissions, drivers, processes) without side effects.
+*   **Stateless Design**: No caching—returns fresh state on each call (Oracle provides its own 1.5s cache).
 *   **Deterministic Navigation**: `WizardNavigationEngine` maps the detected state + current issues to the exact page the user needs to see.
 *   **Auto-Fixer**: Atomic, idempotent actions (e.g., `restartVirtualHIDDaemon`) resolve specific issues without brittle scripting.
 
-### 4. Service Architecture (LaunchDaemons)
+### 6. Service Architecture (LaunchDaemons)
 KeyPath relies on system-level persistence via `launchd`.
 *   **Kanata Service**: `com.keypath.kanata` runs the `kanata` binary as root.
 *   **VirtualHID Services**: Separate services manage the kernel driver connection.
 *   **Why Split?**: Allows granular health checks. If the driver crashes, we can restart just the driver service without killing the main app or the remapping engine.
 
-### 5. Process Lifecycle Management
+### 7. Process Lifecycle Management
 We use a `PID file` strategy to track ownership of the `kanata` process.
 *   **Ownership**: We write a PID file when we start `kanata`.
 *   **Conflict Detection**: We check for running `kanata` processes that *don't* match our PID. These are flagged as "external conflicts" (e.g., a user running `kanata` in a terminal).
@@ -84,10 +106,14 @@ Communication between the UI and the Root Daemon happens via **TCP**.
 
 ## Project Structure
 
-*   `Sources/KeyPathAppKit`: The monolithic library containing most UI and Logic.
-*   `Sources/KeyPathHelper`: The privileged helper tool for admin tasks.
-*   `Sources/KeyPathPermissions`: The Oracle and permission logic.
-*   `Sources/KeyPathDaemonLifecycle`: Service management and PID logic.
+*   `Sources/KeyPathApp`: App executable entry point (Main.swift, Info.plist, resources).
+*   `Sources/KeyPathAppKit`: Main app code (shared library) containing UI, managers, services, and business logic.
+*   `Sources/KeyPathCLI`: Standalone CLI executable entry point.
+*   `Sources/KeyPathCore`: Shared core utilities (Logger, FeatureFlags, TestEnvironment, SubprocessRunner).
+*   `Sources/KeyPathHelper`: Privileged helper tool for admin tasks (XPC + SMJobBless).
+*   `Sources/KeyPathPermissions`: PermissionOracle actor for permission detection.
+*   `Sources/KeyPathDaemonLifecycle`: Service management and PID logic (ProcessLifecycleManager, PIDFileManager).
+*   `Sources/KeyPathWizardCore`: Wizard shared types (SystemSnapshot, WizardTypes).
 *   `Scripts/`: Build, test, and maintenance scripts.
 
 ## Visual Architecture Diagram
