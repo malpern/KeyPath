@@ -45,11 +45,15 @@ Karabiner-Elements is easier to start with if you want to write configs by hand�
 
 ### Full Access to the Config File
 
-KeyPath writes a standard Kanata configuration file on your behalf—but you're not locked in. Power users can open and edit the config directly at:
+KeyPath writes a standard Kanata configuration file on your behalf—but you're not locked in. Power users can open and edit the config directly by clicking **Edit Config** in the app, or via the terminal:
 
 ```
 ~/Library/Application Support/KeyPath/keypath.kbd
 ```
+
+<div align="center">
+  <img src="docs/images/edit-config.png" alt="Edit Config Button" width="600"/>
+</div>
 
 Kanata's configuration language uses [S-expressions](https://en.wikipedia.org/wiki/S-expression) (Lisp-style syntax) and is remarkably expressive. It supports:
 
