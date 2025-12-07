@@ -12,8 +12,7 @@ public enum TestEnvironment {
         // Check for Swift Testing framework (modern @Test macro-based tests)
         // The Testing module provides these types when tests are running
         if NSClassFromString("Testing.Test") != nil
-            || NSClassFromString("XCTestScaffold.XCTestScaffold") != nil
-        {
+            || NSClassFromString("XCTestScaffold.XCTestScaffold") != nil {
             return true
         }
 
@@ -31,16 +30,14 @@ public enum TestEnvironment {
         // Check for test process names
         let processName = ProcessInfo.processInfo.processName
         if processName.contains("xctest") || processName.contains("KeyPathPackageTests")
-            || processName.contains("swift-test")
-        {
+            || processName.contains("swift-test") {
             return true
         }
 
         // Check if running in swift-testing worker process
         // Swift Testing uses worker processes with specific environment
         if ProcessInfo.processInfo.environment["__XCODE_BUILT_PRODUCTS_DIR_PATHS"] != nil
-            || ProcessInfo.processInfo.environment["DYLD_LIBRARY_PATH"]?.contains(".build") == true
-        {
+            || ProcessInfo.processInfo.environment["DYLD_LIBRARY_PATH"]?.contains(".build") == true {
             return true
         }
 

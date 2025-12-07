@@ -3,6 +3,7 @@ import SwiftUI
 struct StatusMessageView: View {
     let message: String
     let isVisible: Bool
+    var isError: Bool = false // Currently unused - error styling is auto-detected from message content
 
     var body: some View {
         HStack(spacing: 12) {
@@ -60,8 +61,7 @@ struct StatusMessageView: View {
         } else if message.contains("paused") {
             "pause.circle.fill"
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up")
-        {
+            || message.contains("backed up") {
             "exclamationmark.triangle.fill"
         } else {
             "checkmark.circle.fill"
@@ -72,8 +72,7 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             .red
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") || message.contains("paused")
-        {
+            || message.contains("backed up") || message.contains("paused") {
             .orange
         } else {
             .green
@@ -84,8 +83,7 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             Color.red.opacity(0.85)
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") || message.contains("paused")
-        {
+            || message.contains("backed up") || message.contains("paused") {
             Color.orange.opacity(0.85)
         } else {
             Color.green.opacity(0.85)
@@ -96,8 +94,7 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             Color.red.opacity(0.5)
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") || message.contains("paused")
-        {
+            || message.contains("backed up") || message.contains("paused") {
             Color.orange.opacity(0.5)
         } else {
             Color.green.opacity(0.5)

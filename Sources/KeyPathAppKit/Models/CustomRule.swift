@@ -1,5 +1,15 @@
 import Foundation
 
+/// How the input keys should be interpreted by Kanata
+public enum InputType: String, Codable, Sendable, Equatable {
+    /// Normal key remap - single key in defsrc/deflayer
+    case single
+    /// Simultaneous keys pressed together - uses defchordsv2
+    case chord
+    /// Sequential keys pressed in order - uses defseq
+    case sequence
+}
+
 /// Represents a user-created rule that maps a single input to an output.
 public struct CustomRule: Identifiable, Equatable, Sendable {
     public let id: UUID
@@ -13,6 +23,8 @@ public struct CustomRule: Identifiable, Equatable, Sendable {
     public var behavior: MappingBehavior?
     /// Target layer for this rule (defaults to base)
     public var targetLayer: RuleCollectionLayer
+    /// How the input should be interpreted (single key, chord, or sequence)
+    public var inputType: InputType
 
     public init(
         id: UUID = UUID(),
@@ -23,7 +35,8 @@ public struct CustomRule: Identifiable, Equatable, Sendable {
         notes: String? = nil,
         createdAt: Date = Date(),
         behavior: MappingBehavior? = nil,
-        targetLayer: RuleCollectionLayer = .base
+        targetLayer: RuleCollectionLayer = .base,
+        inputType: InputType = .single
     ) {
         self.id = id
         self.title = title
@@ -34,14 +47,15 @@ public struct CustomRule: Identifiable, Equatable, Sendable {
         self.createdAt = createdAt
         self.behavior = behavior
         self.targetLayer = targetLayer
+        self.inputType = inputType
     }
 }
 
-// MARK: - Codable (with backwards compatibility for legacy JSON without targetLayer)
+// MARK: - Codable (with backwards compatibility for legacy JSON)
 
 extension CustomRule: Codable {
     private enum CodingKeys: String, CodingKey {
-        case id, title, input, output, isEnabled, notes, createdAt, behavior, targetLayer
+        case id, title, input, output, isEnabled, notes, createdAt, behavior, targetLayer, inputType
     }
 
     public init(from decoder: Decoder) throws {
@@ -56,6 +70,8 @@ extension CustomRule: Codable {
         behavior = try container.decodeIfPresent(MappingBehavior.self, forKey: .behavior)
         // Default to .base for legacy JSON without targetLayer
         targetLayer = try container.decodeIfPresent(RuleCollectionLayer.self, forKey: .targetLayer) ?? .base
+        // Default to .single for legacy JSON without inputType
+        inputType = try container.decodeIfPresent(InputType.self, forKey: .inputType) ?? .single
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -69,6 +85,7 @@ extension CustomRule: Codable {
         try container.encode(createdAt, forKey: .createdAt)
         try container.encodeIfPresent(behavior, forKey: .behavior)
         try container.encode(targetLayer, forKey: .targetLayer)
+        try container.encode(inputType, forKey: .inputType)
     }
 }
 
@@ -81,15 +98,14 @@ public extension CustomRule {
 
     var summaryText: String {
         if let trimmedNotes = notes?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !trimmedNotes.isEmpty
-        {
+           !trimmedNotes.isEmpty {
             return trimmedNotes
         }
         return "Maps \(input) to \(output)"
     }
 
     func asKeyMapping() -> KeyMapping {
-        KeyMapping(id: id, input: input, output: output, behavior: behavior)
+        KeyMapping(id: id, input: input, output: output, behavior: behavior, inputType: inputType)
     }
 
     func asRuleCollection() -> RuleCollection {

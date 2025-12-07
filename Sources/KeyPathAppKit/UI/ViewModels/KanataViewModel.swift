@@ -211,10 +211,14 @@ class KanataViewModel: ObservableObject {
     }
 
     func saveCustomRule(_ rule: CustomRule) async {
+        AppLogger.shared.log("📝 [KanataViewModel] saveCustomRule called: '\(rule.input)' → '\(rule.output)'")
         let success = await manager.saveCustomRule(rule)
+        AppLogger.shared.log("📝 [KanataViewModel] saveCustomRule result: \(success)")
         if success {
+            AppLogger.shared.log("📝 [KanataViewModel] Showing success toast")
             showToast("Rule saved", type: .success)
         } else {
+            AppLogger.shared.log("📝 [KanataViewModel] Showing error toast")
             showToast("Failed to save rule", type: .error)
         }
     }
@@ -268,8 +272,7 @@ class KanataViewModel: ObservableObject {
     }
 
     func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
-        -> String
-    {
+        -> String {
         try await manager.backupFailedConfigAndApplySafe(failedConfig: failedConfig, mappings: mappings)
     }
 

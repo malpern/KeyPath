@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- Bundle identifier (must match LaunchDaemon Label and file name) -->
+    <!-- Bundle identifier (must match LaunchDaemon Label) -->
     <key>CFBundleIdentifier</key>
     <string>com.keypath.helper</string>
 
@@ -10,7 +10,15 @@
     <key>CFBundleName</key>
     <string>KeyPathHelper</string>
 
-    <!-- Version (should match main app) -->
+    <!-- Executable name -->
+    <key>CFBundleExecutable</key>
+    <string>KeyPathHelper</string>
+
+    <!-- Package type - BNDL for helper tool -->
+    <key>CFBundlePackageType</key>
+    <string>BNDL</string>
+
+    <!-- Version -->
     <key>CFBundleShortVersionString</key>
     <string>1.1.0</string>
 
@@ -20,7 +28,5 @@
     <!-- Info dictionary version -->
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
-
-    <!-- SMAppService path: this helper is packaged inside the app bundle and registered by the host app. No SMAuthorizedClients needed. -->
 </dict>
 </plist>

@@ -32,6 +32,9 @@ struct InstallationWizardView: View {
     // Optional initial page to navigate to
     var initialPage: WizardPage?
 
+    // Track if an explicit detail page was requested (prevents auto-navigation away)
+    @State private var wasExplicitDetailPageRequested: Bool = false
+
     // New architecture components
     @StateObject private var stateManager = WizardStateManager()
     @StateObject private var stateMachine = WizardStateMachine()
@@ -405,6 +408,7 @@ struct InstallationWizardView: View {
 
     private func setupWizard() async {
         AppLogger.shared.log("🔍 [Wizard] Setting up wizard with new architecture")
+        AppLogger.shared.log("🔍 [Wizard] initialPage = \(String(describing: initialPage))")
 
         // Always reset navigation state for fresh run
         navigationCoordinator.navigationEngine.resetNavigationState()
@@ -437,14 +441,28 @@ struct InstallationWizardView: View {
         // Show summary page immediately with validation state
         // Determine initial page based on cached system snapshot (if available)
         let preferredPage = await cachedPreferredPage()
+
+        // Determine if user explicitly requested a detail page (not summary)
+        // This must be set BEFORE starting the validation task
+        let explicitDetailPage = initialPage != nil && initialPage != .summary
+
         if let preferredPage, initialPage == nil {
             AppLogger.shared.log("🔍 [Wizard] Preferring cached page: \(preferredPage)")
             navigationCoordinator.navigateToPage(preferredPage)
         } else if let initialPage {
             AppLogger.shared.log("🔍 [Wizard] Navigating to initial page override: \(initialPage)")
             navigationCoordinator.navigateToPage(initialPage)
+            if explicitDetailPage {
+                AppLogger.shared.log("🔍 [Wizard] Explicit detail page requested - will stay on \(initialPage)")
+            }
         } else {
             navigationCoordinator.navigateToPage(.summary)
+        }
+
+        // Set the flag on MainActor BEFORE starting the validation task
+        await MainActor.run {
+            wasExplicitDetailPageRequested = explicitDetailPage
+            AppLogger.shared.log("🔍 [Wizard] wasExplicitDetailPageRequested SET TO \(explicitDetailPage) on MainActor")
         }
 
         Task {
@@ -537,6 +555,13 @@ struct InstallationWizardView: View {
                 "🔍 [Wizard] Issue details: \(filteredIssues.map { "\($0.category)-\($0.title)" })")
 
             Task { @MainActor in
+                AppLogger.shared.log("🔍 [Wizard] performInitialStateCheck callback - wasExplicitDetailPageRequested = \(wasExplicitDetailPageRequested)")
+                // Skip ALL auto-navigation if user explicitly requested a detail page from Settings
+                guard !wasExplicitDetailPageRequested else {
+                    AppLogger.shared.log("🔍 [Wizard] Skipping ALL auto-navigation - explicit detail page was requested, staying on \(navigationCoordinator.currentPage)")
+                    return
+                }
+
                 if shouldNavigateToSummary(
                     currentPage: navigationCoordinator.currentPage,
                     state: result.state,
@@ -545,8 +570,7 @@ struct InstallationWizardView: View {
                     AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
                     navigationCoordinator.navigateToPage(.summary)
                 } else if let preferred = await preferredDetailPage(for: result.state, issues: filteredIssues),
-                          navigationCoordinator.currentPage != preferred
-                {
+                          navigationCoordinator.currentPage != preferred {
                     AppLogger.shared.log("🔍 [Wizard] Deterministic routing to \(preferred) (single blocker)")
                     navigationCoordinator.navigateToPage(preferred)
                 } else if navigationCoordinator.currentPage == .summary {
@@ -554,14 +578,14 @@ struct InstallationWizardView: View {
                     _ = await WizardSleep.ms(50) // 50ms
                     autoNavigateIfSingleIssue(in: filteredIssues, state: result.state)
                 }
-            }
 
-            // Targeted auto-navigation: if helper isn't installed, go to Helper page first
-            let recommended = await navigationCoordinator.navigationEngine
-                .determineCurrentPage(for: result.state, issues: filteredIssues)
-            if recommended == .helper, navigationCoordinator.currentPage == .summary {
-                AppLogger.shared.log("🔍 [Wizard] Auto-navigating to Helper page (helper missing)")
-                navigationCoordinator.navigateToPage(.helper)
+                // Targeted auto-navigation: if helper isn't installed, go to Helper page first
+                let recommended = await navigationCoordinator.navigationEngine
+                    .determineCurrentPage(for: result.state, issues: filteredIssues)
+                if recommended == .helper, navigationCoordinator.currentPage == .summary {
+                    AppLogger.shared.log("🔍 [Wizard] Auto-navigating to Helper page (helper missing)")
+                    navigationCoordinator.navigateToPage(.helper)
+                }
             }
         }
     }
@@ -643,7 +667,8 @@ struct InstallationWizardView: View {
                 // navigationCoordinator.autoNavigateIfNeeded(for: result.state, issues: result.issues)
 
                 Task { @MainActor in
-                    if shouldNavigateToSummary(
+                    // Skip auto-navigation if user explicitly requested a detail page from Settings
+                    if !wasExplicitDetailPageRequested, shouldNavigateToSummary(
                         currentPage: navigationCoordinator.currentPage,
                         state: result.state,
                         issues: filteredIssues
@@ -906,8 +931,7 @@ struct InstallationWizardView: View {
 
         // Short-circuit service installs when Login Items approval is pending
         if action == .installLaunchDaemonServices || action == .restartUnhealthyServices,
-           await KanataDaemonManager.shared.refreshManagementState() == .smappservicePending
-        {
+           await KanataDaemonManager.shared.refreshManagementState() == .smappservicePending {
             if !suppressToast {
                 await MainActor.run {
                     toastManager.showError(
@@ -1003,8 +1027,7 @@ struct InstallationWizardView: View {
                 )
                 AppLogger.shared.log("🔍 [Wizard] Post-fix health check: karabinerStatus=\(karabinerStatus)")
                 if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon ||
-                    action == .installCorrectVHIDDriver || action == .repairVHIDDaemonServices
-                {
+                    action == .installCorrectVHIDDriver || action == .repairVHIDDaemonServices {
                     let smStatePost = await KanataDaemonManager.shared.refreshManagementState()
                     // IMPORTANT: Run off MainActor to avoid blocking UI - detectConnectionHealth spawns pgrep subprocesses
                     let vhidHealthy = await Task.detached {
@@ -1164,8 +1187,7 @@ struct InstallationWizardView: View {
     }
 
     private func preferredDetailPage(for state: WizardSystemState, issues: [WizardIssue])
-        async -> WizardPage?
-    {
+        async -> WizardPage? {
         let page = await navigationCoordinator.navigationEngine.determineCurrentPage(
             for: state, issues: issues
         )
@@ -1185,8 +1207,7 @@ struct InstallationWizardView: View {
     }
 
     private func sanitizedIssues(from issues: [WizardIssue], for state: WizardSystemState)
-        -> [WizardIssue]
-    {
+        -> [WizardIssue] {
         guard shouldSuppressCommunicationIssues(for: state) else {
             return issues
         }
@@ -1213,9 +1234,10 @@ struct InstallationWizardView: View {
 
         // Only auto-navigate if user hasn't been interacting with the wizard
         // This prevents jarring navigation away from a page after a fix completes
-        let shouldAutoNavigate = !navigationCoordinator.userInteractionMode
+        // Also skip if user explicitly requested a detail page from Settings
+        let shouldAutoNavigate = !navigationCoordinator.userInteractionMode && !wasExplicitDetailPageRequested
 
-        if shouldNavigateToSummary(
+        if !wasExplicitDetailPageRequested, shouldNavigateToSummary(
             currentPage: navigationCoordinator.currentPage,
             state: result.state,
             issues: filteredIssues
@@ -1225,8 +1247,7 @@ struct InstallationWizardView: View {
         } else if shouldAutoNavigate {
             Task {
                 if let preferred = await preferredDetailPage(for: result.state, issues: filteredIssues),
-                   navigationCoordinator.currentPage != preferred
-                {
+                   navigationCoordinator.currentPage != preferred {
                     AppLogger.shared.log("🔄 [Wizard] Deterministic routing to \(preferred) after refresh")
                     navigationCoordinator.navigateToPage(preferred)
                 }
@@ -1525,8 +1546,7 @@ struct InstallationWizardView: View {
 
     /// Get detailed error message for specific auto-fix failures
     private func getDetailedErrorMessage(for action: AutoFixAction, actionDescription: String)
-        async -> String
-    {
+        async -> String {
         AppLogger.shared.log("🔍 [ErrorMessage] getDetailedErrorMessage called for action: \(action)")
         AppLogger.shared.log("🔍 [ErrorMessage] Action description: \(actionDescription)")
 

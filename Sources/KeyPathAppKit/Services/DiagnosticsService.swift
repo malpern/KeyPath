@@ -113,8 +113,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
             events.append(.virtualHIDConnected)
         }
         if lower.contains("asio.system") || lower.contains("connection failed")
-            || lower.contains("vhid error")
-        {
+            || lower.contains("vhid error") {
             events.append(.virtualHIDConnectionFailed)
         }
         return events
@@ -197,8 +196,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         case 6:
             // Exit code 6 has different causes - check for VirtualHID connection issues
             if output.contains("connect_failed asio.system:61")
-                || output.contains("connect_failed asio.system:2")
-            {
+                || output.contains("connect_failed asio.system:2") {
                 diagnostics.append(
                     KanataDiagnostic(
                         timestamp: Date(),
@@ -386,15 +384,13 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         // TCP engine status (non-blocking informational)
         if let tcpInfo = await fetchTcpStatusInfo() {
             if let last = tcpInfo.last_reload {
-                let dur = last.duration_ms.map(String.init) ?? "-"
-                let ep = last.epoch.map(String.init) ?? "-"
                 diagnostics.append(
                     KanataDiagnostic(
                         timestamp: Date(),
                         severity: .info,
                         category: .system,
                         title: "Last Reload",
-                        description: "ok=\(last.ok) duration_ms=\(dur) epoch=\(ep)",
+                        description: "ok=\(last.ok) at=\(last.at)",
                         technicalDetails: "Reported by TCP StatusInfo",
                         suggestedAction: "",
                         canAutoFix: false

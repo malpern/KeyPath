@@ -280,6 +280,17 @@ struct ConflictResolutionDialog: View {
 /// Converts Kanata key codes to human-readable display names
 enum KeyDisplayName {
     static func display(for kanataKey: String) -> String {
+        // Handle multi-key sequences (space-separated) by joining with arrows
+        if kanataKey.contains(" ") {
+            let keys = kanataKey.components(separatedBy: " ").filter { !$0.isEmpty }
+            if keys.count > 1 {
+                return keys.map { displaySingleKey($0) }.joined(separator: " → ")
+            }
+        }
+        return displaySingleKey(kanataKey)
+    }
+
+    private static func displaySingleKey(_ kanataKey: String) -> String {
         let displayNames: [String: String] = [
             // Special combo modifiers
             "hyper": "✦ Hyper",

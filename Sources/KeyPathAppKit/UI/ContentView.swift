@@ -79,6 +79,8 @@ struct ContentView: View {
     @State private var lastOutputDisabledReason: String = ""
     @State private var isInitialConfigLoad = true
     @State private var showSetupBanner = false
+    @State private var showingConfigValidationError = false
+    @State private var configValidationErrorMessage = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -112,8 +114,7 @@ struct ContentView: View {
 
             // Save button - only visible when input OR output has content
             if recordingCoordinator.capturedInputSequence() != nil
-                || recordingCoordinator.capturedOutputSequence() != nil
-            {
+                || recordingCoordinator.capturedOutputSequence() != nil {
                 HStack {
                     Spacer()
                     Button(
@@ -195,13 +196,17 @@ struct ContentView: View {
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            // Fixed 80px space at bottom for toast - always present, stable layout
+            // Status message toast
             Group {
-                if showStatusMessage, !statusMessage.contains("❌") {
-                    StatusMessageView(message: statusMessage, isVisible: true)
-                        .padding(.horizontal)
-                        .padding(.bottom, 12)
-                        .transition(.opacity)
+                if showStatusMessage {
+                    StatusMessageView(
+                        message: statusMessage,
+                        isVisible: true,
+                        isError: statusMessage.contains("❌")
+                    )
+                    .padding(.horizontal)
+                    .padding(.bottom, 12)
+                    .transition(.opacity)
                 } else {
                     Color.clear
                         .frame(height: 0)
@@ -475,30 +480,72 @@ struct ContentView: View {
                 "Cannot save configuration because the Kanata service is not running. Please start Kanata using the Installation Wizard."
             )
         }
-        .withToasts(toastManager)
-        .overlay(alignment: .top) {
-            if let toastMessage = kanataManager.toastMessage {
-                ToastView(message: toastMessage, type: kanataManager.toastType)
-                    .padding(.top, 16)
-                    .padding(.horizontal, 20)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                    .zIndex(1000)
+        .alert("Configuration Validation Failed", isPresented: $showingConfigValidationError) {
+            Button("OK") { showingConfigValidationError = false }
+            Button("View Diagnostics") {
+                showingConfigValidationError = false
+                openSystemStatusSettings()
+            }
+        } message: {
+            Text(configValidationErrorMessage)
+        }
+        .onChange(of: kanataManager.lastError) { _, newError in
+            if let error = newError {
+                configValidationErrorMessage = error
+                showingConfigValidationError = true
+                // Clear the error so it doesn't re-trigger
+                kanataManager.lastError = nil
             }
         }
+        .withToasts(toastManager)
+        .overlay(alignment: .top) {
+            VStack(spacing: 8) {
+                if let toastMessage = kanataManager.toastMessage {
+                    ToastView(message: toastMessage, type: kanataManager.toastType)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .zIndex(1000)
+                }
+
+                // Active rules indicator - appears below toast
+                if !kanataManager.customRules.filter(\.isEnabled).isEmpty {
+                    let activeCount = kanataManager.customRules.filter(\.isEnabled).count
+                    Text("\(activeCount) active rule\(activeCount == 1 ? "" : "s")")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .onTapGesture {
+                            openRulesSettings()
+                        }
+                        .onHover { hovering in
+                            if hovering {
+                                NSCursor.pointingHand.push()
+                            } else {
+                                NSCursor.pop()
+                            }
+                        }
+                        .transition(.opacity)
+                }
+            }
+            .padding(.top, 16)
+            .padding(.horizontal, 20)
+        }
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: kanataManager.toastMessage)
+        .animation(.easeInOut(duration: 0.2), value: kanataManager.customRules.count)
     }
 
     private func showStatusMessage(message: String) {
-        // Cancel any existing timer to ensure consistent 5-second display
+        // Cancel any existing timer
         statusMessageTask?.cancel()
 
         // Show message as toast
         statusMessage = message
         showStatusMessage = true
 
-        // Hide after 5 seconds with simple animation
+        // Errors get 10 seconds, success messages get 5 seconds
+        let isError = message.contains("❌") || message.contains("⚠️")
+        let duration: Double = isError ? 10 : 5
+
         statusMessageTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(5))
+            try? await Task.sleep(for: .seconds(duration))
             showStatusMessage = false
         }
     }
@@ -506,6 +553,11 @@ struct ContentView: View {
     private func openSystemStatusSettings() {
         NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
         NotificationCenter.default.post(name: .openSettingsSystemStatus, object: nil)
+    }
+
+    private func openRulesSettings() {
+        NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+        NotificationCenter.default.post(name: .openSettingsRules, object: nil)
     }
 
     private func startEmergencyMonitoringIfPossible() {
@@ -687,8 +739,7 @@ struct ContentView: View {
 
         // If Kanata is not running but we're recording, stop recording first (resumes Kanata)
         if !serviceState.isRunning,
-           recordingCoordinator.isInputRecording() || recordingCoordinator.isOutputRecording()
-        {
+           recordingCoordinator.isInputRecording() || recordingCoordinator.isOutputRecording() {
             AppLogger.shared.log("🔄 [ContentView] Kanata paused during recording - resuming before save")
             await MainActor.run {
                 recordingCoordinator.stopAllRecording()
@@ -710,6 +761,7 @@ struct ContentView: View {
 
         await recordingCoordinator.saveMapping(
             kanataManager: kanataManager.underlyingManager, // Phase 4: Business logic needs underlying manager
+            existingRules: kanataManager.customRules,
             onSuccess: { message in handleSaveSuccess(message) },
             onError: { error in handleSaveError(error) }
         )
@@ -720,9 +772,15 @@ struct ContentView: View {
     }
 
     private func handleSaveError(_ error: Error) {
-        // Handle coordination errors
+        // Handle coordination errors - invalid state (missing input/output)
         if case KeyPathError.coordination(.invalidState) = error {
             showStatusMessage(message: "❌ Please capture both input and output keys first")
+            return
+        }
+
+        // Handle coordination errors - recording failed (validation errors like self-reference)
+        if case let KeyPathError.coordination(.recordingFailed(reason)) = error {
+            showStatusMessage(message: "❌ Recording failed: \(reason)")
             return
         }
 
@@ -731,8 +789,7 @@ struct ContentView: View {
             let reasonLower = reason.lowercased()
             if reasonLower.contains("tcp"),
                reasonLower.contains("required") || reasonLower.contains("unresponsive")
-               || reasonLower.contains("failed") || reasonLower.contains("reload")
-            {
+               || reasonLower.contains("failed") || reasonLower.contains("reload") {
                 // TCP connectivity issues - open wizard directly to Communication page
                 showStatusMessage(message: "⚠️ Service connection failed - opening setup wizard...")
                 Task { @MainActor in

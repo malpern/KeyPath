@@ -1719,6 +1719,16 @@ struct CustomRuleEditorView: View {
     private func buildRuleForValidation() -> CustomRule {
         let trimmedDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
 
+        // Determine input type based on number of keys and capture mode setting
+        let inputType: InputType = {
+            let tokens = trimmedInput.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+            if tokens.count <= 1 {
+                return .single
+            }
+            // Multi-key input: check capture mode setting
+            return PreferencesService.shared.isSequenceMode ? .sequence : .chord
+        }()
+
         return CustomRule(
             id: existingRule?.id ?? UUID(),
             title: customName,
@@ -1727,7 +1737,8 @@ struct CustomRuleEditorView: View {
             isEnabled: isEnabled,
             notes: trimmedDescription.isEmpty ? nil : trimmedDescription,
             createdAt: existingRule?.createdAt ?? Date(),
-            behavior: behavior
+            behavior: behavior,
+            inputType: inputType
         )
     }
 

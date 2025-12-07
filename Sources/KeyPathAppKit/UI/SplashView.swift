@@ -1,42 +1,36 @@
 import SwiftUI
 
-/// Splash screen shown on app launch before transitioning to Create Rule dialog
+/// Splash screen with dark background matching poster
 struct SplashView: View {
-    var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
+    // Dark background matching the poster's dark edges
+    static let background = Color(red: 30/255, green: 30/255, blue: 34/255)
 
-            // Poster image
-            if let posterImage = NSImage(named: "keypath-poster") {
-                Image(nsImage: posterImage)
+    var body: some View {
+        ZStack {
+            // Solid dark background
+            Self.background
+                .ignoresSafeArea()
+
+            // Horizontal poster image - 500x400 (1000x800 @2x retina)
+            if let url = Bundle.main.url(forResource: "keypath-poster-hor", withExtension: "png"),
+               let nsImage = NSImage(contentsOf: url)
+            {
+                Image(nsImage: nsImage)
                     .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(maxWidth: 500)
+                    .aspectRatio(contentMode: .fill)
+                    .ignoresSafeArea()
             } else {
                 // Fallback if image not found
-                Image(systemName: "keyboard.badge.ellipsis")
-                    .font(.system(size: 80, weight: .ultraLight))
-                    .foregroundStyle(.primary.opacity(0.6))
-
                 Text("KeyPath")
-                    .font(.system(size: 36, weight: .semibold))
-                    .foregroundStyle(.primary)
-
-                Text("Keyboard Remapping")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
             }
-
-            Spacer()
-
-            // Subtle loading indicator
-            ProgressView()
-                .scaleEffect(0.8)
-                .opacity(0.6)
-
-            Spacer()
-                .frame(height: 40)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+}
+
+#Preview {
+    SplashView()
+        .frame(width: 500, height: 400)
 }

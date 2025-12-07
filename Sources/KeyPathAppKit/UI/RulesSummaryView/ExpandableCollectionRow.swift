@@ -339,8 +339,7 @@ struct ExpandableCollectionRow: View {
         } else if icon.hasPrefix("resource:") {
             let resourceName = String(icon.dropFirst(9))
             if let resourceURL = Bundle.main.url(forResource: resourceName, withExtension: "svg"),
-               let image = NSImage(contentsOf: resourceURL)
-            {
+               let image = NSImage(contentsOf: resourceURL) {
                 Image(nsImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fit)

@@ -220,19 +220,25 @@ public enum CustomRuleValidator {
             return errors
         }
 
-        if !isValidKey(trimmedInput) {
-            errors.append(.invalidInputKey(trimmedInput))
+        // Validate input - now supports multi-key (chords/sequences)
+        let inputTokens = tokenize(trimmedInput)
+        for token in inputTokens where !isValidKeyOrModified(token) {
+            errors.append(.invalidInputKey(token))
         }
 
+        // Validate output - supports multi-key sequences
         let outputTokens = tokenize(trimmedOutput)
         for token in outputTokens where !isValidKeyOrModified(token) {
             errors.append(.invalidOutputKey(token))
         }
 
-        let normalizedInput = normalizeKey(trimmedInput)
-        let normalizedOutput = normalizeKey(trimmedOutput)
-        if normalizedInput == normalizedOutput {
-            errors.append(.selfMapping)
+        // Self-mapping check only applies for single-key inputs
+        if inputTokens.count == 1 && outputTokens.count == 1 {
+            let normalizedInput = normalizeKey(trimmedInput)
+            let normalizedOutput = normalizeKey(trimmedOutput)
+            if normalizedInput == normalizedOutput {
+                errors.append(.selfMapping)
+            }
         }
 
         return errors

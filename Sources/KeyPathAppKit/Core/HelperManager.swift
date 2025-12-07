@@ -465,8 +465,7 @@ actor HelperManager {
         ]
         for path in fileCandidates {
             if FileManager.default.fileExists(atPath: path),
-               let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: path))
-            {
+               let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: path)) {
                 let data = try? handle.readToEnd()
                 let s = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
                 let lines = s.split(separator: "\n").map(String.init)
@@ -900,7 +899,7 @@ extension HelperManager {
         // Use the production app path (like SignatureHealthCheck does)
         // Bundle.main.bundlePath can be wrong when launched via Xcode tools
         let bundlePath = "/Applications/KeyPath.app"
-        let helperPath = bundlePath + "/Contents/Library/HelperTools/KeyPathHelper"
+        let helperPath = bundlePath + "/Contents/MacOS/KeyPathHelper"
         guard fm.fileExists(atPath: helperPath) else {
             AppLogger.shared.log("⚠️ [HelperManager] Embedded helper not found at \(helperPath)")
             AppLogger.shared.log("   Bundle.main.bundlePath = \(Bundle.main.bundlePath)")
@@ -940,8 +939,7 @@ extension HelperManager {
             var plistRequirement: String?
             if let info = NSDictionary(contentsOfFile: bundlePath + "/Contents/Info.plist"),
                let sm = (info["SMPrivilegedExecutables"] as? NSDictionary)?[Self.helperBundleIdentifier]
-               as? String
-            {
+               as? String {
                 plistRequirement = sm
                 if !req.contains("com.keypath.helper") {
                     warnings.append(

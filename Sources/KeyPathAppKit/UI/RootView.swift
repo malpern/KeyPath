@@ -2,40 +2,43 @@ import KeyPathCore
 import KeyPathWizardCore
 import SwiftUI
 
-/// App launch phase: Splash → Home (Custom Rule Editor)
-enum AppLaunchPhase {
-    case splash
-    case home
-}
-
 struct RootView: View {
     @EnvironmentObject var viewModel: KanataViewModel
-    @State private var launchPhase: AppLaunchPhase = .splash
+    @State private var showingSplash = true
+    @State private var splashOpacity: Double = 1.0
     @State private var showingWizard = false
+
+    // Fixed splash size (matches image aspect ratio 1000x800 @2x)
+    private let splashSize = CGSize(width: 500, height: 400)
 
     var body: some View {
         ZStack {
-            // Full-window glass background
+            // Layer 1: Glass background (always present, revealed as splash fades)
             AppGlassBackground(style: .sheetBold)
                 .ignoresSafeArea()
 
-            // Content based on launch phase
-            switch launchPhase {
-            case .splash:
-                SplashView()
-                    .transition(.opacity)
+            // Layer 2: Home content (always present, revealed as splash fades)
+            CustomRuleEditorView(
+                rule: nil,
+                existingRules: viewModel.customRules,
+                isStandalone: true,
+                onSave: { newRule in
+                    Task { await viewModel.saveCustomRule(newRule) }
+                },
+                onShowWizard: { showingWizard = true }
+            )
+            .opacity(1.0 - splashOpacity)
 
-            case .home:
-                // Custom Rule Editor as the home screen
-                CustomRuleEditorView(
-                    rule: nil,
-                    existingRules: viewModel.customRules,
-                    isStandalone: true,
-                    onSave: { newRule in
-                        Task { await viewModel.saveCustomRule(newRule) }
-                    }
-                )
-                .transition(.opacity)
+            // Layer 3: Splash on top (fades out to reveal glass + content)
+            if showingSplash {
+                SplashView()
+                    .opacity(splashOpacity)
+            }
+        }
+        .onAppear {
+            // Force window to splash size on appear
+            if showingSplash {
+                setWindowSize(splashSize)
             }
         }
         .sheet(isPresented: $showingWizard) {
@@ -43,33 +46,47 @@ struct RootView: View {
                 .customizeSheetWindow()
                 .environmentObject(viewModel)
         }
-        .animation(.easeInOut(duration: 0.3), value: launchPhase)
-        .onAppear {
-            // Show splash briefly, then check system health
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(1.2))
+        .task {
+            // Show splash for 5 seconds
+            try? await Task.sleep(for: .seconds(5.0))
 
-                // Check system health to decide whether to show wizard
-                let context = await viewModel.inspectSystemContext()
-                let hasProblems = !context.permissions.isSystemReady || !context.services.isHealthy
+            // Crossfade: splash fades out, glass + content fade in
+            withAnimation(.easeInOut(duration: 0.5)) {
+                splashOpacity = 0.0
+            }
 
-                // Always go to home after splash
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    launchPhase = .home
-                }
+            // Remove splash view after animation completes
+            try? await Task.sleep(for: .milliseconds(600))
+            showingSplash = false
 
-                if hasProblems {
-                    // System has verified problems - show wizard over home
-                    AppLogger.shared.log("🔍 [RootView] System has problems, showing wizard")
-                    try? await Task.sleep(for: .milliseconds(200))
-                    showingWizard = true
-                } else {
-                    AppLogger.shared.log("🔍 [RootView] System healthy, showing home")
-                }
+            // Check if wizard needed
+            let context = await viewModel.inspectSystemContext()
+            if !context.permissions.isSystemReady || !context.services.isHealthy {
+                try? await Task.sleep(for: .milliseconds(300))
+                showingWizard = true
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowWizard"))) { _ in
             showingWizard = true
         }
+        .onPreferenceChange(WindowHeightPreferenceKey.self) { newHeight in
+            guard newHeight > 0 else { return }
+            NotificationCenter.default.post(
+                name: .mainWindowHeightChanged,
+                object: nil,
+                userInfo: ["height": newHeight]
+            )
+        }
+        .focusEffectDisabled()
+    }
+
+    private func setWindowSize(_ size: CGSize) {
+        guard let window = NSApplication.shared.mainWindow else { return }
+        var frame = window.frame
+        let oldHeight = frame.height
+        frame.size = size
+        // Keep top-left anchored
+        frame.origin.y += oldHeight - size.height
+        window.setFrame(frame, display: true, animate: false)
     }
 }

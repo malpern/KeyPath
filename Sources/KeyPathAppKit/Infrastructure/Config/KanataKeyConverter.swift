@@ -66,7 +66,7 @@ public enum KanataKeyConverter {
         // For multi-character tokens in macro context that are purely numeric (e.g., "10", "200")
         // These would be parsed as delays, so we need to split into individual Digit keys
         // Return a space-separated sequence that the caller can embed in the macro
-        if forMacro, !input.isEmpty, input.allSatisfy({ $0.isNumber }) {
+        if forMacro, !input.isEmpty, input.allSatisfy(\.isNumber) {
             let digitKeys = input.map { "Digit\($0)" }
             return digitKeys.joined(separator: " ")
         }

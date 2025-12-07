@@ -13,7 +13,7 @@ import Foundation
 /// - Warning: Remove sudoers config before public release: `sudo ./Scripts/dev-remove-sudoers.sh`
 public enum PrivilegedCommandRunner {
     /// Result of a privileged command execution
-    public struct Result {
+    public struct Result: Sendable {
         public let success: Bool
         public let output: String
         public let exitCode: Int32

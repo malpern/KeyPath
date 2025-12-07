@@ -45,7 +45,7 @@ struct BlessDiagnosticsReport {
 enum BlessDiagnostics {
     static func run() -> BlessDiagnosticsReport {
         let appBundlePath = Bundle.main.bundlePath
-        let helperPath = appBundlePath + "/Contents/Library/HelperTools/KeyPathHelper"
+        let helperPath = appBundlePath + "/Contents/MacOS/KeyPathHelper"
         let plistPath = appBundlePath + "/Contents/Library/LaunchDaemons/com.keypath.helper.plist"
 
         var helperReq = ""

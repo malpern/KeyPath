@@ -68,14 +68,12 @@ class SystemValidator {
     ///
     /// - Parameter progressCallback: Optional callback that receives progress updates (0.0 to 1.0)
     func checkSystem(progressCallback: @escaping @Sendable (Double) -> Void = { _ in }) async
-        -> SystemSnapshot
-    {
+        -> SystemSnapshot {
         // Fast path for tests - return stub immediately without any system calls
         // This dramatically speeds up tests that don't need real system state
         // Use KEYPATH_FORCE_REAL_VALIDATION=1 to override in specific tests
         if TestEnvironment.isRunningTests,
-           ProcessInfo.processInfo.environment["KEYPATH_FORCE_REAL_VALIDATION"] != "1"
-        {
+           ProcessInfo.processInfo.environment["KEYPATH_FORCE_REAL_VALIDATION"] != "1" {
             AppLogger.shared.log("🧪 [SystemValidator] Test mode - returning stub snapshot")
             progressCallback(1.0)
             return Self.makeTestSnapshot()
@@ -102,8 +100,7 @@ class SystemValidator {
     /// Perform the actual validation work
     /// This is called by checkSystem() and should not be called directly
     private func performValidation(progressCallback: @escaping @Sendable (Double) -> Void = { _ in })
-        async -> SystemSnapshot
-    {
+        async -> SystemSnapshot {
         // Run validations in parallel - safe for concurrent execution
         await performValidationBody(progressCallback: progressCallback)
     }
@@ -502,7 +499,11 @@ class SystemValidator {
         // This aligns with the health check used in ServiceHealthChecker
         let karabinerDaemonRunning = await ServiceHealthChecker.shared.isServiceHealthy(
             serviceID: "com.keypath.karabiner-vhiddaemon")
-        let vhidHealthy = await vhidDeviceManager.detectConnectionHealth()
+        // ⚠️ FIX for ADR-022: Use launchctl-based health check instead of detectConnectionHealth()
+        // detectConnectionHealth() uses pgrep with 500ms retry delays and hangs when called
+        // concurrently in TaskGroups. ServiceHealthChecker uses launchctl (fast, no hangs).
+        let vhidHealthy = await ServiceHealthChecker.shared.isServiceHealthy(
+            serviceID: "com.keypath.karabiner-vhiddaemon")
 
         AppLogger.shared.log(
             "🔍 [SystemValidator] Health: kanata=\(kanataRunning), daemon=\(karabinerDaemonRunning) (launchctl), vhid=\(vhidHealthy)"

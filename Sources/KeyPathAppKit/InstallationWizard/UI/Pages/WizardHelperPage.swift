@@ -291,8 +291,7 @@ struct WizardHelperPage: View {
 
             // If approval is required, offer a quick link to System Settings
             if case let .error(message) = actionStatus,
-               message.localizedCaseInsensitiveContains("approval required")
-            {
+               message.localizedCaseInsensitiveContains("approval required") {
                 Button("Open System Settings → Login Items") {
                     openLoginItemsSettings()
                 }
@@ -425,8 +424,7 @@ struct WizardHelperPage: View {
 
         Task {
             if let next = await navigationCoordinator.getNextPage(for: systemState, issues: issues),
-               next != navigationCoordinator.currentPage
-            {
+               next != navigationCoordinator.currentPage {
                 navigationCoordinator.navigateToPage(next)
             } else {
                 navigationCoordinator.navigateToPage(.summary)
@@ -437,7 +435,7 @@ struct WizardHelperPage: View {
     /// Get the version of the helper bundled with this app
     private func getBundledHelperVersion() -> String? {
         guard let bundlePath = Bundle.main.bundlePath as String? else { return nil }
-        let helperInfoPath = "\(bundlePath)/Contents/Library/HelperTools/KeyPathHelper"
+        let helperInfoPath = "\(bundlePath)/Contents/MacOS/KeyPathHelper"
 
         // Try to read version from the helper's Info.plist sibling or embedded
         // For simplicity, we'll use a hardcoded version that matches HelperService.swift

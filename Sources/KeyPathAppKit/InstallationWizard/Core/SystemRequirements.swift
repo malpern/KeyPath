@@ -164,7 +164,7 @@ class SystemRequirements {
         let processInfo = ProcessInfo.processInfo
         let version = processInfo.operatingSystemVersion
 
-        // KeyPath requires macOS 14.0+ based on CLAUDE.md
+        // KeyPath requires macOS 14.0+ (@Observable macro requirement)
         if version.majorVersion < 14 {
             issues.append(
                 "KeyPath requires macOS 14.0 or later (detected: \(macosVersion.versionString))")

@@ -301,8 +301,7 @@ class PermissionGrantCoordinator: ObservableObject {
 
     /// Check if permissions were successfully granted for the given permission type
     private func checkIfPermissionsGranted(for permissionType: CoordinatorPermissionType) async
-        -> Bool
-    {
+        -> Bool {
         let snapshot = await PermissionOracle.shared.currentSnapshot()
 
         switch permissionType {

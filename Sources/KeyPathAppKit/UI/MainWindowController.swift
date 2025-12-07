@@ -46,6 +46,10 @@ final class MainWindowController: NSWindowController {
         window.tabbingMode = .disallowed
         window.collectionBehavior = [.moveToActiveSpace]
 
+        // Set min/max size constraints for dynamic resizing
+        window.minSize = NSSize(width: 500, height: 300)
+        window.maxSize = NSSize(width: 500, height: 800)
+
         // Only center if no saved frame exists
         if !window.setFrameUsingName("MainWindow") {
             window.center()
@@ -62,14 +66,60 @@ final class MainWindowController: NSWindowController {
         let container = GlassContainerViewController(hosting: hostingController)
         contentViewController = container
 
-        // Add a native titlebar accessory for drag + instrumentation (small build stamp)
-        let accessory = TitlebarHeaderAccessory()
+        // Add titlebar accessory with KeyPath label, status, and controls
+        let accessory = TitlebarHeaderAccessory(viewModel: viewModel)
         window.addTitlebarAccessoryViewController(accessory)
 
         // Configure window delegate for proper lifecycle
         window.delegate = self
 
+        // Observe height changes from SwiftUI content
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleHeightChange(_:)),
+            name: .mainWindowHeightChanged,
+            object: nil
+        )
+
         AppLogger.shared.log("🪟 [MainWindowController] Window controller initialized")
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    /// Handle dynamic height changes from SwiftUI content
+    @objc private func handleHeightChange(_ notification: Notification) {
+        guard let window = window,
+              let height = notification.userInfo?["height"] as? CGFloat
+        else { return }
+
+        let titlebarHeight: CGFloat = 28
+        let newHeight = min(height + titlebarHeight, 800) // Cap at max height
+
+        // Skip if height hasn't meaningfully changed (avoid jitter)
+        let currentHeight = window.frame.height
+        guard abs(newHeight - currentHeight) > 2 else { return }
+
+        // Anchor top-left, grow from bottom
+        let currentFrame = window.frame
+        let newOrigin = NSPoint(
+            x: currentFrame.origin.x,
+            y: currentFrame.maxY - newHeight
+        )
+        let newFrame = NSRect(
+            origin: newOrigin,
+            size: NSSize(width: currentFrame.width, height: newHeight)
+        )
+
+        // Animate the resize
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.25
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            window.animator().setFrame(newFrame, display: true)
+        }
+
+        AppLogger.shared.log("🪟 [MainWindowController] Dynamic height: \(currentHeight) → \(newHeight)")
     }
 
     @available(*, unavailable)
@@ -142,7 +192,7 @@ final class GlassContainerViewController<Content: View>: NSViewController {
     required init?(coder _: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     override func loadView() {
-        effectView.material = .menu
+        effectView.material = .hudWindow
         effectView.blendingMode = .behindWindow
         effectView.state = .active
         effectView.isEmphasized = true
@@ -158,7 +208,7 @@ final class GlassContainerViewController<Content: View>: NSViewController {
         hosted.wantsLayer = true
         hosted.layer?.backgroundColor = NSColor.clear.cgColor
         hosted.layer?.isOpaque = false
-        hosted.appearance = NSAppearance(named: .aqua)
+        hosted.appearance = NSAppearance(named: .darkAqua)
         effectView.addSubview(hosted)
 
         NSLayoutConstraint.activate([

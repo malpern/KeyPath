@@ -49,6 +49,7 @@ struct SettingsContainerView: View {
     @State private var selection: SettingsTab? // nil until smart default is determined
     @State private var canManageRules: Bool = true
     @State private var explicitTabRequested: Bool = false // Track if user chose a specific tab
+    @State private var showingUninstallDialog: Bool = false
 
     /// The effective selection for display (uses .rules as fallback while loading)
     private var effectiveSelection: SettingsTab {
@@ -135,6 +136,13 @@ struct SettingsContainerView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsAdvanced)) { _ in
             explicitTabRequested = true
             selection = .advanced
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowUninstall"))) { _ in
+            showingUninstallDialog = true
+        }
+        .sheet(isPresented: $showingUninstallDialog) {
+            UninstallKeyPathDialog()
+                .environmentObject(kanataManager)
         }
     }
 

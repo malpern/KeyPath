@@ -132,8 +132,7 @@ struct WizardConflictsPage: View {
 
         Task {
             if let nextPage = await navigationCoordinator.getNextPage(for: systemState, issues: allIssues),
-               nextPage != navigationCoordinator.currentPage
-            {
+               nextPage != navigationCoordinator.currentPage {
                 navigationCoordinator.navigateToPage(nextPage)
             } else {
                 navigationCoordinator.navigateToPage(.summary)
@@ -437,8 +436,7 @@ struct TechnicalDetailsView: View {
 
                                 // Only display lines that actually contain PID information
                                 if processText.contains("PID: "),
-                                   processText.range(of: #"PID: \d+"#, options: .regularExpression) != nil
-                                {
+                                   processText.range(of: #"PID: \d+"#, options: .regularExpression) != nil {
                                     let (processName, processDescription, pid) = parseProcessInfo(processText)
                                     ProcessRow(
                                         processName: processName,

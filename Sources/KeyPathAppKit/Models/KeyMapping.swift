@@ -22,6 +22,9 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
     /// Advanced behavior (dual-role, tap-dance). Nil means simple remap using `output`.
     public let behavior: MappingBehavior?
 
+    /// How the input keys should be interpreted (single key, chord, or sequence)
+    public let inputType: InputType
+
     public init(
         id: UUID = UUID(),
         input: String,
@@ -30,7 +33,8 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
         ctrlOutput: String? = nil,
         description: String? = nil,
         sectionBreak: Bool = false,
-        behavior: MappingBehavior? = nil
+        behavior: MappingBehavior? = nil,
+        inputType: InputType = .single
     ) {
         self.id = id
         self.input = input
@@ -40,6 +44,7 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
         self.description = description
         self.sectionBreak = sectionBreak
         self.behavior = behavior
+        self.inputType = inputType
     }
 
     /// Whether this mapping requires fork for modifier detection
@@ -80,7 +85,7 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, input, output, shiftedOutput, ctrlOutput, description, sectionBreak, behavior
+        case id, input, output, shiftedOutput, ctrlOutput, description, sectionBreak, behavior, inputType
     }
 
     public init(from decoder: Decoder) throws {
@@ -93,6 +98,8 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
         description = try container.decodeIfPresent(String.self, forKey: .description)
         sectionBreak = (try? container.decode(Bool.self, forKey: .sectionBreak)) ?? false
         behavior = try container.decodeIfPresent(MappingBehavior.self, forKey: .behavior)
+        // Default to .single for legacy JSON without inputType
+        inputType = try container.decodeIfPresent(InputType.self, forKey: .inputType) ?? .single
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -107,5 +114,6 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
             try container.encode(sectionBreak, forKey: .sectionBreak)
         }
         try container.encodeIfPresent(behavior, forKey: .behavior)
+        try container.encode(inputType, forKey: .inputType)
     }
 }

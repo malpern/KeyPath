@@ -143,6 +143,7 @@ final class RecordingCoordinator: ObservableObject {
 
     func saveMapping(
         kanataManager: RuntimeCoordinator,
+        existingRules: [CustomRule] = [],
         onSuccess: @escaping (String) -> Void,
         onError: @escaping (Error) -> Void
     ) async {
@@ -165,12 +166,52 @@ final class RecordingCoordinator: ObservableObject {
         AppLogger.shared.log("  - Input keys: \(inputSequence.keys.count), modifiers: \(inputSequence.keys.first?.modifiers ?? [])")
         AppLogger.shared.log("  - Output keys: \(outputSequence.keys.count), modifiers: \(outputSequence.keys.map(\.modifiers))")
 
+        // Convert to kanata format for validation (same format used by CustomRuleValidator)
+        let inputKanata = convertSequenceToKanataInput(inputSequence)
+        let outputKanata = convertSequenceToKanataOutput(outputSequence)
+
+        // Use shared validator for consistent validation across both dialogs
+        let validationErrors = CustomRuleValidator.validateKeys(input: inputKanata, output: outputKanata)
+        if let firstError = validationErrors.first {
+            let errorMessage: String = switch firstError {
+            case let .invalidInputKey(key):
+                "Invalid input key: '\(key)'"
+            case let .invalidOutputKey(key):
+                "Invalid output key: '\(key)'"
+            case .selfMapping:
+                "Input and output are the same (rule has no effect)"
+            case .emptyInput:
+                "Input key cannot be empty"
+            case .emptyOutput:
+                "Output key cannot be empty"
+            default:
+                firstError.localizedDescription
+            }
+            AppLogger.shared.log("❌ [RecordingCoordinator] Validation failed: \(errorMessage)")
+            await MainActor.run {
+                onError(KeyPathError.coordination(.recordingFailed(reason: errorMessage)))
+            }
+            return
+        }
+
+        // Check for conflicts with existing rules
+        let tempRule = CustomRule(input: inputKanata, output: outputKanata, isEnabled: true)
+        if let conflict = CustomRuleValidator.checkConflict(for: tempRule, against: existingRules) {
+            if case let .conflict(name, key) = conflict {
+                let errorMessage = "Conflict: '\(key)' is already mapped by '\(name)'. Delete or disable the existing rule first."
+                AppLogger.shared.log("❌ [RecordingCoordinator] Conflict detected: \(errorMessage)")
+                await MainActor.run {
+                    onError(KeyPathError.coordination(.recordingFailed(reason: errorMessage)))
+                }
+                return
+            }
+        }
+
         // Simple path: single key → single key (no modifiers) => literal mapping via ConfigurationService
         if inputSequence.keys.count == 1,
            outputSequence.keys.count == 1,
            inputSequence.keys[0].modifiers.isEmpty,
-           outputSequence.keys[0].modifiers.isEmpty
-        {
+           outputSequence.keys[0].modifiers.isEmpty {
             let inKey = inputSequence.keys[0].baseKey
             let outKey = outputSequence.keys[0].baseKey
             AppLogger.shared.log("📝 [RecordingCoordinator] Using SIMPLE path: \(inKey) → \(outKey)")
@@ -326,8 +367,7 @@ final class RecordingCoordinator: ObservableObject {
 
                 // Check if we should suspend mappings for raw key capture
                 if !PreferencesService.shared.applyMappingsDuringRecording,
-                   let km = self.kanataManager
-                {
+                   let km = self.kanataManager {
                     Task {
                         let wasPaused = await km.pauseMappings()
                         await MainActor.run {
@@ -464,8 +504,7 @@ final class RecordingCoordinator: ObservableObject {
 
                 // Check if we should suspend mappings for raw key capture
                 if !PreferencesService.shared.applyMappingsDuringRecording,
-                   let km = self.kanataManager
-                {
+                   let km = self.kanataManager {
                     Task {
                         let wasPaused = await km.pauseMappings()
                         await MainActor.run {
@@ -640,8 +679,7 @@ private extension RecordingCoordinator {
             if let last = result.last,
                last.baseKey == kp.baseKey,
                last.modifiers == kp.modifiers,
-               kp.timestamp.timeIntervalSince(last.timestamp) <= window
-            {
+               kp.timestamp.timeIntervalSince(last.timestamp) <= window {
                 continue
             }
             result.append(kp)
