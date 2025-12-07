@@ -1,5 +1,0 @@
----
-triple:          'arm64-apple-darwin'
-binary-path:     '/Users/malpern/local-code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath'
-relocations:     []
-...
