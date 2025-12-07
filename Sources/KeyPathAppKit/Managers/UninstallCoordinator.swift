@@ -194,18 +194,20 @@ final class UninstallCoordinator: ObservableObject {
         let configFlag = deleteConfig ? " --delete-config" : ""
         let command = "KEYPATH_UNINSTALL_ASSUME_YES=1 '\(scriptURL.path)' --assume-yes\(configFlag)"
 
-        let result = await Task.detached(priority: .userInitiated) { @Sendable () -> PrivilegedCommandRunner.Result in
-            PrivilegedCommandRunner.execute(
+        // Extract result components as primitives to satisfy Swift 6.1 strict Sendable checking
+        let (success, output, exitCode): (Bool, String, Int32) = await Task.detached(priority: .userInitiated) {
+            let result = PrivilegedCommandRunner.execute(
                 command: command,
                 prompt: "KeyPath needs to uninstall system services."
             )
+            return (result.success, result.output, result.exitCode)
         }.value
 
         return AppleScriptResult(
-            success: result.success,
-            output: result.output,
-            error: result.success ? "" : result.output,
-            exitStatus: result.exitCode
+            success: success,
+            output: output,
+            error: success ? "" : output,
+            exitStatus: exitCode
         )
     }
 
