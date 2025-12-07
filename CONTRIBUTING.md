@@ -32,31 +32,31 @@ That's it! You're ready to contribute.
 ## I Want To...
 
 ### Add a keyboard shortcut
-**Edit:** `Sources/KeyPathAppKit/UI/RecordingCoordinator.swift`
+**Edit:** `Sources/KeyPathAppKit/UI/RecordingCoordinator.swift`<br>
 **What:** This handles keyboard input recording for creating mappings.
 
 ### Change the main UI
-**Edit:** `Sources/KeyPathAppKit/UI/ContentView.swift`
+**Edit:** `Sources/KeyPathAppKit/UI/ContentView.swift`<br>
 **What:** Main app window with status, mappings list, and controls.
 
 ### Fix a bug in key mapping
-**Edit:** `Sources/KeyPathAppKit/Services/KanataConfigGenerator.swift`
+**Edit:** `Sources/KeyPathAppKit/Services/KanataConfigGenerator.swift`<br>
 **What:** Converts key mappings to Kanata config format.
 
 ### Add a new service check to the wizard
-**Edit:** `Sources/KeyPathAppKit/InstallationWizard/Core/InstallerEngine.swift`
+**Edit:** `Sources/KeyPathAppKit/InstallationWizard/Core/InstallerEngine.swift`<br>
 **What:** Unified façade for installation, repair, and system inspection.
 
 ### Add a notification
-**Edit:** `Sources/KeyPathAppKit/Services/UserNotificationService.swift`
+**Edit:** `Sources/KeyPathAppKit/Services/UserNotificationService.swift`<br>
 **What:** Handles macOS notifications with actions.
 
 ### Improve error handling
-**Edit:** `Sources/KeyPathCore/KeyPathError.swift`
+**Edit:** `Sources/KeyPathCore/KeyPathError.swift`<br>
 **What:** Centralized error hierarchy for the entire app.
 
 ### Add a test
-**Edit:** `Tests/KeyPathTests/` (use existing tests as examples)
+**Edit:** `Tests/KeyPathTests/` (use existing tests as examples)<br>
 **Run:** `swift test`
 
 ## Architecture (3-minute read)
