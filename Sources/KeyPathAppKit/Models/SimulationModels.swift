@@ -230,6 +230,7 @@ enum SimulatorError: Error, LocalizedError {
     case configNotFound(String)
     case processFailedWithCode(Int, String)
     case invalidJSON(String)
+    case keyMappingModeUnavailable
 
     var errorDescription: String? {
         switch self {
@@ -241,6 +242,8 @@ enum SimulatorError: Error, LocalizedError {
             "Simulator failed (\(code)): \(msg)"
         case let .invalidJSON(msg):
             "Invalid JSON output: \(msg)"
+        case .keyMappingModeUnavailable:
+            "Installed kanata-simulator does not support --key-mapping mode"
         }
     }
 }

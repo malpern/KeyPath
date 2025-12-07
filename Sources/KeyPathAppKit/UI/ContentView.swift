@@ -83,6 +83,7 @@ struct ContentView: View {
     @State private var configValidationErrorMessage = ""
     @State private var showingValidationFailureModal = false
     @State private var validationFailureErrors: [String] = []
+    @State private var validationFailureCopyText: String = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -493,6 +494,7 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showingValidationFailureModal, onDismiss: {
             validationFailureErrors = []
+            validationFailureCopyText = ""
         }) {
             ValidationFailureDialog(
                 errors: validationFailureErrors,
@@ -871,10 +873,9 @@ struct ContentView: View {
     }
 
     private func presentValidationFailureModal(_ errors: [String]) {
-        let sanitized = errors.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        validationFailureErrors = sanitized.isEmpty
-            ? ["Configuration validation failed, but Kanata did not return any specific error messages."]
-            : sanitized
+        let state = ValidationFailureState(rawErrors: errors)
+        validationFailureErrors = state.errors
+        validationFailureCopyText = state.copyText
         showingValidationFailureModal = true
     }
 
@@ -882,7 +883,7 @@ struct ContentView: View {
         guard !validationFailureErrors.isEmpty else { return }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        let combined = validationFailureErrors.joined(separator: "\n")
+        let combined = validationFailureCopyText.isEmpty ? validationFailureErrors.joined(separator: "\n") : validationFailureCopyText
         pasteboard.setString(combined, forType: .string)
     }
 

@@ -1,5 +1,7 @@
 # KeyPath Action URI System
 
+**Note:** Most action types (launch, layer, rule, notify, open, fakekey) are available in R1. The Virtual Keys Inspector (see below) is an R2 feature and not available in R1.
+
 KeyPath supports a URI-based action system that enables:
 1. **Kanata integration** - Trigger KeyPath actions from keyboard shortcuts via `push-msg`
 2. **Deep linking** - External tools (Raycast, LeaderKey, Alfred) can invoke KeyPath actions
@@ -354,6 +356,8 @@ ActionDispatcher.shared.onError = { message in
 - **No shell execution**: `cmd` action is not supported (use Kanata's native `cmd` for that)
 
 ## Virtual Keys Inspector
+
+> **Note:** This feature is available in R2 release only. R1 includes the `fakekey` action but not the inspector UI.
 
 KeyPath includes a built-in inspector for viewing and testing virtual keys defined in your configuration.
 

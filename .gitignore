@@ -48,6 +48,23 @@ Package.resolved
 # Logs
 *.log
 logs/
+.logs/
+
+# Build artifacts
+.last_build_output.txt
+.build-karabiner/
+.crush/
+
+# Temporary files
+pbcopy
+Keycap.zip
+com.keypath.test-daemon.plist
+
+# Weird directories
+~/
+
+# Unknown markers
+.pre-hacker-dojo-marker
 
 # External source code - don't include full Kanata source (legacy paths)
 kanata-source/

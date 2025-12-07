@@ -234,12 +234,14 @@ KeyPath detects when multiple rules map the same input key and shows a warning.
 
 ### Types of Conflicts Detected
 
-| Conflict Type | Example |
-|---------------|---------|
-| Custom Rule vs Custom Rule | Two rules both map `caps` |
-| Custom Rule vs Collection | Rule maps `caps`, collection also remaps `caps` |
-| Collection vs Collection | Two collections remap the same key on the same layer |
-| Activator Conflict | Two collections use the same momentary activator key |
+| Conflict Type | Example | Availability |
+|---------------|---------|--------------|
+| Custom Rule vs Custom Rule | Two rules both map `caps` | R1 ✅ |
+| Custom Rule vs Collection | Rule maps `caps`, collection also remaps `caps` | R2 only |
+| Collection vs Collection | Two collections remap the same key on the same layer | R2 only |
+| Activator Conflict | Two collections use the same momentary activator key | R2 only |
+
+**Note:** In R1, only Custom Rule vs Custom Rule conflicts are detected since Rule Collections are not available.
 
 ### Warning Message Format
 

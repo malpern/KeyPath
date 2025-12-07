@@ -3,6 +3,8 @@
 **Purpose:** Visual guide to component relationships and data flow.  
 **Last Updated:** November 2025
 
+**Note:** Some components (e.g., RuleCollectionsManager) are R2 features. R1 includes Custom Rules, InstallerEngine, PermissionOracle, and RuntimeCoordinator.
+
 ---
 
 ## System Overview
@@ -177,10 +179,11 @@ sequenceDiagram
   - Routes to XPC helper (release) or sudo (debug)
 
 ### Service Layer
-- **RuleCollectionsManager**: Rule collections & custom rules
+- **RuleCollectionsManager**: Rule collections & custom rules (R2 feature)
   - Conflict detection
   - Layer monitoring
   - Config regeneration
+  - **Note:** Rule Collections are R2-only. R1 includes Custom Rules only.
 - **SystemRequirementsChecker**: System status checks
   - Installation detection
   - Permission checking

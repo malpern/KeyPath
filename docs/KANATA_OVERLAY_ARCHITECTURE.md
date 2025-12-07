@@ -1,5 +1,7 @@
 # Kanata → KeyPath Overlay Architecture
 
+> **Note:** This document describes the Live Keyboard Overlay feature, which is available in R2 release only. R1 includes Custom Rules and the Installation Wizard, but not the overlay visualization.
+
 This doc explains how to expose enough runtime state from Kanata to power a feature‑complete KeyPath overlay while keeping changes small, optional, and maintainer‑friendly.
 
 ## Goals

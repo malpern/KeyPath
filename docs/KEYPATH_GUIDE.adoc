@@ -3,11 +3,23 @@
 ifndef::env-github[]
 :toc: left
 endif::[]
-:stylesheet: config-stylesheet.css
 
 This document describes how to use KeyPath, a macOS application that makes keyboard remapping simple and accessible.
 
 KeyPath provides a native macOS interface for https://github.com/jtroo/kanata[Kanata], a powerful cross-platform keyboard remapping engine. With KeyPath, you can remap keys, create advanced behaviors like tap-hold and tap-dance, and integrate with external tools—all without writing configuration files or using the command line.
+
+== Release Milestones
+
+KeyPath uses release milestones to control feature availability:
+
+* **R1 (Current Release):** Installer + Custom Rules
+** Includes: Installation Wizard, Custom Rules editor, Tap-Hold & Tap-Dance support, Action URI system
+** Does not include: Rule Collections, Live Keyboard Overlay, Mapper UI, Simulator Tab, Virtual Keys Inspector
+
+* **R2 (Future Release):** Full Features
+** Adds: Rule Collections, Live Keyboard Overlay, Mapper UI, Simulator Tab, Virtual Keys Inspector
+
+Features marked with "R2 only" in this guide are not available in R1.
 
 == How to read this guide
 
@@ -179,6 +191,8 @@ See <<tap-hold-tap-dance,Tap-Hold & Tap-Dance>> for detailed information on:
 [[rule-collections]]
 === Rule Collections
 
+> **Note:** Rule Collections are available in R2 release only. R1 includes Custom Rules only.
+
 Rule collections are pre-configured groups of mappings:
 
 [cols="1,4"]
@@ -212,7 +226,11 @@ KeyPath automatically detects when multiple rules map the same input key.
 - **Action proceeds** - conflicts are warnings, not errors
 - **Last enabled rule wins** - most recently enabled rule takes precedence
 
-**Example:**
+**R1 vs R2:**
+- **R1:** Only detects conflicts between Custom Rules (e.g., two custom rules mapping the same key)
+- **R2:** Also detects conflicts between Custom Rules and Rule Collections, and between Rule Collections
+
+**Example (R2):**
 If you enable "Caps Lock Remap" collection (maps `caps` → `esc`) and then create a custom rule mapping `caps` → `tab`, you'll see:
 
 ----
@@ -604,6 +622,8 @@ do shell script "open 'keypath://launch/Obsidian'"
 
 [[virtual-keys-inspector]]
 === Virtual Keys Inspector
+
+> **Note:** Virtual Keys Inspector is available in R2 release only. R1 includes the `fakekey` action but not the inspector UI.
 
 KeyPath includes a built-in inspector for viewing and testing virtual keys defined in your configuration.
 

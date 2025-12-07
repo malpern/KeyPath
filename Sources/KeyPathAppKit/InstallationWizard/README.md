@@ -283,7 +283,7 @@ Each page is 400-600 lines and follows a consistent pattern:
 2. Read `WizardTypes.swift` - learn all the type definitions
 3. Look at one page (e.g., `WizardInputMonitoringPage.swift`) - see the pattern
 4. Check `WizardAutoFixer.swift` - understand auto-remediation
-5. Review `ARCHITECTURE.md` - system-level design decisions
+5. Review `docs/ARCHITECTURE.md` - system-level design decisions
 
 ### Quick Debugging
 - **Wizard won't advance**: Check `WizardNavigationEngine.determineCurrentPage()` logs
@@ -293,7 +293,7 @@ Each page is 400-600 lines and follows a consistent pattern:
 
 ## Related Documentation
 
-- `../ARCHITECTURE.md` - Overall system design
+- `../../docs/ARCHITECTURE.md` - Overall system design
 - `../CLAUDE.md` - ADRs, anti-patterns, critical architecture
 - `Services/PermissionOracle.swift` - Single source of truth for permissions
 - `Managers/KanataManager.swift` - Main service coordinator
