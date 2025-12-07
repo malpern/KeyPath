@@ -11,74 +11,6 @@
 
 ---
 
-## Simple to Start
-
-KeyPath lets you remap keys and create custom shortcuts **just by pressing them**. No config files to edit. No syntax to learn. No terminal commands. Just press the key you want to change, press what you want it to become, and you're done.
-
-- **Press-to-record**: Click to capture the shortcut you're replacing, click again to map it to what you actually want—KeyPath updates instantly.
-- **Instant feedback**: Changes apply immediately—no restart, no save-and-wait
-- **Visual rule editor**: See your remappings at a glance, toggle them on and off
-- **Guided setup**: A wizard walks you through permissions and driver installation
-
-<div align="center">
-  <img src="docs/images/screens/1-home-screen.png" alt="KeyPath Rule Editor" width="600"/>
-</div>
-
----
-
-## Home Row Mods—Finally Reliable on Mac
-
-**KeyPath is the only Mac tool that enables [Home Row Mods](https://precondition.github.io/home-row-mods) in pure software with reliability comparable to hardware firmware like QMK or ZMK.**
-
-<div align="center">
-  <img src="docs/images/mac-hrm.png" alt="Home Row Mods Diagram" width="500"/>
-</div>
-
-### What are Home Row Mods?
-
-Home Row Mods (HRM) turn the keys under your fingers—A, S, D, F and J, K, L, ;—into dual-function keys:
-
-- **Tap** → types the letter (`a`, `s`, `d`, `f`)
-- **Hold** → activates a modifier (`Ctrl`, `Alt`, `Cmd`, `Shift`)
-
-This means you never have to move your hands from the home row to press modifiers. It's a game-changer for ergonomics, speed, and reducing repetitive strain.
-
-### Why most Mac tools fail at HRM
-
-The difference between reliable and unreliable HRM comes down to one thing: **how the software decides tap vs hold**.
-
-**Timeout-only detection** (Karabiner-Elements): "If the key is held longer than X milliseconds, it's a hold." This causes constant misfires during fast typing—the software can't distinguish "I'm holding F to modify the next key" from "I'm rolling through F-G-H quickly."
-
-**Press-aware detection** (Kanata): "If another key is pressed while this key is down, it's a hold." This is the insight that makes HRM work. Press `F` (mapped to Shift) then `J`, and you get `Shift+J` instantly—no timeout required.
-
-### Why Kanata succeeds
-
-Kanata implements multiple tap-hold strategies refined over years across QMK, KMonad, and now Kanata:
-
-- **tap-hold-press**: Hold activates immediately when any other key is pressed
-- **tap-hold-release**: Hold activates when another key is pressed *and released*
-- **tap-hold-except-keys**: Certain keys bypass hold detection (for fine-tuning)
-
-This is the same approach that makes HRM reliable on custom keyboards running QMK or ZMK firmware. Kanata brings that firmware-grade logic to software.
-
-### What about Karabiner-Elements and Hammerspoon?
-
-**Karabiner-Elements** uses timeout-only detection (`to_if_alone`, `to_if_held_down`). It works for casual use, but fast typists experience frequent misfires. There's no way to enable press-aware detection—it's not how the tool is architected.
-
-**Hammerspoon** has the primitives to implement press-aware detection—it uses the same macOS event tap API as Kanata. But nobody has built and maintained a reliable HRM implementation. You'd be writing ~1000 lines of Lua state machine code and debugging edge cases that Kanata has already solved over years of community iteration. Theoretically possible; practically, you'd be reinventing the wheel.
-
-### Where QMK/ZMK still go further
-
-Hardware firmware such as QMK and ZMK still have headroom KeyPath hasn't reached yet: bilateral combos, hold-per-finger heuristics, and highly customized priority rules (see [this QMK deep dive](https://www.reddit.com/r/ErgoMechKeyboards/comments/1f18d8h/i_have_fixed_home_row_mods_in_qmk_for_everyone/)). Those projects can coordinate across thumb clusters, read matrix-level timing, and run combo detection before the OS ever sees a key. KeyPath's HRM is firmware-grade for most workflows, but if you want experimental combo models or split-keyboard-specific logic, QMK/ZMK remains the bleeding edge. Our goal is to keep closing that gap while retaining a macOS-native UX.
-
-**Learn more:**
-- [Home Row Mods Guide](https://precondition.github.io/home-row-mods) — The canonical introduction
-- [Taming Home Row Mods with Bilateral Combinations](https://sunaku.github.io/home-row-mods.html) — Deep dive into advanced HRM tuning
-- [Home Row Mods Explained (Video)](https://www.youtube.com/watch?v=sLWQ4Gx88h4) — Visual introduction
-- [Home Row Mods in Practice (Video)](https://www.youtube.com/watch?v=4yiMbP_ZySQ) — Real-world usage demo
-
----
-
 ## What Can KeyPath Do?
 
 | Want to... | KeyPath can do it |
@@ -93,6 +25,23 @@ Hardware firmware such as QMK and ZMK still have headroom KeyPath hasn't reached
 
 ---
 
+## Simple to Start
+
+Your keyboard should work for you, not against you.
+
+KeyPath lets you remap keys and create custom shortcuts **just by pressing them**. No config files to edit. No syntax to learn. No terminal commands. Just press the key you want to change, press what you want it to become, and you're done.
+
+- **Press-to-record**: Capture any key or shortcut, then map it to what you actually want
+- **Instant feedback**: Changes apply immediately—no restart, no save-and-wait
+- **Visual rule editor**: See your remappings at a glance, toggle them on and off
+- **Guided setup**: A wizard walks you through permissions and driver installation
+
+<div align="center">
+  <img src="docs/images/screens/1-home-screen.png" alt="KeyPath Rule Editor" width="600"/>
+</div>
+
+---
+
 ## Getting Started
 
 1. **Download** from the [Releases page](https://github.com/malpern/KeyPath/releases)
@@ -101,88 +50,6 @@ Hardware firmware such as QMK and ZMK still have headroom KeyPath hasn't reached
 4. **Create** your first rule and click Save
 
 That's it. Your keyboard is now remapped.
-
-### Documentation
-
-For complete documentation, see the **KeyPath Configuration Guide**:
-- **[Online Documentation](https://malpern.github.io/KeyPath/KEYPATH_GUIDE.html)** (recommended) - Formatted for easy reading
-- **[AsciiDoc Source](docs/KEYPATH_GUIDE.adoc)** - Source file for editing
-
-The guide covers:
-- Detailed feature explanations
-- Advanced behaviors (tap-hold, tap-dance)
-- Action URI system (`keypath://` deep links)
-- Command-line interface reference
-- Troubleshooting guide
-
-**Note:** To rebuild the HTML version after editing the `.adoc` file, run `./Scripts/build-docs.sh`
-
----
-
-## Features
-
-- **Visual rule editor** — No config files to write
-- **Tap-hold keys** — One action when tapped, another when held
-- **Tap-dance** — Different actions for single, double, or triple tap
-- **Instant apply** — Changes work immediately
-- **Emergency stop** — Press `Ctrl + Space + Esc` to disable everything
-- **Works at boot** — Remappings active before you log in
-
----
-
-## Requirements
-
-- macOS 14.0 (Sonoma) or later
-- Apple Silicon or Intel Mac
-
-### System Permissions
-
-KeyPath needs a few things to work:
-
-- **Input Monitoring** — to see your key presses
-- **Accessibility** — to send the remapped keys
-- **Karabiner VirtualHID Driver** — creates the virtual keyboard device
-- **Admin password** — to install the background service (one-time)
-
-The setup wizard handles all of this automatically.
-
----
-
-## Safety
-
-**Emergency stop:** If something goes wrong, press `Ctrl + Space + Esc` to instantly disable all remappings.
-
-**Privacy:** KeyPath works entirely offline. No data collection, no telemetry.
-
----
-
-## Settings
-
-Open Settings with **Cmd+,** or click the gear icon.
-
-- **Status** — See system health at a glance. All green checkmarks means everything's working. Click "Launch Wizard" to fix any issues.
-
-<div align="center">
-  <img src="docs/images/screens/2-status-settings.png" alt="Status Settings" width="600"/>
-</div>
-
-- **Rules** — View and manage your custom rules. Toggle rules on/off, edit, or delete them.
-
-<div align="center">
-  <img src="docs/images/screens/3-rules-settings.png" alt="Rules Settings" width="600"/>
-</div>
-
-- **General** — Configure capture mode, recording behavior, and access logs for troubleshooting.
-
-<div align="center">
-  <img src="docs/images/screens/4-general-settings.png" alt="General Settings" width="600"/>
-</div>
-
-- **Repair/Remove** — Cleanup & Repair fixes common issues. Reset Everything is for when the service is wedged.
-
-<div align="center">
-  <img src="docs/images/screens/5-repair-remove-settings.png" alt="Repair/Remove Settings" width="600"/>
-</div>
 
 ---
 
@@ -198,49 +65,92 @@ Open Settings with **Cmd+,** or click the gear icon.
 
 Under the hood, KeyPath is built on **Kanata**—a cross-platform keyboard remapping engine inspired by [KMonad](https://github.com/kmonad/kmonad), with firmware-grade capabilities that go far beyond tools like Karabiner-Elements.
 
-### What makes Kanata different?
-
 | Capability | KeyPath (Kanata) | Karabiner-Elements |
 |------------|------------------|-------------------|
-| **[True layers](https://anniecherkaev.com/principles-for-keyboard-layouts)** | Keys change meaning based on active layer—compose layers, toggle them, or hold to activate | Profiles are global; layer-like behavior requires complex JSON rules |
-| **[Reliable tap-hold](https://thomasbaart.nl/2018/12/09/qmk-basics-tap-and-hold-actions/)** | Multiple detection strategies (`tap-hold-press`, `tap-hold-release`, etc.) for different use cases | Basic tap-hold with less tuning options |
-| **[Composable conditions](https://github.com/jtroo/kanata/blob/main/docs/config.adoc#switch)** | Combine timing, layer state, and key history into a single rule | Conditions are separate JSON objects, harder to compose |
-| **[Low latency](https://danluu.com/keyboard-latency/)** | Purpose-built for real-time input; runs as a system daemon | Also low-latency, but JSON parsing and rule matching can add overhead |
+| **[True layers](https://anniecherkaev.com/principles-for-keyboard-layouts)** | Keys change meaning based on active layer | Profiles are global; layers require complex JSON |
+| **[Reliable tap-hold](https://thomasbaart.nl/2018/12/09/qmk-basics-tap-and-hold-actions/)** | Multiple detection strategies for different use cases | Basic tap-hold with less tuning options |
+| **[Composable conditions](https://github.com/jtroo/kanata/blob/main/docs/config.adoc#switch)** | Combine timing, layer state, and key history | Conditions are separate JSON objects |
+| **[Low latency](https://danluu.com/keyboard-latency/)** | Purpose-built for real-time input | JSON parsing can add overhead |
 
 **KeyPath gives you Kanata's power through a visual interface.** You get the best of both worlds: firmware-level capability, zero config-file friction.
 
 ### Full Access to the Config File
 
-KeyPath writes a standard Kanata configuration file on your behalf—but you're not locked in. Power users can open and edit the config directly by clicking **Edit Config** in the app, or via the terminal:
+Power users can open and edit the Kanata config directly:
 
 ```
 ~/Library/Application Support/KeyPath/keypath.kbd
 ```
 
+Start with KeyPath's UI, and graduate to hand-editing only when you want to. Your visual rules and manual edits coexist in the same file. See the [Kanata configuration guide](https://github.com/jtroo/kanata/blob/main/docs/config.adoc) for the complete reference.
+
+---
+
+## Features
+
+- **Visual rule editor** — No config files to write
+- **Tap-hold keys** — One action when tapped, another when held
+- **Tap-dance** — Different actions for single, double, or triple tap
+- **Instant apply** — Changes work immediately
+- **Emergency stop** — Press `Ctrl + Space + Esc` to disable everything
+- **Works at boot** — Remappings active before you log in
+
+---
+
+## Home Row Mods
+
+KeyPath is the only Mac tool that enables [Home Row Mods](https://precondition.github.io/home-row-mods) in pure software with reliability comparable to QMK or ZMK firmware.
+
+**What are they?** HRM turns home row keys (A, S, D, F) into dual-function keys—tap for the letter, hold for a modifier (Ctrl, Alt, Cmd, Shift). No more reaching for modifier keys.
+
+**Why does KeyPath succeed where others fail?** Most tools use timeout-only detection, which causes constant misfires. Kanata uses *press-aware* detection—if another key is pressed while the home row key is down, it's a hold. This is the same approach that makes HRM reliable on custom mechanical keyboards.
+
+→ [Deep dive: Why HRM is hard and how Kanata solves it](docs/HOME_ROW_MODS_DEEP_DIVE.md)
+
+---
+
+## Requirements
+
+- macOS 14.0 (Sonoma) or later
+- Apple Silicon or Intel Mac
+
+### System Permissions
+
+KeyPath needs:
+- **Input Monitoring** — to see your key presses
+- **Accessibility** — to send the remapped keys
+- **Karabiner VirtualHID Driver** — creates the virtual keyboard device
+- **Admin password** — to install the background service (one-time)
+
+The setup wizard handles all of this automatically.
+
+---
+
+## Safety
+
+**Emergency stop:** Press `Ctrl + Space + Esc` to instantly disable all remappings.
+
+**Privacy:** KeyPath works entirely offline. No data collection, no telemetry.
+
+---
+
+## Settings
+
+Open Settings with **Cmd+,** or click the gear icon.
+
 <div align="center">
-  <img src="docs/images/edit-config.png" alt="Edit Config Button" width="600"/>
+  <img src="docs/images/screens/2-status-settings.png" alt="Status Settings" width="600"/>
 </div>
 
-Kanata's configuration language uses [S-expressions](https://en.wikipedia.org/wiki/S-expression) (Lisp-style syntax) and is remarkably expressive. It supports:
-
-- **Variables and aliases** — DRY principle for complex configs
-- **Conditional logic** — `switch`, `fork`, and template conditionals
-- **Templates** — Reusable config patterns with parameter substitution
-- **Macros** — Arbitrary key sequences with timing control
-- **Sequences** — Vim-style leader key workflows
-- **Input chords** — Press multiple keys simultaneously for a different action
+- **Status** — System health at a glance. Green checkmarks = everything's working.
+- **Rules** — View and manage your custom rules. Toggle on/off, edit, or delete.
 
 <div align="center">
-  <img src="docs/images/example-config.png" alt="Example Kanata Config" width="600"/>
+  <img src="docs/images/screens/3-rules-settings.png" alt="Rules Settings" width="600"/>
 </div>
 
-This isn't a toy DSL—it's a full configuration language that can express behaviors impossible in JSON-based tools. See the [Kanata configuration guide](https://github.com/jtroo/kanata/blob/main/docs/config.adoc) for the complete reference.
-
-**The best part:** Start with KeyPath's UI, and graduate to hand-editing only when you want to. Your visual rules and manual edits coexist in the same file.
-
-### Clear feedback when validation fails
-
-If Kanata rejects a generated config, KeyPath now surfaces a dedicated modal that lists every error, offers a one-click copy button, and links directly to the on-disk config and diagnostics panel. No more guessing why a save failed—grab the exact kanata output, jump into your editor, or open System Status without leaving the app.
+- **General** — Configure capture mode and access logs.
+- **Repair/Remove** — Fix common issues or uninstall completely.
 
 ---
 
@@ -250,11 +160,19 @@ To completely remove KeyPath: **Settings → Repair/Remove → Uninstall**
 
 ---
 
+## Documentation
+
+For complete documentation, see the **KeyPath Configuration Guide**:
+- **[Online Documentation](https://malpern.github.io/KeyPath/KEYPATH_GUIDE.html)** — Formatted for easy reading
+- **[AsciiDoc Source](docs/KEYPATH_GUIDE.adoc)** — Source file
+
+The guide covers tap-hold, tap-dance, the `keypath://` action URI system, CLI reference, and troubleshooting.
+
+---
+
 ## Background
 
-KeyPath is a macOS frontend for [Kanata](https://github.com/jtroo/kanata), a powerful cross-platform keyboard remapping engine created by [jtroo](https://github.com/jtroo). Huge thanks to jtroo for building such a solid foundation and for being responsive to macOS-specific needs.
-
-Using Kanata directly on macOS means dealing with driver installation, permission debugging, service management, and hand-written config files. KeyPath handles all of that so you can just remap your keys.
+KeyPath is a macOS frontend for [Kanata](https://github.com/jtroo/kanata), created by [jtroo](https://github.com/jtroo). Using Kanata directly means dealing with driver installation, permission debugging, service management, and config files. KeyPath handles all of that.
 
 Built with Swift and SwiftUI. Uses [Karabiner VirtualHID Driver](https://github.com/pqrs-org/Karabiner-DriverKit-VirtualHIDDevice) for system-level key events.
 
@@ -274,21 +192,18 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for more.
 
 ## License
 
-KeyPath (the Swift application) is released under the **MIT License** — see [LICENSE](LICENSE)
+KeyPath is released under the **MIT License** — see [LICENSE](LICENSE)
 
-KeyPath bundles [Kanata](https://github.com/jtroo/kanata), which is licensed under **LGPL-3.0**. See [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for details.
+KeyPath bundles [Kanata](https://github.com/jtroo/kanata) (LGPL-3.0). See [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
 
 ---
 
 ## Other Mac Tools We Appreciate
 
-KeyPath stands on the shoulders of giants. These tools have shaped the Mac automation landscape:
-
-- **[Karabiner-Elements](https://karabiner-elements.pqrs.org/)** — The OG Mac keyboard remapper. Widely used, JSON-based configuration.
-- **[Keyboard Maestro](https://www.keyboardmaestro.com/)** — The Swiss Army knife of Mac automation.
-- **[Hammerspoon](https://www.hammerspoon.org/)** — Lua-powered automation for power users.
-- **[LeaderKey](https://leaderkey.app/)** — App launcher and workflow hub built around Vim-style leader sequences.
-- **[Raycast](https://www.raycast.com/)** — Modern launcher with extensible commands.
+- **[Karabiner-Elements](https://karabiner-elements.pqrs.org/)** — The OG Mac keyboard remapper
+- **[Keyboard Maestro](https://www.keyboardmaestro.com/)** — Swiss Army knife of Mac automation
+- **[Hammerspoon](https://www.hammerspoon.org/)** — Lua-powered automation
+- **[Raycast](https://www.raycast.com/)** — Modern launcher with extensible commands
 
 ---
 
