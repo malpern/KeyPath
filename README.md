@@ -43,6 +43,27 @@ Karabiner-Elements is easier to start with if you want to write configs by hand�
 
 **KeyPath gives you Kanata's power through a visual interface.** You get the best of both worlds: firmware-level capability, zero config-file friction.
 
+### Full Access to the Config File
+
+KeyPath writes a standard Kanata configuration file on your behalf—but you're not locked in. Power users can open and edit the config directly at:
+
+```
+~/Library/Application Support/KeyPath/keypath.kbd
+```
+
+Kanata's configuration language uses [S-expressions](https://en.wikipedia.org/wiki/S-expression) (Lisp-style syntax) and is remarkably expressive. It supports:
+
+- **Variables and aliases** — DRY principle for complex configs
+- **Conditional logic** — `switch`, `fork`, and template conditionals
+- **Templates** — Reusable config patterns with parameter substitution
+- **Macros** — Arbitrary key sequences with timing control
+- **Sequences** — Vim-style leader key workflows
+- **Input chords** — Press multiple keys simultaneously for a different action
+
+This isn't a toy DSL—it's a full configuration language that can express behaviors impossible in JSON-based tools. See the [Kanata configuration guide](https://github.com/jtroo/kanata/blob/main/docs/config.adoc) for the complete reference.
+
+**The best part:** Start with KeyPath's UI, and graduate to hand-editing only when you want to. Your visual rules and manual edits coexist in the same file.
+
 ---
 
 ## Home Row Mods—Finally Reliable on Mac
@@ -62,7 +83,22 @@ This means you never have to move your hands from the home row to press modifier
 
 Getting HRM right requires *precise* tap-hold detection. If the timing is off, you get misfires—letters when you meant modifiers, or vice versa. Most software solutions fail at this because they lack the nuanced detection algorithms that mechanical keyboard firmware uses.
 
-Kanata implements multiple tap-hold strategies (like `tap-hold-press` for home row mods) that distinguish between "I'm holding this key to modify" and "I'm just typing quickly." KeyPath makes these strategies accessible through a simple toggle—no config syntax required.
+### Why Kanata succeeds where Karabiner-Elements struggles
+
+Karabiner-Elements offers basic tap-hold via `to_if_alone` and `to_if_held_down`—a simple timeout threshold. This works for casual use but produces constant misfires during fast typing because it can't distinguish between "I'm holding this key to modify the next one" and "I'm just rolling through keys quickly."
+
+Kanata implements **eight distinct tap-hold strategies**, each designed for different typing patterns:
+
+| Strategy | Best for | How it works |
+|----------|----------|--------------|
+| `tap-hold-press` | Home row mods | Hold activates early when *any* other key is pressed |
+| `tap-hold-release` | Permissive typing | Hold activates when another key is pressed *and released* |
+| `tap-hold-tap-keys` | Fast typists | Specific keys always trigger tap, never early hold |
+| `tap-hold-except-keys` | Fine-tuning | Certain keys bypass hold detection entirely |
+
+The key insight: **hold detection shouldn't be purely time-based**. It should consider *what else you're doing*. If you press `F` (mapped to Shift) and then `J`, you probably want `Shift+J`. But if you press `F` then `G` then `H` in rapid succession, you're typing—not modifying.
+
+Kanata's `tap-hold-press` and `tap-hold-tap-keys` strategies implement exactly this logic, matching the "permissive hold" and "hold on other key press" behaviors found in QMK/ZMK firmware. KeyPath exposes these strategies through a simple UI toggle—no config syntax required.
 
 → **[Learn more about Home Row Mods](https://precondition.github.io/home-row-mods)**
 
