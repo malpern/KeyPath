@@ -15,7 +15,7 @@
 
 KeyPath lets you remap keys and create custom shortcuts **just by pressing them**. No config files to edit. No syntax to learn. No terminal commands. Just press the key you want to change, press what you want it to become, and you're done.
 
-- **Press-to-record**: Click to capture the shortcut you’re replacing, click again to map it to what you actually want—KeyPath updates instantly.
+- **Press-to-record**: Click to capture the shortcut you're replacing, click again to map it to what you actually want—KeyPath updates instantly.
 - **Instant feedback**: Changes apply immediately—no restart, no save-and-wait
 - **Visual rule editor**: See your remappings at a glance, toggle them on and off
 - **Guided setup**: A wizard walks you through permissions and driver installation
@@ -101,50 +101,33 @@ Home Row Mods (HRM) turn the keys under your fingers—A, S, D, F and J, K, L, ;
 
 This means you never have to move your hands from the home row to press modifiers. It's a game-changer for ergonomics, speed, and reducing repetitive strain.
 
-### Why is this hard?
+### Why most Mac tools fail at HRM
 
-Getting HRM right requires *precise* tap-hold detection. If the timing is off, you get misfires—letters when you meant modifiers, or vice versa. Most software solutions fail at this because they lack the nuanced detection algorithms that mechanical keyboard firmware uses.
+The difference between reliable and unreliable HRM comes down to one thing: **how the software decides tap vs hold**.
 
-### Why Kanata succeeds where Karabiner-Elements struggles
+**Timeout-only detection** (Karabiner-Elements): "If the key is held longer than X milliseconds, it's a hold." This causes constant misfires during fast typing—the software can't distinguish "I'm holding F to modify the next key" from "I'm rolling through F-G-H quickly."
 
-Karabiner-Elements offers basic tap-hold via `to_if_alone` and `to_if_held_down`—a simple timeout threshold. This works for casual use but produces constant misfires during fast typing because it can't distinguish between "I'm holding this key to modify the next one" and "I'm just rolling through keys quickly."
+**Press-aware detection** (Kanata): "If another key is pressed while this key is down, it's a hold." This is the insight that makes HRM work. Press `F` (mapped to Shift) then `J`, and you get `Shift+J` instantly—no timeout required.
 
-Kanata implements **eight distinct tap-hold strategies**, each designed for different typing patterns:
+### Why Kanata succeeds
 
-| Strategy | Best for | How it works |
-|----------|----------|--------------|
-| `tap-hold-press` | Home row mods | Hold activates early when *any* other key is pressed |
-| `tap-hold-release` | Permissive typing | Hold activates when another key is pressed *and released* |
-| `tap-hold-tap-keys` | Fast typists | Specific keys always trigger tap, never early hold |
-| `tap-hold-except-keys` | Fine-tuning | Certain keys bypass hold detection entirely |
+Kanata implements multiple tap-hold strategies refined over years across QMK, KMonad, and now Kanata:
 
-**The key insight:** hold detection shouldn't be purely time-based. It should consider *what else you're doing*. If you press `F` (mapped to Shift) and then `J`, you probably want `Shift+J`. But if you press `F` then `G` then `H` in rapid succession, you're typing—not modifying.
+- **tap-hold-press**: Hold activates immediately when any other key is pressed
+- **tap-hold-release**: Hold activates when another key is pressed *and released*
+- **tap-hold-except-keys**: Certain keys bypass hold detection (for fine-tuning)
 
-### Why KeyPath + Kanata deliver reliable HRM
+This is the same approach that makes HRM reliable on custom keyboards running QMK or ZMK firmware. Kanata brings that firmware-grade logic to software.
 
-1. **Firmware-style state machine, not just timeouts.** Kanata’s tap-hold engine mirrors QMK/ZMK with strategies like `tap-hold-press`, `tap-hold-release`, and per-key exception lists. Karabiner (timeout-only) and Hammerspoon/kmod scripts lack that nuanced “hold when another key is pressed” logic, so they misfire under real typing speed.
-2. **Layer-aware, canonical config output.** Kanata natively understands `layer-while-held`, momentary activators, and dual-role keys. HRM is expressed in the same language you’d use on a custom keyboard and survives regen/reload cycles; there’s no fragile JSON/Lua glue.
-3. **Product UX built around HRM.** KeyPath exposes Kanata’s advanced tap-hold knobs (timings, per-key toggles, quick tap rules) through a dedicated editor and provides guardrails like the validation-failure modal. Karabiner/Hammerspoon give raw config access but no first-class HRM tooling, so every tweak is hand-edited and easy to break.
+### What about Karabiner-Elements and Hammerspoon?
 
-### Kanata vs. Karabiner-Elements vs. Hammerspoon
+**Karabiner-Elements** uses timeout-only detection (`to_if_alone`, `to_if_held_down`). It works for casual use, but fast typists experience frequent misfires. There's no way to enable press-aware detection—it's not how the tool is architected.
 
-Kanata isn't trying to replace Karabiner or Hammerspoon for everything. For many general remaps those tools are great. But for HRM specifically, Kanata’s firmware-grade tap-hold engine is in a different league. Instead of bolting a timeout onto macOS key events, Kanata runs a dedicated state machine that understands simultaneous presses, layer activators, and per-key exceptions. KeyPath rides on top of that engine to give you a point-and-click UX. Here's how they compare:
-
-| Capability | Kanata + KeyPath | Karabiner-Elements | Hammerspoon |
-|------------|------------------|--------------------|-------------|
-| Tap-hold strategies | Multiple built-ins (`tap-hold-press`, `tap-hold-release`, `tap-hold-tap-keys`, etc.) | Single timeout (`to_if_alone`, `to_if_held_down`) | Requires custom Lua logic |
-| Early hold activation when another key is pressed | ✅ Native support | ❌ Timeout only | ⚠️ Possible but manual scripting |
-| Per-key tap exceptions / bypass lists | ✅ (`tap-hold-tap-keys`, `tap-hold-except-keys`) | ❌ | ⚠️ Manual Lua |
-| Layer-aware HRM (momentary layers, `layer-while-held`) | ✅ First-class concepts | ⚠️ Workarounds via complex JSON | ⚠️ DIY modal layer code |
-| UI for tuning HRM (timings, per-key config) | ✅ KeyPath editor with live preview | ❌ JSON editing | ❌ Lua scripting |
-| Reliability at high typing speed | ✅ Matches QMK/ZMK semantics | ❌ Frequent misfires due to timeout-only detection | ⚠️ Depends on custom code quality |
-| Config readability | ✅ Kanata Lisp with comments + generated sections | ⚠️ Deep nested JSON | ⚠️ Arbitrary Lua |
-
-In short, Kanata on macOS gives you the same HRM semantics you'd expect from firmware, without needing to flash a keyboard. Karabiner and Hammerspoon can approximate HRM, but they lack the nuanced state tracking needed to avoid misfires under real typing workloads.
+**Hammerspoon** has the primitives to implement press-aware detection—it uses the same macOS event tap API as Kanata. But nobody has built and maintained a reliable HRM implementation. You'd be writing ~1000 lines of Lua state machine code and debugging edge cases that Kanata has already solved over years of community iteration. Theoretically possible; practically, you'd be reinventing the wheel.
 
 ### Where QMK/ZMK still go further
 
-Hardware firmware such as QMK and ZMK still have headroom KeyPath hasn’t reached yet: bilateral combos, hold-per-finger heuristics, and highly customized priority rules (see [this QMK deep dive](https://www.reddit.com/r/ErgoMechKeyboards/comments/1f18d8h/i_have_fixed_home_row_mods_in_qmk_for_everyone/)). Those projects can coordinate across thumb clusters, read matrix-level timing, and run combo detection before the OS ever sees a key. KeyPath’s HRM is firmware-grade for most workflows, but if you want experimental combo models or split-keyboard-specific logic, QMK/ZMK remains the bleeding edge. Our goal is to keep closing that gap while retaining a macOS-native UX.
+Hardware firmware such as QMK and ZMK still have headroom KeyPath hasn't reached yet: bilateral combos, hold-per-finger heuristics, and highly customized priority rules (see [this QMK deep dive](https://www.reddit.com/r/ErgoMechKeyboards/comments/1f18d8h/i_have_fixed_home_row_mods_in_qmk_for_everyone/)). Those projects can coordinate across thumb clusters, read matrix-level timing, and run combo detection before the OS ever sees a key. KeyPath's HRM is firmware-grade for most workflows, but if you want experimental combo models or split-keyboard-specific logic, QMK/ZMK remains the bleeding edge. Our goal is to keep closing that gap while retaining a macOS-native UX.
 
 **Learn more:**
 - [Home Row Mods Guide](https://precondition.github.io/home-row-mods) — The canonical introduction
