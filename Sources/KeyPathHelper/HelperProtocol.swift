@@ -67,12 +67,7 @@ import Foundation
         version: String, downloadURL: String, reply: @escaping (Bool, String?) -> Void
     )
 
-    /// Detect system requirements and install the correct VHID driver version
-    /// - Parameter reply: Completion handler with (success, errorMessage)
-    @available(*, deprecated, message: "Use installBundledVHIDDriver instead - no download needed")
-    func downloadAndInstallCorrectVHIDDriver(reply: @escaping (Bool, String?) -> Void)
-
-    /// Install VHID driver from a bundled .pkg file (no download required)
+    /// Install VHID driver from a bundled .pkg file (no network download required)
     /// - Parameters:
     ///   - pkgPath: Path to the bundled .pkg file in the app bundle
     ///   - reply: Completion handler with (success, errorMessage)

@@ -10,6 +10,7 @@ public enum ActionDispatchResult: Sendable {
     case unknownAction(String)
     case missingTarget(String)
     case failed(String, Error)
+    case pendingApproval
 }
 
 // MARK: - ActionDispatcher
@@ -17,13 +18,18 @@ public enum ActionDispatchResult: Sendable {
 /// Dispatches `keypath://` action URIs to their handlers.
 ///
 /// Supported actions:
-/// - `keypath://launch/{app}` - Launch application by name or bundle ID
+/// - `keypath://launch/{app}` - Launch application by name or bundle ID (requires first-time approval)
 /// - `keypath://layer/{name}` - Layer change feedback (logging for now)
 /// - `keypath://rule/{id}/fired` - Rule fired feedback
 /// - `keypath://notify?title=X&body=Y` - Show user notification
-/// - `keypath://open/{url}` - Open URL in default browser
+/// - `keypath://open/{url}` - Open URL in default browser (no approval needed)
 /// - `keypath://fakekey/{name}/{action}` - Trigger Kanata virtual key (tap/press/release/toggle)
 /// - `keypath://system/{action}` - Trigger macOS system actions (mission-control, spotlight, dictation, dnd, launchpad, siri)
+///
+/// ## Security: App Launch Approval
+/// The `launch` action requires user approval the first time each app is requested.
+/// This prevents malicious links from silently launching applications.
+/// Approvals are persisted and remembered for subsequent launches.
 @MainActor
 public final class ActionDispatcher {
     // MARK: - Singleton
@@ -41,9 +47,182 @@ public final class ActionDispatcher {
     /// Called when a rule-related action is received
     public var onRuleAction: ((String, [String]) -> Void)?
 
+    // MARK: - App Launch Approval Storage
+
+    /// UserDefaults key for storing approved app identifiers
+    private static let approvedAppsKey = "KeyPath.ApprovedLaunchApps"
+
+    /// UserDefaults key for the "trust all apps" bypass setting
+    private static let trustAllAppsKey = "KeyPath.TrustAllLaunchApps"
+
+    /// In-memory cache of approved apps (loaded from UserDefaults)
+    private var approvedApps: Set<String>
+
+    /// When true, all app launches are allowed without prompting
+    private var trustAllApps: Bool
+
+    /// Test seam: When true, bypasses approval dialogs (for unit tests)
+    /// This prevents modal dialogs from blocking test execution
+    nonisolated(unsafe) static var skipApprovalForTests: Bool = false
+
     // MARK: - Initialization
 
-    private init() {}
+    private init() {
+        // Load approved apps from UserDefaults
+        let stored = UserDefaults.standard.stringArray(forKey: Self.approvedAppsKey) ?? []
+        approvedApps = Set(stored)
+        trustAllApps = UserDefaults.standard.bool(forKey: Self.trustAllAppsKey)
+        AppLogger.shared.log("🔐 [ActionDispatcher] Loaded \(approvedApps.count) approved launch apps, trustAll=\(trustAllApps)")
+    }
+
+    // MARK: - App Approval Management
+
+    /// Check if an app has been approved for launching via URL scheme
+    private func isAppApproved(_ appIdentifier: String) -> Bool {
+        // If user has enabled "trust all apps", always approve
+        if trustAllApps {
+            return true
+        }
+        let normalized = appIdentifier.lowercased()
+        return approvedApps.contains(normalized)
+    }
+
+    /// Mark an app as approved for future launches
+    private func approveApp(_ appIdentifier: String) {
+        let normalized = appIdentifier.lowercased()
+        approvedApps.insert(normalized)
+        UserDefaults.standard.set(Array(approvedApps), forKey: Self.approvedAppsKey)
+        AppLogger.shared.log("✅ [ActionDispatcher] Approved app for future launches: \(appIdentifier)")
+    }
+
+    /// Enable "trust all apps" mode - bypass all future approval checks
+    private func enableTrustAllApps() {
+        trustAllApps = true
+        UserDefaults.standard.set(true, forKey: Self.trustAllAppsKey)
+        AppLogger.shared.log("🔓 [ActionDispatcher] Trust all apps enabled - no future prompts")
+    }
+
+    /// Resolve app display name and icon from identifier
+    private func resolveAppInfo(_ appIdentifier: String) -> (displayName: String, icon: NSImage?, path: String?) {
+        let workspace = NSWorkspace.shared
+
+        // Try bundle identifier first
+        if let appURL = workspace.urlForApplication(withBundleIdentifier: appIdentifier) {
+            let icon = workspace.icon(forFile: appURL.path)
+            let displayName = FileManager.default.displayName(atPath: appURL.path)
+                .replacingOccurrences(of: ".app", with: "")
+            return (displayName, icon, appURL.path)
+        }
+
+        // Try common paths
+        let appName = appIdentifier.hasSuffix(".app") ? appIdentifier : "\(appIdentifier).app"
+        let commonPaths = [
+            "/Applications/\(appName)",
+            "/System/Applications/\(appName)",
+            "\(NSHomeDirectory())/Applications/\(appName)"
+        ]
+
+        for path in commonPaths {
+            if FileManager.default.fileExists(atPath: path) {
+                let icon = workspace.icon(forFile: path)
+                let displayName = FileManager.default.displayName(atPath: path)
+                    .replacingOccurrences(of: ".app", with: "")
+                return (displayName, icon, path)
+            }
+        }
+
+        // Fallback: use identifier as display name, no icon
+        let displayName = appIdentifier
+            .replacingOccurrences(of: ".app", with: "")
+            .split(separator: ".")
+            .last
+            .map(String.init) ?? appIdentifier
+        return (displayName.capitalized, nil, nil)
+    }
+
+    /// Show approval dialog for first-time app launch
+    /// - Returns: true if user approved, false if denied
+    private func requestAppLaunchApproval(for appIdentifier: String) -> Bool {
+        let (displayName, appIcon, _) = resolveAppInfo(appIdentifier)
+
+        let alert = NSAlert()
+        alert.messageText = "Allow KeyPath to Launch \(displayName)?"
+        alert.informativeText = """
+            A keyboard shortcut wants to open \(displayName).
+
+            This is a one-time prompt. If you allow it, KeyPath will remember your choice and won't ask about \(displayName) again.
+            """
+        alert.alertStyle = .warning
+
+        // Set the app icon (or a default)
+        if let icon = appIcon {
+            // Scale icon to appropriate size for alert
+            let scaledIcon = NSImage(size: NSSize(width: 64, height: 64))
+            scaledIcon.lockFocus()
+            icon.draw(in: NSRect(x: 0, y: 0, width: 64, height: 64),
+                      from: .zero,
+                      operation: .sourceOver,
+                      fraction: 1.0)
+            scaledIcon.unlockFocus()
+            alert.icon = scaledIcon
+        } else {
+            // Use a generic app icon
+            alert.icon = NSImage(systemSymbolName: "app.badge.checkmark", accessibilityDescription: "Application")
+        }
+
+        // Add buttons
+        alert.addButton(withTitle: "Allow")
+        alert.addButton(withTitle: "Don't Allow")
+
+        // Add "Trust all apps" checkbox
+        let checkbox = NSButton(checkboxWithTitle: "Always allow launching apps (skip future prompts)", target: nil, action: nil)
+        checkbox.state = .off
+        alert.accessoryView = checkbox
+
+        let response = alert.runModal()
+        let allowed = response == .alertFirstButtonReturn
+
+        // If checkbox is checked and user clicked Allow, enable trust all
+        if allowed && checkbox.state == .on {
+            enableTrustAllApps()
+        }
+
+        return allowed
+    }
+
+    /// Clear all app approvals (for settings/reset functionality)
+    public func clearAllAppApprovals() {
+        approvedApps.removeAll()
+        trustAllApps = false
+        UserDefaults.standard.removeObject(forKey: Self.approvedAppsKey)
+        UserDefaults.standard.removeObject(forKey: Self.trustAllAppsKey)
+        AppLogger.shared.log("🗑️ [ActionDispatcher] Cleared all app launch approvals and trust-all setting")
+    }
+
+    /// Get list of approved apps (for settings UI)
+    public func getApprovedApps() -> [String] {
+        Array(approvedApps).sorted()
+    }
+
+    /// Check if "trust all apps" is enabled
+    public func isTrustAllAppsEnabled() -> Bool {
+        trustAllApps
+    }
+
+    /// Set the "trust all apps" setting (for settings UI)
+    public func setTrustAllApps(_ enabled: Bool) {
+        trustAllApps = enabled
+        UserDefaults.standard.set(enabled, forKey: Self.trustAllAppsKey)
+        AppLogger.shared.log(enabled ? "🔓 [ActionDispatcher] Trust all apps enabled" : "🔒 [ActionDispatcher] Trust all apps disabled")
+    }
+
+    /// Revoke approval for a specific app
+    public func revokeAppApproval(_ appIdentifier: String) {
+        let normalized = appIdentifier.lowercased()
+        approvedApps.remove(normalized)
+        UserDefaults.standard.set(Array(approvedApps), forKey: Self.approvedAppsKey)
+        AppLogger.shared.log("🚫 [ActionDispatcher] Revoked approval for: \(appIdentifier)")
+    }
 
     // MARK: - Dispatch
 
@@ -92,12 +271,37 @@ public final class ActionDispatcher {
 
     /// Launch an application by name or bundle ID
     /// Format: keypath://launch/{app-name-or-bundle-id}
+    ///
+    /// **Security:** First-time launches require user approval. Once approved,
+    /// subsequent launches of the same app proceed without prompting.
     private func handleLaunch(_ uri: KeyPathActionURI) -> ActionDispatchResult {
         guard let appIdentifier = uri.target else {
             let message = "launch action requires app name: keypath://launch/{app}"
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
             onError?(message)
             return .missingTarget("launch")
+        }
+
+        // Security: Check if this app has been approved for launching
+        // Skip approval check during tests to avoid blocking modal dialogs
+        let shouldCheckApproval = !Self.skipApprovalForTests && !TestEnvironment.isRunningTests
+
+        if shouldCheckApproval, !isAppApproved(appIdentifier) {
+            AppLogger.shared.log("🔐 [ActionDispatcher] First-time launch request for: \(appIdentifier)")
+
+            // Show approval dialog
+            let approved = requestAppLaunchApproval(for: appIdentifier)
+
+            if approved {
+                approveApp(appIdentifier)
+            } else {
+                let message = "Launch denied: \(appIdentifier) - user declined first-time approval"
+                AppLogger.shared.log("🚫 [ActionDispatcher] \(message)")
+                onError?("Launch of \(appIdentifier) was denied")
+                return .failed("launch", NSError(domain: "ActionDispatcher", code: 403, userInfo: [
+                    NSLocalizedDescriptionKey: "User denied launch approval"
+                ]))
+            }
         }
 
         AppLogger.shared.log("🚀 [ActionDispatcher] Launching app: \(appIdentifier)")

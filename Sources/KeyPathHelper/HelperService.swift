@@ -16,36 +16,92 @@ class HelperService: NSObject, HelperProtocol {
     // MARK: - Version Management
 
     func getVersion(reply: @escaping (String?, String?) -> Void) {
-        NSLog("[KeyPathHelper] getVersion requested")
-        logger.info("getVersion requested")
-
-        // Log thread/queue info
-        let threadName = Thread.current.isMainThread ? "main" : "background"
-        NSLog("[KeyPathHelper] getVersion executing on \(threadName) thread")
-        logger.info("getVersion executing on \(threadName) thread")
-
-        // Call reply and log it
-        NSLog("[KeyPathHelper] Calling reply with version: \(Self.version)")
-        logger.info("Calling reply with version: \(Self.version)")
+        logger.info("getVersion: \(Self.version)")
         reply(Self.version, nil)
-        NSLog("[KeyPathHelper] Reply callback completed")
-        logger.info("Reply callback completed")
     }
 
     // MARK: - LaunchDaemon Operations
 
+    /// Allowed path prefixes for plist files (security: defense in depth)
+    /// Even though XPC requires code signature match, we validate paths to limit
+    /// damage if KeyPath.app itself were ever compromised.
+    private static let allowedPlistPathPrefixes: [String] = [
+        "/Applications/KeyPath.app/",
+        NSHomeDirectory() + "/Applications/KeyPath.app/",
+        // System temp directories used during installation
+        "/private/var/folders/",
+        "/var/folders/"
+    ]
+
+    /// Allowed service ID prefix (security: only install KeyPath's own services)
+    private static let allowedServiceIDPrefix = "com.keypath."
+
     func installLaunchDaemon(
         plistPath: String, serviceID: String, reply: @escaping (Bool, String?) -> Void
     ) {
-        NSLog("[KeyPathHelper] installLaunchDaemon requested: \(serviceID)")
         executePrivilegedOperation(
-            name: "installLaunchDaemon",
+            name: "installLaunchDaemon(\(serviceID))",
             operation: {
                 let fm = FileManager.default
                 let dest = "/Library/LaunchDaemons/\(serviceID).plist"
 
+                // SECURITY: Validate service ID prefix
+                guard serviceID.hasPrefix(Self.allowedServiceIDPrefix) else {
+                    self.logger.error("SECURITY: Rejected service ID '\(serviceID)' - must start with '\(Self.allowedServiceIDPrefix)'")
+                    throw HelperError.invalidArgument(
+                        "Invalid service ID: must start with '\(Self.allowedServiceIDPrefix)'"
+                    )
+                }
+
+                // SECURITY: Validate plist path prefix
+                let normalizedPath = (plistPath as NSString).standardizingPath
+                let isAllowedPath = Self.allowedPlistPathPrefixes.contains { prefix in
+                    normalizedPath.hasPrefix(prefix)
+                }
+                guard isAllowedPath else {
+                    self.logger.error("SECURITY: Rejected plist path '\(plistPath)' - not in allowed locations")
+                    throw HelperError.invalidArgument(
+                        "Invalid plist path: must be within KeyPath.app bundle or system temp directory"
+                    )
+                }
+
                 guard fm.fileExists(atPath: plistPath) else {
                     throw HelperError.invalidArgument("plist not found: \(plistPath)")
+                }
+
+                // SECURITY: Validate plist is a valid launchd configuration
+                guard let plistData = fm.contents(atPath: plistPath),
+                      let plist = try? PropertyListSerialization.propertyList(
+                          from: plistData,
+                          options: [],
+                          format: nil
+                      ) as? [String: Any]
+                else {
+                    self.logger.error("SECURITY: Rejected plist - not a valid property list dictionary")
+                    throw HelperError.invalidArgument("Invalid plist: must be a valid property list dictionary")
+                }
+
+                // SECURITY: Verify plist has required launchd keys
+                guard let label = plist["Label"] as? String else {
+                    self.logger.error("SECURITY: Rejected plist - missing 'Label' key")
+                    throw HelperError.invalidArgument("Invalid plist: missing required 'Label' key")
+                }
+
+                // SECURITY: Verify Label matches the requested serviceID
+                guard label == serviceID else {
+                    self.logger.error("SECURITY: Rejected plist - Label '\(label)' doesn't match serviceID '\(serviceID)'")
+                    throw HelperError.invalidArgument(
+                        "Invalid plist: Label '\(label)' doesn't match requested service ID '\(serviceID)'"
+                    )
+                }
+
+                // SECURITY: Verify plist has Program or ProgramArguments
+                let hasProgram = plist["Program"] != nil || plist["ProgramArguments"] != nil || plist["BundleProgram"] != nil
+                guard hasProgram else {
+                    self.logger.error("SECURITY: Rejected plist - missing Program/ProgramArguments/BundleProgram")
+                    throw HelperError.invalidArgument(
+                        "Invalid plist: must contain 'Program', 'ProgramArguments', or 'BundleProgram'"
+                    )
                 }
 
                 // Ensure destination dir exists
@@ -68,12 +124,9 @@ class HelperService: NSObject, HelperProtocol {
                             with: "/Library/KeyPath/bin/kanata"
                         )
                         try rewritten.write(toFile: dest, atomically: true, encoding: .utf8)
-                        NSLog("[KeyPathHelper] Rewrote bundled kanata path to system path in \(dest)")
                     }
                 } catch {
-                    NSLog(
-                        "[KeyPathHelper] Warning: failed to validate/rewrite kanata path in plist: \(error.localizedDescription)"
-                    )
+                    self.logger.warning("Failed to validate/rewrite kanata path in plist: \(error.localizedDescription)")
                 }
 
                 // Bootstrap (idempotent), then enable and kickstart
@@ -91,7 +144,6 @@ class HelperService: NSObject, HelperProtocol {
     }
 
     func restartUnhealthyServices(reply: @escaping (Bool, String?) -> Void) {
-        NSLog("[KeyPathHelper] restartUnhealthyServices requested")
         executePrivilegedOperation(
             name: "restartUnhealthyServices",
             operation: {
@@ -111,7 +163,6 @@ class HelperService: NSObject, HelperProtocol {
                 }
 
                 if needsInstall {
-                    NSLog("[KeyPathHelper] VirtualHID services missing - reinstalling via helper")
                     try Self.installOrRepairVHIDServices()
                     return
                 }
@@ -126,7 +177,6 @@ class HelperService: NSObject, HelperProtocol {
     }
 
     func regenerateServiceConfiguration(reply: @escaping (Bool, String?) -> Void) {
-        NSLog("[KeyPathHelper] regenerateServiceConfiguration requested")
         executePrivilegedOperation(
             name: "regenerateServiceConfiguration",
             operation: {
@@ -139,7 +189,6 @@ class HelperService: NSObject, HelperProtocol {
     }
 
     func installLogRotation(reply: @escaping (Bool, String?) -> Void) {
-        NSLog("[KeyPathHelper] installLogRotation requested")
         executePrivilegedOperation(
             name: "installLogRotation",
             operation: {
@@ -177,7 +226,6 @@ class HelperService: NSObject, HelperProtocol {
     }
 
     func repairVHIDDaemonServices(reply: @escaping (Bool, String?) -> Void) {
-        NSLog("[KeyPathHelper] repairVHIDDaemonServices requested")
         executePrivilegedOperation(
             name: "repairVHIDDaemonServices",
             operation: {
@@ -188,7 +236,6 @@ class HelperService: NSObject, HelperProtocol {
     }
 
     func installLaunchDaemonServicesWithoutLoading(reply: @escaping (Bool, String?) -> Void) {
-        NSLog("[KeyPathHelper] installLaunchDaemonServicesWithoutLoading requested")
         executePrivilegedOperation(
             name: "installLaunchDaemonServicesWithoutLoading",
             operation: {
@@ -223,7 +270,6 @@ class HelperService: NSObject, HelperProtocol {
     // MARK: - VirtualHID Operations
 
     func activateVirtualHIDManager(reply: @escaping (Bool, String?) -> Void) {
-        NSLog("[KeyPathHelper] activateVirtualHIDManager requested")
         executePrivilegedOperation(
             name: "activateVirtualHIDManager",
             operation: {
@@ -239,7 +285,6 @@ class HelperService: NSObject, HelperProtocol {
     }
 
     func uninstallVirtualHIDDrivers(reply: @escaping (Bool, String?) -> Void) {
-        NSLog("[KeyPathHelper] uninstallVirtualHIDDrivers requested")
         executePrivilegedOperation(
             name: "uninstallVirtualHIDDrivers",
             operation: {
@@ -251,11 +296,9 @@ class HelperService: NSObject, HelperProtocol {
                         "uninstall", Self.karabinerTeamID, Self.karabinerDriverBundleID
                     ]
                 )
+                // Non-zero status is not fatal; can fail if not installed or requires user approval
                 if u.status != 0 {
-                    // Not fatal; this can fail if not installed or requires user approval
-                    NSLog(
-                        "[KeyPathHelper] uninstallVirtualHIDDrivers non-zero status: %d: %@", u.status, u.out
-                    )
+                    self.logger.info("uninstallVirtualHIDDrivers non-zero status: \(u.status)")
                 }
                 usleep(500_000)
             },
@@ -266,9 +309,8 @@ class HelperService: NSObject, HelperProtocol {
     func installVirtualHIDDriver(
         version: String, downloadURL: String, reply: @escaping (Bool, String?) -> Void
     ) {
-        NSLog("[KeyPathHelper] installVirtualHIDDriver requested: v\(version) from \(downloadURL)")
         executePrivilegedOperation(
-            name: "installVirtualHIDDriver",
+            name: "installVirtualHIDDriver(v\(version))",
             operation: {
                 let tmp = NSTemporaryDirectory()
                 let pkg = (tmp as NSString).appendingPathComponent("Karabiner-VirtualHID-\(version).pkg")
@@ -282,31 +324,7 @@ class HelperService: NSObject, HelperProtocol {
                 // Activate after install
                 let a = Self.run(Self.vhidManagerPath, ["activate"])
                 if a.status != 0 {
-                    NSLog("[KeyPathHelper] Warning: activate returned %d: %@", a.status, a.out)
-                }
-            },
-            reply: reply
-        )
-    }
-
-    func downloadAndInstallCorrectVHIDDriver(reply: @escaping (Bool, String?) -> Void) {
-        NSLog("[KeyPathHelper] downloadAndInstallCorrectVHIDDriver requested (deprecated - use installBundledVHIDDriver)")
-        executePrivilegedOperation(
-            name: "downloadAndInstallCorrectVHIDDriver",
-            operation: {
-                let version = Self.requiredVHIDVersion
-                let url =
-                    "https://github.com/pqrs-org/Karabiner-DriverKit-VirtualHIDDevice/releases/download/v\(version)/Karabiner-DriverKit-VirtualHIDDevice-\(version).pkg"
-                let tmp = NSTemporaryDirectory()
-                let pkg = (tmp as NSString).appendingPathComponent("Karabiner-VirtualHID-\(version).pkg")
-                let d = Self.run("/usr/bin/curl", ["-L", "-f", "-o", pkg, url])
-                if d.status != 0 { throw HelperError.operationFailed("Download failed: \(d.out)") }
-                let i = Self.run("/usr/sbin/installer", ["-pkg", pkg, "-target", "/"])
-                _ = try? FileManager.default.removeItem(atPath: pkg)
-                if i.status != 0 { throw HelperError.operationFailed("Installer failed: \(i.out)") }
-                let a = Self.run(Self.vhidManagerPath, ["activate"])
-                if a.status != 0 {
-                    NSLog("[KeyPathHelper] Warning: activate returned %d: %@", a.status, a.out)
+                    self.logger.warning("VHID activate returned \(a.status)")
                 }
             },
             reply: reply
@@ -314,7 +332,6 @@ class HelperService: NSObject, HelperProtocol {
     }
 
     func installBundledVHIDDriver(pkgPath: String, reply: @escaping (Bool, String?) -> Void) {
-        NSLog("[KeyPathHelper] installBundledVHIDDriver requested: %@", pkgPath)
         executePrivilegedOperation(
             name: "installBundledVHIDDriver",
             operation: {
@@ -324,17 +341,16 @@ class HelperService: NSObject, HelperProtocol {
                 }
                 // Security: Only allow .pkg files from KeyPath.app bundle
                 guard pkgPath.contains("/KeyPath.app/"), pkgPath.hasSuffix(".pkg") else {
+                    self.logger.error("SECURITY: Invalid pkg path - must be within KeyPath.app bundle")
                     throw HelperError.operationFailed("Invalid pkg path - must be within KeyPath.app bundle")
                 }
-                NSLog("[KeyPathHelper] Installing VHID driver from bundled pkg: %@", pkgPath)
                 let i = Self.run("/usr/sbin/installer", ["-pkg", pkgPath, "-target", "/"])
                 if i.status != 0 { throw HelperError.operationFailed("Installer failed: \(i.out)") }
                 // Activate after install
                 let a = Self.run(Self.vhidManagerPath, ["activate"])
                 if a.status != 0 {
-                    NSLog("[KeyPathHelper] Warning: activate returned %d: %@", a.status, a.out)
+                    self.logger.warning("VHID activate returned \(a.status)")
                 }
-                NSLog("[KeyPathHelper] VHID driver installed successfully from bundled pkg")
             },
             reply: reply
         )
@@ -388,24 +404,20 @@ class HelperService: NSObject, HelperProtocol {
     // MARK: - Process Management
 
     func terminateProcess(_ pid: Int32, reply: @escaping (Bool, String?) -> Void) {
-        NSLog("[KeyPathHelper] terminateProcess(\(pid)) requested")
         executePrivilegedOperation(
-            name: "terminateProcess",
+            name: "terminateProcess(\(pid))",
             operation: {
-                // Implement process termination
                 let result = kill(pid, SIGTERM)
                 if result != 0 {
                     throw HelperError.operationFailed(
                         "Failed to terminate process \(pid): \(String(cString: strerror(errno)))")
                 }
-                NSLog("[KeyPathHelper] Successfully terminated process \(pid)")
             },
             reply: reply
         )
     }
 
     func killAllKanataProcesses(reply: @escaping (Bool, String?) -> Void) {
-        NSLog("[KeyPathHelper] killAllKanataProcesses requested")
         executePrivilegedOperation(
             name: "killAllKanataProcesses",
             operation: {
@@ -419,7 +431,6 @@ class HelperService: NSObject, HelperProtocol {
     }
 
     func restartKarabinerDaemon(reply: @escaping (Bool, String?) -> Void) {
-        NSLog("[KeyPathHelper] restartKarabinerDaemon requested")
         executePrivilegedOperation(
             name: "restartKarabinerDaemon",
             operation: {
@@ -433,7 +444,6 @@ class HelperService: NSObject, HelperProtocol {
     // MARK: - Karabiner Conflict Management
 
     func disableKarabinerGrabber(reply: @escaping (Bool, String?) -> Void) {
-        NSLog("[KeyPathHelper] disableKarabinerGrabber requested")
         executePrivilegedOperation(
             name: "disableKarabinerGrabber",
             operation: {
@@ -484,7 +494,6 @@ class HelperService: NSObject, HelperProtocol {
     // MARK: - Bundled Kanata Installation
 
     func installBundledKanataBinaryOnly(reply: @escaping (Bool, String?) -> Void) {
-        NSLog("[KeyPathHelper] installBundledKanataBinaryOnly requested")
         executePrivilegedOperation(
             name: "installBundledKanataBinaryOnly",
             operation: {
@@ -512,77 +521,55 @@ class HelperService: NSObject, HelperProtocol {
     // MARK: - Uninstall Operations
 
     func uninstallKeyPath(deleteConfig: Bool, reply: @escaping (Bool, String?) -> Void) {
-        NSLog("[KeyPathHelper] uninstallKeyPath requested (deleteConfig: \(deleteConfig))")
+        logger.info("uninstallKeyPath (deleteConfig: \(deleteConfig))")
         // Custom handling: send reply BEFORE self-destruct so XPC doesn't break
         do {
             try Self.performUninstallExceptSelfDestruct(deleteConfig: deleteConfig)
-            NSLog("[KeyPathHelper] ✅ uninstallKeyPath succeeded (sending reply before self-destruct)")
+            logger.info("uninstallKeyPath succeeded")
             reply(true, nil)
             // Now self-destruct after reply is sent
             Self.selfDestruct()
         } catch let error as HelperError {
-            NSLog("[KeyPathHelper] ❌ uninstallKeyPath failed: \(error.localizedDescription)")
+            logger.error("uninstallKeyPath failed: \(error.localizedDescription)")
             reply(false, error.localizedDescription)
         } catch {
-            NSLog("[KeyPathHelper] ❌ uninstallKeyPath failed: \(error.localizedDescription)")
+            logger.error("uninstallKeyPath failed: \(error.localizedDescription)")
             reply(false, error.localizedDescription)
         }
     }
 
     /// Perform uninstall except for self-destruct (so we can send XPC reply first)
     private static func performUninstallExceptSelfDestruct(deleteConfig: Bool) throws {
-        NSLog("[KeyPathHelper] Starting uninstall sequence...")
-
         // 1. Stop and unload LaunchDaemons
-        NSLog("[KeyPathHelper] Step 1: Stopping LaunchDaemons...")
         stopAndUnloadDaemons()
-
         // 2. Remove LaunchDaemon plist files
-        NSLog("[KeyPathHelper] Step 2: Removing LaunchDaemon plists...")
         removeLaunchDaemonPlists()
-
         // 3. Remove system kanata binary
-        NSLog("[KeyPathHelper] Step 3: Removing system kanata binary...")
         removeSystemKanataBinary()
-
         // 4. Remove /usr/local/etc/kanata config directory (legacy)
-        NSLog("[KeyPathHelper] Step 4: Removing legacy config directory...")
         removeLegacyConfigDirectory()
-
         // 5. Remove log files
-        NSLog("[KeyPathHelper] Step 5: Removing log files...")
         removeLogFiles()
-
         // 6. Remove user data (preserving or deleting config based on flag)
-        NSLog("[KeyPathHelper] Step 6: Removing user data (deleteConfig: \(deleteConfig))...")
         removeUserData(deleteConfig: deleteConfig)
-
         // 7. Remove the app bundle from /Applications
         // macOS allows deleting a running app - the binary stays in memory
         // The app will terminate itself after this helper call returns
-        NSLog("[KeyPathHelper] Step 7: Removing app bundle...")
         removeAppBundle()
-
-        NSLog("[KeyPathHelper] Uninstall steps 1-7 completed (self-destruct pending)")
     }
 
     /// Self-destruct: remove helper binary and boot out service
     /// Called AFTER XPC reply is sent to avoid breaking the connection
     private static func selfDestruct() {
-        NSLog("[KeyPathHelper] Step 8: Self-destructing (removing privileged helper)...")
         removePrivilegedHelper()
-        NSLog("[KeyPathHelper] Uninstall sequence completed successfully")
     }
 
     private static func stopAndUnloadDaemons() {
         let daemons = [kanataServiceID, vhidDaemonServiceID, vhidManagerServiceID]
         for daemon in daemons {
-            // Try to stop gracefully first
             _ = run("/bin/launchctl", ["kill", "TERM", "system/\(daemon)"])
-            usleep(500_000) // 0.5 second
-            // Bootout (unload)
+            usleep(500_000)
             _ = run("/bin/launchctl", ["bootout", "system/\(daemon)"])
-            NSLog("[KeyPathHelper] Stopped/unloaded: \(daemon)")
         }
     }
 
@@ -597,7 +584,6 @@ class HelperService: NSObject, HelperProtocol {
         for plist in plists {
             if FileManager.default.fileExists(atPath: plist) {
                 _ = run("/bin/rm", ["-f", plist])
-                NSLog("[KeyPathHelper] Removed plist: \(plist)")
             }
         }
     }
@@ -606,9 +592,7 @@ class HelperService: NSObject, HelperProtocol {
         let kanataPath = "/Library/KeyPath/bin/kanata"
         if FileManager.default.fileExists(atPath: kanataPath) {
             _ = run("/bin/rm", ["-f", kanataPath])
-            NSLog("[KeyPathHelper] Removed: \(kanataPath)")
         }
-        // Clean up empty directories
         _ = run("/bin/rmdir", ["/Library/KeyPath/bin"])
         _ = run("/bin/rmdir", ["/Library/KeyPath"])
     }
@@ -617,7 +601,6 @@ class HelperService: NSObject, HelperProtocol {
         let configDir = "/usr/local/etc/kanata"
         if FileManager.default.fileExists(atPath: configDir) {
             _ = run("/bin/rm", ["-rf", configDir])
-            NSLog("[KeyPathHelper] Removed legacy config: \(configDir)")
         }
     }
 
@@ -634,32 +617,23 @@ class HelperService: NSObject, HelperProtocol {
         for log in logs {
             if FileManager.default.fileExists(atPath: log) {
                 _ = run("/bin/rm", ["-f", log])
-                NSLog("[KeyPathHelper] Removed log: \(log)")
             }
         }
     }
 
     private static func removeUserData(deleteConfig: Bool) {
-        guard let info = consoleUserInfo() else {
-            NSLog("[KeyPathHelper] Could not determine console user; skipping user data cleanup")
-            return
-        }
+        guard let info = consoleUserInfo() else { return }
 
         let home = info.home
         let user = info.name
 
-        // User config (only if deleteConfig is true)
         if deleteConfig {
             let configPath = "\(home)/.config/keypath"
             if FileManager.default.fileExists(atPath: configPath) {
                 _ = run("/bin/rm", ["-rf", configPath])
-                NSLog("[KeyPathHelper] Removed user config: \(configPath)")
             }
-        } else {
-            NSLog("[KeyPathHelper] Preserving user config at \(home)/.config/keypath")
         }
 
-        // Application Support and Logs
         let userPaths = [
             "\(home)/Library/Application Support/KeyPath",
             "\(home)/Library/Logs/KeyPath"
@@ -667,11 +641,9 @@ class HelperService: NSObject, HelperProtocol {
         for path in userPaths {
             if FileManager.default.fileExists(atPath: path) {
                 _ = run("/bin/rm", ["-rf", path])
-                NSLog("[KeyPathHelper] Removed: \(path)")
             }
         }
 
-        // Preference plists
         let prefsDir = "\(home)/Library/Preferences"
         let prefFiles = [
             "\(prefsDir)/com.keypath.KeyPath.plist",
@@ -680,33 +652,20 @@ class HelperService: NSObject, HelperProtocol {
         for pref in prefFiles {
             if FileManager.default.fileExists(atPath: pref) {
                 _ = run("/bin/rm", ["-f", pref])
-                NSLog("[KeyPathHelper] Removed pref: \(pref)")
             }
         }
 
-        // Kill cfprefsd to flush preference cache for user
         _ = run("/usr/bin/killall", ["-u", user, "cfprefsd"])
     }
 
     private static func removeAppBundle() {
         let appPath = "/Applications/KeyPath.app"
         if FileManager.default.fileExists(atPath: appPath) {
-            // Use rm -rf to remove the entire app bundle
-            // macOS allows this even while the app is running - the binary stays in memory
-            let result = run("/bin/rm", ["-rf", appPath])
-            if result.status == 0 {
-                NSLog("[KeyPathHelper] Removed app bundle: \(appPath)")
-            } else {
-                NSLog("[KeyPathHelper] Warning: Could not remove app bundle: \(result.out)")
-            }
-        } else {
-            NSLog("[KeyPathHelper] App bundle not found at \(appPath)")
+            _ = run("/bin/rm", ["-rf", appPath])
         }
     }
 
     private static func removePrivilegedHelper() {
-        // Remove the helper binary and plist
-        // Note: We're currently running, but macOS keeps us in memory
         let helperPaths = [
             "/Library/PrivilegedHelperTools/com.keypath.helper",
             "/Library/LaunchDaemons/com.keypath.helper.plist"
@@ -714,21 +673,14 @@ class HelperService: NSObject, HelperProtocol {
         for path in helperPaths {
             if FileManager.default.fileExists(atPath: path) {
                 _ = run("/bin/rm", ["-f", path])
-                NSLog("[KeyPathHelper] Removed: \(path)")
             }
         }
-        // Bootout the helper service (this won't kill us immediately since we're mid-call)
         _ = run("/bin/launchctl", ["bootout", "system/com.keypath.helper"])
-        NSLog("[KeyPathHelper] Helper service booted out")
     }
 
     // MARK: - Helper Methods
 
     /// Execute a privileged operation with error handling
-    /// - Parameters:
-    ///   - name: Operation name for logging
-    ///   - operation: The operation to execute (can throw)
-    ///   - reply: Completion handler to call with result
     private func executePrivilegedOperation(
         name: String,
         operation: () throws -> Void,
@@ -736,18 +688,13 @@ class HelperService: NSObject, HelperProtocol {
     ) {
         do {
             try operation()
-            NSLog("[KeyPathHelper] ✅ \(name) succeeded")
             logger.info("\(name, privacy: .public) succeeded")
             reply(true, nil)
         } catch let error as HelperError {
-            NSLog("[KeyPathHelper] ❌ \(name) failed: \(error.localizedDescription)")
-            logger.error(
-                "\(name, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
+            logger.error("\(name, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
             reply(false, error.localizedDescription)
         } catch {
-            NSLog("[KeyPathHelper] ❌ \(name) failed: \(error.localizedDescription)")
-            logger.error(
-                "\(name, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
+            logger.error("\(name, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
             reply(false, error.localizedDescription)
         }
     }
@@ -786,14 +733,10 @@ extension HelperService {
             let dstHash = run("/sbin/md5", ["-q", dst]).out.trimmingCharacters(
                 in: .whitespacesAndNewlines)
             if !srcHash.isEmpty, srcHash == dstHash {
-                NSLog("[KeyPathHelper] Skipping copy; kanata unchanged (")
-                return false
+                return false // unchanged
             }
         }
         let cp = run("/bin/cp", ["-f", src, dst])
-        if cp.status != 0 {
-            NSLog("[KeyPathHelper] copyIfDifferent: cp failed: \(cp.out)")
-        }
         return cp.status == 0
     }
 
@@ -960,8 +903,7 @@ extension HelperService {
 
     private static func ensureConsoleUserConfigArtifacts() throws {
         guard let info = consoleUserInfo() else {
-            NSLog("[KeyPathHelper] Unable to determine console user; skipping config scaffolding")
-            return
+            return // Cannot determine console user
         }
 
         let configDir = "\(info.home)/.config/keypath"

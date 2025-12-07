@@ -53,8 +53,8 @@ final class StubPrivilegedOperationsCoordinator: PrivilegedOperationsCoordinatin
         try record("repairVHIDDaemonServices")
     }
 
-    func downloadAndInstallCorrectVHIDDriver() async throws {
-        try record("downloadAndInstallCorrectVHIDDriver")
+    func installCorrectVHIDDriver() async throws {
+        try record("installCorrectVHIDDriver")
     }
 
     func installBundledKanata() async throws {

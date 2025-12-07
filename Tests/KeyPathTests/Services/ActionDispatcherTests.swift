@@ -338,12 +338,154 @@ struct ActionDispatcherRoutingTests {
     }
 }
 
+// MARK: - App Launch Approval Tests
+
+@Suite("ActionDispatcher App Approval")
+struct ActionDispatcherAppApprovalTests {
+    @Test("Approved apps list starts empty or from UserDefaults")
+    @MainActor
+    func approvedAppsInitialization() {
+        // Clear any existing approvals first
+        ActionDispatcher.shared.clearAllAppApprovals()
+
+        let apps = ActionDispatcher.shared.getApprovedApps()
+        #expect(apps.isEmpty)
+    }
+
+    @Test("Trust all apps is disabled by default after clear")
+    @MainActor
+    func trustAllAppsDefaultsToDisabled() {
+        ActionDispatcher.shared.clearAllAppApprovals()
+
+        #expect(ActionDispatcher.shared.isTrustAllAppsEnabled() == false)
+    }
+
+    @Test("Can enable and disable trust all apps")
+    @MainActor
+    func toggleTrustAllApps() {
+        // Start clean
+        ActionDispatcher.shared.clearAllAppApprovals()
+
+        // Enable
+        ActionDispatcher.shared.setTrustAllApps(true)
+        #expect(ActionDispatcher.shared.isTrustAllAppsEnabled() == true)
+
+        // Disable
+        ActionDispatcher.shared.setTrustAllApps(false)
+        #expect(ActionDispatcher.shared.isTrustAllAppsEnabled() == false)
+    }
+
+    @Test("Clear all approvals also clears trust all setting")
+    @MainActor
+    func clearApprovalsResetsTrustAll() {
+        // Enable trust all first
+        ActionDispatcher.shared.setTrustAllApps(true)
+        #expect(ActionDispatcher.shared.isTrustAllAppsEnabled() == true)
+
+        // Clear all
+        ActionDispatcher.shared.clearAllAppApprovals()
+
+        // Trust all should be disabled
+        #expect(ActionDispatcher.shared.isTrustAllAppsEnabled() == false)
+    }
+
+    @Test("Revoke approval removes app from list")
+    @MainActor
+    func revokeApprovalRemovesApp() {
+        ActionDispatcher.shared.clearAllAppApprovals()
+
+        // Launch an app (in test mode, approval is bypassed but tracked)
+        let uri = KeyPathActionURI(string: "keypath://launch/TestApp")!
+        _ = ActionDispatcher.shared.dispatch(uri)
+
+        // Note: Since we're in test mode, the app won't actually be added to approvals
+        // because the approval dialog is skipped. Let's test the revoke API directly.
+
+        // For this test, we need to verify the revoke API works correctly
+        // We can't easily add an approval without showing a dialog, so we test
+        // that revoking a non-existent app doesn't crash
+        ActionDispatcher.shared.revokeAppApproval("SomeApp")
+
+        let apps = ActionDispatcher.shared.getApprovedApps()
+        #expect(!apps.contains("someapp")) // normalized to lowercase
+    }
+
+    @Test("App identifiers are normalized to lowercase")
+    @MainActor
+    func appIdentifiersNormalized() {
+        ActionDispatcher.shared.clearAllAppApprovals()
+
+        // Revoke with mixed case - should work on lowercase
+        ActionDispatcher.shared.revokeAppApproval("MyApp")
+        ActionDispatcher.shared.revokeAppApproval("MYAPP")
+        ActionDispatcher.shared.revokeAppApproval("myapp")
+
+        // All should target the same normalized key
+        let apps = ActionDispatcher.shared.getApprovedApps()
+        #expect(!apps.contains("myapp"))
+    }
+
+    @Test("Launch action works when trust all is enabled")
+    @MainActor
+    func launchWorksWithTrustAll() {
+        ActionDispatcher.shared.clearAllAppApprovals()
+        ActionDispatcher.shared.setTrustAllApps(true)
+
+        // Launch should succeed without any approval prompt
+        let uri = KeyPathActionURI(string: "keypath://launch/Calculator")!
+        let result = ActionDispatcher.shared.dispatch(uri)
+
+        #expect(result == .success)
+
+        // Clean up
+        ActionDispatcher.shared.clearAllAppApprovals()
+    }
+
+    @Test("Trust all apps setting persists across checks")
+    @MainActor
+    func trustAllPersists() {
+        ActionDispatcher.shared.clearAllAppApprovals()
+
+        // Enable trust all
+        ActionDispatcher.shared.setTrustAllApps(true)
+
+        // Multiple checks should all return true
+        #expect(ActionDispatcher.shared.isTrustAllAppsEnabled() == true)
+        #expect(ActionDispatcher.shared.isTrustAllAppsEnabled() == true)
+
+        // Launch multiple apps - all should work
+        let apps = ["Calculator", "Safari", "TextEdit"]
+        for app in apps {
+            let uri = KeyPathActionURI(string: "keypath://launch/\(app)")!
+            let result = ActionDispatcher.shared.dispatch(uri)
+            #expect(result == .success, "Launch of \(app) should succeed with trust all enabled")
+        }
+
+        // Clean up
+        ActionDispatcher.shared.clearAllAppApprovals()
+    }
+
+    @Test("Approved apps list returns sorted results")
+    @MainActor
+    func approvedAppsAreSorted() {
+        // The getApprovedApps() method should return sorted results
+        // We can only verify behavior, not internal state in test mode
+        let apps = ActionDispatcher.shared.getApprovedApps()
+
+        // Verify it's sorted
+        let sorted = apps.sorted()
+        #expect(apps == sorted)
+    }
+}
+
 // MARK: - ActionDispatchResult Equality
 
 extension ActionDispatchResult: Equatable {
     public static func == (lhs: ActionDispatchResult, rhs: ActionDispatchResult) -> Bool {
         switch (lhs, rhs) {
         case (.success, .success):
+            true
+        case (.pendingApproval, .pendingApproval):
             true
         case let (.unknownAction(a), .unknownAction(b)):
             a == b

@@ -14,7 +14,7 @@ protocol PrivilegedOperationsCoordinating: AnyObject {
     func installLogRotation() async throws
     func regenerateServiceConfiguration() async throws
     func repairVHIDDaemonServices() async throws
-    func downloadAndInstallCorrectVHIDDriver() async throws
+    func installCorrectVHIDDriver() async throws
     func installBundledKanata() async throws
     func activateVirtualHIDManager() async throws
     func terminateProcess(pid: Int32) async throws
@@ -28,7 +28,7 @@ protocol PrivilegedOperationsCoordinating: AnyObject {
 /// Coordinates all privileged operations with hybrid approach (helper vs direct sudo)
 ///
 /// **Architecture:** This coordinator implements the hybrid strategy from HELPER.md
-/// - DEBUG builds: Use direct sudo (AuthorizationExecuteWithPrivileges)
+/// - DEBUG builds: Use direct sudo (via osascript with admin privileges)
 /// - RELEASE builds: Prefer privileged helper; fall back to sudo on failure
 ///
 /// **Usage:**
@@ -62,8 +62,8 @@ final class PrivilegedOperationsCoordinator {
     // MARK: - Operation Modes
 
     enum OperationMode {
-        case privilegedHelper // XPC to root daemon (future: Phase 2)
-        case directSudo // AuthorizationExecuteWithPrivileges (current)
+        case privilegedHelper // XPC to root helper daemon
+        case directSudo // osascript with admin privileges
     }
 
     /// Determine which operation mode to use based on build configuration
@@ -330,14 +330,14 @@ final class PrivilegedOperationsCoordinator {
         }
     }
 
-    /// Download and install correct VirtualHID driver version (convenience method)
-    /// Uses VHIDDeviceManager to determine the correct version automatically
+    /// Install correct VirtualHID driver version from bundled package
+    /// Uses the .pkg bundled in KeyPath.app (no network download)
     ///
     /// **Automatic Fallback:** In release mode, attempts helper first, then falls back
     /// to sudo if helper fails. This handles phantom registrations and XPC issues gracefully.
-    func downloadAndInstallCorrectVHIDDriver() async throws {
+    func installCorrectVHIDDriver() async throws {
         AppLogger.shared.log(
-            "🔐 [PrivCoordinator] Downloading and installing correct VHID driver version")
+            "🔐 [PrivCoordinator] Installing correct VHID driver from bundled package")
 
         switch Self.operationMode {
         case .privilegedHelper:

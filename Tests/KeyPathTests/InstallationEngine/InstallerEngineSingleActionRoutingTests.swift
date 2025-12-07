@@ -45,11 +45,11 @@ final class InstallerEngineSingleActionRoutingTests: KeyPathAsyncTestCase {
 
         coordinator.calls.removeAll()
         _ = await engine.runSingleAction(.fixDriverVersionMismatch, using: broker)
-        XCTAssertTrue(coordinator.calls.contains("downloadAndInstallCorrectVHIDDriver"))
+        XCTAssertTrue(coordinator.calls.contains("installCorrectVHIDDriver"))
 
         coordinator.calls.removeAll()
         _ = await engine.runSingleAction(.installCorrectVHIDDriver, using: broker)
-        XCTAssertTrue(coordinator.calls.contains("downloadAndInstallCorrectVHIDDriver"))
+        XCTAssertTrue(coordinator.calls.contains("installCorrectVHIDDriver"))
     }
 
     func testOrphanedProcessActionsRouteCorrectly() async {

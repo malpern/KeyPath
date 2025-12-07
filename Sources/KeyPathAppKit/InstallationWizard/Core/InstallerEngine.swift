@@ -424,18 +424,18 @@ public final class InstallerEngine {
             try await broker.installBundledKanata()
 
         case "install-correct-vhid-driver":
-            try await broker.downloadAndInstallCorrectVHIDDriver()
+            try await broker.installCorrectVHIDDriver()
 
         case "install-log-rotation":
             try await broker.installLogRotation()
 
         case "fix-driver-version-mismatch":
-            try await broker.downloadAndInstallCorrectVHIDDriver()
+            try await broker.installCorrectVHIDDriver()
 
         case "install-missing-components":
             // Install all missing components (Kanata + drivers)
             try await broker.installBundledKanata()
-            try await broker.downloadAndInstallCorrectVHIDDriver()
+            try await broker.installCorrectVHIDDriver()
 
         case "create-config-directories":
             // No privileged work needed; treated as success (idempotent)

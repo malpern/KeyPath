@@ -182,6 +182,11 @@ struct GeneralSettingsTabView: View {
                             .frame(maxWidth: 200)
                         }
                     }
+
+                    // App Launch Security (R2+)
+                    if FeatureFlags.appLaunchSecuritySettingsEnabled {
+                        AppLaunchSecuritySection()
+                    }
                 }
 
                 Spacer()
@@ -1011,6 +1016,63 @@ private struct StatusDetailRow: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
             }
+        }
+    }
+}
+
+// MARK: - App Launch Security Section (R2+)
+
+/// Simple controls for app launch approval settings.
+/// - Toggle: Trust all apps (bypass all approval prompts)
+/// - Button: Reset all approvals (clear history, re-prompt for each app)
+private struct AppLaunchSecuritySection: View {
+    @State private var trustAllApps: Bool = ActionDispatcher.shared.isTrustAllAppsEnabled()
+    @State private var showingResetConfirmation = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("App Launch Security")
+                .font(.headline)
+                .foregroundStyle(.secondary)
+
+            Text("When keyboard shortcuts launch apps via keypath:// URLs")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+
+            Toggle("Trust all app launches", isOn: $trustAllApps)
+                .toggleStyle(.switch)
+                .onChange(of: trustAllApps) { _, newValue in
+                    ActionDispatcher.shared.setTrustAllApps(newValue)
+                }
+
+            if trustAllApps {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .font(.caption)
+                    Text("Apps will launch without confirmation prompts")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Button {
+                showingResetConfirmation = true
+            } label: {
+                Label("Reset All Approvals", systemImage: "arrow.counterclockwise")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(trustAllApps) // No point resetting if trust-all is on
+        }
+        .alert("Reset App Approvals?", isPresented: $showingResetConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Reset", role: .destructive) {
+                ActionDispatcher.shared.clearAllAppApprovals()
+                trustAllApps = false
+            }
+        } message: {
+            Text("You'll be prompted again the first time each app is launched via keyboard shortcut.")
         }
     }
 }

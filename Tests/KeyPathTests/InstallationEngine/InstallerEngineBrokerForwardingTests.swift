@@ -61,7 +61,7 @@ private final class PrivilegedCoordinatorStub: PrivilegedOperationsCoordinating 
     func installLogRotation() async throws {}
     func regenerateServiceConfiguration() async throws {}
     func repairVHIDDaemonServices() async throws {}
-    func downloadAndInstallCorrectVHIDDriver() async throws {}
+    func installCorrectVHIDDriver() async throws {}
     func installBundledKanata() async throws {}
     func activateVirtualHIDManager() async throws {}
     func terminateProcess(pid _: Int32) async throws {}

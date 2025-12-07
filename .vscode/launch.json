@@ -6,9 +6,9 @@
             "args": [],
             "cwd": "${workspaceFolder:KeyPath}",
             "name": "Debug KeyPath",
-            "preLaunchTask": "swift: Build Debug KeyPath",
             "target": "KeyPath",
-            "configuration": "debug"
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug KeyPath"
         },
         {
             "type": "swift",
@@ -16,9 +16,9 @@
             "args": [],
             "cwd": "${workspaceFolder:KeyPath}",
             "name": "Release KeyPath",
-            "preLaunchTask": "swift: Build Release KeyPath",
             "target": "KeyPath",
-            "configuration": "release"
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release KeyPath"
         },
         {
             "type": "swift",
@@ -26,9 +26,9 @@
             "args": [],
             "cwd": "${workspaceFolder:KeyPath}",
             "name": "Debug KeyPathHelper",
-            "preLaunchTask": "swift: Build Debug KeyPathHelper",
             "target": "KeyPathHelper",
-            "configuration": "debug"
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug KeyPathHelper"
         },
         {
             "type": "swift",
@@ -36,9 +36,9 @@
             "args": [],
             "cwd": "${workspaceFolder:KeyPath}",
             "name": "Release KeyPathHelper",
-            "preLaunchTask": "swift: Build Release KeyPathHelper",
             "target": "KeyPathHelper",
-            "configuration": "release"
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release KeyPathHelper"
         },
         {
             "type": "swift",
@@ -46,9 +46,9 @@
             "args": [],
             "cwd": "${workspaceFolder:KeyPath}",
             "name": "Debug smappservice-poc",
-            "preLaunchTask": "swift: Build Debug smappservice-poc",
             "target": "smappservice-poc",
-            "configuration": "debug"
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug smappservice-poc"
         },
         {
             "type": "swift",
@@ -56,49 +56,9 @@
             "args": [],
             "cwd": "${workspaceFolder:KeyPath}",
             "name": "Release smappservice-poc",
-            "preLaunchTask": "swift: Build Release smappservice-poc",
             "target": "smappservice-poc",
-            "configuration": "release"
-        },
-        {
-            "type": "swift",
-            "request": "launch",
-            "args": [],
-            "cwd": "${workspaceFolder:KeyPath}",
-            "name": "Debug keypath-cli",
-            "target": "keypath-cli",
-            "configuration": "debug",
-            "preLaunchTask": "swift: Build Debug keypath-cli"
-        },
-        {
-            "type": "swift",
-            "request": "launch",
-            "args": [],
-            "cwd": "${workspaceFolder:KeyPath}",
-            "name": "Release keypath-cli",
-            "target": "keypath-cli",
             "configuration": "release",
-            "preLaunchTask": "swift: Build Release keypath-cli"
-        },
-        {
-            "type": "swift",
-            "request": "launch",
-            "args": [],
-            "cwd": "${workspaceFolder:KeyPath}",
-            "name": "Debug KeyPathCLI",
-            "target": "KeyPathCLI",
-            "configuration": "debug",
-            "preLaunchTask": "swift: Build Debug KeyPathCLI"
-        },
-        {
-            "type": "swift",
-            "request": "launch",
-            "args": [],
-            "cwd": "${workspaceFolder:KeyPath}",
-            "name": "Release KeyPathCLI",
-            "target": "KeyPathCLI",
-            "configuration": "release",
-            "preLaunchTask": "swift: Build Release KeyPathCLI"
+            "preLaunchTask": "swift: Build Release smappservice-poc"
         }
     ]
 }

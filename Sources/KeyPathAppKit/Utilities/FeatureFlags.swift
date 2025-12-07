@@ -277,4 +277,10 @@ extension FeatureFlags {
     static var ruleCollectionsEnabled: Bool {
         ReleaseMilestone.current >= .r2_overlay_mapper
     }
+
+    /// App Launch Security settings (trust all toggle, reset approvals) - available in R2+
+    /// The actual security check is always active; this just controls Settings UI visibility
+    static var appLaunchSecuritySettingsEnabled: Bool {
+        ReleaseMilestone.current >= .r2_overlay_mapper
+    }
 }

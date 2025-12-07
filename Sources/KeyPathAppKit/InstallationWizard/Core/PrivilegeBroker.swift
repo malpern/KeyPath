@@ -59,9 +59,9 @@ public struct PrivilegeBroker {
 
     // MARK: - Component Installation
 
-    /// Download and install correct VHID driver
-    public func downloadAndInstallCorrectVHIDDriver() async throws {
-        try await coordinator.downloadAndInstallCorrectVHIDDriver()
+    /// Install correct VHID driver from bundled package
+    public func installCorrectVHIDDriver() async throws {
+        try await coordinator.installCorrectVHIDDriver()
     }
 
     /// Install bundled Kanata binary
