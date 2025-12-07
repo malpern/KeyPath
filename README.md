@@ -15,7 +15,7 @@
 
 KeyPath lets you remap keys and create custom shortcuts **just by pressing them**. No config files to edit. No syntax to learn. No terminal commands. Just press the key you want to change, press what you want it to become, and you're done.
 
-- **Press-to-record**: Click a field, press a key, done
+- **Press-to-record**: Click to capture the shortcut you’re replacing, click again to map it to what you actually want—KeyPath updates instantly.
 - **Instant feedback**: Changes apply immediately—no restart, no save-and-wait
 - **Visual rule editor**: See your remappings at a glance, toggle them on and off
 - **Guided setup**: A wizard walks you through permissions and driver installation
