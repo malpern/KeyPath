@@ -83,29 +83,29 @@ The setup wizard handles all of this automatically.
 
 Open Settings with **Cmd+,** or click the gear icon.
 
-<div align="center">
-  <img src="docs/images/screens/2-status-settings.png" alt="Status Settings" width="600"/>
-</div>
-
 - **Status** — See system health at a glance. All green checkmarks means everything's working. Click "Launch Wizard" to fix any issues.
 
 <div align="center">
-  <img src="docs/images/screens/3-rules-settings.png" alt="Rules Settings" width="600"/>
+  <img src="docs/images/screens/2-status-settings.png" alt="Status Settings" width="600"/>
 </div>
 
 - **Rules** — View and manage your custom rules. Toggle rules on/off, edit, or delete them.
 
 <div align="center">
-  <img src="docs/images/screens/4-general-settings.png" alt="General Settings" width="600"/>
+  <img src="docs/images/screens/3-rules-settings.png" alt="Rules Settings" width="600"/>
 </div>
 
 - **General** — Configure capture mode, recording behavior, and access logs for troubleshooting.
 
 <div align="center">
-  <img src="docs/images/screens/5-repair-remove-settings.png" alt="Repair/Remove Settings" width="600"/>
+  <img src="docs/images/screens/4-general-settings.png" alt="General Settings" width="600"/>
 </div>
 
 - **Repair/Remove** — Cleanup & Repair fixes common issues. Reset Everything is for when the service is wedged.
+
+<div align="center">
+  <img src="docs/images/screens/5-repair-remove-settings.png" alt="Repair/Remove Settings" width="600"/>
+</div>
 
 ---
 
