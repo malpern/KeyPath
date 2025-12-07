@@ -4,20 +4,18 @@ import SwiftUI
 
 struct RootView: View {
     @EnvironmentObject var viewModel: KanataViewModel
-    @State private var showingSplash = true
-    @State private var splashOpacity: Double = 1.0
     @State private var showingWizard = false
-
-    // Fixed splash size (matches image aspect ratio 1000x800 @2x)
-    private let splashSize = CGSize(width: 500, height: 400)
+    @State private var hasCheckedWizardNeed = false
+    @State private var showingValidationError = false
+    @State private var validationErrorMessage = ""
 
     var body: some View {
         ZStack {
-            // Layer 1: Glass background (always present, revealed as splash fades)
+            // Layer 1: Glass background
             AppGlassBackground(style: .sheetBold)
                 .ignoresSafeArea()
 
-            // Layer 2: Home content (always present, revealed as splash fades)
+            // Layer 2: Home content
             CustomRuleEditorView(
                 rule: nil,
                 existingRules: viewModel.customRules,
@@ -27,19 +25,6 @@ struct RootView: View {
                 },
                 onShowWizard: { showingWizard = true }
             )
-            .opacity(1.0 - splashOpacity)
-
-            // Layer 3: Splash on top (fades out to reveal glass + content)
-            if showingSplash {
-                SplashView()
-                    .opacity(splashOpacity)
-            }
-        }
-        .onAppear {
-            // Force window to splash size on appear
-            if showingSplash {
-                setWindowSize(splashSize)
-            }
         }
         .sheet(isPresented: $showingWizard) {
             InstallationWizardView(initialPage: .summary)
@@ -47,17 +32,14 @@ struct RootView: View {
                 .environmentObject(viewModel)
         }
         .task {
-            // Show splash for 5 seconds
-            try? await Task.sleep(for: .seconds(5.0))
+            // Wait for splash to finish (coordinated via notification)
+            // Then check if wizard is needed
+            guard !hasCheckedWizardNeed else { return }
+            hasCheckedWizardNeed = true
 
-            // Crossfade: splash fades out, glass + content fade in
-            withAnimation(.easeInOut(duration: 0.5)) {
-                splashOpacity = 0.0
-            }
-
-            // Remove splash view after animation completes
-            try? await Task.sleep(for: .milliseconds(600))
-            showingSplash = false
+            // Wait for splash dismissal (5 seconds splash + 0.5s fade + small buffer)
+            // The splash window controller handles the actual timing
+            try? await Task.sleep(for: .seconds(6.0))
 
             // Check if wizard needed
             let context = await viewModel.inspectSystemContext()
@@ -79,14 +61,11 @@ struct RootView: View {
         }
         .focusEffectDisabled()
     }
+}
 
-    private func setWindowSize(_ size: CGSize) {
-        guard let window = NSApplication.shared.mainWindow else { return }
-        var frame = window.frame
-        let oldHeight = frame.height
-        frame.size = size
-        // Keep top-left anchored
-        frame.origin.y += oldHeight - size.height
-        window.setFrame(frame, display: true, animate: false)
-    }
+// MARK: - Splash Notification
+
+extension Notification.Name {
+    /// Posted when the splash window has finished dismissing
+    static let splashDidDismiss = Notification.Name("KeyPath.splashDidDismiss")
 }

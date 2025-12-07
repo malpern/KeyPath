@@ -81,6 +81,8 @@ struct ContentView: View {
     @State private var showSetupBanner = false
     @State private var showingConfigValidationError = false
     @State private var configValidationErrorMessage = ""
+    @State private var showingValidationFailureModal = false
+    @State private var validationFailureErrors: [String] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -489,6 +491,27 @@ struct ContentView: View {
         } message: {
             Text(configValidationErrorMessage)
         }
+        .sheet(isPresented: $showingValidationFailureModal, onDismiss: {
+            validationFailureErrors = []
+        }) {
+            ValidationFailureDialog(
+                errors: validationFailureErrors,
+                configPath: kanataManager.configPath,
+                onCopyErrors: { copyValidationErrorsToClipboard() },
+                onOpenConfig: {
+                    showingValidationFailureModal = false
+                    openCurrentConfigInEditor()
+                },
+                onOpenDiagnostics: {
+                    showingValidationFailureModal = false
+                    openSystemStatusSettings()
+                },
+                onDismiss: {
+                    showingValidationFailureModal = false
+                }
+            )
+            .customizeSheetWindow()
+        }
         .onChange(of: kanataManager.lastError) { _, newError in
             if let error = newError {
                 configValidationErrorMessage = error
@@ -802,12 +825,7 @@ struct ContentView: View {
 
         // Handle configuration validation errors with detailed feedback
         if case let KeyPathError.configuration(.validationFailed(errors)) = error {
-            configCorruptionDetails = """
-            Configuration validation failed:
-
-            \(errors.joined(separator: "\n"))
-            """
-            showingConfigCorruptionAlert = true
+            presentValidationFailureModal(errors)
             showStatusMessage(message: "❌ Configuration validation failed")
             return
         }
@@ -850,6 +868,26 @@ struct ContentView: View {
             try await Task.sleep(for: .seconds(1))
             NotificationCenter.default.post(name: .openInstallationWizard, object: nil)
         }
+    }
+
+    private func presentValidationFailureModal(_ errors: [String]) {
+        let sanitized = errors.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        validationFailureErrors = sanitized.isEmpty
+            ? ["Configuration validation failed, but Kanata did not return any specific error messages."]
+            : sanitized
+        showingValidationFailureModal = true
+    }
+
+    private func copyValidationErrorsToClipboard() {
+        guard !validationFailureErrors.isEmpty else { return }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        let combined = validationFailureErrors.joined(separator: "\n")
+        pasteboard.setString(combined, forType: .string)
+    }
+
+    private func openCurrentConfigInEditor() {
+        kanataManager.openFileInZed(kanataManager.configPath)
     }
 
     private func handleInputRecordTap() {
@@ -932,6 +970,102 @@ struct ContentView: View {
             lastOutputDisabledReason = reason
             AppLogger.shared.log("🧭 [UI] Output record button state: \(reason)")
         }
+    }
+}
+
+private struct ValidationFailureDialog: View {
+    let errors: [String]
+    let configPath: String
+    let onCopyErrors: () -> Void
+    let onOpenConfig: () -> Void
+    let onOpenDiagnostics: () -> Void
+    let onDismiss: () -> Void
+
+    private var normalizedErrors: [String] {
+        errors.isEmpty
+            ? ["Kanata returned an unknown validation error."]
+            : errors
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Configuration Validation Failed")
+                        .font(.title2.weight(.semibold))
+                    Text("Kanata refused to load the generated config. KeyPath left the previous configuration in place until you fix the issues below.")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button {
+                    onDismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                        .font(.title2)
+                }
+                .buttonStyle(.plain)
+            }
+
+            Divider()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(Array(normalizedErrors.enumerated()), id: \.offset) { index, error in
+                        HStack(alignment: .top, spacing: 8) {
+                            Text("\(index + 1).")
+                                .font(.body.bold())
+                                .foregroundStyle(.secondary)
+                            Text(error)
+                                .font(.body)
+                                .foregroundStyle(.primary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color(nsColor: .controlBackgroundColor))
+                        )
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(minHeight: 180, maxHeight: 260)
+
+            HStack(spacing: 8) {
+                Image(systemName: "doc.text")
+                    .foregroundStyle(.secondary)
+                Text(configPath)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+                Spacer()
+            }
+
+            Divider()
+
+            HStack(spacing: 12) {
+                Button("Copy Errors") {
+                    onCopyErrors()
+                }
+                Button("Open Config in Zed") {
+                    onOpenConfig()
+                }
+                Spacer()
+                Button("Diagnostics") {
+                    onOpenDiagnostics()
+                }
+                Button("Done") {
+                    onDismiss()
+                }
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+        .frame(minWidth: 520, idealWidth: 580, maxWidth: 640)
+        .padding(24)
     }
 }
 

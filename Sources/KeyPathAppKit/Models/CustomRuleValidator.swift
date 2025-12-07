@@ -233,7 +233,7 @@ public enum CustomRuleValidator {
         }
 
         // Self-mapping check only applies for single-key inputs
-        if inputTokens.count == 1 && outputTokens.count == 1 {
+        if inputTokens.count == 1, outputTokens.count == 1 {
             let normalizedInput = normalizeKey(trimmedInput)
             let normalizedOutput = normalizeKey(trimmedOutput)
             if normalizedInput == normalizedOutput {

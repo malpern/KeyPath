@@ -785,7 +785,7 @@ actor KanataTCPClient {
     /// Core TCP send/receive implementation
     /// Drains unsolicited broadcasts and returns the first non-broadcast response
     private func sendAndReceive(on connection: NWConnection, data: Data) async throws -> Data {
-        return try await withCheckedThrowingContinuation {
+        try await withCheckedThrowingContinuation {
             (continuation: CheckedContinuation<Data, Error>) in
             let completionFlag = CompletionFlag()
 

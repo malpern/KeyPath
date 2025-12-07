@@ -34,20 +34,30 @@ if [ ! -f "$HELPER_EXECUTABLE" ]; then
     exit 1
 fi
 
-echo "2️⃣  Signing helper..."
+# Verify Info.plist was embedded by Package.swift linkerSettings
+echo "2️⃣  Verifying embedded Info.plist..."
+if otool -l "$HELPER_EXECUTABLE" | grep -q "__info_plist"; then
+    echo "   ✅ Info.plist section present (embedded via linker)"
+else
+    echo "   ❌ ERROR: Info.plist section not found in binary"
+    echo "   The Package.swift linkerSettings should embed Sources/KeyPathHelper/Info.plist"
+    exit 1
+fi
+
+echo "3️⃣  Signing helper..."
 HELPER_ENTITLEMENTS="Sources/KeyPathHelper/KeyPathHelper.entitlements"
 
-if [ -f "$HELPER_ENTITLEMENTS" ]; then
-    codesign --force --options=runtime \
-        --identifier "com.keypath.helper" \
-        --entitlements "$HELPER_ENTITLEMENTS" \
-        --sign "$SIGNING_IDENTITY" \
-        --timestamp \
-        "$HELPER_EXECUTABLE"
-else
+if [ ! -f "$HELPER_ENTITLEMENTS" ]; then
     echo "❌ ERROR: Helper entitlements not found: $HELPER_ENTITLEMENTS"
     exit 1
 fi
+
+codesign --force --options=runtime \
+    --identifier "com.keypath.helper" \
+    --entitlements "$HELPER_ENTITLEMENTS" \
+    --sign "$SIGNING_IDENTITY" \
+    --timestamp \
+    "$HELPER_EXECUTABLE"
 
 echo ""
 echo "✅ Helper build complete: $HELPER_EXECUTABLE"

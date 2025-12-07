@@ -54,14 +54,14 @@ KANATA_LAUNCHER_DST="$CONTENTS/Library/KeyPath/kanata-launcher"
 ditto "$KANATA_LAUNCHER_SRC" "$KANATA_LAUNCHER_DST"
 chmod 755 "$KANATA_LAUNCHER_DST"
 
-# Embed privileged helper for SMJobBless
+# Embed privileged helper for SMAppService
 echo "📦 Embedding privileged helper (SMAppService layout)..."
-HELPER_TOOLS="$CONTENTS/Library/HelperTools"
 LAUNCH_DAEMONS="$CONTENTS/Library/LaunchDaemons"
-mkdir -p "$HELPER_TOOLS" "$LAUNCH_DAEMONS"
+mkdir -p "$LAUNCH_DAEMONS"
 
-# Copy helper binary into bundle-local HelperTools
-ditto "$BUILD_DIR/KeyPathHelper" "$HELPER_TOOLS/KeyPathHelper"
+# Copy helper binary into Contents/MacOS (required for SMAppService daemons)
+# Note: Contents/MacOS is the correct location for SMAppService BundleProgram
+ditto "$BUILD_DIR/KeyPathHelper" "$MACOS/KeyPathHelper"
 
 # Copy daemon plist into bundle-local LaunchDaemons with final name
 ditto "Sources/KeyPathHelper/com.keypath.helper.plist" "$LAUNCH_DAEMONS/com.keypath.helper.plist"
@@ -72,7 +72,7 @@ ditto "Sources/KeyPathApp/com.keypath.kanata.plist" "$LAUNCH_DAEMONS/com.keypath
 verify_embedded_artifacts() {
     local missing=0
     for path in \
-        "$HELPER_TOOLS/KeyPathHelper" \
+        "$MACOS/KeyPathHelper" \
         "$LAUNCH_DAEMONS/com.keypath.helper.plist" \
         "$LAUNCH_DAEMONS/com.keypath.kanata.plist" \
         "$KANATA_LAUNCHER_DST" \
@@ -92,7 +92,7 @@ verify_embedded_artifacts() {
 verify_embedded_artifacts
 ./Scripts/verify-kanata-plist.sh "$APP_BUNDLE"
 
-echo "✅ Helper embedded: $HELPER_TOOLS/KeyPathHelper"
+echo "✅ Helper embedded: $MACOS/KeyPathHelper"
 echo "✅ Helper plist embedded: $LAUNCH_DAEMONS/com.keypath.helper.plist"
 echo "✅ Kanata daemon plist embedded: $LAUNCH_DAEMONS/com.keypath.kanata.plist"
 
@@ -141,9 +141,9 @@ SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X
 
 # Sign from innermost to outermost (helper -> kanata -> main app)
 
-# Sign privileged helper (bundle-local binary)
+# Sign privileged helper (in Contents/MacOS)
 HELPER_ENTITLEMENTS="Sources/KeyPathHelper/KeyPathHelper.entitlements"
-kp_sign "$HELPER_TOOLS/KeyPathHelper" \
+kp_sign "$MACOS/KeyPathHelper" \
     --force --options=runtime \
     --identifier "com.keypath.helper" \
     --entitlements "$HELPER_ENTITLEMENTS" \

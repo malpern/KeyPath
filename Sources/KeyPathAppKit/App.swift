@@ -370,8 +370,7 @@ private func openSettingsWindow() {
         for item in appMenu.items {
             // Look for the "Settings..." menu item (standard name on macOS)
             if item.title.contains("Settings") || item.title.contains("Preferences"),
-               let action = item.action
-            {
+               let action = item.action {
                 AppLogger.shared.log("✅ [App] Found Settings menu item, triggering it")
                 NSApp.activate(ignoringOtherApps: true)
                 NSApp.sendAction(action, to: item.target, from: item)
@@ -397,9 +396,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var viewModel: KanataViewModel?
     var isHeadlessMode = false
     private var mainWindowController: MainWindowController?
+    private var splashWindowController: SplashWindowController?
     private var menuBarController: MenuBarController?
     private var initialMainWindowShown = false
     private var pendingReopenShow = false
+    private var splashActive = false
 
     func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
         AppLogger.shared.log("🔍 [AppDelegate] applicationShouldTerminate called")
@@ -408,7 +409,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
         AppLogger.shared.log("🔍 [AppDelegate] applicationShouldTerminateAfterLastWindowClosed called")
-        return true
+        // Don't quit when splash window closes - main window should still open
+        return !splashActive && mainWindowController?.isWindowVisible != true
     }
 
     func applicationWillHide(_: Notification) {
@@ -417,7 +419,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidBecomeActive(_: Notification) {
         AppLogger.shared.debug(
-            "🔍 [AppDelegate] applicationDidBecomeActive called (initialShown=\(initialMainWindowShown))")
+            "🔍 [AppDelegate] applicationDidBecomeActive called (initialShown=\(initialMainWindowShown), splashActive=\(splashActive))")
+
+        // Skip main window handling while splash is active
+        if splashActive {
+            AppLogger.shared.debug("🎬 [AppDelegate] Splash active - deferring main window show")
+            return
+        }
 
         // One-shot first activation: unconditionally show window on first activation
         if !initialMainWindowShown {
@@ -525,9 +533,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 AppLogger.shared.error("❌ [AppDelegate] ViewModel is nil, cannot create window")
                 return
             }
+
+            // Show splash screen first (borderless, professional)
+            splashActive = true
+            AppLogger.shared.log("🎬 [AppDelegate] Showing splash screen")
+
+            splashWindowController = SplashWindowController { [weak self] in
+                guard let self else { return }
+                AppLogger.shared.log("🎬 [AppDelegate] Splash dismissed - showing main window")
+                self.splashActive = false
+                self.splashWindowController = nil
+
+                // Post notification for RootView to know splash is done
+                NotificationCenter.default.post(name: .splashDidDismiss, object: nil)
+
+                // Show main window after splash fades
+                self.mainWindowController?.show(focus: true)
+                self.initialMainWindowShown = true
+            }
+            splashWindowController?.showSplash(duration: 5.0)
+
+            // Create main window controller (hidden behind splash)
             mainWindowController = MainWindowController(viewModel: vm)
             AppLogger.shared.debug(
-                "🪟 [AppDelegate] Main window controller created (deferring show until activation)")
+                "🪟 [AppDelegate] Main window controller created (hidden during splash)")
 
             // Restore live keyboard overlay state from previous session (R2+)
             if FeatureFlags.overlayEnabled {

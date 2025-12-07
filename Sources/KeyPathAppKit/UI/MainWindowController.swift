@@ -90,7 +90,7 @@ final class MainWindowController: NSWindowController {
 
     /// Handle dynamic height changes from SwiftUI content
     @objc private func handleHeightChange(_ notification: Notification) {
-        guard let window = window,
+        guard let window,
               let height = notification.userInfo?["height"] as? CGFloat
         else { return }
 

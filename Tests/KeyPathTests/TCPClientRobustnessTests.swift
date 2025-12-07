@@ -264,7 +264,7 @@ final class TCPClientRobustnessTests: KeyPathTestCase {
         XCTAssertTrue(status.ready)
         XCTAssertNotNil(status.last_reload)
         XCTAssertEqual(status.last_reload?.ok, true)
-        XCTAssertEqual(status.last_reload?.at, 1704067200)
+        XCTAssertEqual(status.last_reload?.at, 1_704_067_200)
     }
 
     // MARK: - Capability Checking Tests

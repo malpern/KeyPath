@@ -3,14 +3,40 @@
   "projectType": "swift",
   "targets": [
     {
-      "name": "debug",
+      "name": "check",
       "type": "executable",
-      "buildCommand": "swift build",
-      "outputPath": ".build/debug/App",
+      "enabled": true,
+      "buildCommand": "swift build 2>&1 | head -50",
+      "outputPath": ".build/debug/KeyPath",
       "watchPaths": [
         "Sources/**/*.swift",
         "Package.swift"
       ]
+    },
+    {
+      "name": "deploy",
+      "type": "executable",
+      "enabled": false,
+      "buildCommand": "SKIP_NOTARIZE=1 ./build.sh",
+      "outputPath": "/Applications/KeyPath.app",
+      "watchPaths": [
+        "Sources/**/*.swift",
+        "Package.swift"
+      ]
+    },
+    {
+      "name": "test",
+      "type": "executable",
+      "enabled": false,
+      "buildCommand": "swift test 2>&1 | tail -30",
+      "outputPath": ".build/debug/KeyPathPackageTests.xctest",
+      "watchPaths": [
+        "Sources/**/*.swift",
+        "Tests/**/*.swift",
+        "Package.swift"
+      ]
     }
-  ]
+  ],
+  "debounceInterval": 500,
+  "settlingDelay": 200
 }

@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Poltergeist Builds (required)
+
+- NEVER manually run build commands when Poltergeist is running.
+- ALWAYS use `polter <target>` to ensure fresh builds.
+- Poltergeist automatically detects changes and rebuilds.
+
 ## Swift Best Practices
 
 **Reference for modern Swift and SwiftUI development:**

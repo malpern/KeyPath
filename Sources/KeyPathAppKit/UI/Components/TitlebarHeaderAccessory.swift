@@ -18,7 +18,7 @@ final class TitlebarHeaderAccessory: NSTitlebarAccessoryViewController {
         let hostingView = NSHostingView(rootView: headerView)
         hostingView.frame = NSRect(x: 0, y: 0, width: 420, height: 28)
 
-        self.view = hostingView
+        view = hostingView
         layoutAttribute = .left // After traffic lights, on same line
         fullScreenMinHeight = 28
     }
@@ -201,8 +201,7 @@ private struct TitlebarHeaderView: View {
         if let appMenu = NSApp.mainMenu?.items.first?.submenu {
             for item in appMenu.items {
                 if item.title.contains("Settings") || item.title.contains("Preferences"),
-                   let action = item.action
-                {
+                   let action = item.action {
                     NSApp.sendAction(action, to: item.target, from: item)
                     return
                 }
