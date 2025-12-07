@@ -163,7 +163,7 @@ That's it. Your keyboard is now remapped.
 ### Documentation
 
 For complete documentation, see the **KeyPath Configuration Guide**:
-- **[HTML Version](docs/KEYPATH_GUIDE.html)** (recommended) - Formatted for easy reading
+- **[Online Documentation](https://malpern.github.io/KeyPath/KEYPATH_GUIDE.html)** (recommended) - Formatted for easy reading
 - **[AsciiDoc Source](docs/KEYPATH_GUIDE.adoc)** - Source file for editing
 
 The guide covers:
