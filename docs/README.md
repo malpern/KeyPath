@@ -19,7 +19,3 @@ This directory contains all documentation for the KeyPath project.
 - **[ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md)** - Visual system architecture
 - **[ACTION_URI_SYSTEM.md](ACTION_URI_SYSTEM.md)** - `keypath://` URL scheme documentation
 - **[KANATA_OVERLAY_ARCHITECTURE.md](KANATA_OVERLAY_ARCHITECTURE.md)** - Live keyboard overlay design
-
-## Historical Reference
-
-- **[archive/](archive/)** - Completed refactorings, research, and design decisions
