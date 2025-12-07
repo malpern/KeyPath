@@ -78,6 +78,10 @@ This isn't a toy DSL—it's a full configuration language that can express behav
 
 **KeyPath is the only Mac tool that enables [Home Row Mods](https://precondition.github.io/home-row-mods) in pure software with reliability comparable to hardware firmware like QMK or ZMK.**
 
+<div align="center">
+  <img src="docs/images/home-row-mods.webp" alt="Home Row Mods Diagram" width="500"/>
+</div>
+
 ### What are Home Row Mods?
 
 Home Row Mods (HRM) turn the keys under your fingers—A, S, D, F and J, K, L, ;—into dual-function keys:
