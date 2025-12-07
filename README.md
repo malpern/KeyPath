@@ -47,8 +47,6 @@ Under the hood, KeyPath is built on **Kanata**—a cross-platform keyboard remap
 | **Composable conditions** | Combine timing, layer state, and key history into a single rule | Conditions are separate JSON objects, harder to compose |
 | **[Low latency](https://danluu.com/keyboard-latency/)** | Purpose-built for real-time input; runs as a system daemon | Also low-latency, but JSON parsing and rule matching can add overhead |
 
-Karabiner-Elements is easier to start with if you want to write configs by hand—its JSON model is straightforward. But that simplicity comes at the cost of expressiveness. Kanata's architecture was designed from the ground up for advanced keyboard behaviors.
-
 **KeyPath gives you Kanata's power through a visual interface.** You get the best of both worlds: firmware-level capability, zero config-file friction.
 
 ### Full Access to the Config File
