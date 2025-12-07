@@ -108,7 +108,11 @@ The key insight: **hold detection shouldn't be purely time-based**. It should co
 
 Kanata's `tap-hold-press` and `tap-hold-tap-keys` strategies implement exactly this logic, matching the "permissive hold" and "hold on other key press" behaviors found in QMK/ZMK firmware. KeyPath exposes these strategies through a simple UI toggle—no config syntax required.
 
-→ **[Learn more about Home Row Mods](https://precondition.github.io/home-row-mods)**
+**Learn more:**
+- [Home Row Mods Guide](https://precondition.github.io/home-row-mods) — The canonical introduction
+- [Taming Home Row Mods with Bilateral Combinations](https://sunaku.github.io/home-row-mods.html) — Deep dive into advanced HRM tuning
+- [Home Row Mods Explained (Video)](https://www.youtube.com/watch?v=sLWQ4Gx88h4) — Visual introduction
+- [Home Row Mods in Practice (Video)](https://www.youtube.com/watch?v=4yiMbP_ZySQ) — Real-world usage demo
 
 ---
 
