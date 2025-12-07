@@ -1,10 +1,10 @@
 # KeyPath - Simple Keyboard Remapping for macOS
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/keypath-icon.png" alt="KeyPath" width="128" height="128"/>
-  
+  <img src="docs/images/keypath-poster.png" alt="KeyPath" width="600"/>
+
   **Remap any key to any other key with a simple, native macOS app**
-  
+
   [![macOS 15+](https://img.shields.io/badge/macOS-15%2B-blue.svg)](https://www.apple.com/macos/)
   [![Swift 6.0](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
