@@ -26,64 +26,6 @@ KeyPath lets you remap keys and create custom shortcuts **just by pressing them*
 
 ---
 
-## Seriously Powerful
-
-<div align="center">
-  <a href="https://github.com/jtroo/kanata">
-    <img src="https://github.com/jtroo/kanata/raw/main/assets/kanata-icon.svg" alt="Kanata" width="120"/>
-  </a>
-
-  **Powered by [Kanata](https://github.com/jtroo/kanata)** · *Created by [jtroo](https://github.com/jtroo)*
-</div>
-
-Under the hood, KeyPath is built on **Kanata**—a cross-platform keyboard remapping engine inspired by [KMonad](https://github.com/kmonad/kmonad), with firmware-grade capabilities that go far beyond tools like Karabiner-Elements.
-
-### What makes Kanata different?
-
-| Capability | KeyPath (Kanata) | Karabiner-Elements |
-|------------|------------------|-------------------|
-| **[True layers](https://anniecherkaev.com/principles-for-keyboard-layouts)** | Keys change meaning based on active layer—compose layers, toggle them, or hold to activate | Profiles are global; layer-like behavior requires complex JSON rules |
-| **[Reliable tap-hold](https://thomasbaart.nl/2018/12/09/qmk-basics-tap-and-hold-actions/)** | Multiple detection strategies (`tap-hold-press`, `tap-hold-release`, etc.) for different use cases | Basic tap-hold with less tuning options |
-| **[Composable conditions](https://github.com/jtroo/kanata/blob/main/docs/config.adoc#switch)** | Combine timing, layer state, and key history into a single rule | Conditions are separate JSON objects, harder to compose |
-| **[Low latency](https://danluu.com/keyboard-latency/)** | Purpose-built for real-time input; runs as a system daemon | Also low-latency, but JSON parsing and rule matching can add overhead |
-
-**KeyPath gives you Kanata's power through a visual interface.** You get the best of both worlds: firmware-level capability, zero config-file friction.
-
-### Full Access to the Config File
-
-KeyPath writes a standard Kanata configuration file on your behalf—but you're not locked in. Power users can open and edit the config directly by clicking **Edit Config** in the app, or via the terminal:
-
-```
-~/Library/Application Support/KeyPath/keypath.kbd
-```
-
-<div align="center">
-  <img src="docs/images/edit-config.png" alt="Edit Config Button" width="600"/>
-</div>
-
-Kanata's configuration language uses [S-expressions](https://en.wikipedia.org/wiki/S-expression) (Lisp-style syntax) and is remarkably expressive. It supports:
-
-- **Variables and aliases** — DRY principle for complex configs
-- **Conditional logic** — `switch`, `fork`, and template conditionals
-- **Templates** — Reusable config patterns with parameter substitution
-- **Macros** — Arbitrary key sequences with timing control
-- **Sequences** — Vim-style leader key workflows
-- **Input chords** — Press multiple keys simultaneously for a different action
-
-<div align="center">
-  <img src="docs/images/example-config.png" alt="Example Kanata Config" width="600"/>
-</div>
-
-This isn't a toy DSL—it's a full configuration language that can express behaviors impossible in JSON-based tools. See the [Kanata configuration guide](https://github.com/jtroo/kanata/blob/main/docs/config.adoc) for the complete reference.
-
-**The best part:** Start with KeyPath's UI, and graduate to hand-editing only when you want to. Your visual rules and manual edits coexist in the same file.
-
-### Clear feedback when validation fails
-
-If Kanata rejects a generated config, KeyPath now surfaces a dedicated modal that lists every error, offers a one-click copy button, and links directly to the on-disk config and diagnostics panel. No more guessing why a save failed—grab the exact kanata output, jump into your editor, or open System Status without leaving the app.
-
----
-
 ## Home Row Mods—Finally Reliable on Mac
 
 **KeyPath is the only Mac tool that enables [Home Row Mods](https://precondition.github.io/home-row-mods) in pure software with reliability comparable to hardware firmware like QMK or ZMK.**
@@ -241,6 +183,64 @@ Open Settings with **Cmd+,** or click the gear icon.
 <div align="center">
   <img src="docs/images/screens/5-repair-remove-settings.png" alt="Repair/Remove Settings" width="600"/>
 </div>
+
+---
+
+## Seriously Powerful
+
+<div align="center">
+  <a href="https://github.com/jtroo/kanata">
+    <img src="https://github.com/jtroo/kanata/raw/main/assets/kanata-icon.svg" alt="Kanata" width="120"/>
+  </a>
+
+  **Powered by [Kanata](https://github.com/jtroo/kanata)** · *Created by [jtroo](https://github.com/jtroo)*
+</div>
+
+Under the hood, KeyPath is built on **Kanata**—a cross-platform keyboard remapping engine inspired by [KMonad](https://github.com/kmonad/kmonad), with firmware-grade capabilities that go far beyond tools like Karabiner-Elements.
+
+### What makes Kanata different?
+
+| Capability | KeyPath (Kanata) | Karabiner-Elements |
+|------------|------------------|-------------------|
+| **[True layers](https://anniecherkaev.com/principles-for-keyboard-layouts)** | Keys change meaning based on active layer—compose layers, toggle them, or hold to activate | Profiles are global; layer-like behavior requires complex JSON rules |
+| **[Reliable tap-hold](https://thomasbaart.nl/2018/12/09/qmk-basics-tap-and-hold-actions/)** | Multiple detection strategies (`tap-hold-press`, `tap-hold-release`, etc.) for different use cases | Basic tap-hold with less tuning options |
+| **[Composable conditions](https://github.com/jtroo/kanata/blob/main/docs/config.adoc#switch)** | Combine timing, layer state, and key history into a single rule | Conditions are separate JSON objects, harder to compose |
+| **[Low latency](https://danluu.com/keyboard-latency/)** | Purpose-built for real-time input; runs as a system daemon | Also low-latency, but JSON parsing and rule matching can add overhead |
+
+**KeyPath gives you Kanata's power through a visual interface.** You get the best of both worlds: firmware-level capability, zero config-file friction.
+
+### Full Access to the Config File
+
+KeyPath writes a standard Kanata configuration file on your behalf—but you're not locked in. Power users can open and edit the config directly by clicking **Edit Config** in the app, or via the terminal:
+
+```
+~/Library/Application Support/KeyPath/keypath.kbd
+```
+
+<div align="center">
+  <img src="docs/images/edit-config.png" alt="Edit Config Button" width="600"/>
+</div>
+
+Kanata's configuration language uses [S-expressions](https://en.wikipedia.org/wiki/S-expression) (Lisp-style syntax) and is remarkably expressive. It supports:
+
+- **Variables and aliases** — DRY principle for complex configs
+- **Conditional logic** — `switch`, `fork`, and template conditionals
+- **Templates** — Reusable config patterns with parameter substitution
+- **Macros** — Arbitrary key sequences with timing control
+- **Sequences** — Vim-style leader key workflows
+- **Input chords** — Press multiple keys simultaneously for a different action
+
+<div align="center">
+  <img src="docs/images/example-config.png" alt="Example Kanata Config" width="600"/>
+</div>
+
+This isn't a toy DSL—it's a full configuration language that can express behaviors impossible in JSON-based tools. See the [Kanata configuration guide](https://github.com/jtroo/kanata/blob/main/docs/config.adoc) for the complete reference.
+
+**The best part:** Start with KeyPath's UI, and graduate to hand-editing only when you want to. Your visual rules and manual edits coexist in the same file.
+
+### Clear feedback when validation fails
+
+If Kanata rejects a generated config, KeyPath now surfaces a dedicated modal that lists every error, offers a one-click copy button, and links directly to the on-disk config and diagnostics panel. No more guessing why a save failed—grab the exact kanata output, jump into your editor, or open System Status without leaving the app.
 
 ---
 
