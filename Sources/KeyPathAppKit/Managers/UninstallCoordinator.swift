@@ -178,7 +178,7 @@ final class UninstallCoordinator: ObservableObject {
         }
 
         let repoPath = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-            .appendingPathComponent("Sources/KeyPath/Resources/uninstall.sh")
+            .appendingPathComponent("Sources/KeyPathApp/Resources/uninstall.sh")
         if FileManager.default.isExecutableFile(atPath: repoPath.path) {
             return repoPath
         }
@@ -187,15 +187,19 @@ final class UninstallCoordinator: ObservableObject {
     }
 
     private static func defaultRunWithAdminPrivileges(scriptURL: URL, deleteConfig: Bool) async
-        -> AppleScriptResult
-    {
+        -> AppleScriptResult {
         // Use PrivilegedCommandRunner which respects TestEnvironment.useSudoForPrivilegedOps
+        // Run on a background thread to avoid blocking the main actor
         let configFlag = deleteConfig ? " --delete-config" : ""
         let command = "KEYPATH_UNINSTALL_ASSUME_YES=1 '\(scriptURL.path)' --assume-yes\(configFlag)"
-        let result = PrivilegedCommandRunner.execute(
-            command: command,
-            prompt: "KeyPath needs to uninstall system services."
-        )
+
+        let result = await Task.detached(priority: .userInitiated) {
+            PrivilegedCommandRunner.execute(
+                command: command,
+                prompt: "KeyPath needs to uninstall system services."
+            )
+        }.value
+
         return AppleScriptResult(
             success: result.success,
             output: result.output,
