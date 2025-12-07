@@ -1,11 +1,11 @@
 # KeyPath
 
 <div align="center">
-  <img src="docs/images/keypath-logo.png" alt="KeyPath" width="256" height="256"/>
+  <img src="docs/images/keypath-logo.png" alt="KeyPath" width="512" height="512"/>
 
   **Remap any key on your Mac. No terminal required.**
 
-  [![macOS 15+](https://img.shields.io/badge/macOS-15%2B-blue.svg)](https://www.apple.com/macos/)
+  [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-blue.svg)](https://www.apple.com/macos/)
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 </div>
 
@@ -55,7 +55,7 @@ That's it. Your keyboard is now remapped.
 
 ## Requirements
 
-- macOS 15.0 (Sequoia) or later
+- macOS 14.0 (Sonoma) or later
 - Apple Silicon or Intel Mac
 
 ---
