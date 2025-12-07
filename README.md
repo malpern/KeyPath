@@ -3,7 +3,7 @@
 <div align="center">
   <img src="docs/images/keypath-poster.png" alt="KeyPath" width="400"/>
 
-  **Remap any key on your Mac. No terminal required.**
+  **Powerful keyboard remapping for Mac—without the learning curve.**
 
   [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-blue.svg)](https://www.apple.com/macos/)
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -11,19 +11,74 @@
 
 ---
 
-## What can KeyPath do?
+## Simple to Use
 
-**Turn any key into any other key.** A few examples:
+KeyPath lets you remap keys and create custom shortcuts **just by pressing them**. No config files to edit. No syntax to learn. No terminal commands. Just press the key you want to change, press what you want it to become, and you're done.
+
+- **Press-to-record**: Click a field, press a key, done
+- **Instant feedback**: Changes apply immediately—no restart, no save-and-wait
+- **Visual rule editor**: See your remappings at a glance, toggle them on and off
+- **Guided setup**: A wizard walks you through permissions and driver installation
+
+<div align="center">
+  <img src="docs/images/screens/1-home-screen.png" alt="KeyPath Rule Editor" width="600"/>
+</div>
+
+---
+
+## Seriously Powerful
+
+Under the hood, KeyPath is built on [**Kanata**](https://github.com/jtroo/kanata)—a keyboard remapping engine that's significantly more capable than tools like Karabiner-Elements or KMonad.
+
+### What makes Kanata different?
+
+| Capability | KeyPath (Kanata) | Karabiner-Elements |
+|------------|------------------|-------------------|
+| **True layers** | Keys change meaning based on active layer—compose layers, toggle them, or hold to activate | Profiles are global; layer-like behavior requires complex JSON rules |
+| **Reliable tap-hold** | Multiple detection strategies (`tap-hold-press`, `tap-hold-release`, etc.) for different use cases | Basic tap-hold with less tuning options |
+| **Composable conditions** | Combine timing, layer state, and key history into a single rule | Conditions are separate JSON objects, harder to compose |
+| **Low latency** | Purpose-built for real-time input; runs as a system daemon | Also low-latency, but JSON parsing and rule matching can add overhead |
+
+Karabiner-Elements is easier to start with if you want to write configs by hand—its JSON model is straightforward. But that simplicity comes at the cost of expressiveness. Kanata's architecture was designed from the ground up for advanced keyboard behaviors.
+
+**KeyPath gives you Kanata's power through a visual interface.** You get the best of both worlds: firmware-level capability, zero config-file friction.
+
+---
+
+## Home Row Mods—Finally Reliable on Mac
+
+**KeyPath is the only Mac tool that enables [Home Row Mods](https://precondition.github.io/home-row-mods) in pure software with reliability comparable to hardware firmware like QMK or ZMK.**
+
+### What are Home Row Mods?
+
+Home Row Mods (HRM) turn the keys under your fingers—A, S, D, F and J, K, L, ;—into dual-function keys:
+
+- **Tap** → types the letter (`a`, `s`, `d`, `f`)
+- **Hold** → activates a modifier (`Ctrl`, `Alt`, `Cmd`, `Shift`)
+
+This means you never have to move your hands from the home row to press modifiers. It's a game-changer for ergonomics, speed, and reducing repetitive strain.
+
+### Why is this hard?
+
+Getting HRM right requires *precise* tap-hold detection. If the timing is off, you get misfires—letters when you meant modifiers, or vice versa. Most software solutions fail at this because they lack the nuanced detection algorithms that mechanical keyboard firmware uses.
+
+Kanata implements multiple tap-hold strategies (like `tap-hold-press` for home row mods) that distinguish between "I'm holding this key to modify" and "I'm just typing quickly." KeyPath makes these strategies accessible through a simple toggle—no config syntax required.
+
+→ **[Learn more about Home Row Mods](https://precondition.github.io/home-row-mods)**
+
+---
+
+## What Can KeyPath Do?
 
 | Want to... | KeyPath can do it |
 |------------|-------------------|
 | Make Caps Lock act as Escape | ✓ |
 | Caps Lock = Escape when tapped, Control when held | ✓ |
 | Double-tap Shift for Caps Lock | ✓ |
-| Fix a broken key by remapping it | ✓ |
+| Home Row Mods (A/S/D/F → Ctrl/Alt/Cmd/Shift) | ✓ |
 | Create custom modifier combinations | ✓ |
-
-Changes apply instantly. No restart needed.
+| Layer-based remapping (Vim-style navigation) | ✓ |
+| Fix a broken or annoying key | ✓ |
 
 ---
 
@@ -35,10 +90,6 @@ Changes apply instantly. No restart needed.
 4. **Create** your first rule and click Save
 
 That's it. Your keyboard is now remapped.
-
-<div align="center">
-  <img src="docs/images/screens/1-home-screen.png" alt="KeyPath Rule Editor" width="600"/>
-</div>
 
 ---
 
@@ -58,9 +109,7 @@ That's it. Your keyboard is now remapped.
 - macOS 14.0 (Sonoma) or later
 - Apple Silicon or Intel Mac
 
----
-
-## System Requirements
+### System Permissions
 
 KeyPath needs a few things to work:
 
@@ -70,6 +119,8 @@ KeyPath needs a few things to work:
 - **Admin password** — to install the background service (one-time)
 
 The setup wizard handles all of this automatically.
+
+---
 
 ## Safety
 
@@ -149,7 +200,7 @@ KeyPath bundles [Kanata](https://github.com/jtroo/kanata), which is licensed und
 
 KeyPath stands on the shoulders of giants. These tools have shaped the Mac automation landscape:
 
-- **[Karabiner-Elements](https://karabiner-elements.pqrs.org/)** — The OG Mac keyboard remapper. Incredibly powerful.
+- **[Karabiner-Elements](https://karabiner-elements.pqrs.org/)** — The OG Mac keyboard remapper. Widely used, JSON-based configuration.
 - **[Keyboard Maestro](https://www.keyboardmaestro.com/)** — The Swiss Army knife of Mac automation.
 - **[Hammerspoon](https://www.hammerspoon.org/)** — Lua-powered automation for power users.
 - **[Raycast](https://www.raycast.com/)** — Modern launcher with extensible commands.
