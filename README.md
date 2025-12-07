@@ -3,7 +3,7 @@
 <div align="center">
   <img src="docs/images/keypath-poster.png" alt="KeyPath" width="400"/>
 
-  **A more comfortable, more powerful keyboard.**
+  **A more comfortable, more powerful Mac keyboard.**
 
   [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-blue.svg)](https://www.apple.com/macos/)
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
