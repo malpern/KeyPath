@@ -3,7 +3,7 @@
 <div align="center">
   <img src="docs/images/keypath-poster.png" alt="KeyPath" width="400"/>
 
-  **Powerful keyboard remapping for Mac—without the learning curve.**
+  **Powerful keyboard remapping for Mac—comfort and simplicity, without the learning curve.**
 
   [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-blue.svg)](https://www.apple.com/macos/)
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -11,7 +11,9 @@
 
 ---
 
-## Simple to Use
+## Comfort & Simplicity
+
+**Improve your keyboard comfort**—without the learning curve.
 
 KeyPath lets you remap keys and create custom shortcuts **just by pressing them**. No config files to edit. No syntax to learn. No terminal commands. Just press the key you want to change, press what you want it to become, and you're done.
 
@@ -28,16 +30,26 @@ KeyPath lets you remap keys and create custom shortcuts **just by pressing them*
 
 ## Seriously Powerful
 
-Under the hood, KeyPath is built on [**Kanata**](https://github.com/jtroo/kanata)—a keyboard remapping engine that's significantly more capable than tools like Karabiner-Elements or KMonad.
+<div align="center">
+  <a href="https://github.com/jtroo/kanata">
+    <img src="https://github.com/jtroo/kanata/raw/main/assets/kanata-icon.svg" alt="Kanata" width="80"/>
+  </a>
+
+  **Powered by [Kanata](https://github.com/jtroo/kanata)**
+
+  *Created by [jtroo](https://github.com/jtroo)*
+</div>
+
+Under the hood, KeyPath is built on **Kanata**—a cross-platform keyboard remapping engine that's significantly more capable than tools like Karabiner-Elements or KMonad.
 
 ### What makes Kanata different?
 
 | Capability | KeyPath (Kanata) | Karabiner-Elements |
 |------------|------------------|-------------------|
-| **True layers** | Keys change meaning based on active layer—compose layers, toggle them, or hold to activate | Profiles are global; layer-like behavior requires complex JSON rules |
-| **Reliable tap-hold** | Multiple detection strategies (`tap-hold-press`, `tap-hold-release`, etc.) for different use cases | Basic tap-hold with less tuning options |
+| **[True layers](https://anniecherkaev.com/principles-for-keyboard-layouts)** | Keys change meaning based on active layer—compose layers, toggle them, or hold to activate | Profiles are global; layer-like behavior requires complex JSON rules |
+| **[Reliable tap-hold](https://thomasbaart.nl/2018/12/09/qmk-basics-tap-and-hold-actions/)** | Multiple detection strategies (`tap-hold-press`, `tap-hold-release`, etc.) for different use cases | Basic tap-hold with less tuning options |
 | **Composable conditions** | Combine timing, layer state, and key history into a single rule | Conditions are separate JSON objects, harder to compose |
-| **Low latency** | Purpose-built for real-time input; runs as a system daemon | Also low-latency, but JSON parsing and rule matching can add overhead |
+| **[Low latency](https://danluu.com/keyboard-latency/)** | Purpose-built for real-time input; runs as a system daemon | Also low-latency, but JSON parsing and rule matching can add overhead |
 
 Karabiner-Elements is easier to start with if you want to write configs by hand—its JSON model is straightforward. But that simplicity comes at the cost of expressiveness. Kanata's architecture was designed from the ground up for advanced keyboard behaviors.
 
