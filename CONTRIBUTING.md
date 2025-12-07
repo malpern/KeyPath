@@ -32,27 +32,27 @@ That's it! You're ready to contribute.
 ## I Want To...
 
 ### Add a keyboard shortcut
-**Edit:** `Sources/KeyPath/UI/RecordingCoordinator.swift`
+**Edit:** `Sources/KeyPathAppKit/UI/RecordingCoordinator.swift`
 **What:** This handles keyboard input recording for creating mappings.
 
 ### Change the main UI
-**Edit:** `Sources/KeyPath/UI/ContentView.swift`
+**Edit:** `Sources/KeyPathAppKit/UI/ContentView.swift`
 **What:** Main app window with status, mappings list, and controls.
 
 ### Fix a bug in key mapping
-**Edit:** `Sources/KeyPath/Services/KanataConfigGenerator.swift`
+**Edit:** `Sources/KeyPathAppKit/Services/KanataConfigGenerator.swift`
 **What:** Converts key mappings to Kanata config format.
 
 ### Add a new service check to the wizard
-**Edit:** `Sources/KeyPath/InstallationWizard/Core/SystemStatusChecker.swift`
-**What:** Detects system state and determines wizard flow.
+**Edit:** `Sources/KeyPathAppKit/InstallationWizard/Core/InstallerEngine.swift`
+**What:** Unified façade for installation, repair, and system inspection.
 
 ### Add a notification
-**Edit:** `Sources/KeyPath/Services/UserNotificationService.swift`
+**Edit:** `Sources/KeyPathAppKit/Services/UserNotificationService.swift`
 **What:** Handles macOS notifications with actions.
 
 ### Improve error handling
-**Edit:** `Sources/KeyPath/Core/KeyPathError.swift`
+**Edit:** `Sources/KeyPathCore/KeyPathError.swift`
 **What:** Centralized error hierarchy for the entire app.
 
 ### Add a test
@@ -64,13 +64,13 @@ That's it! You're ready to contribute.
 KeyPath has three main layers:
 
 ### 1. Services Layer
-Services handle specific responsibilities: `ConfigurationService` manages config files, `PermissionOracle` detects permissions, `KanataManager` coordinates everything. **Pattern:** One service = one responsibility.
+Services handle specific responsibilities: `ConfigurationService` manages config files, `PermissionOracle` detects permissions, `RuntimeCoordinator` coordinates everything. **Pattern:** One service = one responsibility.
 
 ### 2. UI Layer (SwiftUI + MVVM)
-Views (`ContentView`, `InstallationWizardView`) talk to `KanataViewModel`, which talks to `KanataManager`. **Pattern:** Views never access KanataManager directly—they go through the ViewModel.
+Views (`ContentView`, `InstallationWizardView`) talk to `KanataViewModel`, which talks to `RuntimeCoordinator`. **Pattern:** Views never access RuntimeCoordinator directly—they go through the ViewModel.
 
 ### 3. Kanata Integration
-KeyPath starts Kanata as a LaunchDaemon service and supports live config reloads. File watching enables hot‑reload.
+KeyPath starts Kanata as a LaunchDaemon service and communicates via TCP for layer changes and config reloads.
 
 ## Common Patterns
 
@@ -90,7 +90,7 @@ final class MyService: MyServiceProtocol {
     }
 }
 
-// 3. Add to KanataManager
+// 3. Add to RuntimeCoordinator
 private let myService: MyServiceProtocol
 
 init() {
@@ -100,7 +100,7 @@ init() {
 
 ### Pattern 2: Updating UI from service
 ```swift
-// In KanataManager (business logic)
+// In RuntimeCoordinator (business logic)
 func startService() async {
     isRunning = true  // Internal state
 }
@@ -110,7 +110,7 @@ func startService() async {
 
 func startService() async {
     await manager.startService()
-    await syncFromManager()  // Sync UI from manager
+    // ViewModel observes manager.stateChanges AsyncStream
 }
 ```
 
@@ -227,29 +227,23 @@ func testAsyncOperation() async throws {
 ## File Organization
 
 ```
-Sources/KeyPath/
-├── Core/               # Core types and protocols
-│   ├── KeyPathError.swift
-│   └── Contracts/      # Protocol definitions
-├── Services/           # Business logic services
-│   ├── ConfigurationService.swift
-│   ├── PermissionOracle.swift
-│   ├── (Kanata client/IPC implementation)
-│   └── ...
-├── Managers/           # Coordinators (being refactored)
-│   └── KanataManager.swift  # Main coordinator
-├── UI/                 # SwiftUI views
-│   ├── ContentView.swift
-│   ├── ViewModels/
-│   └── Components/
-├── InstallationWizard/ # Setup wizard
-│   ├── Core/           # Wizard logic
-│   └── UI/             # Wizard views
-└── Utilities/          # Helpers
-    ├── Logger.swift
-    └── Notifications.swift
+Sources/
+├── KeyPathAppKit/          # Main app code
+│   ├── App.swift           # App entry point
+│   ├── Core/               # Core types, protocols, helper manager
+│   ├── Infrastructure/     # Config service, key converter
+│   ├── InstallationWizard/ # Setup wizard (Core/ and UI/)
+│   ├── Managers/           # RuntimeCoordinator, diagnostics, recovery
+│   ├── Models/             # Data models (CustomRule, VirtualKey, etc.)
+│   ├── Services/           # Business logic services
+│   ├── UI/                 # SwiftUI views and ViewModels
+│   └── Utilities/          # Helpers (Logger, FeatureFlags, etc.)
+├── KeyPathCore/            # Shared core utilities
+├── KeyPathHelper/          # Privileged helper (XPC)
+├── KeyPathPermissions/     # PermissionOracle
+└── KeyPathDaemonLifecycle/ # LaunchDaemon management
 
-Tests/KeyPathTests/     # Test files
+Tests/KeyPathTests/         # Test files
 ```
 
 ## Code Style
@@ -277,25 +271,10 @@ Tests/KeyPathTests/     # Test files
 
 ## Important Notes
 
-### ⚠️ Current Known Issues
-- **KanataManager:** 2,828 lines (being refactored to ~800 lines)
-- **Build Issue:** Karabiner extraction causing emit-module error (under investigation)
-
-### 🧩 Open Work (tracked as issues/TODOs)
-- Privileged helper/XPC path: implement `helperInstallBundledKanata()` (currently falls back to sudo)
-- Wizard operations factory: move Core factory to UI layer to avoid Core→UI references
-- Wizard critical surfacing: show a blocking issue when the bundled kanata binary is missing
-- UI help bubble: switch Core→UI call to a notification-based implementation
-- Update `requiredDriverVersionMajor` to 6 in VHIDDeviceManager.swift when kanata v1.10 is released
-
-### ✅ Recently Completed
-- ADR-012 wiring: driver version Fix button connected, mismatch dialog shows, downloads v5.0.0
-
 ### 🚫 Don't Do These
 1. **Don't check permissions directly** - Use `PermissionOracle` only
-2. **Don't modify KanataManager** - It's being refactored; put logic in services instead
-3. **Don't skip tests** - They prevent regressions
-4. **Don't use sudo in tests** - Use `TestEnvironment.forceTestMode`
+2. **Don't skip tests** - They prevent regressions
+3. **Don't use sudo in tests** - Use `TestEnvironment.forceTestMode`
 
 ## What Makes a Good Contribution?
 
@@ -314,12 +293,18 @@ Tests/KeyPathTests/     # Test files
 
 ## Roadmap
 
-We're currently working on:
-1. **Simplifying KanataManager** (2,828 → ~800 lines)
-2. **Fixing build issues** (Karabiner service extraction)
-3. **Improving documentation**
+**Current Release: R1 (Installer + Custom Rules)**
+- Visual rule editor with tap-hold and tap-dance
+- Installation wizard with auto-remediation
+- LaunchDaemon service management
 
-See [OVERENGINEERED.md](docs/OVERENGINEERED.md) for detailed roadmap.
+**In Progress: R2 (Full Features)**
+- Live Keyboard Overlay - visual feedback showing active layer and key mappings
+- Mapper UI - graphical keyboard layout editor
+- Simulator Tab - test configs without applying them
+- Rule Collections - pre-built rule sets (Vim, Caps Lock, Home Row Mods)
+
+Use `Ctrl+Option+Cmd+R` to toggle between R1 and R2 feature sets during development.
 
 ---
 
