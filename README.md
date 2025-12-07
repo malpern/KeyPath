@@ -36,7 +36,7 @@ KeyPath lets you remap keys and create custom shortcuts **just by pressing them*
   **Powered by [Kanata](https://github.com/jtroo/kanata)** · *Created by [jtroo](https://github.com/jtroo)*
 </div>
 
-Under the hood, KeyPath is built on **Kanata**—a cross-platform keyboard remapping engine that's significantly more capable than tools like Karabiner-Elements or KMonad.
+Under the hood, KeyPath is built on **Kanata**—a cross-platform keyboard remapping engine inspired by [KMonad](https://github.com/kmonad/kmonad), with firmware-grade capabilities that go far beyond tools like Karabiner-Elements.
 
 ### What makes Kanata different?
 
