@@ -1,0 +1,4 @@
+module KeyPathPackageTests {
+    header "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-karabiner/arm64-apple-macosx/debug/KeyPathPackageTests.build/KeyPathPackageTests-Swift.h"
+    requires objc
+}

@@ -1,0 +1,11 @@
+{
+  "": {
+    "swift-dependencies": "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-karabiner/arm64-apple-macosx/debug/KeyPathPackageTests.build/master.swiftdeps"
+  },
+  "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-karabiner/arm64-apple-macosx/debug/KeyPathPackageTests.derived/runner.swift": {
+    "dependencies": "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-karabiner/arm64-apple-macosx/debug/KeyPathPackageTests.build/runner.d",
+    "object": "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-karabiner/arm64-apple-macosx/debug/KeyPathPackageTests.build/runner.swift.o",
+    "swiftmodule": "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-karabiner/arm64-apple-macosx/debug/KeyPathPackageTests.build/runner~partial.swiftmodule",
+    "swift-dependencies": "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-karabiner/arm64-apple-macosx/debug/KeyPathPackageTests.build/runner.swiftdeps"
+  }
+}

@@ -1,0 +1,3 @@
+module KeyPathDaemonLifecycle {
+    header "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathDaemonLifecycle.build/include/KeyPathDaemonLifecycle-Swift.h"
+}

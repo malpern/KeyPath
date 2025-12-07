@@ -1,0 +1,25 @@
+{
+  "": {
+    "dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathHelper.build/KeyPathHelper.d",
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathHelper.build/KeyPathHelper.o",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathHelper.build/master.swiftdeps"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathHelper/HelperProtocol.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathHelper.build/HelperProtocol.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathHelper.build/HelperProtocol~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathHelper.build/HelperProtocol.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathHelper.build/HelperProtocol.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathHelper/HelperService.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathHelper.build/HelperService.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathHelper.build/HelperService~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathHelper.build/HelperService.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathHelper.build/HelperService.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathHelper/main.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathHelper.build/main.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathHelper.build/main~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathHelper.build/main.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathHelper.build/main.dia"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "": {
+    "dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathDaemonLifecycle.build/KeyPathDaemonLifecycle.d",
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathDaemonLifecycle.build/KeyPathDaemonLifecycle.o",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathDaemonLifecycle.build/master.swiftdeps"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathDaemonLifecycle/LaunchDaemonPIDCache.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathDaemonLifecycle.build/LaunchDaemonPIDCache.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathDaemonLifecycle.build/LaunchDaemonPIDCache~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathDaemonLifecycle.build/LaunchDaemonPIDCache.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathDaemonLifecycle.build/LaunchDaemonPIDCache.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathDaemonLifecycle/LifecycleStateMachine.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathDaemonLifecycle.build/LifecycleStateMachine.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathDaemonLifecycle.build/LifecycleStateMachine~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathDaemonLifecycle.build/LifecycleStateMachine.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathDaemonLifecycle.build/LifecycleStateMachine.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathDaemonLifecycle/PIDFileManager.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathDaemonLifecycle.build/PIDFileManager.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathDaemonLifecycle.build/PIDFileManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathDaemonLifecycle.build/PIDFileManager.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathDaemonLifecycle.build/PIDFileManager.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathDaemonLifecycle/ProcessLifecycleManager.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathDaemonLifecycle.build/ProcessLifecycleManager.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathDaemonLifecycle.build/ProcessLifecycleManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathDaemonLifecycle.build/ProcessLifecycleManager.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathDaemonLifecycle.build/ProcessLifecycleManager.dia"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "": {
+    "dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathPackageTests.build/KeyPathPackageTests.d",
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathPackageTests.build/KeyPathPackageTests.o",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathPackageTests.build/master.swiftdeps"
+  },
+  "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathPackageTests.derived/runner.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathPackageTests.build/runner.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathPackageTests.build/runner~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathPackageTests.build/runner.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathPackageTests.build/runner.dia"
+  }
+}

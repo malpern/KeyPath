@@ -1,0 +1,19 @@
+{
+  "": {
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathWizardCore.build/master.swiftdeps"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathWizardCore/SystemSnapshot.swift": {
+    "dependencies": "/Users/malpern/local-code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathWizardCore.build/SystemSnapshot.d",
+    "object": "/Users/malpern/local-code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathWizardCore.build/SystemSnapshot.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathWizardCore.build/SystemSnapshot~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathWizardCore.build/SystemSnapshot.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathWizardCore.build/SystemSnapshot.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathWizardCore/WizardTypes.swift": {
+    "dependencies": "/Users/malpern/local-code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathWizardCore.build/WizardTypes.d",
+    "object": "/Users/malpern/local-code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathWizardCore.build/WizardTypes.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathWizardCore.build/WizardTypes~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathWizardCore.build/WizardTypes.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathWizardCore.build/WizardTypes.dia"
+  }
+}

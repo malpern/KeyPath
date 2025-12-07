@@ -1,0 +1,1495 @@
+{
+  "": {
+    "dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeyPathAppKit.d",
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeyPathAppKit.o",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/master.swiftdeps"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/App.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/App.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/App~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/App.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/App.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/CLI/KeyPathCLI.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeyPathCLI.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeyPathCLI~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeyPathCLI.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeyPathCLI.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/CLI/KeyPathCLIEntrypoint.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeyPathCLIEntrypoint.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeyPathCLIEntrypoint~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeyPathCLIEntrypoint.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeyPathCLIEntrypoint.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Core/BlessDiagnostics.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/BlessDiagnostics.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/BlessDiagnostics~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/BlessDiagnostics.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/BlessDiagnostics.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Core/Contracts/ConfigurationProviding.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigurationProviding.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigurationProviding~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigurationProviding.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigurationProviding.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Core/Contracts/EngineClient.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EngineClient.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EngineClient~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EngineClient.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EngineClient.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Core/Contracts/EventProcessing.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EventProcessing.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EventProcessing~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EventProcessing.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EventProcessing.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Core/Contracts/EventTapping.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EventTapping.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EventTapping~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EventTapping.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EventTapping.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Core/Contracts/LifecycleControlling.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LifecycleControlling.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LifecycleControlling~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LifecycleControlling.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LifecycleControlling.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Core/Contracts/Logging.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/Logging.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/Logging~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/Logging.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/Logging.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Core/Contracts/PermissionChecking.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionChecking.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionChecking~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionChecking.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionChecking.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Core/Contracts/PrivilegedOperations.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PrivilegedOperations.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PrivilegedOperations~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PrivilegedOperations.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PrivilegedOperations.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Core/Events/DefaultEventProcessor.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DefaultEventProcessor.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DefaultEventProcessor~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DefaultEventProcessor.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DefaultEventProcessor.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Core/Events/EventRouter.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EventRouter.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EventRouter~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EventRouter.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EventRouter.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Core/HelperManager.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelperManager.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelperManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelperManager.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelperManager.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Core/HelperProtocol.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelperProtocol.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelperProtocol~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelperProtocol.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelperProtocol.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Core/PrivilegedOperationsCoordinator.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PrivilegedOperationsCoordinator.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PrivilegedOperationsCoordinator~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PrivilegedOperationsCoordinator.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PrivilegedOperationsCoordinator.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Infrastructure/Config/ConfigurationService.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigurationService.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigurationService~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigurationService.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigurationService.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Infrastructure/Config/KanataBehaviorParser.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataBehaviorParser.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataBehaviorParser~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataBehaviorParser.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataBehaviorParser.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Infrastructure/Config/KanataBehaviorRenderer.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataBehaviorRenderer.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataBehaviorRenderer~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataBehaviorRenderer.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataBehaviorRenderer.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Infrastructure/Config/KanataKeyConverter.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataKeyConverter.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataKeyConverter~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataKeyConverter.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataKeyConverter.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Infrastructure/Privileged/HelperBackedPrivilegedOperations.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelperBackedPrivilegedOperations.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelperBackedPrivilegedOperations~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelperBackedPrivilegedOperations.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelperBackedPrivilegedOperations.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Infrastructure/Privileged/PrivilegedOperationsProvider.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PrivilegedOperationsProvider.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PrivilegedOperationsProvider~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PrivilegedOperationsProvider.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PrivilegedOperationsProvider.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Infrastructure/Testing/MockPrivilegedOperations.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MockPrivilegedOperations.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MockPrivilegedOperations~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MockPrivilegedOperations.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MockPrivilegedOperations.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Components/HelpSheets.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelpSheets.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelpSheets~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelpSheets.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelpSheets.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Components/HelperLogsView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelperLogsView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelperLogsView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelperLogsView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelperLogsView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Components/PermissionCard.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionCard.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionCard~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionCard.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionCard.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Components/StatusIndicators.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/StatusIndicators.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/StatusIndicators~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/StatusIndicators.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/StatusIndicators.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/ActionDeterminer.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ActionDeterminer.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ActionDeterminer~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ActionDeterminer.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ActionDeterminer.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/InstallerEngine+Recipes.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InstallerEngine+Recipes.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InstallerEngine+Recipes~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InstallerEngine+Recipes.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InstallerEngine+Recipes.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/InstallerEngine.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InstallerEngine.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InstallerEngine~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InstallerEngine.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InstallerEngine.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/InstallerEngineTypes.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InstallerEngineTypes.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InstallerEngineTypes~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InstallerEngineTypes.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InstallerEngineTypes.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/IssueGenerator.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/IssueGenerator.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/IssueGenerator~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/IssueGenerator.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/IssueGenerator.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/KanataBinaryDetector.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataBinaryDetector.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataBinaryDetector~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataBinaryDetector.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataBinaryDetector.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/KanataBinaryInstaller.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataBinaryInstaller.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataBinaryInstaller~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataBinaryInstaller.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataBinaryInstaller.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/KarabinerComponentsStatusEvaluator.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KarabinerComponentsStatusEvaluator.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KarabinerComponentsStatusEvaluator~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KarabinerComponentsStatusEvaluator.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KarabinerComponentsStatusEvaluator.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/PackageManager.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PackageManager.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PackageManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PackageManager.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PackageManager.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/PermissionGrantCoordinator.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionGrantCoordinator.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionGrantCoordinator~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionGrantCoordinator.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionGrantCoordinator.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/PlistGenerator.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PlistGenerator.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PlistGenerator~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PlistGenerator.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PlistGenerator.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/PrivilegeBroker.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PrivilegeBroker.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PrivilegeBroker~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PrivilegeBroker.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PrivilegeBroker.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/PrivilegedExecutor.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PrivilegedExecutor.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PrivilegedExecutor~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PrivilegedExecutor.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PrivilegedExecutor.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/ServiceBootstrapper.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ServiceBootstrapper.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ServiceBootstrapper~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ServiceBootstrapper.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ServiceBootstrapper.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/ServiceHealthChecker.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ServiceHealthChecker.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ServiceHealthChecker~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ServiceHealthChecker.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ServiceHealthChecker.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/ServiceStatusEvaluator.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ServiceStatusEvaluator.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ServiceStatusEvaluator~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ServiceStatusEvaluator.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ServiceStatusEvaluator.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/SystemContextAdapter.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SystemContextAdapter.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SystemContextAdapter~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SystemContextAdapter.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SystemContextAdapter.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/SystemRequirements.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SystemRequirements.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SystemRequirements~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SystemRequirements.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SystemRequirements.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/ToastPresenting.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ToastPresenting.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ToastPresenting~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ToastPresenting.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ToastPresenting.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/VHIDDeviceManager.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/VHIDDeviceManager.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/VHIDDeviceManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/VHIDDeviceManager.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/VHIDDeviceManager.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/WizardAsyncOperationManager.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardAsyncOperationManager.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardAsyncOperationManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardAsyncOperationManager.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardAsyncOperationManager.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/WizardAutoFixer.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardAutoFixer.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardAutoFixer~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardAutoFixer.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardAutoFixer.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/WizardEvent.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardEvent.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardEvent~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardEvent.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardEvent.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/WizardLogger.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardLogger.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardLogger~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardLogger.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardLogger.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/WizardNavigationCoordinator.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardNavigationCoordinator.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardNavigationCoordinator~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardNavigationCoordinator.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardNavigationCoordinator.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/WizardNavigationEngine.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardNavigationEngine.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardNavigationEngine~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardNavigationEngine.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardNavigationEngine.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/WizardNavigationHeuristics.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardNavigationHeuristics.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardNavigationHeuristics~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardNavigationHeuristics.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardNavigationHeuristics.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/WizardRouter.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardRouter.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardRouter~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardRouter.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardRouter.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/WizardSleep.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardSleep.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardSleep~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardSleep.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardSleep.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/WizardStateInterpreter.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardStateInterpreter.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardStateInterpreter~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardStateInterpreter.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardStateInterpreter.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/WizardStateMachine.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardStateMachine.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardStateMachine~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardStateMachine.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardStateMachine.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/WizardStateManager.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardStateManager.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardStateManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardStateManager.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardStateManager.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/Core/WizardTelemetry.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardTelemetry.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardTelemetry~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardTelemetry.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardTelemetry.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/Components/FDADetectionModals.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/FDADetectionModals.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/FDADetectionModals~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/FDADetectionModals.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/FDADetectionModals.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/Components/HelpBubbleOverlay.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelpBubbleOverlay.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelpBubbleOverlay~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelpBubbleOverlay.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelpBubbleOverlay.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/Components/SheetWindowModifier.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SheetWindowModifier.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SheetWindowModifier~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SheetWindowModifier.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SheetWindowModifier.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/Components/StartConfirmationDialog.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/StartConfirmationDialog.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/StartConfirmationDialog~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/StartConfirmationDialog.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/StartConfirmationDialog.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/Components/WizardActionSection.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardActionSection.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardActionSection~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardActionSection.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardActionSection.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/Components/WizardButtonBar.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardButtonBar.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardButtonBar~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardButtonBar.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardButtonBar.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/Components/WizardErrorDisplay.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardErrorDisplay.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardErrorDisplay~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardErrorDisplay.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardErrorDisplay.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/Components/WizardHeroSection.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardHeroSection.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardHeroSection~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardHeroSection.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardHeroSection.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/Components/WizardNavigationControl.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardNavigationControl.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardNavigationControl~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardNavigationControl.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardNavigationControl.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/Components/WizardPreflightView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardPreflightView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardPreflightView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardPreflightView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardPreflightView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/Components/WizardProgressIndicator.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardProgressIndicator.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardProgressIndicator~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardProgressIndicator.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardProgressIndicator.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/Components/WizardSystemStatusOverview.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardSystemStatusOverview.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardSystemStatusOverview~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardSystemStatusOverview.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardSystemStatusOverview.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/InstallationWizardView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InstallationWizardView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InstallationWizardView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InstallationWizardView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InstallationWizardView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/Pages/WizardAccessibilityPage.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardAccessibilityPage.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardAccessibilityPage~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardAccessibilityPage.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardAccessibilityPage.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/Pages/WizardCommunicationPage.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardCommunicationPage.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardCommunicationPage~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardCommunicationPage.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardCommunicationPage.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/Pages/WizardConflictsPage.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardConflictsPage.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardConflictsPage~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardConflictsPage.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardConflictsPage.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/Pages/WizardFullDiskAccessPage.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardFullDiskAccessPage.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardFullDiskAccessPage~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardFullDiskAccessPage.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardFullDiskAccessPage.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/Pages/WizardHelperPage.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardHelperPage.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardHelperPage~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardHelperPage.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardHelperPage.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/Pages/WizardInputMonitoringPage.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardInputMonitoringPage.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardInputMonitoringPage~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardInputMonitoringPage.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardInputMonitoringPage.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/Pages/WizardKanataComponentsPage.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardKanataComponentsPage.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardKanataComponentsPage~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardKanataComponentsPage.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardKanataComponentsPage.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/Pages/WizardKanataServicePage.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardKanataServicePage.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardKanataServicePage~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardKanataServicePage.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardKanataServicePage.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/Pages/WizardKarabinerComponentsPage.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardKarabinerComponentsPage.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardKarabinerComponentsPage~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardKarabinerComponentsPage.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardKarabinerComponentsPage.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/Pages/WizardSummaryPage.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardSummaryPage.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardSummaryPage~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardSummaryPage.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardSummaryPage.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/WizardDesignSystem.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardDesignSystem.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardDesignSystem~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardDesignSystem.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardDesignSystem.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/InstallationWizard/UI/WizardToastManager.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardToastManager.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardToastManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardToastManager.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WizardToastManager.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Managers/Configuration/ConfigurationManager.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigurationManager.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigurationManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigurationManager.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigurationManager.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Managers/Diagnostics/DiagnosticsManager.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DiagnosticsManager.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DiagnosticsManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DiagnosticsManager.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DiagnosticsManager.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Managers/HelperMaintenance.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelperMaintenance.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelperMaintenance~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelperMaintenance.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HelperMaintenance.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Managers/InstallationCoordinator.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InstallationCoordinator.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InstallationCoordinator~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InstallationCoordinator.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InstallationCoordinator.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Managers/KanataDaemonManager.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataDaemonManager.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataDaemonManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataDaemonManager.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataDaemonManager.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Managers/Process/ProcessCoordinator.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ProcessCoordinator.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ProcessCoordinator~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ProcessCoordinator.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ProcessCoordinator.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Managers/Process/ProcessManager.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ProcessManager.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ProcessManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ProcessManager.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ProcessManager.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Managers/RecoveryCoordinator.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RecoveryCoordinator.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RecoveryCoordinator~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RecoveryCoordinator.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RecoveryCoordinator.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Managers/RuleCollectionsCoordinator.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuleCollectionsCoordinator.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuleCollectionsCoordinator~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuleCollectionsCoordinator.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuleCollectionsCoordinator.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Managers/RuntimeCoordinator+Configuration.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuntimeCoordinator+Configuration.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuntimeCoordinator+Configuration~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuntimeCoordinator+Configuration.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuntimeCoordinator+Configuration.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Managers/RuntimeCoordinator+Engine.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuntimeCoordinator+Engine.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuntimeCoordinator+Engine~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuntimeCoordinator+Engine.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuntimeCoordinator+Engine.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Managers/RuntimeCoordinator+EventTaps.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuntimeCoordinator+EventTaps.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuntimeCoordinator+EventTaps~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuntimeCoordinator+EventTaps.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuntimeCoordinator+EventTaps.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Managers/RuntimeCoordinator+Lifecycle.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuntimeCoordinator+Lifecycle.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuntimeCoordinator+Lifecycle~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuntimeCoordinator+Lifecycle.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuntimeCoordinator+Lifecycle.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Managers/RuntimeCoordinator+Output.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuntimeCoordinator+Output.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuntimeCoordinator+Output~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuntimeCoordinator+Output.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuntimeCoordinator+Output.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Managers/RuntimeCoordinator.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuntimeCoordinator.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuntimeCoordinator~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuntimeCoordinator.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuntimeCoordinator.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Managers/SaveCoordinator.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SaveCoordinator.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SaveCoordinator~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SaveCoordinator.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SaveCoordinator.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Managers/UninstallCoordinator.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/UninstallCoordinator.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/UninstallCoordinator~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/UninstallCoordinator.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/UninstallCoordinator.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/MenuBar/MenuBarController.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MenuBarController.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MenuBarController~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MenuBarController.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MenuBarController.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Models/ConfigApplyTypes.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigApplyTypes.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigApplyTypes~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigApplyTypes.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigApplyTypes.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Models/CustomRule.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CustomRule.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CustomRule~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CustomRule.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CustomRule.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Models/CustomRuleValidator.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CustomRuleValidator.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CustomRuleValidator~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CustomRuleValidator.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CustomRuleValidator.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Models/HomeRowModsConfig.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HomeRowModsConfig.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HomeRowModsConfig~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HomeRowModsConfig.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HomeRowModsConfig.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Models/KanataUIState.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataUIState.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataUIState~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataUIState.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataUIState.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Models/KeyMapping.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeyMapping.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeyMapping~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeyMapping.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeyMapping.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Models/KeySequence.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeySequence.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeySequence~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeySequence.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeySequence.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Models/Kinesis360KeyMap.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/Kinesis360KeyMap.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/Kinesis360KeyMap~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/Kinesis360KeyMap.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/Kinesis360KeyMap.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Models/LiveKeyboardState.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LiveKeyboardState.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LiveKeyboardState~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LiveKeyboardState.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LiveKeyboardState.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Models/MappingBehavior.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MappingBehavior.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MappingBehavior~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MappingBehavior.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MappingBehavior.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Models/PhysicalLayout.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PhysicalLayout.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PhysicalLayout~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PhysicalLayout.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PhysicalLayout.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Models/QMKLayoutParser.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/QMKLayoutParser.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/QMKLayoutParser~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/QMKLayoutParser.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/QMKLayoutParser.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Models/RuleCollectionDeduplicator.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuleCollectionDeduplicator.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuleCollectionDeduplicator~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuleCollectionDeduplicator.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuleCollectionDeduplicator.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Models/RuleCollectionModels.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuleCollectionModels.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuleCollectionModels~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuleCollectionModels.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuleCollectionModels.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Models/SimpleModsModels.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleModsModels.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleModsModels~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleModsModels.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleModsModels.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Models/SimulationModels.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulationModels.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulationModels~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulationModels.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulationModels.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Models/VirtualKey.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/VirtualKey.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/VirtualKey~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/VirtualKey.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/VirtualKey.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/AI/AnthropicConfigRepairService.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/AnthropicConfigRepairService.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/AnthropicConfigRepairService~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/AnthropicConfigRepairService.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/AnthropicConfigRepairService.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/AI/ConfigRepairService.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigRepairService.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigRepairService~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigRepairService.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigRepairService.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/ActionDispatcher.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ActionDispatcher.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ActionDispatcher~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ActionDispatcher.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ActionDispatcher.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/ConfigBackupManager.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigBackupManager.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigBackupManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigBackupManager.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigBackupManager.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/ConfigFileWatcher.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigFileWatcher.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigFileWatcher~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigFileWatcher.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigFileWatcher.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/ConfigHotReloadService.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigHotReloadService.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigHotReloadService~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigHotReloadService.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConfigHotReloadService.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/CustomRulesStore.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CustomRulesStore.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CustomRulesStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CustomRulesStore.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CustomRulesStore.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/DiagnosticsService.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DiagnosticsService.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DiagnosticsService~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DiagnosticsService.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DiagnosticsService.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/EventTapController.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EventTapController.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EventTapController~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EventTapController.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EventTapController.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/HealthCheckService.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HealthCheckService.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HealthCheckService~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HealthCheckService.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HealthCheckService.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/KanataConfigGenerator.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataConfigGenerator.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataConfigGenerator~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataConfigGenerator.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataConfigGenerator.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/KanataErrorMonitor.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataErrorMonitor.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataErrorMonitor~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataErrorMonitor.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataErrorMonitor.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/KanataEventListener.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataEventListener.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataEventListener~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataEventListener.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataEventListener.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/KanataService.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataService.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataService~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataService.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataService.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/KanataTCPClient.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataTCPClient.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataTCPClient~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataTCPClient.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataTCPClient.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/KarabinerConflictService.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KarabinerConflictService.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KarabinerConflictService~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KarabinerConflictService.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KarabinerConflictService.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/KeyboardCapture.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeyboardCapture.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeyboardCapture~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeyboardCapture.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeyboardCapture.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/KeychainService.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeychainService.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeychainService~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeychainService.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeychainService.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/LayerKeyMapper.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LayerKeyMapper.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LayerKeyMapper~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LayerKeyMapper.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LayerKeyMapper.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/MainAppStateController.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MainAppStateController.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MainAppStateController~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MainAppStateController.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MainAppStateController.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/OrphanDetector.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/OrphanDetector.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/OrphanDetector~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/OrphanDetector.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/OrphanDetector.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/PermissionGate.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionGate.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionGate~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionGate.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionGate.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/PermissionRequestService.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionRequestService.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionRequestService~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionRequestService.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionRequestService.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/PermissionService.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionService.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionService~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionService.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionService.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/PreferencesService.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PreferencesService.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PreferencesService~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PreferencesService.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PreferencesService.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/ProcessKiller.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ProcessKiller.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ProcessKiller~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ProcessKiller.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ProcessKiller.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/ReloadSafetyMonitor.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ReloadSafetyMonitor.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ReloadSafetyMonitor~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ReloadSafetyMonitor.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ReloadSafetyMonitor.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/RuleCollectionCatalog.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuleCollectionCatalog.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuleCollectionCatalog~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuleCollectionCatalog.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuleCollectionCatalog.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/RuleCollectionStore.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuleCollectionStore.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuleCollectionStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuleCollectionStore.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuleCollectionStore.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/RuleCollectionsManager.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuleCollectionsManager.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuleCollectionsManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuleCollectionsManager.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RuleCollectionsManager.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/SafetyAlertPresenter.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SafetyAlertPresenter.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SafetyAlertPresenter~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SafetyAlertPresenter.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SafetyAlertPresenter.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/SafetyTimeoutService.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SafetyTimeoutService.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SafetyTimeoutService~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SafetyTimeoutService.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SafetyTimeoutService.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/ServiceHealthMonitor.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ServiceHealthMonitor.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ServiceHealthMonitor~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ServiceHealthMonitor.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ServiceHealthMonitor.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/SimpleModsCatalog.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleModsCatalog.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleModsCatalog~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleModsCatalog.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleModsCatalog.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/SimpleModsParser.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleModsParser.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleModsParser~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleModsParser.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleModsParser.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/SimpleModsService.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleModsService.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleModsService~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleModsService.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleModsService.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/SimpleModsWriter.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleModsWriter.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleModsWriter~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleModsWriter.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleModsWriter.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/SimulatorService.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulatorService.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulatorService~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulatorService.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulatorService.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/StartTraceLogger.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/StartTraceLogger.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/StartTraceLogger~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/StartTraceLogger.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/StartTraceLogger.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/StartupCoordinator.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/StartupCoordinator.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/StartupCoordinator~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/StartupCoordinator.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/StartupCoordinator.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/StatePublisherService.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/StatePublisherService.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/StatePublisherService~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/StatePublisherService.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/StatePublisherService.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/SystemRequirementsChecker.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SystemRequirementsChecker.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SystemRequirementsChecker~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SystemRequirementsChecker.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SystemRequirementsChecker.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/SystemValidator.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SystemValidator.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SystemValidator~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SystemValidator.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SystemValidator.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/TCPEngineClient.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/TCPEngineClient.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/TCPEngineClient~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/TCPEngineClient.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/TCPEngineClient.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/UserFeedbackService.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/UserFeedbackService.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/UserFeedbackService~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/UserFeedbackService.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/UserFeedbackService.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Services/UserNotificationService.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/UserNotificationService.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/UserNotificationService~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/UserNotificationService.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/UserNotificationService.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Components/DraggableAreaView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DraggableAreaView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DraggableAreaView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DraggableAreaView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DraggableAreaView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Components/SystemStatusIndicator.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SystemStatusIndicator.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SystemStatusIndicator~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SystemStatusIndicator.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SystemStatusIndicator.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Components/TitlebarHeaderAccessory.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/TitlebarHeaderAccessory.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/TitlebarHeaderAccessory~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/TitlebarHeaderAccessory.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/TitlebarHeaderAccessory.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Components/WindowControlsView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WindowControlsView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WindowControlsView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WindowControlsView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WindowControlsView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/ContentView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ContentView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ContentView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ContentView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ContentView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/ContentView/ContentViewHeader.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ContentViewHeader.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ContentViewHeader~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ContentViewHeader.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ContentViewHeader.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/ContentView/DiagnosticSummarySection.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DiagnosticSummarySection.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DiagnosticSummarySection~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DiagnosticSummarySection.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DiagnosticSummarySection.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/ContentView/DiagnosticSummaryView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DiagnosticSummaryView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DiagnosticSummaryView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DiagnosticSummaryView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DiagnosticSummaryView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/ContentView/LayerStatusIndicator.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LayerStatusIndicator.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LayerStatusIndicator~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LayerStatusIndicator.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LayerStatusIndicator.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/ContentView/RecordingSection.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RecordingSection.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RecordingSection~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RecordingSection.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RecordingSection.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/ContentView/StatusMessageView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/StatusMessageView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/StatusMessageView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/StatusMessageView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/StatusMessageView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/EmergencyStopDialog.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EmergencyStopDialog.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EmergencyStopDialog~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EmergencyStopDialog.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EmergencyStopDialog.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/EmergencyStopPauseCard.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EmergencyStopPauseCard.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EmergencyStopPauseCard~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EmergencyStopPauseCard.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EmergencyStopPauseCard.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Experimental/InputCaptureExperiment.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InputCaptureExperiment.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InputCaptureExperiment~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InputCaptureExperiment.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InputCaptureExperiment.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Experimental/MapperView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MapperView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MapperView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MapperView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MapperView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Experimental/MapperView/MapperKeycapViews.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MapperKeycapViews.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MapperKeycapViews~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MapperKeycapViews.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MapperKeycapViews.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Experimental/MapperView/MapperViewModel.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MapperViewModel.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MapperViewModel~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MapperViewModel.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MapperViewModel.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Experimental/MapperView/ResetButton.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ResetButton.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ResetButton~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ResetButton.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ResetButton.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/InstallerView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InstallerView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InstallerView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InstallerView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/InstallerView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/KeyboardVisualization/KeyboardVisualizationViewModel.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeyboardVisualizationViewModel.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeyboardVisualizationViewModel~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeyboardVisualizationViewModel.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeyboardVisualizationViewModel.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/LayerIndicatorWindow.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LayerIndicatorWindow.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LayerIndicatorWindow~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LayerIndicatorWindow.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LayerIndicatorWindow.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/MainWindowController.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MainWindowController.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MainWindowController~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MainWindowController.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MainWindowController.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Overlay/KeycapLayoutRole.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeycapLayoutRole.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeycapLayoutRole~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeycapLayoutRole.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeycapLayoutRole.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Overlay/LiveKeyboardOverlayController.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LiveKeyboardOverlayController.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LiveKeyboardOverlayController~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LiveKeyboardOverlayController.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LiveKeyboardOverlayController.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Overlay/LiveKeyboardOverlayView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LiveKeyboardOverlayView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LiveKeyboardOverlayView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LiveKeyboardOverlayView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/LiveKeyboardOverlayView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Overlay/OverlayKeyboardView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/OverlayKeyboardView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/OverlayKeyboardView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/OverlayKeyboardView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/OverlayKeyboardView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Overlay/OverlayKeycapView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/OverlayKeycapView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/OverlayKeycapView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/OverlayKeycapView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/OverlayKeycapView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Overlay/WindowResizeHandle.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WindowResizeHandle.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WindowResizeHandle~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WindowResizeHandle.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WindowResizeHandle.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/PermissionRequestDialog.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionRequestDialog.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionRequestDialog~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionRequestDialog.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PermissionRequestDialog.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Preferences/WindowHeightPreferenceKey.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WindowHeightPreferenceKey.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WindowHeightPreferenceKey~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WindowHeightPreferenceKey.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/WindowHeightPreferenceKey.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/RecordingCoordinator.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RecordingCoordinator.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RecordingCoordinator~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RecordingCoordinator.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RecordingCoordinator.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/RootView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RootView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RootView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RootView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RootView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Rules/ActiveRulesView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ActiveRulesView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ActiveRulesView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ActiveRulesView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ActiveRulesView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Rules/AvailableRulesView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/AvailableRulesView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/AvailableRulesView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/AvailableRulesView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/AvailableRulesView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Rules/ConflictResolutionDialog.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConflictResolutionDialog.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConflictResolutionDialog~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConflictResolutionDialog.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ConflictResolutionDialog.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Rules/CustomRuleEditorView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CustomRuleEditorView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CustomRuleEditorView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CustomRuleEditorView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CustomRuleEditorView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Rules/CustomRulesView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CustomRulesView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CustomRulesView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CustomRulesView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CustomRulesView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Rules/HomeRowKeyboardView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HomeRowKeyboardView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HomeRowKeyboardView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HomeRowKeyboardView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HomeRowKeyboardView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Rules/HomeRowModsCollectionView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HomeRowModsCollectionView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HomeRowModsCollectionView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HomeRowModsCollectionView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HomeRowModsCollectionView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Rules/HomeRowModsModalView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HomeRowModsModalView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HomeRowModsModalView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HomeRowModsModalView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/HomeRowModsModalView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Rules/MappingBehaviorEditor.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MappingBehaviorEditor.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MappingBehaviorEditor~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MappingBehaviorEditor.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MappingBehaviorEditor.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/RulesSummaryView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RulesSummaryView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RulesSummaryView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RulesSummaryView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/RulesSummaryView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/RulesSummaryView/AppLaunchChip.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/AppLaunchChip.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/AppLaunchChip~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/AppLaunchChip.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/AppLaunchChip.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/RulesSummaryView/CreateRuleButton.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CreateRuleButton.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CreateRuleButton~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CreateRuleButton.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CreateRuleButton.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/RulesSummaryView/CustomKeyPopover.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CustomKeyPopover.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CustomKeyPopover~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CustomKeyPopover.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CustomKeyPopover.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/RulesSummaryView/ExpandableCollectionRow.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ExpandableCollectionRow.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ExpandableCollectionRow~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ExpandableCollectionRow.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ExpandableCollectionRow.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/RulesSummaryView/KeycapStyle.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeycapStyle.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeycapStyle~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeycapStyle.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KeycapStyle.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/RulesSummaryView/MappingRowView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MappingRowView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MappingRowView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MappingRowView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MappingRowView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/RulesSummaryView/MappingTableContent.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MappingTableContent.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MappingTableContent~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MappingTableContent.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/MappingTableContent.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/RulesSummaryView/PickerSegment.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PickerSegment.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PickerSegment~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PickerSegment.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/PickerSegment.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/RulesSummaryView/SingleKeyPickerContent.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SingleKeyPickerContent.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SingleKeyPickerContent~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SingleKeyPickerContent.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SingleKeyPickerContent.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/RulesSummaryView/TapHoldPickerContent.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/TapHoldPickerContent.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/TapHoldPickerContent~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/TapHoldPickerContent.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/TapHoldPickerContent.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/RulesSummaryView/ToastView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ToastView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ToastView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ToastView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/ToastView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Settings/CleanupAndRepairView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CleanupAndRepairView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CleanupAndRepairView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CleanupAndRepairView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/CleanupAndRepairView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Settings/VirtualKeysInspectorView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/VirtualKeysInspectorView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/VirtualKeysInspectorView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/VirtualKeysInspectorView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/VirtualKeysInspectorView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/SettingsContainerView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SettingsContainerView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SettingsContainerView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SettingsContainerView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SettingsContainerView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/SettingsDesignSystem.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SettingsDesignSystem.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SettingsDesignSystem~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SettingsDesignSystem.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SettingsDesignSystem.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/SettingsView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SettingsView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SettingsView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SettingsView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SettingsView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/SetupBanner.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SetupBanner.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SetupBanner~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SetupBanner.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SetupBanner.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/SimpleLogViewer.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleLogViewer.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleLogViewer~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleLogViewer.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleLogViewer.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/SimpleModsView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleModsView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleModsView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleModsView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimpleModsView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Simulator/EventSequenceView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EventSequenceView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EventSequenceView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EventSequenceView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/EventSequenceView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Simulator/SimulationResultsView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulationResultsView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulationResultsView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulationResultsView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulationResultsView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Simulator/SimulatorKeyboardView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulatorKeyboardView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulatorKeyboardView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulatorKeyboardView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulatorKeyboardView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Simulator/SimulatorKeycapView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulatorKeycapView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulatorKeycapView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulatorKeycapView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulatorKeycapView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Simulator/SimulatorView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulatorView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulatorView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulatorView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulatorView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Simulator/SimulatorViewModel.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulatorViewModel.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulatorViewModel~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulatorViewModel.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SimulatorViewModel.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/SplashView.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SplashView.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SplashView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SplashView.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SplashView.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/Style/AppGlass.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/AppGlass.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/AppGlass~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/AppGlass.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/AppGlass.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/UninstallKeyPathDialog.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/UninstallKeyPathDialog.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/UninstallKeyPathDialog~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/UninstallKeyPathDialog.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/UninstallKeyPathDialog.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/UI/ViewModels/KanataViewModel.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataViewModel.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataViewModel~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataViewModel.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/KanataViewModel.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Utilities/AdminCommandExecutor.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/AdminCommandExecutor.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/AdminCommandExecutor~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/AdminCommandExecutor.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/AdminCommandExecutor.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Utilities/AppRestarter.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/AppRestarter.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/AppRestarter~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/AppRestarter.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/AppRestarter.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Utilities/BuildInfo.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/BuildInfo.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/BuildInfo~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/BuildInfo.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/BuildInfo.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Utilities/DependencyInjection.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DependencyInjection.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DependencyInjection~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DependencyInjection.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DependencyInjection.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Utilities/FeatureFlags.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/FeatureFlags.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/FeatureFlags~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/FeatureFlags.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/FeatureFlags.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Utilities/Notifications.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/Notifications.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/Notifications~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/Notifications.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/Notifications.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Utilities/SignatureHealthCheck.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SignatureHealthCheck.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SignatureHealthCheck~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SignatureHealthCheck.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SignatureHealthCheck.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Utilities/SoundManager.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SoundManager.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SoundManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SoundManager.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SoundManager.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/Sources/KeyPathAppKit/Utilities/SoundPlayer.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SoundPlayer.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SoundPlayer~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SoundPlayer.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/SoundPlayer.dia"
+  },
+  "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/DerivedSources/resource_bundle_accessor.swift": {
+    "object": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/resource_bundle_accessor.swift.o",
+    "swiftmodule": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/resource_bundle_accessor~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/resource_bundle_accessor.swiftdeps",
+    "diagnostics": "/Users/malpern/local-code/KeyPath/.build/arm64-apple-macosx/release/KeyPathAppKit.build/resource_bundle_accessor.dia"
+  }
+}

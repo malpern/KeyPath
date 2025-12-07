@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleExecutable</key>
+	<string>KeyPath</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.keypath.KeyPath</string>
+	<key>CFBundleName</key>
+	<string>KeyPath</string>
+	<key>CFBundleDisplayName</key>
+	<string>KeyPath</string>
+	<key>CFBundleVersion</key>
+	<string>1.0.0</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.0</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2025 KeyPath. All rights reserved.</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>15.0</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
+
+	<!-- SMAppService: Declare privileged helper for system operations -->
+	<key>SMPrivilegedExecutables</key>
+	<dict>
+		<key>com.keypath.helper</key>
+		<string>identifier "com.keypath.helper" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = X2RKZ5TG99</string>
+	</dict>
+
+	<!-- URL Scheme: Register keypath:// for deep linking -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>KeyPath Action URL</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>keypath</string>
+			</array>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+		</dict>
+	</array>
+
+</dict>
+</plist>
