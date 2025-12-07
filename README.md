@@ -145,8 +145,19 @@ KeyPath bundles [Kanata](https://github.com/jtroo/kanata), which is licensed und
 
 ---
 
+## Other Mac Tools We Appreciate
+
+KeyPath stands on the shoulders of giants. These tools have shaped the Mac automation landscape:
+
+- **[Karabiner-Elements](https://karabiner-elements.pqrs.org/)** — The OG Mac keyboard remapper. Incredibly powerful.
+- **[Keyboard Maestro](https://www.keyboardmaestro.com/)** — The Swiss Army knife of Mac automation.
+- **[Hammerspoon](https://www.hammerspoon.org/)** — Lua-powered automation for power users.
+- **[Raycast](https://www.raycast.com/)** — Modern launcher with extensible commands.
+
+---
+
 <div align="center">
-  <strong>Made with love for the macOS community</strong>
+  <strong>Made with ❤️ for the Mac community</strong>
 
   <p>If KeyPath helps you, consider starring the repo!</p>
 
