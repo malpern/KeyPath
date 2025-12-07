@@ -82,6 +82,10 @@ Power users can open and edit the Kanata config directly:
 ~/Library/Application Support/KeyPath/keypath.kbd
 ```
 
+<div align="center">
+  <img src="docs/images/example-config.png" alt="Example Kanata Config" width="600"/>
+</div>
+
 Start with KeyPath's UI, and graduate to hand-editing only when you want to. Your visual rules and manual edits coexist in the same file. See the [Kanata configuration guide](https://github.com/jtroo/kanata/blob/main/docs/config.adoc) for the complete reference.
 
 ---
