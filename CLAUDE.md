@@ -5,6 +5,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Poltergeist Builds (required)
 
 - NEVER manually run build commands when Poltergeist is running.
+
+## Semantic Line Breaks (SemBr)
+- Use semantic line breaks in all prose and comments. Break at sentences/clauses, not fixed width.
+- Avoid formatters that reflow SemBr text; keep existing line breaks when editing.
+
 - ALWAYS use `polter <target>` to ensure fresh builds.
 - Poltergeist automatically detects changes and rebuilds.
 

@@ -34,3 +34,8 @@ Rationale: older CLI/tooling may still expose `tools.web_search`, which prints a
 ### Testing
 - **Mock Time**: Do not use `Thread.sleep`. Use `Date` overrides or mock clocks.
 - **Environment**: Use `KEYPATH_USE_INSTALLER_ENGINE=1` (default now) for tests.
+
+
+## Semantic Line Breaks (SemBr)
+- Write and preserve semantic line breaks in prose (docs, comments). Break at sentence or clause boundaries, not fixed width.
+- Do not reflow SemBr text with formatters; configure tools to respect existing line breaks or leave prose untouched.
