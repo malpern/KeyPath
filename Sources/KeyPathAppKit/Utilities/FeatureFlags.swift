@@ -142,7 +142,6 @@ extension FeatureFlags {
     private static let useAutomaticPermissionPromptsKey = "USE_AUTOMATIC_PERMISSION_PROMPTS"
     private static let useJustInTimePermissionRequestsKey = "USE_JIT_PERMISSION_REQUESTS"
     private static let allowOptionalWizardKey = "ALLOW_OPTIONAL_WIZARD"
-    private static let useUnifiedWizardRouterKey = "USE_UNIFIED_WIZARD_ROUTER"
 
     static var captureListenOnlyEnabled: Bool {
         if UserDefaults.standard.object(forKey: captureListenOnlyKey) == nil {
@@ -228,21 +227,6 @@ extension FeatureFlags {
 
     static func setAllowOptionalWizard(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: allowOptionalWizardKey)
-    }
-
-    // MARK: - Wizard routing
-
-    /// Enable the unified, pure-function wizard router/state-machine path.
-    /// Default ON to match test expectations; can be flipped off for emergency rollback.
-    static var useUnifiedWizardRouter: Bool {
-        if UserDefaults.standard.object(forKey: useUnifiedWizardRouterKey) == nil {
-            return true // default ON
-        }
-        return UserDefaults.standard.bool(forKey: useUnifiedWizardRouterKey)
-    }
-
-    static func setUseUnifiedWizardRouter(_ enabled: Bool) {
-        UserDefaults.standard.set(enabled, forKey: useUnifiedWizardRouterKey)
     }
 
     // MARK: - Release Milestone Feature Gates

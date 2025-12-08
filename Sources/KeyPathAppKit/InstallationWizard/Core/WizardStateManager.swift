@@ -1,46 +1,23 @@
 import Foundation
-import KeyPathCore
 import KeyPathDaemonLifecycle
 import KeyPathWizardCore
 
+/// Lightweight cache for wizard state between open/close cycles.
+/// Used to show last known state while loading fresh data.
 struct WizardSnapshotRecord {
     let state: WizardSystemState
     let issues: [WizardIssue]
 }
 
+/// Simple cache container for the last known wizard state.
+/// This enables showing the previous state while loading fresh data.
 @MainActor
 class WizardStateManager: ObservableObject {
-    // 🎯 Phase 6+: Prefer RuntimeCoordinator façade over direct InstallerEngine usage
-    private weak var kanataManager: RuntimeCoordinator?
-
-    // Cache for the last known wizard state
+    /// Cache for the last known wizard state
     var lastWizardSnapshot: WizardSnapshotRecord?
 
-    /// Monotonically increasing version counter, bumped each time state detection completes.
-    /// Used by callers to detect when a refresh has finished.
-    @Published private(set) var stateVersion: Int = 0
-
-    func configure(kanataManager: RuntimeCoordinator) {
-        self.kanataManager = kanataManager
-        AppLogger.shared.log("🎯 [WizardStateManager] Configured with RuntimeCoordinator façade")
-    }
-
-    func detectCurrentState(progressCallback _: @escaping @Sendable (Double) -> Void = { _ in }) async
-        -> SystemStateResult {
-        if let manager = kanataManager {
-            AppLogger.shared.log("🎯 [WizardStateManager] Using RuntimeCoordinator.inspectSystemContext()")
-            let context = await manager.inspectSystemContext()
-            return SystemContextAdapter.adapt(context)
-        } else {
-            AppLogger.shared.warn("⚠️ [WizardStateManager] RuntimeCoordinator not configured; falling back to InstallerEngine.inspectSystem()")
-            let context = await InstallerEngine().inspectSystem()
-            return SystemContextAdapter.adapt(context)
-        }
-    }
-
-    /// Bump the state version to signal that a refresh cycle has completed.
-    /// Called by InstallationWizardView after applying state results.
-    func markRefreshComplete() {
-        stateVersion += 1
+    /// Configure is called during wizard setup (no-op but retained for existing call sites)
+    func configure(kanataManager _: RuntimeCoordinator) {
+        // No longer needs configuration - kept for API compatibility
     }
 }

@@ -5,7 +5,7 @@ import SwiftUI
 
 /// Simple wizard state machine using SystemValidator
 ///
-/// Replaces: WizardStateManager + WizardNavigationEngine + WizardNavigationCoordinator + WizardStateInterpreter
+/// Primary state management for the wizard (WizardStateManager is retained only for caching).
 ///
 /// Key design:
 /// - Single @Published state property
@@ -27,6 +27,10 @@ class WizardStateMachine: ObservableObject {
 
     /// Last refresh timestamp
     @Published var lastRefreshTime: Date?
+
+    /// Monotonically increasing version counter, bumped each time state detection completes.
+    /// Used by callers to detect when a refresh has finished.
+    @Published private(set) var stateVersion: Int = 0
 
     // MARK: - Dependencies
 
@@ -93,6 +97,7 @@ class WizardStateMachine: ObservableObject {
         isRefreshing = false
         systemSnapshot = snapshot
         lastRefreshTime = Date()
+        stateVersion += 1
 
         AppLogger.shared.info(
             "🔄 [WizardStateMachine] Refresh #\(myID) complete - ready=\(snapshot.isReady), issues=\(snapshot.blockingIssues.count)"
@@ -144,21 +149,12 @@ class WizardStateMachine: ObservableObject {
             timestamp: state.timestamp
         )
         let adapted = SystemContextAdapter.adapt(context)
-        let target: WizardPage = if FeatureFlags.useUnifiedWizardRouter {
-            WizardRouter.route(
-                state: adapted.state,
-                issues: adapted.issues,
-                helperInstalled: state.helper.isInstalled,
-                helperNeedsApproval: HelperManager.shared.helperNeedsLoginItemsApproval()
-            )
-        } else {
-            WizardRouter.route(
-                state: adapted.state,
-                issues: adapted.issues,
-                helperInstalled: state.helper.isInstalled,
-                helperNeedsApproval: HelperManager.shared.helperNeedsLoginItemsApproval()
-            )
-        }
+        let target: WizardPage = WizardRouter.route(
+            state: adapted.state,
+            issues: adapted.issues,
+            helperInstalled: state.helper.isInstalled,
+            helperNeedsApproval: HelperManager.shared.helperNeedsLoginItemsApproval()
+        )
 
         // If the router says stay, remain on the current page; otherwise move to target.
         return target == current ? current : target
