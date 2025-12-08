@@ -32,11 +32,13 @@ APP_BUNDLE="${DIST_DIR}/${APP_NAME}.app"
 CONTENTS="${APP_BUNDLE}/Contents"
 MACOS="${CONTENTS}/MacOS"
 RESOURCES="${CONTENTS}/Resources"
+FRAMEWORKS="${CONTENTS}/Frameworks"
 
 # Clean and create directories
 rm -rf "$DIST_DIR"
 mkdir -p "$MACOS"
 mkdir -p "$RESOURCES"
+mkdir -p "$FRAMEWORKS"
 mkdir -p "$CONTENTS/Library/KeyPath"
 
 # Copy main executable
@@ -110,6 +112,18 @@ else
     echo "⚠️ WARNING: Sources/KeyPath/Resources directory not found"
 fi
 
+# Embed Sparkle.framework (required at runtime)
+SPARKLE_SRC=".build/arm64-apple-macosx/release/Sparkle.framework"
+if [ -d "$SPARKLE_SRC" ]; then
+    echo "📦 Embedding Sparkle.framework..."
+    ditto "$SPARKLE_SRC" "$FRAMEWORKS/Sparkle.framework"
+    # Provide @rpath compatibility for binaries expecting Sparkle next to executable
+    ln -sf "../Frameworks/Sparkle.framework" "$MACOS/Sparkle.framework"
+else
+    echo "❌ ERROR: Sparkle.framework not found at $SPARKLE_SRC" >&2
+    exit 1
+fi
+
 # Create PkgInfo file (required for app bundles)
 echo "APPL????" > "$CONTENTS/PkgInfo"
 
@@ -155,6 +169,36 @@ kp_sign "$CONTENTS/Library/KeyPath/kanata" --force --options=runtime --sign "$SI
 # Sign bundled kanata simulator binary
 kp_sign "$CONTENTS/Library/KeyPath/kanata-simulator" --force --options=runtime --sign "$SIGNING_IDENTITY"
 
+# Sign embedded Sparkle binaries (inner → outer)
+SPARKLE_BINS=(
+    "$FRAMEWORKS/Sparkle.framework/Versions/B/Autoupdate"
+    "$FRAMEWORKS/Sparkle.framework/Versions/B/Sparkle"
+    "$FRAMEWORKS/Sparkle.framework/Versions/B/Updater.app/Contents/MacOS/Updater"
+    "$FRAMEWORKS/Sparkle.framework/Versions/B/XPCServices/Downloader.xpc/Contents/MacOS/Downloader"
+    "$FRAMEWORKS/Sparkle.framework/Versions/B/XPCServices/Installer.xpc/Contents/MacOS/Installer"
+)
+for bin in "${SPARKLE_BINS[@]}"; do
+    if [ -f "$bin" ]; then
+        kp_sign "$bin" --force --options=runtime --timestamp --sign "$SIGNING_IDENTITY"
+    else
+        echo "⚠️ WARNING: Sparkle binary missing: $bin"
+    fi
+done
+
+SPARKLE_CONTAINERS=(
+    "$FRAMEWORKS/Sparkle.framework/Versions/B/XPCServices/Downloader.xpc"
+    "$FRAMEWORKS/Sparkle.framework/Versions/B/XPCServices/Installer.xpc"
+    "$FRAMEWORKS/Sparkle.framework/Versions/B/Updater.app"
+    "$FRAMEWORKS/Sparkle.framework"
+)
+for bundle in "${SPARKLE_CONTAINERS[@]}"; do
+    if [ -e "$bundle" ]; then
+        kp_sign "$bundle" --force --options=runtime --timestamp --sign "$SIGNING_IDENTITY"
+    else
+        echo "⚠️ WARNING: Sparkle container missing: $bundle"
+    fi
+done
+
 # Sign main app WITH entitlements
 ENTITLEMENTS_FILE="KeyPath.entitlements"
 if [ -f "$ENTITLEMENTS_FILE" ]; then
@@ -167,6 +211,81 @@ fi
 
 echo "✅ Verifying signatures..."
 kp_verify_signature "$APP_BUNDLE"
+
+# Function to create Sparkle update archive with EdDSA signature
+create_sparkle_archive() {
+    echo ""
+    echo "✨ Creating Sparkle update archive..."
+
+    # Extract version from Info.plist (use PlistBuddy to avoid defaults path issues)
+    local VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$CONTENTS/Info.plist" 2>/dev/null || echo "1.0.0")
+    local BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$CONTENTS/Info.plist" 2>/dev/null || echo "1")
+    local ARCHIVE_NAME="KeyPath-${VERSION}.zip"
+    local SPARKLE_DIR="${DIST_DIR}/sparkle"
+
+    mkdir -p "$SPARKLE_DIR"
+
+    # Create versioned ZIP for Sparkle (separate from the notarization zip)
+    echo "📦 Creating versioned archive: $ARCHIVE_NAME"
+    cd "$DIST_DIR"
+    ditto -c -k --keepParent "${APP_NAME}.app" "sparkle/${ARCHIVE_NAME}"
+    cd ..
+
+    # Sign with EdDSA using Sparkle's sign_update tool
+    local SIGN_UPDATE="/opt/homebrew/Caskroom/sparkle/2.8.1/bin/sign_update"
+    local SIGNATURE=""
+    if [ -x "$SIGN_UPDATE" ]; then
+        echo "🔐 Signing archive with EdDSA..."
+        # sign_update emits: sparkle:edSignature=\"<sig>\" length=\"<bytes>\"
+        SIGNATURE=$("$SIGN_UPDATE" "${SPARKLE_DIR}/${ARCHIVE_NAME}" 2>/dev/null | awk -F'\"' '/sparkle:edSignature/ {print $2}')
+
+        if [ -n "$SIGNATURE" ]; then
+            echo "$SIGNATURE" > "${SPARKLE_DIR}/${ARCHIVE_NAME}.sig"
+            echo "✅ EdDSA signature generated"
+        else
+            echo "⚠️ WARNING: EdDSA signing failed - check Keychain for Sparkle key"
+        fi
+    else
+        echo "⚠️ WARNING: sign_update not found at $SIGN_UPDATE"
+        echo "   Install with: brew install sparkle"
+    fi
+
+    # Get file size
+    local SIZE=$(stat -f%z "${SPARKLE_DIR}/${ARCHIVE_NAME}")
+    local PUB_DATE=$(date -R)
+
+    # Generate appcast entry XML
+    echo "📝 Generating appcast entry..."
+    cat > "${SPARKLE_DIR}/${ARCHIVE_NAME}.appcast-entry.xml" <<EOF
+<!-- Add this item to appcast.xml -->
+<item>
+    <title>Version ${VERSION}</title>
+    <sparkle:version>${BUILD}</sparkle:version>
+    <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
+    <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+    <pubDate>${PUB_DATE}</pubDate>
+    <enclosure
+        url="https://github.com/malpern/KeyPath/releases/download/v${VERSION}/${ARCHIVE_NAME}"
+        sparkle:edSignature="${SIGNATURE}"
+        length="${SIZE}"
+        type="application/octet-stream"/>
+    <sparkle:releaseNotesLink>
+        https://github.com/malpern/KeyPath/releases/tag/v${VERSION}
+    </sparkle:releaseNotesLink>
+</item>
+EOF
+
+    echo ""
+    echo "✅ Sparkle archive created:"
+    echo "   📦 Archive: ${SPARKLE_DIR}/${ARCHIVE_NAME}"
+    echo "   🔐 Signature: ${SPARKLE_DIR}/${ARCHIVE_NAME}.sig"
+    echo "   📝 Appcast entry: ${SPARKLE_DIR}/${ARCHIVE_NAME}.appcast-entry.xml"
+    echo ""
+    echo "📋 Next steps for release:"
+    echo "   1. Upload ${ARCHIVE_NAME} to GitHub Releases as v${VERSION}"
+    echo "   2. Copy appcast entry to appcast.xml"
+    echo "   3. Commit and push appcast.xml"
+}
 
 if [ "${SKIP_NOTARIZE:-}" = "1" ]; then
     echo "⏭️  Skipping notarization (SKIP_NOTARIZE=1)"
@@ -193,6 +312,9 @@ else
     kp_spctl_assess "$APP_BUNDLE"
 
     echo "✨ Ready for distribution!"
+
+    # Create Sparkle-compatible versioned archive
+    create_sparkle_archive
 fi
 
 echo "📂 Deploying to /Applications..."

@@ -336,7 +336,7 @@ struct InstallationWizardView: View {
                     onAutoFix: performAutoFix,
                     onRefresh: { refreshState() },
                     kanataManager: kanataManager,
-                    stateManager: stateManager
+                    stateMachine: stateMachine
                 )
             case .kanataComponents:
                 WizardKanataComponentsPage(
@@ -415,12 +415,7 @@ struct InstallationWizardView: View {
 
         // Configure state providers
         stateManager.configure(kanataManager: kanataManager)
-        if FeatureFlags.useUnifiedWizardRouter {
-            stateMachine.configure(kanataManager: kanataManager)
-            AppLogger.shared.log("🔍 [Wizard] Unified router/state-machine ENABLED (flag on)")
-        } else {
-            AppLogger.shared.log("🔍 [Wizard] Legacy navigation stack ACTIVE (flag off)")
-        }
+        stateMachine.configure(kanataManager: kanataManager)
         autoFixer.configure(
             kanataManager: kanataManager,
             toastManager: toastManager,
@@ -502,8 +497,7 @@ struct InstallationWizardView: View {
         AppLogger.shared.log("⏱️ [TIMING] Wizard validation START")
 
         let operation = WizardOperations.stateDetection(
-            stateManager: FeatureFlags.useUnifiedWizardRouter ? nil : stateManager,
-            stateMachine: FeatureFlags.useUnifiedWizardRouter ? stateMachine : nil,
+            stateMachine: stateMachine,
             progressCallback: { progress in
                 // Update progress on MainActor (callback may be called from background)
                 Task { @MainActor in
@@ -633,8 +627,7 @@ struct InstallationWizardView: View {
         case .summary:
             // Full check only for summary page
             let operation = WizardOperations.stateDetection(
-                stateManager: FeatureFlags.useUnifiedWizardRouter ? nil : stateManager,
-                stateMachine: FeatureFlags.useUnifiedWizardRouter ? stateMachine : nil,
+                stateMachine: stateMachine,
                 progressCallback: { _ in }
             )
             asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
@@ -808,7 +801,7 @@ struct InstallationWizardView: View {
             }) {
                 Task {
                     _ = await WizardSleep.seconds(2) // allow services to settle
-                    let latestResult = await stateManager.detectCurrentState()
+                    let latestResult = await detectCurrentState()
                     let filteredIssues = sanitizedIssues(from: latestResult.issues, for: latestResult.state)
                     await MainActor.run {
                         systemState = latestResult.state
@@ -847,7 +840,7 @@ struct InstallationWizardView: View {
             return false
         }
 
-        let latestResult = await stateManager.detectCurrentState()
+        let latestResult = await detectCurrentState()
         let filteredIssues = await MainActor.run { applySystemStateResult(latestResult) }
 
         let resolved = filteredIssues.isEmpty && latestResult.state == .active
@@ -886,7 +879,7 @@ struct InstallationWizardView: View {
             AppLogger.shared.log("🔧 [Wizard] Auto-fix action \(action) completed with success=\(success)")
             guard success else { continue }
 
-            let latestResult = await stateManager.detectCurrentState()
+            let latestResult = await detectCurrentState()
             let filteredIssues = await MainActor.run { applySystemStateResult(latestResult) }
             let resolved = filteredIssues.isEmpty && latestResult.state == .active
 
@@ -1015,7 +1008,7 @@ struct InstallationWizardView: View {
             // Schedule a follow-up health check; if still red, show a diagnostic error toast
             Task {
                 _ = await WizardSleep.seconds(2) // allow additional settle time
-                let latestResult = await stateManager.detectCurrentState()
+                let latestResult = await detectCurrentState()
                 let filteredIssues = sanitizedIssues(from: latestResult.issues, for: latestResult.state)
                 await MainActor.run {
                     systemState = latestResult.state
@@ -1148,8 +1141,7 @@ struct InstallationWizardView: View {
 
         // Use async operation manager for non-blocking refresh
         let operation = WizardOperations.stateDetection(
-            stateManager: FeatureFlags.useUnifiedWizardRouter ? nil : stateManager,
-            stateMachine: FeatureFlags.useUnifiedWizardRouter ? stateMachine : nil,
+            stateMachine: stateMachine,
             progressCallback: { _ in }
         )
 
@@ -1206,6 +1198,30 @@ struct InstallationWizardView: View {
         return await preferredDetailPage(for: adaptedState, issues: adaptedIssues)
     }
 
+    /// Detect current system state using the state machine.
+    /// Returns a SystemStateResult with the current state and issues.
+    private func detectCurrentState() async -> SystemStateResult {
+        await stateMachine.refresh()
+        return await MainActor.run {
+            if let snapshot = stateMachine.systemSnapshot {
+                let context = SystemContext(
+                    permissions: snapshot.permissions,
+                    services: snapshot.health,
+                    conflicts: snapshot.conflicts,
+                    components: snapshot.components,
+                    helper: snapshot.helper,
+                    system: EngineSystemInfo(macOSVersion: "unknown", driverCompatible: true),
+                    timestamp: snapshot.timestamp
+                )
+                return SystemContextAdapter.adapt(context)
+            } else {
+                return SystemStateResult(
+                    state: .initializing, issues: [], autoFixActions: [], detectionTimestamp: Date()
+                )
+            }
+        }
+    }
+
     private func sanitizedIssues(from issues: [WizardIssue], for state: WizardSystemState)
         -> [WizardIssue] {
         guard shouldSuppressCommunicationIssues(for: state) else {
@@ -1230,7 +1246,6 @@ struct InstallationWizardView: View {
             state: result.state,
             issues: filteredIssues
         )
-        stateManager.markRefreshComplete()
 
         // Only auto-navigate if user hasn't been interacting with the wizard
         // This prevents jarring navigation away from a page after a fix completes
@@ -1735,55 +1750,37 @@ struct KeyboardNavigationModifier: ViewModifier {
 // This extends WizardOperations (from Core) with UI-specific factory methods that need UI types
 
 extension WizardOperations {
-    /// State detection operation (UI-layer only - uses WizardStateManager from UI target)
+    /// State detection operation (UI-layer only - uses WizardStateMachine)
     static func stateDetection(
-        stateManager: WizardStateManager?,
-        stateMachine: WizardStateMachine?,
+        stateMachine: WizardStateMachine,
         progressCallback: @escaping @Sendable (Double) -> Void = { _ in }
     ) -> AsyncOperation<SystemStateResult> {
         AsyncOperation<SystemStateResult>(
             id: "state_detection",
             name: "System State Detection"
         ) { operationProgressCallback in
-            // Forward progress from SystemValidator to the operation callback
-            if FeatureFlags.useUnifiedWizardRouter, let machine = stateMachine {
-                progressCallback(0.1)
-                await machine.refresh()
-                progressCallback(1.0)
-                operationProgressCallback(1.0)
-                // Adapt snapshot on the main actor
-                return await MainActor.run {
-                    if let snapshot = machine.systemSnapshot {
-                        let context = SystemContext(
-                            permissions: snapshot.permissions,
-                            services: snapshot.health,
-                            conflicts: snapshot.conflicts,
-                            components: snapshot.components,
-                            helper: snapshot.helper,
-                            system: EngineSystemInfo(macOSVersion: "unknown", driverCompatible: true),
-                            timestamp: snapshot.timestamp
-                        )
-                        return SystemContextAdapter.adapt(context)
-                    } else {
-                        return SystemStateResult(
-                            state: .initializing, issues: [], autoFixActions: [], detectionTimestamp: Date()
-                        )
-                    }
+            progressCallback(0.1)
+            await stateMachine.refresh()
+            progressCallback(1.0)
+            operationProgressCallback(1.0)
+            // Adapt snapshot on the main actor
+            return await MainActor.run {
+                if let snapshot = stateMachine.systemSnapshot {
+                    let context = SystemContext(
+                        permissions: snapshot.permissions,
+                        services: snapshot.health,
+                        conflicts: snapshot.conflicts,
+                        components: snapshot.components,
+                        helper: snapshot.helper,
+                        system: EngineSystemInfo(macOSVersion: "unknown", driverCompatible: true),
+                        timestamp: snapshot.timestamp
+                    )
+                    return SystemContextAdapter.adapt(context)
+                } else {
+                    return SystemStateResult(
+                        state: .initializing, issues: [], autoFixActions: [], detectionTimestamp: Date()
+                    )
                 }
-            } else if let manager = stateManager {
-                let result = await manager.detectCurrentState { progress in
-                    progressCallback(progress)
-                    operationProgressCallback(progress)
-                }
-                progressCallback(1.0)
-                operationProgressCallback(1.0)
-                return result
-            } else {
-                progressCallback(1.0)
-                operationProgressCallback(1.0)
-                return SystemStateResult(
-                    state: .initializing, issues: [], autoFixActions: [], detectionTimestamp: Date()
-                )
             }
         }
     }
