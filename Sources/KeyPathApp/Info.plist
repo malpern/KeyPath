@@ -49,5 +49,19 @@
 		</dict>
 	</array>
 
+	<!-- Sparkle Auto-Update Configuration -->
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/malpern/KeyPath/main/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>Jry+V9z0EbEysm5FWpbL8J3XfeFnzWqGI3Y3+CQiHgo=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
+	<key>SUShowReleaseNotes</key>
+	<true/>
+	<key>SUEnableSystemProfiling</key>
+	<false/>
+
 </dict>
 </plist>

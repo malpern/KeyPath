@@ -41,7 +41,8 @@ let package = Package(
         )
     ],
     dependencies: [
-        // Add any dependencies here
+        // Sparkle for automatic updates
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0")
     ],
     targets: [
         // Core library with shared types/utilities
@@ -86,7 +87,8 @@ let package = Package(
                 "KeyPathCore",
                 "KeyPathPermissions",
                 "KeyPathDaemonLifecycle",
-                "KeyPathWizardCore"
+                "KeyPathWizardCore",
+                .product(name: "Sparkle", package: "Sparkle")
             ],
             path: "Sources/KeyPathAppKit",
             exclude: [
