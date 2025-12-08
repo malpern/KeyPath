@@ -560,7 +560,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self.mainWindowController?.show(focus: true)
                 self.initialMainWindowShown = true
             }
-            splashWindowController?.showSplash(duration: 5.0)
+            splashWindowController?.showSplash(duration: 2.5)
 
             // Create main window controller (hidden behind splash)
             mainWindowController = MainWindowController(viewModel: vm)
