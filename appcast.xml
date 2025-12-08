@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0"
+     xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle"
+     xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <channel>
+        <title>KeyPath Updates</title>
+        <link>https://github.com/malpern/KeyPath</link>
+        <description>KeyPath keyboard remapping for macOS - automatic updates feed</description>
+        <language>en</language>
+
+        <!-- 
+        =======================================================================
+        HOW TO ADD A NEW RELEASE:
+        
+        1. Run: ./build.sh (creates dist/sparkle/KeyPath-X.Y.Z.zip)
+        2. Upload the ZIP to GitHub Releases as vX.Y.Z
+        3. Copy the generated appcast entry from:
+           dist/sparkle/KeyPath-X.Y.Z.appcast-entry.xml
+        4. Paste it below (newest release first)
+        5. Commit and push this file
+        =======================================================================
+        -->
+
+        <!-- Releases go here (newest first) -->
+        
+    </channel>
+</rss>

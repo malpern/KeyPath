@@ -2,6 +2,7 @@ import AppKit
 import KeyPathCore
 import KeyPathPermissions
 import ServiceManagement
+import Sparkle
 import SwiftUI
 
 public struct KeyPathApp: App {
@@ -73,6 +74,10 @@ public struct KeyPathApp: App {
             // Start Kanata error monitoring
             KanataErrorMonitor.shared.startMonitoring()
             AppLogger.shared.info("🔍 [App] Started Kanata error monitoring")
+
+            // Initialize Sparkle update service
+            UpdateService.shared.initialize()
+            AppLogger.shared.info("🔄 [App] Sparkle update service initialized")
         }
     }
 
@@ -115,6 +120,10 @@ public struct KeyPathApp: App {
                         ]
                     )
                 }
+
+                Divider()
+
+                CheckForUpdatesView(updater: UpdateService.shared.updater)
             }
 
             // Add File menu with Settings tabs shortcuts
@@ -818,3 +827,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 #endif
+
+// MARK: - Sparkle Update Menu Item
+
+/// SwiftUI wrapper for Sparkle's "Check for Updates" menu item
+struct CheckForUpdatesView: View {
+    @ObservedObject private var updateService = UpdateService.shared
+
+    // The updater parameter is kept for API compatibility but we use the shared service
+    init(updater _: SPUUpdater?) {}
+
+    var body: some View {
+        Button("Check for Updates…") {
+            updateService.checkForUpdates()
+        }
+        .disabled(!updateService.canCheckForUpdates)
+    }
+}
