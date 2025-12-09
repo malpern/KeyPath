@@ -225,19 +225,6 @@ struct InstallationWizardView: View {
             showingBackgroundApprovalPrompt = true
         }
         .overlay {
-            if showingStartConfirmation {
-                StartConfirmationDialog(
-                    isPresented: $showingStartConfirmation,
-                    onConfirm: {
-                        startConfirmationResult?.resume(returning: true)
-                        startConfirmationResult = nil
-                    },
-                    onCancel: {
-                        startConfirmationResult?.resume(returning: false)
-                        startConfirmationResult = nil
-                    }
-                )
-            }
         }
         .alert("Close Setup Wizard?", isPresented: $showingCloseConfirmation) {
             Button("Cancel", role: .cancel) {
@@ -1524,12 +1511,8 @@ struct InstallationWizardView: View {
     }
 
     private func showStartConfirmation() async -> Bool {
-        await withCheckedContinuation { continuation in
-            Task { @MainActor in
-                startConfirmationResult = continuation
-                showingStartConfirmation = true
-            }
-        }
+        // Skip confirmation dialog; proceed immediately.
+        return true
     }
 
     // MARK: - Operation Progress Helpers

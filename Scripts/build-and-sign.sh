@@ -270,7 +270,7 @@ create_sparkle_archive() {
         length="${SIZE}"
         type="application/octet-stream"/>
     <sparkle:releaseNotesLink>
-        https://github.com/malpern/KeyPath/releases/tag/v${VERSION}
+        https://malpern.github.io/KeyPath/releases/${VERSION}.html
     </sparkle:releaseNotesLink>
 </item>
 EOF

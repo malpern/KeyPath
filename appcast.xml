@@ -34,7 +34,7 @@
                 length="21708199"
                 type="application/octet-stream"/>
             <sparkle:releaseNotesLink>
-                https://github.com/malpern/KeyPath/releases/tag/v1.0.0-beta1
+                https://malpern.github.io/KeyPath/releases/1.0.0-beta1.html
             </sparkle:releaseNotesLink>
         </item>
     </channel>

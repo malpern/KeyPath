@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KeyPath 1.0.0-beta1 Release Notes</title>
+    <style>
+        :root {
+            --bg: #1a1a1a;
+            --fg: #e0e0e0;
+            --accent: #007AFF;
+            --accent-hover: #0056b3;
+            --card-bg: #252525;
+            --border: #333;
+            --success: #34c759;
+            --warning: #ff9500;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            line-height: 1.6;
+            padding: 24px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #fff;
+        }
+
+        .version-badge {
+            display: inline-block;
+            background: var(--accent);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 24px;
+        }
+
+        h2 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        h2::before {
+            font-size: 18px;
+        }
+
+        .features h2::before { content: "✨"; }
+        .requirements h2::before { content: "📋"; }
+        .issues h2::before { content: "⚠️"; }
+        .feedback h2::before { content: "💬"; }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            padding: 8px 0;
+            padding-left: 24px;
+            position: relative;
+            border-bottom: 1px solid var(--border);
+        }
+
+        li:last-child {
+            border-bottom: none;
+        }
+
+        li::before {
+            content: "•";
+            position: absolute;
+            left: 8px;
+            color: var(--accent);
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .footer {
+            margin-top: 32px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+            font-size: 12px;
+            color: #888;
+            text-align: center;
+        }
+
+        code {
+            background: var(--border);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <h1>KeyPath 1.0.0-beta1</h1>
+    <span class="version-badge">First Public Beta</span>
+
+    <div class="card features">
+        <h2>What's New</h2>
+        <ul>
+            <li><strong>Automatic Updates</strong> — KeyPath now updates itself via Sparkle. You'll be notified when new versions are available.</li>
+            <li><strong>Installation Wizard</strong> — Step-by-step setup guides you through permissions and driver installation.</li>
+            <li><strong>Custom Rules Editor</strong> — Create your own keyboard remappings with the built-in Kanata config editor.</li>
+            <li><strong>TCP Integration</strong> — Real-time communication with Kanata for instant layer feedback.</li>
+        </ul>
+    </div>
+
+    <div class="card requirements">
+        <h2>Requirements</h2>
+        <ul>
+            <li>macOS 15.0 (Sequoia) or later</li>
+            <li>Apple Silicon Mac</li>
+        </ul>
+    </div>
+
+    <div class="card issues">
+        <h2>Known Issues</h2>
+        <ul>
+            <li>Intel Mac support planned for future release</li>
+            <li>First launch requires granting multiple permissions sequentially</li>
+        </ul>
+    </div>
+
+    <div class="card feedback">
+        <h2>Feedback</h2>
+        <ul>
+            <li>Found a bug? <a href="https://github.com/malpern/KeyPath/issues">Open an issue on GitHub</a></li>
+        </ul>
+    </div>
+
+    <div class="footer">
+        Built with Kanata 1.10.1 • <a href="https://github.com/malpern/KeyPath">GitHub</a>
+    </div>
+</body>
+</html>
