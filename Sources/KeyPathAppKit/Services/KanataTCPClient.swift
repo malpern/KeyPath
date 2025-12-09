@@ -485,19 +485,27 @@ actor KanataTCPClient {
             let connection = try await ensureConnectionCore()
             AppLogger.shared.log("⏱️ [TCP] t=\(Int(Date().timeIntervalSince(startTime) * 1000))ms: Starting second line read, connection state=\(connection.state)")
 
-            let secondLine = try await withThrowingTaskGroup(of: Data.self) { group in
-                group.addTask {
-                    try await self.readUntilNewline(on: connection)
-                }
+            let secondLine: Data
+            do {
+                secondLine = try await withThrowingTaskGroup(of: Data.self) { group in
+                    group.addTask {
+                        try await self.readUntilNewline(on: connection)
+                    }
 
-                group.addTask {
-                    try await Task.sleep(for: .milliseconds(Int(timeoutMs + 1000)))
-                    throw KeyPathError.communication(.timeout)
-                }
+                    group.addTask {
+                        try await Task.sleep(for: .milliseconds(Int(timeoutMs + 1000)))
+                        throw KeyPathError.communication(.timeout)
+                    }
 
-                let result = try await group.next()!
-                group.cancelAll()
-                return result
+                    let result = try await group.next()!
+                    group.cancelAll()
+                    return result
+                }
+            } catch is CancellationError {
+                let totalTime = Int(Date().timeIntervalSince(startTime) * 1000)
+                AppLogger.shared.log("⚠️ [TCP] Second-line read cancelled; treating first-line OK as success")
+                AppLogger.shared.log("⏱️ [TCP] t=\(totalTime)ms: Reload completed (cancel fallback)")
+                return .success(response: firstLineStr)
             }
 
             AppLogger.shared.log("⏱️ [TCP] t=\(Int(Date().timeIntervalSince(startTime) * 1000))ms: Second line received, connection state=\(connection.state)")
