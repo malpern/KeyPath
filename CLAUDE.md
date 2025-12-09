@@ -562,6 +562,50 @@ KeyPath uses a one-way write architecture for config management. JSON stores are
 - Key mappings: kanata-simulator with layer held
 - See ADR-023 for details
 
+## Sparkle Auto-Updates
+
+KeyPath uses Sparkle for automatic updates. Key files and conventions:
+
+### Versioning Scheme
+- `CFBundleShortVersionString`: Human-readable version (e.g., `1.0.0-beta1`)
+- `CFBundleVersion`: Integer build number for Sparkle comparison (e.g., `1`, `2`, `3`)
+
+**Why integers?** Sparkle's default comparator doesn't reliably handle prerelease suffixes (`-beta0` vs `-beta1`).
+
+### Releasing a New Version
+
+1. **Increment versions** in `Sources/KeyPathApp/Info.plist`:
+   ```xml
+   <key>CFBundleShortVersionString</key>
+   <string>1.0.0-beta2</string>  <!-- Display version -->
+   <key>CFBundleVersion</key>
+   <string>2</string>  <!-- Increment this integer -->
+   ```
+
+2. **Build**: `./build.sh` (creates `dist/sparkle/KeyPath-X.Y.Z.zip` + signature + appcast entry)
+
+3. **Upload to GitHub**:
+   ```bash
+   gh release create v1.0.0-beta2 \
+     dist/sparkle/KeyPath-1.0.0-beta2.zip \
+     dist/sparkle/KeyPath-1.0.0-beta2.zip.sig
+   ```
+
+4. **Update appcast.xml**: Copy entry from `dist/sparkle/*.appcast-entry.xml`, commit and push
+
+5. **Create release notes HTML**: Add `docs/releases/X.Y.Z.html` for styled Sparkle display
+
+6. **Update WhatsNewView**: Add features to `WhatsNewView.featuresForVersion()` if desired
+
+### Key Files
+- `appcast.xml` - Sparkle update feed (root of repo)
+- `docs/releases/*.html` - Styled release notes for Sparkle dialog
+- `Sources/KeyPathAppKit/Services/UpdateService.swift` - Sparkle integration
+- `Sources/KeyPathAppKit/UI/WhatsNewView.swift` - Post-update "What's New" dialog
+
+### Feed URL
+`https://raw.githubusercontent.com/malpern/KeyPath/master/appcast.xml`
+
 ## Build Commands
 
 ```bash

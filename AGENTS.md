@@ -39,3 +39,20 @@ Rationale: older CLI/tooling may still expose `tools.web_search`, which prints a
 ## Semantic Line Breaks (SemBr)
 - Write and preserve semantic line breaks in prose (docs, comments). Break at sentence or clause boundaries, not fixed width.
 - Do not reflow SemBr text with formatters; configure tools to respect existing line breaks or leave prose untouched.
+
+## Sparkle Releases
+
+When cutting a new release:
+
+1. **Increment `CFBundleVersion`** (integer) in `Sources/KeyPathApp/Info.plist`
+2. **Run `./build.sh`** — produces `dist/sparkle/KeyPath-X.Y.Z.zip` + `.sig` + `.appcast-entry.xml`
+3. **Upload to GitHub Releases** with `gh release create`
+4. **Update `appcast.xml`** — paste the generated entry (newest first)
+5. **Create `docs/releases/X.Y.Z.html`** — styled release notes for Sparkle dialog
+6. **Update `WhatsNewView.featuresForVersion()`** — add features for post-update dialog
+
+**Version scheme:**
+- `CFBundleShortVersionString` = display version (`1.0.0-beta2`)
+- `CFBundleVersion` = integer for Sparkle (`2`)
+
+See CLAUDE.md "Sparkle Auto-Updates" section for full details.
