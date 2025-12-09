@@ -27,11 +27,11 @@
             <sparkle:version>1.0.0-beta1</sparkle:version>
             <sparkle:shortVersionString>1.0.0-beta1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <pubDate>Mon, 08 Dec 2025 15:47:33 -0800</pubDate>
+            <pubDate>Mon, 08 Dec 2025 16:06:41 -0800</pubDate>
             <enclosure
                 url="https://github.com/malpern/KeyPath/releases/download/v1.0.0-beta1/KeyPath-1.0.0-beta1.zip"
-                sparkle:edSignature="dOevla1ZNylUBzKwnBF3ck4rzcH9FESq25eCSAETXBbooYvW28Ft9yoMhEyjo1ROEQUKXN00rCI1+lnXhypADQ=="
-                length="21600026"
+                sparkle:edSignature="1T8WJR8/o0xWZ/r/U9kA2xj2mfUZW6nFxUzkvX587OKACgWv8zwcUtl8uHf00XKmiFU3ES3Nb2AQeJ8toa7UDQ=="
+                length="21599593"
                 type="application/octet-stream"/>
             <sparkle:releaseNotesLink>
                 https://github.com/malpern/KeyPath/releases/tag/v1.0.0-beta1
