@@ -259,19 +259,12 @@ struct WizardHelperPage: View {
 
             // Show Login Items approval button if needed
             if needsLoginItemsApproval {
-                Button("Open Login Items Settings") {
-                    openLoginItemsSettings()
-                    startApprovalPolling()
-                }
-                .buttonStyle(WizardDesign.Component.PrimaryButton())
-                .keyboardShortcut(.defaultAction)
-
-                // Show inline screenshot to make the user action explicit
+                // Inline screenshot to make the user action explicit (placed above the button)
                 Image("permissions-login-items", bundle: .main)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(maxWidth: 520)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .frame(maxWidth: 480)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                     .shadow(radius: 6)
                     .padding(.top, WizardDesign.Spacing.itemGap)
                     .accessibilityLabel("System Settings Login Items - toggle KeyPath on")
@@ -280,7 +273,14 @@ struct WizardHelperPage: View {
                     .font(.system(size: 14, weight: .regular))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
+                    .padding(.horizontal, 32)
+
+                Button("Open Login Items Settings") {
+                    openLoginItemsSettings()
+                    startApprovalPolling()
+                }
+                .buttonStyle(WizardDesign.Component.PrimaryButton())
+                .keyboardShortcut(.defaultAction)
             } else {
                 // Single idempotent action: install or repair (performs cleanup + install)
                 Button(isInstalled ? "Fix" : "Install Helper") {
@@ -311,8 +311,8 @@ struct WizardHelperPage: View {
             }
         }
         .animation(WizardDesign.Animation.statusTransition, value: actionStatus)
-        .padding(.horizontal, 60)
-        .frame(maxWidth: 640)
+        .padding(.horizontal, 40)
+        .frame(maxWidth: 620, maxHeight: 760, alignment: .top)
         .heroSectionContainer()
     }
 
