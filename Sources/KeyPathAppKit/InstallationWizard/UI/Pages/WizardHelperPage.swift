@@ -109,11 +109,6 @@ struct WizardHelperPage: View {
             bundledVersion = getBundledHelperVersion()
             // Check if Login Items approval is needed
             needsLoginItemsApproval = checkLoginItemsApprovalNeeded()
-            // Start polling and auto-open settings if awaiting approval
-            if needsLoginItemsApproval {
-                startApprovalPolling()
-                openLoginItemsSettings()
-            }
         }
         .onAppear {
             duplicateCopies = HelperMaintenance.shared.detectDuplicateAppCopies()
@@ -266,6 +261,7 @@ struct WizardHelperPage: View {
             if needsLoginItemsApproval {
                 Button("Open Login Items Settings") {
                     openLoginItemsSettings()
+                    startApprovalPolling()
                 }
                 .buttonStyle(WizardDesign.Component.PrimaryButton())
                 .keyboardShortcut(.defaultAction)
@@ -316,6 +312,7 @@ struct WizardHelperPage: View {
         }
         .animation(WizardDesign.Animation.statusTransition, value: actionStatus)
         .padding(.horizontal, 60)
+        .frame(maxWidth: 640)
         .heroSectionContainer()
     }
 
