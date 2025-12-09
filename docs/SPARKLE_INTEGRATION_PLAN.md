@@ -46,6 +46,40 @@ git push origin master
 
 ---
 
+## Versioning Scheme
+
+KeyPath uses a dual versioning scheme for Sparkle compatibility:
+
+| Key | Purpose | Format | Example |
+|-----|---------|--------|---------|
+| `CFBundleShortVersionString` | User-visible version | Semver with prerelease | `1.0.0-beta1` |
+| `CFBundleVersion` | Sparkle comparison | Integer build number | `1` |
+
+**Why integer build numbers?**
+Sparkle's default comparator doesn't reliably handle prerelease suffixes (`-beta0` vs `-beta1`). Using monotonically increasing integers ensures updates always work correctly.
+
+**Version history:**
+
+| Build | Display Version | Notes |
+|-------|-----------------|-------|
+| 1 | 1.0.0-beta1 | Initial public beta |
+| 2 | 1.0.0-beta2 | (next release) |
+| 3 | 1.0.0 | (stable release) |
+| ... | ... | ... |
+
+**When releasing:**
+1. Increment `CFBundleVersion` in `Sources/KeyPathApp/Info.plist`
+2. Update `CFBundleShortVersionString` to the display version
+3. The build script automatically uses these for the appcast entry
+
+**Appcast format:**
+```xml
+<sparkle:version>2</sparkle:version>                    <!-- CFBundleVersion - for comparison -->
+<sparkle:shortVersionString>1.0.0-beta2</sparkle:shortVersionString>  <!-- for display -->
+```
+
+---
+
 ## Overview
 
 This document outlines the integration of [Sparkle 2](https://sparkle-project.org/) for automatic updates in KeyPath. Sparkle is the de facto standard for macOS app updates outside the App Store.
