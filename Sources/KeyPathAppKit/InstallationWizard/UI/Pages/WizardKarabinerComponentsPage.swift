@@ -22,6 +22,7 @@ struct WizardKarabinerComponentsPage: View {
     @State private var showAllItems = false
     @State private var isCombinedFixLoading = false
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
+    @State private var lastKarabinerHealthy = false
     @State private var stepProgressCancellable: AnyCancellable?
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
@@ -144,6 +145,25 @@ struct WizardKarabinerComponentsPage: View {
         .fixedSize(horizontal: false, vertical: true)
         .background(WizardDesign.Colors.wizardBackground)
         .wizardDetailPage()
+        .onChange(of: hasKarabinerIssues) { _, hasIssues in
+            // If health check shows Karabiner is now healthy, stop any spinners and surface success inline.
+            if !hasIssues {
+                if isCombinedFixLoading {
+                    AppLogger.shared.log("✅ [Wizard] Karabiner components healthy; stopping loading state")
+                }
+                isCombinedFixLoading = false
+                actionStatus = .success(message: "Karabiner driver ready")
+                lastKarabinerHealthy = true
+            }
+        }
+        .onAppear {
+            // If we arrive here already healthy, avoid showing a stuck spinner.
+            if !hasKarabinerIssues {
+                isCombinedFixLoading = false
+                actionStatus = .success(message: "Karabiner driver ready")
+                lastKarabinerHealthy = true
+            }
+        }
     }
 
     // MARK: - Helper Methods
