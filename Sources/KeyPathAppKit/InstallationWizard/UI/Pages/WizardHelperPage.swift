@@ -83,7 +83,7 @@ struct WizardHelperPage: View {
     /// Contextual description for the setup view - adapts to current state
     private var contextualDescription: String {
         if needsLoginItemsApproval {
-            "Enable KeyPath in System Settings → Login Items."
+            "Open System Settings → Login Items, find KeyPath under Background Items, and toggle it ON (see screenshot)."
         } else {
             "Enables system operations without repeated password prompts."
         }
@@ -269,6 +269,22 @@ struct WizardHelperPage: View {
                 }
                 .buttonStyle(WizardDesign.Component.PrimaryButton())
                 .keyboardShortcut(.defaultAction)
+
+                // Show inline screenshot to make the user action explicit
+                Image("permissions-login-items", bundle: .main)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxWidth: 520)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .shadow(radius: 6)
+                    .padding(.top, WizardDesign.Spacing.itemGap)
+                    .accessibilityLabel("System Settings Login Items - toggle KeyPath on")
+
+                Text("Toggle KeyPath to ON under Background Items, then return here.")
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
             } else {
                 // Single idempotent action: install or repair (performs cleanup + install)
                 Button(isInstalled ? "Fix" : "Install Helper") {
@@ -326,7 +342,9 @@ struct WizardHelperPage: View {
                 scheduleStatusClear()
             } else if approvalNeeded {
                 // Registration succeeded but needs Login Items approval
-                actionStatus = .inProgress(message: "Awaiting Login Items approval…")
+                actionStatus = .inProgress(
+                    message: "Approve KeyPath in System Settings → Login Items (toggle KeyPath ON, see screenshot)."
+                )
                 // Start polling for approval status changes
                 startApprovalPolling()
             } else {
