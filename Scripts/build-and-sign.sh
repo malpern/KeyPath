@@ -250,8 +250,8 @@ create_sparkle_archive() {
         echo "   Install with: brew install sparkle"
     fi
 
-    # Get file size
-    local SIZE=$(stat -f%z "${SPARKLE_DIR}/${ARCHIVE_NAME}")
+    # Get file size (wc -c is portable across macOS/Linux)
+    local SIZE=$(wc -c < "${SPARKLE_DIR}/${ARCHIVE_NAME}" | tr -d ' ')
     local PUB_DATE=$(date -R)
 
     # Generate appcast entry XML
