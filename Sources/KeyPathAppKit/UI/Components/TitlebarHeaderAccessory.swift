@@ -30,6 +30,7 @@ final class TitlebarHeaderAccessory: NSTitlebarAccessoryViewController {
 /// SwiftUI view for the titlebar header content
 private struct TitlebarHeaderView: View {
     @ObservedObject var viewModel: KanataViewModel
+    @ObservedObject var appState = MainAppStateController.shared
     @State private var systemStatus: SystemStatusState = .checking
     @State private var statusRotation: Double = 0
     @State private var mappingsPaused: Bool = false
@@ -82,6 +83,16 @@ private struct TitlebarHeaderView: View {
     }
 
     private func refreshStatus() async {
+        // Prefer the app-wide validation result for consistency with the main banner
+        if appState.validationState == .success {
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    systemStatus = .healthy
+                }
+            }
+            return
+        }
+
         let context = await viewModel.inspectSystemContext()
         let isHealthy = context.services.isHealthy && context.permissions.isSystemReady
 
@@ -171,8 +182,15 @@ private struct TitlebarHeaderView: View {
             systemStatus = .checking
             try? await Task.sleep(for: .milliseconds(500))
 
-            let context = await viewModel.inspectSystemContext()
-            let isHealthy = context.services.isHealthy && context.permissions.isSystemReady
+            // Prefer the app-wide validation result; fall back to direct inspection.
+            let validationReady = appState.validationState == .success
+            let isHealthy: Bool
+            if validationReady {
+                isHealthy = true
+            } else {
+                let context = await viewModel.inspectSystemContext()
+                isHealthy = context.services.isHealthy && context.permissions.isSystemReady
+            }
 
             await MainActor.run {
                 withAnimation(.easeInOut(duration: 0.3)) {

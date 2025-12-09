@@ -106,6 +106,12 @@ extension UpdateService: SPUUpdaterDelegate {
         // Don't postpone - let Sparkle handle the relaunch timing
         false
     }
+
+    /// Use standard version comparator which handles semver with prerelease tags
+    /// This ensures 1.0.0-beta1 > 1.0.0-beta0
+    public nonisolated func versionComparator(for _: SPUUpdater) -> any SUVersionComparison {
+        SUStandardVersionComparator.default
+    }
 }
 
 // MARK: - Post-Relaunch Handler (separate extension to silence spurious warning)

@@ -57,3 +57,4 @@ echo ""
 echo "✓ Documentation build complete!"
 echo ""
 echo "HTML files generated in: $DOCS_DIR/"
+

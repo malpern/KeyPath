@@ -417,8 +417,20 @@ struct CustomRuleEditorView: View {
 
         // Only auto-save if there are no validation errors
         guard errors.isEmpty else {
-            validationError = errors.first?.errorDescription
-            showToast(message: errors.first?.errorDescription ?? "Validation failed", isError: true)
+            // Build detailed error message for modal
+            let errorDetails = errors.map { error -> String in
+                switch error {
+                case .invalidInputKey(let key):
+                    return "Invalid input key: '\(key)'\n\nValid keys include: a-z, 0-9, caps, esc, tab, ret, spc, bspc, del, lmet, rmet, lctl, rctl, lsft, rsft, lalt, ralt, f1-f20, arrow keys, etc.\n\nTip: Use the Record button to capture keys instead of typing them."
+                case .invalidOutputKey(let key):
+                    return "Invalid output key: '\(key)'\n\nValid keys include: a-z, 0-9, caps, esc, tab, ret, spc, bspc, del, lmet, rmet, lctl, rctl, lsft, rsft, lalt, ralt, f1-f20, arrow keys, etc.\n\nTip: Use the Record button to capture keys instead of typing them."
+                default:
+                    return error.errorDescription ?? "Unknown validation error"
+                }
+            }.joined(separator: "\n\n")
+
+            validationError = errorDetails
+            showValidationAlert = true
             return
         }
 

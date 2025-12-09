@@ -4,10 +4,31 @@ import KeyPathCore
 import KeyPathWizardCore
 import SwiftUI
 
+enum KarabinerPageLogic {
+    /// Returns true when Karabiner-related issues are still present.
+    /// Ready/active system state always wins, to avoid stale snapshots leaving the UI in a spinner.
+    static func hasIssues(
+        systemState: WizardSystemState,
+        issues: [WizardIssue]
+    ) -> Bool {
+        switch systemState {
+        case .ready, .active:
+            return false
+        default:
+            return KarabinerComponentsStatusEvaluator.evaluate(
+                systemState: systemState,
+                issues: issues
+            ) != .completed
+        }
+    }
+}
+
 // MARK: - Constants
 
 /// Maximum time to wait for state refresh to complete.
 private let stateRefreshTimeoutSeconds: TimeInterval = 2
+/// Fail‑safe refresh retries to avoid a spinner storm.
+private let maxSafetyRefreshAttempts = 6
 
 /// Karabiner driver and virtual HID components setup page
 struct WizardKarabinerComponentsPage: View {
@@ -23,8 +44,15 @@ struct WizardKarabinerComponentsPage: View {
     @State private var isCombinedFixLoading = false
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
     @State private var lastKarabinerHealthy = false
+    @State private var scheduledRefreshTask: Task<Void, Never>?
+    @State private var statusUpdateTask: Task<Void, Never>?
     @State private var stepProgressCancellable: AnyCancellable?
+    @State private var safetyRefreshAttempts = 0
+    @State private var latestSnapshot: SystemSnapshot?
+    @State private var statusMessage: String?
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
+    // Bridge to parent view's refresh so we can force it
+    @EnvironmentObject var wizardRefreshProxy: WizardRefreshProxy
 
     var body: some View {
         VStack(spacing: 0) {
@@ -135,6 +163,14 @@ struct WizardKarabinerComponentsPage: View {
                     .disabled(isCombinedFixLoading)
                     .frame(minHeight: 44) // Prevent height change when loading spinner appears
                     .padding(.top, WizardDesign.Spacing.itemGap)
+
+                    if let message = statusMessage, isCombinedFixLoading {
+                        Text(message)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+                    }
                 }
                 .animation(WizardDesign.Animation.statusTransition, value: actionStatus)
                 .heroSectionContainer()
@@ -145,44 +181,99 @@ struct WizardKarabinerComponentsPage: View {
         .fixedSize(horizontal: false, vertical: true)
         .background(WizardDesign.Colors.wizardBackground)
         .wizardDetailPage()
+        // Clear loading as soon as the system is globally ready
+        .onChange(of: systemReady) { _, isReady in
+            if isReady {
+                AppLogger.shared.log("ℹ️ [Wizard] Karabiner onChange systemReady=true; resolving")
+                handleResolved()
+            }
+        }
+        .onChange(of: systemState) { _, newState in
+            if case .ready = newState { handleResolved() }
+            if case .active = newState { handleResolved() }
+        }
+        .onChange(of: issues.count) { _, _ in
+            AppLogger.shared.log("ℹ️ [Wizard] Karabiner onChange issues.count=\(issues.count); hasIssues=\(hasKarabinerIssues)")
+            if !hasKarabinerIssues { handleResolved() }
+            scheduleSafetyRefreshIfNeeded()
+        }
         .onChange(of: hasKarabinerIssues) { _, hasIssues in
             // If health check shows Karabiner is now healthy, stop any spinners and surface success inline.
             if !hasIssues {
-                AppLogger.shared.log("✅ [Wizard] Karabiner page observed hasKarabinerIssues=false; clearing loading UI")
-                if isCombinedFixLoading {
-                    AppLogger.shared.log("✅ [Wizard] Karabiner components healthy; stopping loading state")
-                }
-                isCombinedFixLoading = false
-                actionStatus = .success(message: "Karabiner driver ready")
-                lastKarabinerHealthy = true
+                handleResolved()
             } else {
                 AppLogger.shared.log("ℹ️ [Wizard] Karabiner page observed issues present; keeping error state")
                 lastKarabinerHealthy = false
+                scheduleSafetyRefreshIfNeeded()
             }
         }
         .onAppear {
+            AppLogger.shared.log("ℹ️ [Wizard] Karabiner onAppear: systemReady=\(systemReady) issues=\(issues.count)")
             // If we arrive here already healthy, avoid showing a stuck spinner.
             if !hasKarabinerIssues {
                 AppLogger.shared.log("ℹ️ [Wizard] Karabiner page onAppear with hasKarabinerIssues=false; showing ready state")
-                isCombinedFixLoading = false
-                actionStatus = .success(message: "Karabiner driver ready")
-                lastKarabinerHealthy = true
+                handleResolved()
             } else {
                 AppLogger.shared.log(
                     "ℹ️ [Wizard] Karabiner page onAppear with hasKarabinerIssues=true; issues=\(issues.count)"
                 )
+                // Force an immediate refresh to avoid stale snapshots.
+                triggerImmediateRefresh()
+                scheduleSafetyRefreshIfNeeded()
+                startStatusUpdates()
             }
+        }
+        .onReceive(stateMachine.$systemSnapshot) { snapshot in
+            latestSnapshot = snapshot
+            if let snap = snapshot {
+                AppLogger.shared.log("ℹ️ [Wizard] Karabiner snapshot update: ready=\(snap.isReady) karabinerInstalled=\(snap.components.karabinerDriverInstalled) vhidHealthy=\(snap.components.vhidDeviceHealthy) daemonRunning=\(snap.health.karabinerDaemonRunning) version=\(stateMachine.stateVersion)")
+                if snap.isReady { handleResolved() }
+            }
+        }
+        .onDisappear {
+            // Cancel any scheduled refresh when leaving the page
+            scheduledRefreshTask?.cancel()
+            scheduledRefreshTask = nil
+            statusUpdateTask?.cancel()
+            statusUpdateTask = nil
         }
     }
 
     // MARK: - Helper Methods
 
     private var hasKarabinerIssues: Bool {
-        // Use centralized evaluator (single source of truth)
-        KarabinerComponentsStatusEvaluator.evaluate(
-            systemState: systemState,
-            issues: issues
-        ) != .completed
+        if let snap = latestSnapshot, snap.isReady {
+            return false
+        }
+        return KarabinerPageLogic.hasIssues(systemState: systemState, issues: issues)
+    }
+
+    private var systemReady: Bool {
+        if let snap = latestSnapshot {
+            return snap.isReady
+        }
+        switch systemState {
+        case .ready, .active:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Transition UI to resolved state and auto-advance when the driver is healthy.
+    private func handleResolved() {
+        // Avoid re-running if we've already marked healthy.
+        if lastKarabinerHealthy { return }
+        AppLogger.shared.log("✅ [Wizard] Karabiner components healthy; clearing loading UI")
+        isCombinedFixLoading = false
+        actionStatus = .success(message: "Karabiner driver ready")
+        lastKarabinerHealthy = true
+        safetyRefreshAttempts = 0
+        scheduledRefreshTask?.cancel()
+        statusUpdateTask?.cancel()
+        statusMessage = nil
+        scheduleStatusClear() // heal the panel after showing success briefly
+        // Remain on this page so the user can acknowledge success manually.
     }
 
     private var nextStepButtonTitle: String {
@@ -410,7 +501,12 @@ struct WizardKarabinerComponentsPage: View {
 
         // Always run a verified restart last to ensure single-owner state
         AppLogger.shared.log("🧭 [FIX-VHID \(session)] Action: restartVirtualHIDDaemon (verified)")
-        let restartOk = await performAutoFix(.restartVirtualHIDDaemon)
+        let restartOk = await withTimeout(seconds: 10) {
+            await performAutoFix(.restartVirtualHIDDaemon)
+        }
+        if !restartOk {
+            AppLogger.shared.log("⏱️ [FIX-VHID \(session)] restartVirtualHIDDaemon timed out")
+        }
         success = success || restartOk
 
         // Post-repair diagnostic
@@ -438,6 +534,24 @@ struct WizardKarabinerComponentsPage: View {
             if case .success = actionStatus {
                 actionStatus = .idle
             }
+        }
+    }
+
+    /// Await an async operation with a timeout; cancels the operation if it exceeds the deadline.
+    private func withTimeout(
+        seconds: Double,
+        operation: @Sendable @escaping () async -> Bool
+    ) async -> Bool {
+        await withTaskGroup(of: Bool?.self) { group in
+            group.addTask { await operation() }
+            group.addTask {
+                try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                return nil
+            }
+
+            let first = await group.next() ?? nil
+            group.cancelAll()
+            return first ?? false
         }
     }
 
@@ -509,5 +623,73 @@ struct WizardKarabinerComponentsPage: View {
 
         let totalElapsed = String(format: "%.2f", Date().timeIntervalSince(t0))
         AppLogger.shared.log("✅ [Karabiner Fix] refreshAndWait() completed (elapsed=\(totalElapsed)s)")
+    }
+
+    /// Immediately trigger a wizard state refresh (debounce bypass) via the coordinator.
+    private func triggerImmediateRefresh() {
+        Task { @MainActor in
+            AppLogger.shared.log("🔁 [Wizard] Karabiner forcing immediate refresh")
+            wizardRefreshProxy.refresh(force: true)
+        }
+    }
+
+    /// If we remain in an error state, schedule a one-time refresh after a short delay to pull in a fresh snapshot.
+private func scheduleSafetyRefreshIfNeeded() {
+        // Clear any pending work once we're healthy.
+        if !hasKarabinerIssues {
+            safetyRefreshAttempts = 0
+            scheduledRefreshTask?.cancel()
+            scheduledRefreshTask = nil
+            return
+        }
+
+        // If a loop is already running, don't start another.
+        if scheduledRefreshTask != nil { return }
+
+        scheduledRefreshTask = Task { @MainActor in
+            defer { scheduledRefreshTask = nil }
+
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2))
+
+                // Stop if state flipped healthy while we were sleeping.
+                if !hasKarabinerIssues { break }
+
+                // Respect a hard cap to avoid runaway loops, but allow more attempts than before.
+                if safetyRefreshAttempts >= maxSafetyRefreshAttempts {
+                    AppLogger.shared.log(
+                        "⚠️ [Wizard] Karabiner safety refresh capped at \(maxSafetyRefreshAttempts) attempts; will wait for user action or manual refresh"
+                    )
+                    break
+                }
+
+                // If a refresh is already running, skip this tick and try again.
+                if stateMachine.isRefreshing { continue }
+
+                safetyRefreshAttempts += 1
+                AppLogger.shared.log(
+                    "🔁 [Wizard] Karabiner safety refresh attempt \(safetyRefreshAttempts) of \(maxSafetyRefreshAttempts)"
+                )
+                wizardRefreshProxy.refresh(force: true)
+            }
+        }
+    }
+
+    /// User-facing timed status updates while macOS brings up VHID/daemon.
+    private func startStatusUpdates() {
+        statusUpdateTask?.cancel()
+        statusMessage = "Preparing… (starting virtual keyboard driver)"
+        statusUpdateTask = Task { @MainActor in
+            let checkpoints: [(Double, String)] = [
+                (4, "Preparing… (waiting for macOS to start the driver)"),
+                (8, "Still preparing… (checking driver health)"),
+                (10, "This can take 10–15 seconds the first time; still waiting on macOS")
+            ]
+            for (delay, message) in checkpoints {
+                try? await Task.sleep(for: .seconds(delay))
+                if Task.isCancelled || !hasKarabinerIssues { break }
+                statusMessage = message
+            }
+        }
     }
 }

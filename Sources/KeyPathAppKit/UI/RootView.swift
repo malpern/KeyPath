@@ -60,6 +60,18 @@ struct RootView: View {
             )
         }
         .focusEffectDisabled()
+        .onChange(of: viewModel.lastError) { _, newError in
+            if let error = newError {
+                validationErrorMessage = error
+                showingValidationError = true
+                viewModel.lastError = nil
+            }
+        }
+        .alert("Configuration Error", isPresented: $showingValidationError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(validationErrorMessage)
+        }
     }
 }
 

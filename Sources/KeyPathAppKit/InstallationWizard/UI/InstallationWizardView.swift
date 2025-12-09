@@ -57,6 +57,7 @@ struct InstallationWizardView: View {
     @State private var currentFixAction: AutoFixAction?
     @State private var fixInFlight: Bool = false
     @State private var lastRefreshAt: Date?
+    @StateObject private var refreshProxy = WizardRefreshProxy()
 
     // Task management for race condition prevention
     @State private var refreshTask: Task<Void, Never>?
@@ -117,7 +118,7 @@ struct InstallationWizardView: View {
                     : WizardDesign.Layout.pageWidth,
                 height: nil
             )
-            .frame(maxHeight: (navigationCoordinator.currentPage == .summary) ? 720 : .infinity) // Grow up to cap, then scroll
+            .frame(maxHeight: (navigationCoordinator.currentPage == .summary) ? 720 : 820) // Grow up to cap, then scroll
             .fixedSize(horizontal: true, vertical: false) // Allow vertical growth; keep width fixed
             .animation(.easeInOut(duration: 0.25), value: isValidating)
             // Remove animation on frame changes to prevent window movement
@@ -125,6 +126,8 @@ struct InstallationWizardView: View {
         }
         .withToasts(toastManager)
         .environmentObject(navigationCoordinator)
+        .environmentObject(refreshProxy)
+        .environmentObject(stateMachine)
         .focused($hasKeyboardFocus) // Enable focus for reliable ESC key handling
         // Aggressively disable focus rings during validation
         .onChange(of: isValidating) { _, newValue in
@@ -153,10 +156,23 @@ struct InstallationWizardView: View {
         .onAppear {
             hasKeyboardFocus = true
             Task { await setupWizard() }
+            // Wire the refresh proxy for child pages
+            refreshProxy.refreshHandler = { force in
+                Task { @MainActor in
+                    refreshState(force: force)
+                }
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowUserFeedback"))) { note in
             if let message = note.userInfo?["message"] as? String {
                 showStatusBanner(message)
+            }
+        }
+        .onChange(of: systemState) { _, newState in
+            // When the wizard reaches a ready/active state, trigger main-screen validation so the banner clears.
+            if newState == .ready || newState == .active {
+                AppLogger.shared.log("🔄 [Wizard] System ready/active detected - triggering main screen revalidation")
+                NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
             }
         }
         .onChange(of: asyncOperationManager.hasRunningOperations) { _, newValue in
@@ -1118,6 +1134,13 @@ struct InstallationWizardView: View {
     }
 
     private func refreshState() {
+        refreshState(force: false)
+    }
+
+    /// Allow callers (e.g., Karabiner page) to bypass the debounce and force a fresh snapshot.
+    /// - Parameter force: when true, ignore debounce and run stateDetection immediately.
+    @MainActor
+    func refreshState(force: Bool) {
         // Check if force closing is in progress
         guard !isForceClosing else {
             AppLogger.shared.log("🔍 [Wizard] Refresh state blocked - force closing in progress")
@@ -1125,11 +1148,14 @@ struct InstallationWizardView: View {
         }
 
         let now = Date()
-        if let last = lastRefreshAt, now.timeIntervalSince(last) < 0.3 {
+        if !force, let last = lastRefreshAt, now.timeIntervalSince(last) < 0.3 {
             AppLogger.shared.log("🔍 [Wizard] Refresh skipped (debounced)")
             return
         }
         lastRefreshAt = now
+        if force {
+            stateManager.lastWizardSnapshot = nil // clear cache so we fetch fresh state
+        }
 
         AppLogger.shared.log("🔍 [Wizard] Refreshing system state (using cache if available)")
 
@@ -1742,6 +1768,20 @@ struct KeyboardNavigationModifier: ViewModifier {
             // For macOS 13.0, keyboard navigation isn't available
             content
         }
+    }
+}
+
+// MARK: - Environment Wrapper for Child Refresh
+
+extension InstallationWizardView {
+    func makeRefreshProxy() -> WizardRefreshProxy {
+        let proxy = WizardRefreshProxy()
+        proxy.refreshHandler = { force in
+            Task { @MainActor in
+                refreshState(force: force)
+            }
+        }
+        return proxy
     }
 }
 

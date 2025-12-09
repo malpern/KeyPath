@@ -337,19 +337,7 @@ actor KanataTCPClient {
         }
     }
 
-    struct TcpLastReload: Codable, Sendable {
-        let ok: Bool
-        let at: UInt64 // Unix epoch seconds
-    }
-
-    struct TcpStatusInfo: Codable, Sendable {
-        let engine_version: String?
-        let uptime_s: UInt64?
-        let ready: Bool
-        let last_reload: TcpLastReload?
-    }
-
-    // MARK: - Handshake / Status
+    // MARK: - Handshake
 
     /// Perform Hello handshake and cache capabilities
     /// Returns single response: {"HelloOk": {...}}
@@ -392,37 +380,14 @@ actor KanataTCPClient {
             "🌐 [TCP] capability check ok required=\(required.joined(separator: ","))")
     }
 
-    /// Fetch StatusInfo
-    /// Returns single response: {"StatusInfo": {...}}
-    func getStatus() async throws -> TcpStatusInfo {
-        // FIX #3: Wrap operation with error recovery to clean up bad connections
-        try await withErrorRecovery {
-            let requestData = try JSONEncoder().encode(["Status": [:] as [String: String]])
-            let responseData = try await send(requestData)
-            if let status = try extractMessage(
-                named: "StatusInfo", into: TcpStatusInfo.self, from: responseData
-            ) {
-                return status
-            }
-            throw KeyPathError.communication(.invalidResponse)
-        }
-    }
-
     /// Check if TCP server is available
     func checkServerStatus() async -> Bool {
         AppLogger.shared.debug("🌐 [TCP] Checking server status for \(host):\(port)")
 
         do {
-            // Use RequestCurrentLayerName as a simple ping
-            let pingData = try JSONEncoder().encode(["RequestCurrentLayerName": [:] as [String: String]])
-            let responseData = try await send(pingData)
-
-            if let responseString = String(data: responseData, encoding: .utf8) {
-                AppLogger.shared.debug("✅ [TCP] Server is responding: \(responseString.prefix(100))")
-                return true
-            }
-
-            return false
+            // Prefer Hello handshake to verify capability support
+            _ = try await hello()
+            return true
         } catch {
             AppLogger.shared.warn("❌ [TCP] Server check failed: \(error)")
             // FIX #3: Close connection on error so next call gets fresh connection
@@ -648,12 +613,13 @@ actor KanataTCPClient {
     private func sendCore(_ data: Data) async throws -> Data {
         // Ensure connection is ready
         let connection = try await ensureConnectionCore()
+        let payload = appendNewlineIfNeeded(to: data)
 
         // Send with timeout
         return try await withThrowingTaskGroup(of: Data.self) { group in
             // Main send/receive task
             group.addTask {
-                try await self.sendAndReceive(on: connection, data: data)
+                try await self.sendAndReceive(on: connection, data: payload)
             }
 
             // Timeout task
@@ -851,6 +817,14 @@ actor KanataTCPClient {
                 }
             )
         }
+    }
+
+    /// Ensure outgoing JSON is newline-delimited (kanata TCP protocol framing)
+    private func appendNewlineIfNeeded(to data: Data) -> Data {
+        if data.last == 0x0A { return data }
+        var d = data
+        d.append(0x0A)
+        return d
     }
 
     /// Extract error message from JSON response using structured parsing

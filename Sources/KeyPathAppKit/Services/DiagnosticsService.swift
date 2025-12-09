@@ -381,23 +381,6 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                 ))
         }
 
-        // TCP engine status (non-blocking informational)
-        if let tcpInfo = await fetchTcpStatusInfo() {
-            if let last = tcpInfo.last_reload {
-                diagnostics.append(
-                    KanataDiagnostic(
-                        timestamp: Date(),
-                        severity: .info,
-                        category: .system,
-                        title: "Last Reload",
-                        description: "ok=\(last.ok) at=\(last.at)",
-                        technicalDetails: "Reported by TCP StatusInfo",
-                        suggestedAction: "",
-                        canAutoFix: false
-                    ))
-            }
-        }
-
         // TCP handshake summary (protocol/capabilities)
         if let hello = await fetchTcpHello() {
             let caps = hello.capabilities.joined(separator: ", ")
@@ -637,24 +620,6 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
     }
 
     // MARK: - TCP helpers (best-effort)
-
-    private func fetchTcpStatusInfo() async -> KanataTCPClient.TcpStatusInfo? {
-        let client = KanataTCPClient(port: 37001)
-
-        do {
-            _ = try await client.hello()
-            let status = try await client.getStatus()
-
-            // FIX #1: Explicitly close connection to prevent file descriptor leak
-            await client.cancelInflightAndCloseConnection()
-
-            return status
-        } catch {
-            // FIX #1: Clean up connection even on error path
-            await client.cancelInflightAndCloseConnection()
-            return nil
-        }
-    }
 
     private func fetchTcpHello() async -> KanataTCPClient.TcpHelloOk? {
         let client = KanataTCPClient(port: 37001)

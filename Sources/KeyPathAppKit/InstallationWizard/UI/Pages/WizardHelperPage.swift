@@ -2,6 +2,8 @@ import KeyPathCore
 import KeyPathWizardCore
 import ServiceManagement
 import SwiftUI
+import AppKit
+import ApplicationServices
 
 /// Privileged Helper installation and validation page
 struct WizardHelperPage: View {
@@ -88,6 +90,30 @@ struct WizardHelperPage: View {
         } else {
             "Enables system operations without repeated password prompts."
         }
+    }
+
+    private var loginItemsScreenshot: NSImage? {
+        if let url = Bundle.main.url(forResource: "permissions-login-items2", withExtension: "png"),
+            let image = NSImage(contentsOf: url) {
+            return image
+        }
+
+        if let url = Bundle.main.url(forResource: "permissions-login-items", withExtension: "png"),
+           let image = NSImage(contentsOf: url) {
+            return image
+        }
+
+        if let url = Bundle.module.url(forResource: "permissions-login-items2", withExtension: "png"),
+           let image = NSImage(contentsOf: url) {
+            return image
+        }
+
+        if let url = Bundle.module.url(forResource: "permissions-login-items", withExtension: "png"),
+           let image = NSImage(contentsOf: url) {
+            return image
+        }
+
+        return nil
     }
 
     // MARK: - Body
@@ -201,6 +227,9 @@ struct WizardHelperPage: View {
             }
 
             Button(nextStepButtonTitle) {
+                if isReady {
+                    closeLoginItemsWindowIfOpen()
+                }
                 navigateToNextStep()
             }
             .buttonStyle(WizardDesign.Component.PrimaryButton())
@@ -254,7 +283,7 @@ struct WizardHelperPage: View {
                 .padding(.horizontal, 40)
 
             // Inline action status
-            if actionStatus.isActive, let message = actionStatus.message {
+            if actionStatus.isActive, !needsLoginItemsApproval, let message = actionStatus.message {
                 InlineStatusView(status: actionStatus, message: message)
                     .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
@@ -262,20 +291,22 @@ struct WizardHelperPage: View {
             // Show Login Items approval button if needed
             if needsLoginItemsApproval {
                 // Inline screenshot to make the user action explicit (placed above the button)
-                Image("permissions-login-items", bundle: .main)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(maxWidth: 480)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .shadow(radius: 6)
-                    .padding(.top, WizardDesign.Spacing.itemGap)
-                    .accessibilityLabel("System Settings Login Items - toggle KeyPath on")
-
-                Text("Toggle KeyPath to ON under Background Items, then return here.")
-                    .font(.system(size: 14, weight: .regular))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
+                if let screenshot = loginItemsScreenshot {
+                    Image(nsImage: screenshot)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxWidth: 470, maxHeight: 340)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .shadow(radius: 6)
+                        .padding(.vertical, WizardDesign.Spacing.itemGap)
+                        .accessibilityLabel("System Settings Login Items - toggle KeyPath on")
+                } else {
+                    Text("Missing screenshot asset. Please reinstall KeyPath if this keeps appearing.")
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, WizardDesign.Spacing.itemGap)
+                }
 
                 Button("Open Login Items Settings") {
                     openLoginItemsSettings()
@@ -466,6 +497,34 @@ struct WizardHelperPage: View {
                 navigationCoordinator.navigateToPage(next)
             } else {
                 navigationCoordinator.navigateToPage(.summary)
+            }
+        }
+    }
+
+    /// Best-effort close of the System Settings Login Items window after success.
+    /// Assumes the app already has Accessibility permission (granted earlier in the wizard).
+    private func closeLoginItemsWindowIfOpen() {
+        // Limit to newer macOS; avoid older AX quirks (e.g., macOS 14).
+        guard #available(macOS 15, *), AXIsProcessTrusted() else { return }
+
+        let systemSettingsApps = NSWorkspace.shared.runningApplications
+            .filter { $0.bundleIdentifier == "com.apple.systempreferences" }
+
+        for app in systemSettingsApps {
+            let axApp = AXUIElementCreateApplication(app.processIdentifier)
+            var windows: CFTypeRef?
+            if AXUIElementCopyAttributeValue(axApp, "AXWindows" as CFString, &windows) == .success,
+               let windowList = windows as? [AXUIElement] {
+                for window in windowList {
+                    // Prefer pressing the close button; fallback to AXClose.
+                    var closeButton: CFTypeRef?
+                    if AXUIElementCopyAttributeValue(window, "AXCloseButton" as CFString, &closeButton) == .success,
+                       let button = closeButton {
+                        AXUIElementPerformAction(button as! AXUIElement, "AXPress" as CFString)
+                    } else {
+                        _ = AXUIElementPerformAction(window, "AXClose" as CFString)
+                    }
+                }
             }
         }
     }

@@ -273,6 +273,16 @@ class MainAppStateController: ObservableObject {
         }
 
         if !serviceStatus.kanataServiceHealthy {
+            // Try an automatic start once before declaring failure.
+            if let kanataManager {
+                AppLogger.shared.log("🚀 [MainAppStateController] Attempting to auto-start Kanata service before failing validation")
+                let started = await kanataManager.startKanata(reason: "Validation auto-start")
+                if started {
+                    try? await Task.sleep(for: .seconds(0.6)) // brief settle
+                    serviceStatus = await InstallerEngine().getServiceStatus()
+                }
+            }
+
             AppLogger.shared.warn(
                 "⚠️ [MainAppStateController] Kanata service not healthy after \(startupGracePeriod)s - showing error state")
             // Set failed state so System indicator shows red X instead of spinning forever

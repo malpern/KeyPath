@@ -214,23 +214,10 @@ struct SimpleModsView: View {
                     // Switch to installed tab when a mapping is added
                     if newCount > oldCount, selectedTab == .available {
                         selectedTab = .installed
-                        // Fetch last reload duration from TCP status for richer success message
-                        Task {
-                            let client = KanataTCPClient(port: 37001)
-                            let status = try? await client.getStatus()
-
-                            // FIX #1: Explicitly close connection to prevent file descriptor leak
-                            await client.cancelInflightAndCloseConnection()
-
-                            if status?.last_reload?.ok == true {
-                                showToast("✅ Mapping added successfully", isError: false)
-                            } else {
-                                showToast("✅ Mapping added", isError: false)
-                            }
-                        }
+                        showToast("✅ Mapping added", isError: false)
                     } else if newCount < oldCount {
                         // Only show success if user-initiated (not rollback)
-                        showToast("✅ Mapping removed successfully", isError: false)
+                        showToast("✅ Mapping removed", isError: false)
                     }
                 }
             }

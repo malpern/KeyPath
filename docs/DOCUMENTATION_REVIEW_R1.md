@@ -275,3 +275,4 @@ The `docs/images/` folder contains screenshots and assets. These should be revie
 3. **R2 feature mentions** that need R1/R2 labeling
 
 After these updates, the documentation will be accurate and clear for R1 release.
+
