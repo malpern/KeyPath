@@ -1,9 +1,50 @@
 # Sparkle Auto-Update Integration Plan
 
-**Status:** Planned
+**Status:** ✅ Implemented (v1.0.0-beta1)
 **Author:** Claude
 **Date:** December 2025 (living doc; keep dates/version numbers in sync with current release)
 **Effort Estimate:** 2-3 days implementation + testing
+
+---
+
+## Quick Reference: Cutting a New Release
+
+For the impatient maintainer, here's the TL;DR:
+
+```bash
+# 1. Build, sign, notarize, and create Sparkle artifacts
+./build.sh
+
+# 2. Upload to GitHub Releases
+VERSION="1.0.1"  # Change this
+gh release create "v${VERSION}" \
+  "dist/sparkle/KeyPath-${VERSION}.zip" \
+  "dist/sparkle/KeyPath-${VERSION}.zip.sig" \
+  --title "KeyPath ${VERSION}" \
+  --notes "See release notes..."
+
+# 3. Update appcast.xml (copy the generated entry)
+cat dist/sparkle/KeyPath-${VERSION}.zip.appcast-entry.xml
+# Paste into appcast.xml (newest first)
+
+# 4. Commit and push appcast
+git add appcast.xml
+git commit -m "chore: add ${VERSION} to appcast"
+git push origin master
+```
+
+**Files produced by `./build.sh`:**
+- `dist/KeyPath.app` - Notarized app bundle
+- `dist/KeyPath.zip` - Distribution archive
+- `dist/sparkle/KeyPath-X.Y.Z.zip` - Versioned Sparkle archive
+- `dist/sparkle/KeyPath-X.Y.Z.zip.sig` - EdDSA signature
+- `dist/sparkle/KeyPath-X.Y.Z.zip.appcast-entry.xml` - Ready-to-paste appcast item
+
+**Feed URL:** `https://raw.githubusercontent.com/malpern/KeyPath/master/appcast.xml`
+
+**Important:** GitHub's raw CDN caches for ~5 minutes. Users may not see updates immediately after pushing.
+
+---
 
 ## Overview
 
