@@ -117,7 +117,9 @@ public actor SubprocessRunner: SubprocessRunning {
                         return
                     }
 
-                    task.terminate()
+                    if task.isRunning {
+                        task.terminate()
+                    }
                     if runContext.resume(
                         with: .failure(SubprocessError.timeout(executable: executable, timeout: timeoutInterval))
                     ) {
@@ -139,7 +141,9 @@ public actor SubprocessRunner: SubprocessRunning {
                 }
             }
         }, onCancel: {
-            task.terminate()
+            if task.isRunning {
+                task.terminate()
+            }
             runContext.timeoutTask?.cancel()
             runContext.resume(with: .failure(CancellationError()))
         })
