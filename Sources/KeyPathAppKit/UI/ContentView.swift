@@ -69,6 +69,8 @@ struct ContentView: View {
     @State private var showingEmergencyStopDialog = false
     @State private var showingUninstallDialog = false
     @State private var toastManager = WizardToastManager()
+    @State private var showingWhatsNew = false
+    @State private var hasCheckedWhatsNew = false
 
     @State private var saveDebounceTimer: Timer?
     private let saveDebounceDelay: TimeInterval = 0.1
@@ -271,6 +273,12 @@ struct ContentView: View {
                 }
                 .environmentObject(kanataManager)
         }
+        .sheet(isPresented: $showingWhatsNew) {
+            WhatsNewView()
+                .onDisappear {
+                    WhatsNewTracker.markAsSeen()
+                }
+        }
         .sheet(isPresented: $showingSimpleMods) {
             SimpleModsView(configPath: kanataManager.configPath)
                 .environmentObject(kanataManager)
@@ -391,6 +399,20 @@ struct ContentView: View {
             Text(
                 "The Kanata emergency stop sequence (Ctrl+Space+Esc) was detected. Kanata has been stopped for safety."
             )
+        }
+        .onChange(of: stateController.validationState) { _, newState in
+            guard !hasCheckedWhatsNew else { return }
+            guard case .success = newState else { return }
+            guard !showingInstallationWizard else { return }
+
+            hasCheckedWhatsNew = true
+            guard WhatsNewTracker.shouldShowWhatsNew() else { return }
+
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(300))
+                guard !showingInstallationWizard else { return }
+                showingWhatsNew = true
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowWizard"))) { _ in
             showingInstallationWizard = true
