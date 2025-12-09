@@ -8,6 +8,7 @@ struct RootView: View {
     @State private var hasCheckedWizardNeed = false
     @State private var showingValidationError = false
     @State private var validationErrorMessage = ""
+    @State private var showingWhatsNew = false
 
     var body: some View {
         ZStack {
@@ -31,6 +32,12 @@ struct RootView: View {
                 .customizeSheetWindow()
                 .environmentObject(viewModel)
         }
+        .sheet(isPresented: $showingWhatsNew) {
+            WhatsNewView()
+                .onDisappear {
+                    WhatsNewTracker.markAsSeen()
+                }
+        }
         .task {
             // Wait for splash to finish (coordinated via notification)
             // Then check if wizard is needed
@@ -46,6 +53,10 @@ struct RootView: View {
             if !context.permissions.isSystemReady || !context.services.isHealthy {
                 try? await Task.sleep(for: .milliseconds(300))
                 showingWizard = true
+            } else if WhatsNewTracker.shouldShowWhatsNew() {
+                // System is ready - check if we should show What's New (after update)
+                try? await Task.sleep(for: .milliseconds(300))
+                showingWhatsNew = true
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowWizard"))) { _ in
