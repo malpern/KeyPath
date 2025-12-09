@@ -22,6 +22,7 @@ struct WizardHelperPage: View {
     @State private var duplicateCopies: [String] = []
     @State private var needsLoginItemsApproval = false
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
+    @State private var hasLoggedDiagnostics = false
     @State private var approvalPollingTimer: Timer?
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
@@ -112,6 +113,7 @@ struct WizardHelperPage: View {
         }
         .onAppear {
             duplicateCopies = HelperMaintenance.shared.detectDuplicateAppCopies()
+            logLoginItemsDiagnostics()
         }
         .onDisappear {
             stopApprovalPolling()
@@ -317,6 +319,27 @@ struct WizardHelperPage: View {
     }
 
     // MARK: - Actions
+    private func logLoginItemsDiagnostics() {
+        guard !hasLoggedDiagnostics else { return }
+        hasLoggedDiagnostics = true
+
+        let mainURL = Bundle.main.url(forResource: "permissions-login-items", withExtension: "png")
+        let moduleURL = Bundle.module.url(forResource: "permissions-login-items", withExtension: "png")
+        let mainImageLoaded = mainURL.flatMap { NSImage(contentsOf: $0) } != nil
+        let moduleImageLoaded = moduleURL.flatMap { NSImage(contentsOf: $0) } != nil
+        let windowHeight = NSApp.keyWindow?.frame.height ?? 0
+
+        AppLogger.shared.log(
+            """
+            🧭 [Wizard] LoginItems asset diag:
+            - mainURL=\(mainURL?.path ?? "nil")
+            - moduleURL=\(moduleURL?.path ?? "nil")
+            - mainImageLoaded=\(mainImageLoaded)
+            - moduleImageLoaded=\(moduleImageLoaded)
+            - windowHeight=\(String(format: "%.1f", windowHeight))
+            """
+        )
+    }
 
     private func installOrRepairHelper() async {
         await MainActor.run {
