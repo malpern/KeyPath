@@ -49,7 +49,7 @@
 	<key>SUEnableSystemProfiling</key>
 	<false/>
 	<key>SUFeedURL</key>
-	<string>https://raw.githubusercontent.com/malpern/KeyPath/main/appcast.xml</string>
+	<string>https://raw.githubusercontent.com/malpern/KeyPath/master/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>Jry+V9z0EbEysm5FWpbL8J3XfeFnzWqGI3Y3+CQiHgo=</string>
 	<key>SUScheduledCheckInterval</key>
