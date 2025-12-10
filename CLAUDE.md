@@ -606,6 +606,38 @@ KeyPath uses Sparkle for automatic updates. Key files and conventions:
 ### Feed URL
 `https://raw.githubusercontent.com/malpern/KeyPath/master/appcast.xml`
 
+### GitHub Actions CI/CD
+
+The release workflow (`.github/workflows/release.yml`) automates building, signing, notarizing, and publishing releases.
+
+**Triggers:**
+- Push a version tag: `git tag v1.0.0-beta2 && git push origin v1.0.0-beta2`
+- Manual dispatch via GitHub Actions UI (with optional dry run)
+
+**Required Secrets** (configure in GitHub Settings → Secrets → Actions):
+
+| Secret | Description |
+|--------|-------------|
+| `DEVELOPER_ID_CERTIFICATE_BASE64` | Developer ID Application certificate (.p12) encoded in base64 |
+| `DEVELOPER_ID_CERTIFICATE_PASSWORD` | Password for the .p12 certificate |
+| `DEVELOPER_ID_NAME` | Full signing identity (e.g., `Developer ID Application: Name (TEAMID)`) |
+| `KEYCHAIN_PASSWORD` | Temporary keychain password (any secure random string) |
+| `SPARKLE_PRIVATE_KEY` | EdDSA private key for Sparkle signing |
+| `APPLE_ID` | Apple ID email for notarization |
+| `APPLE_TEAM_ID` | 10-character Apple Team ID |
+| `APPLE_APP_PASSWORD` | App-specific password for notarization |
+
+**Exporting the certificate:**
+```bash
+# Export from Keychain Access → Developer ID Application → Export as .p12
+base64 -i certificate.p12 | pbcopy  # Copy base64 to clipboard
+```
+
+**Manual steps after release:**
+1. Copy appcast entry from release artifacts to `appcast.xml`
+2. Create `docs/releases/X.Y.Z.html` release notes
+3. Update `WhatsNewView.featuresForVersion()` if needed
+
 ## Build Commands
 
 ```bash

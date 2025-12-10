@@ -1,0 +1,349 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0-beta2)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Dry run (build but do not publish)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  APP_NAME: KeyPath
+  BUNDLE_ID: com.keypath.KeyPath
+
+jobs:
+  build-and-release:
+    runs-on: macos-14  # Apple Silicon runner for arm64 builds
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            # Extract version from tag (v1.0.0-beta2 -> 1.0.0-beta2)
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Building version: $VERSION"
+
+      - name: Verify version matches Info.plist
+        run: |
+          PLIST_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Sources/KeyPathApp/Info.plist)
+          if [ "$PLIST_VERSION" != "${{ steps.version.outputs.version }}" ]; then
+            echo "❌ Version mismatch!"
+            echo "   Tag version: ${{ steps.version.outputs.version }}"
+            echo "   Info.plist:  $PLIST_VERSION"
+            echo ""
+            echo "Update Info.plist before tagging:"
+            echo "  CFBundleShortVersionString = ${{ steps.version.outputs.version }}"
+            echo "  CFBundleVersion = <increment integer>"
+            exit 1
+          fi
+          echo "✅ Version matches: $PLIST_VERSION"
+
+      - name: Cache Rust/Cargo (for Kanata)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            External/kanata/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('External/kanata/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Cache Swift packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            .build
+            ~/.swiftpm
+          key: ${{ runner.os }}-swift-${{ hashFiles('Package.swift', 'Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-swift-
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+
+      - name: Import signing certificate
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.DEVELOPER_ID_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          # Create temporary keychain
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Import certificate
+          echo "$CERTIFICATE_BASE64" | base64 --decode > $RUNNER_TEMP/certificate.p12
+          security import $RUNNER_TEMP/certificate.p12 \
+            -k "$KEYCHAIN_PATH" \
+            -P "$CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+
+          # Allow codesign to access keychain
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Add to keychain search list
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+
+          echo "✅ Signing certificate imported"
+
+      - name: Import Sparkle signing key
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          # Sparkle's sign_update can read from SPARKLE_PRIVATE_KEY env var
+          # or we can write it to a file
+          echo "$SPARKLE_PRIVATE_KEY" > $RUNNER_TEMP/sparkle_private_key
+          echo "✅ Sparkle signing key ready"
+
+      - name: Build Kanata
+        run: |
+          echo "🦀 Building Kanata..."
+          cd External/kanata
+          cargo build --release
+          echo "✅ Kanata built"
+
+      - name: Build Kanata Simulator
+        run: |
+          echo "🔬 Building Kanata Simulator..."
+          cd External/kanata
+          cargo build --release --bin kanata-sim
+          echo "✅ Simulator built"
+
+      - name: Build KeyPath
+        run: |
+          echo "🏗️ Building KeyPath..."
+          swift build -c release
+          echo "✅ KeyPath built"
+
+      - name: Create app bundle
+        run: |
+          echo "📦 Creating app bundle..."
+          ./Scripts/create-app-bundle.sh
+          echo "✅ App bundle created"
+
+      - name: Sign app bundle
+        env:
+          DEVELOPER_ID: ${{ secrets.DEVELOPER_ID_NAME }}
+        run: |
+          echo "✍️ Signing app bundle..."
+
+          # Sign embedded binaries first
+          codesign --force --options runtime --timestamp \
+            --sign "$DEVELOPER_ID" \
+            dist/KeyPath.app/Contents/MacOS/KeyPathHelper
+
+          codesign --force --options runtime --timestamp \
+            --sign "$DEVELOPER_ID" \
+            dist/KeyPath.app/Contents/Library/KeyPath/kanata
+
+          codesign --force --options runtime --timestamp \
+            --sign "$DEVELOPER_ID" \
+            dist/KeyPath.app/Contents/Library/KeyPath/kanata-simulator
+
+          # Sign Sparkle framework components
+          find dist/KeyPath.app/Contents/Frameworks/Sparkle.framework -type f -perm +111 \
+            -exec codesign --force --options runtime --timestamp --sign "$DEVELOPER_ID" {} \;
+
+          # Sign main app with entitlements
+          codesign --force --options runtime --timestamp \
+            --entitlements KeyPath.entitlements \
+            --sign "$DEVELOPER_ID" \
+            dist/KeyPath.app
+
+          echo "✅ App signed"
+
+          # Verify
+          codesign -vvv --deep --strict dist/KeyPath.app
+          echo "✅ Signature verified"
+
+      - name: Create distribution archive
+        run: |
+          echo "📦 Creating distribution archive..."
+          cd dist
+          ditto -c -k --keepParent KeyPath.app KeyPath.zip
+          echo "✅ Archive created"
+
+      - name: Notarize app
+        if: ${{ !github.event.inputs.dry_run }}
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          echo "📋 Submitting for notarization..."
+
+          xcrun notarytool submit dist/KeyPath.zip \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --wait
+
+          echo "🔖 Stapling notarization..."
+          xcrun stapler staple dist/KeyPath.app
+
+          # Recreate archive with stapled app
+          rm dist/KeyPath.zip
+          cd dist
+          ditto -c -k --keepParent KeyPath.app KeyPath.zip
+
+          echo "✅ Notarization complete"
+
+      - name: Verify notarization
+        if: ${{ !github.event.inputs.dry_run }}
+        run: |
+          spctl --assess --verbose=4 --type execute dist/KeyPath.app
+          echo "✅ Gatekeeper verification passed"
+
+      - name: Create Sparkle archive
+        env:
+          SPARKLE_PRIVATE_KEY_FILE: ${{ runner.temp }}/sparkle_private_key
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" dist/KeyPath.app/Contents/Info.plist)
+
+          echo "📦 Creating Sparkle archive for v$VERSION (build $BUILD)..."
+
+          mkdir -p dist/sparkle
+          ARCHIVE_NAME="KeyPath-${VERSION}.zip"
+
+          # Create versioned archive
+          cd dist
+          ditto -c -k --keepParent KeyPath.app "sparkle/${ARCHIVE_NAME}"
+          cd ..
+
+          # Sign with EdDSA
+          if [ -f "$SPARKLE_PRIVATE_KEY_FILE" ]; then
+            SIGNATURE=$(sign_update "dist/sparkle/${ARCHIVE_NAME}" --ed-key-file "$SPARKLE_PRIVATE_KEY_FILE" 2>/dev/null || echo "")
+            if [ -n "$SIGNATURE" ]; then
+              echo "$SIGNATURE" > "dist/sparkle/${ARCHIVE_NAME}.sig"
+              echo "✅ EdDSA signature generated"
+            else
+              echo "⚠️ EdDSA signing failed - continuing without signature"
+            fi
+          fi
+
+          # Get file size
+          SIZE=$(wc -c < "dist/sparkle/${ARCHIVE_NAME}" | tr -d ' ')
+          PUB_DATE=$(date -R)
+
+          # Generate appcast entry
+          cat > "dist/sparkle/${ARCHIVE_NAME}.appcast-entry.xml" <<EOF
+          <!-- Add this item to appcast.xml -->
+          <item>
+              <title>Version ${VERSION}</title>
+              <sparkle:version>${BUILD}</sparkle:version>
+              <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
+              <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+              <pubDate>${PUB_DATE}</pubDate>
+              <enclosure
+                  url="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/${ARCHIVE_NAME}"
+                  sparkle:edSignature="${SIGNATURE}"
+                  length="${SIZE}"
+                  type="application/octet-stream"/>
+              <sparkle:releaseNotesLink>
+                  https://malpern.github.io/KeyPath/releases/${VERSION}.html
+              </sparkle:releaseNotesLink>
+          </item>
+          EOF
+
+          echo "✅ Sparkle archive created"
+          echo ""
+          echo "📋 Appcast entry:"
+          cat "dist/sparkle/${ARCHIVE_NAME}.appcast-entry.xml"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: KeyPath-${{ steps.version.outputs.version }}
+          path: |
+            dist/sparkle/KeyPath-*.zip
+            dist/sparkle/KeyPath-*.zip.sig
+            dist/sparkle/KeyPath-*.appcast-entry.xml
+          retention-days: 30
+
+      - name: Create GitHub Release
+        if: ${{ !github.event.inputs.dry_run && github.event_name == 'push' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ARCHIVE="dist/sparkle/KeyPath-${VERSION}.zip"
+          SIG="dist/sparkle/KeyPath-${VERSION}.zip.sig"
+
+          echo "🚀 Creating GitHub release v${VERSION}..."
+
+          # Create release with assets
+          gh release create "v${VERSION}" \
+            "$ARCHIVE" \
+            "$SIG" \
+            --title "KeyPath ${VERSION}" \
+            --generate-notes
+
+          echo "✅ Release created: https://github.com/${{ github.repository }}/releases/tag/v${VERSION}"
+
+      - name: Post-release instructions
+        if: ${{ !github.event.inputs.dry_run }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          echo ""
+          echo "🎉 Release v${VERSION} created!"
+          echo ""
+          echo "📋 Manual steps remaining:"
+          echo ""
+          echo "1. Update appcast.xml:"
+          echo "   - Copy the entry from dist/sparkle/KeyPath-${VERSION}.zip.appcast-entry.xml"
+          echo "   - Paste at top of appcast.xml (newest first)"
+          echo "   - Commit and push"
+          echo ""
+          echo "2. Create release notes HTML:"
+          echo "   - Create docs/releases/${VERSION}.html"
+          echo "   - Commit and push"
+          echo ""
+          echo "3. Update WhatsNewView.swift (optional):"
+          echo "   - Add features for ${VERSION} in featuresForVersion()"
+          echo ""
+
+      - name: Summary
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          echo "## 🚀 KeyPath Release v${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Build Info" >> $GITHUB_STEP_SUMMARY
+          echo "- Version: ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "- Build: $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' dist/KeyPath.app/Contents/Info.plist)" >> $GITHUB_STEP_SUMMARY
+          echo "- Runner: ${{ runner.os }} (${{ runner.arch }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- \`KeyPath-${VERSION}.zip\` - Notarized app archive" >> $GITHUB_STEP_SUMMARY
+          echo "- \`KeyPath-${VERSION}.zip.sig\` - EdDSA signature" >> $GITHUB_STEP_SUMMARY
+          echo "- \`KeyPath-${VERSION}.zip.appcast-entry.xml\` - Sparkle appcast entry" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **Dry run** - Release not published" >> $GITHUB_STEP_SUMMARY
+          fi
