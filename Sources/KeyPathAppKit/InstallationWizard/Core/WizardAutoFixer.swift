@@ -43,16 +43,19 @@ class WizardAutoFixer {
         let analysis = PermissionService.analyzeKanataError(error)
 
         if analysis.isPermissionError {
+            // NOTE: Kanata doesn't need TCC permissions (uses Karabiner driver), but if we get
+            // a permission-like error from Kanata, it's likely a driver/VHID issue, not TCC.
+            // Map to a generic component issue that can guide the user to the right fix.
             let issue = WizardIssue(
-                identifier: .permission(.kanataInputMonitoring),
+                identifier: .component(.vhidDeviceRunning),
                 severity: .error,
                 category: .permissions,
-                title: "Permission Required",
-                description: analysis.suggestedFix ?? "Grant permissions to kanata in System Settings",
-                autoFixAction: nil,
+                title: "Driver Permission Issue",
+                description: analysis.suggestedFix ?? "Restart the Karabiner VirtualHID driver",
+                autoFixAction: .startKarabinerDaemon,
                 userAction: analysis.suggestedFix
             )
-            return (issue, false) // Permissions can't be auto-fixed
+            return (issue, true) // Can auto-fix by restarting driver
         }
 
         if error.lowercased().contains("address already in use") {

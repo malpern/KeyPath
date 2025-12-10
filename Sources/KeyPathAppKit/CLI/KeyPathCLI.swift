@@ -111,13 +111,13 @@ public struct KeyPathCLI {
         }
 
         // Permissions
+        // NOTE: Kanata doesn't need TCC permissions - it uses the Karabiner driver
         print("\n--- Permissions ---")
         print("KeyPath:")
         print("  Accessibility: \(context.permissions.keyPath.accessibility.isReady ? "✅" : "❌")")
         print("  Input Monitoring: \(context.permissions.keyPath.inputMonitoring.isReady ? "✅" : "❌")")
         print("Kanata:")
-        print("  Accessibility: \(context.permissions.kanata.accessibility.isReady ? "✅" : "❌")")
-        print("  Input Monitoring: \(context.permissions.kanata.inputMonitoring.isReady ? "✅" : "❌")")
+        print("  (Uses Karabiner driver - no TCC permissions needed) ✅")
 
         // Components
         print("\n--- Components ---")
@@ -392,14 +392,8 @@ public struct KeyPathCLI {
                     action: "Grant Accessibility & Input Monitoring permissions."
                 ))
         }
-        if !context.permissions.kanata.hasAllPermissions {
-            issues.append(
-                ContextIssue(
-                    title: "Kanata permissions missing",
-                    canAutoFix: false,
-                    action: "Grant permissions via Installation Wizard."
-                ))
-        }
+        // NOTE: Kanata does NOT need TCC permissions - it uses the Karabiner VirtualHIDDevice
+        // driver and runs as root via SMAppService/LaunchDaemon. No issue generated for Kanata.
         if !context.components.hasAllRequired {
             issues.append(
                 ContextIssue(

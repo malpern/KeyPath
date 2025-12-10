@@ -81,13 +81,10 @@ struct SystemContextAdapter {
             missing.append(.keyPathAccessibility)
         }
 
-        // Kanata permissions (use isBlocking)
-        if context.permissions.kanata.inputMonitoring.isBlocking {
-            missing.append(.kanataInputMonitoring)
-        }
-        if context.permissions.kanata.accessibility.isBlocking {
-            missing.append(.kanataAccessibility)
-        }
+        // NOTE: Kanata does NOT need TCC permissions when using the Karabiner VirtualHIDDevice driver.
+        // It runs as root via SMAppService/LaunchDaemon and communicates with the driver via IPC.
+        // The driver handles HID access (and is approved via System Extensions, not TCC).
+        // We no longer check kanata permissions here.
 
         return missing
     }
@@ -122,13 +119,15 @@ struct SystemContextAdapter {
     private static func adaptIssues(_ context: SystemContext) -> [WizardIssue] {
         var issues: [WizardIssue] = []
 
-        // Permission issues
+        // Permission issues - use .permissions category so detail pages can filter correctly
+        // NOTE: Only KeyPath needs TCC permissions. Kanata uses the Karabiner VirtualHIDDevice driver
+        // and runs as root via SMAppService/LaunchDaemon, so it doesn't need TCC entries.
         if context.permissions.keyPath.inputMonitoring.isBlocking {
             issues.append(
                 WizardIssue(
                     identifier: .permission(.keyPathInputMonitoring),
                     severity: .error,
-                    category: .installation,
+                    category: .permissions,
                     title: "Input Monitoring Permission Required",
                     description: "KeyPath needs Input Monitoring permission to function",
                     autoFixAction: nil,
@@ -140,35 +139,11 @@ struct SystemContextAdapter {
                 WizardIssue(
                     identifier: .permission(.keyPathAccessibility),
                     severity: .error,
-                    category: .installation,
+                    category: .permissions,
                     title: "Accessibility Permission Required",
                     description: "KeyPath needs Accessibility permission to function",
                     autoFixAction: nil,
                     userAction: "Grant Accessibility permission in System Settings"
-                ))
-        }
-        if context.permissions.kanata.inputMonitoring.isBlocking {
-            issues.append(
-                WizardIssue(
-                    identifier: .permission(.kanataInputMonitoring),
-                    severity: .error,
-                    category: .installation,
-                    title: "Kanata Input Monitoring Permission Required",
-                    description: "Kanata needs Input Monitoring permission",
-                    autoFixAction: nil,
-                    userAction: "Grant Input Monitoring permission to Kanata in System Settings"
-                ))
-        }
-        if context.permissions.kanata.accessibility.isBlocking {
-            issues.append(
-                WizardIssue(
-                    identifier: .permission(.kanataAccessibility),
-                    severity: .error,
-                    category: .installation,
-                    title: "Kanata Accessibility Permission Required",
-                    description: "Kanata needs Accessibility permission",
-                    autoFixAction: nil,
-                    userAction: "Grant Accessibility permission to Kanata in System Settings"
                 ))
         }
 

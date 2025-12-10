@@ -66,14 +66,17 @@ public actor PermissionOracle {
             self.timestamp = timestamp
         }
 
-        /// System is ready when both apps have all required permissions
+        /// System is ready when KeyPath has all required permissions
+        /// NOTE: Kanata does NOT need TCC permissions - it uses the Karabiner VirtualHIDDevice
+        /// driver and runs as root via SMAppService/LaunchDaemon
         public var isSystemReady: Bool {
-            keyPath.hasAllPermissions && kanata.hasAllPermissions
+            keyPath.hasAllPermissions
         }
 
         /// Get the first blocking permission issue (user-facing error message)
+        /// NOTE: Only check KeyPath permissions - Kanata doesn't need TCC
         public var blockingIssue: String? {
-            // Check KeyPath permissions first (needed for UI functionality)
+            // Check KeyPath permissions (needed for UI functionality)
             if keyPath.accessibility.isBlocking {
                 return
                     "KeyPath needs Accessibility permission - enable in System Settings > Privacy & Security > Accessibility"
@@ -84,11 +87,8 @@ public actor PermissionOracle {
                     "KeyPath needs Input Monitoring permission - enable in System Settings > Privacy & Security > Input Monitoring"
             }
 
-            // Check Kanata permissions
-            if kanata.accessibility.isBlocking || kanata.inputMonitoring.isBlocking {
-                return
-                    "Kanata needs permissions - use the Installation Wizard to grant Accessibility and Input Monitoring"
-            }
+            // NOTE: Kanata does NOT need TCC permissions when using the Karabiner VirtualHIDDevice driver.
+            // It runs as root via SMAppService/LaunchDaemon and communicates with the driver via IPC.
 
             return nil
         }
@@ -188,7 +188,7 @@ public actor PermissionOracle {
         let start = Date()
 
         // Get KeyPath permissions (local, always authoritative)
-        let keyPathSet = checkKeyPathPermissions()
+        let keyPathSet = await checkKeyPathPermissions()
 
         // Get Kanata permissions (UDP primary, functional verification)
         let kanataSet = await checkKanataPermissions()
@@ -229,50 +229,42 @@ public actor PermissionOracle {
 
     // MARK: - KeyPath Permission Detection (Always Authoritative)
 
-    private func checkKeyPathPermissions() -> PermissionSet {
+    private func checkKeyPathPermissions() async -> PermissionSet {
         let start = Date()
 
-        // Accessibility check via official Apple API (no prompt)
-        let axGranted = AXIsProcessTrusted()
-        let accessibility: Status = axGranted ? .granted : .denied
+        // For GUI apps, TCC stores permissions by bundle identifier (client_type=0)
+        // NOT by executable path (client_type=1 is for CLI binaries like kanata)
+        let bundleID = Bundle.main.bundleIdentifier ?? "com.keypath.KeyPath"
+        let tccAX = await tccStatusByBundleID(bundleID, service: .accessibility)
+        let tccIM = await tccStatusByBundleID(bundleID, service: .inputMonitoring)
 
-        // Input Monitoring check via official Apple API (no prompt, no CGEvent tap)
-        // Skip during startup if this is the first call to avoid UI freezing
-        var inputMonitoring: Status = .unknown
+        // Accessibility: if there is no TCC row, treat as denied (not listed => not granted)
+        // AXIsProcessTrusted() can return stale/incorrect results, so we only use TCC as source of truth
+        let accessibility: Status = {
+            if let tccAX { return tccAX }
+            // No TCC row = not listed in System Settings = denied
+            AppLogger.shared.log("🔮 [Oracle] No TCC row for KeyPath Accessibility - treating as denied")
+            return .denied
+        }()
 
-        if FeatureFlags.shared.startupModeActive {
-            // During startup, skip the potentially blocking IOHIDCheckAccess call
-            AppLogger.shared.log(
-                "🔮 [Oracle] Startup mode - skipping IOHIDCheckAccess to prevent UI freeze")
-            inputMonitoring = .unknown
-        } else {
-            // Normal operation - safe to call IOHIDCheckAccess
-            let accessCheckStart = Date()
-            let accessType = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)
-            let accessCheckDuration = Date().timeIntervalSince(accessCheckStart)
-
-            if accessCheckDuration > 2.0 {
-                AppLogger.shared.log(
-                    "⚠️ [Oracle] IOHIDCheckAccess took \(String(format: "%.3f", accessCheckDuration))s - unusually slow"
-                )
-            }
-
-            let imGranted = accessType == kIOHIDAccessTypeGranted
-            inputMonitoring = imGranted ? .granted : .denied
-        }
+        // Input Monitoring: if there is no TCC row, treat as denied (not listed => not granted)
+        let inputMonitoring: Status = {
+            if let tccIM { return tccIM }
+            // No TCC row = not listed in System Settings = denied
+            AppLogger.shared.log("🔮 [Oracle] No TCC row for KeyPath Input Monitoring - treating as denied")
+            return .denied
+        }()
 
         let duration = Date().timeIntervalSince(start)
         AppLogger.shared.log(
             "🔮 [Oracle] KeyPath permission check completed in \(String(format: "%.3f", duration))s - AX: \(accessibility), IM: \(inputMonitoring)"
         )
 
-        let isStartupMode = if case .unknown = inputMonitoring { true } else { false }
-
         return PermissionSet(
             accessibility: accessibility,
             inputMonitoring: inputMonitoring,
-            source: isStartupMode ? "keypath.startup-mode" : "keypath.official-apis",
-            confidence: isStartupMode ? .low : .high,
+            source: "keypath.tcc",
+            confidence: .high,
             timestamp: Date()
         )
     }
@@ -474,10 +466,41 @@ public actor PermissionOracle {
         return path
     }
 
-    // Query TCC DB for a specific executable path and service
+    // Query TCC DB for a bundle identifier (client_type=0, used for GUI apps)
+    // GUI apps like KeyPath are stored by bundle ID, not executable path
+    private func tccStatusByBundleID(_ bundleID: String, service: TCCServiceName) async -> Status? {
+        AppLogger.shared.log("🔍 [TCC] Checking \(service.rawValue) for bundle ID: \(bundleID)")
+        let dbPaths = tccDatabaseCandidates()
+        AppLogger.shared.log("🔍 [TCC] Will check databases: \(dbPaths)")
+        for db in dbPaths {
+            let exists = FileManager.default.fileExists(atPath: db)
+            AppLogger.shared.log("🔍 [TCC] Database \(db) exists: \(exists)")
+            guard exists else { continue }
+
+            if let val = await queryTCCDatabaseByBundleID(
+                dbPath: db, service: service.rawValue, bundleID: bundleID
+            ) {
+                AppLogger.shared.log("🔍 [TCC] Got value \(val) from \(db)")
+                if val >= 2 || val == 1 {
+                    AppLogger.shared.log("🔍 [TCC] \(service.rawValue) for \(bundleID): GRANTED (auth_value=\(val))")
+                    return .granted
+                } else if val == 0 {
+                    AppLogger.shared.log("🔍 [TCC] \(service.rawValue) for \(bundleID): DENIED (auth_value=0)")
+                    return .denied
+                }
+            } else {
+                AppLogger.shared.log("🔍 [TCC] No entry in \(db), continuing to next database...")
+            }
+        }
+        AppLogger.shared.log("🔍 [TCC] \(service.rawValue) for \(bundleID): NO ROW FOUND in any database (returning nil)")
+        return nil
+    }
+
+    // Query TCC DB for a specific executable path and service (client_type=1, used for CLI binaries)
     // Note: Requires Full Disk Access to read user's TCC.db; gracefully degrades to nil otherwise.
     // This is similar to how other system utilities (e.g., tccutil, privacy management tools) work.
     private func tccStatus(forExecutable execPath: String, service: TCCServiceName) async -> Status? {
+        AppLogger.shared.log("🔍 [TCC] Checking \(service.rawValue) for: \(execPath)")
         let dbPaths = tccDatabaseCandidates()
         for db in dbPaths where FileManager.default.fileExists(atPath: db) {
             if let val = await queryTCCDatabase(
@@ -487,14 +510,17 @@ public actor PermissionOracle {
                 // - Newer macOS: auth_value (2=Allow, 0=Deny or Prompt depending on auth_reason)
                 // - Older macOS: allowed (1=Allow, 0=Not allowed)
                 if val >= 2 || val == 1 {
+                    AppLogger.shared.log("🔍 [TCC] \(service.rawValue) for \(execPath): GRANTED (auth_value=\(val))")
                     return .granted
                 } else if val == 0 {
                     // Only report denied if we positively read a 0 from TCC
+                    AppLogger.shared.log("🔍 [TCC] \(service.rawValue) for \(execPath): DENIED (auth_value=0)")
                     return .denied
                 }
             }
         }
         // Inconclusive (no readable DB, no rows found, or unexpected schema) => nil
+        AppLogger.shared.log("🔍 [TCC] \(service.rawValue) for \(execPath): NO ROW FOUND (returning nil)")
         return nil
     }
 
@@ -504,6 +530,48 @@ public actor PermissionOracle {
         let user = "\(NSHomeDirectory())/Library/Application Support/com.apple.TCC/TCC.db"
         let system = "/Library/Application Support/com.apple.TCC/TCC.db"
         return [user, system]
+    }
+
+    // Query TCC database by bundle identifier (client_type=0, used for GUI apps)
+    // GUI apps are stored by bundle ID in TCC, not by executable path
+    private func queryTCCDatabaseByBundleID(dbPath: String, service: String, bundleID: String) async
+        -> Int? {
+        let escService = escapeSQLiteLiteral(service)
+        let escBundleID = escapeSQLiteLiteral(bundleID)
+
+        AppLogger.shared.log("🔍 [Oracle] Querying TCC database: \(dbPath)")
+        AppLogger.shared.log("🔍 [Oracle] Looking for: service=\(service), bundleID=\(bundleID)")
+
+        // GUI apps use client_type=0 (bundle identifier) not client_type=1 (path)
+        let queries = [
+            "SELECT auth_value FROM access WHERE service='\(escService)' AND client='\(escBundleID)' AND client_type=0 ORDER BY auth_value DESC LIMIT 1;",
+            "SELECT allowed FROM access WHERE service='\(escService)' AND client='\(escBundleID)' AND client_type=0 ORDER BY allowed DESC LIMIT 1;"
+        ]
+
+        for (index, sql) in queries.enumerated() {
+            AppLogger.shared.log("🔍 [Oracle] Trying bundle ID query #\(index + 1)")
+            if let out = await runSQLiteQuery(dbPath: dbPath, sql: sql, timeout: 0.4) {
+                let trimmed = out.trimmingCharacters(in: .whitespacesAndNewlines)
+                AppLogger.shared.log("🔍 [Oracle] Query #\(index + 1) returned: '\(trimmed)'")
+
+                if trimmed.isEmpty {
+                    if index == 0 {
+                        AppLogger.shared.log("🔍 [Oracle] Query #1 returned empty result - stopping (no entry found)")
+                        return nil
+                    }
+                }
+
+                if let val = Int(trimmed) {
+                    AppLogger.shared.log(
+                        "🔍 [Oracle] TCC '\(service)' for \(bundleID) via \(dbPath): \(val)")
+                    return val
+                }
+            } else {
+                AppLogger.shared.log("🔍 [Oracle] Query #\(index + 1) returned nil (timeout or empty)")
+            }
+        }
+        AppLogger.shared.log("🔍 [Oracle] TCC query failed for bundle ID \(bundleID) - no results found")
+        return nil
     }
 
     // Run a minimal sqlite query with a short timeout.

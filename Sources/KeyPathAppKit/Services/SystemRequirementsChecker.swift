@@ -87,11 +87,11 @@ final class SystemRequirementsChecker {
 
         let keyPathHasInputMonitoring = snapshot.keyPath.inputMonitoring.isReady
         let keyPathHasAccessibility = snapshot.keyPath.accessibility.isReady
-        let kanataHasInputMonitoring = snapshot.kanata.inputMonitoring.isReady
-        let kanataHasAccessibility = snapshot.kanata.accessibility.isReady
 
         let keyPathOverall = keyPathHasInputMonitoring && keyPathHasAccessibility
-        let kanataOverall = kanataHasInputMonitoring && kanataHasAccessibility
+        // NOTE: Kanata does NOT need TCC permissions - it uses the Karabiner VirtualHIDDevice
+        // driver and runs as root via SMAppService/LaunchDaemon
+        let kanataOverall = true
 
         let details = """
         KeyPath.app (\(keyPathPath)):
@@ -99,8 +99,7 @@ final class SystemRequirementsChecker {
         - Accessibility: \(keyPathHasAccessibility ? "✅" : "❌")
 
         kanata (\(kanataPath)):
-        - Input Monitoring: \(kanataHasInputMonitoring ? "✅" : "❌")
-        - Accessibility: \(kanataHasAccessibility ? "✅" : "❌")
+        - (Kanata uses Karabiner driver - no TCC permissions needed) ✅
         """
 
         return (keyPathOverall, kanataOverall, details)

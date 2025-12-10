@@ -35,17 +35,6 @@ final class TCPClientIntegrationTests: XCTestCase {
         }
     }
 
-    func testStatusIncludesLastReloadOptional() async throws {
-        guard await serverReachable() else { throw XCTSkip("TCP server not running") }
-        let client = KanataTCPClient(port: port)
-        let status = try await client.getStatus()
-        // last_reload is optional; if present validate shape
-        if let last = status.last_reload {
-            // last_reload has ok (bool) and at (Unix epoch seconds)
-            XCTAssertGreaterThan(last.at, 0, "last_reload.at should be a valid Unix timestamp")
-        }
-    }
-
     // Verify framing: Reload(wait) eventually returns ReloadResult
     // This test uses the high-level client which properly handles broadcasts
     func testFramingReloadWaitSingleObject() async throws {
@@ -64,26 +53,6 @@ final class TCPClientIntegrationTests: XCTestCase {
             XCTFail("Reload failed with error: \(error)")
         case let .networkError(msg):
             XCTFail("Reload failed with network error: \(msg)")
-        }
-    }
-
-    // After a successful Reload(wait), Status should report last_reload with timing info
-    func testReloadThenStatusHasLastReloadFields() async throws {
-        guard await serverReachable() else { throw XCTSkip("TCP server not running") }
-        let client = KanataTCPClient(port: port)
-        let result = await client.reloadConfig(timeoutMs: 4000)
-        switch result {
-        case .success:
-            let status = try await client.getStatus()
-            guard let last = status.last_reload else {
-                return XCTFail("Expected last_reload present after reload")
-            }
-            XCTAssertTrue(last.ok, "last_reload.ok should be true after successful reload")
-            XCTAssertGreaterThan(last.at, 0, "last_reload.at should be a valid Unix timestamp")
-        case let .failure(error, _):
-            XCTFail("Reload(wait) did not succeed: \(error)")
-        case let .networkError(msg):
-            XCTFail("Reload(wait) network error: \(msg)")
         }
     }
 

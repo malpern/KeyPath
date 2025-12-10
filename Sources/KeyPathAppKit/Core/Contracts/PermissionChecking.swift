@@ -227,13 +227,16 @@ struct SystemPermissionSnapshot: Sendable {
     let timestamp: Date
 
     /// Whether the entire system has all required permissions.
+    /// NOTE: Kanata does NOT need TCC permissions - it uses the Karabiner VirtualHIDDevice
+    /// driver and runs as root via SMAppService/LaunchDaemon
     var isSystemReady: Bool {
-        keyPathPermissions.hasAllGranted && kanataPermissions.hasAllGranted
+        keyPathPermissions.hasAllGranted
     }
 
     /// The first blocking permission issue found, if any.
+    /// NOTE: Only check KeyPath permissions - Kanata doesn't need TCC
     var blockingIssue: String? {
-        // Check KeyPath first (needed for UI)
+        // Check KeyPath permissions (needed for UI)
         if let accessibility = keyPathPermissions.status(for: .accessibility),
            accessibility.isBlocking {
             return
@@ -246,10 +249,8 @@ struct SystemPermissionSnapshot: Sendable {
                 "KeyPath needs Input Monitoring permission - enable in System Settings > \(SystemPermissionType.inputMonitoring.systemSettingsPath)"
         }
 
-        // Check Kanata
-        if kanataPermissions.hasBlockingIssues {
-            return "Kanata needs permissions - use the Installation Wizard to grant required access"
-        }
+        // NOTE: Kanata does NOT need TCC permissions when using the Karabiner VirtualHIDDevice driver.
+        // It runs as root via SMAppService/LaunchDaemon and communicates with the driver via IPC.
 
         return nil
     }

@@ -94,7 +94,9 @@ private struct TitlebarHeaderView: View {
         }
 
         let context = await viewModel.inspectSystemContext()
-        let isHealthy = context.services.isHealthy && context.permissions.isSystemReady
+        // Only check KeyPath permissions - Kanata permissions are handled separately
+        // and don't need to block the main UI indicator
+        let isHealthy = context.services.isHealthy && context.permissions.keyPath.hasAllPermissions
 
         await MainActor.run {
             withAnimation(.easeInOut(duration: 0.3)) {
@@ -189,7 +191,8 @@ private struct TitlebarHeaderView: View {
                 isHealthy = true
             } else {
                 let context = await viewModel.inspectSystemContext()
-                isHealthy = context.services.isHealthy && context.permissions.isSystemReady
+                // Only check KeyPath permissions - Kanata permissions are handled separately
+                isHealthy = context.services.isHealthy && context.permissions.keyPath.hasAllPermissions
             }
 
             await MainActor.run {

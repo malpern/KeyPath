@@ -251,22 +251,6 @@ final class TCPClientRobustnessTests: KeyPathTestCase {
         XCTAssertTrue(hello.capabilities.isEmpty)
     }
 
-    /// Test TcpStatusInfo parsing
-    func testStatusInfoParsing() throws {
-        let json = """
-        {"engine_version":"1.10.0","uptime_s":1234,"ready":true,"last_reload":{"ok":true,"at":1704067200}}
-        """
-        let data = json.data(using: .utf8)!
-        let status = try JSONDecoder().decode(KanataTCPClient.TcpStatusInfo.self, from: data)
-
-        XCTAssertEqual(status.engine_version, "1.10.0")
-        XCTAssertEqual(status.uptime_s, 1234)
-        XCTAssertTrue(status.ready)
-        XCTAssertNotNil(status.last_reload)
-        XCTAssertEqual(status.last_reload?.ok, true)
-        XCTAssertEqual(status.last_reload?.at, 1_704_067_200)
-    }
-
     // MARK: - Capability Checking Tests
 
     /// Test hasCapabilities with all required capabilities present

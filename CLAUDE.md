@@ -191,7 +191,9 @@ if context.permissions.inputMonitoring != .granted { ... }
 ### Permission Detection
 ❌ **Never bypass Oracle** - All permission checks must go through `PermissionOracle.shared`.
 ❌ **Never check permissions from root process** - IOHIDCheckAccess unreliable for daemons.
+❌ **Never check Kanata TCC permissions** - Kanata uses Karabiner driver, not TCC (see ADR-026).
 ✅ **Always** use Oracle for GUI checks.
+✅ **Only check KeyPath permissions** for `isSystemReady` and `blockingIssue`.
 
 ### Service Management
 ❌ **Do not use KanataManager for installation** - Use `InstallerEngine.run(intent: .install)`.
@@ -254,6 +256,58 @@ Robust app restart logic to prevent mismatched helpers.
 - Apple policy: macOS protects TCC.db with Full Disk Access; read access with user-granted FDA is allowed, while writes require Apple-only entitlements and are effectively blocked. Our usage is read-only.
 
 **Alternative considered**: Contributing `--check-permissions` to Kanata upstream. Rejected because maintainer has no macOS devices and the API (`IOHIDCheckAccess`) doesn't work correctly from daemon context anyway.
+
+### ADR-026: Kanata Does NOT Need TCC Permissions ✅ (CRITICAL)
+**Date:** December 2025
+
+**Context:** KeyPath was incorrectly checking Kanata's TCC (Transparency, Consent, and Control) permissions for Accessibility and Input Monitoring, causing the wizard to show permission errors even when the system was fully functional.
+
+**Decision:** Only KeyPath.app needs TCC permissions. Kanata does NOT need TCC permissions.
+
+**Why Kanata doesn't need TCC:**
+1. **Karabiner VirtualHIDDevice Driver** - Kanata uses the Karabiner driver for HID access, which is approved via System Extensions (not TCC)
+2. **Runs as Root** - Kanata runs as root via SMAppService/LaunchDaemon (`com.keypath.kanata`)
+3. **Driver IPC** - Kanata communicates with the driver via IPC, not direct HID access
+4. **No GUI Context** - TCC permissions are tied to GUI processes; daemons use different mechanisms
+
+**What KeyPath.app DOES need:**
+- **Accessibility** - For CGEvent taps and system integration
+- **Input Monitoring** - For keyboard event capture
+
+**Code Invariants (enforced by assertions and tests):**
+```swift
+// PermissionOracle.Snapshot.isSystemReady only checks KeyPath
+public var isSystemReady: Bool {
+    keyPath.hasAllPermissions  // NOT kanata.hasAllPermissions
+}
+
+// blockingIssue only reports KeyPath permission issues
+public var blockingIssue: String? {
+    // Only check KeyPath - Kanata uses Karabiner driver
+    if keyPath.accessibility.isBlocking { return "KeyPath needs Accessibility" }
+    if keyPath.inputMonitoring.isBlocking { return "KeyPath needs Input Monitoring" }
+    return nil  // Never check kanata permissions
+}
+```
+
+**Files Updated (December 2025):**
+- `PermissionOracle.swift` - `isSystemReady`, `blockingIssue`
+- `PermissionChecking.swift` - `isSystemReady`, `blockingIssue`
+- `SystemSnapshot.swift` - Removed Kanata permission issue generation
+- `PermissionGate.swift` - Removed Kanata from permission gating
+- `SystemRequirementsChecker.swift` - `kanataOverall = true` always
+- `WizardRouter.swift` - Only routes on KeyPath permission issues
+- `WizardStateInterpreter.swift` - Only filters for KeyPath permissions
+- `ServiceStatusEvaluator.swift` - Only checks KeyPath blocking issues
+- `KeyPathCLI.swift` - Shows "Kanata uses Karabiner driver - no TCC needed"
+
+**Test Coverage:** `PermissionOracleTests.swift` and `PermissionOracleTCCTests.swift` verify this invariant.
+
+**DO NOT:**
+- ❌ Add Kanata permission checks to `isSystemReady`
+- ❌ Generate `WizardIssue` for `.kanataInputMonitoring` or `.kanataAccessibility`
+- ❌ Block wizard progress on Kanata TCC permissions
+- ❌ Show "Kanata needs permissions" in UI
 
 ### ADR-017: InstallerEngine Protocol Segregation (ISP) ✅
 Three separate protocols exist for InstallerEngine - this is intentional Interface Segregation:

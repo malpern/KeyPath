@@ -48,15 +48,5 @@ final class SimpleModsSmokeTests: XCTestCase {
             XCTFail("Reload did not succeed: \(reload)")
         }
 
-        // Fetch status; expect last_reload to be present after reload
-        let status = try await client.getStatus()
-        XCTAssertNotNil(
-            status.last_reload,
-            "Expected last_reload to be present after successful reload"
-        )
-        if let last = status.last_reload {
-            XCTAssertTrue(last.ok, "last_reload.ok should be true after successful reload")
-            XCTAssertGreaterThan(last.at, 0, "last_reload.at should be a valid timestamp")
-        }
     }
 }

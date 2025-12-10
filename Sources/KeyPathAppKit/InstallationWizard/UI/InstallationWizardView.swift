@@ -187,6 +187,9 @@ struct InstallationWizardView: View {
         }
         .onChange(of: navigationCoordinator.currentPage) { oldPage, newPage in
             AppLogger.shared.log("🧭 [Wizard] View detected page change: \(oldPage) → \(newPage)")
+            if newPage == .summary {
+                Task { await refreshStateAndAwait() }
+            }
         }
         .onChange(of: navSequence) { _, newSeq in
             if !showAllSummaryItems {
@@ -288,6 +291,9 @@ struct InstallationWizardView: View {
                     showAllItems: $showAllSummaryItems,
                     navSequence: $navSequence
                 )
+                .onAppear {
+                    Task { await refreshStateAndAwait() }
+                }
             case .fullDiskAccess:
                 WizardFullDiskAccessPage(
                     systemState: systemState,
@@ -308,7 +314,7 @@ struct InstallationWizardView: View {
                     issues: currentIssues.filter { $0.category == .permissions },
                     allIssues: currentIssues,
                     stateInterpreter: stateInterpreter,
-                    onRefresh: { refreshState() },
+                    onRefresh: { await refreshStateAndAwait() },
                     onNavigateToPage: { page in
                         navigationCoordinator.navigateToPage(page)
                     },
@@ -322,7 +328,7 @@ struct InstallationWizardView: View {
                     systemState: systemState,
                     issues: currentIssues.filter { $0.category == .permissions },
                     allIssues: currentIssues,
-                    onRefresh: { refreshState() },
+                    onRefresh: { await refreshStateAndAwait() },
                     onNavigateToPage: { page in
                         navigationCoordinator.navigateToPage(page)
                     },
@@ -363,6 +369,7 @@ struct InstallationWizardView: View {
                 WizardCommunicationPage(
                     systemState: systemState,
                     issues: currentIssues,
+                    onRefresh: { await refreshStateAndAwait() },
                     onAutoFix: performAutoFix
                 )
             case .service:
@@ -926,7 +933,11 @@ struct InstallationWizardView: View {
         AppLogger.shared.log("🔧 [Wizard] Auto-fix for specific action: \(action)")
 
         // Short-circuit service installs when Login Items approval is pending
-        if action == .installLaunchDaemonServices || action == .restartUnhealthyServices,
+        let smAppDependentActions: Set<AutoFixAction> = [
+            .installLaunchDaemonServices, .restartUnhealthyServices,
+            .regenerateCommServiceConfiguration, .restartCommServer
+        ]
+        if smAppDependentActions.contains(action),
            await KanataDaemonManager.shared.refreshManagementState() == .smappservicePending {
             if !suppressToast {
                 await MainActor.run {
@@ -1163,6 +1174,15 @@ struct InstallationWizardView: View {
                 _ = applySystemStateResult(result)
             }
         }
+    }
+
+    /// Awaitable refresh for callers that need a fresh snapshot before navigating.
+    /// This bypasses the debounce and applies the result synchronously.
+    @MainActor
+    private func refreshStateAndAwait() async {
+        stateManager.lastWizardSnapshot = nil // force fresh detection
+        let result = await detectCurrentState()
+        _ = applySystemStateResult(result)
     }
 
     @MainActor

@@ -5,11 +5,13 @@ import SwiftUI
 struct WizardCommunicationPage: View {
     let systemState: WizardSystemState
     let issues: [WizardIssue]
+    let onRefresh: () async -> Void
     @State private var commStatus: CommunicationStatus = .checking
     @State private var isFixing = false
     @State private var lastCheckTime = Date()
     @State private var showingFixFeedback = false
     @State private var fixResult: FixResult?
+    @State private var actionStatus: WizardDesign.ActionStatus = .idle
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
     @EnvironmentObject var kanataViewModel: KanataViewModel
     @Environment(\.preferencesService) private var preferences: PreferencesService
@@ -24,10 +26,12 @@ struct WizardCommunicationPage: View {
 
     init(
         systemState: WizardSystemState, issues: [WizardIssue],
+        onRefresh: @escaping () async -> Void,
         onAutoFix: ((AutoFixAction, Bool) async -> Bool)? = nil
     ) {
         self.systemState = systemState
         self.issues = issues
+        self.onRefresh = onRefresh
         self.onAutoFix = onAutoFix
     }
 
@@ -79,6 +83,9 @@ struct WizardCommunicationPage: View {
                         status: .success(message: "Communication ready"),
                         message: "Communication ready"
                     )
+                } else if actionStatus.isActive, let message = actionStatus.message {
+                    InlineStatusView(status: actionStatus, message: message)
+                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
                 } else if showingFixFeedback, let result = fixResult {
                     InlineStatusView(
                         status: result.success
@@ -156,6 +163,7 @@ struct WizardCommunicationPage: View {
         await MainActor.run {
             withAnimation(.easeInOut(duration: 0.3)) {
                 commStatus = .checking
+                actionStatus = .inProgress(message: "Checking TCP server…")
             }
         }
         lastCheckTime = Date()
@@ -195,6 +203,9 @@ struct WizardCommunicationPage: View {
                         AppLogger.shared.log(
                             "🌐 [WizardCommDetail] hello ok port=\(port) duration_ms=\(Int(dt * 1000)) caps=\(hello.capabilities.joined(separator: ","))"
                         )
+                        await MainActor.run {
+                            actionStatus = .inProgress(message: "TCP server responded; probing reload…")
+                        }
                     } catch {
                         responding = false
                         AppLogger.shared.log(
@@ -219,13 +230,16 @@ struct WizardCommunicationPage: View {
                             withAnimation(.easeInOut(duration: 0.3)) {
                                 commStatus = .ready(
                                     "Ready for instant configuration changes and external integrations")
+                                actionStatus = .success(message: "TCP ready and reload succeeded")
                             }
                         }
+                        await scheduleStatusClear()
                     } else {
                         let msg = reload.errorMessage ?? "TCP server responded but reload failed"
                         await MainActor.run {
                             withAnimation(.easeInOut(duration: 0.3)) {
                                 commStatus = .needsSetup(msg)
+                                actionStatus = .error(message: msg)
                             }
                         }
                     }
@@ -257,20 +271,39 @@ struct WizardCommunicationPage: View {
                     commStatus = .needsSetup(
                         "Connection timed out. Service may be using old TCP configuration. Click Fix to regenerate with TCP."
                     )
+                    actionStatus = .error(message: "TCP check timed out")
                 }
             }
+        } catch is CancellationError {
+            // CancellationError is expected when one task in the group completes and cancels the other.
+            // This is not a failure - the check completed successfully.
+            AppLogger.shared.log("ℹ️ [WizardComm] TCP check task cancelled (normal)")
         } catch {
             AppLogger.shared.log("❌ [WizardComm] TCP check failed: \(error)")
             await MainActor.run {
                 withAnimation(.easeInOut(duration: 0.3)) {
                     commStatus = .needsSetup(
                         "Failed to connect to TCP server. Click Fix to regenerate service configuration.")
+                    actionStatus = .error(message: "TCP check failed: \(error.localizedDescription)")
                 }
             }
         }
 
         // FIX #1: Explicitly close connection to prevent file descriptor leak
         await client.cancelInflightAndCloseConnection()
+    }
+
+    /// Auto-clear success status after 3 seconds
+    private func scheduleStatusClear() async {
+        await MainActor.run {
+            actionStatus = actionStatus // ensure isolation
+        }
+        _ = await WizardSleep.seconds(3)
+        await MainActor.run {
+            if case .success = actionStatus {
+                actionStatus = .idle
+            }
+        }
     }
 
     private struct TimeoutError: Error {}
@@ -302,6 +335,20 @@ struct WizardCommunicationPage: View {
         isFixing = true
         showingFixFeedback = false
 
+        // Check if SMAppService approval is needed before attempting fix
+        let smState = await KanataDaemonManager.shared.refreshManagementState()
+        if smState == .smappservicePending {
+            AppLogger.shared.log("⚠️ [WizardComm] SMAppService approval required before fix")
+            isFixing = false
+            fixResult = FixResult(
+                success: false,
+                message: "Enable KeyPath in System Settings → Login Items, then try again",
+                timestamp: Date()
+            )
+            showingFixFeedback = true
+            return
+        }
+
         let (action, successMessage, failureMessage) = getAutoFixAction()
         var success = await onAutoFix(action, true) // suppressToast=true for inline feedback
 
@@ -328,9 +375,19 @@ struct WizardCommunicationPage: View {
         }
 
         isFixing = false
+
+        // Check SMAppService state again to provide better error message
+        var actualFailureMessage = failureMessage
+        if !success {
+            let postState = await KanataDaemonManager.shared.refreshManagementState()
+            if postState == .smappservicePending {
+                actualFailureMessage = "Enable KeyPath in System Settings → Login Items, then try again"
+            }
+        }
+
         fixResult = FixResult(
             success: success,
-            message: success ? successMessage : failureMessage,
+            message: success ? successMessage : actualFailureMessage,
             timestamp: Date()
         )
         showingFixFeedback = true
@@ -366,12 +423,16 @@ struct WizardCommunicationPage: View {
     }
 
     private func navigateToNextStep() {
-        if issues.isEmpty {
-            navigationCoordinator.navigateToPage(.summary)
-            return
-        }
-
         Task {
+            // Force fresh validation before leaving the page so summary reflects current state
+            await onRefresh()
+            NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
+
+            if issues.isEmpty {
+                navigationCoordinator.navigateToPage(.summary)
+                return
+            }
+
             if let nextPage = await navigationCoordinator.getNextPage(for: systemState, issues: issues),
                nextPage != navigationCoordinator.currentPage {
                 navigationCoordinator.navigateToPage(nextPage)

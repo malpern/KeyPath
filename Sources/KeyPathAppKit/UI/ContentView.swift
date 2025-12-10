@@ -194,7 +194,10 @@ struct ContentView: View {
             if FeatureFlags.allowOptionalWizard {
                 Task { @MainActor in
                     let snapshot = await PermissionOracle.shared.currentSnapshot()
-                    showSetupBanner = !snapshot.isSystemReady
+                    // Show banner if KeyPath lacks permissions - Kanata permissions are handled separately
+                    // by the wizard and don't need to block the main UI
+                    showSetupBanner = !snapshot.keyPath.hasAllPermissions
+                    AppLogger.shared.log("🔄 [ContentView] Initial setup banner: keyPath.hasAllPermissions=\(snapshot.keyPath.hasAllPermissions), showBanner=\(showSetupBanner)")
                 }
             }
         }
@@ -432,6 +435,14 @@ struct ContentView: View {
                 Task { @MainActor in
                     AppLogger.shared.log("🔄 [ContentView] Wizard closed - triggering revalidation")
                     await stateController.revalidate()
+
+                    // Refresh setup banner state after wizard closes
+                    if FeatureFlags.allowOptionalWizard {
+                        let snapshot = await PermissionOracle.shared.forceRefresh()
+                        // Show banner if KeyPath lacks permissions - Kanata permissions are handled separately
+                        showSetupBanner = !snapshot.keyPath.hasAllPermissions
+                        AppLogger.shared.log("🔄 [ContentView] Setup banner refreshed: keyPath.hasAllPermissions=\(snapshot.keyPath.hasAllPermissions), showBanner=\(showSetupBanner)")
+                    }
                 }
 
                 Task { @MainActor in

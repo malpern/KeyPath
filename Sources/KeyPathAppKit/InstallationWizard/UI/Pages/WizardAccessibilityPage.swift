@@ -13,7 +13,6 @@ struct WizardAccessibilityPage: View {
     let onDismiss: (() -> Void)?
     let kanataManager: RuntimeCoordinator
     @State private var permissionPollingTask: Task<Void, Never>?
-    @State private var showingKanataInstructions = false
 
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
@@ -37,6 +36,8 @@ struct WizardAccessibilityPage: View {
                     )
 
                     // Component details card below the subheading - horizontally centered
+                    // NOTE: Only show KeyPath status. Kanata uses the Karabiner VirtualHIDDevice
+                    // driver and runs as root, so it doesn't need TCC permissions.
                     HStack {
                         Spacer()
                         VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
@@ -47,20 +48,7 @@ struct WizardAccessibilityPage: View {
                                     Text("KeyPath.app")
                                         .font(.headline)
                                         .fontWeight(.semibold)
-                                    Text(" - Emergency stop detection and system monitoring")
-                                        .font(.headline)
-                                        .fontWeight(.regular)
-                                }
-                            }
-
-                            HStack(spacing: 12) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.green)
-                                HStack(spacing: 0) {
-                                    Text("kanata")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-                                    Text(" - Keyboard monitoring and remapping engine")
+                                    Text(" - Has permission for emergency stop and system monitoring")
                                         .font(.headline)
                                         .fontWeight(.regular)
                                 }
@@ -85,11 +73,12 @@ struct WizardAccessibilityPage: View {
                 .frame(maxWidth: .infinity)
             } else {
                 // Use hero design for error state too, with blue links below
+                // NOTE: Only show KeyPath status. Kanata doesn't need TCC permissions.
                 VStack(spacing: WizardDesign.Spacing.sectionGap) {
                     WizardHeroSection.warning(
                         icon: "accessibility",
                         title: "Accessibility",
-                        subtitle: "Turn on KeyPath in Accessibility, then add and turn on kanata",
+                        subtitle: "Turn on KeyPath in Accessibility for emergency stop and system monitoring",
                         iconTapAction: {
                             Task {
                                 await onRefresh()
@@ -113,7 +102,7 @@ struct WizardAccessibilityPage: View {
                     .buttonStyle(.link)
                     .padding(.top, WizardDesign.Spacing.elementGap)
 
-                    // Component details for error state
+                    // Component details for error state - only KeyPath needs TCC
                     VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
                         HStack(spacing: 12) {
                             Image(
@@ -125,7 +114,7 @@ struct WizardAccessibilityPage: View {
                                 Text("KeyPath.app")
                                     .font(.headline)
                                     .fontWeight(.semibold)
-                                Text(" - Emergency stop detection")
+                                Text(" - Needs permission for emergency stop detection")
                                     .font(.headline)
                                     .fontWeight(.regular)
                             }
@@ -142,33 +131,6 @@ struct WizardAccessibilityPage: View {
                             }
                         }
                         .help(keyPathAccessibilityIssues.asTooltipText())
-
-                        HStack(spacing: 12) {
-                            Image(
-                                systemName: kanataAccessibilityStatus == .completed
-                                    ? "checkmark.circle.fill" : "xmark.circle.fill"
-                            )
-                            .foregroundStyle(kanataAccessibilityStatus == .completed ? .green : Color.red)
-                            HStack(spacing: 0) {
-                                Text("kanata")
-                                    .font(.headline)
-                                    .fontWeight(.semibold)
-                                Text(" - Keyboard monitoring engine")
-                                    .font(.headline)
-                                    .fontWeight(.regular)
-                            }
-                            Spacer()
-                            if kanataAccessibilityStatus != .completed {
-                                Button("Fix") {
-                                    AppLogger.shared.log(
-                                        "🔘 [WizardAccessibilityPage] Fix clicked for kanata - showing instructions")
-                                    showingKanataInstructions = true
-                                }
-                                .buttonStyle(WizardDesign.Component.SecondaryButton())
-                                .scaleEffect(0.8)
-                            }
-                        }
-                        .help(kanataAccessibilityIssues.asTooltipText())
                     }
                     .frame(maxWidth: .infinity)
                     .padding(WizardDesign.Spacing.cardPadding)
@@ -187,20 +149,18 @@ struct WizardAccessibilityPage: View {
         .wizardDetailPage()
         .onAppear {
             // Start passive polling to reflect manual changes in System Settings
+            // NOTE: Only poll for KeyPath - Kanata doesn't need TCC permissions
             if permissionPollingTask == nil {
                 permissionPollingTask = Task { [onRefresh] in
                     var lastKeyPathGranted: Bool?
-                    var lastKanataGranted: Bool?
                     while !Task.isCancelled {
                         let snapshot = await PermissionOracle.shared.currentSnapshot()
                         let kpGranted = snapshot.keyPath.accessibility.isReady
-                        let kaGranted = snapshot.kanata.accessibility.isReady
-                        if lastKeyPathGranted != kpGranted || lastKanataGranted != kaGranted {
+                        if lastKeyPathGranted != kpGranted {
                             AppLogger.shared.log(
-                                "🔁 [WizardAccessibilityPage] Passive AX change detected - KeyPath: \(kpGranted), Kanata: \(kaGranted). Refreshing UI."
+                                "🔁 [WizardAccessibilityPage] Passive AX change detected - KeyPath: \(kpGranted). Refreshing UI."
                             )
                             lastKeyPathGranted = kpGranted
-                            lastKanataGranted = kaGranted
                             await onRefresh()
                         }
                         // Poll every 250ms up to 1s to reflect changes promptly without long sleeps
@@ -213,27 +173,15 @@ struct WizardAccessibilityPage: View {
             permissionPollingTask?.cancel()
             permissionPollingTask = nil
         }
-        .sheet(isPresented: $showingKanataInstructions) {
-            KanataAccessibilityInstructionsSheet(
-                onOpenSettings: {
-                    showingKanataInstructions = false
-                    openAccessibilitySettings()
-                    copyKanataPathToClipboard()
-                    PermissionGrantCoordinator.shared.setServiceBounceNeeded(
-                        reason: "Accessibility permission fix for kanata binary")
-                    openAccessibilityPermissionGrant()
-                },
-                onCancel: {
-                    showingKanataInstructions = false
-                }
-            )
-        }
     }
 
     // MARK: - Computed Properties
 
+    // NOTE: Only KeyPath needs Accessibility TCC permission.
+    // Kanata uses the Karabiner VirtualHIDDevice driver and communicates via IPC,
+    // so it doesn't need TCC entries (it runs as root via SMAppService/LaunchDaemon).
     private var hasAccessibilityIssues: Bool {
-        keyPathAccessibilityStatus != .completed || kanataAccessibilityStatus != .completed
+        keyPathAccessibilityStatus != .completed
     }
 
     private var nextStepButtonTitle: String {
@@ -248,26 +196,11 @@ struct WizardAccessibilityPage: View {
         stateInterpreter.getPermissionStatus(.keyPathAccessibility, in: issues)
     }
 
-    private var kanataAccessibilityStatus: InstallationStatus {
-        let status = stateInterpreter.getPermissionStatus(.kanataAccessibility, in: issues)
-        AppLogger.shared.log("🔍 [WizardAccessibilityPage] kanataAccessibilityStatus: \(status)")
-        return status
-    }
-
     // Issue filtering for tooltips
     private var keyPathAccessibilityIssues: [WizardIssue] {
         issues.filter { issue in
             if case let .permission(permissionType) = issue.identifier {
                 return permissionType == .keyPathAccessibility
-            }
-            return false
-        }
-    }
-
-    private var kanataAccessibilityIssues: [WizardIssue] {
-        issues.filter { issue in
-            if case let .permission(permissionType) = issue.identifier {
-                return permissionType == .kanataAccessibility
             }
             return false
         }
@@ -285,32 +218,29 @@ struct WizardAccessibilityPage: View {
                 Task { await onRefresh() }
                 return
             }
-            // Poll for grant (KeyPath + Kanata) using Oracle snapshot
+            // Poll for grant (KeyPath only - Kanata doesn't need TCC)
             permissionPollingTask?.cancel()
             permissionPollingTask = Task { [onRefresh] in
                 var attempts = 0
                 let maxAttempts = 30
                 var lastKeyPathGranted: Bool?
-                var lastKanataGranted: Bool?
                 while attempts < maxAttempts {
                     _ = await WizardSleep.ms(1000)
                     attempts += 1
                     let snapshot = await PermissionOracle.shared.currentSnapshot()
                     let kpGranted = snapshot.keyPath.accessibility.isReady
-                    let kaGranted = snapshot.kanata.accessibility.isReady
 
-                    // Incremental refresh: update UI when either flips, not only when both are ready
-                    if lastKeyPathGranted != kpGranted || lastKanataGranted != kaGranted {
+                    // Incremental refresh: update UI when status changes
+                    if lastKeyPathGranted != kpGranted {
                         AppLogger.shared.log(
-                            "🔁 [WizardAccessibilityPage] Detected permission change (AX) - KeyPath: \(kpGranted), Kanata: \(kaGranted). Refreshing UI."
+                            "🔁 [WizardAccessibilityPage] Detected permission change (AX) - KeyPath: \(kpGranted). Refreshing UI."
                         )
                         lastKeyPathGranted = kpGranted
-                        lastKanataGranted = kaGranted
                         await onRefresh()
                     }
 
-                    if kpGranted, kaGranted {
-                        // Both ready – stop polling
+                    if kpGranted {
+                        // KeyPath ready – stop polling
                         return
                     }
                     if Task.isCancelled { return }
@@ -320,20 +250,20 @@ struct WizardAccessibilityPage: View {
             Task { @MainActor in
                 _ = await WizardSleep.ms(1500) // 1.5s
                 let snapshot = await PermissionOracle.shared.currentSnapshot()
-                let granted =
-                    snapshot.keyPath.accessibility.isReady && snapshot.kanata.accessibility.isReady
-                if !granted {
+                if !snapshot.keyPath.accessibility.isReady {
                     AppLogger.shared.info(
                         "ℹ️ [WizardAccessibilityPage] Opening System Settings (fallback) for Accessibility")
                     openAccessibilitySettings()
                 }
             }
         } else {
+            // Fallback: manual System Settings flow
+            // NOTE: Only KeyPath needs TCC. Kanata uses the Karabiner driver (runs as root).
             let instructions = """
             KeyPath will now close so you can grant permissions:
 
-            1. Add KeyPath and kanata to Accessibility (use the '+' button)
-            2. Make sure both checkboxes are enabled
+            1. Add KeyPath to Accessibility (use the '+' button)
+            2. Make sure the checkbox is enabled
             3. Restart KeyPath when you're done
 
             KeyPath will automatically restart the keyboard service to pick up your new permissions.
@@ -359,12 +289,16 @@ struct WizardAccessibilityPage: View {
     }
 
     private func navigateToNextStep() {
-        if allIssues.isEmpty {
-            navigationCoordinator.navigateToPage(.summary)
-            return
-        }
-
         Task {
+            // Force a fresh validation snapshot so summary reflects the resolved permission
+            await onRefresh()
+            NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
+
+            if allIssues.isEmpty {
+                navigationCoordinator.navigateToPage(.summary)
+                return
+            }
+
             if let nextPage = await navigationCoordinator.getNextPage(for: systemState, issues: allIssues),
                nextPage != navigationCoordinator.currentPage {
                 navigationCoordinator.navigateToPage(nextPage)
@@ -374,117 +308,6 @@ struct WizardAccessibilityPage: View {
         }
     }
 
-    private func revealKanataInFinder() {
-        let path = "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
-        let dir = (path as NSString).deletingLastPathComponent
-        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
-        AppLogger.shared.log("📂 [WizardAccessibilityPage] Revealed kanata in Finder: \(path)")
-        // If NSWorkspace.selectFile is preferred:
-        _ = NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: dir)
-    }
-
-    private func copyKanataPathToClipboard() {
-        let path = "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.setString(path, forType: .string)
-        AppLogger.shared.log("📋 [WizardAccessibilityPage] Copied kanata path to clipboard: \(path)")
-    }
-}
-
-// MARK: - Kanata Accessibility Instructions Sheet
-
-struct KanataAccessibilityInstructionsSheet: View {
-    let onOpenSettings: () -> Void
-    let onCancel: () -> Void
-
-    private var kanataPath: String {
-        "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            VStack(spacing: 12) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 48))
-                    .foregroundStyle(Color.accentColor)
-
-                Text("Add kanata to Accessibility")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-            }
-            .padding(.top, 24)
-            .padding(.bottom, 20)
-
-            // Instructions
-            VStack(alignment: .leading, spacing: 16) {
-                AccessibilityInstructionRow(number: 1, text: "Click the + button in System Settings")
-                AccessibilityInstructionRow(number: 2, text: "Press ⌘⇧G and paste the path (already copied)")
-                AccessibilityInstructionRow(number: 3, text: "Select kanata and click Open")
-                AccessibilityInstructionRow(number: 4, text: "Toggle the switch to enable it")
-            }
-            .padding(.horizontal, 24)
-
-            // Path display
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Path to kanata:")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Text(kanataPath)
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .truncationMode(.middle)
-                    .padding(8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.secondary.opacity(0.1))
-                    .clipShape(.rect(cornerRadius: 6))
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 20)
-
-            Spacer()
-
-            // Buttons
-            HStack(spacing: 12) {
-                Button("Cancel") {
-                    onCancel()
-                }
-                .buttonStyle(.bordered)
-
-                Button("Open System Settings") {
-                    onOpenSettings()
-                }
-                .buttonStyle(.borderedProminent)
-            }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 24)
-        }
-        .frame(width: 400, height: 380)
-    }
-}
-
-private struct AccessibilityInstructionRow: View {
-    let number: Int
-    let text: String
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Text("\(number)")
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-                .frame(width: 24, height: 24)
-                .background(Color.accentColor)
-                .clipShape(Circle())
-
-            Text(text)
-                .font(.body)
-                .foregroundStyle(.primary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
 }
 
 // MARK: - Preview

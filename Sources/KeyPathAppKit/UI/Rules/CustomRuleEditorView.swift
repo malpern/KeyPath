@@ -1238,12 +1238,19 @@ struct CustomRuleEditorView: View {
             // Check system health on appear
             await checkSystemHealth()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .kp_startupRevalidate)) { _ in
+            // Refresh system health when startup validation completes or wizard triggers revalidation
+            Task {
+                await checkSystemHealth()
+            }
+        }
     }
 
     /// Check system health to update status indicator
     private func checkSystemHealth() async {
         let context = await kanataManager.inspectSystemContext()
-        let hasProblems = !context.permissions.isSystemReady || !context.services.isHealthy
+        // Only check KeyPath permissions - Kanata permissions are handled separately
+        let hasProblems = !context.permissions.keyPath.hasAllPermissions || !context.services.isHealthy
         await MainActor.run {
             systemHasProblems = hasProblems
         }

@@ -449,9 +449,15 @@ public final class InstallerEngine {
 
         case "enable-tcp-server", "setup-tcp-authentication", "regenerate-comm-service-config":
             try await broker.regenerateServiceConfiguration()
+            // Keep Kanata running after regeneration so the summary stays green.
+            // SMAppService registration often leaves the job unloaded until explicitly kicked.
+            _ = await PrivilegedOperationsProvider.shared.startKanataService()
 
         case "restart-comm-server":
             try await broker.restartUnhealthyServices()
+            // Explicitly start Kanata after a restart/fix; without this the daemon may stay
+            // unloaded (SMAppService pending) and the summary page bounces the user back.
+            _ = await PrivilegedOperationsProvider.shared.startKanataService()
 
         case "adopt-orphaned-process":
             try await broker.installLaunchDaemonServicesWithoutLoading()

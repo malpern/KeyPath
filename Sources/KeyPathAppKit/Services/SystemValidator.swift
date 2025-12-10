@@ -340,8 +340,8 @@ class SystemValidator {
     private func checkPermissions() async -> PermissionOracle.Snapshot {
         AppLogger.shared.log("🔍 [SystemValidator] Checking permissions via Oracle")
 
-        // Oracle has its own 1.5s cache - we don't add another layer
-        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        // Force a fresh snapshot each time the wizard validates so we don't reuse stale permission state.
+        let snapshot = await PermissionOracle.shared.forceRefresh()
 
         // 🚨 DEFENSIVE ASSERTION 4: Verify Oracle snapshot is fresh
         let oracleAge = Date().timeIntervalSince(snapshot.timestamp)

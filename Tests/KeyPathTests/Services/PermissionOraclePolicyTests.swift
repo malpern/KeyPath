@@ -68,10 +68,12 @@ struct PermissionOraclePolicyTests {
         #expect(issue.contains("KeyPath"))
     }
 
-    // MARK: - Precedence: KeyPath over Kanata; unknown is non-blocking
+    // MARK: - ADR-026: Kanata permissions never block (uses Karabiner driver)
 
-    @Test("When KeyPath is unknown and Kanata is denied, Kanata blocks")
-    func kanataBlocksWhenKeyPathUnknown() {
+    @Test("ADR-026: When KeyPath is unknown and Kanata is denied, no blocking issue")
+    func kanataDoesNotBlockWhenKeyPathUnknown() {
+        // ADR-026: Kanata uses Karabiner VirtualHIDDevice driver, not TCC.
+        // Kanata's permission state should NEVER create a blocking issue.
         let now = Date()
 
         // KeyPath: unknown is non-blocking
@@ -83,7 +85,7 @@ struct PermissionOraclePolicyTests {
             timestamp: now
         )
 
-        // Kanata: blocked
+        // Kanata: denied - but this should NOT create a blocking issue per ADR-026
         let kanata = PermissionOracle.PermissionSet(
             accessibility: .denied,
             inputMonitoring: .denied,
@@ -93,10 +95,10 @@ struct PermissionOraclePolicyTests {
         )
 
         let snap = PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now)
-        let issue = snap.blockingIssue ?? ""
+        let issue = snap.blockingIssue
 
-        #expect(issue.contains("Kanata"))
-        #expect(!issue.contains("KeyPath needs Accessibility"))
-        #expect(!issue.contains("KeyPath needs Input Monitoring"))
+        // Per ADR-026: Kanata permissions should NEVER block
+        #expect(issue == nil, "No blocking issue when KeyPath is unknown and Kanata is denied")
+        #expect(issue?.contains("Kanata") != true, "Blocking issue should never mention Kanata")
     }
 }

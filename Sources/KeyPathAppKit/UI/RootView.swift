@@ -48,9 +48,9 @@ struct RootView: View {
             // The splash window controller handles the actual timing
             try? await Task.sleep(for: .seconds(6.0))
 
-            // Check if wizard needed
+            // Check if wizard needed - only check KeyPath permissions, not Kanata
             let context = await viewModel.inspectSystemContext()
-            if !context.permissions.isSystemReady || !context.services.isHealthy {
+            if !context.permissions.keyPath.hasAllPermissions || !context.services.isHealthy {
                 try? await Task.sleep(for: .milliseconds(300))
                 showingWizard = true
             } else if WhatsNewTracker.shouldShowWhatsNew() {

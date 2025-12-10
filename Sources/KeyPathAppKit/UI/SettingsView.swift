@@ -439,10 +439,10 @@ struct StatusSettingsTabView: View {
             }
         }
 
+        // NOTE: Only KeyPath needs TCC permissions. Kanata uses the Karabiner VirtualHIDDevice
+        // driver and runs as root via SMAppService/LaunchDaemon, so it doesn't need TCC entries.
         append(status: snapshot.keyPath.accessibility, label: "KeyPath Accessibility")
         append(status: snapshot.keyPath.inputMonitoring, label: "KeyPath Input Monitoring")
-        append(status: snapshot.kanata.accessibility, label: "Kanata Accessibility")
-        append(status: snapshot.kanata.inputMonitoring, label: "Kanata Input Monitoring")
 
         return (labels, hasErrors)
     }
@@ -518,41 +518,25 @@ struct StatusSettingsTabView: View {
             tooltip: "Optional. Enables permission pre-flight checks to provide a smoother setup experience. KeyPath works without this."
         ))
 
-        // 3. Accessibility (combined KeyPath + Kanata)
+        // 3. Accessibility (KeyPath only - Kanata doesn't need TCC with Karabiner driver)
         let keyPathAccessibilityOK = permissionSnapshot?.keyPath.accessibility.isReady ?? false
-        let kanataAccessibilityOK = permissionSnapshot?.kanata.accessibility.isReady ?? false
-        let accessibilityOK = keyPathAccessibilityOK && kanataAccessibilityOK
-        let accessibilityIssue: String? = {
-            if accessibilityOK { return nil }
-            var missing: [String] = []
-            if !keyPathAccessibilityOK { missing.append("KeyPath") }
-            if !kanataAccessibilityOK { missing.append("Kanata") }
-            return "Accessibility permission required for \(missing.joined(separator: " and ")). Click to grant."
-        }()
+        let accessibilityIssue: String? = keyPathAccessibilityOK ? nil : "Accessibility permission required for KeyPath. Click to grant."
         items.append(SystemStatusItem(
             title: "Accessibility",
             icon: "accessibility",
-            status: accessibilityOK ? .success : .error,
+            status: keyPathAccessibilityOK ? .success : .error,
             targetPage: .accessibility,
             tooltip: "Required. Allows KeyPath to send synthetic key events. Without this, remapped keys cannot be output to applications.",
             issueMessage: accessibilityIssue
         ))
 
-        // 4. Input Monitoring (combined KeyPath + Kanata)
+        // 4. Input Monitoring (KeyPath only - Kanata doesn't need TCC with Karabiner driver)
         let keyPathInputMonitoringOK = permissionSnapshot?.keyPath.inputMonitoring.isReady ?? false
-        let kanataInputMonitoringOK = permissionSnapshot?.kanata.inputMonitoring.isReady ?? false
-        let inputMonitoringOK = keyPathInputMonitoringOK && kanataInputMonitoringOK
-        let inputMonitoringIssue: String? = {
-            if inputMonitoringOK { return nil }
-            var missing: [String] = []
-            if !keyPathInputMonitoringOK { missing.append("KeyPath") }
-            if !kanataInputMonitoringOK { missing.append("Kanata") }
-            return "Input Monitoring permission required for \(missing.joined(separator: " and ")). Click to grant."
-        }()
+        let inputMonitoringIssue: String? = keyPathInputMonitoringOK ? nil : "Input Monitoring permission required for KeyPath. Click to grant."
         items.append(SystemStatusItem(
             title: "Input Monitoring",
             icon: "eye",
-            status: inputMonitoringOK ? .success : .error,
+            status: keyPathInputMonitoringOK ? .success : .error,
             targetPage: .inputMonitoring,
             tooltip: "Required. Allows KeyPath to read keyboard input. Without this, your key presses cannot be detected or remapped.",
             issueMessage: inputMonitoringIssue

@@ -307,11 +307,11 @@ struct WizardSystemStatusOverview: View {
                 relatedIssues: conflictIssues
             ))
 
-        // 5. Input Monitoring Permission
+        // 5. Input Monitoring Permission (KeyPath only - Kanata doesn't need TCC)
         let inputMonitoringStatus = getInputMonitoringStatus()
         let inputMonitoringIssues = issues.filter { issue in
             if case let .permission(req) = issue.identifier {
-                return req == .keyPathInputMonitoring || req == .kanataInputMonitoring
+                return req == .keyPathInputMonitoring
             }
             return false
         }
@@ -326,11 +326,11 @@ struct WizardSystemStatusOverview: View {
                 relatedIssues: inputMonitoringIssues
             ))
 
-        // 6. Accessibility Permission
+        // 6. Accessibility Permission (KeyPath only - Kanata doesn't need TCC)
         let accessibilityStatus = getAccessibilityStatus()
         let accessibilityIssues = issues.filter { issue in
             if case let .permission(req) = issue.identifier {
-                return req == .keyPathAccessibility || req == .kanataAccessibility
+                return req == .keyPathAccessibility
             }
             return false
         }
@@ -602,9 +602,10 @@ struct WizardSystemStatusOverview: View {
             return .notStarted
         }
 
+        // NOTE: Only check KeyPath permissions - Kanata doesn't need TCC (uses Karabiner driver)
         let hasInputMonitoringIssues = issues.contains { issue in
             if case let .permission(permissionType) = issue.identifier {
-                return permissionType == .keyPathInputMonitoring || permissionType == .kanataInputMonitoring
+                return permissionType == .keyPathInputMonitoring
             }
             return false
         }
@@ -617,9 +618,10 @@ struct WizardSystemStatusOverview: View {
             return .notStarted
         }
 
+        // NOTE: Only check KeyPath permissions - Kanata doesn't need TCC (uses Karabiner driver)
         let hasAccessibilityIssues = issues.contains { issue in
             if case let .permission(permissionType) = issue.identifier {
-                return permissionType == .keyPathAccessibility || permissionType == .kanataAccessibility
+                return permissionType == .keyPathAccessibility
             }
             return false
         }
@@ -695,16 +697,17 @@ struct WizardSystemStatusOverview: View {
 
     private func getServiceNavigationTarget() -> (page: WizardPage, reason: String) {
         // When service fails, navigate to the most critical missing permission
+        // NOTE: Only check KeyPath permissions - Kanata doesn't need TCC (uses Karabiner driver)
         let hasInputMonitoringIssues = issues.contains { issue in
             if case let .permission(permission) = issue.identifier {
-                return permission == .kanataInputMonitoring
+                return permission == .keyPathInputMonitoring
             }
             return false
         }
 
         let hasAccessibilityIssues = issues.contains { issue in
             if case let .permission(permission) = issue.identifier {
-                return permission == .kanataAccessibility
+                return permission == .keyPathAccessibility
             }
             return false
         }

@@ -112,15 +112,16 @@ class WizardNavigationEngineTests: XCTestCase {
 
     func testNavigationPriorityInputMonitoringThird() async {
         // Given: System has input monitoring issues but no conflicts or installation issues
+        // NOTE: Only KeyPath needs TCC permissions - Kanata uses Karabiner driver
         let inputMonitoringIssue = createTestIssue(
             category: .permissions,
-            title: "Kanata Input Monitoring",
-            identifier: .permission(.kanataInputMonitoring)
+            title: "KeyPath Input Monitoring",
+            identifier: .permission(.keyPathInputMonitoring)
         )
         let accessibilityIssue = createTestIssue(
             category: .permissions,
-            title: "Kanata Accessibility",
-            identifier: .permission(.kanataAccessibility)
+            title: "KeyPath Accessibility",
+            identifier: .permission(.keyPathAccessibility)
         )
         let issues = [inputMonitoringIssue, accessibilityIssue]
 
@@ -133,10 +134,11 @@ class WizardNavigationEngineTests: XCTestCase {
 
     func testNavigationPriorityAccessibilityFourth() async {
         // Given: System has accessibility issues but no input monitoring issues
+        // NOTE: Only KeyPath needs TCC permissions - Kanata uses Karabiner driver
         let accessibilityIssue = createTestIssue(
             category: .permissions,
-            title: "Kanata Accessibility",
-            identifier: .permission(.kanataAccessibility)
+            title: "KeyPath Accessibility",
+            identifier: .permission(.keyPathAccessibility)
         )
         let issues = [accessibilityIssue]
 

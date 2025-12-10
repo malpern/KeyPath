@@ -54,12 +54,13 @@ final class PermissionGate {
         onDenied: @escaping () -> Void
     ) async {
         let snapshot = await oracle.currentSnapshot()
+        // NOTE: Only check KeyPath permissions - Kanata doesn't need TCC (uses Karabiner driver)
         let missing = feature.requiredPermissions.filter { p in
             switch p {
             case .inputMonitoring:
-                !snapshot.keyPath.inputMonitoring.isReady || !snapshot.kanata.inputMonitoring.isReady
+                !snapshot.keyPath.inputMonitoring.isReady
             case .accessibility:
-                !snapshot.keyPath.accessibility.isReady || !snapshot.kanata.accessibility.isReady
+                !snapshot.keyPath.accessibility.isReady
             }
         }
 
@@ -90,15 +91,16 @@ final class PermissionGate {
         }
 
         // Poll until granted or timeout
+        // NOTE: Only check KeyPath permissions - Kanata doesn't need TCC (uses Karabiner driver)
         for _ in 0 ..< 30 {
             try? await Task.sleep(for: .seconds(1))
             let snap = await oracle.currentSnapshot()
             let allGranted = feature.requiredPermissions.allSatisfy { p in
                 switch p {
                 case .inputMonitoring:
-                    snap.keyPath.inputMonitoring.isReady && snap.kanata.inputMonitoring.isReady
+                    snap.keyPath.inputMonitoring.isReady
                 case .accessibility:
-                    snap.keyPath.accessibility.isReady && snap.kanata.accessibility.isReady
+                    snap.keyPath.accessibility.isReady
                 }
             }
             if allGranted {

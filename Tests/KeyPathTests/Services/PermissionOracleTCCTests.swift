@@ -438,8 +438,10 @@ struct PermissionOracleTCCTests {
 
     // MARK: - Snapshot System Ready Logic
 
-    @Test("Snapshot.isSystemReady requires all permissions for both apps")
+    @Test("Snapshot.isSystemReady requires only KeyPath to have all permissions")
     func snapshotSystemReadyLogic() {
+        // NOTE: Kanata does NOT need TCC permissions - it uses the Karabiner VirtualHIDDevice
+        // driver and runs as root via SMAppService/LaunchDaemon
         let now = Date()
 
         let allGranted = PermissionOracle.PermissionSet(
@@ -458,33 +460,26 @@ struct PermissionOracleTCCTests {
             timestamp: now
         )
 
-        // Both apps fully granted
+        // KeyPath fully granted (Kanata status doesn't matter)
         let ready = PermissionOracle.Snapshot(
             keyPath: allGranted,
-            kanata: allGranted,
+            kanata: partial,  // Kanata partial but shouldn't affect isSystemReady
             timestamp: now
         )
         #expect(ready.isSystemReady == true)
 
-        // KeyPath partial
-        let notReady1 = PermissionOracle.Snapshot(
+        // KeyPath partial - not ready
+        let notReady = PermissionOracle.Snapshot(
             keyPath: partial,
             kanata: allGranted,
             timestamp: now
         )
-        #expect(notReady1.isSystemReady == false)
-
-        // Kanata partial
-        let notReady2 = PermissionOracle.Snapshot(
-            keyPath: allGranted,
-            kanata: partial,
-            timestamp: now
-        )
-        #expect(notReady2.isSystemReady == false)
+        #expect(notReady.isSystemReady == false)
     }
 
     @Test("Snapshot.blockingIssue identifies correct priority")
     func snapshotBlockingIssuePriority() {
+        // NOTE: Kanata does NOT need TCC permissions - only KeyPath blocking issues matter
         let now = Date()
 
         let granted = PermissionOracle.PermissionSet(
@@ -527,13 +522,13 @@ struct PermissionOracleTCCTests {
         )
         #expect(issue2.blockingIssue?.contains("KeyPath needs Input Monitoring") == true)
 
-        // Kanata blocked (third priority - only if KeyPath OK)
+        // Kanata blocked but KeyPath OK - no blocking issue (Kanata doesn't need TCC)
         let issue3 = PermissionOracle.Snapshot(
             keyPath: granted,
             kanata: axBlocked,
             timestamp: now
         )
-        #expect(issue3.blockingIssue?.contains("Kanata needs permissions") == true)
+        #expect(issue3.blockingIssue == nil)
 
         // No issues
         let noIssue = PermissionOracle.Snapshot(
