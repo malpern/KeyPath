@@ -64,8 +64,7 @@ final class SplashWindowController: NSWindowController {
         imageView.imageAlignment = .alignCenter
 
         if let url = Bundle.main.url(forResource: "keypath-poster-hor", withExtension: "png"),
-           let image = NSImage(contentsOf: url)
-        {
+           let image = NSImage(contentsOf: url) {
             AppLogger.shared.log("🎬 [Splash] Image loaded - size: \(image.size), representations: \(image.representations.count)")
             if let rep = image.representations.first {
                 AppLogger.shared.log("🎬 [Splash] Image rep - pixels: \(rep.pixelsWide)x\(rep.pixelsHigh), size: \(rep.size)")

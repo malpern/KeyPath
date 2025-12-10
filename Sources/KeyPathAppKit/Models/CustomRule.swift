@@ -98,8 +98,7 @@ public extension CustomRule {
 
     var summaryText: String {
         if let trimmedNotes = notes?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !trimmedNotes.isEmpty
-        {
+           !trimmedNotes.isEmpty {
             return trimmedNotes
         }
         return "Maps \(input) to \(output)"

@@ -302,8 +302,7 @@ class PermissionGrantCoordinator: ObservableObject {
     /// Check if permissions were successfully granted for the given permission type
     /// NOTE: Only check KeyPath permissions - Kanata doesn't need TCC (uses Karabiner driver)
     private func checkIfPermissionsGranted(for permissionType: CoordinatorPermissionType) async
-        -> Bool
-    {
+        -> Bool {
         let snapshot = await PermissionOracle.shared.currentSnapshot()
 
         switch permissionType {
