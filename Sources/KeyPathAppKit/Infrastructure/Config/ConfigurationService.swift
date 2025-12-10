@@ -508,7 +508,8 @@ public struct KanataConfiguration: Sendable {
                 return block.metadata + ["  ;; (no mappings)"]
             }
             let sorted = sortEntries(block.entries)
-            let body = renderGridLines(sorted, valueProvider: valueProvider)
+            // MUST use sparse rendering to match defsrc (underscore padding would mismatch key counts)
+            let body = renderGridLinesSparse(sorted, valueProvider: valueProvider)
             return block.metadata + body
         }
 
@@ -521,53 +522,6 @@ public struct KanataConfiguration: Sendable {
                 }
                 return l < r
             }
-        }
-
-        /// Render entries grouped into physical rows.
-        /// If >50% of a row's keys are mapped, render the full row with `_` for unmapped keys.
-        /// Otherwise, render only the mapped keys (sparse).
-        private static func renderGridLines(
-            _ entries: [LayerEntry],
-            valueProvider: (LayerEntry) -> String
-        ) -> [String] {
-            var rows: [[String]] = []
-            let entryMap = Dictionary(uniqueKeysWithValues: entries.map { ($0.sourceKey, $0) })
-
-            for layoutRow in layoutRows {
-                // Count how many keys in this row are mapped
-                let mappedCount = layoutRow.filter { entryMap[$0] != nil }.count
-                let rowSize = layoutRow.count
-                let isMostlyMapped = mappedCount > 0 && Double(mappedCount) / Double(rowSize) > 0.5
-
-                if isMostlyMapped {
-                    // Render full row with _ for unmapped keys
-                    let tokens = layoutRow.map { key -> String in
-                        if let entry = entryMap[key] {
-                            return valueProvider(entry)
-                        } else {
-                            return "_"
-                        }
-                    }
-                    rows.append(tokens)
-                } else if mappedCount > 0 {
-                    // Render sparse (only mapped keys)
-                    let tokens = layoutRow.compactMap { key -> String? in
-                        guard let entry = entryMap[key] else { return nil }
-                        return valueProvider(entry)
-                    }
-                    rows.append(tokens)
-                }
-                // Skip rows with no mapped keys
-            }
-
-            // Anything not in the known layout gets appended in a trailing row
-            let knownKeys = Set(layoutRows.flatMap { $0 })
-            let unknownEntries = entries.filter { !knownKeys.contains($0.sourceKey) }
-            if !unknownEntries.isEmpty {
-                rows.append(unknownEntries.map { valueProvider($0) })
-            }
-
-            return rows.map { "  " + padRow($0) }
         }
 
         /// Render entries sparsely - only include keys that are actually mapped.
