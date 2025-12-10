@@ -146,7 +146,7 @@ public struct SystemSnapshot: Sendable {
         let systemReady = permissions.isSystemReady
 
         // The invariant: systemReady should equal keyPathHasAll, NOT (keyPathHasAll && kanataHasAll)
-        if keyPathHasAll && !kanataHasAll {
+        if keyPathHasAll, !kanataHasAll {
             assert(
                 systemReady,
                 """

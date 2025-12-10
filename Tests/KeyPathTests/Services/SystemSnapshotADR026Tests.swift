@@ -130,7 +130,7 @@ struct SystemSnapshotADR026Tests {
             (.unknown, .unknown),
             (.error("test"), .error("test")),
             (.denied, .granted),
-            (.granted, .denied),
+            (.granted, .denied)
         ]
 
         // With KeyPath fully granted

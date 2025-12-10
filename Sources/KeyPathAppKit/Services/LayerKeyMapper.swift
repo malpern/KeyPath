@@ -228,11 +228,11 @@ actor LayerKeyMapper {
         let results: [(UInt16, String, SimulatorKeyMappingResult?)]
         do {
             results = try await withThrowingTaskGroup(of: (UInt16, String, SimulatorKeyMappingResult?).self) { group in
-            for key in physicalKeys {
-                let tcpName = OverlayKeyboardView.keyCodeToKanataName(key.keyCode)
-                let simName = toSimulatorKeyName(tcpName)
-                let keyCode = key.keyCode
-                let label = key.label
+                for key in physicalKeys {
+                    let tcpName = OverlayKeyboardView.keyCodeToKanataName(key.keyCode)
+                    let simName = toSimulatorKeyName(tcpName)
+                    let keyCode = key.keyCode
+                    let label = key.label
 
                     group.addTask {
                         // Single key: press, wait 50ms, release, then wait 250ms for tap-hold to resolve.

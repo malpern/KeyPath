@@ -463,7 +463,7 @@ struct PermissionOracleTCCTests {
         // KeyPath fully granted (Kanata status doesn't matter)
         let ready = PermissionOracle.Snapshot(
             keyPath: allGranted,
-            kanata: partial,  // Kanata partial but shouldn't affect isSystemReady
+            kanata: partial, // Kanata partial but shouldn't affect isSystemReady
             timestamp: now
         )
         #expect(ready.isSystemReady == true)

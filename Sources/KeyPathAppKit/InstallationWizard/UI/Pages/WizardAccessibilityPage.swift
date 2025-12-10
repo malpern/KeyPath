@@ -307,7 +307,6 @@ struct WizardAccessibilityPage: View {
             }
         }
     }
-
 }
 
 // MARK: - Preview

@@ -227,8 +227,7 @@ struct InstallationWizardView: View {
         .onReceive(NotificationCenter.default.publisher(for: .smAppServiceApprovalRequired)) { _ in
             showingBackgroundApprovalPrompt = true
         }
-        .overlay {
-        }
+        .overlay {}
         .alert("Close Setup Wizard?", isPresented: $showingCloseConfirmation) {
             Button("Cancel", role: .cancel) {
                 showingCloseConfirmation = false
@@ -1532,7 +1531,7 @@ struct InstallationWizardView: View {
 
     private func showStartConfirmation() async -> Bool {
         // Skip confirmation dialog; proceed immediately.
-        return true
+        true
     }
 
     // MARK: - Operation Progress Helpers

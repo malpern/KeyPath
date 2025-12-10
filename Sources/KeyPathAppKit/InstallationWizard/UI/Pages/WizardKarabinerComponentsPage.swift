@@ -13,9 +13,9 @@ enum KarabinerPageLogic {
     ) -> Bool {
         switch systemState {
         case .ready, .active:
-            return false
+            false
         default:
-            return KarabinerComponentsStatusEvaluator.evaluate(
+            KarabinerComponentsStatusEvaluator.evaluate(
                 systemState: systemState,
                 issues: issues
             ) != .completed
@@ -226,7 +226,10 @@ struct WizardKarabinerComponentsPage: View {
         .onReceive(stateMachine.$systemSnapshot) { snapshot in
             latestSnapshot = snapshot
             if let snap = snapshot {
-                AppLogger.shared.log("ℹ️ [Wizard] Karabiner snapshot update: ready=\(snap.isReady) karabinerInstalled=\(snap.components.karabinerDriverInstalled) vhidHealthy=\(snap.components.vhidDeviceHealthy) daemonRunning=\(snap.health.karabinerDaemonRunning) version=\(stateMachine.stateVersion)")
+                AppLogger.shared
+                    .log(
+                        "ℹ️ [Wizard] Karabiner snapshot update: ready=\(snap.isReady) karabinerInstalled=\(snap.components.karabinerDriverInstalled) vhidHealthy=\(snap.components.vhidDeviceHealthy) daemonRunning=\(snap.health.karabinerDaemonRunning) version=\(stateMachine.stateVersion)"
+                    )
                 if snap.isReady { handleResolved() }
             }
         }
@@ -634,7 +637,7 @@ struct WizardKarabinerComponentsPage: View {
     }
 
     /// If we remain in an error state, schedule a one-time refresh after a short delay to pull in a fresh snapshot.
-private func scheduleSafetyRefreshIfNeeded() {
+    private func scheduleSafetyRefreshIfNeeded() {
         // Clear any pending work once we're healthy.
         if !hasKarabinerIssues {
             safetyRefreshAttempts = 0

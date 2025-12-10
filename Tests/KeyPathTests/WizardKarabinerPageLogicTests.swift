@@ -1,6 +1,6 @@
-import XCTest
 @testable import KeyPathAppKit
 import KeyPathWizardCore
+import XCTest
 
 final class WizardKarabinerPageLogicTests: XCTestCase {
     private func makeIssue(_ id: IssueIdentifier, category: WizardIssue.IssueCategory) -> WizardIssue {
@@ -33,4 +33,3 @@ final class WizardKarabinerPageLogicTests: XCTestCase {
         XCTAssertTrue(KarabinerPageLogic.hasIssues(systemState: .serviceNotRunning, issues: issues))
     }
 }
-

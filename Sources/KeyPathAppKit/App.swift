@@ -550,15 +550,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             splashWindowController = SplashWindowController { [weak self] in
                 guard let self else { return }
                 AppLogger.shared.log("🎬 [AppDelegate] Splash dismissed - showing main window")
-                self.splashActive = false
-                self.splashWindowController = nil
+                splashActive = false
+                splashWindowController = nil
 
                 // Post notification for RootView to know splash is done
                 NotificationCenter.default.post(name: .splashDidDismiss, object: nil)
 
                 // Show main window after splash fades
-                self.mainWindowController?.show(focus: true)
-                self.initialMainWindowShown = true
+                mainWindowController?.show(focus: true)
+                initialMainWindowShown = true
             }
             splashWindowController?.showSplash(duration: 2.5)
 

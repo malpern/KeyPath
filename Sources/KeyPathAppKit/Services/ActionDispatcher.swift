@@ -148,10 +148,10 @@ public final class ActionDispatcher {
         let alert = NSAlert()
         alert.messageText = "Allow KeyPath to Launch \(displayName)?"
         alert.informativeText = """
-            A keyboard shortcut wants to open \(displayName).
+        A keyboard shortcut wants to open \(displayName).
 
-            This is a one-time prompt. If you allow it, KeyPath will remember your choice and won't ask about \(displayName) again.
-            """
+        This is a one-time prompt. If you allow it, KeyPath will remember your choice and won't ask about \(displayName) again.
+        """
         alert.alertStyle = .warning
 
         // Set the app icon (or a default)
@@ -183,7 +183,7 @@ public final class ActionDispatcher {
         let allowed = response == .alertFirstButtonReturn
 
         // If checkbox is checked and user clicked Allow, enable trust all
-        if allowed && checkbox.state == .on {
+        if allowed, checkbox.state == .on {
             enableTrustAllApps()
         }
 

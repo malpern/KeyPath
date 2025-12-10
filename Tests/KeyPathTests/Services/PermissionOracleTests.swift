@@ -100,7 +100,7 @@ struct PermissionOracleTests {
         // KeyPath fully granted (Kanata status doesn't matter)
         let keyPathGranted = PermissionOracle.Snapshot(
             keyPath: granted,
-            kanata: denied,  // Kanata denied but shouldn't affect isSystemReady
+            kanata: denied, // Kanata denied but shouldn't affect isSystemReady
             timestamp: now
         )
         #expect(keyPathGranted.isSystemReady == true)
@@ -144,7 +144,7 @@ struct PermissionOracleTests {
         )
         let noIssues = PermissionOracle.Snapshot(
             keyPath: granted,
-            kanata: denied,  // Kanata denied but shouldn't create blocking issue
+            kanata: denied, // Kanata denied but shouldn't create blocking issue
             timestamp: now
         )
         #expect(noIssues.blockingIssue == nil)
@@ -341,7 +341,7 @@ struct PermissionOracleTests {
             PermissionOracle.PermissionSet(
                 accessibility: .denied, inputMonitoring: .granted,
                 source: "test", confidence: .high, timestamp: now
-            ),
+            )
         ]
 
         for kanataState in kanataStates {

@@ -33,12 +33,12 @@ public struct KanataConfiguration: Sendable {
     public static func generateFromCollections(_ collections: [RuleCollection]) -> String {
         var resolvedCollections: [RuleCollection]
 
-        // Always include macOS Function Keys so system media keys keep working in every milestone.
-        // Other collections remain gated by FeatureFlags/ReleaseMilestone.
-        if FeatureFlags.ruleCollectionsEnabled, collections.isEmpty {
-            resolvedCollections = defaultSystemCollections
+            // Always include macOS Function Keys so system media keys keep working in every milestone.
+            // Other collections remain gated by FeatureFlags/ReleaseMilestone.
+            = if FeatureFlags.ruleCollectionsEnabled, collections.isEmpty {
+            defaultSystemCollections
         } else {
-            resolvedCollections = collections
+            collections
         }
 
         // Always include the macOS Function Keys collection (preserves brightness/volume keys in all milestones)

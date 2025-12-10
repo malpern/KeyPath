@@ -47,6 +47,5 @@ final class SimpleModsSmokeTests: XCTestCase {
         default:
             XCTFail("Reload did not succeed: \(reload)")
         }
-
     }
 }

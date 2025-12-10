@@ -9,4 +9,3 @@ final class WizardRefreshProxy: ObservableObject {
         refreshHandler(force)
     }
 }
-

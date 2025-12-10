@@ -1,9 +1,9 @@
+import AppKit
+import ApplicationServices
 import KeyPathCore
 import KeyPathWizardCore
 import ServiceManagement
 import SwiftUI
-import AppKit
-import ApplicationServices
 
 /// Privileged Helper installation and validation page
 struct WizardHelperPage: View {
@@ -94,7 +94,7 @@ struct WizardHelperPage: View {
 
     private var loginItemsScreenshot: NSImage? {
         if let url = Bundle.main.url(forResource: "permissions-login-items2", withExtension: "png"),
-            let image = NSImage(contentsOf: url) {
+           let image = NSImage(contentsOf: url) {
             return image
         }
 
@@ -350,6 +350,7 @@ struct WizardHelperPage: View {
     }
 
     // MARK: - Actions
+
     private func logLoginItemsDiagnostics() {
         guard !hasLoggedDiagnostics else { return }
         hasLoggedDiagnostics = true

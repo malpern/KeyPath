@@ -420,9 +420,9 @@ struct CustomRuleEditorView: View {
             // Build detailed error message for modal
             let errorDetails = errors.map { error -> String in
                 switch error {
-                case .invalidInputKey(let key):
+                case let .invalidInputKey(key):
                     return "Invalid input key: '\(key)'\n\nValid keys include: a-z, 0-9, caps, esc, tab, ret, spc, bspc, del, lmet, rmet, lctl, rctl, lsft, rsft, lalt, ralt, f1-f20, arrow keys, etc.\n\nTip: Use the Record button to capture keys instead of typing them."
-                case .invalidOutputKey(let key):
+                case let .invalidOutputKey(key):
                     return "Invalid output key: '\(key)'\n\nValid keys include: a-z, 0-9, caps, esc, tab, ret, spc, bspc, del, lmet, rmet, lctl, rctl, lsft, rsft, lalt, ralt, f1-f20, arrow keys, etc.\n\nTip: Use the Record button to capture keys instead of typing them."
                 default:
                     return error.errorDescription ?? "Unknown validation error"
