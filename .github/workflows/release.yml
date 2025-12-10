@@ -81,7 +81,7 @@ jobs:
             ${{ runner.os }}-swift-
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-action@stable
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Import signing certificate
         env:
