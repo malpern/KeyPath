@@ -74,7 +74,8 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
         // If the target page is ahead of us in the flow and different from current, jump to it
         if let targetIndex = pageOrder.firstIndex(of: targetPage),
            targetIndex > currentIndex,
-           targetPage != current {
+           targetPage != current
+        {
             return targetPage
         }
 

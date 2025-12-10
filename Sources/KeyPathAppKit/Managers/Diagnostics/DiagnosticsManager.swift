@@ -187,7 +187,8 @@ final class DiagnosticsManager: @preconcurrency DiagnosticsManaging {
 
         // Check for VirtualHID connection failures
         if content.contains("connect_failed asio.system:61")
-            || content.contains("connect_failed asio.system:2") {
+            || content.contains("connect_failed asio.system:2")
+        {
             AppLogger.shared.log("🚨 [DiagnosticsManager] Detected VirtualHID connection failure in logs")
 
             // Only add if we don't already have this diagnostic

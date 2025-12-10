@@ -154,7 +154,8 @@ public actor PermissionOracle {
             // Honor cache semantics in tests to keep behavior deterministic
             if let cachedTime = lastSnapshotTime,
                let cached = lastSnapshot,
-               Date().timeIntervalSince(cachedTime) < cacheTTL {
+               Date().timeIntervalSince(cachedTime) < cacheTTL
+            {
                 AppLogger.shared.log("🔮 [Oracle] (Test) Returning cached snapshot")
                 return cached
             }
@@ -177,7 +178,8 @@ public actor PermissionOracle {
         // Return cached result if fresh
         if let cachedTime = lastSnapshotTime,
            let cached = lastSnapshot,
-           Date().timeIntervalSince(cachedTime) < cacheTTL {
+           Date().timeIntervalSince(cachedTime) < cacheTTL
+        {
             AppLogger.shared.log(
                 "🔮 [Oracle] Returning cached snapshot (age: \(String(format: "%.3f", Date().timeIntervalSince(cachedTime)))s)"
             )
@@ -535,7 +537,8 @@ public actor PermissionOracle {
     // Query TCC database by bundle identifier (client_type=0, used for GUI apps)
     // GUI apps are stored by bundle ID in TCC, not by executable path
     private func queryTCCDatabaseByBundleID(dbPath: String, service: String, bundleID: String) async
-        -> Int? {
+        -> Int?
+    {
         let escService = escapeSQLiteLiteral(service)
         let escBundleID = escapeSQLiteLiteral(bundleID)
 
@@ -580,7 +583,8 @@ public actor PermissionOracle {
     // Approved read-only TCC lookup (see ADR-016). This must remain
     // best-effort, side-effect free, and resilient to failure (no FDA).
     private func queryTCCDatabase(dbPath: String, service: String, executablePath: String) async
-        -> Int? {
+        -> Int?
+    {
         // The 'access' table schema varies. We try auth_value first, then allowed.
         // We check for client_type=1 (path) because Kanata is a CLI binary.
         let escService = escapeSQLiteLiteral(service)

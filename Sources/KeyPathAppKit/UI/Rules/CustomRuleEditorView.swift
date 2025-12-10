@@ -1160,7 +1160,8 @@ struct CustomRuleEditorView: View {
         if let appMenu = NSApp.mainMenu?.items.first?.submenu {
             for item in appMenu.items {
                 if item.title.contains("Settings") || item.title.contains("Preferences"),
-                   let action = item.action {
+                   let action = item.action
+                {
                     NSApp.sendAction(action, to: item.target, from: item)
                     return
                 }

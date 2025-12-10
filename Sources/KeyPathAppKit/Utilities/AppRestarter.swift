@@ -58,7 +58,8 @@ enum AppRestarter {
         let env = ProcessInfo.processInfo.environment
         if env["XCTestConfigurationFilePath"] != nil
             || ProcessInfo.processInfo.processName.lowercased().contains("xctest")
-            || env["SWIFTPM_MODULECACHE_OVERRIDE"] != nil {
+            || env["SWIFTPM_MODULECACHE_OVERRIDE"] != nil
+        {
             AppLogger.shared.log("🧪 [AppRestarter] Test mode - skipping app restart")
             return
         }

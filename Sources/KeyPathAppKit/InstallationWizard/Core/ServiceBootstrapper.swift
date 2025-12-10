@@ -74,7 +74,8 @@ final class ServiceBootstrapper {
     /// - Parameter within: Time window in seconds (default: 2.0)
     /// - Returns: `true` if any service was restarted within the window
     nonisolated static func hadRecentRestart(within seconds: TimeInterval = healthyWarmupWindow)
-        -> Bool {
+        -> Bool
+    {
         let now = Date()
         return restartTimeLock.withLock { times in
             times.values.contains { now.timeIntervalSince($0) < seconds }
@@ -258,7 +259,8 @@ final class ServiceBootstrapper {
     private func getLaunchctlPath() -> String {
         // Allow override for testing
         if let override = ProcessInfo.processInfo.environment["KEYPATH_LAUNCHCTL_PATH"],
-           !override.isEmpty {
+           !override.isEmpty
+        {
             return override
         }
         return "/bin/launchctl"
@@ -401,24 +403,33 @@ final class ServiceBootstrapper {
     }
 
     /// Generate the log rotation shell script
+    /// Handles both stdout and stderr logs for the Kanata service
     private func generateLogRotationScript() -> String {
         """
         #!/bin/bash
         # KeyPath Log Rotation Script - keeps logs under 10MB
-        LOG_FILE="/var/log/kanata.log"
+        # Rotates both stdout and stderr logs for com.keypath.kanata
         MAX_SIZE=$((10 * 1024 * 1024))  # 10MB
+        LOG_FILES=(
+            "/var/log/com.keypath.kanata.stdout.log"
+            "/var/log/com.keypath.kanata.stderr.log"
+        )
 
-        if [[ -f "$LOG_FILE" ]]; then
-            size=$(stat -f%z "$LOG_FILE" 2>/dev/null || echo 0)
-            if [[ $size -gt $MAX_SIZE ]]; then
-                # Rotate logs: remove old backup, move current to .1
-                [[ -f "${LOG_FILE}.1" ]] && rm -f "${LOG_FILE}.1"
-                mv "$LOG_FILE" "${LOG_FILE}.1"
-                touch "$LOG_FILE"
-                chmod 644 "$LOG_FILE"
-                echo "$(date): Rotated kanata.log ($size bytes)" >> /var/log/keypath-rotation.log
+        for LOG_FILE in "${LOG_FILES[@]}"; do
+            if [[ -f "$LOG_FILE" ]]; then
+                size=$(stat -f%z "$LOG_FILE" 2>/dev/null || echo 0)
+                if [[ $size -gt $MAX_SIZE ]]; then
+                    # Rotate logs: keep up to 3 backups
+                    [[ -f "${LOG_FILE}.3" ]] && rm -f "${LOG_FILE}.3"
+                    [[ -f "${LOG_FILE}.2" ]] && mv "${LOG_FILE}.2" "${LOG_FILE}.3"
+                    [[ -f "${LOG_FILE}.1" ]] && mv "${LOG_FILE}.1" "${LOG_FILE}.2"
+                    mv "$LOG_FILE" "${LOG_FILE}.1"
+                    touch "$LOG_FILE"
+                    chmod 644 "$LOG_FILE"
+                    echo "$(date): Rotated $LOG_FILE ($size bytes)" >> /var/log/keypath-rotation.log
+                fi
             fi
-        fi
+        done
         """
     }
 
@@ -427,14 +438,19 @@ final class ServiceBootstrapper {
         AppLogger.shared.log("🔄 [ServiceBootstrapper] Immediately rotating current large log files")
 
         let command = """
-        [[ -f /var/log/kanata.log ]] && \
-        size=$(stat -f%z /var/log/kanata.log 2>/dev/null || echo 0) && \
-        if [[ $size -gt 5242880 ]]; then \
-            echo "Rotating kanata.log ($size bytes)"; \
-            [[ -f /var/log/kanata.log.1 ]] && rm -f /var/log/kanata.log.1; \
-            mv /var/log/kanata.log /var/log/kanata.log.1; \
-            touch /var/log/kanata.log && chmod 644 /var/log/kanata.log; \
-        fi
+        for LOG_FILE in /var/log/com.keypath.kanata.stdout.log /var/log/com.keypath.kanata.stderr.log; do
+            if [[ -f "$LOG_FILE" ]]; then
+                size=$(stat -f%z "$LOG_FILE" 2>/dev/null || echo 0)
+                if [[ $size -gt 5242880 ]]; then
+                    echo "Rotating $LOG_FILE ($size bytes)"
+                    [[ -f "${LOG_FILE}.3" ]] && rm -f "${LOG_FILE}.3"
+                    [[ -f "${LOG_FILE}.2" ]] && mv "${LOG_FILE}.2" "${LOG_FILE}.3"
+                    [[ -f "${LOG_FILE}.1" ]] && mv "${LOG_FILE}.1" "${LOG_FILE}.2"
+                    mv "$LOG_FILE" "${LOG_FILE}.1"
+                    touch "$LOG_FILE" && chmod 644 "$LOG_FILE"
+                fi
+            fi
+        done
         """
 
         do {

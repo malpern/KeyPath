@@ -804,9 +804,7 @@ extension HelperService {
         """
         #!/bin/bash
         set -euo pipefail
-        LOG_DIR="/Library/Logs/KeyPath"
-        mkdir -p "$LOG_DIR"
-        MAX_SIZE_BYTES=$((10 * 1024 * 1024))
+        MAX_SIZE_BYTES=$((10 * 1024 * 1024))  # 10MB
 
         rotate_log() {
             local logfile="$1"
@@ -814,7 +812,10 @@ extension HelperService {
                 local size=$(stat -f%z "$logfile" 2>/dev/null || echo 0)
                 if [[ $size -gt $MAX_SIZE_BYTES ]]; then
                     echo "$(date): Rotating $logfile (size: $size bytes)"
-                    [[ -f "$logfile.1" ]] && rm -f "$logfile.1"
+                    # Keep up to 3 backups
+                    [[ -f "$logfile.3" ]] && rm -f "$logfile.3"
+                    [[ -f "$logfile.2" ]] && mv "$logfile.2" "$logfile.3"
+                    [[ -f "$logfile.1" ]] && mv "$logfile.1" "$logfile.2"
                     mv "$logfile" "$logfile.1"
                     touch "$logfile" && chmod 644 "$logfile" && chown root:wheel "$logfile" 2>/dev/null || true
                     echo "$(date): Log rotation completed for $logfile"
@@ -822,10 +823,9 @@ extension HelperService {
             fi
         }
 
-        rotate_log "$LOG_DIR/kanata.log"
-        for logfile in "$LOG_DIR"/keypath*.log; do
-            [[ -f "$logfile" ]] && rotate_log "$logfile"
-        done
+        # Rotate Kanata daemon logs (primary logs that can grow large)
+        rotate_log "/var/log/com.keypath.kanata.stdout.log"
+        rotate_log "/var/log/com.keypath.kanata.stderr.log"
         """
     }
 
@@ -919,7 +919,8 @@ extension HelperService {
     }
 
     private static func generateKanataPlist(binaryPath: String, cfgPath: String, tcpPort: Int)
-        -> String {
+        -> String
+    {
         let args = kanataArguments(binaryPath: binaryPath, cfgPath: cfgPath, tcpPort: tcpPort)
         let argsXML = args.map { "                <string>\($0)</string>" }.joined(separator: "\n")
         return """

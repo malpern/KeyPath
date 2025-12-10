@@ -9,6 +9,8 @@ struct RootView: View {
     @State private var showingValidationError = false
     @State private var validationErrorMessage = ""
     @State private var showingWhatsNew = false
+    @State private var showingConfigParseError = false
+    @State private var configParseErrorMessage = ""
 
     var body: some View {
         ZStack {
@@ -82,6 +84,31 @@ struct RootView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(validationErrorMessage)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .kanataConfigErrorDetected)) { notification in
+            // Extract error details from notification
+            if let error = notification.object as? KanataError {
+                configParseErrorMessage = """
+                Kanata cannot start due to a configuration error:
+
+                \(error.message)
+
+                Please check your configuration file for syntax errors.
+                """
+                showingConfigParseError = true
+            }
+        }
+        .alert("Kanata Configuration Error", isPresented: $showingConfigParseError) {
+            Button("Open Config File") {
+                let configPath = "\(NSHomeDirectory())/.config/keypath/keypath.kbd"
+                NSWorkspace.shared.open(URL(fileURLWithPath: configPath))
+            }
+            Button("Open Diagnostics") {
+                NotificationCenter.default.post(name: .showDiagnostics, object: nil)
+            }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(configParseErrorMessage)
         }
     }
 }

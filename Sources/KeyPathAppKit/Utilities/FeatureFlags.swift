@@ -37,7 +37,8 @@ enum ReleaseMilestone: Int, Comparable, CaseIterable {
     /// The current active milestone (may be overridden at runtime via secret toggle)
     static var current: ReleaseMilestone {
         if let override = UserDefaults.standard.object(forKey: userDefaultsKey) as? Int,
-           let milestone = ReleaseMilestone(rawValue: override) {
+           let milestone = ReleaseMilestone(rawValue: override)
+        {
             return milestone
         }
         return defaultMilestone

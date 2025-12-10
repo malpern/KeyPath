@@ -140,6 +140,16 @@ final class KanataErrorMonitor: ObservableObject {
     // MARK: - Critical Error Patterns
 
     private lazy var errorPatterns: [ErrorPattern] = [
+        // Configuration parse errors - CRITICAL
+        // These prevent Kanata from starting and cause crash loops
+        ErrorPattern(
+            pattern: "failed to parse file|Error in configuration|requires \\d+ to match defsrc",
+            severity: .critical,
+            userMessage: "Configuration file has errors - Kanata cannot start",
+            patternName: "config_parse_error",
+            toastThreshold: 1
+        ),
+
         // File descriptor exhaustion - CRITICAL
         ErrorPattern(
             pattern: "Too many open files|file descriptor|Os \\{ code: 24",
@@ -219,7 +229,8 @@ final class KanataErrorMonitor: ObservableObject {
 
         // Get current file size to start reading from end
         if let attrs = try? FileManager.default.attributesOfItem(atPath: stderrPath),
-           let fileSize = attrs[.size] as? UInt64 {
+           let fileSize = attrs[.size] as? UInt64
+        {
             lastFilePosition = fileSize
             AppLogger.shared.debug("[ErrorMonitor] Starting from file position: \(fileSize)")
         }
@@ -388,6 +399,15 @@ final class KanataErrorMonitor: ObservableObject {
             UserFeedbackService.show(message: message)
             // Also post notification to make health indicator more visible
             NotificationCenter.default.post(name: .kanataErrorDetected, object: error)
+
+            // Post specific notification for config errors so UI can show modal
+            if error.pattern == "config_parse_error" {
+                NotificationCenter.default.post(
+                    name: .kanataConfigErrorDetected,
+                    object: error,
+                    userInfo: ["rawLine": error.rawLine]
+                )
+            }
         }
     }
 
@@ -420,4 +440,5 @@ extension Notification.Name {
     static let showDiagnostics = Notification.Name("com.keypath.showDiagnostics")
     static let showErrorsTab = Notification.Name("com.keypath.showErrorsTab")
     static let kanataErrorDetected = Notification.Name("com.keypath.kanataErrorDetected")
+    static let kanataConfigErrorDetected = Notification.Name("com.keypath.kanataConfigErrorDetected")
 }

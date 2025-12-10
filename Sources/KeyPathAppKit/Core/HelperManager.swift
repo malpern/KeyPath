@@ -465,7 +465,8 @@ actor HelperManager {
         ]
         for path in fileCandidates {
             if FileManager.default.fileExists(atPath: path),
-               let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: path)) {
+               let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: path))
+            {
                 let data = try? handle.readToEnd()
                 let s = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
                 let lines = s.split(separator: "\n").map(String.init)
@@ -939,7 +940,8 @@ extension HelperManager {
             var plistRequirement: String?
             if let info = NSDictionary(contentsOfFile: bundlePath + "/Contents/Info.plist"),
                let sm = (info["SMPrivilegedExecutables"] as? NSDictionary)?[Self.helperBundleIdentifier]
-               as? String {
+               as? String
+            {
                 plistRequirement = sm
                 if !req.contains("com.keypath.helper") {
                     warnings.append(

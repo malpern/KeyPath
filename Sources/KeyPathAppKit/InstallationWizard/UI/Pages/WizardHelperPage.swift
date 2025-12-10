@@ -94,22 +94,26 @@ struct WizardHelperPage: View {
 
     private var loginItemsScreenshot: NSImage? {
         if let url = Bundle.main.url(forResource: "permissions-login-items2", withExtension: "png"),
-           let image = NSImage(contentsOf: url) {
+           let image = NSImage(contentsOf: url)
+        {
             return image
         }
 
         if let url = Bundle.main.url(forResource: "permissions-login-items", withExtension: "png"),
-           let image = NSImage(contentsOf: url) {
+           let image = NSImage(contentsOf: url)
+        {
             return image
         }
 
         if let url = Bundle.module.url(forResource: "permissions-login-items2", withExtension: "png"),
-           let image = NSImage(contentsOf: url) {
+           let image = NSImage(contentsOf: url)
+        {
             return image
         }
 
         if let url = Bundle.module.url(forResource: "permissions-login-items", withExtension: "png"),
-           let image = NSImage(contentsOf: url) {
+           let image = NSImage(contentsOf: url)
+        {
             return image
         }
 
@@ -336,7 +340,8 @@ struct WizardHelperPage: View {
 
             // If approval is required, offer a quick link to System Settings
             if case let .error(message) = actionStatus,
-               message.localizedCaseInsensitiveContains("approval required") {
+               message.localizedCaseInsensitiveContains("approval required")
+            {
                 Button("Open System Settings → Login Items") {
                     openLoginItemsSettings()
                 }
@@ -494,7 +499,8 @@ struct WizardHelperPage: View {
 
         Task {
             if let next = await navigationCoordinator.getNextPage(for: systemState, issues: issues),
-               next != navigationCoordinator.currentPage {
+               next != navigationCoordinator.currentPage
+            {
                 navigationCoordinator.navigateToPage(next)
             } else {
                 navigationCoordinator.navigateToPage(.summary)
@@ -515,12 +521,14 @@ struct WizardHelperPage: View {
             let axApp = AXUIElementCreateApplication(app.processIdentifier)
             var windows: CFTypeRef?
             if AXUIElementCopyAttributeValue(axApp, "AXWindows" as CFString, &windows) == .success,
-               let windowList = windows as? [AXUIElement] {
+               let windowList = windows as? [AXUIElement]
+            {
                 for window in windowList {
                     // Prefer pressing the close button; fallback to AXClose.
                     var closeButton: CFTypeRef?
                     if AXUIElementCopyAttributeValue(window, "AXCloseButton" as CFString, &closeButton) == .success,
-                       let button = closeButton {
+                       let button = closeButton
+                    {
                         AXUIElementPerformAction(button as! AXUIElement, "AXPress" as CFString)
                     } else {
                         _ = AXUIElementPerformAction(window, "AXClose" as CFString)

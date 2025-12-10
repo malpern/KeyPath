@@ -164,7 +164,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         // Restore overlay if it was auto-hidden recently and user hasn't manually shown it
         if let hiddenAt = autoHiddenTimestamp,
            Date().timeIntervalSince(hiddenAt) < restoreWindowDuration,
-           !isVisible {
+           !isVisible
+        {
             isVisible = true
         }
     }
