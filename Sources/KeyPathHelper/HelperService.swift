@@ -612,7 +612,12 @@ class HelperService: NSObject, HelperProtocol {
             "/var/log/karabiner-vhid-manager.log",
             "/var/log/keypath-logrotate.log",
             "/var/log/com.keypath.helper.stdout.log",
-            "/var/log/com.keypath.helper.stderr.log"
+            "/var/log/com.keypath.helper.stderr.log",
+            "/var/log/com.keypath.kanata.stdout.log",
+            "/var/log/com.keypath.kanata.stderr.log",
+            // Kanata launcher state files
+            "/var/tmp/keypath-startup-blocked",
+            "/var/tmp/keypath-vhid-retry-count"
         ]
         for log in logs {
             if FileManager.default.fileExists(atPath: log) {

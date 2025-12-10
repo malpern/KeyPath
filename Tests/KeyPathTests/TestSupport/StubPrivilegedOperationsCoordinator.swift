@@ -94,6 +94,10 @@ final class StubPrivilegedOperationsCoordinator: PrivilegedOperationsCoordinatin
         try record("sudoExecuteCommand:\(command)")
     }
 
+    func clearKanataStartupBlockedState() async throws {
+        try record("clearKanataStartupBlockedState")
+    }
+
     enum StubError: Error {
         case forced
     }

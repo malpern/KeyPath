@@ -1124,6 +1124,8 @@ struct InstallationWizardView: View {
                 "Fix Karabiner driver version (v6 → v5)"
             case .installCorrectVHIDDriver:
                 "Install Karabiner VirtualHID driver"
+            case .clearStartupBlockedState:
+                "Clear startup blocked state and restart Kanata"
             }
 
         AppLogger.shared.log("🔍 [ActionDescription] Returning description: \(description)")

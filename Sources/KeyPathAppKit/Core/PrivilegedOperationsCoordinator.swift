@@ -23,6 +23,7 @@ protocol PrivilegedOperationsCoordinating: AnyObject {
     func uninstallVirtualHIDDrivers() async throws
     func disableKarabinerGrabber() async throws
     func sudoExecuteCommand(_ command: String, description: String) async throws
+    func clearKanataStartupBlockedState() async throws
 }
 
 /// Coordinates all privileged operations with hybrid approach (helper vs direct sudo)
@@ -919,6 +920,15 @@ final class PrivilegedOperationsCoordinator {
                 output: result.output
             )
         }
+    }
+
+    /// Clear Kanata startup blocked state files
+    /// Called when kanata-launcher gave up after max retries (VHID not ready at boot)
+    func clearKanataStartupBlockedState() async throws {
+        AppLogger.shared.log("🧹 [PrivCoordinator] Clearing Kanata startup blocked state")
+        let command = "rm -f /var/tmp/keypath-startup-blocked /var/tmp/keypath-vhid-retry-count"
+        try await sudoExecuteCommand(command, description: "Clear Kanata startup blocked state")
+        AppLogger.shared.log("✅ [PrivCoordinator] Startup blocked state cleared")
     }
 
     // MARK: - Helper Methods

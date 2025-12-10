@@ -20,6 +20,10 @@ echo "🔐 Building privileged helper..."
 # Build and sign the helper tool
 ./Scripts/build-helper.sh
 
+echo "🚀 Building kanata launcher..."
+# Build kanata launcher (Swift binary for SMAppService)
+swift build --configuration release --product KanataLauncher
+
 echo "🏗️  Building KeyPath..."
 # Build main app (disable whole-module optimization to avoid hang)
 swift build --configuration release --product KeyPath -Xswiftc -no-whole-module-optimization
@@ -50,8 +54,8 @@ ditto "build/kanata-universal" "$CONTENTS/Library/KeyPath/kanata"
 # Copy bundled kanata simulator binary
 ditto "build/kanata-simulator" "$CONTENTS/Library/KeyPath/kanata-simulator"
 
-# Copy kanata launcher script to enforce absolute config paths
-KANATA_LAUNCHER_SRC="Scripts/kanata-launcher.sh"
+# Copy compiled kanata launcher binary (replaces shell script for SMAppService signing)
+KANATA_LAUNCHER_SRC="$BUILD_DIR/KanataLauncher"
 KANATA_LAUNCHER_DST="$CONTENTS/Library/KeyPath/kanata-launcher"
 ditto "$KANATA_LAUNCHER_SRC" "$KANATA_LAUNCHER_DST"
 chmod 755 "$KANATA_LAUNCHER_DST"
@@ -168,6 +172,9 @@ kp_sign "$CONTENTS/Library/KeyPath/kanata" --force --options=runtime --sign "$SI
 
 # Sign bundled kanata simulator binary
 kp_sign "$CONTENTS/Library/KeyPath/kanata-simulator" --force --options=runtime --sign "$SIGNING_IDENTITY"
+
+# Sign kanata launcher binary (required for SMAppService)
+kp_sign "$CONTENTS/Library/KeyPath/kanata-launcher" --force --options=runtime --sign "$SIGNING_IDENTITY"
 
 # Sign embedded Sparkle binaries (inner → outer)
 SPARKLE_BINS=(

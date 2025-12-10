@@ -112,6 +112,9 @@ struct SystemContextAdapter {
         if !context.components.vhidServicesHealthy {
             missing.append(.launchDaemonServices)
         }
+        if context.components.kanataStartupBlocked {
+            missing.append(.kanataStartupBlocked)
+        }
 
         return missing
     }
@@ -208,6 +211,20 @@ struct SystemContextAdapter {
                     description: "Karabiner VirtualHID services (daemon and manager) are not healthy",
                     autoFixAction: .installLaunchDaemonServices,
                     userAction: nil
+                ))
+        }
+        // Startup blocked: kanata-launcher gave up after max retries (VHID not ready at boot)
+        if context.components.kanataStartupBlocked {
+            issues.append(
+                WizardIssue(
+                    identifier: .component(.kanataStartupBlocked),
+                    severity: .error,
+                    category: .daemon,
+                    title: "Kanata Startup Blocked",
+                    description:
+                        "Kanata launcher gave up after the VirtualHID daemon wasn't available at boot. This can happen if the driver wasn't fully activated when your Mac started.",
+                    autoFixAction: .clearStartupBlockedState,
+                    userAction: "Click 'Fix' to clear the retry state and restart Kanata"
                 ))
         }
 

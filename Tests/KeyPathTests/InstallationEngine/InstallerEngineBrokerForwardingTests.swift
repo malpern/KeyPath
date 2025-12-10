@@ -80,4 +80,6 @@ private final class PrivilegedCoordinatorStub: PrivilegedOperationsCoordinating 
     }
 
     func sudoExecuteCommand(_: String, description _: String) async throws {}
+    func clearKanataStartupBlockedState() async throws {}
+    func stopKanataService() async throws {}
 }

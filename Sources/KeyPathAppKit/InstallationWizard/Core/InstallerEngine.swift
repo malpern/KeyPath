@@ -394,6 +394,12 @@ public final class InstallerEngine {
     /// Includes pre-check for VHID Manager activation (per Karabiner documentation)
     private func executeRestartService(_ recipe: ServiceRecipe, using broker: PrivilegeBroker)
         async throws {
+        // Special case: clear startup blocked state before restarting
+        if recipe.id == "clear-startup-blocked-state" {
+            AppLogger.shared.log("🧹 [InstallerEngine] Clearing startup blocked state files")
+            try await broker.clearKanataStartupBlockedState()
+        }
+
         // CRITICAL: Ensure VHID Manager is activated before restarting services
         let vhidManager = VHIDDeviceManager()
         if !vhidManager.detectActivation() {

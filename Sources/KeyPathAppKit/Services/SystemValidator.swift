@@ -375,6 +375,14 @@ class SystemValidator {
     private func checkComponents() async -> ComponentStatus {
         AppLogger.shared.log("🔍 [SystemValidator] Checking components")
 
+        // Check if kanata-launcher gave up after max retries (VHID not ready at boot)
+        let startupBlockedFile = "/var/tmp/keypath-startup-blocked"
+        let kanataStartupBlocked = FileManager.default.fileExists(atPath: startupBlockedFile)
+        if kanataStartupBlocked {
+            AppLogger.shared.log(
+                "⚠️ [SystemValidator] Kanata startup blocked - launcher gave up after max retries")
+        }
+
         // Check Kanata binary installation
         // When SMAppService is active, bundled Kanata is sufficient (via BundleProgram).
         // When launchctl is active, system installation is required (for TCC permissions).
@@ -407,7 +415,7 @@ class SystemValidator {
 
         AppLogger.shared
             .log(
-                "🔍 [SystemValidator] Components: kanata=\(kanataBinaryInstalled), driver=\(karabinerDriverInstalled), daemon=\(karabinerDaemonRunning), vhid=\(vhidHealthy), vhidServices=\(vhidServicesHealthy), vhidVersionMismatch=\(vhidVersionMismatch)"
+                "🔍 [SystemValidator] Components: kanata=\(kanataBinaryInstalled), driver=\(karabinerDriverInstalled), daemon=\(karabinerDaemonRunning), vhid=\(vhidHealthy), vhidServices=\(vhidServicesHealthy), vhidVersionMismatch=\(vhidVersionMismatch), startupBlocked=\(kanataStartupBlocked)"
             )
 
         return ComponentStatus(
@@ -418,7 +426,8 @@ class SystemValidator {
             vhidDeviceHealthy: vhidHealthy,
             launchDaemonServicesHealthy: launchDaemonServicesHealthy,
             vhidServicesHealthy: vhidServicesHealthy,
-            vhidVersionMismatch: vhidVersionMismatch
+            vhidVersionMismatch: vhidVersionMismatch,
+            kanataStartupBlocked: kanataStartupBlocked
         )
     }
 

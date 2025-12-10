@@ -543,11 +543,11 @@ enum CommunicationStatus: Equatable {
     var fixButtonText: String {
         switch self {
         case .needsSetup:
-            "Regenerate Service Configuration"
+            "Regenerate Config"
         case .authRequired:
             "Setup Authentication"
         default:
-            "Fix Issue"
+            "Fix"
         }
     }
 }

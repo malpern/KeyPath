@@ -38,6 +38,10 @@ let package = Package(
         .executable(
             name: "smappservice-poc",
             targets: ["SMAppServicePOC"]
+        ),
+        .executable(
+            name: "KanataLauncher",
+            targets: ["KanataLauncher"]
         )
     ],
     dependencies: [
@@ -144,6 +148,15 @@ let package = Package(
                     "-Xlinker", "__info_plist",
                     "-Xlinker", "Sources/KeyPathHelper/Info.plist"
                 ])
+            ]
+        ),
+        // Kanata launcher - signed binary for SMAppService
+        .executableTarget(
+            name: "KanataLauncher",
+            dependencies: [],
+            path: "Sources/KanataLauncher",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
             ]
         ),
         // SMAppService POC test utility

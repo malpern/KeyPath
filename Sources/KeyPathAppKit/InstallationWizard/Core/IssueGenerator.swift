@@ -339,6 +339,7 @@ class IssueGenerator {
         case .tcpServerConfiguration: "TCP Server Configuration Outdated"
         case .tcpServerNotResponding: "TCP Server Not Responding"
         case .logRotation: "Log Rotation Recommended"
+        case .kanataStartupBlocked: "Kanata Startup Blocked"
         }
     }
 
@@ -412,6 +413,12 @@ class IssueGenerator {
             """
         case .logRotation:
             "Install log rotation to automatically manage Kanata logs and keep them under 10MB total. This prevents performance issues from large log files."
+        case .kanataStartupBlocked:
+            """
+            Kanata failed to start because the Karabiner driver wasn't ready at boot time.
+
+            The launcher gave up after 3 attempts. The driver is now running, so clicking Fix will clear the retry state and restart Kanata.
+            """
         }
     }
 
@@ -449,6 +456,8 @@ class IssueGenerator {
             .enableTCPServer // Enable TCP server functionality
         case .logRotation:
             .installLogRotation
+        case .kanataStartupBlocked:
+            .clearStartupBlockedState
         default:
             .installMissingComponents
         }
@@ -474,6 +483,8 @@ class IssueGenerator {
             "Click 'Fix' to restart the service with TCP functionality"
         case .logRotation:
             "Click 'Fix' to install log rotation service"
+        case .kanataStartupBlocked:
+            "Click 'Fix' to clear retry state and restart Kanata"
         default:
             nil
         }

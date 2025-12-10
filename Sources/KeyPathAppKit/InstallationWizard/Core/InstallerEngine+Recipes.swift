@@ -204,6 +204,13 @@ extension InstallerEngine {
                 type: .checkRequirement,
                 serviceID: nil
             )
+
+        case .clearStartupBlockedState:
+            ServiceRecipe(
+                id: "clear-startup-blocked-state",
+                type: .restartService,
+                serviceID: KeyPathConstants.Bundle.daemonID
+            )
         }
     }
 
@@ -266,6 +273,8 @@ extension InstallerEngine {
             "replace-kanata-with-bundled"
         case .synchronizeConfigPaths:
             "synchronize-config-paths"
+        case .clearStartupBlockedState:
+            "clear-startup-blocked-state"
         }
     }
 }

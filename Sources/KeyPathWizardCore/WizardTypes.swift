@@ -157,6 +157,7 @@ public enum ComponentRequirement: Equatable, Sendable {
     case tcpServerConfiguration // TCP enabled but not configured in service
     case tcpServerNotResponding // TCP configured but not responding
     case logRotation // Log rotation service to manage Kanata logs
+    case kanataStartupBlocked // Kanata launcher gave up after max retries (VHID not ready at boot)
 }
 
 /// Actions that can be automatically fixed by the wizard
@@ -184,6 +185,7 @@ public enum AutoFixAction: Equatable, Sendable {
     case restartCommServer // Restart service to enable TCP functionality
     case fixDriverVersionMismatch // Download and install correct Karabiner driver version (v5 for kanata v1.9.0)
     case installCorrectVHIDDriver // Download and install the correct driver when missing (helper-first)
+    case clearStartupBlockedState // Clear retry state files and restart kanata service
 }
 
 /// Structured identifier for wizard issues to enable type-safe navigation

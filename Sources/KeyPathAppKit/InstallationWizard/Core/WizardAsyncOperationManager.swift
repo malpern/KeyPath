@@ -708,6 +708,8 @@ extension AutoFixAction {
             "Fix Karabiner Driver Version"
         case .installCorrectVHIDDriver:
             "Install Karabiner Driver"
+        case .clearStartupBlockedState:
+            "Clear Startup Blocked State"
         }
     }
 }

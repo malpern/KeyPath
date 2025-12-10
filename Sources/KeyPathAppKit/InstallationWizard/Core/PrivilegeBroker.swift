@@ -110,4 +110,10 @@ public struct PrivilegeBroker {
     public func sudoExecuteCommand(_ command: String, description: String) async throws {
         try await coordinator.sudoExecuteCommand(command, description: description)
     }
+
+    /// Clear Kanata startup blocked state files and restart service
+    /// Called when kanata-launcher gave up after max retries (VHID not ready at boot)
+    public func clearKanataStartupBlockedState() async throws {
+        try await coordinator.clearKanataStartupBlockedState()
+    }
 }

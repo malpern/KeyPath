@@ -173,6 +173,9 @@ public struct ComponentStatus: Sendable {
     /// Use for Karabiner Components page which should only care about VHID, not Kanata
     public let vhidServicesHealthy: Bool
     public let vhidVersionMismatch: Bool
+    /// Kanata launcher gave up after max retries (VHID wasn't ready at boot time)
+    /// User needs to clear retry state and restart the service
+    public let kanataStartupBlocked: Bool
 
     public init(
         kanataBinaryInstalled: Bool,
@@ -182,7 +185,8 @@ public struct ComponentStatus: Sendable {
         vhidDeviceHealthy: Bool,
         launchDaemonServicesHealthy: Bool,
         vhidServicesHealthy: Bool,
-        vhidVersionMismatch: Bool
+        vhidVersionMismatch: Bool,
+        kanataStartupBlocked: Bool = false
     ) {
         self.kanataBinaryInstalled = kanataBinaryInstalled
         self.karabinerDriverInstalled = karabinerDriverInstalled
@@ -192,11 +196,12 @@ public struct ComponentStatus: Sendable {
         self.launchDaemonServicesHealthy = launchDaemonServicesHealthy
         self.vhidServicesHealthy = vhidServicesHealthy
         self.vhidVersionMismatch = vhidVersionMismatch
+        self.kanataStartupBlocked = kanataStartupBlocked
     }
 
     public var hasAllRequired: Bool {
         kanataBinaryInstalled && karabinerDriverInstalled && karabinerDaemonRunning && vhidDeviceHealthy
-            && launchDaemonServicesHealthy && !vhidVersionMismatch
+            && launchDaemonServicesHealthy && !vhidVersionMismatch && !kanataStartupBlocked
     }
 
     /// Convenience factory for empty/fallback state
