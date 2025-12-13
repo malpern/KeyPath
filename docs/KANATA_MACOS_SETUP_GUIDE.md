@@ -67,7 +67,7 @@ This is **absolutely essential** - Kanata cannot function without it.
 
 #### 1. Download the driver
 - Visit: https://github.com/pqrs-org/Karabiner-DriverKit-VirtualHIDDevice/releases
-- Download the latest `.pkg` file (e.g., `Karabiner-DriverKit-VirtualHIDDevice-6.0.0.pkg`)
+- Download the latest `.pkg` file (e.g., `Karabiner-DriverKit-VirtualHIDDevice-6.7.0.pkg`)
 
 #### 2. Install the package
 - Double-click the `.pkg` file and follow the installer

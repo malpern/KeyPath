@@ -73,7 +73,7 @@ final class SystemRequirementsChecker {
     /// Check if KeyPath has all required permissions
     func hasAllRequiredPermissions() async -> Bool {
         let snapshot = await PermissionOracle.shared.currentSnapshot()
-        return snapshot.keyPath.hasAllPermissions
+        return snapshot.isSystemReady
     }
 
     /// Check permissions for both KeyPath and Kanata with detailed information
@@ -89,9 +89,8 @@ final class SystemRequirementsChecker {
         let keyPathHasAccessibility = snapshot.keyPath.accessibility.isReady
 
         let keyPathOverall = keyPathHasInputMonitoring && keyPathHasAccessibility
-        // NOTE: Kanata does NOT need TCC permissions - it uses the Karabiner VirtualHIDDevice
-        // driver and runs as root via SMAppService/LaunchDaemon
-        let kanataOverall = true
+        let kanataHasInputMonitoring = snapshot.kanata.inputMonitoring.isReady
+        let kanataOverall = kanataHasInputMonitoring
 
         let details = """
         KeyPath.app (\(keyPathPath)):
@@ -99,7 +98,7 @@ final class SystemRequirementsChecker {
         - Accessibility: \(keyPathHasAccessibility ? "✅" : "❌")
 
         kanata (\(kanataPath)):
-        - (Kanata uses Karabiner driver - no TCC permissions needed) ✅
+        - Input Monitoring: \(kanataHasInputMonitoring ? "✅" : "❌")
         """
 
         return (keyPathOverall, kanataOverall, details)

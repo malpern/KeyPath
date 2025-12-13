@@ -228,7 +228,8 @@ public enum WizardSystemPaths {
 
     /// The bundled VHID driver version - single source of truth
     /// Update this when bundling a new driver version
-    public static let bundledVHIDDriverVersion = "6.0.0"
+    /// NOTE: Kanata v1.10.0 requires driver v6.2.0+, we bundle v6.7.0 (latest as of Dec 2025)
+    public static let bundledVHIDDriverVersion = "6.7.0"
 
     /// The bundled VHID driver major version (for compatibility checks)
     public static var bundledVHIDDriverMajorVersion: Int {

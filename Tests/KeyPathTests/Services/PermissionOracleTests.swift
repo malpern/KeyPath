@@ -76,10 +76,8 @@ struct PermissionOracleTests {
 
     // MARK: - Snapshot Tests
 
-    @Test("Snapshot.isSystemReady requires only KeyPath to have all permissions")
+    @Test("Snapshot.isSystemReady requires KeyPath + Kanata Input Monitoring")
     func snapshotSystemReady() {
-        // NOTE: Kanata does NOT need TCC permissions - it uses the Karabiner VirtualHIDDevice
-        // driver and runs as root via SMAppService/LaunchDaemon
         let now = Date()
         let granted = PermissionOracle.PermissionSet(
             accessibility: .granted,
@@ -100,10 +98,10 @@ struct PermissionOracleTests {
         // KeyPath fully granted (Kanata status doesn't matter)
         let keyPathGranted = PermissionOracle.Snapshot(
             keyPath: granted,
-            kanata: denied, // Kanata denied but shouldn't affect isSystemReady
+            kanata: denied,
             timestamp: now
         )
-        #expect(keyPathGranted.isSystemReady == true)
+        #expect(keyPathGranted.isSystemReady == false)
 
         // KeyPath missing permissions
         let keyPathMissing = PermissionOracle.Snapshot(
@@ -124,7 +122,6 @@ struct PermissionOracleTests {
 
     @Test("Snapshot.blockingIssue identifies first blocker")
     func snapshotBlockingIssue() {
-        // NOTE: Kanata does NOT need TCC permissions - only KeyPath blocking issues matter
         let now = Date()
 
         // No issues
@@ -135,16 +132,9 @@ struct PermissionOracleTests {
             confidence: .high,
             timestamp: now
         )
-        let denied = PermissionOracle.PermissionSet(
-            accessibility: .denied,
-            inputMonitoring: .denied,
-            source: "test",
-            confidence: .high,
-            timestamp: now
-        )
         let noIssues = PermissionOracle.Snapshot(
             keyPath: granted,
-            kanata: denied, // Kanata denied but shouldn't create blocking issue
+            kanata: granted,
             timestamp: now
         )
         #expect(noIssues.blockingIssue == nil)
@@ -304,12 +294,10 @@ struct PermissionOracleTests {
         #expect(timestamp2 >= timestamp1)
     }
 
-    // MARK: - ADR-026: Kanata Does NOT Need TCC Permissions
+    // MARK: - Kanata Input Monitoring Requirement
 
-    @Test("ADR-026: isSystemReady ignores Kanata permissions completely")
-    func adr026_isSystemReadyIgnoresKanata() {
-        // ADR-026: Kanata uses Karabiner VirtualHIDDevice driver, not TCC.
-        // System should be ready when KeyPath has permissions, regardless of Kanata.
+    @Test("System readiness requires Kanata Input Monitoring")
+    func systemReadyRequiresKanataInputMonitoring() {
         let now = Date()
 
         let keyPathGranted = PermissionOracle.PermissionSet(
@@ -320,46 +308,39 @@ struct PermissionOracleTests {
             timestamp: now
         )
 
-        // Test all possible Kanata permission states - none should affect isSystemReady
-        let kanataStates: [PermissionOracle.PermissionSet] = [
-            // Both denied
-            PermissionOracle.PermissionSet(
-                accessibility: .denied, inputMonitoring: .denied,
-                source: "test", confidence: .high, timestamp: now
-            ),
-            // Both unknown
-            PermissionOracle.PermissionSet(
-                accessibility: .unknown, inputMonitoring: .unknown,
-                source: "test", confidence: .low, timestamp: now
-            ),
-            // Both error
-            PermissionOracle.PermissionSet(
-                accessibility: .error("fail"), inputMonitoring: .error("fail"),
-                source: "test", confidence: .low, timestamp: now
-            ),
-            // Mixed states
-            PermissionOracle.PermissionSet(
-                accessibility: .denied, inputMonitoring: .granted,
-                source: "test", confidence: .high, timestamp: now
-            )
-        ]
+        // Kanata IM denied blocks readiness
+        let kanataDenied = PermissionOracle.PermissionSet(
+            accessibility: .granted,
+            inputMonitoring: .denied,
+            source: "test",
+            confidence: .high,
+            timestamp: now
+        )
+        let deniedSnapshot = PermissionOracle.Snapshot(
+            keyPath: keyPathGranted,
+            kanata: kanataDenied,
+            timestamp: now
+        )
+        #expect(deniedSnapshot.isSystemReady == false)
 
-        for kanataState in kanataStates {
-            let snapshot = PermissionOracle.Snapshot(
-                keyPath: keyPathGranted,
-                kanata: kanataState,
-                timestamp: now
-            )
-            #expect(
-                snapshot.isSystemReady == true,
-                "isSystemReady should be true regardless of Kanata state: \(kanataState)"
-            )
-        }
+        // Kanata IM granted allows readiness (Kanata AX should not matter)
+        let kanataGranted = PermissionOracle.PermissionSet(
+            accessibility: .denied,
+            inputMonitoring: .granted,
+            source: "test",
+            confidence: .high,
+            timestamp: now
+        )
+        let grantedSnapshot = PermissionOracle.Snapshot(
+            keyPath: keyPathGranted,
+            kanata: kanataGranted,
+            timestamp: now
+        )
+        #expect(grantedSnapshot.isSystemReady == true)
     }
 
-    @Test("ADR-026: blockingIssue never mentions Kanata")
-    func adr026_blockingIssueNeverMentionsKanata() {
-        // ADR-026: blockingIssue should only report KeyPath permission issues
+    @Test("blockingIssue mentions Kanata when Kanata IM missing")
+    func blockingIssueMentionsKanataWhenMissing() {
         let now = Date()
 
         let keyPathGranted = PermissionOracle.PermissionSet(
@@ -378,16 +359,18 @@ struct PermissionOracleTests {
             timestamp: now
         )
 
-        // Even when Kanata is denied, blockingIssue should be nil (KeyPath is fine)
+        // When KeyPath is fine but Kanata IM is missing, blockingIssue should mention Kanata IM
         let snapshot = PermissionOracle.Snapshot(
             keyPath: keyPathGranted,
             kanata: kanataDenied,
             timestamp: now
         )
 
-        #expect(snapshot.blockingIssue == nil, "No blocking issue when KeyPath has permissions")
+        let issue = snapshot.blockingIssue ?? ""
+        #expect(issue.contains("Kanata"))
+        #expect(issue.contains("Input Monitoring"))
 
-        // And when there IS a blocking issue, it should mention KeyPath, not Kanata
+        // And when KeyPath is missing, KeyPath should be reported first
         let keyPathDenied = PermissionOracle.PermissionSet(
             accessibility: .denied,
             inputMonitoring: .denied,
@@ -402,15 +385,12 @@ struct PermissionOracleTests {
             timestamp: now
         )
 
-        let issue = blockedSnapshot.blockingIssue
-        #expect(issue != nil, "Should have blocking issue when KeyPath lacks permissions")
-        #expect(issue?.contains("KeyPath") == true, "Blocking issue should mention KeyPath")
-        #expect(issue?.contains("Kanata") == false, "Blocking issue should NOT mention Kanata")
+        let blockedIssue = blockedSnapshot.blockingIssue ?? ""
+        #expect(blockedIssue.contains("KeyPath") == true, "Blocking issue should mention KeyPath")
     }
 
-    @Test("ADR-026: Kanata permission state tracked but not acted upon")
-    func adr026_kanataPermissionsTrackedNotActedUpon() {
-        // We still track Kanata permissions for diagnostics, but don't act on them
+    @Test("Kanata permission state included in diagnostics")
+    func kanataPermissionsIncludedInDiagnostics() {
         let now = Date()
 
         let keyPathGranted = PermissionOracle.PermissionSet(
@@ -440,9 +420,9 @@ struct PermissionOracleTests {
         #expect(snapshot.kanata.inputMonitoring == .denied)
         #expect(snapshot.kanata.source == "kanata-test")
 
-        // But doesn't affect system readiness
-        #expect(snapshot.isSystemReady == true)
-        #expect(snapshot.blockingIssue == nil)
+        // And affects readiness / blockingIssue
+        #expect(snapshot.isSystemReady == false)
+        #expect(snapshot.blockingIssue != nil)
 
         // And diagnostic summary includes Kanata info (for troubleshooting)
         #expect(snapshot.diagnosticSummary.contains("Kanata"))

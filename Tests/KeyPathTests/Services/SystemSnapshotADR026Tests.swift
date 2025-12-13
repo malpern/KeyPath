@@ -4,9 +4,9 @@ import Testing
 @testable import KeyPathPermissions
 @testable import KeyPathWizardCore
 
-/// Tests for ADR-026: Kanata Does NOT Need TCC Permissions
-/// These tests verify the invariant that system readiness only depends on KeyPath permissions.
-@Suite("ADR-026: Kanata TCC Invariant Tests")
+/// Tests for Kanata Input Monitoring requirement.
+/// These tests verify that remapping readiness depends on Kanata having Input Monitoring.
+@Suite("Kanata Input Monitoring Requirement Tests")
 struct SystemSnapshotADR026Tests {
     // MARK: - Test Helpers
 
@@ -43,11 +43,11 @@ struct SystemSnapshotADR026Tests {
         )
     }
 
-    // MARK: - ADR-026 Invariant Tests
+    // MARK: - Kanata IM Requirement Tests
 
-    @Test("ADR-026: SystemSnapshot.blockingIssues never includes Kanata permission issues")
-    func blockingIssuesNeverIncludeKanataPermissions() {
-        // Create snapshot where KeyPath has all permissions but Kanata doesn't
+    @Test("Kanata IM missing creates a permission issue")
+    func kanataInputMonitoringMissingCreatesIssue() {
+        // KeyPath is fully granted, Kanata IM is denied
         let snapshot = makeSnapshot(
             keyPathAX: .granted,
             keyPathIM: .granted,
@@ -57,56 +57,45 @@ struct SystemSnapshotADR026Tests {
 
         let issues = snapshot.blockingIssues
 
-        // Should have no permission issues (KeyPath is fine, Kanata doesn't matter)
+        // Should include a Kanata Input Monitoring permission issue
         let permissionIssues = issues.filter { issue in
             if case .permissionMissing = issue { return true }
             return false
         }
 
         #expect(
-            permissionIssues.isEmpty,
-            "No permission issues should be generated when KeyPath has all permissions"
+            permissionIssues.contains(where: { issue in
+                if case let .permissionMissing(app, permission, _) = issue {
+                    return app == "Kanata" && permission == "Input Monitoring"
+                }
+                return false
+            }),
+            "Expected a Kanata Input Monitoring permission issue"
         )
-
-        // Verify no issues mention "Kanata" in permission context
-        for issue in issues {
-            if case let .permissionMissing(app, _, _) = issue {
-                #expect(app != "Kanata", "Permission issues should never be for Kanata")
-                #expect(app != "kanata", "Permission issues should never be for kanata")
-            }
-        }
     }
 
-    @Test("ADR-026: Only KeyPath permission issues are generated")
-    func onlyKeyPathPermissionIssuesGenerated() {
-        // Create snapshot where both KeyPath and Kanata lack permissions
+    @Test("Kanata AX state does not create issues")
+    func kanataAccessibilityDoesNotCreateIssue() {
+        // KeyPath is fully granted, Kanata AX denied but IM granted
         let snapshot = makeSnapshot(
-            keyPathAX: .denied,
-            keyPathIM: .denied,
+            keyPathAX: .granted,
+            keyPathIM: .granted,
             kanataAX: .denied,
-            kanataIM: .denied
+            kanataIM: .granted
         )
 
         let issues = snapshot.blockingIssues
 
-        // Should have exactly 2 permission issues - both for KeyPath
         let permissionIssues = issues.filter { issue in
             if case .permissionMissing = issue { return true }
             return false
         }
 
-        #expect(permissionIssues.count == 2, "Should have 2 permission issues (AX + IM for KeyPath)")
-
-        for issue in permissionIssues {
-            if case let .permissionMissing(app, _, _) = issue {
-                #expect(app == "KeyPath", "Permission issues should only be for KeyPath, got: \(app)")
-            }
-        }
+        #expect(permissionIssues.isEmpty, "No permission issues expected when KeyPath and Kanata IM are granted")
     }
 
-    @Test("ADR-026: validate() passes when KeyPath has permissions but Kanata doesn't")
-    func validatePassesWithKeyPathPermissionsOnly() {
-        // This test verifies the assertion in validateKanataTCCInvariant() doesn't fire
+    @Test("validate() does not assert for Kanata IM denied")
+    func validatePassesWithKanataDenied() {
         let snapshot = makeSnapshot(
             keyPathAX: .granted,
             keyPathIM: .granted,
@@ -114,87 +103,7 @@ struct SystemSnapshotADR026Tests {
             kanataIM: .denied
         )
 
-        // Should not assert - Kanata permissions don't matter
+        // Should not assert
         snapshot.validate()
-
-        // And isSystemReady via permissions should be true
-        #expect(snapshot.permissions.isSystemReady == true)
-    }
-
-    @Test("ADR-026: Kanata permission states don't affect blockingIssues count")
-    func kanataStatesDoNotAffectIssueCount() {
-        // Test with various Kanata states - issue count should be the same
-        let kanataStates: [(PermissionOracle.Status, PermissionOracle.Status)] = [
-            (.granted, .granted),
-            (.denied, .denied),
-            (.unknown, .unknown),
-            (.error("test"), .error("test")),
-            (.denied, .granted),
-            (.granted, .denied)
-        ]
-
-        // With KeyPath fully granted
-        for (kanataAX, kanataIM) in kanataStates {
-            let snapshot = makeSnapshot(
-                keyPathAX: .granted,
-                keyPathIM: .granted,
-                kanataAX: kanataAX,
-                kanataIM: kanataIM
-            )
-
-            let permissionIssues = snapshot.blockingIssues.filter { issue in
-                if case .permissionMissing = issue { return true }
-                return false
-            }
-
-            #expect(
-                permissionIssues.isEmpty,
-                "Should have 0 permission issues regardless of Kanata state: \(kanataAX), \(kanataIM)"
-            )
-        }
-
-        // With KeyPath missing AX only
-        for (kanataAX, kanataIM) in kanataStates {
-            let snapshot = makeSnapshot(
-                keyPathAX: .denied,
-                keyPathIM: .granted,
-                kanataAX: kanataAX,
-                kanataIM: kanataIM
-            )
-
-            let permissionIssues = snapshot.blockingIssues.filter { issue in
-                if case .permissionMissing = issue { return true }
-                return false
-            }
-
-            #expect(
-                permissionIssues.count == 1,
-                "Should have 1 permission issue regardless of Kanata state: \(kanataAX), \(kanataIM)"
-            )
-        }
-    }
-
-    @Test("ADR-026: Issue.title never mentions Kanata for permission issues")
-    func issueTitleNeverMentionsKanataForPermissions() {
-        // When KeyPath lacks permissions, the issue titles should mention KeyPath
-        let snapshot = makeSnapshot(
-            keyPathAX: .denied,
-            keyPathIM: .denied,
-            kanataAX: .denied,
-            kanataIM: .denied
-        )
-
-        for issue in snapshot.blockingIssues {
-            if case .permissionMissing = issue {
-                #expect(
-                    issue.title.contains("KeyPath"),
-                    "Permission issue title should mention KeyPath: \(issue.title)"
-                )
-                #expect(
-                    !issue.title.lowercased().contains("kanata"),
-                    "Permission issue title should NOT mention Kanata: \(issue.title)"
-                )
-            }
-        }
     }
 }

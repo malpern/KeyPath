@@ -67,14 +67,12 @@ public actor PermissionOracle {
         }
 
         /// System is ready when KeyPath has all required permissions
-        /// NOTE: Kanata does NOT need TCC permissions - it uses the Karabiner VirtualHIDDevice
-        /// driver and runs as root via SMAppService/LaunchDaemon
+        /// NOTE: Kanata needs Input Monitoring permission to capture events for remapping.
         public var isSystemReady: Bool {
-            keyPath.hasAllPermissions
+            keyPath.hasAllPermissions && kanata.inputMonitoring.isReady
         }
 
         /// Get the first blocking permission issue (user-facing error message)
-        /// NOTE: Only check KeyPath permissions - Kanata doesn't need TCC
         public var blockingIssue: String? {
             // Check KeyPath permissions (needed for UI functionality)
             if keyPath.accessibility.isBlocking {
@@ -87,8 +85,13 @@ public actor PermissionOracle {
                     "KeyPath needs Input Monitoring permission - enable in System Settings > Privacy & Security > Input Monitoring"
             }
 
-            // NOTE: Kanata does NOT need TCC permissions when using the Karabiner VirtualHIDDevice driver.
-            // It runs as root via SMAppService/LaunchDaemon and communicates with the driver via IPC.
+            // Kanata must be able to capture events (Input Monitoring) for remapping to work.
+            // We treat non-granted states as blocking because a running daemon without IM will not
+            // see keyboard events reliably.
+            if !kanata.inputMonitoring.isReady {
+                return
+                    "Kanata needs Input Monitoring permission - enable in System Settings > Privacy & Security > Input Monitoring"
+            }
 
             return nil
         }
@@ -377,12 +380,9 @@ public actor PermissionOracle {
 
     // Add this helper to prefer the active daemon path, falling back to bundled path
     private func resolveKanataExecutablePath() -> String {
-        // Prefer bundled path for SMAppService deployments (stable, signed path)
-        let bundled = WizardSystemPaths.bundledKanataPath
-        if FileManager.default.fileExists(atPath: bundled) {
-            return bundled
-        }
-        // Fallback: legacy active path if present
+        // Use the same “active” path as the daemon/service configuration.
+        // If we probe a different binary (e.g. bundled vs system-installed),
+        // users can “grant IM” successfully to the wrong path and Kanata still won’t work.
         return WizardSystemPaths.kanataActiveBinary
     }
 

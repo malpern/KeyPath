@@ -81,10 +81,11 @@ struct SystemContextAdapter {
             missing.append(.keyPathAccessibility)
         }
 
-        // NOTE: Kanata does NOT need TCC permissions when using the Karabiner VirtualHIDDevice driver.
-        // It runs as root via SMAppService/LaunchDaemon and communicates with the driver via IPC.
-        // The driver handles HID access (and is approved via System Extensions, not TCC).
-        // We no longer check kanata permissions here.
+        // Kanata needs Input Monitoring to capture events (Karabiner-style).
+        // IMPORTANT: This must refer to the same executable path the daemon runs.
+        if !context.permissions.kanata.inputMonitoring.isReady {
+            missing.append(.kanataInputMonitoring)
+        }
 
         return missing
     }
@@ -123,8 +124,6 @@ struct SystemContextAdapter {
         var issues: [WizardIssue] = []
 
         // Permission issues - use .permissions category so detail pages can filter correctly
-        // NOTE: Only KeyPath needs TCC permissions. Kanata uses the Karabiner VirtualHIDDevice driver
-        // and runs as root via SMAppService/LaunchDaemon, so it doesn't need TCC entries.
         if context.permissions.keyPath.inputMonitoring.isBlocking {
             issues.append(
                 WizardIssue(
@@ -147,6 +146,18 @@ struct SystemContextAdapter {
                     description: "KeyPath needs Accessibility permission to function",
                     autoFixAction: nil,
                     userAction: "Grant Accessibility permission in System Settings"
+                ))
+        }
+        if !context.permissions.kanata.inputMonitoring.isReady {
+            issues.append(
+                WizardIssue(
+                    identifier: .permission(.kanataInputMonitoring),
+                    severity: .error,
+                    category: .permissions,
+                    title: "Kanata Input Monitoring Required",
+                    description: "Kanata needs Input Monitoring permission to capture your keystrokes for remapping",
+                    autoFixAction: nil,
+                    userAction: "Grant Input Monitoring permission in System Settings"
                 ))
         }
 

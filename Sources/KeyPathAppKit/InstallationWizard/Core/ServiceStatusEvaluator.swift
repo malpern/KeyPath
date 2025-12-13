@@ -68,7 +68,6 @@ enum ServiceStatusEvaluator {
     /// - Parameter issues: Issues array from SystemStatusChecker (Oracle-integrated)
     /// - Returns: Human-readable blocking issue message or nil
     static func blockingIssueMessage(from issues: [WizardIssue]) -> String? {
-        // NOTE: Only KeyPath needs TCC permissions - Kanata uses Karabiner driver
         for issue in issues {
             if case let .permission(permission) = issue.identifier {
                 switch permission {
@@ -76,6 +75,8 @@ enum ServiceStatusEvaluator {
                     return "KeyPath Input Monitoring permission required"
                 case .keyPathAccessibility:
                     return "KeyPath Accessibility permission required"
+                case .kanataInputMonitoring:
+                    return "Kanata Input Monitoring permission required"
                 default:
                     continue
                 }

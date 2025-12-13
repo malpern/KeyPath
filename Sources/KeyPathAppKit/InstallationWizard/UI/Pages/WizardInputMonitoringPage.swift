@@ -29,7 +29,7 @@ struct WizardInputMonitoringPage: View {
                     WizardHeroSection.success(
                         icon: "eye",
                         title: "Input Monitoring",
-                        subtitle: "KeyPath has permission to capture keyboard events",
+                        subtitle: "KeyPath and Kanata can capture keyboard events for remapping",
                         iconTapAction: {
                             Task {
                                 await onRefresh()
@@ -38,8 +38,6 @@ struct WizardInputMonitoringPage: View {
                     )
 
                     // Component details card below the subheading - horizontally centered
-                    // NOTE: Only show KeyPath status. Kanata uses the Karabiner VirtualHIDDevice
-                    // driver and runs as root, so it doesn't need TCC permissions.
                     HStack {
                         Spacer()
                         VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
@@ -48,6 +46,19 @@ struct WizardInputMonitoringPage: View {
                                     .foregroundStyle(.green)
                                 HStack(spacing: 0) {
                                     Text("KeyPath.app")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                    Text(" - Has permission to capture keyboard events")
+                                        .font(.headline)
+                                        .fontWeight(.regular)
+                                }
+                            }
+
+                            HStack(spacing: 12) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                                HStack(spacing: 0) {
+                                    Text("kanata")
                                         .font(.headline)
                                         .fontWeight(.semibold)
                                     Text(" - Has permission to capture keyboard events")
@@ -75,13 +86,12 @@ struct WizardInputMonitoringPage: View {
                 .frame(maxWidth: .infinity)
             } else {
                 // Use hero design for error state too, with blue links below
-                // NOTE: Only show KeyPath status. Kanata doesn't need TCC permissions.
                 VStack(spacing: WizardDesign.Spacing.sectionGap) {
                     WizardHeroSection.warning(
                         icon: "eye",
                         title: "Input Monitoring Required",
                         subtitle:
-                        "KeyPath needs Input Monitoring permission to capture keyboard events for remapping",
+                        "KeyPath and Kanata need Input Monitoring permission to capture keyboard events for remapping",
                         iconTapAction: {
                             Task {
                                 await onRefresh()
@@ -89,7 +99,7 @@ struct WizardInputMonitoringPage: View {
                         }
                     )
 
-                    // Component details for error state - only KeyPath needs TCC
+                    // Component details for error state
                     VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
                         HStack(spacing: 12) {
                             Image(
@@ -101,9 +111,13 @@ struct WizardInputMonitoringPage: View {
                                 Text("KeyPath.app")
                                     .font(.headline)
                                     .fontWeight(.semibold)
-                                Text(" - Needs permission to capture keyboard events")
-                                    .font(.headline)
-                                    .fontWeight(.regular)
+                                Text(
+                                    keyPathInputMonitoringStatus == .completed
+                                        ? " - Has permission to capture keyboard events"
+                                        : " - Needs permission to capture keyboard events"
+                                )
+                                .font(.headline)
+                                .fontWeight(.regular)
                             }
                             Spacer()
                             if keyPathInputMonitoringStatus != .completed {
@@ -115,6 +129,35 @@ struct WizardInputMonitoringPage: View {
                             }
                         }
                         .help(keyPathInputMonitoringIssues.asTooltipText())
+
+                        HStack(spacing: 12) {
+                            Image(
+                                systemName: kanataInputMonitoringStatus == .completed
+                                    ? "checkmark.circle.fill" : "xmark.circle.fill"
+                            )
+                            .foregroundStyle(kanataInputMonitoringStatus == .completed ? .green : Color.red)
+                            HStack(spacing: 0) {
+                                Text("kanata")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                                Text(
+                                    kanataInputMonitoringStatus == .completed
+                                        ? " - Has permission to capture keyboard events"
+                                        : " - Needs permission to capture keyboard events"
+                                )
+                                .font(.headline)
+                                .fontWeight(.regular)
+                            }
+                            Spacer()
+                            if kanataInputMonitoringStatus != .completed {
+                                Button("Fix") {
+                                    openKanataInputMonitoringGrant()
+                                }
+                                .buttonStyle(WizardDesign.Component.SecondaryButton())
+                                .scaleEffect(0.8)
+                            }
+                        }
+                        .help(kanataInputMonitoringIssues.asTooltipText())
                     }
                     .frame(maxWidth: .infinity)
                     .padding(WizardDesign.Spacing.cardPadding)
@@ -142,11 +185,8 @@ struct WizardInputMonitoringPage: View {
 
     // MARK: - Computed Properties
 
-    // NOTE: Only KeyPath needs Input Monitoring TCC permission.
-    // Kanata uses the Karabiner VirtualHIDDevice driver and communicates via IPC,
-    // so it doesn't need TCC entries (it runs as root via SMAppService/LaunchDaemon).
     private var hasInputMonitoringIssues: Bool {
-        keyPathInputMonitoringStatus != .completed
+        keyPathInputMonitoringStatus != .completed || kanataInputMonitoringStatus != .completed
     }
 
     private var nextStepButtonTitle: String {
@@ -157,11 +197,24 @@ struct WizardInputMonitoringPage: View {
         stateInterpreter.getPermissionStatus(.keyPathInputMonitoring, in: issues)
     }
 
+    private var kanataInputMonitoringStatus: InstallationStatus {
+        stateInterpreter.getPermissionStatus(.kanataInputMonitoring, in: issues)
+    }
+
     // Issue filtering for tooltips
     private var keyPathInputMonitoringIssues: [WizardIssue] {
         issues.filter { issue in
             if case let .permission(permissionType) = issue.identifier {
                 return permissionType == .keyPathInputMonitoring
+            }
+            return false
+        }
+    }
+
+    private var kanataInputMonitoringIssues: [WizardIssue] {
+        issues.filter { issue in
+            if case let .permission(permissionType) = issue.identifier {
+                return permissionType == .kanataInputMonitoring
             }
             return false
         }
@@ -226,8 +279,6 @@ struct WizardInputMonitoringPage: View {
     }
 
     // Automatic prompt polling (Phase 1)
-    // NOTE: Only poll for KeyPath permissions. Kanata doesn't need TCC entries because
-    // it uses the Karabiner VirtualHIDDevice driver (communicates via IPC, runs as root).
     private func startPermissionPolling(for type: CoordinatorPermissionType) {
         permissionPollingTask?.cancel()
         permissionPollingTask = Task { [onRefresh] in
@@ -237,7 +288,6 @@ struct WizardInputMonitoringPage: View {
                 _ = await WizardSleep.ms(250)
                 attempts += 1
                 let snapshot = await PermissionOracle.shared.currentSnapshot()
-                // Only check KeyPath permissions - Kanata doesn't need TCC
                 let hasPermission: Bool =
                     switch type {
                     case .accessibility:
@@ -259,7 +309,7 @@ struct WizardInputMonitoringPage: View {
             "🔧 [WizardInputMonitoringPage] Fix button clicked - permission flow starting")
 
         if FeatureFlags.useAutomaticPermissionPrompts {
-            // Use automatic prompt via IOHIDRequestAccess()
+            // Request Input Monitoring for KeyPath.app via the Apple API (shows system prompt).
             let alreadyGranted = PermissionRequestService.shared.requestInputMonitoringPermission(
                 ignoreCooldown: true)
             if alreadyGranted {
@@ -267,7 +317,7 @@ struct WizardInputMonitoringPage: View {
                 return
             }
 
-            // Poll for grant (KeyPath + Kanata) using Oracle snapshot
+            // Poll for grant (KeyPath only) using Oracle snapshot
             startPermissionPolling(for: .inputMonitoring)
 
             // Fallback: if still not granted shortly after, open System Settings panel
@@ -301,6 +351,100 @@ struct WizardInputMonitoringPage: View {
                 onComplete: { onDismiss?() }
             )
         }
+    }
+
+    private func openKanataInputMonitoringGrant() {
+        AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Kanata Fix clicked - requesting Input Monitoring")
+
+        if FeatureFlags.useAutomaticPermissionPrompts {
+            // Launch per-user agent which runs `kanata --permission-probe` for the active kanata binary path.
+            launchIMAgent()
+
+            permissionPollingTask?.cancel()
+            permissionPollingTask = Task { [onRefresh] in
+                var attempts = 0
+                let maxAttempts = 24 // ~6s at 250ms intervals
+                while attempts < maxAttempts {
+                    _ = await WizardSleep.ms(250)
+                    attempts += 1
+                    let snapshot = await PermissionOracle.shared.currentSnapshot()
+                    if snapshot.kanata.inputMonitoring.isReady {
+                        PermissionGrantCoordinator.shared.setServiceBounceNeeded(
+                            reason: "Input Monitoring granted for kanata"
+                        )
+                        let bounced = await PermissionGrantCoordinator.shared.performServiceBounce()
+                        if bounced {
+                            PermissionGrantCoordinator.shared.clearServiceBounceFlag()
+                        }
+                        await onRefresh()
+                        return
+                    }
+                    if Task.isCancelled { return }
+                }
+            }
+
+            // Fallback: open System Settings + copy the active kanata path for manual addition.
+            Task { @MainActor in
+                _ = await WizardSleep.ms(1500)
+                let snapshot = await PermissionOracle.shared.currentSnapshot()
+                if snapshot.kanata.inputMonitoring.isReady { return }
+                copyKanataPathToClipboard()
+                AppLogger.shared.info(
+                    "ℹ️ [WizardInputMonitoringPage] Opening System Settings (fallback) for Kanata Input Monitoring"
+                )
+                openInputMonitoringPreferencesPanel()
+            }
+        } else {
+            let instructions = """
+            KeyPath will now close so you can grant permissions:
+
+            1. Add kanata to Input Monitoring (use the '+' button)
+            2. Make sure the checkbox is enabled
+            3. Restart KeyPath when you're done
+
+            Tip: Press ⌘⇧G in the file picker and paste the kanata path (copied to your clipboard).
+            """
+
+            copyKanataPathToClipboard()
+            PermissionGrantCoordinator.shared.initiatePermissionGrant(
+                for: .inputMonitoring,
+                instructions: instructions,
+                onComplete: { onDismiss?() }
+            )
+        }
+    }
+
+    private func launchIMAgent() {
+        let agentURL = Bundle.main.bundleURL
+            .appendingPathComponent("Contents/Library/LoginItems/KeyPathIMAgent.app")
+        guard FileManager.default.fileExists(atPath: agentURL.path) else {
+            AppLogger.shared.log(
+                "⚠️ [WizardInputMonitoringPage] IM agent not found at \(agentURL.path)")
+            return
+        }
+
+        let config = NSWorkspace.OpenConfiguration()
+        config.activates = false
+        config.allowsRunningApplicationSubstitution = false
+
+        NSWorkspace.shared.openApplication(at: agentURL, configuration: config) { app, error in
+            if let error {
+                AppLogger.shared.log(
+                    "❌ [WizardInputMonitoringPage] Failed to launch IM agent: \(error.localizedDescription)"
+                )
+            } else {
+                AppLogger.shared.log(
+                    "▶️ [WizardInputMonitoringPage] Launched IM agent: \(app?.localizedName ?? "KeyPathIMAgent")")
+            }
+        }
+    }
+
+    private func copyKanataPathToClipboard() {
+        let path = WizardSystemPaths.kanataActiveBinary
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(path, forType: .string)
+        AppLogger.shared.log("📋 [WizardInputMonitoringPage] Copied kanata path to clipboard: \(path)")
     }
 }
 

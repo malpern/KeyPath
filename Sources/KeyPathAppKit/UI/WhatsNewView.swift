@@ -73,7 +73,27 @@ struct WhatsNewView: View {
 
     private static func featuresForVersion(_ version: String) -> [Feature] {
         // Return features based on version
-        // For now, return beta1 features; expand this for future versions
+        // Expand this as we cut releases.
+        if version.contains("beta2") || version == "1.0.0-beta2" {
+            return [
+                Feature(
+                    icon: "eye",
+                    title: "Input Monitoring Fix",
+                    description: "Setup now correctly guides you to grant Input Monitoring for the exact Kanata binary KeyPath runs, so remaps work reliably."
+                ),
+                Feature(
+                    icon: "arrow.triangle.2.circlepath",
+                    title: "Automatic Updates",
+                    description: "KeyPath updates itself. You'll be notified when new versions are available."
+                ),
+                Feature(
+                    icon: "wand.and.stars",
+                    title: "Installation Wizard",
+                    description: "Step-by-step setup guides you through permissions and driver installation."
+                )
+            ]
+        }
+
         if version.contains("beta1") || version == "1.0.0-beta1" {
             return [
                 Feature(

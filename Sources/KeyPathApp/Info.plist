@@ -14,8 +14,8 @@
 	<string>KeyPath</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
-	<key>CFBundleShortVersionString</key>
-	<string>1.0.0-beta1</string>
+		<key>CFBundleShortVersionString</key>
+		<string>1.0.0-beta2</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -29,12 +29,14 @@
 			</array>
 		</dict>
 	</array>
-	<key>CFBundleVersion</key>
-	<string>1</string>
+		<key>CFBundleVersion</key>
+		<string>2</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.utilities</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>15.0</string>
+	<key>NSInputMonitoringUsageDescription</key>
+	<string>KeyPath needs Input Monitoring so it can read your key presses and remap them through the Kanata engine.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>

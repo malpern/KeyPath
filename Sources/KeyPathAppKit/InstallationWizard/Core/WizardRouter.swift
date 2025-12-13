@@ -23,10 +23,9 @@ enum WizardRouter {
         if !helperInstalled { return .helper }
 
         // 3. Permissions
-        // NOTE: Only check KeyPath permissions - Kanata doesn't need TCC (uses Karabiner driver)
         let hasInputMonitoringIssues = issues.contains {
             if case let .permission(permissionType) = $0.identifier {
-                return permissionType == .keyPathInputMonitoring
+                return permissionType == .keyPathInputMonitoring || permissionType == .kanataInputMonitoring
             }
             return false
         }

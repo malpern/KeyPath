@@ -191,9 +191,11 @@ if context.permissions.inputMonitoring != .granted { ... }
 ### Permission Detection
 ❌ **Never bypass Oracle** - All permission checks must go through `PermissionOracle.shared`.
 ❌ **Never check permissions from root process** - IOHIDCheckAccess unreliable for daemons.
-❌ **Never check Kanata TCC permissions** - Kanata uses Karabiner driver, not TCC (see ADR-026).
+⚠️ **Kanata Input Monitoring matters** - remapping requires Kanata to capture events.
+Do not assume “Karabiner driver means no TCC”.
+See ADR-026.
 ✅ **Always** use Oracle for GUI checks.
-✅ **Only check KeyPath permissions** for `isSystemReady` and `blockingIssue`.
+✅ `isSystemReady` / `blockingIssue` must account for Kanata Input Monitoring.
 
 ### Service Management
 ❌ **Do not use KanataManager for installation** - Use `InstallerEngine.run(intent: .install)`.
@@ -257,18 +259,25 @@ Robust app restart logic to prevent mismatched helpers.
 
 **Alternative considered**: Contributing `--check-permissions` to Kanata upstream. Rejected because maintainer has no macOS devices and the API (`IOHIDCheckAccess`) doesn't work correctly from daemon context anyway.
 
-### ADR-026: Kanata Does NOT Need TCC Permissions ✅ (CRITICAL)
+### ADR-026: Kanata Needs Input Monitoring ✅ (CRITICAL)
 **Date:** December 2025
 
-**Context:** KeyPath was incorrectly checking Kanata's TCC (Transparency, Consent, and Control) permissions for Accessibility and Input Monitoring, causing the wizard to show permission errors even when the system was fully functional.
+**Context:** KeyPath’s wizard and diagnostics must ensure that Kanata can actually
+capture keyboard events for remapping.
+On macOS, Input Monitoring (TCC ListenEvent) is granted per binary identity,
+and the grant must match the exact Kanata executable path the daemon runs.
 
-**Decision:** Only KeyPath.app needs TCC permissions. Kanata does NOT need TCC permissions.
+**Decision:** KeyPath.app needs Accessibility + Input Monitoring for UI features,
+safety controls, and monitoring.
+Kanata needs **Input Monitoring** to capture events for remapping.
+Kanata does **not** need Accessibility for basic keyboard remapping when using
+the VirtualHID driver for output.
 
-**Why Kanata doesn't need TCC:**
-1. **Karabiner VirtualHIDDevice Driver** - Kanata uses the Karabiner driver for HID access, which is approved via System Extensions (not TCC)
-2. **Runs as Root** - Kanata runs as root via SMAppService/LaunchDaemon (`com.keypath.kanata`)
-3. **Driver IPC** - Kanata communicates with the driver via IPC, not direct HID access
-4. **No GUI Context** - TCC permissions are tied to GUI processes; daemons use different mechanisms
+**Why Kanata still needs Input Monitoring:**
+1. **Event capture is gated by TCC** - macOS requires Input Monitoring for keyboard event capture.
+2. **Prompting must happen in a user session** - root daemons cannot reliably trigger the prompt.
+3. **Path-specific grants** - granting IM to the bundled Kanata but running the system-installed
+   Kanata (or vice versa) will “look granted” but not work.
 
 **What KeyPath.app DOES need:**
 - **Accessibility** - For CGEvent taps and system integration
@@ -276,38 +285,36 @@ Robust app restart logic to prevent mismatched helpers.
 
 **Code Invariants (enforced by assertions and tests):**
 ```swift
-// PermissionOracle.Snapshot.isSystemReady only checks KeyPath
+// PermissionOracle.Snapshot.isSystemReady requires KeyPath + Kanata IM
 public var isSystemReady: Bool {
-    keyPath.hasAllPermissions  // NOT kanata.hasAllPermissions
+    keyPath.hasAllPermissions && kanata.inputMonitoring.isReady
 }
 
-// blockingIssue only reports KeyPath permission issues
+// blockingIssue reports KeyPath first, then Kanata IM
 public var blockingIssue: String? {
-    // Only check KeyPath - Kanata uses Karabiner driver
     if keyPath.accessibility.isBlocking { return "KeyPath needs Accessibility" }
     if keyPath.inputMonitoring.isBlocking { return "KeyPath needs Input Monitoring" }
-    return nil  // Never check kanata permissions
+    if !kanata.inputMonitoring.isReady { return "Kanata needs Input Monitoring" }
+    return nil
 }
 ```
 
 **Files Updated (December 2025):**
-- `PermissionOracle.swift` - `isSystemReady`, `blockingIssue`
+- `PermissionOracle.swift` - `isSystemReady`, `blockingIssue`, active-binary path alignment
 - `PermissionChecking.swift` - `isSystemReady`, `blockingIssue`
-- `SystemSnapshot.swift` - Removed Kanata permission issue generation
-- `PermissionGate.swift` - Removed Kanata from permission gating
-- `SystemRequirementsChecker.swift` - `kanataOverall = true` always
-- `WizardRouter.swift` - Only routes on KeyPath permission issues
-- `WizardStateInterpreter.swift` - Only filters for KeyPath permissions
-- `ServiceStatusEvaluator.swift` - Only checks KeyPath blocking issues
-- `KeyPathCLI.swift` - Shows "Kanata uses Karabiner driver - no TCC needed"
+- `SystemSnapshot.swift` - Adds Kanata IM permission issue generation
+- `SystemRequirementsChecker.swift` - Reports Kanata IM status
+- `WizardRouter.swift` - Routes on Kanata IM when missing
+- `WizardStateInterpreter.swift` - Includes Kanata IM issues on Input Monitoring page
+- `ServiceStatusEvaluator.swift` - Surfaces Kanata IM as a blocking issue
+- `KeyPathCLI.swift` - Reports Kanata IM status and missing-permission issue
 
-**Test Coverage:** `PermissionOracleTests.swift` and `PermissionOracleTCCTests.swift` verify this invariant.
+**Test Coverage:** `PermissionOracleTests.swift`, `PermissionOracleTCCTests.swift`,
+and `SystemSnapshotADR026Tests.swift` verify this behavior.
 
 **DO NOT:**
-- ❌ Add Kanata permission checks to `isSystemReady`
-- ❌ Generate `WizardIssue` for `.kanataInputMonitoring` or `.kanataAccessibility`
-- ❌ Block wizard progress on Kanata TCC permissions
-- ❌ Show "Kanata needs permissions" in UI
+- ❌ Prompt for Input Monitoring on a different Kanata binary path than the daemon runs
+- ❌ Block on Kanata Accessibility for basic keyboard remapping
 
 ### ADR-017: InstallerEngine Protocol Segregation (ISP) ✅
 Three separate protocols exist for InstallerEngine - this is intentional Interface Segregation:

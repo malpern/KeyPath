@@ -68,10 +68,16 @@ public struct SystemSnapshot: Sendable {
             }
         }
 
-        // ADR-026: Kanata does NOT need TCC permissions when using the Karabiner VirtualHIDDevice driver.
-        // It runs as root via SMAppService/LaunchDaemon and communicates with the driver via IPC.
-        // The driver handles HID access (approved via System Extensions, not TCC).
-        // DO NOT add Kanata permission checks here - see ADR-026 in CLAUDE.md
+        // Kanata permission issues
+        // Kanata must have Input Monitoring permission to capture events for remapping.
+        if !permissions.kanata.inputMonitoring.isReady {
+            issues.append(
+                .permissionMissing(
+                    app: "Kanata",
+                    permission: "Input Monitoring",
+                    action: "Enable in System Settings > Privacy & Security > Input Monitoring"
+                ))
+        }
 
         // Conflict issues
         for conflict in conflicts.conflicts {
@@ -129,33 +135,6 @@ public struct SystemSnapshot: Sendable {
         if age > 10.0 {
             AppLogger.shared.log(
                 "⚠️ [SystemSnapshot] Snapshot is \(String(format: "%.1f", age))s old - consider refreshing")
-        }
-
-        // ADR-026 Invariant: isSystemReady must NOT depend on Kanata TCC permissions
-        // Kanata uses Karabiner driver, not TCC. Only KeyPath needs TCC permissions.
-        validateKanataTCCInvariant()
-    }
-
-    /// ADR-026: Validates that isSystemReady doesn't accidentally depend on Kanata TCC
-    /// This catches regressions where someone adds Kanata permission checks
-    private func validateKanataTCCInvariant() {
-        // If KeyPath has all permissions but Kanata doesn't, system should STILL be ready
-        // (assuming no other blocking issues like conflicts/components)
-        let keyPathHasAll = permissions.keyPath.hasAllPermissions
-        let kanataHasAll = permissions.kanata.hasAllPermissions
-        let systemReady = permissions.isSystemReady
-
-        // The invariant: systemReady should equal keyPathHasAll, NOT (keyPathHasAll && kanataHasAll)
-        if keyPathHasAll, !kanataHasAll {
-            assert(
-                systemReady,
-                """
-                🚨 ADR-026 VIOLATION: isSystemReady returned false when KeyPath has permissions but Kanata doesn't!
-                Kanata does NOT need TCC permissions (uses Karabiner driver).
-                KeyPath.hasAll=\(keyPathHasAll), Kanata.hasAll=\(kanataHasAll), isSystemReady=\(systemReady)
-                See CLAUDE.md ADR-026 for details.
-                """
-            )
         }
     }
 }

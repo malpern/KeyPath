@@ -24,6 +24,10 @@ echo "🚀 Building kanata launcher..."
 # Build kanata launcher (Swift binary for SMAppService)
 swift build --configuration release --product KanataLauncher
 
+echo "🧲 Building Input Monitoring agent..."
+# Build per-user login item that triggers IM prompt
+swift build --configuration release --product KeyPathIMAgent
+
 echo "🏗️  Building KeyPath..."
 # Build main app (disable whole-module optimization to avoid hang)
 swift build --configuration release --product KeyPath -Xswiftc -no-whole-module-optimization
@@ -37,6 +41,7 @@ CONTENTS="${APP_BUNDLE}/Contents"
 MACOS="${CONTENTS}/MacOS"
 RESOURCES="${CONTENTS}/Resources"
 FRAMEWORKS="${CONTENTS}/Frameworks"
+LOGIN_ITEMS="${CONTENTS}/Library/LoginItems"
 
 # Clean and create directories
 rm -rf "$DIST_DIR"
@@ -44,6 +49,7 @@ mkdir -p "$MACOS"
 mkdir -p "$RESOURCES"
 mkdir -p "$FRAMEWORKS"
 mkdir -p "$CONTENTS/Library/KeyPath"
+mkdir -p "$LOGIN_ITEMS"
 
 # Copy main executable
 ditto "$BUILD_DIR/KeyPath" "$MACOS/KeyPath"
@@ -59,6 +65,17 @@ KANATA_LAUNCHER_SRC="$BUILD_DIR/KanataLauncher"
 KANATA_LAUNCHER_DST="$CONTENTS/Library/KeyPath/kanata-launcher"
 ditto "$KANATA_LAUNCHER_SRC" "$KANATA_LAUNCHER_DST"
 chmod 755 "$KANATA_LAUNCHER_DST"
+
+# Embed per-user Input Monitoring agent bundle (LoginItem)
+echo "📦 Embedding IM agent (LoginItem)..."
+IM_AGENT_APP="$LOGIN_ITEMS/KeyPathIMAgent.app"
+IM_AGENT_CONTENTS="$IM_AGENT_APP/Contents"
+IM_AGENT_MACOS="$IM_AGENT_CONTENTS/MacOS"
+mkdir -p "$IM_AGENT_MACOS"
+mkdir -p "$IM_AGENT_CONTENTS/Resources"
+ditto "Sources/KeyPathIMAgent/Info.plist" "$IM_AGENT_CONTENTS/Info.plist"
+ditto "$BUILD_DIR/KeyPathIMAgent" "$IM_AGENT_MACOS/KeyPathIMAgent"
+chmod 755 "$IM_AGENT_MACOS/KeyPathIMAgent"
 
 # Embed privileged helper for SMAppService
 echo "📦 Embedding privileged helper (SMAppService layout)..."
@@ -82,7 +99,8 @@ verify_embedded_artifacts() {
         "$LAUNCH_DAEMONS/com.keypath.helper.plist" \
         "$LAUNCH_DAEMONS/com.keypath.kanata.plist" \
         "$KANATA_LAUNCHER_DST" \
-        "$CONTENTS/Library/KeyPath/kanata-simulator"; do
+        "$CONTENTS/Library/KeyPath/kanata-simulator" \
+        "$IM_AGENT_MACOS/KeyPathIMAgent"; do
         if [ ! -e "$path" ]; then
             echo "❌ ERROR: Missing packaged artifact: $path" >&2
             missing=1
@@ -176,6 +194,9 @@ kp_sign "$CONTENTS/Library/KeyPath/kanata-simulator" --force --options=runtime -
 # Sign kanata launcher binary (required for SMAppService)
 kp_sign "$CONTENTS/Library/KeyPath/kanata-launcher" --force --options=runtime --sign "$SIGNING_IDENTITY"
 
+# Sign IM agent binary
+kp_sign "$IM_AGENT_MACOS/KeyPathIMAgent" --force --options=runtime --sign "$SIGNING_IDENTITY" --identifier "com.keypath.imagent"
+
 # Sign embedded Sparkle binaries (inner → outer)
 SPARKLE_BINS=(
     "$FRAMEWORKS/Sparkle.framework/Versions/B/Autoupdate"
@@ -205,6 +226,9 @@ for bundle in "${SPARKLE_CONTAINERS[@]}"; do
         echo "⚠️ WARNING: Sparkle container missing: $bundle"
     fi
 done
+
+# Sign IM agent app container
+kp_sign "$IM_AGENT_APP" --force --options=runtime --timestamp --sign "$SIGNING_IDENTITY"
 
 # Sign main app WITH entitlements
 ENTITLEMENTS_FILE="KeyPath.entitlements"

@@ -132,9 +132,9 @@ struct WizardStateInterpreter {
             getConflictIssues(in: issues)
         case .inputMonitoring:
             // Input Monitoring permission page
-            // NOTE: Only KeyPath needs TCC permissions - Kanata uses Karabiner driver
             issues.filter {
                 $0.identifier == .permission(.keyPathInputMonitoring)
+                    || $0.identifier == .permission(.kanataInputMonitoring)
             }
         case .accessibility:
             // Accessibility permission page

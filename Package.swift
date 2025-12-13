@@ -42,6 +42,10 @@ let package = Package(
         .executable(
             name: "KanataLauncher",
             targets: ["KanataLauncher"]
+        ),
+        .executable(
+            name: "KeyPathIMAgent",
+            targets: ["KeyPathIMAgent"]
         )
     ],
     dependencies: [
@@ -155,6 +159,18 @@ let package = Package(
             name: "KanataLauncher",
             dependencies: [],
             path: "Sources/KanataLauncher",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
+        // Per-user login item to trigger Input Monitoring and launch kanata in session
+        .executableTarget(
+            name: "KeyPathIMAgent",
+            dependencies: [],
+            path: "Sources/KeyPathIMAgent",
+            exclude: [
+                "Info.plist"
+            ],
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]
