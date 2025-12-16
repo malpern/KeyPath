@@ -176,6 +176,9 @@ struct StatusSettingsTabView: View {
     @State private var showSetupBanner = false
     @State private var permissionSnapshot: PermissionOracle.Snapshot?
     @State private var systemContext: SystemContext?
+    @State private var wizardSystemState: WizardSystemState = .initializing
+    @State private var wizardIssues: [WizardIssue] = []
+    @State private var tcpConfigured: Bool?
     @State private var duplicateAppCopies: [String] = []
     @State private var settingsToastManager = WizardToastManager()
     @State private var showingPermissionAlert = false
@@ -192,7 +195,63 @@ struct StatusSettingsTabView: View {
     }
 
     private var isSystemHealthy: Bool {
-        (systemContext?.services.isHealthy ?? false) && (permissionSnapshot?.isSystemReady ?? false)
+        overallHealthLevel == .success
+    }
+
+    private enum OverallHealthLevel: Int {
+        case success = 0
+        case warning = 1
+        case critical = 2
+        case checking = 3
+    }
+
+    private var overallHealthLevel: OverallHealthLevel {
+        guard let context = systemContext, permissionSnapshot != nil else { return .checking }
+
+        let hasBlockingIssues = wizardIssues.contains { $0.severity == .critical || $0.severity == .error }
+        if hasBlockingIssues {
+            return .critical
+        }
+
+        if context.services.kanataRunning, tcpConfigured == false {
+            return .critical
+        }
+
+        if duplicateAppCopies.count > 1 {
+            return .warning
+        }
+
+        if !context.services.isHealthy || !(permissionSnapshot?.isSystemReady ?? false) {
+            return .warning
+        }
+
+        return .success
+    }
+
+    private var systemHealthIcon: String {
+        switch overallHealthLevel {
+        case .success:
+            "checkmark.circle.fill"
+        case .warning:
+            "exclamationmark.triangle.fill"
+        case .critical:
+            "xmark.circle.fill"
+        case .checking:
+            "gear"
+        }
+    }
+
+    private var systemHealthTint: Color {
+        switch overallHealthLevel {
+        case .success:
+            .green
+        case .warning:
+            .orange
+        case .critical:
+            .red
+        case .checking:
+            .secondary
+        }
     }
 
     private var systemHealthMessage: String {
@@ -200,10 +259,13 @@ struct StatusSettingsTabView: View {
         if !context.services.kanataRunning {
             return kanataServiceStatus
         }
+        if tcpConfigured == false {
+            return "TCP Communication Required"
+        }
         if !(permissionSnapshot?.isSystemReady ?? false) {
             return "Permissions Required"
         }
-        return "Everything's Working"
+        return overallHealthLevel == .success ? "Everything's Working" : "Setup Needed"
     }
 
     private var kanataServiceStatus: String {
@@ -367,16 +429,13 @@ struct StatusSettingsTabView: View {
                     VStack(spacing: 12) {
                         ZStack {
                             Circle()
-                                .fill(isSystemHealthy ? Color.green.opacity(0.15) : Color.orange.opacity(0.15))
+                                .fill(systemHealthTint.opacity(0.15))
                                 .frame(width: 80, height: 80)
 
                             Button(action: { wizardInitialPage = .summary }) {
-                                Image(
-                                    systemName: isSystemHealthy
-                                        ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
-                                )
+                                Image(systemName: systemHealthIcon)
                                 .font(.system(size: 40))
-                                .foregroundColor(isSystemHealthy ? .green : .orange)
+                                .foregroundColor(systemHealthTint)
                             }
                             .buttonStyle(.plain)
                         }
@@ -491,6 +550,24 @@ struct StatusSettingsTabView: View {
                             .controlSize(.small)
                         }
                     }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("System Status")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                            .padding(.top, 10)
+
+                        ForEach(systemStatusRows) { row in
+                            SettingsSystemStatusRow(
+                                title: row.title,
+                                icon: row.icon,
+                                status: row.status,
+                                onTap: row.targetPage.map { page in
+                                    { wizardInitialPage = page }
+                                }
+                            )
+                        }
+                    }
                 }
 
                 Spacer()
@@ -539,11 +616,16 @@ struct StatusSettingsTabView: View {
         // Use RuntimeCoordinator (via façade) to get fresh status
         let context = await kanataManager.inspectSystemContext()
         let snapshot = context.permissions
+        let adapted = await MainActor.run { SystemContextAdapter.adapt(context) }
+        let tcpOk = await checkTCPConfiguration()
         let duplicates = HelperMaintenance.shared.detectDuplicateAppCopies()
 
         await MainActor.run {
             permissionSnapshot = snapshot
             systemContext = context
+            wizardSystemState = adapted.state
+            wizardIssues = adapted.issues
+            tcpConfigured = tcpOk
             showSetupBanner = !(snapshot.isSystemReady && context.services.isHealthy)
             duplicateAppCopies = duplicates
         }
@@ -612,6 +694,34 @@ struct StatusSettingsTabView: View {
                 settingsToastManager.showError("Stop failed: \(reason)")
             }
         }
+    }
+
+    private func checkTCPConfiguration() async -> Bool {
+        // Keep this fast and predictable: only verify the active plist contains a --port argument.
+        let plistPath = KanataDaemonManager.getActivePlistPath()
+        guard FileManager.default.fileExists(atPath: plistPath) else { return false }
+
+        guard let plistData = try? Data(contentsOf: URL(fileURLWithPath: plistPath)),
+              let plist = try? PropertyListSerialization.propertyList(
+                  from: plistData, options: [], format: nil
+              ) as? [String: Any],
+              let args = plist["ProgramArguments"] as? [String]
+        else {
+            return false
+        }
+
+        return args.contains("--port")
+    }
+
+    private var systemStatusRows: [SettingsSystemStatusRowModel] {
+        let hasFullDiskAccess = !PermissionService.lastTCCAuthorizationDenied
+        return SettingsSystemStatusRowsBuilder.rows(
+            wizardSystemState: wizardSystemState,
+            wizardIssues: wizardIssues,
+            systemContext: systemContext,
+            tcpConfigured: tcpConfigured,
+            hasFullDiskAccess: hasFullDiskAccess
+        )
     }
 }
 

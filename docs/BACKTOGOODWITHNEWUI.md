@@ -66,7 +66,7 @@ Implementation plan:
 
 ## Block 3: Settings / Status Consistency Polish
 
-Status: Not started (planned).
+Status: In progress.
 
 Scope:
 - Ensure Settings → Status,
