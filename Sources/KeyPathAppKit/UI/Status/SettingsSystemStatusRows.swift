@@ -30,7 +30,7 @@ enum SettingsSystemStatusRowsBuilder {
         }
         let helperStatus: InstallationStatus = wizardSystemState == .initializing
             ? .notStarted
-            : issueStatus(for: helperIssues)
+            : (helperIssues.isEmpty ? .completed : .failed)
         rows.append(
             SettingsSystemStatusRowModel(
                 id: "privileged-helper",
@@ -59,7 +59,7 @@ enum SettingsSystemStatusRowsBuilder {
         let conflictIssues = wizardIssues.filter { $0.category == .conflicts }
         let conflictStatus: InstallationStatus = wizardSystemState == .initializing
             ? .notStarted
-            : issueStatus(for: conflictIssues)
+            : (conflictIssues.isEmpty ? .completed : .failed)
         rows.append(
             SettingsSystemStatusRowModel(
                 id: "conflicts",
@@ -70,7 +70,47 @@ enum SettingsSystemStatusRowsBuilder {
             )
         )
 
-        // 4) Karabiner Driver
+        // 4) Input Monitoring
+        let inputIssues = wizardIssues.filter { issue in
+            if case let .permission(req) = issue.identifier {
+                return req == .keyPathInputMonitoring || req == .kanataInputMonitoring
+            }
+            return false
+        }
+        let inputStatus: InstallationStatus = wizardSystemState == .initializing
+            ? .notStarted
+            : (inputIssues.isEmpty ? .completed : .failed)
+        rows.append(
+            SettingsSystemStatusRowModel(
+                id: "input-monitoring",
+                title: "Input Monitoring Permission",
+                icon: "eye",
+                status: inputStatus,
+                targetPage: .inputMonitoring
+            )
+        )
+
+        // 5) Accessibility
+        let accessibilityIssues = wizardIssues.filter { issue in
+            if case let .permission(req) = issue.identifier {
+                return req == .keyPathAccessibility || req == .kanataAccessibility
+            }
+            return false
+        }
+        let accessibilityStatus: InstallationStatus = wizardSystemState == .initializing
+            ? .notStarted
+            : (accessibilityIssues.isEmpty ? .completed : .failed)
+        rows.append(
+            SettingsSystemStatusRowModel(
+                id: "accessibility",
+                title: "Accessibility",
+                icon: "accessibility",
+                status: accessibilityStatus,
+                targetPage: .accessibility
+            )
+        )
+
+        // 6) Karabiner Driver
         let karabinerStatus = KarabinerComponentsStatusEvaluator.evaluate(
             systemState: wizardSystemState,
             issues: wizardIssues
@@ -86,20 +126,11 @@ enum SettingsSystemStatusRowsBuilder {
         )
 
         // 7) Kanata Service
-        let daemonIssues = wizardIssues.filter(\.identifier.isDaemon)
-        let blockingPermissionIssue = ServiceStatusEvaluator.blockingIssueMessage(from: wizardIssues) != nil
         let serviceStatus: InstallationStatus = {
             if wizardSystemState == .initializing { return .inProgress }
-            if !daemonIssues.isEmpty {
-                return issueStatus(for: daemonIssues)
-            }
-            if blockingPermissionIssue {
-                return .failed
-            }
-            if systemContext?.services.kanataRunning == true {
-                return .completed
-            }
-            return .notStarted
+            if systemContext?.services.kanataRunning == true { return .completed }
+            let hasServiceIssues = wizardIssues.contains { $0.category == .daemon }
+            return hasServiceIssues ? .failed : .notStarted
         }()
         rows.append(
             SettingsSystemStatusRowModel(
@@ -113,7 +144,7 @@ enum SettingsSystemStatusRowsBuilder {
 
         // 8) Kanata Engine Setup (only once driver is healthy, mirrors wizard)
         if karabinerStatus == .completed {
-            let kanataIssues = wizardIssues.filter { issue in
+            let hasKanataIssues = wizardIssues.contains { issue in
                 if issue.category == .installation {
                     switch issue.identifier {
                     case .component(.kanataBinaryMissing),
@@ -126,13 +157,12 @@ enum SettingsSystemStatusRowsBuilder {
                 }
                 return false
             }
-            let kanataStatus = issueStatus(for: kanataIssues)
             rows.append(
                 SettingsSystemStatusRowModel(
                     id: "kanata-components",
                     title: "Kanata Engine Setup",
                     icon: "cpu.fill",
-                    status: kanataStatus,
+                    status: hasKanataIssues ? .failed : .completed,
                     targetPage: .kanataComponents
                 )
             )
@@ -156,12 +186,6 @@ enum SettingsSystemStatusRowsBuilder {
         )
 
         return rows
-    }
-}
-
-private extension SettingsSystemStatusRowsBuilder {
-    static func issueStatus(for issues: [WizardIssue]) -> InstallationStatus {
-        IssueSeverityInstallationStatusMapper.installationStatus(for: issues)
     }
 }
 

@@ -292,22 +292,6 @@ struct StatusSettingsTabView: View {
             details.append(detail)
         }
 
-        if let detail = tcpDetail {
-            details.append(detail)
-        }
-
-        if let detail = karabinerDetail {
-            details.append(detail)
-        }
-
-        if let detail = kanataLogsDetail {
-            details.append(detail)
-        }
-
-        if let detail = karabinerLogsDetail {
-            details.append(detail)
-        }
-
         if let duplicateDetail = duplicateAppsDetail {
             details.append(duplicateDetail)
         }
@@ -348,14 +332,9 @@ struct StatusSettingsTabView: View {
             message: "Service is stopped. Use the switch above to turn it on.",
             icon: "pause.circle",
             level: .warning,
-            actions: [
-                StatusDetailAction(title: "Open Login Items", icon: "list.bullet") {
-                    SystemDiagnostics.open(.loginItems)
-                },
-                StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
-                    wizardInitialPage = .summary
-                }
-            ]
+            action: StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
+                wizardInitialPage = .summary
+            }
         )
     }
 
@@ -386,140 +365,14 @@ struct StatusSettingsTabView: View {
         }
         lines.append("Missing: \(evaluation.labels.joined(separator: ", "))")
 
-        var actions: [StatusDetailAction] = [
-            StatusDetailAction(title: "Fix", icon: "wand.and.stars") {
-                showingPermissionAlert = true
-            }
-        ]
-
-        if !snapshot.keyPath.inputMonitoring.isReady || !snapshot.kanata.inputMonitoring.isReady {
-            actions.append(
-                StatusDetailAction(title: "Open Input Monitoring", icon: "lock.shield") {
-                    SystemDiagnostics.open(.inputMonitoring)
-                }
-            )
-        }
-
-        if !snapshot.keyPath.accessibility.isReady || !snapshot.kanata.accessibility.isReady {
-            actions.append(
-                StatusDetailAction(title: "Open Accessibility", icon: "figure.walk") {
-                    SystemDiagnostics.open(.accessibility)
-                }
-            )
-        }
-
         return StatusDetail(
             title: "Permissions",
             message: lines.joined(separator: "\n"),
             icon: "exclamationmark.shield",
             level: evaluation.hasErrors ? .critical : .warning,
-            actions: actions
-        )
-    }
-
-    private var tcpDetail: StatusDetail? {
-        guard systemContext?.services.kanataRunning == true else { return nil }
-        guard let tcpConfigured else {
-            return StatusDetail(
-                title: "TCP Communication",
-                message: "Checking TCP configuration…",
-                icon: "ellipsis.circle",
-                level: .info
-            )
-        }
-
-        if tcpConfigured {
-            return StatusDetail(
-                title: "TCP Communication",
-                message: "Configured.",
-                icon: "checkmark.shield.fill",
-                level: .success
-            )
-        }
-
-        return StatusDetail(
-            title: "TCP Communication",
-            message: "Service is missing the TCP port configuration. Open the wizard to repair communication settings.",
-            icon: "exclamationmark.triangle",
-            level: .critical,
-            actions: [
-                StatusDetailAction(title: "Open Kanata Logs", icon: "doc.text.magnifyingglass") {
-                    SystemDiagnostics.openKanataLogsInEditor()
-                },
-                StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
-                    wizardInitialPage = .communication
-                }
-            ]
-        )
-    }
-
-    private var karabinerDetail: StatusDetail? {
-        let status = KarabinerComponentsStatusEvaluator.evaluate(
-            systemState: wizardSystemState,
-            issues: wizardIssues
-        )
-        guard status != .completed else { return nil }
-
-        let level: StatusDetail.Level = wizardIssues.contains(where: { $0.severity == .critical || $0.severity == .error })
-            ? .critical
-            : .warning
-
-        let message: String = {
-            let relevant = wizardIssues.filter { issue in
-                (issue.category == .installation && issue.identifier.isVHIDRelated)
-                    || issue.category == .backgroundServices
-                    || (issue.category == .daemon && issue.identifier == .component(.karabinerDaemon))
+            action: StatusDetailAction(title: "Fix", icon: "wand.and.stars") {
+                showingPermissionAlert = true
             }
-            if let first = relevant.first {
-                return first.title
-            }
-            return "Karabiner driver or related services are not healthy."
-        }()
-
-        return StatusDetail(
-            title: "Karabiner Driver",
-            message: message,
-            icon: "keyboard.macwindow",
-            level: level,
-            actions: [
-                StatusDetailAction(title: "Open Karabiner Logs", icon: "doc.on.doc") {
-                    SystemDiagnostics.openKarabinerLogsDirectory()
-                },
-                StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
-                    wizardInitialPage = .karabinerComponents
-                }
-            ]
-        )
-    }
-
-    private var kanataLogsDetail: StatusDetail? {
-        // Show logs affordance when service isn't healthy or has daemon issues.
-        guard serviceStatusDetail.level != .success else { return nil }
-        return StatusDetail(
-            title: "Kanata Logs",
-            message: "Open the daemon stderr log for startup errors and permission failures.",
-            icon: "doc.text.magnifyingglass",
-            level: .info,
-            actions: [
-                StatusDetailAction(title: "Open", icon: "doc.text") {
-                    SystemDiagnostics.openKanataLogsInEditor()
-                }
-            ]
-        )
-    }
-
-    private var karabinerLogsDetail: StatusDetail? {
-        guard karabinerDetail != nil else { return nil }
-        return StatusDetail(
-            title: "Karabiner Logs",
-            message: "Open the Karabiner log directory for VirtualHID daemon/manager logs.",
-            icon: "doc.on.doc",
-            level: .info,
-            actions: [
-                StatusDetailAction(title: "Open", icon: "folder") {
-                    SystemDiagnostics.openKarabinerLogsDirectory()
-                }
-            ]
         )
     }
 
@@ -531,11 +384,9 @@ struct StatusSettingsTabView: View {
             message: "Found \(count) copies of KeyPath. Extra copies can confuse macOS permissions.",
             icon: "exclamationmark.triangle",
             level: .warning,
-            actions: [
-                StatusDetailAction(title: "Review", icon: "arrow.right") {
-                    NotificationCenter.default.post(name: .openSettingsAdvanced, object: nil)
-                }
-            ]
+            action: StatusDetailAction(title: "Review", icon: "arrow.right") {
+                NotificationCenter.default.post(name: .openSettingsAdvanced, object: nil)
+            }
         )
     }
 
@@ -583,8 +434,8 @@ struct StatusSettingsTabView: View {
 
                             Button(action: { wizardInitialPage = .summary }) {
                                 Image(systemName: systemHealthIcon)
-                                    .font(.system(size: 40))
-                                    .foregroundColor(systemHealthTint)
+                                .font(.system(size: 40))
+                                .foregroundColor(systemHealthTint)
                             }
                             .buttonStyle(.plain)
                         }
@@ -724,15 +575,6 @@ struct StatusSettingsTabView: View {
             .padding(.horizontal, 20)
             .padding(.top, 24)
 
-            // Status details (actionable summaries)
-            VStack(alignment: .leading, spacing: 12) {
-                ForEach(statusDetails.filter { $0.level != .success }) { detail in
-                    StatusDetailRow(detail: detail)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-
             Spacer()
         }
         .frame(maxHeight: 350)
@@ -785,8 +627,6 @@ struct StatusSettingsTabView: View {
             wizardIssues = adapted.issues
             tcpConfigured = tcpOk
             showSetupBanner = !(snapshot.isSystemReady && context.services.isHealthy)
-                || duplicates.count > 1
-                || (context.services.kanataRunning && !tcpOk)
             duplicateAppCopies = duplicates
         }
 
@@ -929,8 +769,7 @@ private struct PermissionStatusRow: View {
     }
 }
 
-private struct StatusDetailAction: Identifiable {
-    let id = UUID()
+private struct StatusDetailAction {
     let title: String
     let icon: String?
     let handler: () -> Void
@@ -948,24 +787,20 @@ private struct StatusDetail: Identifiable {
     let message: String
     let icon: String
     let level: Level
-    let actions: [StatusDetailAction]
+    let action: StatusDetailAction?
 
     var id: String {
         "\(title)|\(message)"
     }
 
     init(
-        title: String,
-        message: String,
-        icon: String,
-        level: Level,
-        actions: [StatusDetailAction] = []
+        title: String, message: String, icon: String, level: Level, action: StatusDetailAction? = nil
     ) {
         self.title = title
         self.message = message
         self.icon = icon
         self.level = level
-        self.actions = actions
+        self.action = action
     }
 }
 
@@ -1009,23 +844,19 @@ private struct StatusDetailRow: View {
 
             Spacer()
 
-            if !detail.actions.isEmpty {
-                HStack(spacing: 6) {
-                    ForEach(detail.actions) { action in
-                        Button {
-                            action.handler()
-                        } label: {
-                            if let icon = action.icon {
-                                Label(action.title, systemImage: icon)
-                                    .labelStyle(.titleAndIcon)
-                            } else {
-                                Text(action.title)
-                            }
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
+            if let action = detail.action {
+                Button {
+                    action.handler()
+                } label: {
+                    if let icon = action.icon {
+                        Label(action.title, systemImage: icon)
+                            .labelStyle(.titleAndIcon)
+                    } else {
+                        Text(action.title)
                     }
                 }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
             }
         }
     }
