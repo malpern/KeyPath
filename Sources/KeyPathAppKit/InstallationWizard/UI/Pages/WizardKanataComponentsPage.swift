@@ -7,6 +7,7 @@ struct WizardKanataComponentsPage: View {
     let systemState: WizardSystemState
     let issues: [WizardIssue]
     let isFixing: Bool
+    let blockingFixDescription: String?
     let onAutoFix: (AutoFixAction, Bool) async -> Bool // (action, suppressToast)
     let onRefresh: () -> Void
     let kanataManager: RuntimeCoordinator
@@ -14,6 +15,8 @@ struct WizardKanataComponentsPage: View {
     // Track which specific issues are being fixed
     @State private var fixingIssues: Set<UUID> = []
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
+    @State private var pendingBundledKanataInstall: UUID?
+    @State private var queuedFixTimeoutTask: Task<Void, Never>?
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
     var body: some View {
@@ -176,6 +179,21 @@ struct WizardKanataComponentsPage: View {
         .fixedSize(horizontal: false, vertical: true)
         .background(WizardDesign.Colors.wizardBackground)
         .wizardDetailPage()
+        .onChange(of: isFixing) { _, newValue in
+            guard !newValue, let pendingId = pendingBundledKanataInstall else { return }
+
+            guard let issue = issues.first(where: { $0.id == pendingId }) else {
+                pendingBundledKanataInstall = nil
+                queuedFixTimeoutTask?.cancel()
+                queuedFixTimeoutTask = nil
+                fixingIssues.remove(pendingId)
+                actionStatus = .idle
+                return
+            }
+
+            pendingBundledKanataInstall = nil
+            startBundledKanataInstall(issue: issue)
+        }
     }
 
     // MARK: - Helper Methods
@@ -271,24 +289,58 @@ struct WizardKanataComponentsPage: View {
         AppLogger.shared.log(
             "🔧 [WizardKanataComponentsPage] User requested bundled kanata installation")
         if let kanataIssue = issues.first(where: { $0.autoFixAction == .installBundledKanata }) {
-            fixingIssues.insert(kanataIssue.id)
+            if isFixing {
+                pendingBundledKanataInstall = kanataIssue.id
+                fixingIssues.insert(kanataIssue.id)
 
-            Task {
-                await MainActor.run {
-                    actionStatus = .inProgress(message: "Installing bundled Kanata…")
+                let blocker = blockingFixDescription ?? "another fix"
+                actionStatus = .inProgress(
+                    message: "Completing \(blocker) before starting Kanata install…"
+                )
+                AppLogger.shared.log(
+                    "⏳ [WizardKanataComponentsPage] Queued Kanata install - waiting for \(blocker)"
+                )
+
+                queuedFixTimeoutTask?.cancel()
+                queuedFixTimeoutTask = Task { @MainActor in
+                    _ = await WizardSleep.seconds(35)
+                    guard pendingBundledKanataInstall == kanataIssue.id, isFixing else { return }
+                    AppLogger.shared.log(
+                        "⛔️ [WizardKanataComponentsPage] Queued Kanata install timed out while waiting"
+                    )
+                    pendingBundledKanataInstall = nil
+                    fixingIssues.remove(kanataIssue.id)
+                    actionStatus = .error(
+                        message: "Another fix appears to be stuck. Try restarting KeyPath and running Fix again."
+                    )
                 }
+                return
+            }
 
-                let ok = await onAutoFix(.installBundledKanata, true) // suppressToast=true
-                await kanataManager.updateStatus()
+            startBundledKanataInstall(issue: kanataIssue)
+        }
+    }
 
-                await MainActor.run {
-                    _ = fixingIssues.remove(kanataIssue.id)
-                    if ok {
-                        actionStatus = .success(message: "Bundled Kanata installed")
-                        scheduleStatusClear()
-                    } else {
-                        actionStatus = .error(message: "Install failed. Please try again.")
-                    }
+    private func startBundledKanataInstall(issue: WizardIssue) {
+        queuedFixTimeoutTask?.cancel()
+        queuedFixTimeoutTask = nil
+        fixingIssues.insert(issue.id)
+
+        Task {
+            await MainActor.run {
+                actionStatus = .inProgress(message: "Installing bundled Kanata…")
+            }
+
+            let ok = await onAutoFix(.installBundledKanata, true) // suppressToast=true
+            await kanataManager.updateStatus()
+
+            await MainActor.run {
+                _ = fixingIssues.remove(issue.id)
+                if ok {
+                    actionStatus = .success(message: "Bundled Kanata installed")
+                    scheduleStatusClear()
+                } else {
+                    actionStatus = .error(message: "Install failed. Please try again.")
                 }
             }
         }

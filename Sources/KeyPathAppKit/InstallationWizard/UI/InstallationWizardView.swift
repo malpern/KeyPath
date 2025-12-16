@@ -64,6 +64,11 @@ struct InstallationWizardView: View {
     // Focus management for reliable ESC key handling
     @FocusState private var hasKeyboardFocus: Bool
 
+    private var currentFixDescriptionForUI: String? {
+        guard let currentFixAction else { return nil }
+        return describeAutoFixActionForUI(currentFixAction)
+    }
+
     var body: some View {
         ZStack {
             if let banner = statusBannerMessage {
@@ -328,7 +333,8 @@ struct InstallationWizardView: View {
                 WizardKarabinerComponentsPage(
                     systemState: systemState,
                     issues: currentIssues,
-                    isFixing: asyncOperationManager.hasRunningOperations,
+                    isFixing: fixInFlight,
+                    blockingFixDescription: currentFixDescriptionForUI,
                     onAutoFix: performAutoFix,
                     onRefresh: { refreshState() },
                     kanataManager: kanataManager,
@@ -338,7 +344,8 @@ struct InstallationWizardView: View {
                 WizardKanataComponentsPage(
                     systemState: systemState,
                     issues: currentIssues,
-                    isFixing: asyncOperationManager.hasRunningOperations,
+                    isFixing: fixInFlight,
+                    blockingFixDescription: currentFixDescriptionForUI,
                     onAutoFix: performAutoFix,
                     onRefresh: { refreshState() },
                     kanataManager: kanataManager
@@ -347,7 +354,8 @@ struct InstallationWizardView: View {
                 WizardHelperPage(
                     systemState: systemState,
                     issues: currentIssues,
-                    isFixing: asyncOperationManager.hasRunningOperations,
+                    isFixing: fixInFlight,
+                    blockingFixDescription: currentFixDescriptionForUI,
                     onAutoFix: performAutoFix,
                     onRefresh: { refreshState() },
                     kanataManager: kanataManager
@@ -1039,59 +1047,65 @@ struct InstallationWizardView: View {
         return success
     }
 
+    /// UI-only descriptions for auto-fix actions.
+    ///
+    /// Keep this free of logging so it can be called from SwiftUI view updates.
+    private func describeAutoFixActionForUI(_ action: AutoFixAction) -> String {
+        switch action {
+        case .installPrivilegedHelper:
+            "Install privileged helper for system operations"
+        case .reinstallPrivilegedHelper:
+            "Reinstall privileged helper to restore functionality"
+        case .terminateConflictingProcesses:
+            "Terminate conflicting processes"
+        case .startKarabinerDaemon:
+            "Start Karabiner daemon"
+        case .restartVirtualHIDDaemon:
+            "Fix VirtualHID connection issues"
+        case .installMissingComponents:
+            "Install missing components"
+        case .createConfigDirectories:
+            "Create configuration directories"
+        case .activateVHIDDeviceManager:
+            "Activate VirtualHID Device Manager"
+        case .installLaunchDaemonServices:
+            "Install LaunchDaemon services"
+        case .adoptOrphanedProcess:
+            "Connect existing Kanata to KeyPath management"
+        case .replaceOrphanedProcess:
+            "Replace orphaned process with managed service"
+        case .installBundledKanata:
+            "Install Kanata binary"
+        case .repairVHIDDaemonServices:
+            "Repair VHID LaunchDaemon services"
+        case .synchronizeConfigPaths:
+            "Fix config path mismatch between KeyPath and Kanata"
+        case .restartUnhealthyServices:
+            "Restart failing system services"
+        case .installLogRotation:
+            "Install log rotation to keep logs under 10MB"
+        case .replaceKanataWithBundled:
+            "Replace kanata with Developer ID signed version"
+        case .enableTCPServer:
+            "Enable TCP server"
+        case .setupTCPAuthentication:
+            "Setup TCP authentication for secure communication"
+        case .regenerateCommServiceConfiguration:
+            "Update TCP service configuration"
+        case .restartCommServer:
+            "Restart Service with Authentication"
+        case .fixDriverVersionMismatch:
+            "Fix Karabiner driver version (v6 → v5)"
+        case .installCorrectVHIDDriver:
+            "Install Karabiner VirtualHID driver"
+        }
+    }
+
     /// Get user-friendly description for auto-fix actions
     private func getAutoFixActionDescription(_ action: AutoFixAction) -> String {
         AppLogger.shared.log("🔍 [ActionDescription] getAutoFixActionDescription called for: \(action)")
 
-        let description =
-            switch action {
-            case .installPrivilegedHelper:
-                "Install privileged helper for system operations"
-            case .reinstallPrivilegedHelper:
-                "Reinstall privileged helper to restore functionality"
-            case .terminateConflictingProcesses:
-                "Terminate conflicting processes"
-            case .startKarabinerDaemon:
-                "Start Karabiner daemon"
-            case .restartVirtualHIDDaemon:
-                "Fix VirtualHID connection issues"
-            case .installMissingComponents:
-                "Install missing components"
-            case .createConfigDirectories:
-                "Create configuration directories"
-            case .activateVHIDDeviceManager:
-                "Activate VirtualHID Device Manager"
-            case .installLaunchDaemonServices:
-                "Install LaunchDaemon services"
-            case .adoptOrphanedProcess:
-                "Connect existing Kanata to KeyPath management"
-            case .replaceOrphanedProcess:
-                "Replace orphaned process with managed service"
-            case .installBundledKanata:
-                "Install Kanata binary"
-            case .repairVHIDDaemonServices:
-                "Repair VHID LaunchDaemon services"
-            case .synchronizeConfigPaths:
-                "Fix config path mismatch between KeyPath and Kanata"
-            case .restartUnhealthyServices:
-                "Restart failing system services"
-            case .installLogRotation:
-                "Install log rotation to keep logs under 10MB"
-            case .replaceKanataWithBundled:
-                "Replace kanata with Developer ID signed version"
-            case .enableTCPServer:
-                "Enable TCP server"
-            case .setupTCPAuthentication:
-                "Setup TCP authentication for secure communication"
-            case .regenerateCommServiceConfiguration:
-                "Update TCP service configuration"
-            case .restartCommServer:
-                "Restart Service with Authentication"
-            case .fixDriverVersionMismatch:
-                "Fix Karabiner driver version (v6 → v5)"
-            case .installCorrectVHIDDriver:
-                "Install Karabiner VirtualHID driver"
-            }
+        let description = describeAutoFixActionForUI(action)
 
         AppLogger.shared.log("🔍 [ActionDescription] Returning description: \(description)")
         return description

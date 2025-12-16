@@ -14,6 +14,7 @@ struct WizardKarabinerComponentsPage: View {
     let systemState: WizardSystemState
     let issues: [WizardIssue]
     let isFixing: Bool
+    let blockingFixDescription: String?
     let onAutoFix: (AutoFixAction, Bool) async -> Bool // (action, suppressToast)
     let onRefresh: () -> Void
     let kanataManager: RuntimeCoordinator
@@ -21,6 +22,8 @@ struct WizardKarabinerComponentsPage: View {
 
     @State private var showAllItems = false
     @State private var isCombinedFixLoading = false
+    @State private var pendingCombinedFix = false
+    @State private var queuedFixTimeoutTask: Task<Void, Never>?
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
     @State private var lastKarabinerHealthy = false
     @State private var stepProgressCancellable: AnyCancellable?
@@ -128,7 +131,7 @@ struct WizardKarabinerComponentsPage: View {
                     }
 
                     Button("Fix") {
-                        handleCombinedFix()
+                        handleFixButtonTapped()
                     }
                     .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isCombinedFixLoading))
                     .keyboardShortcut(.defaultAction)
@@ -172,6 +175,10 @@ struct WizardKarabinerComponentsPage: View {
                     "ℹ️ [Wizard] Karabiner page onAppear with hasKarabinerIssues=true; issues=\(issues.count)"
                 )
             }
+        }
+        .onChange(of: isFixing) { _, newValue in
+            guard pendingCombinedFix, !newValue else { return }
+            resumeQueuedCombinedFix()
         }
     }
 
@@ -278,12 +285,50 @@ struct WizardKarabinerComponentsPage: View {
 
     /// Smart handler for Karabiner Driver Fix button
     /// Detects if Karabiner is installed vs needs installation
-    private func handleCombinedFix() {
+    private func handleFixButtonTapped() {
         guard !isCombinedFixLoading else {
-            AppLogger.shared.log("⚠️ [Karabiner Fix] handleCombinedFix() skipped - already loading")
+            AppLogger.shared.log("⚠️ [Karabiner Fix] Fix tapped while already loading")
             return
         }
-        AppLogger.shared.log("🔧 [Karabiner Fix] handleCombinedFix() START")
+
+        // If another fix is running elsewhere, queue this fix and show an inline waiting state.
+        if isFixing {
+            pendingCombinedFix = true
+            isCombinedFixLoading = true
+
+            let blocker = blockingFixDescription ?? "another fix"
+            actionStatus = .inProgress(
+                message: "Completing \(blocker) before starting Karabiner repair…"
+            )
+            AppLogger.shared.log("⏳ [Karabiner Fix] Queued - waiting for \(blocker) to finish")
+
+            queuedFixTimeoutTask?.cancel()
+            queuedFixTimeoutTask = Task { @MainActor in
+                _ = await WizardSleep.seconds(35)
+                guard pendingCombinedFix, isFixing else { return }
+                AppLogger.shared.log("⛔️ [Karabiner Fix] Queued fix timed out while waiting")
+                pendingCombinedFix = false
+                isCombinedFixLoading = false
+                actionStatus = .error(
+                    message: "Another fix appears to be stuck. Try restarting KeyPath and running Fix again."
+                )
+            }
+            return
+        }
+
+        startCombinedFix()
+    }
+
+    private func startCombinedFix() {
+        if isCombinedFixLoading {
+            AppLogger.shared.log("⚠️ [Karabiner Fix] startCombinedFix() skipped - already loading")
+            return
+        }
+
+        queuedFixTimeoutTask?.cancel()
+        queuedFixTimeoutTask = nil
+
+        AppLogger.shared.log("🔧 [Karabiner Fix] startCombinedFix() START")
         isCombinedFixLoading = true
         actionStatus = .inProgress(message: "Preparing...")
 
@@ -302,7 +347,7 @@ struct WizardKarabinerComponentsPage: View {
                 stepProgressCancellable?.cancel()
                 stepProgressCancellable = nil
                 isCombinedFixLoading = false
-                AppLogger.shared.log("🔧 [Karabiner Fix] handleCombinedFix() END - spinner released")
+                AppLogger.shared.log("🔧 [Karabiner Fix] startCombinedFix() END - spinner released")
             }
 
             // 1) Driver install/repair (always if missing, repair if unhealthy)
@@ -340,6 +385,17 @@ struct WizardKarabinerComponentsPage: View {
             // Note: Both performAutomaticDriverRepair() and performAutomaticServiceRepair()
             // call refreshAndWait() internally, so we don't need to call it again here.
         }
+    }
+
+    private func resumeQueuedCombinedFix() {
+        AppLogger.shared.log("⏳ [Karabiner Fix] Prior fix completed; starting queued Karabiner repair")
+        queuedFixTimeoutTask?.cancel()
+        queuedFixTimeoutTask = nil
+        pendingCombinedFix = false
+        // Transition from "waiting" (loading=true) into the real fix flow.
+        // We momentarily drop the loading flag so startCombinedFix() can take ownership.
+        isCombinedFixLoading = false
+        startCombinedFix()
     }
 
     /// Try helper-based driver installation up to N attempts before falling back to manual sheet

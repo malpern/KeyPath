@@ -10,6 +10,7 @@ struct WizardHelperPage: View {
     let systemState: WizardSystemState
     let issues: [WizardIssue]
     let isFixing: Bool
+    let blockingFixDescription: String?
     let onAutoFix: (AutoFixAction, Bool) async -> Bool
     let onRefresh: () -> Void
     let kanataManager: RuntimeCoordinator
