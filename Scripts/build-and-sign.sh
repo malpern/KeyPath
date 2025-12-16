@@ -8,6 +8,86 @@ set -e  # Exit on any error
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 source "$SCRIPT_DIR/lib/signing.sh"
 
+# Function to create Sparkle update archive with EdDSA signature.
+#
+# Defined near the top so it can be invoked from the main build flow below.
+create_sparkle_archive() {
+    echo ""
+    echo "✨ Creating Sparkle update archive..."
+
+    # Extract version from Info.plist
+    local VERSION
+    VERSION=$(defaults read "$CONTENTS/Info" CFBundleShortVersionString 2>/dev/null || echo "1.0.0")
+    local BUILD
+    BUILD=$(defaults read "$CONTENTS/Info" CFBundleVersion 2>/dev/null || echo "1")
+    local ARCHIVE_NAME="KeyPath-${VERSION}.zip"
+    local SPARKLE_DIR="${DIST_DIR}/sparkle"
+
+    mkdir -p "$SPARKLE_DIR"
+
+    # Create versioned ZIP for Sparkle (separate from the notarization zip)
+    echo "📦 Creating versioned archive: $ARCHIVE_NAME"
+    cd "$DIST_DIR"
+    ditto -c -k --keepParent "${APP_NAME}.app" "sparkle/${ARCHIVE_NAME}"
+    cd ..
+
+    # Sign with EdDSA using Sparkle's sign_update tool
+    local SIGN_UPDATE="/opt/homebrew/Caskroom/sparkle/2.8.1/bin/sign_update"
+    local SIGNATURE=""
+    if [ -x "$SIGN_UPDATE" ]; then
+        echo "🔐 Signing archive with EdDSA..."
+        SIGNATURE=$("$SIGN_UPDATE" "${SPARKLE_DIR}/${ARCHIVE_NAME}" 2>/dev/null || echo "")
+
+        if [ -n "$SIGNATURE" ]; then
+            echo "$SIGNATURE" > "${SPARKLE_DIR}/${ARCHIVE_NAME}.sig"
+            echo "✅ EdDSA signature generated"
+        else
+            echo "⚠️ WARNING: EdDSA signing failed - check Keychain for Sparkle key"
+        fi
+    else
+        echo "⚠️ WARNING: sign_update not found at $SIGN_UPDATE"
+        echo "   Install with: brew install sparkle"
+    fi
+
+    # Get file size
+    local SIZE
+    SIZE=$(stat -f%z "${SPARKLE_DIR}/${ARCHIVE_NAME}")
+    local PUB_DATE
+    PUB_DATE=$(date -R)
+
+    # Generate appcast entry XML
+    echo "📝 Generating appcast entry..."
+    cat > "${SPARKLE_DIR}/${ARCHIVE_NAME}.appcast-entry.xml" <<EOF
+<!-- Add this item to appcast.xml -->
+<item>
+    <title>Version ${VERSION}</title>
+    <sparkle:version>${BUILD}</sparkle:version>
+    <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
+    <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+    <pubDate>${PUB_DATE}</pubDate>
+    <enclosure
+        url="https://github.com/malpern/KeyPath/releases/download/v${VERSION}/${ARCHIVE_NAME}"
+        sparkle:edSignature="${SIGNATURE}"
+        length="${SIZE}"
+        type="application/octet-stream"/>
+    <sparkle:releaseNotesLink>
+        https://github.com/malpern/KeyPath/releases/tag/v${VERSION}
+    </sparkle:releaseNotesLink>
+</item>
+EOF
+
+    echo ""
+    echo "✅ Sparkle archive created:"
+    echo "   📦 Archive: ${SPARKLE_DIR}/${ARCHIVE_NAME}"
+    echo "   🔐 Signature: ${SPARKLE_DIR}/${ARCHIVE_NAME}.sig"
+    echo "   📝 Appcast entry: ${SPARKLE_DIR}/${ARCHIVE_NAME}.appcast-entry.xml"
+    echo ""
+    echo "📋 Next steps for release:"
+    echo "   1. Upload ${ARCHIVE_NAME} to GitHub Releases as v${VERSION}"
+    echo "   2. Copy appcast entry to appcast.xml"
+    echo "   3. Commit and push appcast.xml"
+}
+
 echo "🦀 Building bundled kanata..."
 # Build kanata from source (required for proper signing)
 ./Scripts/build-kanata.sh
@@ -197,80 +277,6 @@ else
     # Create Sparkle-compatible versioned archive
     create_sparkle_archive
 fi
-
-# Function to create Sparkle update archive with EdDSA signature
-create_sparkle_archive() {
-    echo ""
-    echo "✨ Creating Sparkle update archive..."
-
-    # Extract version from Info.plist
-    local VERSION=$(defaults read "$CONTENTS/Info" CFBundleShortVersionString 2>/dev/null || echo "1.0.0")
-    local BUILD=$(defaults read "$CONTENTS/Info" CFBundleVersion 2>/dev/null || echo "1")
-    local ARCHIVE_NAME="KeyPath-${VERSION}.zip"
-    local SPARKLE_DIR="${DIST_DIR}/sparkle"
-
-    mkdir -p "$SPARKLE_DIR"
-
-    # Create versioned ZIP for Sparkle (separate from the notarization zip)
-    echo "📦 Creating versioned archive: $ARCHIVE_NAME"
-    cd "$DIST_DIR"
-    ditto -c -k --keepParent "${APP_NAME}.app" "sparkle/${ARCHIVE_NAME}"
-    cd ..
-
-    # Sign with EdDSA using Sparkle's sign_update tool
-    local SIGN_UPDATE="/opt/homebrew/Caskroom/sparkle/2.8.1/bin/sign_update"
-    if [ -x "$SIGN_UPDATE" ]; then
-        echo "🔐 Signing archive with EdDSA..."
-        local SIGNATURE=$("$SIGN_UPDATE" "${SPARKLE_DIR}/${ARCHIVE_NAME}" 2>/dev/null || echo "")
-        
-        if [ -n "$SIGNATURE" ]; then
-            echo "$SIGNATURE" > "${SPARKLE_DIR}/${ARCHIVE_NAME}.sig"
-            echo "✅ EdDSA signature generated"
-        else
-            echo "⚠️ WARNING: EdDSA signing failed - check Keychain for Sparkle key"
-        fi
-    else
-        echo "⚠️ WARNING: sign_update not found at $SIGN_UPDATE"
-        echo "   Install with: brew install sparkle"
-        local SIGNATURE=""
-    fi
-
-    # Get file size
-    local SIZE=$(stat -f%z "${SPARKLE_DIR}/${ARCHIVE_NAME}")
-    local PUB_DATE=$(date -R)
-
-    # Generate appcast entry XML
-    echo "📝 Generating appcast entry..."
-    cat > "${SPARKLE_DIR}/${ARCHIVE_NAME}.appcast-entry.xml" <<EOF
-<!-- Add this item to appcast.xml -->
-<item>
-    <title>Version ${VERSION}</title>
-    <sparkle:version>${BUILD}</sparkle:version>
-    <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
-    <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-    <pubDate>${PUB_DATE}</pubDate>
-    <enclosure
-        url="https://github.com/malpern/KeyPath/releases/download/v${VERSION}/${ARCHIVE_NAME}"
-        sparkle:edSignature="${SIGNATURE}"
-        length="${SIZE}"
-        type="application/octet-stream"/>
-    <sparkle:releaseNotesLink>
-        https://github.com/malpern/KeyPath/releases/tag/v${VERSION}
-    </sparkle:releaseNotesLink>
-</item>
-EOF
-
-    echo ""
-    echo "✅ Sparkle archive created:"
-    echo "   📦 Archive: ${SPARKLE_DIR}/${ARCHIVE_NAME}"
-    echo "   🔐 Signature: ${SPARKLE_DIR}/${ARCHIVE_NAME}.sig"
-    echo "   📝 Appcast entry: ${SPARKLE_DIR}/${ARCHIVE_NAME}.appcast-entry.xml"
-    echo ""
-    echo "📋 Next steps for release:"
-    echo "   1. Upload ${ARCHIVE_NAME} to GitHub Releases as v${VERSION}"
-    echo "   2. Copy appcast entry to appcast.xml"
-    echo "   3. Commit and push appcast.xml"
-}
 
 echo "📂 Deploying to /Applications..."
 SYSTEM_APPS_DIR="/Applications"
