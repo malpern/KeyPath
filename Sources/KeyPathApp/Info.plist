@@ -11,7 +11,7 @@
 	<key>CFBundleDisplayName</key>
 	<string>KeyPath</string>
 	<key>CFBundleVersion</key>
-	<string>1.0.0</string>
+	<string>1</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.0.0</string>
 	<key>CFBundlePackageType</key>
@@ -51,7 +51,7 @@
 
 	<!-- Sparkle Auto-Update Configuration -->
 	<key>SUFeedURL</key>
-	<string>https://raw.githubusercontent.com/malpern/KeyPath/main/appcast.xml</string>
+	<string>https://raw.githubusercontent.com/malpern/KeyPath/master/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>Jry+V9z0EbEysm5FWpbL8J3XfeFnzWqGI3Y3+CQiHgo=</string>
 	<key>SUEnableAutomaticChecks</key>

@@ -106,6 +106,36 @@ extension UpdateService: SPUUpdaterDelegate {
         // Don't postpone - let Sparkle handle the relaunch timing
         false
     }
+
+    public nonisolated func updater(_: SPUUpdater, didAbortWithError error: Error) {
+        let nsError = error as NSError
+        Task { @MainActor in
+            let feedURL = Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String ?? "(missing)"
+            AppLogger.shared.error(
+                "❌ [UpdateService] Sparkle aborted update cycle: \(nsError.domain) \(nsError.code) - \(nsError.localizedDescription) | feed=\(feedURL)"
+            )
+        }
+    }
+
+    public nonisolated func updater(
+        _: SPUUpdater,
+        didFinishUpdateCycleFor updateCheck: SPUUpdateCheck,
+        error: (any Error)?
+    ) {
+        let nsError = (error as NSError?)
+        Task { @MainActor in
+            let feedURL = Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String ?? "(missing)"
+            if let nsError {
+                AppLogger.shared.error(
+                    "⚠️ [UpdateService] Sparkle finished update cycle with error (\(updateCheck.rawValue)): \(nsError.domain) \(nsError.code) - \(nsError.localizedDescription) | feed=\(feedURL)"
+                )
+            } else {
+                AppLogger.shared.log(
+                    "✅ [UpdateService] Sparkle finished update cycle (\(updateCheck.rawValue)) | feed=\(feedURL)"
+                )
+            }
+        }
+    }
 }
 
 // MARK: - Post-Relaunch Handler (separate extension to silence spurious warning)
