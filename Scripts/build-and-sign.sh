@@ -41,7 +41,7 @@ create_sparkle_archive() {
         # Normalize so SIGNATURE is just the base64 payload (not the full attribute string).
         local SIGN_OUTPUT
         SIGN_OUTPUT=$("$SIGN_UPDATE" "${SPARKLE_DIR}/${ARCHIVE_NAME}" 2>/dev/null || echo "")
-        SIGNATURE=$(echo "$SIGN_OUTPUT" | sed -n 's/.*sparkle:edSignature="\\([^"]*\\)".*/\\1/p')
+        SIGNATURE=$(echo "$SIGN_OUTPUT" | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
         if [ -z "$SIGNATURE" ]; then
             # Some versions may print just the signature string; accept that form too.
             SIGNATURE=$(echo "$SIGN_OUTPUT" | tr -d '\n' | tr -d '\r')
