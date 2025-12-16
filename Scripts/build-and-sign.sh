@@ -111,28 +111,45 @@ DIST_DIR="dist"
 APP_BUNDLE="${DIST_DIR}/${APP_NAME}.app"
 CONTENTS="${APP_BUNDLE}/Contents"
 MACOS="${CONTENTS}/MacOS"
-RESOURCES="${CONTENTS}/Resources"
+	RESOURCES="${CONTENTS}/Resources"
+	FRAMEWORKS="${CONTENTS}/Frameworks"
 
-# Clean and create directories
-rm -rf "$DIST_DIR"
-mkdir -p "$MACOS"
-mkdir -p "$RESOURCES"
-mkdir -p "$CONTENTS/Library/KeyPath"
+	# Clean and create directories
+	rm -rf "$DIST_DIR"
+	mkdir -p "$MACOS"
+	mkdir -p "$RESOURCES"
+	mkdir -p "$FRAMEWORKS"
+	mkdir -p "$CONTENTS/Library/KeyPath"
 
-# Copy main executable
-ditto "$BUILD_DIR/KeyPath" "$MACOS/KeyPath"
+	# Copy main executable
+	ditto "$BUILD_DIR/KeyPath" "$MACOS/KeyPath"
 
-# Copy bundled kanata binary
-ditto "build/kanata-universal" "$CONTENTS/Library/KeyPath/kanata"
+	# Ensure app-bundle rpath can locate embedded frameworks
+	# SwiftPM-built executables usually have LC_RPATH=@loader_path, which points to Contents/MacOS.
+	# For an app bundle, frameworks live at Contents/Frameworks, so add that search path.
+	install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS/KeyPath" 2>/dev/null || true
 
-# Copy bundled kanata simulator binary
-ditto "build/kanata-simulator" "$CONTENTS/Library/KeyPath/kanata-simulator"
+	# Copy bundled kanata binary
+	ditto "build/kanata-universal" "$CONTENTS/Library/KeyPath/kanata"
 
-# Copy kanata launcher script to enforce absolute config paths
-KANATA_LAUNCHER_SRC="Scripts/kanata-launcher.sh"
-KANATA_LAUNCHER_DST="$CONTENTS/Library/KeyPath/kanata-launcher"
-ditto "$KANATA_LAUNCHER_SRC" "$KANATA_LAUNCHER_DST"
-chmod 755 "$KANATA_LAUNCHER_DST"
+	# Copy bundled kanata simulator binary
+	ditto "build/kanata-simulator" "$CONTENTS/Library/KeyPath/kanata-simulator"
+
+	# Embed Sparkle.framework (required at runtime for updates; otherwise dyld aborts at launch)
+	SPARKLE_FRAMEWORK_SRC="$BUILD_DIR/Sparkle.framework"
+	if [ -d "$SPARKLE_FRAMEWORK_SRC" ]; then
+	    ditto "$SPARKLE_FRAMEWORK_SRC" "$FRAMEWORKS/Sparkle.framework"
+	else
+	    echo "❌ ERROR: Sparkle.framework not found at $SPARKLE_FRAMEWORK_SRC" >&2
+	    echo "   This usually indicates the Sparkle SPM dependency did not build." >&2
+	    exit 1
+	fi
+
+	# Copy kanata launcher script to enforce absolute config paths
+	KANATA_LAUNCHER_SRC="Scripts/kanata-launcher.sh"
+	KANATA_LAUNCHER_DST="$CONTENTS/Library/KeyPath/kanata-launcher"
+	ditto "$KANATA_LAUNCHER_SRC" "$KANATA_LAUNCHER_DST"
+	chmod 755 "$KANATA_LAUNCHER_DST"
 
 # Embed privileged helper for SMJobBless
 echo "📦 Embedding privileged helper (SMAppService layout)..."
@@ -149,17 +166,18 @@ ditto "Sources/KeyPathHelper/com.keypath.helper.plist" "$LAUNCH_DAEMONS/com.keyp
 # Copy Kanata daemon plist for SMAppService
 ditto "Sources/KeyPathApp/com.keypath.kanata.plist" "$LAUNCH_DAEMONS/com.keypath.kanata.plist"
 
-verify_embedded_artifacts() {
-    local missing=0
-    for path in \
-        "$HELPER_TOOLS/KeyPathHelper" \
-        "$LAUNCH_DAEMONS/com.keypath.helper.plist" \
-        "$LAUNCH_DAEMONS/com.keypath.kanata.plist" \
-        "$KANATA_LAUNCHER_DST" \
-        "$CONTENTS/Library/KeyPath/kanata-simulator"; do
-        if [ ! -e "$path" ]; then
-            echo "❌ ERROR: Missing packaged artifact: $path" >&2
-            missing=1
+	verify_embedded_artifacts() {
+	    local missing=0
+	    for path in \
+	        "$HELPER_TOOLS/KeyPathHelper" \
+	        "$LAUNCH_DAEMONS/com.keypath.helper.plist" \
+	        "$LAUNCH_DAEMONS/com.keypath.kanata.plist" \
+	        "$FRAMEWORKS/Sparkle.framework" \
+	        "$KANATA_LAUNCHER_DST" \
+	        "$CONTENTS/Library/KeyPath/kanata-simulator"; do
+	        if [ ! -e "$path" ]; then
+	            echo "❌ ERROR: Missing packaged artifact: $path" >&2
+	            missing=1
         fi
     done
 
@@ -232,13 +250,16 @@ kp_sign "$HELPER_TOOLS/KeyPathHelper" \
 # Sign bundled kanata binary (already signed in build-kanata.sh, but ensure consistency)
 kp_sign "$CONTENTS/Library/KeyPath/kanata" --force --options=runtime --sign "$SIGNING_IDENTITY"
 
-# Sign bundled kanata simulator binary
-kp_sign "$CONTENTS/Library/KeyPath/kanata-simulator" --force --options=runtime --sign "$SIGNING_IDENTITY"
+	# Sign bundled kanata simulator binary
+	kp_sign "$CONTENTS/Library/KeyPath/kanata-simulator" --force --options=runtime --sign "$SIGNING_IDENTITY"
 
-# Sign main app WITH entitlements
-ENTITLEMENTS_FILE="KeyPath.entitlements"
-if [ -f "$ENTITLEMENTS_FILE" ]; then
-    echo "Applying entitlements from $ENTITLEMENTS_FILE..."
+	# Sign embedded Sparkle framework (contains nested helper apps; deep signing is simplest)
+	kp_sign "$FRAMEWORKS/Sparkle.framework" --force --options=runtime --deep --sign "$SIGNING_IDENTITY"
+
+	# Sign main app WITH entitlements
+	ENTITLEMENTS_FILE="KeyPath.entitlements"
+	if [ -f "$ENTITLEMENTS_FILE" ]; then
+	    echo "Applying entitlements from $ENTITLEMENTS_FILE..."
     kp_sign "$APP_BUNDLE" --force --options=runtime --entitlements "$ENTITLEMENTS_FILE" --sign "$SIGNING_IDENTITY"
 else
     echo "⚠️ WARNING: No entitlements file found - admin operations may fail"
