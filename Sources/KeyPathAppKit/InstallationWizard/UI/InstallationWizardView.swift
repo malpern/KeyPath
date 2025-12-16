@@ -483,7 +483,8 @@ struct InstallationWizardView: View {
         AppLogger.shared.log("⏱️ [TIMING] Wizard validation START")
 
         let operation = WizardOperations.stateDetection(
-            stateMachine: stateMachine,
+            stateManager: FeatureFlags.useUnifiedWizardRouter ? nil : stateManager,
+            stateMachine: FeatureFlags.useUnifiedWizardRouter ? stateMachine : nil,
             progressCallback: { progress in
                 // Update progress on MainActor (callback may be called from background)
                 Task { @MainActor in
@@ -606,7 +607,8 @@ struct InstallationWizardView: View {
         case .summary:
             // Full check only for summary page
             let operation = WizardOperations.stateDetection(
-                stateMachine: stateMachine,
+                stateManager: FeatureFlags.useUnifiedWizardRouter ? nil : stateManager,
+                stateMachine: FeatureFlags.useUnifiedWizardRouter ? stateMachine : nil,
                 progressCallback: { _ in }
             )
             asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
