@@ -292,6 +292,22 @@ struct StatusSettingsTabView: View {
             details.append(detail)
         }
 
+        if let detail = tcpDetail {
+            details.append(detail)
+        }
+
+        if let detail = karabinerDetail {
+            details.append(detail)
+        }
+
+        if let detail = kanataLogsDetail {
+            details.append(detail)
+        }
+
+        if let detail = karabinerLogsDetail {
+            details.append(detail)
+        }
+
         if let duplicateDetail = duplicateAppsDetail {
             details.append(duplicateDetail)
         }
@@ -372,6 +388,100 @@ struct StatusSettingsTabView: View {
             level: evaluation.hasErrors ? .critical : .warning,
             action: StatusDetailAction(title: "Fix", icon: "wand.and.stars") {
                 showingPermissionAlert = true
+            }
+        )
+    }
+
+    private var tcpDetail: StatusDetail? {
+        guard systemContext?.services.kanataRunning == true else { return nil }
+        guard let tcpConfigured else {
+            return StatusDetail(
+                title: "TCP Communication",
+                message: "Checking TCP configuration…",
+                icon: "ellipsis.circle",
+                level: .info
+            )
+        }
+
+        if tcpConfigured {
+            return StatusDetail(
+                title: "TCP Communication",
+                message: "Configured.",
+                icon: "checkmark.shield.fill",
+                level: .success
+            )
+        }
+
+        return StatusDetail(
+            title: "TCP Communication",
+            message: "Service is missing the TCP port configuration. Open the wizard to repair communication settings.",
+            icon: "exclamationmark.triangle",
+            level: .critical,
+            action: StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
+                wizardInitialPage = .communication
+            }
+        )
+    }
+
+    private var karabinerDetail: StatusDetail? {
+        let status = KarabinerComponentsStatusEvaluator.evaluate(
+            systemState: wizardSystemState,
+            issues: wizardIssues
+        )
+        guard status != .completed else { return nil }
+
+        let level: StatusDetail.Level = wizardIssues.contains(where: { $0.severity == .critical || $0.severity == .error })
+            ? .critical
+            : .warning
+
+        let message: String = {
+            let relevant = wizardIssues.filter { issue in
+                (issue.category == .installation && issue.identifier.isVHIDRelated)
+                    || issue.category == .backgroundServices
+                    || (issue.category == .daemon && issue.identifier == .component(.karabinerDaemon))
+            }
+            if let first = relevant.first {
+                return first.title
+            }
+            return "Karabiner driver or related services are not healthy."
+        }()
+
+        return StatusDetail(
+            title: "Karabiner Driver",
+            message: message,
+            icon: "keyboard.macwindow",
+            level: level,
+            action: StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
+                wizardInitialPage = .karabinerComponents
+            }
+        )
+    }
+
+    private var kanataLogsDetail: StatusDetail? {
+        // Show logs affordance when service isn't healthy or has daemon issues.
+        guard serviceStatusDetail.level != .success else { return nil }
+        return StatusDetail(
+            title: "Kanata Logs",
+            message: "Open the daemon stderr log for startup errors and permission failures.",
+            icon: "doc.text.magnifyingglass",
+            level: .info,
+            action: StatusDetailAction(title: "Open", icon: "doc.text") {
+                Task { @MainActor in
+                    openFileInPreferredEditor(URL(fileURLWithPath: KeyPathConstants.Logs.kanataStderr))
+                }
+            }
+        )
+    }
+
+    private var karabinerLogsDetail: StatusDetail? {
+        guard karabinerDetail != nil else { return nil }
+        return StatusDetail(
+            title: "Karabiner Logs",
+            message: "Open the Karabiner log directory for VirtualHID daemon/manager logs.",
+            icon: "doc.on.doc",
+            level: .info,
+            action: StatusDetailAction(title: "Open", icon: "folder") {
+                NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: KeyPathConstants.Logs.karabinerDir)
             }
         )
     }
@@ -575,6 +685,15 @@ struct StatusSettingsTabView: View {
             .padding(.horizontal, 20)
             .padding(.top, 24)
 
+            // Status details (actionable summaries)
+            VStack(alignment: .leading, spacing: 12) {
+                ForEach(statusDetails.filter { $0.level != .success }) { detail in
+                    StatusDetailRow(detail: detail)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+
             Spacer()
         }
         .frame(maxHeight: 350)
@@ -627,6 +746,8 @@ struct StatusSettingsTabView: View {
             wizardIssues = adapted.issues
             tcpConfigured = tcpOk
             showSetupBanner = !(snapshot.isSystemReady && context.services.isHealthy)
+                || duplicates.count > 1
+                || (context.services.kanataRunning && !tcpOk)
             duplicateAppCopies = duplicates
         }
 
