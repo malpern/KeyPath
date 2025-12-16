@@ -6,6 +6,9 @@ fix orchestration,
 and correctness of status indicators,
 without changing the working Kanata / permissions architecture.
 
+Status:
+Done as of 2025-12-16.
+
 ## Goals
 
 - Make Fix flows reliable.
@@ -58,6 +61,10 @@ and should be preserved while iterating.
   - `Sources/KeyPathWizardCore/WizardTypes.swift`
 
 ## Remaining Block 2 Features
+
+This section is preserved for historical context.
+The items below are implemented,
+and this document now serves as a record of the approach and constraints.
 
 ### 1) Inline progress UI (per design request)
 

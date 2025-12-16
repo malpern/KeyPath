@@ -43,7 +43,7 @@ Notes:
 
 ## Block 2: Wizard UX + Reliability Instrumentation
 
-Status: Mostly done.
+Status: Done.
 
 Completed subset:
 - Wizard Helper page:
@@ -55,18 +55,11 @@ Completed subset:
 - Settings → Status:
   click-through to wizard pages (sheet caching fix via `sheet(item:)`).
 
-Remaining Block 2 work:
-- “Fix” progress UX:
-  show blocked-by dependency progress inline,
-  per the design request.
-- Robust single-flight behavior:
-  eliminate “Fix already running” no-op toasts.
-- Deterministic stuck detection and recovery:
-  timeout → clear state → actionable messaging.
-- Status aggregation correctness:
-  page icon only green if all subtasks are green,
-  consistent between wizard + Settings.
-- Spacing/padding consistency for remaining wizard outliers.
+Notes:
+- Blocked-by-fix state is now shown inline,
+  and queued fixes auto-resume when the prior fix completes.
+- Queued fix waits are canceled on navigation,
+  and time out to actionable messaging rather than spinning forever.
 
 Implementation plan:
 - See `docs/FIXWIZARD.md`.
@@ -118,4 +111,3 @@ Examples:
 - Settings → Status navigation opens the correct wizard page.
 - Real mapping works:
   `1 → 2` outputs `2` when typing `1`.
-
