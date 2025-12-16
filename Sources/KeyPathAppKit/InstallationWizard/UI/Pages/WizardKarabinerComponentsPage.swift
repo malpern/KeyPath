@@ -180,6 +180,12 @@ struct WizardKarabinerComponentsPage: View {
             guard pendingCombinedFix, !newValue else { return }
             resumeQueuedCombinedFix()
         }
+        .onDisappear {
+            queuedFixTimeoutTask?.cancel()
+            queuedFixTimeoutTask = nil
+            stepProgressCancellable?.cancel()
+            stepProgressCancellable = nil
+        }
     }
 
     // MARK: - Helper Methods
@@ -310,7 +316,7 @@ struct WizardKarabinerComponentsPage: View {
                 pendingCombinedFix = false
                 isCombinedFixLoading = false
                 actionStatus = .error(
-                    message: "Another fix appears to be stuck. Try restarting KeyPath and running Fix again."
+                    message: "Another fix is still running. Wait for it to finish, or restart KeyPath if it appears stuck."
                 )
             }
             return

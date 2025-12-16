@@ -16,6 +16,9 @@ struct WizardKanataComponentsPage: View {
     @State private var fixingIssues: Set<UUID> = []
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
     @State private var pendingBundledKanataInstall: UUID?
+    @State private var pendingIssueFixAction: AutoFixAction?
+    @State private var pendingIssueFixId: UUID?
+    @State private var pendingIssueFixTitle: String?
     @State private var queuedFixTimeoutTask: Task<Void, Never>?
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
@@ -135,32 +138,12 @@ struct WizardKanataComponentsPage: View {
                                                 ) {
                                                     guard let autoFixAction = issue.autoFixAction else { return }
 
-                                                    // Mark this specific issue as fixing
-                                                    fixingIssues.insert(issue.id)
-
-                                                    Task {
-                                                        let componentTitle = getComponentTitle(for: issue)
-                                                        await MainActor.run {
-                                                            PermissionGrantCoordinator.shared.setServiceBounceNeeded(
-                                                                reason: "Kanata engine fix - \(autoFixAction)")
-                                                            actionStatus = .inProgress(
-                                                                message: "Fixing \(componentTitle)…")
-                                                        }
-
-                                                        let ok = await onAutoFix(autoFixAction, true) // suppressToast=true
-
-                                                        await MainActor.run {
-                                                            fixingIssues.remove(issue.id)
-                                                            if ok {
-                                                                actionStatus = .success(
-                                                                    message: "\(componentTitle) fixed")
-                                                                scheduleStatusClear()
-                                                            } else {
-                                                                actionStatus = .error(
-                                                                    message: "Fix failed. See diagnostics for details.")
-                                                            }
-                                                        }
-                                                    }
+                                                    let componentTitle = getComponentTitle(for: issue)
+                                                    requestIssueFix(
+                                                        issueId: issue.id,
+                                                        action: autoFixAction,
+                                                        title: componentTitle
+                                                    )
                                                 }
                                             )
                                         } : nil
@@ -180,7 +163,20 @@ struct WizardKanataComponentsPage: View {
         .background(WizardDesign.Colors.wizardBackground)
         .wizardDetailPage()
         .onChange(of: isFixing) { _, newValue in
-            guard !newValue, let pendingId = pendingBundledKanataInstall else { return }
+            guard !newValue else { return }
+
+            if let pendingId = pendingIssueFixId,
+               let pendingAction = pendingIssueFixAction,
+               let pendingTitle = pendingIssueFixTitle
+            {
+                pendingIssueFixId = nil
+                pendingIssueFixAction = nil
+                pendingIssueFixTitle = nil
+                startIssueFix(issueId: pendingId, action: pendingAction, title: pendingTitle)
+                return
+            }
+
+            guard let pendingId = pendingBundledKanataInstall else { return }
 
             guard let issue = issues.first(where: { $0.id == pendingId }) else {
                 pendingBundledKanataInstall = nil
@@ -193,6 +189,10 @@ struct WizardKanataComponentsPage: View {
 
             pendingBundledKanataInstall = nil
             startBundledKanataInstall(issue: issue)
+        }
+        .onDisappear {
+            queuedFixTimeoutTask?.cancel()
+            queuedFixTimeoutTask = nil
         }
     }
 
@@ -311,7 +311,7 @@ struct WizardKanataComponentsPage: View {
                     pendingBundledKanataInstall = nil
                     fixingIssues.remove(kanataIssue.id)
                     actionStatus = .error(
-                        message: "Another fix appears to be stuck. Try restarting KeyPath and running Fix again."
+                        message: "Another fix is still running. Wait for it to finish, or restart KeyPath if it appears stuck."
                     )
                 }
                 return
@@ -341,6 +341,65 @@ struct WizardKanataComponentsPage: View {
                     scheduleStatusClear()
                 } else {
                     actionStatus = .error(message: "Install failed. Please try again.")
+                }
+            }
+        }
+    }
+
+    private func requestIssueFix(issueId: UUID, action: AutoFixAction, title: String) {
+        if isFixing {
+            pendingIssueFixId = issueId
+            pendingIssueFixAction = action
+            pendingIssueFixTitle = title
+            fixingIssues.insert(issueId)
+
+            let blocker = blockingFixDescription ?? "another fix"
+            actionStatus = .inProgress(
+                message: "Completing \(blocker) before starting \(title)…"
+            )
+
+            queuedFixTimeoutTask?.cancel()
+            queuedFixTimeoutTask = Task { @MainActor in
+                _ = await WizardSleep.seconds(35)
+                guard pendingIssueFixId == issueId, isFixing else { return }
+                AppLogger.shared.log(
+                    "⛔️ [WizardKanataComponentsPage] Queued issue fix timed out while waiting"
+                )
+                pendingIssueFixId = nil
+                pendingIssueFixAction = nil
+                pendingIssueFixTitle = nil
+                fixingIssues.remove(issueId)
+                actionStatus = .error(
+                    message: "Another fix is still running. Wait for it to finish, or restart KeyPath if it appears stuck."
+                )
+            }
+            return
+        }
+
+        startIssueFix(issueId: issueId, action: action, title: title)
+    }
+
+    private func startIssueFix(issueId: UUID, action: AutoFixAction, title: String) {
+        queuedFixTimeoutTask?.cancel()
+        queuedFixTimeoutTask = nil
+        fixingIssues.insert(issueId)
+
+        Task {
+            await MainActor.run {
+                PermissionGrantCoordinator.shared.setServiceBounceNeeded(
+                    reason: "Kanata engine fix - \(action)")
+                actionStatus = .inProgress(message: "Fixing \(title)…")
+            }
+
+            let ok = await onAutoFix(action, true) // suppressToast=true
+
+            await MainActor.run {
+                fixingIssues.remove(issueId)
+                if ok {
+                    actionStatus = .success(message: "\(title) fixed")
+                    scheduleStatusClear()
+                } else {
+                    actionStatus = .error(message: "Fix failed. See diagnostics for details.")
                 }
             }
         }

@@ -296,7 +296,7 @@ struct InstallationWizardView: View {
                     systemState: systemState,
                     issues: currentIssues.filter { $0.category == .conflicts },
                     allIssues: currentIssues,
-                    isFixing: asyncOperationManager.hasRunningOperations,
+                    isFixing: fixInFlight,
                     onRefresh: { refreshState() },
                     kanataManager: kanataManager
                 )
