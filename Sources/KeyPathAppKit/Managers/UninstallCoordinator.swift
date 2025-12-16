@@ -154,7 +154,8 @@ final class UninstallCoordinator: ObservableObject {
         ]
 
         for plistName in daemonPlists {
-            let service = SMAppService.daemon(plistName: plistName)
+            // Kanata runs as a user agent (not a system daemon) so Input Monitoring applies.
+            let service = SMAppService.agent(plistName: plistName)
             guard service.status == .enabled else {
                 logLines.append("ℹ️ SMAppService \(plistName): not registered, skipping")
                 continue

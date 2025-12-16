@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 /// Strategy object for executing privileged commands.
 /// Wraps `PrivilegedOperationsCoordinator` to give the InstallerEngine a stable surface.
@@ -86,7 +87,11 @@ public struct PrivilegeBroker {
 
     /// Stop Kanata LaunchDaemon and kill any remaining processes
     public func stopKanataService() async throws {
-        let cmd = "/bin/launchctl bootout system/\(KanataDaemonManager.kanataServiceID) 2>/dev/null || true"
+        let uid = getuid()
+        let cmd = """
+        /bin/launchctl bootout gui/\(uid)/\(KanataDaemonManager.kanataServiceID) 2>/dev/null || true; \
+        /bin/launchctl bootout system/\(KanataDaemonManager.kanataServiceID) 2>/dev/null || true
+        """
         try await coordinator.sudoExecuteCommand(cmd, description: "Stop Kanata service")
         try await coordinator.killAllKanataProcesses()
     }

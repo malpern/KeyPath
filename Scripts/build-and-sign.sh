@@ -82,6 +82,10 @@ echo "📦 Embedding privileged helper (SMAppService layout)..."
 LAUNCH_DAEMONS="$CONTENTS/Library/LaunchDaemons"
 mkdir -p "$LAUNCH_DAEMONS"
 
+# Embed user-space Kanata LaunchAgent plist for SMAppService
+KANATA_LAUNCH_AGENTS="$CONTENTS/Library/LaunchAgents"
+mkdir -p "$KANATA_LAUNCH_AGENTS"
+
 # Copy helper binary into Contents/MacOS (required for SMAppService daemons)
 # Note: Contents/MacOS is the correct location for SMAppService BundleProgram
 ditto "$BUILD_DIR/KeyPathHelper" "$MACOS/KeyPathHelper"
@@ -89,15 +93,15 @@ ditto "$BUILD_DIR/KeyPathHelper" "$MACOS/KeyPathHelper"
 # Copy daemon plist into bundle-local LaunchDaemons with final name
 ditto "Sources/KeyPathHelper/com.keypath.helper.plist" "$LAUNCH_DAEMONS/com.keypath.helper.plist"
 
-# Copy Kanata daemon plist for SMAppService
-ditto "Sources/KeyPathApp/com.keypath.kanata.plist" "$LAUNCH_DAEMONS/com.keypath.kanata.plist"
+# Copy Kanata LaunchAgent plist for SMAppService (user-session)
+ditto "Sources/KeyPathApp/com.keypath.kanata.plist" "$KANATA_LAUNCH_AGENTS/com.keypath.kanata.plist"
 
 verify_embedded_artifacts() {
     local missing=0
     for path in \
         "$MACOS/KeyPathHelper" \
         "$LAUNCH_DAEMONS/com.keypath.helper.plist" \
-        "$LAUNCH_DAEMONS/com.keypath.kanata.plist" \
+        "$KANATA_LAUNCH_AGENTS/com.keypath.kanata.plist" \
         "$KANATA_LAUNCHER_DST" \
         "$CONTENTS/Library/KeyPath/kanata-simulator" \
         "$IM_AGENT_MACOS/KeyPathIMAgent"; do
@@ -118,7 +122,7 @@ verify_embedded_artifacts
 
 echo "✅ Helper embedded: $MACOS/KeyPathHelper"
 echo "✅ Helper plist embedded: $LAUNCH_DAEMONS/com.keypath.helper.plist"
-echo "✅ Kanata daemon plist embedded: $LAUNCH_DAEMONS/com.keypath.kanata.plist"
+echo "✅ Kanata agent plist embedded: $KANATA_LAUNCH_AGENTS/com.keypath.kanata.plist"
 
 # Copy main app Info.plist
 ditto "Sources/KeyPathApp/Info.plist" "$CONTENTS/Info.plist"

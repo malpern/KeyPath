@@ -8,8 +8,10 @@ public enum KeyPathConstants {
         public static let bundleID = "com.keypath.KeyPath"
         public static let helperID = "com.keypath.KeyPath.Helper"
         public static let daemonID = "com.keypath.kanata"
-        public static let vhidDaemonID = "com.keypath.vhid-daemon"
-        public static let vhidManagerID = "com.keypath.vhid-manager"
+        // VirtualHID services are based on Karabiner’s DriverKit VirtualHIDDevice.
+        // Keep IDs aligned with the generated plists and health checks.
+        public static let vhidDaemonID = "com.keypath.karabiner-vhiddaemon"
+        public static let vhidManagerID = "com.keypath.karabiner-vhidmanager"
     }
 
     public enum Config {
@@ -28,10 +30,10 @@ public enum KeyPathConstants {
 
     public enum Logs {
         /// Standard output log for the kanata daemon
-        public static let kanataStdout = "/var/log/com.keypath.kanata.stdout.log"
+        public static let kanataStdout = "/var/tmp/com.keypath.kanata.stdout.log"
 
         /// Standard error log for the kanata daemon
-        public static let kanataStderr = "/var/log/com.keypath.kanata.stderr.log"
+        public static let kanataStderr = "/var/tmp/com.keypath.kanata.stderr.log"
 
         /// Log directory for Karabiner (used during setup)
         public static let karabinerDir = "/var/log/karabiner"

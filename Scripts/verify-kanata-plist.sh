@@ -5,7 +5,7 @@ set -euo pipefail
 TARGET=${1:-dist/KeyPath.app}
 
 if [ -d "$TARGET" ]; then
-    PLIST="$TARGET/Contents/Library/LaunchDaemons/com.keypath.kanata.plist"
+    PLIST="$TARGET/Contents/Library/LaunchAgents/com.keypath.kanata.plist"
 elif [ -f "$TARGET" ]; then
     PLIST="$TARGET"
 else

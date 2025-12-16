@@ -11,7 +11,8 @@ class HelperService: NSObject, HelperProtocol {
 
     /// Helper version (must match app version for compatibility)
     private static let version = "1.1.0"
-    private let logger = Logger(subsystem: "com.keypath.helper", category: "service")
+    private static let serviceLogger = Logger(subsystem: "com.keypath.helper", category: "service")
+    private let logger = HelperService.serviceLogger
 
     // MARK: - Version Management
 
@@ -147,29 +148,67 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "restartUnhealthyServices",
             operation: {
+                let logger = Self.serviceLogger
+                logger.info("[restartUnhealthyServices] Assessing VirtualHID services")
+
                 // Assess VirtualHID health and restart as needed; Kanata is SMAppService-managed
                 let services = [Self.vhidDaemonServiceID, Self.vhidManagerServiceID]
                 var needsInstall = false
                 var toRestart: [String] = []
 
                 for id in services {
-                    if !Self.isServiceLoaded(id) {
+                    let loaded = Self.isServiceLoaded(id)
+                    let healthy = Self.isServiceHealthy(id)
+                    logger.info(
+                        "[restartUnhealthyServices] \(id, privacy: .public) loaded=\(loaded ? "yes" : "no") healthy=\(healthy ? "yes" : "no")"
+                    )
+                    if !loaded {
                         needsInstall = true
                         continue
                     }
-                    if !Self.isServiceHealthy(id) {
+                    if !healthy {
                         toRestart.append(id)
                     }
                 }
 
                 if needsInstall {
+                    logger.info("[restartUnhealthyServices] Missing services detected – reinstalling")
+                    let start = Date()
                     try Self.installOrRepairVHIDServices()
+                    let duration = Date().timeIntervalSince(start)
+                    logger.info(
+                        "[restartUnhealthyServices] Reinstall completed in \(String(format: "%.2f", duration))s"
+                    )
+                    return
+                }
+
+                if toRestart.isEmpty {
+                    logger.info("[restartUnhealthyServices] Services already healthy; nothing to restart")
                     return
                 }
 
                 // Services are loaded but unhealthy - just restart them
                 for id in toRestart {
-                    _ = Self.run("/bin/launchctl", ["kickstart", "-k", "system/\(id)"])
+                    let label = "launchctl kickstart system/\(id)"
+                    logger.info("[restartUnhealthyServices] Starting \(label, privacy: .public)")
+                    let start = Date()
+                    let result = Self.run(
+                        "/bin/launchctl",
+                        ["kickstart", "-k", "system/\(id)"],
+                        timeoutSeconds: 15,
+                        logger: logger,
+                        commandDescription: label
+                    )
+                    let duration = Date().timeIntervalSince(start)
+                    if result.status != 0 {
+                        let message =
+                            "\(label) failed (status=\(result.status)) after \(String(format: "%.2f", duration))s: \(result.out)"
+                        logger.error("[restartUnhealthyServices] \(message, privacy: .public)")
+                        throw HelperError.operationFailed(message)
+                    }
+                    logger.info(
+                        "[restartUnhealthyServices] \(label, privacy: .public) completed in \(String(format: "%.2f", duration))s"
+                    )
                 }
             },
             reply: reply
@@ -613,8 +652,12 @@ class HelperService: NSObject, HelperProtocol {
             "/var/log/keypath-logrotate.log",
             "/var/log/com.keypath.helper.stdout.log",
             "/var/log/com.keypath.helper.stderr.log",
+            // Legacy (pre user-agent) Kanata logs
             "/var/log/com.keypath.kanata.stdout.log",
             "/var/log/com.keypath.kanata.stderr.log",
+            // Current Kanata logs (user-agent)
+            "/var/tmp/com.keypath.kanata.stdout.log",
+            "/var/tmp/com.keypath.kanata.stderr.log",
             // Kanata launcher state files
             "/var/tmp/keypath-startup-blocked",
             "/var/tmp/keypath-vhid-retry-count"
@@ -746,17 +789,110 @@ extension HelperService {
     }
 
     @discardableResult
-    static func run(_ launchPath: String, _ args: [String]) -> (status: Int32, out: String) {
+    static func run(
+        _ launchPath: String,
+        _ args: [String],
+        timeoutSeconds: TimeInterval? = nil,
+        logger: Logger? = nil,
+        commandDescription: String? = nil
+    ) -> (status: Int32, out: String) {
+        // IMPORTANT: Avoid deadlocks when subprocesses write > pipe buffer (~64KB).
+        // `launchctl print` can produce large output; if we wait for exit without draining,
+        // the child can block forever and XPC calls will time out.
         let p = Process()
         p.launchPath = launchPath
         p.arguments = args
-        let outPipe = Pipe()
-        p.standardOutput = outPipe
-        p.standardError = outPipe
-        do { try p.run() } catch { return (127, "run failed: \(error)") }
+
+        let stdoutPipe = Pipe()
+        let stderrPipe = Pipe()
+        p.standardOutput = stdoutPipe
+        p.standardError = stderrPipe
+
+        let desc: String = {
+            if let commandDescription { return commandDescription }
+            let argString = args.joined(separator: " ")
+            return "\(launchPath) \(argString)"
+        }()
+
+        final class OutputAccumulator: @unchecked Sendable {
+            private let maxBytes: Int
+            private var data = Data()
+            private let lock = NSLock()
+
+            init(maxBytes: Int) {
+                self.maxBytes = maxBytes
+            }
+
+            func append(_ chunk: Data) {
+                guard !chunk.isEmpty else { return }
+                lock.lock()
+                defer { lock.unlock() }
+                if data.count >= maxBytes { return }
+                if data.count + chunk.count <= maxBytes {
+                    data.append(chunk)
+                } else {
+                    data.append(chunk.prefix(maxBytes - data.count))
+                }
+            }
+
+            func snapshot() -> Data {
+                lock.lock()
+                defer { lock.unlock() }
+                return data
+            }
+        }
+
+        let accumulator = OutputAccumulator(maxBytes: 1024 * 1024) // 1MB cap
+
+        stdoutPipe.fileHandleForReading.readabilityHandler = { handle in
+            accumulator.append(handle.availableData)
+        }
+        stderrPipe.fileHandleForReading.readabilityHandler = { handle in
+            accumulator.append(handle.availableData)
+        }
+
+        do { try p.run() } catch {
+            stdoutPipe.fileHandleForReading.readabilityHandler = nil
+            stderrPipe.fileHandleForReading.readabilityHandler = nil
+            return (127, "run failed: \(error)")
+        }
+
+        var timedOut = false
+        if let timeoutSeconds {
+            let deadline = Date().addingTimeInterval(timeoutSeconds)
+            while p.isRunning {
+                if Date() >= deadline {
+                    timedOut = true
+                    logger?.error("[helper-run] \(desc, privacy: .public) timed out after \(timeoutSeconds, privacy: .public)s")
+                    p.terminate()
+                    // Give the process a short grace period before forcing kill
+                    let killDeadline = Date().addingTimeInterval(1.0)
+                    while p.isRunning && Date() < killDeadline {
+                        usleep(50_000)
+                    }
+                    if p.isRunning {
+                        kill(p.processIdentifier, SIGKILL)
+                    }
+                    break
+                }
+                usleep(50_000)
+            }
+        }
+
         p.waitUntilExit()
-        let data = outPipe.fileHandleForReading.readDataToEndOfFile()
-        let s = String(data: data, encoding: .utf8) ?? ""
+
+        stdoutPipe.fileHandleForReading.readabilityHandler = nil
+        stderrPipe.fileHandleForReading.readabilityHandler = nil
+
+        // Drain any remaining buffered output after exit.
+        accumulator.append(stdoutPipe.fileHandleForReading.readDataToEndOfFile())
+        accumulator.append(stderrPipe.fileHandleForReading.readDataToEndOfFile())
+
+        let s = String(data: accumulator.snapshot(), encoding: .utf8) ?? ""
+        if timedOut {
+            let combined = "Command timed out after \(timeoutSeconds ?? 0) seconds: \(desc)\n" + s
+            return (124, combined)
+        }
         return (p.terminationStatus, s)
     }
 
@@ -810,6 +946,8 @@ extension HelperService {
         #!/bin/bash
         set -euo pipefail
         MAX_SIZE_BYTES=$((10 * 1024 * 1024))  # 10MB
+        CONSOLE_USER="$(stat -f%Su /dev/console 2>/dev/null || echo root)"
+        CONSOLE_GROUP="$(id -gn "$CONSOLE_USER" 2>/dev/null || echo staff)"
 
         rotate_log() {
             local logfile="$1"
@@ -822,15 +960,15 @@ extension HelperService {
                     [[ -f "$logfile.2" ]] && mv "$logfile.2" "$logfile.3"
                     [[ -f "$logfile.1" ]] && mv "$logfile.1" "$logfile.2"
                     mv "$logfile" "$logfile.1"
-                    touch "$logfile" && chmod 644 "$logfile" && chown root:wheel "$logfile" 2>/dev/null || true
+                    touch "$logfile" && chmod 644 "$logfile" && chown "$CONSOLE_USER:$CONSOLE_GROUP" "$logfile" 2>/dev/null || true
                     echo "$(date): Log rotation completed for $logfile"
                 fi
             fi
         }
 
         # Rotate Kanata daemon logs (primary logs that can grow large)
-        rotate_log "/var/log/com.keypath.kanata.stdout.log"
-        rotate_log "/var/log/com.keypath.kanata.stderr.log"
+        rotate_log "/var/tmp/com.keypath.kanata.stdout.log"
+        rotate_log "/var/tmp/com.keypath.kanata.stderr.log"
         """
     }
 

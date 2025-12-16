@@ -311,10 +311,10 @@ struct WizardSummaryPage: View {
         let hasConflicts = issues.contains { $0.category == .conflicts }
         if hasConflicts { count += 1 }
 
-        // 3. Input Monitoring (KeyPath only - Kanata doesn't need TCC)
+        // 3. Input Monitoring (KeyPath + Kanata)
         let hasInputMonitoringIssues = issues.contains { issue in
             if case let .permission(p) = issue.identifier {
-                return p == .keyPathInputMonitoring
+                return p == .keyPathInputMonitoring || p == .kanataInputMonitoring
             }
             return false
         }

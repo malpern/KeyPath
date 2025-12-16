@@ -1,5 +1,21 @@
 import SwiftUI
 
+struct WizardFixProgress: Equatable, Sendable {
+    let startedAt: Date
+    let timeoutSeconds: Double
+}
+
+private struct WizardFixProgressKey: EnvironmentKey {
+    static let defaultValue: WizardFixProgress? = nil
+}
+
+extension EnvironmentValues {
+    var wizardFixProgress: WizardFixProgress? {
+        get { self[WizardFixProgressKey.self] }
+        set { self[WizardFixProgressKey.self] = newValue }
+    }
+}
+
 /// Reusable hero section component for wizard pages
 /// Provides consistent icon, title, subtitle, and optional action button layout
 struct WizardHeroSection: View {
@@ -231,37 +247,38 @@ extension WizardHeroSection {
 struct InlineStatusView: View {
     let status: WizardDesign.ActionStatus
     let message: String
+    @Environment(\.wizardFixProgress) private var fixProgress
 
     var body: some View {
-        HStack(spacing: WizardDesign.Spacing.elementGap) {
-            // Status indicator (spinner or icon)
-            Group {
-                switch status {
-                case .inProgress:
-                    ProgressView()
-                        .scaleEffect(0.7)
-                        .frame(width: 16, height: 16)
-
-                case .success:
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 16))
-                        .foregroundStyle(WizardDesign.Colors.success)
-
-                case .error:
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 16))
-                        .foregroundStyle(WizardDesign.Colors.error)
-
-                case .idle:
-                    EmptyView()
+        VStack(spacing: 8) {
+            HStack(spacing: WizardDesign.Spacing.elementGap) {
+                // Status indicator (icons only; spinner stays on the Fix button)
+                Group {
+                    switch status {
+                    case .success:
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundStyle(WizardDesign.Colors.success)
+                    case .error:
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 16))
+                            .foregroundStyle(WizardDesign.Colors.error)
+                    case .inProgress, .idle:
+                        EmptyView()
+                    }
                 }
+
+                // Status message
+                Text(message)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(status.color)
+                    .multilineTextAlignment(.center)
             }
 
-            // Status message
-            Text(message)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(status.color)
-                .multilineTextAlignment(.center)
+            if case .inProgress = status {
+                InlineProgressBar(fixProgress: fixProgress, tint: status.color)
+                    .frame(width: 140, height: 4)
+            }
         }
         .padding(.horizontal, WizardDesign.Spacing.cardPadding)
         .padding(.vertical, WizardDesign.Spacing.elementGap)
@@ -269,5 +286,38 @@ struct InlineStatusView: View {
             RoundedRectangle(cornerRadius: 8)
                 .fill(status.color.opacity(0.1))
         )
+    }
+}
+
+private struct InlineProgressBar: View {
+    let fixProgress: WizardFixProgress?
+    let tint: Color
+
+    var body: some View {
+        Group {
+            if let fixProgress, fixProgress.timeoutSeconds > 0 {
+                TimelineView(.periodic(from: .now, by: 0.2)) { _ in
+                    let elapsed = Date().timeIntervalSince(fixProgress.startedAt)
+                    let progress = min(max(elapsed / fixProgress.timeoutSeconds, 0), 1)
+                    bar(progress: progress)
+                }
+            } else {
+                IndeterminateProgressBar()
+                    .clipShape(RoundedRectangle(cornerRadius: 2))
+            }
+        }
+    }
+
+    private func bar(progress: Double) -> some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color(NSColor.separatorColor).opacity(0.25))
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(tint)
+                    .frame(width: geo.size.width * progress)
+                    .animation(.linear(duration: 0.2), value: progress)
+            }
+        }
     }
 }

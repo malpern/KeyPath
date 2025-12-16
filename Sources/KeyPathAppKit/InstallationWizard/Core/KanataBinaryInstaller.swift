@@ -12,6 +12,9 @@ final class KanataBinaryInstaller {
 
     private init() {}
 
+    /// Last error output from a failed install attempt (best-effort, in-memory).
+    private(set) var lastInstallErrorOutput: String?
+
     // MARK: - Public Interface
 
     /// Install bundled Kanata binary to system location (/Library/KeyPath/bin/kanata)
@@ -46,6 +49,7 @@ final class KanataBinaryInstaller {
 
         // Check if we should skip admin operations for testing
         let success: Bool
+        var installOutput = ""
         if TestEnvironment.shouldSkipAdminOperations {
             AppLogger.shared.log("⚠️ [KanataBinaryInstaller] TEST MODE: Skipping actual binary installation")
             // In test mode, just verify the source exists and return success
@@ -64,11 +68,13 @@ final class KanataBinaryInstaller {
                 prompt: "KeyPath needs to install the Kanata binary to the system location."
             )
             success = result.success
+            installOutput = result.output
         }
 
         if success {
             AppLogger.shared.log(
                 "✅ [KanataBinaryInstaller] Bundled kanata binary installed successfully to \(systemPath)")
+            lastInstallErrorOutput = nil
 
             // Verify code signing and trust
             await verifyCodeSigning(at: systemPath)
@@ -88,6 +94,7 @@ final class KanataBinaryInstaller {
             // With SMAppService, bundled Kanata is sufficient
             return detector.isInstalled()
         } else {
+            lastInstallErrorOutput = installOutput
             AppLogger.shared.log("❌ [KanataBinaryInstaller] Failed to install bundled kanata binary")
             return false
         }

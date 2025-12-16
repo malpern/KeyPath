@@ -101,7 +101,7 @@ public enum WizardSystemPaths {
     public static var kanataActiveBinary: String {
         // Use system install path if it exists (for LaunchDaemon)
         // Otherwise use bundled path (for UI/detection)
-        if FileManager.default.fileExists(atPath: kanataSystemInstallPath) {
+        if FileManager.default.isExecutableFile(atPath: kanataSystemInstallPath) {
             return kanataSystemInstallPath
         }
         return bundledKanataPath
@@ -146,6 +146,7 @@ public enum WizardSystemPaths {
     /// Candidate Kanata log files (SMAppService stdout first, legacy launchctl second)
     public static var kanataLogFileCandidates: [String] {
         [
+            remapSystemPath("/var/tmp/com.keypath.kanata.stdout.log"),
             remapSystemPath("/var/log/com.keypath.kanata.stdout.log"),
             remapSystemPath("/var/log/kanata.log")
         ]
@@ -157,7 +158,7 @@ public enum WizardSystemPaths {
         if let existing = kanataLogFileCandidates.first(where: { fileManager.fileExists(atPath: $0) }) {
             return existing
         }
-        return kanataLogFileCandidates.first ?? "/var/log/com.keypath.kanata.stdout.log"
+        return kanataLogFileCandidates.first ?? "/var/tmp/com.keypath.kanata.stdout.log"
     }
 
     /// System log directory

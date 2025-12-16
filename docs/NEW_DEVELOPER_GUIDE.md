@@ -135,10 +135,10 @@ print(snapshot.diagnosticSummary)
 **Service won't start:**
 ```bash
 # Check service status
-sudo launchctl print system/com.keypath.kanata
+launchctl print gui/$(id -u)/com.keypath.kanata
 
 # View logs
-tail -f /var/log/kanata.log
+tail -f /var/tmp/com.keypath.kanata.stderr.log
 ```
 
 **Wizard won't advance:**
@@ -193,9 +193,10 @@ swift test --filter TestClassName.testMethodName
 - `Sources/KeyPathAppKit/Managers/RuntimeCoordinator.swift` - Coordinator guide (in file comments)
 
 **Debugging:**
-- `/var/log/kanata.log` - Kanata daemon logs
+- `/var/tmp/com.keypath.kanata.stdout.log` - Kanata logs (stdout)
+- `/var/tmp/com.keypath.kanata.stderr.log` - Kanata logs (stderr)
 - `DiagnosticsView` in app - System diagnostics
-- `launchctl print system/com.keypath.kanata` - Service status
+- `launchctl print gui/$(id -u)/com.keypath.kanata` - Service status
 
 ## Next Steps
 

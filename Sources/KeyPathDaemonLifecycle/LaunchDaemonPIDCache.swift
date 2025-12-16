@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import KeyPathCore
 
@@ -118,10 +119,22 @@ public actor LaunchDaemonPIDCache {
     }
 
     private func runLaunchctlPrint() async throws -> pid_t? {
+        // Prefer user-session job (Input Monitoring applies) but support legacy system daemon.
+        let uid = getuid()
+        let targets = ["gui/\(uid)/com.keypath.kanata", "system/com.keypath.kanata"]
+        for target in targets {
+            if let output = try await runLaunchctlPrint(target: target) {
+                return extractPIDFromLaunchctlOutput(output)
+            }
+        }
+        return nil
+    }
+
+    private func runLaunchctlPrint(target: String) async throws -> String? {
         try await withCheckedThrowingContinuation { continuation in
             let task = Process()
             task.launchPath = "/bin/launchctl"
-            task.arguments = ["print", "system/com.keypath.kanata"]
+            task.arguments = ["print", target]
 
             let pipe = Pipe()
             task.standardOutput = pipe
@@ -130,9 +143,7 @@ public actor LaunchDaemonPIDCache {
             task.terminationHandler = { task in
                 if task.terminationStatus == 0 {
                     let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                    let output = String(data: data, encoding: .utf8) ?? ""
-                    let pid = self.extractPIDFromLaunchctlOutput(output)
-                    continuation.resume(returning: pid)
+                    continuation.resume(returning: String(data: data, encoding: .utf8) ?? "")
                 } else {
                     continuation.resume(returning: nil)
                 }

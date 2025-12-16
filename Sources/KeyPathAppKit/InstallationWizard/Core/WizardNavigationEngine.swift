@@ -135,7 +135,11 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
             let needsApproval = HelperManager.shared.helperNeedsLoginItemsApproval()
             let notInstalled = await !(HelperManager.shared.isHelperInstalled())
             return needsApproval || notInstalled
-        case .inputMonitoring, .accessibility:
+        case .inputMonitoring:
+            // Kanata cannot reliably receive key events without Input Monitoring,
+            // so we block progress past this step until it is granted.
+            return true
+        case .accessibility:
             return false // Can proceed but functionality limited
         case .service:
             return false // Can manage service state

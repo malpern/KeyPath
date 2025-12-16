@@ -439,10 +439,9 @@ struct StatusSettingsTabView: View {
             }
         }
 
-        // NOTE: Only KeyPath needs TCC permissions. Kanata uses the Karabiner VirtualHIDDevice
-        // driver and runs as root via SMAppService/LaunchDaemon, so it doesn't need TCC entries.
         append(status: snapshot.keyPath.accessibility, label: "KeyPath Accessibility")
         append(status: snapshot.keyPath.inputMonitoring, label: "KeyPath Input Monitoring")
+        append(status: snapshot.kanata.inputMonitoring, label: "Kanata Input Monitoring")
 
         return (labels, hasErrors)
     }
@@ -530,15 +529,36 @@ struct StatusSettingsTabView: View {
             issueMessage: accessibilityIssue
         ))
 
-        // 4. Input Monitoring (KeyPath only - Kanata doesn't need TCC with Karabiner driver)
+        // 4. Input Monitoring (KeyPath + Kanata)
         let keyPathInputMonitoringOK = permissionSnapshot?.keyPath.inputMonitoring.isReady ?? false
-        let inputMonitoringIssue: String? = keyPathInputMonitoringOK ? nil : "Input Monitoring permission required for KeyPath. Click to grant."
+        let kanataInputMonitoringOK = permissionSnapshot?.kanata.inputMonitoring.isReady ?? false
+        let inputMonitoringOK = keyPathInputMonitoringOK && kanataInputMonitoringOK
+
+        let inputMonitoringIssue: String? = {
+            guard let snapshot = permissionSnapshot else { return nil }
+
+            if !snapshot.keyPath.inputMonitoring.isReady {
+                return "Input Monitoring permission required for KeyPath. Click to grant."
+            }
+
+            if !snapshot.kanata.inputMonitoring.isReady {
+                if snapshot.kanata.source.contains("iohid-denied") {
+                    return "Kanata is running but macOS is blocking keyboard access (IOHID \"not permitted\"). Enable Kanata in Input Monitoring and restart the service."
+                }
+                if snapshot.kanata.source.contains("no-events") {
+                    return "Kanata is not receiving real key events yet. Press some keys, then refresh. If it stays red, re-enable Kanata in Input Monitoring and restart the service."
+                }
+                return "Input Monitoring permission required for Kanata. Click to grant."
+            }
+
+            return nil
+        }()
         items.append(SystemStatusItem(
             title: "Input Monitoring",
             icon: "eye",
-            status: keyPathInputMonitoringOK ? .success : .error,
+            status: inputMonitoringOK ? .success : .error,
             targetPage: .inputMonitoring,
-            tooltip: "Required. Allows KeyPath to read keyboard input. Without this, your key presses cannot be detected or remapped.",
+            tooltip: "Required. Allows KeyPath and Kanata to read keyboard input. Without this, your key presses cannot be detected or remapped.",
             issueMessage: inputMonitoringIssue
         ))
 
@@ -576,6 +596,12 @@ struct StatusSettingsTabView: View {
         } else if context.components.vhidVersionMismatch {
             driverStatus = .warning
             driverIssue = "Driver version mismatch. Click to fix."
+        } else if !context.components.vhidDeviceHealthy {
+            driverStatus = .error
+            driverIssue = "VirtualHID device is not healthy. Click to repair the driver and services."
+        } else if !context.components.vhidServicesHealthy || !context.services.backgroundServicesHealthy {
+            driverStatus = .error
+            driverIssue = "Driver is installed but background services aren't healthy. Click to repair."
         } else {
             driverStatus = .success
             driverIssue = nil

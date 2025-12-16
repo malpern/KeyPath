@@ -791,7 +791,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     private func showSMAppServiceStatus(plistName: String) {
-        let svc = SMAppService.daemon(plistName: plistName)
+        let svc =
+            plistName == "com.keypath.kanata.plist"
+            ? SMAppService.agent(plistName: plistName)
+            : SMAppService.daemon(plistName: plistName)
         let status = svc.status
         AppLogger.shared.info(
             "🔧 [SM] \(plistName) status=\(status.rawValue) (0=notRegistered,1=enabled,2=requiresApproval,3=notFound)"
@@ -800,7 +803,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     private func registerSMAppService(plistName: String) {
-        let svc = SMAppService.daemon(plistName: plistName)
+        let svc =
+            plistName == "com.keypath.kanata.plist"
+            ? SMAppService.agent(plistName: plistName)
+            : SMAppService.daemon(plistName: plistName)
         do {
             try svc.register()
             AppLogger.shared.info("✅ [SM] register() ok for \(plistName)")
@@ -811,7 +817,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func unregisterSMAppService(plistName: String) {
-        let svc = SMAppService.daemon(plistName: plistName)
+        let svc =
+            plistName == "com.keypath.kanata.plist"
+            ? SMAppService.agent(plistName: plistName)
+            : SMAppService.daemon(plistName: plistName)
         if #available(macOS 13, *) {
             Task { @MainActor in
                 do {

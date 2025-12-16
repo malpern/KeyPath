@@ -131,6 +131,10 @@ public actor PermissionOracle {
     private var lastSnapshot: Snapshot?
     private var lastSnapshotTime: Date?
 
+    // MARK: - Kanata Runtime Verification State
+
+    private var hasObservedKanataRealKeyEvents = false
+
     /// Cache TTL for sub-2-second goal
     private let cacheTTL: TimeInterval = 1.5
 
@@ -230,6 +234,21 @@ public actor PermissionOracle {
         return await currentSnapshot()
     }
 
+    /// TCC-only Input Monitoring status for the active Kanata binary path.
+    ///
+    /// This is intentionally weaker than `currentSnapshot().kanata.inputMonitoring`:
+    /// - `currentSnapshot()` applies functional verification (daemon logs + real key events) to
+    ///   prevent “green but broken” states.
+    /// - This method is used by the wizard’s “Fix” flow to detect whether the user granted
+    ///   permission in System Settings, even if we have not yet observed key traffic.
+    ///
+    /// Use this only for UI flow control, not to declare the system “ready”.
+    public func kanataInputMonitoringTCCStatus() async -> Status {
+        let kanataPath = resolveKanataExecutablePath()
+        let (_, tccIM) = await checkTCCForKanata(executablePath: kanataPath)
+        return tccIM ?? .unknown
+    }
+
     // MARK: - KeyPath Permission Detection (Always Authoritative)
 
     private func checkKeyPathPermissions() async -> PermissionSet {
@@ -307,7 +326,7 @@ public actor PermissionOracle {
         let (tccAX, tccIM) = await checkTCCForKanata(executablePath: kanataPath)
 
         let accessibility: Status = tccAX ?? .unknown
-        let inputMonitoring: Status = tccIM ?? .unknown
+        var inputMonitoring: Status = tccIM ?? .unknown
 
         var sourceParts: [String] = []
         var confidence: Confidence = .high
@@ -323,6 +342,45 @@ public actor PermissionOracle {
             sourceParts.append("tcc-im")
         default:
             break
+        }
+
+        // Prevent false positives:
+        // - Even if TCC indicates "granted", Kanata can still fail to open the keyboard at runtime.
+        // - However, the wizard must be able to grant permissions *before* starting the Kanata
+        //   service, so we only apply daemon-based verification when we have recent daemon logs.
+        //
+        // Result:
+        // - If the daemon has logged recently: require real key events before reporting green.
+        // - If the daemon is not running (or logs are stale/unavailable): trust the TCC grant so
+        //   the user can proceed to start the service.
+        if inputMonitoring.isReady {
+            if let daemonIM = observeKanataDaemonInputMonitoringStatus() {
+                switch daemonIM {
+                case .denied:
+                    AppLogger.shared.log(
+                        "🔮 [Oracle] Kanata daemon logs indicate Input Monitoring failure; overriding TCC-granted to denied"
+                    )
+                    inputMonitoring = .denied
+                    sourceParts.append("iohid-denied")
+                case .granted:
+                    sourceParts.append("daemon-ok")
+
+                    // Require proof of real key events before reporting "granted".
+                    if observeKanataHasRealKeyEvents() {
+                        sourceParts.append("events")
+                        inputMonitoring = .granted
+                    } else {
+                        inputMonitoring = .denied
+                        sourceParts.append("no-events")
+                    }
+                case .unknown, .error:
+                    sourceParts.append("daemon-unverifiable")
+                    confidence = .low
+                }
+            } else {
+                sourceParts.append("daemon-unverifiable")
+                confidence = .low
+            }
         }
 
         if sourceParts.isEmpty {
@@ -342,6 +400,90 @@ public actor PermissionOracle {
             confidence: confidence,
             timestamp: Date()
         )
+    }
+
+    private func observeKanataDaemonInputMonitoringStatus() -> Status? {
+        let stderrPath = KeyPathConstants.Logs.kanataStderr
+        guard FileManager.default.fileExists(atPath: stderrPath) else { return nil }
+
+        // Only trust this heuristic if the daemon has logged recently.
+        if let attrs = try? FileManager.default.attributesOfItem(atPath: stderrPath),
+           let mod = attrs[FileAttributeKey.modificationDate] as? Date
+        {
+            if Date().timeIntervalSince(mod) > 60 {
+                return nil
+            }
+        }
+
+        // Read a small tail of stderr to keep this fast.
+        // The file is root-owned but world-readable on normal installs.
+        guard let tail = readFileTail(path: stderrPath, maxBytes: 8_192) else { return nil }
+
+        // Be conservative: only treat this as an Input Monitoring failure when stderr clearly
+        // indicates an IOHID permission denial. Other "not permitted"/"permission denied" lines
+        // can be unrelated (e.g. file system), and should not flip IM red.
+        if tail.localizedCaseInsensitiveContains("privilege violation") {
+            return .denied
+        }
+        if tail.localizedCaseInsensitiveContains("IOHIDDeviceOpen error"),
+           tail.localizedCaseInsensitiveContains("not permitted")
+        {
+            return .denied
+        }
+
+        return .granted
+    }
+
+    private func observeKanataHasRealKeyEvents() -> Bool {
+        if hasObservedKanataRealKeyEvents { return true }
+
+        let stdoutPath = KeyPathConstants.Logs.kanataStdout
+        guard FileManager.default.fileExists(atPath: stdoutPath) else { return false }
+
+        // Only trust this heuristic if the daemon has logged recently; otherwise a stale log tail
+        // can cause "green but broken" after reinstalls or log rotation gaps.
+        if let attrs = try? FileManager.default.attributesOfItem(atPath: stdoutPath),
+           let mod = attrs[FileAttributeKey.modificationDate] as? Date
+        {
+            if Date().timeIntervalSince(mod) > 60 {
+                return false
+            }
+        }
+
+        // Read a small tail for performance; this should include recent input.
+        guard let tail = readFileTail(path: stdoutPath, maxBytes: 32_768) else { return false }
+
+        // Kanata logs a periodic keepalive that looks like:
+        //   process recv ev KeyEvent { code: KEY_RESERVED (0), value: WakeUp }
+        // We only count it as "real input" if we see a KeyEvent that is not WakeUp.
+        let lines = tail.split(separator: "\n")
+        // Only consider the most recent lines; older input can linger in the tail and cause
+        // false positives if the daemon is currently only emitting WakeUp keepalives.
+        let recentLines = lines.suffix(250)
+        for lineSub in recentLines {
+            let line = String(lineSub)
+            guard line.contains("process recv ev KeyEvent") else { continue }
+            if line.contains("value: WakeUp") { continue }
+            hasObservedKanataRealKeyEvents = true
+            return true
+        }
+
+        return false
+    }
+
+    private func readFileTail(path: String, maxBytes: Int) -> String? {
+        guard let fh = FileHandle(forReadingAtPath: path) else { return nil }
+        defer { try? fh.close() }
+
+        do {
+            let size = try fh.seekToEnd()
+            let start = size > UInt64(maxBytes) ? size - UInt64(maxBytes) : 0
+            try fh.seek(toOffset: start)
+            let data = try fh.readToEnd() ?? Data()
+            return String(data: data, encoding: .utf8)
+        } catch {
+            return nil
+        }
     }
 
     /// Functional verification disabled in TCP-only mode

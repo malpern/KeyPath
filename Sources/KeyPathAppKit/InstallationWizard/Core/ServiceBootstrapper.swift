@@ -408,9 +408,11 @@ final class ServiceBootstrapper {
         # KeyPath Log Rotation Script - keeps logs under 10MB
         # Rotates both stdout and stderr logs for com.keypath.kanata
         MAX_SIZE=$((10 * 1024 * 1024))  # 10MB
+        CONSOLE_USER="$(stat -f%Su /dev/console 2>/dev/null || echo root)"
+        CONSOLE_GROUP="$(id -gn "$CONSOLE_USER" 2>/dev/null || echo staff)"
         LOG_FILES=(
-            "/var/log/com.keypath.kanata.stdout.log"
-            "/var/log/com.keypath.kanata.stderr.log"
+            "/var/tmp/com.keypath.kanata.stdout.log"
+            "/var/tmp/com.keypath.kanata.stderr.log"
         )
 
         for LOG_FILE in "${LOG_FILES[@]}"; do
@@ -424,6 +426,7 @@ final class ServiceBootstrapper {
                     mv "$LOG_FILE" "${LOG_FILE}.1"
                     touch "$LOG_FILE"
                     chmod 644 "$LOG_FILE"
+                    chown "$CONSOLE_USER:$CONSOLE_GROUP" "$LOG_FILE" 2>/dev/null || true
                     echo "$(date): Rotated $LOG_FILE ($size bytes)" >> /var/log/keypath-rotation.log
                 fi
             fi
@@ -436,7 +439,9 @@ final class ServiceBootstrapper {
         AppLogger.shared.log("🔄 [ServiceBootstrapper] Immediately rotating current large log files")
 
         let command = """
-        for LOG_FILE in /var/log/com.keypath.kanata.stdout.log /var/log/com.keypath.kanata.stderr.log; do
+        CONSOLE_USER="$(stat -f%Su /dev/console 2>/dev/null || echo root)"
+        CONSOLE_GROUP="$(id -gn "$CONSOLE_USER" 2>/dev/null || echo staff)"
+        for LOG_FILE in /var/tmp/com.keypath.kanata.stdout.log /var/tmp/com.keypath.kanata.stderr.log; do
             if [[ -f "$LOG_FILE" ]]; then
                 size=$(stat -f%z "$LOG_FILE" 2>/dev/null || echo 0)
                 if [[ $size -gt 5242880 ]]; then
@@ -445,7 +450,7 @@ final class ServiceBootstrapper {
                     [[ -f "${LOG_FILE}.2" ]] && mv "${LOG_FILE}.2" "${LOG_FILE}.3"
                     [[ -f "${LOG_FILE}.1" ]] && mv "${LOG_FILE}.1" "${LOG_FILE}.2"
                     mv "$LOG_FILE" "${LOG_FILE}.1"
-                    touch "$LOG_FILE" && chmod 644 "$LOG_FILE"
+                    touch "$LOG_FILE" && chmod 644 "$LOG_FILE" && chown "$CONSOLE_USER:$CONSOLE_GROUP" "$LOG_FILE" 2>/dev/null || true
                 fi
             fi
         done

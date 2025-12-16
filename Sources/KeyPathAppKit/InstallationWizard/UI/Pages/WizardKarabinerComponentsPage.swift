@@ -6,20 +6,14 @@ import SwiftUI
 
 enum KarabinerPageLogic {
     /// Returns true when Karabiner-related issues are still present.
-    /// Ready/active system state always wins, to avoid stale snapshots leaving the UI in a spinner.
     static func hasIssues(
         systemState: WizardSystemState,
         issues: [WizardIssue]
     ) -> Bool {
-        switch systemState {
-        case .ready, .active:
-            false
-        default:
-            KarabinerComponentsStatusEvaluator.evaluate(
-                systemState: systemState,
-                issues: issues
-            ) != .completed
-        }
+        KarabinerComponentsStatusEvaluator.evaluate(
+            systemState: systemState,
+            issues: issues
+        ) != .completed
     }
 }
 
@@ -35,7 +29,7 @@ struct WizardKarabinerComponentsPage: View {
     let systemState: WizardSystemState
     let issues: [WizardIssue]
     let isFixing: Bool
-    let onAutoFix: (AutoFixAction, Bool) async -> Bool // (action, suppressToast)
+    let onAutoFix: (AutoFixAction, Bool) async -> WizardFixResult // (action, suppressToast)
     let onRefresh: () -> Void
     let kanataManager: RuntimeCoordinator
     let stateMachine: WizardStateMachine
@@ -442,7 +436,7 @@ struct WizardKarabinerComponentsPage: View {
         let attempts = max(1, maxAttempts)
         for i in 1 ... attempts {
             AppLogger.shared.log("🧪 [Karabiner Fix] Auto-install attempt #\(i)")
-            let ok = await performAutoFix(.installCorrectVHIDDriver)
+            let ok = (await performAutoFix(.installCorrectVHIDDriver)) == .applied
             if ok { return true }
             // Small delay before retry to allow systemextensionsctl to settle
             _ = await WizardSleep.ms(200)
@@ -493,23 +487,22 @@ struct WizardKarabinerComponentsPage: View {
         // Always fix version mismatch and daemon misconfig first (structural), then perform a verified restart.
         if vhidIssues.contains(where: { $0.identifier == .component(.vhidDriverVersionMismatch) }) {
             AppLogger.shared.log("🧭 [FIX-VHID \(session)] Action: fixDriverVersionMismatch")
-            success = await performAutoFix(.fixDriverVersionMismatch)
+            success = (await performAutoFix(.fixDriverVersionMismatch)) == .applied
         } else if vhidIssues.contains(where: { $0.identifier == .component(.vhidDaemonMisconfigured) }) {
             AppLogger.shared.log("🧭 [FIX-VHID \(session)] Action: repairVHIDDaemonServices")
-            success = await performAutoFix(.repairVHIDDaemonServices)
+            success = (await performAutoFix(.repairVHIDDaemonServices)) == .applied
         } else if vhidIssues.contains(where: { $0.identifier == .component(.launchDaemonServices) }) {
             AppLogger.shared.log("🧭 [FIX-VHID \(session)] Action: installLaunchDaemonServices")
-            success = await performAutoFix(.installLaunchDaemonServices)
+            success = (await performAutoFix(.installLaunchDaemonServices)) == .applied
         }
 
         // Always run a verified restart last to ensure single-owner state
         AppLogger.shared.log("🧭 [FIX-VHID \(session)] Action: restartVirtualHIDDaemon (verified)")
-        let restartOk = await withTimeout(seconds: 10) {
-            await performAutoFix(.restartVirtualHIDDaemon)
-        }
-        if !restartOk {
-            AppLogger.shared.log("⏱️ [FIX-VHID \(session)] restartVirtualHIDDaemon timed out")
-        }
+        // IMPORTANT: Do not wrap this in a local timeout that cancels the underlying task.
+        // Cancellation here can strand the wizard's global `fixInFlight` state, causing other pages
+        // to be blocked indefinitely ("Completing Fix VirtualHID…") even though the UI remains responsive.
+        // Rely on the wizard-level auto-fix timeout instead.
+        let restartOk = (await performAutoFix(.restartVirtualHIDDaemon)) == .applied
         success = success || restartOk
 
         // Post-repair diagnostic
@@ -534,51 +527,48 @@ struct WizardKarabinerComponentsPage: View {
     private func scheduleStatusClear() {
         Task { @MainActor in
             _ = await WizardSleep.seconds(3)
-            if case .success = actionStatus {
+            switch actionStatus {
+            case .success:
                 actionStatus = .idle
+            case .idle, .inProgress, .error:
+                break
             }
-        }
-    }
-
-    /// Await an async operation with a timeout; cancels the operation if it exceeds the deadline.
-    private func withTimeout(
-        seconds: Double,
-        operation: @Sendable @escaping () async -> Bool
-    ) async -> Bool {
-        await withTaskGroup(of: Bool?.self) { group in
-            group.addTask { await operation() }
-            group.addTask {
-                try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
-                return nil
-            }
-
-            let first = await group.next() ?? nil
-            group.cancelAll()
-            return first ?? false
         }
     }
 
     /// Attempts automatic repair of background services
     private func performAutomaticServiceRepair() async -> Bool {
         AppLogger.shared.log("🔧 [Service Repair] Installing/repairing LaunchDaemon services")
-        let success = await performAutoFix(.installLaunchDaemonServices)
+        let result = await performAutoFix(.installLaunchDaemonServices)
 
-        if success {
+        switch result {
+        case .applied:
             AppLogger.shared.log("✅ [Service Repair] Service repair succeeded")
             await refreshAndWait(fixSucceeded: true)
             actionStatus = .success(message: "Service repair succeeded")
             scheduleStatusClear()
-        } else {
+            return true
+        case let .skipped(reason):
+            AppLogger.shared.log("ℹ️ [Service Repair] Skipped: \(reason)")
+            actionStatus = .inProgress(message: reason)
+            return false
+        case .failed:
             AppLogger.shared.log("❌ [Service Repair] Service repair failed - opening system settings")
             actionStatus = .error(message: "Service repair failed. Opening System Settings…")
             openLoginItemsSettings()
+            return false
         }
-        return success
     }
 
     /// Perform auto-fix using the wizard's auto-fix capability (suppresses toasts - uses inline status)
-    private func performAutoFix(_ action: AutoFixAction) async -> Bool {
-        await onAutoFix(action, true) // suppressToast=true, page handles inline status
+    private func performAutoFix(_ action: AutoFixAction) async -> WizardFixResult {
+        let result = await onAutoFix(action, true) // suppressToast=true, page handles inline status
+        if case let .skipped(reason) = result {
+            await MainActor.run {
+                actionStatus = .inProgress(message: reason)
+            }
+        }
+        return result
     }
 
     /// Refresh wizard state and wait for completion before returning control to caller UI.

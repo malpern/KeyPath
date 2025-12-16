@@ -30,6 +30,14 @@ Rationale: older CLI/tooling may still expose `tools.web_search`, which prints a
 - **Always use `PermissionOracle.shared`**.
 - Never call `IOHIDCheckAccess` directly.
 - Never check TCC database directly.
+- **Kanata Runtime (NON-NEGOTIABLE):**
+  - `com.keypath.kanata` must be registered as an `SMAppService.agent` (LaunchAgent, user session).
+  - Input Monitoring is per-user.
+    System LaunchDaemons can appear “granted” in TCC but still fail to receive real key events.
+  - Always grant Input Monitoring to the exact CLI binary path the service execs.
+    KeyPath standardizes on `/Library/KeyPath/bin/kanata` to avoid permission fragmentation.
+  - Never rely on TCC-only “granted” as “ready”.
+    KeyPath requires runtime evidence that kanata is receiving real key events to prevent false greens.
 
 ### Testing
 - **Mock Time**: Do not use `Thread.sleep`. Use `Date` overrides or mock clocks.

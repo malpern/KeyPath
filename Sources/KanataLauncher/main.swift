@@ -1,13 +1,14 @@
 /// KanataLauncher - A signed Swift binary that launches Kanata with proper configuration
 ///
 /// This replaces the shell script version to satisfy SMAppService code signing requirements.
-/// It runs as root via LaunchDaemon and:
+/// It runs via SMAppService as a user LaunchAgent (so Input Monitoring applies) and:
 /// 1. Checks if VirtualHID daemon is running (crash loop prevention)
-/// 2. Finds the console user's home directory
-/// 3. Ensures config directory exists with proper ownership
+/// 2. Locates the active user's home directory
+/// 3. Ensures config directory exists (without requiring root)
 /// 4. Executes kanata with the user's config file
 
 import Foundation
+import Darwin
 
 // MARK: - Constants
 
@@ -181,18 +182,17 @@ func ensureConfigDirectory(at path: String, user: String, group: String?) {
 
     // Create directory if needed
     if !fileManager.fileExists(atPath: path) {
-        // Use install command for proper ownership
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/install")
-
-        if user != "root", let group = group {
-            task.arguments = ["-d", "-m", "755", "-o", user, "-g", group, path]
-        } else {
-            task.arguments = ["-d", "-m", "755", path]
+        // In the user-agent model, we may not be root, so avoid install/chown.
+        // Just ensure the directory exists and is user-writable.
+        do {
+            try fileManager.createDirectory(
+                atPath: path,
+                withIntermediateDirectories: true,
+                attributes: [FileAttributeKey.posixPermissions: 0o755]
+            )
+        } catch {
+            log("Failed to create config directory \(path): \(error)")
         }
-
-        try? task.run()
-        task.waitUntilExit()
     }
 }
 
@@ -201,11 +201,11 @@ func ensureConfigFile(at path: String, user: String, group: String?) {
 
     // Touch the file if it doesn't exist
     if !fileManager.fileExists(atPath: path) {
-        fileManager.createFile(atPath: path, contents: nil, attributes: nil)
+        _ = fileManager.createFile(atPath: path, contents: nil, attributes: nil)
     }
 
     // Set ownership for non-root users
-    if user != "root" {
+    if user != "root", geteuid() == 0 {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/sbin/chown")
         task.arguments = ["\(user):\(group ?? "staff")", path]
@@ -218,20 +218,46 @@ func ensureConfigFile(at path: String, user: String, group: String?) {
 
 // MARK: - Main
 
-func main() -> Int32 {
-    // Get path to kanata binary (same directory as this launcher)
-    // NOTE: SMAppService passes a relative path like "Contents/Library/KeyPath/kanata-launcher"
-    // so we need to resolve it relative to the app bundle
-    var launcherPath = CommandLine.arguments[0]
-
-    // If the path is relative (doesn't start with /), prepend the app bundle location
-    if !launcherPath.hasPrefix("/") {
-        // SMAppService daemons are relative to app bundle
-        launcherPath = "/Applications/KeyPath.app/\(launcherPath)"
+func resolveExecutablePath() -> String {
+    // `PROC_PIDPATHINFO_MAXSIZE` is a macro that is not always available to Swift;
+    // use a conservative buffer size (4× MAXPATHLEN) instead.
+    var buffer = [CChar](repeating: 0, count: Int(MAXPATHLEN) * 4)
+    let len = proc_pidpath(getpid(), &buffer, UInt32(buffer.count))
+    if len > 0 {
+        return String(cString: buffer)
     }
 
-    let launcherDir = (launcherPath as NSString).deletingLastPathComponent
-    let kanataBin = (launcherDir as NSString).appendingPathComponent("kanata")
+    // Fallback: argv[0] may be relative when invoked via SMAppService.
+    // Keep legacy behavior as a best-effort fallback.
+    var argv0 = CommandLine.arguments[0]
+    if !argv0.hasPrefix("/") {
+        argv0 = "/Applications/KeyPath.app/\(argv0)"
+    }
+    return argv0
+}
+
+func main() -> Int32 {
+    let isRoot = (geteuid() == 0)
+
+    // Determine the kanata binary path.
+    //
+    // Prefer the system-installed path when available:
+    // - TCC (Input Monitoring) permissions for CLI tools are path-specific
+    // - The app bundle path can change across updates/dev builds, causing "granted but broken"
+    //   behavior when the daemon runs a different binary path than the one that was granted.
+    //
+    // Fall back to the bundled sibling binary for development/first-run scenarios.
+    let systemKanataBin = "/Library/KeyPath/bin/kanata"
+    let kanataBin: String
+    if FileManager.default.isExecutableFile(atPath: systemKanataBin) {
+        kanataBin = systemKanataBin
+    } else {
+        // NOTE: SMAppService passes a relative path like "Contents/Library/KeyPath/kanata-launcher"
+        // so we need to resolve it relative to the app bundle.
+        let launcherPath = resolveExecutablePath()
+        let launcherDir = (launcherPath as NSString).deletingLastPathComponent
+        kanataBin = (launcherDir as NSString).appendingPathComponent("kanata")
+    }
 
     // Pre-flight check: ensure VirtualHID daemon is available
     if !isVHIDDaemonRunning() {
@@ -258,10 +284,21 @@ func main() -> Int32 {
     // VirtualHID is healthy - reset retry counter and status file
     clearRetryState()
 
-    // Get console user info
-    let consoleUser = getConsoleUser()
-    let consoleHome = getHomeDirectory(for: consoleUser)
-    let consoleGroup = getPrimaryGroup(for: consoleUser)
+    // Determine which home directory to use for config.
+    // - If invoked as root (legacy/diagnostics), use the console user's home.
+    // - If invoked as a user agent (normal path), use the current user's home.
+    let consoleUser: String
+    let consoleHome: String
+    let consoleGroup: String?
+    if isRoot {
+        consoleUser = getConsoleUser()
+        consoleHome = getHomeDirectory(for: consoleUser)
+        consoleGroup = getPrimaryGroup(for: consoleUser)
+    } else {
+        consoleUser = NSUserName()
+        consoleHome = NSHomeDirectory()
+        consoleGroup = nil
+    }
 
     // Setup config paths
     let configPath = "\(consoleHome)/.config/keypath/keypath.kbd"
@@ -271,7 +308,7 @@ func main() -> Int32 {
     ensureConfigDirectory(at: configDir, user: consoleUser, group: consoleGroup)
     ensureConfigFile(at: configPath, user: consoleUser, group: consoleGroup)
 
-    log("Launching Kanata for user=\(consoleUser) config=\(configPath)")
+    log("Launching Kanata for user=\(consoleUser) bin=\(kanataBin) config=\(configPath)")
 
     // Build arguments: kanata --cfg <config> [additional args passed to launcher]
     var kanataArgs = ["--cfg", configPath]

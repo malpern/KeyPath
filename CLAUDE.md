@@ -80,16 +80,24 @@ Use this skill when generating or editing `.kbd` files, creating rules, or worki
   - R1 (default): Installer + Custom Rules only
   - R2: Simulator, Overlay, Mapper, Rule Collections, Virtual Keys Inspector
   - Secret toggle: `Ctrl+Option+Cmd+R` cycles milestones at runtime
+- **Kanata Runtime (NON-NEGOTIABLE):**
+  - `com.keypath.kanata` is registered as an `SMAppService.agent` (LaunchAgent, user session).
+  - The agent execs the stable, system-installed binary at `/Library/KeyPath/bin/kanata`.
+  - Rationale:
+    Input Monitoring is per-user and CLI permissions are path-specific.
+    System LaunchDaemons can appear “granted” in TCC but still fail to receive real key events.
+    KeyPath requires runtime evidence (real key events in logs) before showing the wizard as green.
 
 ## Project Overview
 
-KeyPath is a macOS application that provides keyboard remapping using Kanata as the backend engine. It features a SwiftUI frontend and a LaunchDaemon architecture for reliable system-level key remapping.
+KeyPath is a macOS application that provides keyboard remapping using Kanata as the backend engine.
+It features a SwiftUI frontend, a user-session kanata agent, and system VirtualHID services.
 
 ## High-Level Architecture
 
 ### System Design
 ```
-KeyPath.app (SwiftUI) → InstallerEngine → LaunchDaemon/PrivilegedHelper
+KeyPath.app (SwiftUI) → InstallerEngine → SMAppService (kanata agent) + PrivilegedHelper (VirtualHID)
           ↓                    ↓
     KanataManager      SystemContext (State)
           ↓
@@ -99,7 +107,7 @@ KeyPath.app (SwiftUI) → InstallerEngine → LaunchDaemon/PrivilegedHelper
 ### Core Components
 - **KeyPath.app**: SwiftUI application with Liquid Glass UI (macOS 15+)
 - **InstallerEngine**: Unified façade for installation, repair, and system inspection
-- **LaunchDaemon**: System service (`com.keypath.kanata`) that runs Kanata
+- **SMAppService Agent**: User-session service (`com.keypath.kanata`) that runs Kanata
 - **Configuration**: User config at `~/Library/Application Support/KeyPath/keypath.kbd`
 - **System Integration**: Uses CGEvent taps for key capture and launchctl for service management
 

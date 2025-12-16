@@ -300,7 +300,8 @@ class PermissionGrantCoordinator: ObservableObject {
     }
 
     /// Check if permissions were successfully granted for the given permission type
-    /// NOTE: Only check KeyPath permissions - Kanata doesn't need TCC (uses Karabiner driver)
+    /// NOTE: This helper only checks KeyPath permissions.
+    /// Kanata's Input Monitoring state is checked through `PermissionOracle` elsewhere.
     private func checkIfPermissionsGranted(for permissionType: CoordinatorPermissionType) async
         -> Bool {
         let snapshot = await PermissionOracle.shared.currentSnapshot()
@@ -369,7 +370,7 @@ class PermissionGrantCoordinator: ObservableObject {
                 "🚨 [ServiceBounce] FALLBACK: helper restartUnhealthyServices failed: \(error.localizedDescription). Using AppleScript path."
             )
             let script = """
-            do shell script "launchctl kickstart -k system/com.keypath.kanata" with administrator privileges with prompt "KeyPath needs admin access to restart the keyboard service after permission changes."
+            do shell script "launchctl kickstart -k gui/$(id -u $(stat -f%Su /dev/console))/com.keypath.kanata" with administrator privileges with prompt "KeyPath needs admin access to restart the keyboard service after permission changes."
             """
             return await withCheckedContinuation { continuation in
                 DispatchQueue.global(qos: .userInitiated).async {

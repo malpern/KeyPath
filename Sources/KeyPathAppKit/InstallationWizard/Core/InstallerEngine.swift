@@ -409,7 +409,7 @@ public final class InstallerEngine {
             _ = await WizardSleep.ms(1000) // 1 second
         }
 
-        if let serviceID = recipe.serviceID, serviceID == KeyPathConstants.Bundle.daemonID {
+        if let serviceID = recipe.serviceID, serviceID == KeyPathConstants.Bundle.vhidDaemonID {
             // Restart Karabiner daemon with verification
             let success = try await broker.restartKarabinerDaemonVerified()
             if !success {

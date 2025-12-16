@@ -307,11 +307,11 @@ struct WizardSystemStatusOverview: View {
                 relatedIssues: conflictIssues
             ))
 
-        // 5. Input Monitoring Permission (KeyPath only - Kanata doesn't need TCC)
+        // 5. Input Monitoring Permission (KeyPath + Kanata)
         let inputMonitoringStatus = getInputMonitoringStatus()
         let inputMonitoringIssues = issues.filter { issue in
             if case let .permission(req) = issue.identifier {
-                return req == .keyPathInputMonitoring
+                return req == .keyPathInputMonitoring || req == .kanataInputMonitoring
             }
             return false
         }
@@ -348,8 +348,19 @@ struct WizardSystemStatusOverview: View {
         // 6. Karabiner Driver Setup (led first in list for clear dependency order)
         let karabinerStatus = getKarabinerComponentsStatus()
         let karabinerIssues = issues.filter { issue in
-            // Filter for installation issues related to Karabiner driver
-            issue.category == .installation && issue.identifier.isVHIDRelated
+            // Filter for installation + background-service issues related to Karabiner driver/VHID.
+            if issue.category == .installation, issue.identifier.isVHIDRelated {
+                return true
+            }
+            if issue.category == .backgroundServices,
+               issue.identifier == .component(.launchDaemonServices) ||
+               issue.identifier == .component(.launchDaemonServicesUnhealthy) {
+                return true
+            }
+            if issue.category == .daemon, issue.identifier == .component(.karabinerDaemon) {
+                return true
+            }
+            return false
         }
         items.append(
             StatusItemModel(
@@ -602,10 +613,9 @@ struct WizardSystemStatusOverview: View {
             return .notStarted
         }
 
-        // NOTE: Only check KeyPath permissions - Kanata doesn't need TCC (uses Karabiner driver)
         let hasInputMonitoringIssues = issues.contains { issue in
             if case let .permission(permissionType) = issue.identifier {
-                return permissionType == .keyPathInputMonitoring
+                return permissionType == .keyPathInputMonitoring || permissionType == .kanataInputMonitoring
             }
             return false
         }
@@ -697,10 +707,9 @@ struct WizardSystemStatusOverview: View {
 
     private func getServiceNavigationTarget() -> (page: WizardPage, reason: String) {
         // When service fails, navigate to the most critical missing permission
-        // NOTE: Only check KeyPath permissions - Kanata doesn't need TCC (uses Karabiner driver)
         let hasInputMonitoringIssues = issues.contains { issue in
             if case let .permission(permission) = issue.identifier {
-                return permission == .keyPathInputMonitoring
+                return permission == .keyPathInputMonitoring || permission == .kanataInputMonitoring
             }
             return false
         }

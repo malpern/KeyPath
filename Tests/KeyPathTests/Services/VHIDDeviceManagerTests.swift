@@ -49,7 +49,10 @@ final class VHIDDeviceManagerTests: XCTestCase {
         let message = mgr.getVersionMismatchMessage()
         XCTAssertNotNil(message, "Should return message when version mismatch exists")
         XCTAssertTrue(message?.contains("5.0.0") ?? false, "Message should mention installed version")
-        XCTAssertTrue(message?.contains("6.0.0") ?? false, "Message should mention required version")
+        XCTAssertTrue(
+            message?.contains(VHIDDeviceManager.requiredDriverVersionString) ?? false,
+            "Message should mention required version"
+        )
     }
 
     func testGetVersionMismatchMessage_ReturnsNilWhenCompatible() {

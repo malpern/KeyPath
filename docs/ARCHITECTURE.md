@@ -33,10 +33,10 @@ KeyPath is a native macOS application that simplifies the usage of the powerful 
 └───────────┬──────────────────┬────────────────────────┬─────────────────┘
             │                  │                        │
             ▼                  ▼                        ▼
-┌─────────────────────────┐ ┌──────────────────────┐ ┌────────────────────┐
-│   com.keypath.kanata    │ │   VirtualHID Driver  │ │    MacOS TCC API   │
-│   (Root LaunchDaemon)   │ │    (Kernel Ext)      │ │ (Security Frame)   │
-└─────────────────────────┘ └──────────────────────┘ └────────────────────┘
+┌──────────────────────────────┐ ┌──────────────────────────────┐ ┌────────────────────┐
+│ com.keypath.kanata (Agent)   │ │ Karabiner VirtualHID Services │ │    MacOS TCC API   │
+│ (SMAppService + TCP + IM)    │ │ (LaunchDaemons, root)         │ │ (Security Frame)   │
+└──────────────────────────────┘ └──────────────────────────────┘ └────────────────────┘
 ```
 
 ## Core Architectural Principles
@@ -78,11 +78,17 @@ The installation wizard is not a linear script but a state machine.
 *   **Deterministic Navigation**: `WizardNavigationEngine` maps the detected state + current issues to the exact page the user needs to see.
 *   **Auto-Fixer**: Atomic, idempotent actions (e.g., `restartVirtualHIDDaemon`) resolve specific issues without brittle scripting.
 
-### 6. Service Architecture (LaunchDaemons)
-KeyPath relies on system-level persistence via `launchd`.
-*   **Kanata Service**: `com.keypath.kanata` runs the `kanata` binary as root.
-*   **VirtualHID Services**: Separate services manage the kernel driver connection.
-*   **Why Split?**: Allows granular health checks. If the driver crashes, we can restart just the driver service without killing the main app or the remapping engine.
+### 6. Service Architecture (SMAppService Agent + LaunchDaemons)
+KeyPath uses a user-session runtime for kanata, plus root-level VirtualHID services:
+*   **Kanata Service (SMAppService Agent)**: `com.keypath.kanata` is registered via `SMAppService.agent`.
+    It runs in the logged-in user session so Input Monitoring can apply.
+*   **Stable Kanata Binary Path**: The agent execs `/Library/KeyPath/bin/kanata`.
+    Input Monitoring for CLI tools is path-specific.
+    Standardizing the path prevents “granted but broken” states across updates/dev builds.
+*   **VirtualHID Services (LaunchDaemons)**: Separate launchd services install, enable, and monitor Karabiner’s VirtualHID daemon and manager.
+    These remain system-level and may require admin approval.
+*   **Why This Model?**: System LaunchDaemons can appear “granted” in TCC but still fail to receive real key events.
+    KeyPath requires runtime evidence that kanata is processing real key events before showing the system as ready.
 
 ### 7. Process Lifecycle Management
 We use a `PID file` strategy to track ownership of the `kanata` process.
@@ -95,10 +101,11 @@ We use a `PID file` strategy to track ownership of the `kanata` process.
 ### Permission Checking
 We check permissions from the **GUI context** (User Session), not the Root Daemon context.
 *   **Reason**: macOS `root` processes often cannot self-report TCC status accurately due to "responsible process" inheritance rules.
-*   **Pattern**: The UI checks if it *could* listen to keystrokes. If yes, we assume the root daemon (which has even more power) can too, provided it is launched correctly.
+*   **Pattern**: The UI detects the TCC grant for the active kanata binary path,
+    then validates that the running kanata process is actually receiving real key events.
 
 ### Inter-Process Communication (IPC)
-Communication between the UI and the Root Daemon happens via **TCP**.
+Communication between the UI and the `com.keypath.kanata` agent happens via **TCP**.
 *   **Protocol**: Lightweight JSON payloads over TCP port 37001.
 *   **Performance**: < 100ms latency for status updates.
 *   **Usage**: Sending config reloads, receiving "heartbeat" status updates.

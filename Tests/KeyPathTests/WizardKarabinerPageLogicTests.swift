@@ -15,13 +15,13 @@ final class WizardKarabinerPageLogicTests: XCTestCase {
         )
     }
 
-    func testReadyStateAlwaysHealthyEvenWithStaleIssues() {
+    func testReadyStateRespectsIssues() {
         let staleIssues = [
             makeIssue(.component(.karabinerDriver), category: .installation),
             makeIssue(.component(.launchDaemonServices), category: .installation)
         ]
-        XCTAssertFalse(KarabinerPageLogic.hasIssues(systemState: .ready, issues: staleIssues))
-        XCTAssertFalse(KarabinerPageLogic.hasIssues(systemState: .active, issues: staleIssues))
+        XCTAssertTrue(KarabinerPageLogic.hasIssues(systemState: .ready, issues: staleIssues))
+        XCTAssertTrue(KarabinerPageLogic.hasIssues(systemState: .active, issues: staleIssues))
     }
 
     func testNonReadyStateWithoutIssuesIsHealthy() {

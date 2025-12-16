@@ -28,7 +28,7 @@
 1. **Emergency Stop** - Click 🚨 button in KeyPath app
 2. **Terminal recovery** - Open Terminal and run:
    ```bash
-   sudo launchctl kill TERM system/com.keypath.kanata
+   launchctl kill TERM gui/$(id -u)/com.keypath.kanata
    ```
 3. **Force restart** - Hold power button for 10 seconds
 
@@ -41,7 +41,7 @@
 /usr/local/bin/kanata-cmd --cfg /path/to/config.kbd
 
 # Stop service
-sudo launchctl kill TERM system/com.keypath.kanata
+launchctl kill TERM gui/$(id -u)/com.keypath.kanata
 ```
 
 ### **6. Safe Configuration Template**

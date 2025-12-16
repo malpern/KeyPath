@@ -22,12 +22,12 @@ struct WizardCommunicationPage: View {
     }
 
     // Auto-fix integration
-    let onAutoFix: ((AutoFixAction, Bool) async -> Bool)?
+    let onAutoFix: ((AutoFixAction, Bool) async -> WizardFixResult)?
 
     init(
         systemState: WizardSystemState, issues: [WizardIssue],
         onRefresh: @escaping () async -> Void,
-        onAutoFix: ((AutoFixAction, Bool) async -> Bool)? = nil
+        onAutoFix: ((AutoFixAction, Bool) async -> WizardFixResult)? = nil
     ) {
         self.systemState = systemState
         self.issues = issues
@@ -217,6 +217,7 @@ struct WizardCommunicationPage: View {
                                 commStatus = .needsSetup(
                                     "TCP server is not responding. Service may use old TCP configuration. Click Fix to regenerate with TCP."
                                 )
+                                actionStatus = .error(message: "TCP server not responding")
                             }
                         }
                         return
@@ -350,13 +351,22 @@ struct WizardCommunicationPage: View {
         }
 
         let (action, successMessage, failureMessage) = getAutoFixAction()
-        var success = await onAutoFix(action, true) // suppressToast=true for inline feedback
+        let firstResult = await onAutoFix(action, true) // suppressToast=true for inline feedback
+        var success = firstResult == .applied
+        var skippedReason: String?
+        if case let .skipped(reason) = firstResult {
+            skippedReason = reason
+        }
 
         // For service regeneration, restart the service
         // NOTE: TCP mode doesn't require authentication (Kanata v1.9.0 ignores auth messages)
         if success, case .needsSetup = commStatus {
             AppLogger.shared.log("🔄 [WizardComm] Service regenerated, restarting Kanata...")
-            success = await onAutoFix(.restartCommServer, true)
+            let restartResult = await onAutoFix(.restartCommServer, true)
+            success = restartResult == .applied
+            if case let .skipped(reason) = restartResult {
+                skippedReason = reason
+            }
 
             if success {
                 // Wait for TCP server to start
@@ -387,7 +397,7 @@ struct WizardCommunicationPage: View {
 
         fixResult = FixResult(
             success: success,
-            message: success ? successMessage : actualFailureMessage,
+            message: success ? successMessage : (skippedReason ?? actualFailureMessage),
             timestamp: Date()
         )
         showingFixFeedback = true

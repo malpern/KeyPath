@@ -106,19 +106,17 @@ final class KanataBinaryDetector {
     }
 
     /// Check if kanata needs installation (for auto-fix logic)
-    /// With SMAppService, bundled Kanata is sufficient (via BundleProgram).
     func needsInstallation() -> Bool {
         let result = detectCurrentStatus()
-        // Bundled Kanata with proper signature is ready for SMAppService
-        return result.status == .missing || result.status == .bundledUnsigned
+        // We require a stable, system-installed path for the daemon and for TCC (Input Monitoring)
+        // permissions, which are path-specific for CLI binaries.
+        return result.status != .systemInstalled
     }
 
     /// Check if Kanata binary is installed and ready for use
-    /// With SMAppService, bundled Kanata is considered installed.
     func isInstalled() -> Bool {
         let result = detectCurrentStatus()
-        // Bundled Kanata with proper signature is ready for SMAppService
-        return result.status == .bundledAvailable || result.status == .systemInstalled
+        return result.status == .systemInstalled
     }
 
     /// Get recommended installation action
@@ -143,7 +141,7 @@ final class KanataBinaryDetector {
     private func checkSystemInstallation() -> DetectionResult? {
         let systemPath = WizardSystemPaths.kanataSystemInstallPath
 
-        guard FileManager.default.fileExists(atPath: systemPath) else {
+        guard FileManager.default.isExecutableFile(atPath: systemPath) else {
             return nil
         }
 
@@ -178,7 +176,7 @@ final class KanataBinaryDetector {
                 status: .bundledAvailable,
                 path: bundledPath,
                 signingStatus: signingStatus,
-                isReady: true
+                isReady: false
             )
         } else {
             return DetectionResult(
@@ -193,14 +191,16 @@ final class KanataBinaryDetector {
     // MARK: - Component Integration
 
     /// Convert detection result to ComponentRequirement array for SystemStatusChecker
-    /// With SMAppService, bundled Kanata is considered installed.
     func getMissingComponents() -> [ComponentRequirement] {
         let result = detectCurrentStatus()
 
         switch result.status {
-        case .bundledAvailable, .systemInstalled:
-            return [] // No missing components
+        case .systemInstalled:
+            return []
         case .bundledUnsigned, .missing:
+            return [.kanataBinaryMissing]
+        case .bundledAvailable:
+            // Bundled binary exists, but the required system install path is missing.
             return [.kanataBinaryMissing]
         case .bundledMissing:
             return [.bundledKanataMissing] // CRITICAL: App bundle corrupted

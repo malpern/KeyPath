@@ -121,6 +121,17 @@ final class ServiceHealthChecker: @unchecked Sendable {
     /// - Parameter serviceID: The service identifier to check
     /// - Returns: `true` if the service is healthy
     nonisolated func isServiceHealthy(serviceID: String) async -> Bool {
+        // Kanata can be managed either as a per-user SMAppService agent (preferred)
+        // or as a legacy LaunchDaemon. A system-domain `launchctl print` will return
+        // false negatives for the agent case.
+        if serviceID == Self.kanataServiceID {
+            let health = await checkKanataServiceHealth()
+            AppLogger.shared.log(
+                "🔍 [ServiceHealthChecker] HEALTH CHECK (kanata) for: \(serviceID) => running=\(health.isRunning), tcp=\(health.isResponding)"
+            )
+            return health.isRunning
+        }
+
         AppLogger.shared.log("🔍 [ServiceHealthChecker] HEALTH CHECK (system/print) for: \(serviceID)")
 
         if TestEnvironment.shouldSkipAdminOperations {
@@ -261,12 +272,13 @@ final class ServiceHealthChecker: @unchecked Sendable {
         // 1) launchctl check for PID using SubprocessRunner
         let isRunning: Bool
         do {
-            let result = try await SubprocessRunner.shared.launchctl(
-                "print", ["system/\(Self.kanataServiceID)"]
-            )
-            if result.exitCode == 0 {
-                // Look for pid = in the output
-                var foundPid = false
+            let uid = getuid()
+            let targets = ["gui/\(uid)/\(Self.kanataServiceID)", "system/\(Self.kanataServiceID)"]
+
+            var foundPid = false
+            for target in targets {
+                let result = try await SubprocessRunner.shared.launchctl("print", [target])
+                guard result.exitCode == 0 else { continue }
                 for line in result.stdout.components(separatedBy: "\n") where line.contains("pid =") {
                     let comps = line.components(separatedBy: "=")
                     if comps.count == 2,
@@ -275,10 +287,10 @@ final class ServiceHealthChecker: @unchecked Sendable {
                         break
                     }
                 }
-                isRunning = foundPid
-            } else {
-                isRunning = false
+                if foundPid { break }
             }
+
+            isRunning = foundPid
         } catch {
             AppLogger.shared.warn("⚠️ [ServiceHealthChecker] launchctl check failed: \(error)")
             isRunning = false

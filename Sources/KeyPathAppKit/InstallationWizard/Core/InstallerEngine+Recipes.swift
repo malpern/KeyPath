@@ -41,11 +41,12 @@ extension InstallerEngine {
                 type: .installService,
                 serviceID: nil,
                 launchctlActions: [
-                    .bootstrap(serviceID: KeyPathConstants.Bundle.daemonID),
                     .bootstrap(serviceID: KeyPathConstants.Bundle.vhidDaemonID),
                     .bootstrap(serviceID: KeyPathConstants.Bundle.vhidManagerID)
                 ],
-                healthCheck: HealthCheckCriteria(serviceID: KeyPathConstants.Bundle.daemonID, shouldBeRunning: true)
+                // Kanata is registered via SMAppService (user agent); health check is driven by the
+                // installer’s post-checks and `ServiceHealthChecker.checkKanataServiceHealth()`.
+                healthCheck: HealthCheckCriteria(serviceID: KeyPathConstants.Bundle.vhidDaemonID, shouldBeRunning: true)
             )
 
         case .installBundledKanata:
@@ -87,9 +88,9 @@ extension InstallerEngine {
             ServiceRecipe(
                 id: "start-karabiner-daemon",
                 type: .restartService,
-                serviceID: KeyPathConstants.Bundle.daemonID,
-                launchctlActions: [.kickstart(serviceID: KeyPathConstants.Bundle.daemonID)],
-                healthCheck: HealthCheckCriteria(serviceID: KeyPathConstants.Bundle.daemonID, shouldBeRunning: true)
+                serviceID: KeyPathConstants.Bundle.vhidDaemonID,
+                launchctlActions: [.kickstart(serviceID: KeyPathConstants.Bundle.vhidDaemonID)],
+                healthCheck: HealthCheckCriteria(serviceID: KeyPathConstants.Bundle.vhidDaemonID, shouldBeRunning: true)
             )
 
         case .restartUnhealthyServices:

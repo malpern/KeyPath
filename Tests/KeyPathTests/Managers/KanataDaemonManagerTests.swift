@@ -170,7 +170,7 @@ final class KanataDaemonManagerTests: KeyPathAsyncTestCase {
 
     func testGetActivePlistPath() {
         let bundlePath = Bundle.main.bundlePath
-        let expectedPath = "\(bundlePath)/Contents/Library/LaunchDaemons/\(KanataDaemonManager.kanataServiceID).plist"
+        let expectedPath = "\(bundlePath)/Contents/Library/LaunchAgents/\(KanataDaemonManager.kanataServiceID).plist"
         XCTAssertEqual(KanataDaemonManager.getActivePlistPath(), expectedPath)
     }
 

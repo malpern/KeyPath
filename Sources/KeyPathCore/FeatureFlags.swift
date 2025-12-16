@@ -61,6 +61,7 @@ extension FeatureFlags: @unchecked Sendable {}
 
 public extension FeatureFlags {
     private static let captureListenOnlyKey = "CAPTURE_LISTEN_ONLY_ENABLED"
+    private static let tahoeInputMonitoringWorkaroundKey = "TAHOE_INPUT_MONITORING_UI_WORKAROUND"
 
     static var captureListenOnlyEnabled: Bool {
         if UserDefaults.standard.object(forKey: captureListenOnlyKey) == nil {
@@ -71,5 +72,19 @@ public extension FeatureFlags {
 
     static func setCaptureListenOnlyEnabled(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: captureListenOnlyKey)
+    }
+
+    /// Workaround for macOS 15/26 "Tahoe" Input Monitoring UI bug where CLI binaries added via the
+    /// System Settings “+” button do not appear in the list even though TCC grants them permission.
+    /// KeyPath uses this flag to trust the TCC row and avoid trapping users in a broken Fix loop.
+    static var tahoeInputMonitoringWorkaroundEnabled: Bool {
+        if UserDefaults.standard.object(forKey: tahoeInputMonitoringWorkaroundKey) == nil {
+            return true // default ON until Apple ships a fix
+        }
+        return UserDefaults.standard.bool(forKey: tahoeInputMonitoringWorkaroundKey)
+    }
+
+    static func setTahoeInputMonitoringWorkaroundEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: tahoeInputMonitoringWorkaroundKey)
     }
 }

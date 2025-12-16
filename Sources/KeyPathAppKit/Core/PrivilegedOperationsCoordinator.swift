@@ -182,6 +182,17 @@ final class PrivilegedOperationsCoordinator {
                 try await HelperManager.shared.restartUnhealthyServices()
                 AppLogger.shared.log("✅ [PrivCoordinator] Helper successfully restarted services")
             } catch {
+                // If the helper got stuck, a sudo/AppleScript fallback can also hang (waiting on UI).
+                // Fail fast so the wizard can surface actionable messaging instead of staying in a
+                // "Preparing…" state indefinitely.
+                if case let HelperManagerError.operationFailed(reason) = error,
+                   reason.localizedCaseInsensitiveContains("timed out") {
+                    AppLogger.shared.log("⚠️ [PrivCoordinator] Helper timed out; skipping sudo fallback to avoid UI hangs")
+                    throw PrivilegedOperationError.operationFailed(
+                        "KeyPath’s privileged helper did not respond in time while restarting VirtualHID services.\n\nQuit and reopen KeyPath, then click Fix again. If it still gets stuck, restart your Mac."
+                    )
+                }
+
                 AppLogger.shared.log("⚠️ [PrivCoordinator] Helper failed (\(error)), falling back to sudo")
                 try await sudoRestartServices()
             }

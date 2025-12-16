@@ -81,9 +81,10 @@ struct SystemContextAdapter {
             missing.append(.keyPathAccessibility)
         }
 
-        // Kanata needs Input Monitoring to capture events (Karabiner-style).
-        // IMPORTANT: This must refer to the same executable path the daemon runs.
-        if !context.permissions.kanata.inputMonitoring.isReady {
+        // Kanata Input Monitoring depends on having a stable, system-installed kanata binary path.
+        // If kanata is not installed yet, we surface the install issue first to avoid sending
+        // users into the Input Monitoring file picker (they can't pick the correct path yet).
+        if context.components.kanataBinaryInstalled, !context.permissions.kanata.inputMonitoring.isReady {
             missing.append(.kanataInputMonitoring)
         }
 
@@ -148,16 +149,46 @@ struct SystemContextAdapter {
                     userAction: "Grant Accessibility permission in System Settings"
                 ))
         }
-        if !context.permissions.kanata.inputMonitoring.isReady {
+        if context.components.kanataBinaryInstalled, !context.permissions.kanata.inputMonitoring.isReady {
+            let source = context.permissions.kanata.source
+            let (title, description, userAction): (String, String, String) = {
+                if source.contains("iohid-denied") {
+                    return (
+                        "Kanata Can't Read Keyboard Input",
+                        "Kanata is running, but it cannot open the keyboard device (Input Monitoring is not effective). Remapping (e.g., 1 → 2) will not work until this is fixed.",
+                        "Open System Settings > Privacy & Security > Input Monitoring, ensure the enabled entry is the exact kanata binary inside KeyPath, then restart the Kanata service."
+                    )
+                }
+                if source.contains("no-events") {
+                    return (
+                        "Kanata Not Receiving Key Events",
+                        "KeyPath requires proof that Kanata is receiving real key events (not just keepalive). Press a few keys, then click Refresh. If it stays red, Input Monitoring is still not working.",
+                        "Press keys to validate; if it stays red, open System Settings > Privacy & Security > Input Monitoring and add/enable the kanata binary inside KeyPath, then restart the Kanata service."
+                    )
+                }
+                if source.contains("daemon-unverifiable") {
+                    return (
+                        "Kanata Input Monitoring Not Verified Yet",
+                        "KeyPath can see the Input Monitoring grant in TCC, but it has not yet observed kanata processing real key events. Make sure the Kanata service is running, then press a few keys and click Refresh.",
+                        "Start the Kanata service, press keys to validate, then click Refresh. If it stays red, re-add/enable the exact kanata binary in System Settings > Privacy & Security > Input Monitoring."
+                    )
+                }
+                return (
+                    "Kanata Input Monitoring Required",
+                    "Kanata needs Input Monitoring permission to capture your keystrokes for remapping.",
+                    "Grant Input Monitoring permission in System Settings and restart the Kanata service."
+                )
+            }()
+
             issues.append(
                 WizardIssue(
                     identifier: .permission(.kanataInputMonitoring),
                     severity: .error,
                     category: .permissions,
-                    title: "Kanata Input Monitoring Required",
-                    description: "Kanata needs Input Monitoring permission to capture your keystrokes for remapping",
+                    title: title,
+                    description: description,
                     autoFixAction: nil,
-                    userAction: "Grant Input Monitoring permission in System Settings"
+                    userAction: userAction
                 ))
         }
 

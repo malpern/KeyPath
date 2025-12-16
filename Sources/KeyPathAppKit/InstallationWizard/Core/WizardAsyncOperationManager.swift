@@ -68,7 +68,9 @@ class WizardAsyncOperationManager {
             )
 
             do {
-                // Prepare operation task on the main actor to avoid crossing actor boundaries in sendable closures
+                // Prepare operation task on the main actor to avoid crossing actor boundaries in sendable closures.
+                // IMPORTANT: Ensure we cancel this task on timeout/cancellation to avoid "zombie" operations
+                // that continue running after UI has moved on.
                 let operationTask: Task<T, Error> = Task { @MainActor in
                     try await operation.execute { progress in
                         // Ensure main actor mutation from a synchronous handler
@@ -77,6 +79,7 @@ class WizardAsyncOperationManager {
                         }
                     }
                 }
+                defer { operationTask.cancel() }
 
                 // Execute operation with timeout protection
                 let result = try await withThrowingTaskGroup(of: T.self) { group in

@@ -193,8 +193,8 @@ class WizardNavigationEngineTests: XCTestCase {
             .helper, // Privileged helper installation comes early to avoid repeated prompts
             .fullDiskAccess, // Optional FDA for better diagnostics
             .conflicts, // Must resolve conflicts first
+            .inputMonitoring, // Input Monitoring permission (required before starting Kanata)
             .accessibility, // Accessibility permission
-            .inputMonitoring, // Input Monitoring permission
             .karabinerComponents, // Karabiner driver and VirtualHID setup
             .kanataComponents, // Kanata binary and service setup
             .service, // Start keyboard service
@@ -240,7 +240,7 @@ class WizardNavigationEngineTests: XCTestCase {
         XCTAssertTrue(conflictsBlocking, "Conflicts should be blocking")
         XCTAssertTrue(installationBlocking, "Installation should be blocking")
         XCTAssertFalse(helperBlockingWhenEnabled, "Helper should NOT be blocking when enabled")
-        XCTAssertFalse(permissionsBlocking, "Permissions should not be blocking")
+        XCTAssertTrue(permissionsBlocking, "Input Monitoring should be blocking")
         XCTAssertFalse(backgroundServicesBlocking, "Background services should not be blocking")
         XCTAssertFalse(serviceBlocking, "Service should not be blocking")
         XCTAssertFalse(summaryBlocking, "Summary should not be blocking")
@@ -432,8 +432,8 @@ class WizardNavigationEngineTests: XCTestCase {
         // When: Getting next page
         let nextPage = await engine.nextPage(from: currentPage, given: systemState, issues: issues)
 
-        // Then: Should advance to next page (Karabiner components now follow input monitoring)
-        XCTAssertEqual(nextPage, .karabinerComponents, "Should advance to karabiner components page")
+        // Then: Should advance to next page in sequence
+        XCTAssertEqual(nextPage, .accessibility, "Should advance to accessibility page")
     }
 
     // MARK: - Helper Methods

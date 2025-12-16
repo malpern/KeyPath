@@ -133,7 +133,7 @@ final class KanataErrorMonitor: ObservableObject {
     // MARK: - Configuration
 
     private let maxErrors = 100 // Ring buffer size
-    private let stderrPath = "/var/log/com.keypath.kanata.stderr.log"
+    private let stderrPath = KeyPathConstants.Logs.kanataStderr
     private let monitoringInterval: TimeInterval = 2.0 // Check every 2 seconds
     private let patternCountWindow: TimeInterval = 60.0 // Count patterns over 1 minute window
 
