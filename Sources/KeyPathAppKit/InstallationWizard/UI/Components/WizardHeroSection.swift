@@ -225,41 +225,61 @@ struct InlineStatusView: View {
     let message: String
 
     var body: some View {
-        HStack(spacing: WizardDesign.Spacing.elementGap) {
-            // Status indicator (spinner or icon)
-            Group {
-                switch status {
-                case .inProgress:
-                    ProgressView()
-                        .scaleEffect(0.7)
-                        .frame(width: 16, height: 16)
+        VStack(spacing: 8) {
+            HStack(spacing: WizardDesign.Spacing.elementGap) {
+                // Status indicator (icons only; no spinner here — spinner stays on the button)
+                Group {
+                    switch status {
+                    case .success:
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(WizardDesign.Colors.success)
 
-                case .success:
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(WizardDesign.Colors.success)
+                    case .error:
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(WizardDesign.Colors.error)
 
-                case .error:
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(WizardDesign.Colors.error)
-
-                case .idle:
-                    EmptyView()
+                    case .inProgress, .idle:
+                        EmptyView()
+                    }
                 }
+
+                // Status message
+                Text(message)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(status.color)
+                    .multilineTextAlignment(.center)
             }
 
-            // Status message
-            Text(message)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(status.color)
-                .multilineTextAlignment(.center)
+            if case .inProgress = status {
+                WizardInlineProgressBar()
+            }
         }
         .padding(.horizontal, WizardDesign.Spacing.cardPadding)
         .padding(.vertical, WizardDesign.Spacing.elementGap)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(status.color.opacity(0.1))
-        )
+        .background(RoundedRectangle(cornerRadius: 8).fill(status.color.opacity(0.1)))
+    }
+}
+
+/// Small inline progress bar used under in-progress inline status messages.
+///
+/// This is intentionally not edge-to-edge.
+/// It is sized to read like part of the status chip rather than a separate panel.
+private struct WizardInlineProgressBar: View {
+    private let width: CGFloat = 160
+    private let height: CGFloat = 4
+
+    var body: some View {
+        ZStack(alignment: .leading) {
+            RoundedRectangle(cornerRadius: height / 2)
+                .fill(Color(NSColor.separatorColor).opacity(0.35))
+                .frame(width: width, height: height)
+
+            IndeterminateProgressBar()
+                .frame(width: width, height: height)
+                .clipShape(RoundedRectangle(cornerRadius: height / 2))
+        }
+        .frame(width: width, height: height)
     }
 }
