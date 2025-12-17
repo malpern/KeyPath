@@ -63,54 +63,14 @@ enum SettingsSystemStatusRowsBuilder {
         rows.append(
             SettingsSystemStatusRowModel(
                 id: "conflicts",
-                title: "Resolve System Conflicts",
+                title: "System Conflicts",
                 icon: "exclamationmark.triangle",
                 status: conflictStatus,
                 targetPage: .conflicts
             )
         )
 
-        // 4) Input Monitoring
-        let inputIssues = wizardIssues.filter { issue in
-            if case let .permission(req) = issue.identifier {
-                return req == .keyPathInputMonitoring || req == .kanataInputMonitoring
-            }
-            return false
-        }
-        let inputStatus: InstallationStatus = wizardSystemState == .initializing
-            ? .notStarted
-            : issueStatus(for: inputIssues)
-        rows.append(
-            SettingsSystemStatusRowModel(
-                id: "input-monitoring",
-                title: "Input Monitoring Permission",
-                icon: "eye",
-                status: inputStatus,
-                targetPage: .inputMonitoring
-            )
-        )
-
-        // 5) Accessibility
-        let accessibilityIssues = wizardIssues.filter { issue in
-            if case let .permission(req) = issue.identifier {
-                return req == .keyPathAccessibility || req == .kanataAccessibility
-            }
-            return false
-        }
-        let accessibilityStatus: InstallationStatus = wizardSystemState == .initializing
-            ? .notStarted
-            : issueStatus(for: accessibilityIssues)
-        rows.append(
-            SettingsSystemStatusRowModel(
-                id: "accessibility",
-                title: "Accessibility",
-                icon: "accessibility",
-                status: accessibilityStatus,
-                targetPage: .accessibility
-            )
-        )
-
-        // 6) Karabiner Driver
+        // 4) Karabiner Driver (permissions are shown in dedicated section above)
         let karabinerStatus = KarabinerComponentsStatusEvaluator.evaluate(
             systemState: wizardSystemState,
             issues: wizardIssues
@@ -125,7 +85,7 @@ enum SettingsSystemStatusRowsBuilder {
             )
         )
 
-        // 7) Kanata Service
+        // 5) Kanata Service
         let daemonIssues = wizardIssues.filter(\.identifier.isDaemon)
         let blockingPermissionIssue = ServiceStatusEvaluator.blockingIssueMessage(from: wizardIssues) != nil
         let serviceStatus: InstallationStatus = {
@@ -151,7 +111,7 @@ enum SettingsSystemStatusRowsBuilder {
             )
         )
 
-        // 8) Kanata Engine Setup (only once driver is healthy, mirrors wizard)
+        // 6) Kanata Engine Setup (only once driver is healthy, mirrors wizard)
         if karabinerStatus == .completed {
             let kanataIssues = wizardIssues.filter { issue in
                 if issue.category == .installation {
@@ -178,7 +138,7 @@ enum SettingsSystemStatusRowsBuilder {
             )
         }
 
-        // 9) TCP Communication
+        // 7) TCP Communication
         let commStatus: InstallationStatus = {
             if wizardSystemState == .initializing { return .notStarted }
             guard systemContext?.services.kanataRunning == true else { return .notStarted }

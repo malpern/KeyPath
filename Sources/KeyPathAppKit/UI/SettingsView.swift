@@ -656,7 +656,7 @@ struct StatusSettingsTabView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         PermissionStatusRow(
                             title: "KeyPath Accessibility",
-                            icon: "lock.shield",
+                            icon: "checkmark.shield",
                             granted: permissionSnapshot?.keyPath.accessibility.isReady,
                             onTap: { wizardInitialPage = .accessibility }
                         )
@@ -670,7 +670,7 @@ struct StatusSettingsTabView: View {
 
                         PermissionStatusRow(
                             title: "Kanata Accessibility",
-                            icon: "lock.shield",
+                            icon: "checkmark.shield",
                             granted: permissionSnapshot?.kanata.accessibility.isReady,
                             onTap: { wizardInitialPage = .accessibility }
                         )
@@ -735,7 +735,6 @@ struct StatusSettingsTabView: View {
 
             Spacer()
         }
-        .frame(maxHeight: 350)
         .settingsBackground()
         .withToasts(settingsToastManager)
         .sheet(item: $wizardInitialPage) { page in
