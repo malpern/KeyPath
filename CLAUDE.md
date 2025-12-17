@@ -373,8 +373,12 @@ KeyPath must NEVER parse Kanata config files directly. All config understanding 
 - Interpreting Kanata syntax (defsrc, deflayer, defalias, etc.)
 - Building any data structures from config text
 
-### ADR-024: Custom Key Icons and Emphasis via push-msg (Planned)
+### ADR-024: Custom Key Icons and Emphasis via push-msg (Partial ⚠️)
 Users can specify custom icons and visual emphasis for keys in the overlay using Kanata's `push-msg` action.
+
+**Status as of v1.0.0-beta4:**
+- ✅ **Key Emphasis**: Fully implemented and working
+- ⚠️ **Custom Icons**: Infrastructure in place, display logic deferred (see "Remaining Work" below)
 
 #### Custom Icons
 
@@ -452,14 +456,76 @@ Make specific keys visually "pop out" in the overlay - useful for highlighting c
 - Bolder font weight
 - Border highlight
 
+#### Implementation Status
+
+**✅ COMPLETED (v1.0.0-beta4):**
+
+**Key Emphasis:**
+- `KeyboardVisualizationViewModel.customEmphasisKeyCodes` state tracking
+- `.kanataMessagePush` notification infrastructure
+- `RuleCollectionsManager` posts notification for non-URI push messages
+- Message parsing: `emphasis:h,j,k,l` and `emphasis:clear`
+- Merges custom emphasis with auto-emphasis (HJKL on nav layer)
+- Visual treatment: Orange background (via existing `isEmphasized` in OverlayKeycapView)
+
+**Icon Infrastructure:**
+- `KeyIconRegistry` with 50+ icon mappings (SF Symbols + app icons)
+- `KeyIconSource` enum (sfSymbol/appIcon/text)
+- `.kanataMessagePush` notification receives `icon:...` messages
+- Messages are logged but not yet displayed
+
+**⚠️ REMAINING WORK:**
+
+**Custom Icon Display (Deferred to future release):**
+
+**Design Challenge:**
+The current `push-msg` protocol doesn't include key context. When Kanata sends:
+```json
+{"MessagePush":{"message":"icon:arrow-left"}}
+```
+We receive the icon name but not which key sent it.
+
+**Possible Solutions (not yet implemented):**
+1. **Extract from layer mapping** (recommended):
+   - During `LayerKeyMapper.buildMapping()`, parse output strings for `(push-msg "icon:X")`
+   - Store icon name in `LayerKeyInfo` alongside `appLaunchIdentifier`
+   - Display during layer rendering (persistent for the layer)
+   - **Effort:** ~2-3 hours, requires careful layer mapping logic
+
+2. **Track most-recent key**:
+   - Associate icon with last key pressed before message arrives
+   - **Risk:** Fragile timing, could mis-associate icons
+   - **Not recommended**
+
+3. **Upstream Kanata change**:
+   - Add key context to MessagePush events
+   - Requires upstream PR to Kanata
+   - **Effort:** Unknown, depends on maintainer availability
+
+4. **Scope reduction**:
+   - Use icons only for app-launch actions (we already track these)
+   - Skip generic icon support
+   - **Trade-off:** Less flexible than ADR design
+
+**Recommended Next Steps:**
+- Implement solution #1 (extract from layer mapping) in v1.0.0-beta5
+- Add `iconName: String?` field to `LayerKeyInfo`
+- Update `OverlayKeycapView` to display custom icons when present
+- Test with configs using `(push-msg "icon:...")` in outputs
+
+**Files Involved:**
+- `KeyboardVisualizationViewModel.swift` - Already has `customIcons` state (unused)
+- `KeyIconRegistry.swift` - Icon registry ready to use
+- `LayerKeyMapper.swift` - Needs icon extraction logic
+- `LayerKeyInfo.swift` - Needs `iconName` field
+- `OverlayKeycapView.swift` - Needs icon rendering logic
+
 #### Benefits
 - Config stays simple (semantic names, not paths or bundle IDs)
 - KeyPath controls rendering (can update visuals without config changes)
 - Extensible (add emoji, custom images, animations later)
 - Follows ADR-023 (no config parsing - uses TCP messages)
 - User controls what's emphasized per layer (not automatic)
-
-**Status:** Planned, not yet implemented.
 
 ### ADR-025: Configuration Management - One-Way Write with Segmented Ownership ✅
 KeyPath uses a one-way write architecture for config management. JSON stores are the source of truth; the kanata config file is generated output.
