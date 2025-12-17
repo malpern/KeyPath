@@ -157,6 +157,7 @@ struct MapperView: View {
                 isRecordingInput: viewModel.isRecordingInput,
                 isRecordingOutput: viewModel.isRecordingOutput,
                 outputAppInfo: viewModel.selectedApp,
+                outputSFSymbol: viewModel.outputSFSymbol,
                 onInputTap: { viewModel.toggleInputRecording() },
                 onOutputTap: { viewModel.toggleOutputRecording() }
             )
@@ -233,6 +234,7 @@ private struct MapperKeycapPair: View {
     let isRecordingInput: Bool
     let isRecordingOutput: Bool
     var outputAppInfo: AppLaunchInfo?
+    var outputSFSymbol: String?
     let onInputTap: () -> Void
     let onOutputTap: () -> Void
 
@@ -297,6 +299,7 @@ private struct MapperKeycapPair: View {
                     isRecording: isRecordingOutput,
                     maxWidth: maxWidth,
                     appInfo: outputAppInfo,
+                    sfSymbol: outputSFSymbol,
                     onTap: onOutputTap
                 )
                 Text(outputAppInfo != nil ? "Launch" : "Output")
@@ -337,6 +340,7 @@ private struct MapperKeycapPair: View {
                     isRecording: isRecordingOutput,
                     maxWidth: maxWidth,
                     appInfo: outputAppInfo,
+                    sfSymbol: outputSFSymbol,
                     onTap: onOutputTap
                 )
 
@@ -359,6 +363,7 @@ struct MapperKeycapView: View {
     let isRecording: Bool
     var maxWidth: CGFloat = .infinity
     var appInfo: AppLaunchInfo?
+    var sfSymbol: String? // SF Symbol icon for system actions
     let onTap: () -> Void
 
     @State private var isHovered = false
@@ -442,7 +447,7 @@ struct MapperKeycapView: View {
                         .stroke(borderColor, lineWidth: isRecording ? 2 : 1)
                 )
 
-            // Content: app icon + name, or key label
+            // Content: app icon + name, SF Symbol icon, or key label
             if let app = appInfo {
                 // App launch mode: show icon + name
                 VStack(spacing: 6) {
@@ -459,6 +464,12 @@ struct MapperKeycapView: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
+            } else if let symbol = sfSymbol {
+                // System action mode: show SF Symbol icon
+                Image(systemName: symbol)
+                    .font(.system(size: 48, weight: .medium))
+                    .foregroundStyle(foregroundColor)
+                    .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
             } else {
                 // Key label - wraps to multiple lines, shrinks if needed
                 Text(label)
@@ -860,13 +871,13 @@ struct SystemActionInfo: Equatable, Identifiable {
 
     /// All available system actions
     static let allActions: [SystemActionInfo] = [
-        SystemActionInfo(id: "spotlight", name: "🔍 Spotlight", sfSymbol: "magnifyingglass"),
-        SystemActionInfo(id: "mission-control", name: "🪟 Mission Control", sfSymbol: "rectangle.3.group"),
-        SystemActionInfo(id: "launchpad", name: "🚀 Launchpad", sfSymbol: "square.grid.3x3"),
-        SystemActionInfo(id: "dnd", name: "🌙 Do Not Disturb", sfSymbol: "moon.fill"),
-        SystemActionInfo(id: "notification-center", name: "🔔 Notification Center", sfSymbol: "bell.fill"),
-        SystemActionInfo(id: "dictation", name: "🎤 Dictation", sfSymbol: "mic.fill"),
-        SystemActionInfo(id: "siri", name: "🗣️ Siri", sfSymbol: "waveform.circle.fill")
+        SystemActionInfo(id: "spotlight", name: "Spotlight", sfSymbol: "magnifyingglass"),
+        SystemActionInfo(id: "mission-control", name: "Mission Control", sfSymbol: "rectangle.3.group"),
+        SystemActionInfo(id: "launchpad", name: "Launchpad", sfSymbol: "square.grid.3x3"),
+        SystemActionInfo(id: "dnd", name: "Do Not Disturb", sfSymbol: "moon.fill"),
+        SystemActionInfo(id: "notification-center", name: "Notification Center", sfSymbol: "bell.fill"),
+        SystemActionInfo(id: "dictation", name: "Dictation", sfSymbol: "mic.fill"),
+        SystemActionInfo(id: "siri", name: "Siri", sfSymbol: "waveform.circle.fill")
     ]
 }
 
@@ -905,6 +916,11 @@ class MapperViewModel: ObservableObject {
 
     var canSave: Bool {
         inputSequence != nil && (outputSequence != nil || selectedApp != nil || selectedSystemAction != nil)
+    }
+
+    /// SF Symbol for the selected system action (if any)
+    var outputSFSymbol: String? {
+        selectedSystemAction?.sfSymbol
     }
 
     func configure(kanataManager: RuntimeCoordinator) {
