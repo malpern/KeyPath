@@ -96,9 +96,14 @@ Outcome:
   - Overlay: Live keyboard visualization with hold label detection (Hyper, Meh)
   - LayerKeyMapper: Simulator-based key mapping with proper symbol rendering
   - Multi-keyboard layout support (MacBook + Kinesis 360)
+  - Smooth key fade-out animation: Released keys transition from blue to black over 0.25s using color interpolation
+    - Per-key fade tracking with `keyFadeAmounts` dictionary
+    - Color blending (blue→black) instead of opacity for clean visual transitions
+    - Distinguished from global overlay fade via `isReleaseFading` flag
 - Test coverage: 15 tests passing (LayerKeyMapper, Overlay hold labels, KeyboardVisualization)
 - No TODOs or FIXMEs found in visualizer code
 - Build successful, app deployed and running
+- Released as v1.0.0-beta3
 
 Strategy:
 - Verified all features compile and run correctly
