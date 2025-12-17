@@ -190,6 +190,24 @@ struct ContentView: View {
                     showSetupBanner = !snapshot.isSystemReady
                 }
             }
+
+            // Auto-recover from stale SMAppService registration after app updates
+            Task {
+                let state = await KanataDaemonManager.shared.refreshManagementState()
+                // If SMAppService lost track (.unknown) but service is actually running,
+                // automatically re-register to fix it
+                if state == .unknown {
+                    AppLogger.shared.log("🔧 [ContentView] Detected stale service registration, attempting auto-recovery...")
+                    do {
+                        try await KanataDaemonManager.shared.installViaSMAppService()
+                        AppLogger.shared.log("✅ [ContentView] Auto-recovery successful")
+                        await KanataDaemonManager.shared.refreshManagementState()
+                    } catch {
+                        AppLogger.shared.log("⚠️ [ContentView] Auto-recovery failed: \(error)")
+                        // Don't show error to user - wizard will handle it if they need it
+                    }
+                }
+            }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             // Fixed 80px space at bottom for toast - always present, stable layout
@@ -447,14 +465,14 @@ struct ContentView: View {
                 }
             }
         }
-        .alert("Kanata Installation Required", isPresented: $showingInstallAlert) {
+        .alert("Kanata Service Not Ready", isPresented: $showingInstallAlert) {
             Button("Open Wizard") {
                 showingInstallationWizard = true
             }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text(
-                "Install the Kanata binary into /Library/KeyPath/bin using the Installation Wizard before recording shortcuts."
+                "The Kanata background service needs to be installed and running to record shortcuts. Open the Installation Wizard to complete setup."
             )
         }
         .alert("Configuration Issue Detected", isPresented: $showingConfigCorruptionAlert) {
