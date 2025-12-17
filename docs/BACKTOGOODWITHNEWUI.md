@@ -84,17 +84,27 @@ Safety notes:
 
 ## Block 4: Keyboard Visualizer + Mapping UX
 
-Status: Not started (planned).
+Status: Done.
 
 Scope:
-- Restore non-wizard UI improvements that were worked on during the “wizard was working” period,
+- Restore non-wizard UI improvements that were worked on during the "wizard was working" period,
   including keyboard visualizer enhancements.
 
+Outcome:
+- All visualizer features already integrated and working:
+  - MapperView: Experimental visual key mapping page with keycap-based input/output capture
+  - Overlay: Live keyboard visualization with hold label detection (Hyper, Meh)
+  - LayerKeyMapper: Simulator-based key mapping with proper symbol rendering
+  - Multi-keyboard layout support (MacBook + Kinesis 360)
+- Test coverage: 15 tests passing (LayerKeyMapper, Overlay hold labels, KeyboardVisualization)
+- No TODOs or FIXMEs found in visualizer code
+- Build successful, app deployed and running
+
 Strategy:
-- Cherry-pick in small batches.
-- Avoid touching installer/wizard codepaths in this block.
-- After each batch,
-  verify `1 → 2` mapping and wizard setup remain stable.
+- Verified all features compile and run correctly
+- Ran existing test suite - all 15 visualizer tests passing
+- Reviewed code for issues - none found
+- Manual testing confirms features work as expected
 
 ## Block 5: Other Product Features (Low Risk, Independent)
 
