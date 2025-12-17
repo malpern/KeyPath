@@ -1,7 +1,7 @@
 import AppKit
 import KeyPathCore
 
-struct SystemDiagnostics {
+enum SystemDiagnostics {
     enum Target {
         case loginItems
         case inputMonitoring
@@ -12,15 +12,15 @@ struct SystemDiagnostics {
         fileprivate var url: URL? {
             switch self {
             case .loginItems:
-                return URL(string: WizardSystemPaths.loginItemsSettings)
+                URL(string: WizardSystemPaths.loginItemsSettings)
             case .inputMonitoring:
-                return URL(string: WizardSystemPaths.inputMonitoringSettings)
+                URL(string: WizardSystemPaths.inputMonitoringSettings)
             case .accessibility:
-                return URL(string: WizardSystemPaths.accessibilitySettings)
+                URL(string: WizardSystemPaths.accessibilitySettings)
             case .fullDiskAccess:
-                return URL(string: WizardSystemPaths.fullDiskAccessSettings)
+                URL(string: WizardSystemPaths.fullDiskAccessSettings)
             case .systemSettings:
-                return URL(fileURLWithPath: "/System/Applications/System Settings.app")
+                URL(fileURLWithPath: "/System/Applications/System Settings.app")
             }
         }
     }

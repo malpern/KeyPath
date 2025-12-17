@@ -478,10 +478,10 @@ struct WizardSystemStatusOverview: View {
         let karabinerDriverCompleted = getKarabinerComponentsStatus() == .completed
 
         // Communication item shown when Kanata is running
-                return DependencyVisibility(
-                    showKanataEngineItem: karabinerDriverCompleted,
-                    showCommunicationItem: kanataIsRunning
-                )
+        return DependencyVisibility(
+            showKanataEngineItem: karabinerDriverCompleted,
+            showCommunicationItem: kanataIsRunning
+        )
     }
 
     // MARK: - Dependency-aware filtering
@@ -643,7 +643,7 @@ struct WizardSystemStatusOverview: View {
             return .inProgress
         }
 
-        let daemonIssues = issues.filter { $0.identifier.isDaemon }
+        let daemonIssues = issues.filter(\.identifier.isDaemon)
         if !daemonIssues.isEmpty {
             return issueStatus(for: daemonIssues)
         }

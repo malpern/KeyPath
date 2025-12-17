@@ -126,7 +126,7 @@ enum SettingsSystemStatusRowsBuilder {
         )
 
         // 7) Kanata Service
-        let daemonIssues = wizardIssues.filter { $0.identifier.isDaemon }
+        let daemonIssues = wizardIssues.filter(\.identifier.isDaemon)
         let blockingPermissionIssue = ServiceStatusEvaluator.blockingIssueMessage(from: wizardIssues) != nil
         let serviceStatus: InstallationStatus = {
             if wizardSystemState == .initializing { return .inProgress }
