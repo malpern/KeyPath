@@ -73,19 +73,19 @@ struct SystemContextAdapter {
     private static func getMissingPermissions(_ context: SystemContext) -> [PermissionRequirement] {
         var missing: [PermissionRequirement] = []
 
-        // KeyPath permissions (use isBlocking)
-        if context.permissions.keyPath.inputMonitoring.isBlocking {
+        // KeyPath permissions (use isMissing to catch .unknown state)
+        if context.permissions.keyPath.inputMonitoring.isMissing {
             missing.append(.keyPathInputMonitoring)
         }
-        if context.permissions.keyPath.accessibility.isBlocking {
+        if context.permissions.keyPath.accessibility.isMissing {
             missing.append(.keyPathAccessibility)
         }
 
-        // Kanata permissions (use isBlocking)
-        if context.permissions.kanata.inputMonitoring.isBlocking {
+        // Kanata permissions (use isMissing to catch .unknown state)
+        if context.permissions.kanata.inputMonitoring.isMissing {
             missing.append(.kanataInputMonitoring)
         }
-        if context.permissions.kanata.accessibility.isBlocking {
+        if context.permissions.kanata.accessibility.isMissing {
             missing.append(.kanataAccessibility)
         }
 
@@ -122,8 +122,8 @@ struct SystemContextAdapter {
     private static func adaptIssues(_ context: SystemContext) -> [WizardIssue] {
         var issues: [WizardIssue] = []
 
-        // Permission issues
-        if context.permissions.keyPath.inputMonitoring.isBlocking {
+        // Permission issues (use isMissing to catch .unknown state)
+        if context.permissions.keyPath.inputMonitoring.isMissing {
             issues.append(
                 WizardIssue(
                     identifier: .permission(.keyPathInputMonitoring),
@@ -135,7 +135,7 @@ struct SystemContextAdapter {
                     userAction: "Grant Input Monitoring permission in System Settings"
                 ))
         }
-        if context.permissions.keyPath.accessibility.isBlocking {
+        if context.permissions.keyPath.accessibility.isMissing {
             issues.append(
                 WizardIssue(
                     identifier: .permission(.keyPathAccessibility),
@@ -147,7 +147,7 @@ struct SystemContextAdapter {
                     userAction: "Grant Accessibility permission in System Settings"
                 ))
         }
-        if context.permissions.kanata.inputMonitoring.isBlocking {
+        if context.permissions.kanata.inputMonitoring.isMissing {
             issues.append(
                 WizardIssue(
                     identifier: .permission(.kanataInputMonitoring),
@@ -159,7 +159,7 @@ struct SystemContextAdapter {
                     userAction: "Grant Input Monitoring permission to Kanata in System Settings"
                 ))
         }
-        if context.permissions.kanata.accessibility.isBlocking {
+        if context.permissions.kanata.accessibility.isMissing {
             issues.append(
                 WizardIssue(
                     identifier: .permission(.kanataAccessibility),

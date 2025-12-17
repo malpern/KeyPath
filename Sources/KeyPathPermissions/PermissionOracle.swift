@@ -30,6 +30,14 @@ public actor PermissionOracle {
             if case .error = self { return true }
             return false
         }
+
+        /// Permission is missing/not granted (includes .unknown, .denied, .error)
+        /// Use this for wizard checks - treats .unknown as missing since the permission
+        /// hasn't been explicitly granted yet.
+        public var isMissing: Bool {
+            if case .granted = self { return false }
+            return true // .unknown, .denied, .error all count as missing
+        }
     }
 
     public struct PermissionSet: Sendable {
