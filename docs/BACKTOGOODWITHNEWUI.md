@@ -113,12 +113,33 @@ Strategy:
 
 ## Block 5: Other Product Features (Low Risk, Independent)
 
-Status: Not started (planned).
+Status: Done.
 
-Examples:
-- Rules / editor quality-of-life improvements.
-- System action picker or other non-installer UI features,
-  when they do not affect service lifecycle or permissions.
+Scope:
+- Low-risk, independent features that don't affect service lifecycle or permissions.
+- Focus on keyboard visualization enhancements and config output quality.
+
+Outcome:
+- **Key Emphasis via push-msg (ADR-024 partial)**:
+  - Fully implemented emphasis feature: `(push-msg "emphasis:h,j,k,l")`
+  - Merges custom emphasis with auto-emphasis (HJKL on nav layer)
+  - Clears via `(push-msg "emphasis:clear")` or automatic on layer change
+  - Visual treatment: Orange background for emphasized keys
+  - Infrastructure: `.kanataMessagePush` notification, KeyboardVisualizationViewModel integration
+- **Icon Registry Infrastructure (ADR-024 partial)**:
+  - KeyIconRegistry with 50+ icon mappings (SF Symbols + app icons)
+  - Design challenge documented: icon messages lack key context
+  - Display logic deferred to v1.0.0-beta5 (see CLAUDE.md ADR-024 for solutions)
+- **Physical Keyboard Layout Config Output**:
+  - Already implemented via KeyboardGridFormatter (discovered during Block 5)
+  - Configs formatted as physical keyboard rows with column alignment
+  - Improves readability for advanced users who hand-edit configs
+- Released as v1.0.0-beta4
+
+Notes:
+- Emphasis feature ready for production use
+- Icon display deferred (infrastructure complete, rendering TBD)
+- Physical layout was already working (documentation updated)
 
 ## Verification Checklist (Every Block)
 

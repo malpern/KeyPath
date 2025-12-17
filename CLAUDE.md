@@ -702,40 +702,34 @@ swiftlint --fix --quiet
 
 ## Future Enhancements
 
-### Config Output: Physical Keyboard Layout (Medium Priority)
-**Status:** Planned | **Effort:** ~2-3 hours
+### Config Output: Physical Keyboard Layout ✅
+**Status:** Implemented | **Location:** `ConfigurationService.KeyboardGridFormatter`
 
-Currently, generated kanata configs list keys vertically by collection. Advanced kanata users prefer configs formatted as physical keyboard rows for visual scanning:
+Generated kanata configs are formatted as physical keyboard rows for visual scanning:
 
 ```lisp
-;; Current (vertical, by collection)
+;; Actual output format (physical keyboard layout):
 (defsrc
-  ;; === Collection: Vim ===
-  h
-  j
-  k
-  l
-  ...
-)
-
-;; Proposed (physical keyboard layout)
-(defsrc
-  esc  f1   f2   f3   f4   f5   f6   f7   f8   f9   f10  f11  f12
+  esc  f1   f2   f3   f4   f5   f6   f7   f8   f9   f10  f11  f12  del
   grv  1    2    3    4    5    6    7    8    9    0    min  eql  bspc
   tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
   caps a    s    d    f    g    h    j    k    l    ;    '    ret
   lsft z    x    c    v    b    n    m    ,    .    /    rsft
-  fn   lctl lalt lmet      spc            rmet ralt
+  lctl lalt lmet spc  rmet ralt rctl
 )
 ```
 
-**Implementation:**
-1. Define `keyboardRows: [[String]]` with kanata key names per row
-2. Build key→output map per layer (instead of outputting while iterating)
-3. Render with column alignment (pad keys to equal width)
-4. Move collection comments to header legend instead of inline
-5. (Optional) Use `deflayermap` for sparse layers to avoid 40+ `XX` entries
+**Implementation Details:**
+- `KeyboardGridFormatter` (private enum in ConfigurationService.swift)
+- `layoutRows: [[String]]` defines physical keyboard layout (lines 405-412)
+- `renderGridLines()` groups entries into physical rows (lines 456-483)
+- `padRow()` aligns columns for visual clarity (lines 485-491)
+- Sorts keys by physical position before rendering
+- Skips empty rows (only renders rows with mappings)
+- Collection metadata appears as comments above each row group
 
-**Files:** `ConfigurationService.swift` - `renderDefsrcBlock()`, `renderLayerBlock()`
-
-**Reference:** https://github.com/jtroo/kanata/blob/main/docs/config.adoc
+**Benefits:**
+- Easier visual scanning for advanced users
+- Matches physical keyboard layout
+- Column alignment improves readability
+- Compatible with standard Kanata parsers
