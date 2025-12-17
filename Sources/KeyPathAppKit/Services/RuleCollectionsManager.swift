@@ -211,13 +211,18 @@ final class RuleCollectionsManager {
     }
 
     /// Handle an unknown (non-keypath://) message
+    /// These are typically icon/emphasis messages: "icon:arrow-left", "emphasis:h,j,k,l"
     private func handleUnknownMessage(_ message: String) {
-        AppLogger.shared.log("⚠️ [RuleCollectionsManager] Unknown message: \(message)")
+        AppLogger.shared.log("📨 [RuleCollectionsManager] Push message: \(message)")
 
-        // Report error via ActionDispatcher
-        ActionDispatcher.shared.onError?("Received non-keypath:// message: \(message)")
+        // Post notification for keyboard visualization (icon/emphasis handling)
+        NotificationCenter.default.post(
+            name: .kanataMessagePush,
+            object: nil,
+            userInfo: ["message": message]
+        )
 
-        // Also notify any external observers
+        // Also notify external observers
         onUnknownMessage?(message)
     }
 

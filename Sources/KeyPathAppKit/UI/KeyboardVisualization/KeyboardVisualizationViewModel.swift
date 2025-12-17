@@ -52,6 +52,12 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Used to keep the key visually pressed even if tap-hold implementations
     /// emit spurious release/press events while held.
     private var holdActiveKeyCodes: Set<UInt16> = []
+    /// Custom icons for keys set via push-msg (keyCode -> icon name)
+    /// Example: "arrow-left", "safari", "home"
+    @Published var customIcons: [UInt16: String] = [:]
+    /// Keys emphasized via push-msg emphasis command
+    /// Example: (push-msg "emphasis:h,j,k,l") sets HJKL as emphasized
+    @Published var customEmphasisKeyCodes: Set<UInt16> = []
     /// Tracks keys currently undergoing async hold-label resolution to avoid duplicate simulator runs
     private var resolvingHoldLabels: Set<UInt16> = []
     /// Short-lived cache of resolved hold labels to avoid repeated simulator runs (keyCode -> (label, timestamp))
@@ -64,20 +70,21 @@ class KeyboardVisualizationViewModel: ObservableObject {
     private var keyInputObserver: Any?
     /// Hold activated notification observer
     private var holdActivatedObserver: Any?
+    /// Push message notification observer (for icon/emphasis messages)
+    private var messagePushObserver: Any?
 
     // MARK: - Key Emphasis
 
-    /// Key codes to emphasize based on current layer
-    /// HJKL keys are emphasized when on the nav layer
+    /// Key codes to emphasize based on current layer and custom emphasis commands
+    /// HJKL keys are auto-emphasized when on nav layer, plus any custom emphasis via push-msg
     var emphasizedKeyCodes: Set<UInt16> {
-        // HJKL key codes for vim navigation emphasis
+        // Auto-emphasis: HJKL on nav layer
         // h=4, j=38, k=40, l=37
         let hjklKeyCodes: Set<UInt16> = [4, 38, 40, 37]
+        let autoEmphasis = currentLayerName.lowercased() == "nav" ? hjklKeyCodes : []
 
-        if currentLayerName.lowercased() == "nav" {
-            return hjklKeyCodes
-        }
-        return []
+        // Merge with custom emphasis from push-msg
+        return autoEmphasis.union(customEmphasisKeyCodes)
     }
 
     /// Effective key codes that should appear pressed (TCP physical keys only)
@@ -126,6 +133,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
         setupEventTap()
         setupKeyInputObserver() // Listen for TCP-based physical key events
         setupHoldActivatedObserver() // Listen for tap-hold state transitions
+        setupMessagePushObserver() // Listen for icon/emphasis push messages
         startIdleMonitor()
         rebuildLayerMapping() // Build initial layer mapping
     }
@@ -157,6 +165,11 @@ class KeyboardVisualizationViewModel: ObservableObject {
         if let observer = holdActivatedObserver {
             NotificationCenter.default.removeObserver(observer)
             holdActivatedObserver = nil
+        }
+
+        if let observer = messagePushObserver {
+            NotificationCenter.default.removeObserver(observer)
+            messagePushObserver = nil
         }
 
         idleMonitorTask?.cancel()
@@ -594,6 +607,66 @@ class KeyboardVisualizationViewModel: ObservableObject {
             }
         }
         AppLogger.shared.debug("⌨️ [KeyboardViz] Hold activated observer registered")
+    }
+
+    /// Set up observer for Kanata TCP MessagePush events (icon/emphasis messages)
+    private func setupMessagePushObserver() {
+        messagePushObserver = NotificationCenter.default.addObserver(
+            forName: .kanataMessagePush,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self else { return }
+            guard let message = notification.userInfo?["message"] as? String else { return }
+
+            Task { @MainActor in
+                self.handleMessagePush(message)
+            }
+        }
+        AppLogger.shared.debug("⌨️ [KeyboardViz] Message push observer registered")
+    }
+
+    /// Handle a MessagePush event from Kanata (icon/emphasis commands)
+    /// Format: "icon:arrow-left", "emphasis:h,j,k,l", "emphasis:clear"
+    private func handleMessagePush(_ message: String) {
+        // Parse icon messages: "icon:arrow-left"
+        if message.hasPrefix("icon:") {
+            let iconName = String(message.dropFirst(5)) // Remove "icon:" prefix
+            AppLogger.shared.info("🎨 [KeyboardViz] Icon message: \(iconName)")
+            // TODO: Associate icon with most recently pressed key
+            // For now, just log - need key context to apply icon
+            return
+        }
+
+        // Parse emphasis messages: "emphasis:h,j,k,l" or "emphasis:clear"
+        if message.hasPrefix("emphasis:") {
+            let value = String(message.dropFirst(9)) // Remove "emphasis:" prefix
+
+            if value == "clear" {
+                customEmphasisKeyCodes.removeAll()
+                AppLogger.shared.info("✨ [KeyboardViz] Emphasis cleared")
+                return
+            }
+
+            // Parse comma or space-separated key names
+            let keyNames = value.split(whereSeparator: { $0 == "," || $0.isWhitespace })
+                .map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
+
+            var keyCodes: Set<UInt16> = []
+            for keyName in keyNames {
+                if let keyCode = Self.kanataNameToKeyCode(keyName) {
+                    keyCodes.insert(keyCode)
+                } else {
+                    AppLogger.shared.warn("⚠️ [KeyboardViz] Unknown key name in emphasis: \(keyName)")
+                }
+            }
+
+            customEmphasisKeyCodes = keyCodes
+            AppLogger.shared.info("✨ [KeyboardViz] Emphasis set: \(keyNames.joined(separator: ", ")) -> \(keyCodes)")
+            return
+        }
+
+        AppLogger.shared.debug("📨 [KeyboardViz] Unhandled push message: \(message)")
     }
 
     /// Handle a HoldActivated event from Kanata
