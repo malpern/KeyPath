@@ -184,30 +184,7 @@ struct ContentView: View {
         .padding(.bottom, 0)
         .frame(width: 500, alignment: .top)
         .onAppear {
-            if FeatureFlags.allowOptionalWizard {
-                Task { @MainActor in
-                    let snapshot = await PermissionOracle.shared.currentSnapshot()
-                    showSetupBanner = !snapshot.isSystemReady
-                }
-            }
-
-            // Auto-recover from stale SMAppService registration after app updates
-            Task {
-                let state = await KanataDaemonManager.shared.refreshManagementState()
-                // If SMAppService lost track (.unknown) but service is actually running,
-                // automatically re-register to fix it
-                if state == .unknown {
-                    AppLogger.shared.log("🔧 [ContentView] Detected stale service registration, attempting auto-recovery...")
-                    do {
-                        try await KanataDaemonManager.shared.installViaSMAppService()
-                        AppLogger.shared.log("✅ [ContentView] Auto-recovery successful")
-                        await KanataDaemonManager.shared.refreshManagementState()
-                    } catch {
-                        AppLogger.shared.log("⚠️ [ContentView] Auto-recovery failed: \(error)")
-                        // Don't show error to user - wizard will handle it if they need it
-                    }
-                }
-            }
+            handleViewAppear()
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             // Fixed 80px space at bottom for toast - always present, stable layout
@@ -520,6 +497,38 @@ struct ContentView: View {
         }
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: kanataManager.toastMessage)
     }
+
+    // MARK: - Lifecycle
+
+    private func handleViewAppear() {
+        if FeatureFlags.allowOptionalWizard {
+            Task { @MainActor in
+                let snapshot = await PermissionOracle.shared.currentSnapshot()
+                showSetupBanner = !snapshot.isSystemReady
+            }
+        }
+
+        // Auto-recover from stale SMAppService registration after app updates
+        Task {
+            let state = await KanataDaemonManager.shared.refreshManagementState()
+            // If SMAppService lost track (.unknown) but service is actually running,
+            // automatically re-register to fix it
+            if state == .unknown {
+                AppLogger.shared.log(
+                    "🔧 [ContentView] Detected stale service registration, attempting auto-recovery...")
+                do {
+                    try await KanataDaemonManager.shared.register()
+                    AppLogger.shared.log("✅ [ContentView] Auto-recovery successful")
+                    await KanataDaemonManager.shared.refreshManagementState()
+                } catch {
+                    AppLogger.shared.log("⚠️ [ContentView] Auto-recovery failed: \(error)")
+                    // Don't show error to user - wizard will handle it if they need it
+                }
+            }
+        }
+    }
+
+    // MARK: - UI Actions
 
     private func showStatusMessage(message: String) {
         // Cancel any existing timer to ensure consistent 5-second display
