@@ -215,11 +215,11 @@ struct WizardHelperPage: View {
     // MARK: - Setup View (Hero Style for Error State)
 
     private var setupView: some View {
-        VStack(spacing: WizardDesign.Spacing.sectionGap) {
+        VStack(spacing: 16) {  // Reduced from sectionGap to fixed 16pt
             // Icon with warning/error overlay
             ZStack {
                 Image(systemName: "shield.checkered")
-                    .font(.system(size: 115, weight: .light))
+                    .font(.system(size: 80, weight: .light))  // Reduced from 115 to 80
                     .foregroundColor(isInstalled ? WizardDesign.Colors.warning : WizardDesign.Colors.error)
                     .symbolRenderingMode(.hierarchical)
 
@@ -228,31 +228,31 @@ struct WizardHelperPage: View {
                     HStack {
                         Spacer()
                         Image(systemName: isInstalled ? "exclamationmark.triangle.fill" : "xmark.circle.fill")
-                            .font(.system(size: 40, weight: .medium))
+                            .font(.system(size: 32, weight: .medium))  // Reduced from 40 to 32
                             .foregroundColor(
                                 isInstalled ? WizardDesign.Colors.warning : WizardDesign.Colors.error
                             )
                             .background(WizardDesign.Colors.wizardBackground)
                             .clipShape(Circle())
-                            .offset(x: 15, y: -5)
+                            .offset(x: 12, y: -4)  // Adjusted for smaller icon
                     }
                     Spacer()
                 }
-                .frame(width: 115, height: 115)
+                .frame(width: 80, height: 80)  // Reduced from 115 to 80
             }
 
             // Contextual Headline
             Text(contextualHeadline)
-                .font(.system(size: 23, weight: .semibold, design: .default))
+                .font(.system(size: 20, weight: .semibold, design: .default))  // Reduced from 23 to 20
                 .foregroundColor(.primary)
                 .multilineTextAlignment(.center)
 
             // Description
             Text(contextualDescription)
-                .font(.system(size: 15, weight: .regular))
+                .font(.system(size: 14, weight: .regular))  // Reduced from 15 to 14
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
+                .padding(.horizontal, 32)  // Reduced from 40 to 32
 
             // Inline action status
             if actionStatus.isActive, let message = actionStatus.message {
@@ -266,17 +266,17 @@ struct WizardHelperPage: View {
                 Image("permissions-login-items", bundle: .main)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(maxWidth: 480)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .shadow(radius: 6)
-                    .padding(.top, WizardDesign.Spacing.itemGap)
+                    .frame(maxWidth: 360)  // Reduced from 480 to 360
+                    .clipShape(RoundedRectangle(cornerRadius: 10))  // Slightly smaller radius
+                    .shadow(radius: 4)  // Reduced shadow
+                    .padding(.top, 12)  // Reduced from itemGap to fixed 12pt
                     .accessibilityLabel("System Settings Login Items - toggle KeyPath on")
 
                 Text("Toggle KeyPath to ON under Background Items, then return here.")
-                    .font(.system(size: 14, weight: .regular))
+                    .font(.system(size: 13, weight: .regular))  // Reduced from 14 to 13
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
+                    .padding(.horizontal, 24)  // Reduced from 32 to 24
 
                 Button("Open Login Items Settings") {
                     openLoginItemsSettings()
@@ -314,8 +314,8 @@ struct WizardHelperPage: View {
             }
         }
         .animation(WizardDesign.Animation.statusTransition, value: actionStatus)
-        .padding(.horizontal, 40)
-        .frame(maxWidth: 620, maxHeight: 760, alignment: .top)
+        .padding(.horizontal, 32)  // Reduced from 40 to 32
+        .frame(maxWidth: 560, maxHeight: 580, alignment: .top)  // Reduced from 620x760 to 560x580
         .heroSectionContainer()
     }
 
