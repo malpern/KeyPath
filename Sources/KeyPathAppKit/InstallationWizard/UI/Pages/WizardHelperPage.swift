@@ -320,6 +320,7 @@ struct WizardHelperPage: View {
     }
 
     // MARK: - Actions
+
     private func logLoginItemsDiagnostics() {
         guard !hasLoggedDiagnostics else { return }
         hasLoggedDiagnostics = true

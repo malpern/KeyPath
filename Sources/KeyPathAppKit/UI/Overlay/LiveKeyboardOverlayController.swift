@@ -134,8 +134,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         // Restore overlay if it was auto-hidden recently and user hasn't manually shown it
         if let hiddenAt = autoHiddenTimestamp,
            Date().timeIntervalSince(hiddenAt) < restoreWindowDuration,
-           !isVisible
-        {
+           !isVisible {
             isVisible = true
         }
     }
@@ -171,15 +170,14 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         // Get output from layer info
         // For simple key mappings, use outputKey (e.g., "left", "esc")
         // For complex actions (push-msg, app launch), outputKey is nil so use displayLabel
-        let outputKey: String
-        if let simpleOutput = layerInfo?.outputKey {
-            outputKey = simpleOutput
+        let outputKey: String = if let simpleOutput = layerInfo?.outputKey {
+            simpleOutput
         } else if let displayLabel = layerInfo?.displayLabel, !displayLabel.isEmpty {
             // Complex action - pass displayLabel so Mapper shows what the key does
-            outputKey = displayLabel
+            displayLabel
         } else {
             // No mapping - key maps to itself
-            outputKey = inputKey
+            inputKey
         }
 
         // Get current layer from the overlay's viewModel

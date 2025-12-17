@@ -1,9 +1,8 @@
-import XCTest
 @testable import KeyPathAppKit
+import XCTest
 
 /// Regression tests for hold-label resolution and rendering inputs.
 final class OverlayHoldLabelTests: XCTestCase {
-
     func testHoldDisplayLabelHyperUsesStar() async throws {
         let mapper = LayerKeyMapper()
         // capslock keyCode on macOS

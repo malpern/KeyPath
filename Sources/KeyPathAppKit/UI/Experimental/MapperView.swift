@@ -184,8 +184,7 @@ struct MapperView: View {
         .onReceive(NotificationCenter.default.publisher(for: .mapperPresetValues)) { notification in
             // Handle preset updates when window is already open
             if let input = notification.userInfo?["input"] as? String,
-               let output = notification.userInfo?["output"] as? String
-            {
+               let output = notification.userInfo?["output"] as? String {
                 let layer = notification.userInfo?["layer"] as? String
                 viewModel.applyPresets(input: input, output: output, layer: layer)
             }
@@ -193,8 +192,7 @@ struct MapperView: View {
         .onReceive(NotificationCenter.default.publisher(for: .kanataLayerChanged)) { notification in
             // Update layer when it changes (if not opened from overlay with specific layer)
             if let layerName = notification.userInfo?["layerName"] as? String,
-               viewModel.originalInputKey == nil // Only auto-update if not opened from overlay
-            {
+               viewModel.originalInputKey == nil { // Only auto-update if not opened from overlay
                 viewModel.setLayer(layerName)
             }
         }
@@ -234,7 +232,7 @@ private struct MapperKeycapPair: View {
     let outputLabel: String
     let isRecordingInput: Bool
     let isRecordingOutput: Bool
-    var outputAppInfo: AppLaunchInfo? = nil
+    var outputAppInfo: AppLaunchInfo?
     let onInputTap: () -> Void
     let onOutputTap: () -> Void
 
@@ -360,7 +358,7 @@ struct MapperKeycapView: View {
     let label: String
     let isRecording: Bool
     var maxWidth: CGFloat = .infinity
-    var appInfo: AppLaunchInfo? = nil
+    var appInfo: AppLaunchInfo?
     let onTap: () -> Void
 
     @State private var isHovered = false
@@ -868,7 +866,7 @@ struct SystemActionInfo: Equatable, Identifiable {
         SystemActionInfo(id: "dnd", name: "🌙 Do Not Disturb", sfSymbol: "moon.fill"),
         SystemActionInfo(id: "notification-center", name: "🔔 Notification Center", sfSymbol: "bell.fill"),
         SystemActionInfo(id: "dictation", name: "🎤 Dictation", sfSymbol: "mic.fill"),
-        SystemActionInfo(id: "siri", name: "🗣️ Siri", sfSymbol: "waveform.circle.fill"),
+        SystemActionInfo(id: "siri", name: "🗣️ Siri", sfSymbol: "waveform.circle.fill")
     ]
 }
 
@@ -1470,9 +1468,9 @@ class MapperWindowController {
     /// Show the Mapper window, optionally with preset input/output values and layer from overlay click
     func showWindow(viewModel: KanataViewModel, presetInput: String? = nil, presetOutput: String? = nil, layer: String? = nil) {
         self.viewModel = viewModel
-        self.pendingPresetInput = presetInput
-        self.pendingPresetOutput = presetOutput
-        self.pendingLayer = layer
+        pendingPresetInput = presetInput
+        pendingPresetOutput = presetOutput
+        pendingLayer = layer
 
         if let existingWindow = window, existingWindow.isVisible {
             // Window already visible - apply presets to existing view

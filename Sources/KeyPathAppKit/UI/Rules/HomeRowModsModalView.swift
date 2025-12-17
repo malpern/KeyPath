@@ -162,7 +162,7 @@ struct HomeRowModsModalView: View {
                             Slider(value: Binding(
                                 get: { Double(localConfig.timing.quickTapTermMs) },
                                 set: { localConfig.timing.quickTapTermMs = Int($0) }
-                            ), in: 0...80, step: 5)
+                            ), in: 0 ... 80, step: 5)
                             Text("\(localConfig.timing.quickTapTermMs) ms")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
@@ -199,8 +199,8 @@ struct HomeRowModsModalView: View {
                                                         }
                                                     }
                                                 ), format: .number)
-                                                .textFieldStyle(.roundedBorder)
-                                                .frame(width: 70)
+                                                    .textFieldStyle(.roundedBorder)
+                                                    .frame(width: 70)
                                             }
                                         }
                                         Spacer()
@@ -343,8 +343,8 @@ struct HomeRowModsModalView: View {
             VStack(spacing: 4) {
                 Text(symbol)
                     .font(.title2)
-            Text(label)
-                .font(.caption)
+                Text(label)
+                    .font(.caption)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
@@ -366,7 +366,7 @@ struct HomeRowModsModalView: View {
 
 private func chunks<T>(of array: [T], size: Int) -> [[T]] {
     stride(from: 0, to: array.count, by: size).map { start in
-        Array(array[start..<min(start + size, array.count)])
+        Array(array[start ..< min(start + size, array.count)])
     }
 }
 

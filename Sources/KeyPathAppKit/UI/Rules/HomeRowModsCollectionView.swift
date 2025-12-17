@@ -181,7 +181,7 @@ struct HomeRowModsCollectionView: View {
                             config.timing.quickTapTermMs = Int(newValue)
                             updateConfig()
                         }
-                    ), in: 0...80, step: 5)
+                    ), in: 0 ... 80, step: 5)
                     Text("\(config.timing.quickTapTermMs) ms")
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -222,8 +222,8 @@ struct HomeRowModsCollectionView: View {
                                                 updateConfig()
                                             }
                                         ), format: .number)
-                                        .textFieldStyle(.roundedBorder)
-                                        .frame(width: 70)
+                                            .textFieldStyle(.roundedBorder)
+                                            .frame(width: 70)
                                     }
                                 }
                                 Spacer()
@@ -375,27 +375,27 @@ struct HomeRowModsCollectionView: View {
 
     // MARK: - Helpers
 
-private func updateConfig() {
-    onConfigChanged(config)
-}
+    private func updateConfig() {
+        onConfigChanged(config)
+    }
 
-private enum HomeRowPreset: Hashable {
-    case macCAGS
-    case winGACS
-    case custom
-}
+    private enum HomeRowPreset: Hashable {
+        case macCAGS
+        case winGACS
+        case custom
+    }
 
-private func presetSelection(from assignments: [String: String]) -> HomeRowPreset {
-    if assignments == HomeRowModsConfig.cagsMacDefault { return .macCAGS }
-    if assignments == HomeRowModsConfig.gacsWindows { return .winGACS }
-    return .custom
-}
+    private func presetSelection(from assignments: [String: String]) -> HomeRowPreset {
+        if assignments == HomeRowModsConfig.cagsMacDefault { return .macCAGS }
+        if assignments == HomeRowModsConfig.gacsWindows { return .winGACS }
+        return .custom
+    }
 }
 
 // MARK: - Helpers
 
 private func chunks<T>(of array: [T], size: Int) -> [[T]] {
     stride(from: 0, to: array.count, by: size).map { start in
-        Array(array[start..<min(start + size, array.count)])
+        Array(array[start ..< min(start + size, array.count)])
     }
 }

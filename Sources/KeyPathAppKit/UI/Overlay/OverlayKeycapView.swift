@@ -54,7 +54,7 @@ struct OverlayKeycapView: View {
 
     /// State for hover-to-click behavior
     @State private var isHovering = false
-    @State private var isClickable = false  // True after 100ms hover dwell
+    @State private var isClickable = false // True after 100ms hover dwell
     @State private var hoverTask: Task<Void, Never>?
 
     /// Cached app icon for launch actions

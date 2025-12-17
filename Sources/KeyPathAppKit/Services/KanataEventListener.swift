@@ -238,9 +238,9 @@ public enum KanataEvent: Sendable {
 /// Key action from Kanata TCP KeyInput events
 /// Note: Kanata uses serde(rename_all = "lowercase") so actions are lowercase in JSON
 public enum KanataKeyAction: String, Sendable {
-    case press = "press"
-    case release = "release"
-    case `repeat` = "repeat"
+    case press
+    case release
+    case `repeat`
 }
 
 /// Hold activation info from Kanata TCP HoldActivated events

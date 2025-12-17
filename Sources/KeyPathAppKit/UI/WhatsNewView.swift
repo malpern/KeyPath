@@ -18,8 +18,8 @@ struct WhatsNewView: View {
     }
 
     init() {
-        self.version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
-        self.features = Self.featuresForVersion(version)
+        version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+        features = Self.featuresForVersion(version)
     }
 
     var body: some View {
@@ -95,7 +95,7 @@ struct WhatsNewView: View {
                     icon: "antenna.radiowaves.left.and.right",
                     title: "Real-time Feedback",
                     description: "TCP integration with Kanata for instant layer status updates."
-                ),
+                )
             ]
         }
 
@@ -105,7 +105,7 @@ struct WhatsNewView: View {
                 icon: "star.fill",
                 title: "Bug Fixes & Improvements",
                 description: "This update includes various bug fixes and performance improvements."
-            ),
+            )
         ]
     }
 }

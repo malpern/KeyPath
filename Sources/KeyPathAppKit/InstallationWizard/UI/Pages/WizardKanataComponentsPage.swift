@@ -167,8 +167,7 @@ struct WizardKanataComponentsPage: View {
 
             if let pendingId = pendingIssueFixId,
                let pendingAction = pendingIssueFixAction,
-               let pendingTitle = pendingIssueFixTitle
-            {
+               let pendingTitle = pendingIssueFixTitle {
                 pendingIssueFixId = nil
                 pendingIssueFixAction = nil
                 pendingIssueFixTitle = nil

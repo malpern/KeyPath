@@ -21,9 +21,9 @@ enum QMKLayoutParser {
         let col: Int
         let x: Double
         let y: Double
-        let w: Double?  // Width, defaults to 1
-        let h: Double?  // Height, defaults to 1
-        let r: Double?  // Rotation in degrees
+        let w: Double? // Width, defaults to 1
+        let h: Double? // Height, defaults to 1
+        let r: Double? // Rotation in degrees
         let rx: Double? // Rotation pivot X
         let ry: Double? // Rotation pivot Y
     }

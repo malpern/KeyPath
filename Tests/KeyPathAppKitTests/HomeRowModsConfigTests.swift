@@ -1,8 +1,7 @@
-import XCTest
 @testable import KeyPathAppKit
+import XCTest
 
 final class HomeRowModsConfigTests: XCTestCase {
-
     func testDefaultMappingUsesMacCAGS() {
         let config = HomeRowModsConfig()
         XCTAssertEqual(config.modifierAssignments["a"], "lsft")

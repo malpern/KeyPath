@@ -2026,7 +2026,7 @@ private struct AppLaunchChip: View {
         // Fallback: use identifier as name (capitalize it)
         let parts = appIdentifier.replacingOccurrences(of: ".", with: " ")
             .split(separator: " ")
-            .map { $0.capitalized }
+            .map(\.capitalized)
         self.appName = parts.last.map { String($0) } ?? appIdentifier
     }
 
@@ -2034,15 +2034,15 @@ private struct AppLaunchChip: View {
         // Get icon
         let icon = NSWorkspace.shared.icon(forFile: url.path)
         icon.size = NSSize(width: 32, height: 32) // Request appropriate size
-        self.appIcon = icon
+        appIcon = icon
 
         // Get app name from bundle
         if let bundle = Bundle(url: url),
            let name = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String {
-            self.appName = name
+            appName = name
         } else {
             // Use filename without extension
-            self.appName = url.deletingPathExtension().lastPathComponent
+            appName = url.deletingPathExtension().lastPathComponent
         }
     }
 }

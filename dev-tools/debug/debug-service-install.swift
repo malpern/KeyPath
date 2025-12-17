@@ -29,9 +29,10 @@ struct DebugServiceInstall {
 
         print("\n⚙️  Executing install plan…")
         let report = await engine.execute(plan: plan, using: broker)
-        print("✅ Result: \(report.success ? \"SUCCESS\" : \"FAILED\")")
+        let result = report.success ? "SUCCESS" : "FAILED"
+        print("✅ Result: \(result)")
         if let reason = report.failureReason {
-            print(\"   Reason: \\(reason)\")
+            print("   Reason: \(reason)")
         }
     }
 }
