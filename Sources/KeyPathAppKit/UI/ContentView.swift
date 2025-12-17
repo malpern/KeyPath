@@ -69,20 +69,61 @@ struct ContentView: View {
     @State private var showingEmergencyStopDialog = false
     @State private var showingUninstallDialog = false
     @State private var toastManager = WizardToastManager()
-    @State private var showingWhatsNew = false
-    @State private var hasCheckedWhatsNew = false
 
     @State private var saveDebounceTimer: Timer?
     private let saveDebounceDelay: TimeInterval = 0.1
 
-    @State private var statusMessageTimer: DispatchWorkItem?
+    @State private var statusMessageTask: Task<Void, Never>?
 
     @State private var lastInputDisabledReason: String = ""
     @State private var lastOutputDisabledReason: String = ""
     @State private var isInitialConfigLoad = true
     @State private var showSetupBanner = false
+    @State private var showingConfigValidationError = false
+    @State private var configValidationErrorMessage = ""
+    @State private var showingValidationFailureModal = false
+    @State private var validationFailureErrors: [String] = []
+    @State private var validationFailureCopyText: String = ""
 
-    var body: some View {
+    private var wizardInitialPage: WizardPage? {
+        // Check for FDA restart restore point (used when app restarts for Full Disk Access)
+        if let restorePoint = UserDefaults.standard.string(forKey: "KeyPath.WizardRestorePoint") {
+            let restoreTime = UserDefaults.standard.double(forKey: "KeyPath.WizardRestoreTime")
+            let timeSinceRestore = Date().timeIntervalSince1970 - restoreTime
+
+            // Clear the restore point immediately
+            UserDefaults.standard.removeObject(forKey: "KeyPath.WizardRestorePoint")
+            UserDefaults.standard.removeObject(forKey: "KeyPath.WizardRestoreTime")
+
+            // Only restore if within 5 minutes
+            if timeSinceRestore < 300 {
+                // Map string identifier to WizardPage
+                let page = WizardPage.allCases.first { $0.rawValue == restorePoint }
+                    ?? WizardPage.allCases.first { String(describing: $0) == restorePoint }
+                if let page {
+                    AppLogger.shared.log("🔄 [ContentView] Restoring wizard to \(page.displayName) after app restart")
+                    return page
+                }
+            } else {
+                AppLogger.shared.log("⏱️ [ContentView] Wizard restore point expired (\(Int(timeSinceRestore))s old)")
+            }
+        }
+
+        if UserDefaults.standard.bool(forKey: "wizard_return_to_summary") {
+            UserDefaults.standard.removeObject(forKey: "wizard_return_to_summary")
+            AppLogger.shared.log("✅ [ContentView] Permissions granted - returning to Summary")
+            return .summary
+        } else if UserDefaults.standard.bool(forKey: "wizard_return_to_input_monitoring") {
+            UserDefaults.standard.removeObject(forKey: "wizard_return_to_input_monitoring")
+            return .inputMonitoring
+        } else if UserDefaults.standard.bool(forKey: "wizard_return_to_accessibility") {
+            UserDefaults.standard.removeObject(forKey: "wizard_return_to_accessibility")
+            return .accessibility
+        }
+        return nil
+    }
+
+    private var mainContent: some View {
         VStack(alignment: .leading, spacing: 20) {
             if FeatureFlags.allowOptionalWizard, showSetupBanner {
                 SetupBanner {
@@ -112,6 +153,39 @@ struct ContentView: View {
             .padding(.horizontal, 4)
             .padding(.vertical, 2)
 
+            saveButtonSection
+
+            // Emergency Stop Pause Card (similar to low battery pause)
+            if kanataManager.emergencyStopActivated {
+                EmergencyStopPauseCard(
+                    onRestart: {
+                        Task { @MainActor in
+                            kanataManager.emergencyStopActivated = false
+                            let restarted = await kanataManager.restartKanata(
+                                reason: "Emergency stop recovery"
+                            )
+                            if !restarted {
+                                showStatusMessage(
+                                    message: "❌ Failed to restart Kanata after emergency stop"
+                                )
+                            }
+                            await kanataManager.updateStatus()
+                        }
+                    }
+                )
+            }
+
+            diagnosticSummarySection
+
+            Spacer()
+        }
+    }
+
+    @ViewBuilder
+    private var saveButtonSection: some View {
+        // Save button - only visible when input OR output has content
+        if recordingCoordinator.capturedInputSequence() != nil
+            || recordingCoordinator.capturedOutputSequence() != nil {
             HStack {
                 Spacer()
                 Button(
@@ -142,58 +216,50 @@ struct ContentView: View {
                 .accessibilityLabel("Save key mapping")
                 .accessibilityHint("Save the input and output key mapping to your configuration")
             }
+        }
+    }
 
-            // Debug row removed in production UI
-
-            // Emergency Stop Pause Card (similar to low battery pause)
-            if kanataManager.emergencyStopActivated {
-                EmergencyStopPauseCard(
-                    onRestart: {
-                        Task { @MainActor in
-                            kanataManager.emergencyStopActivated = false
-                            let restarted = await kanataManager.restartKanata(
-                                reason: "Emergency stop recovery"
-                            )
-                            if !restarted {
-                                showStatusMessage(
-                                    message: "❌ Failed to restart Kanata after emergency stop"
-                                )
-                            }
-                            await kanataManager.updateStatus()
-                        }
-                    }
-                )
+    @ViewBuilder
+    private var diagnosticSummarySection: some View {
+        // Diagnostic Summary (show critical issues)
+        if !kanataManager.diagnostics.isEmpty {
+            let criticalIssues = kanataManager.diagnostics.filter {
+                $0.severity == .critical || $0.severity == .error
             }
-
-            // Diagnostic Summary (show critical issues)
-            if !kanataManager.diagnostics.isEmpty {
-                let criticalIssues = kanataManager.diagnostics.filter {
-                    $0.severity == .critical || $0.severity == .error
-                }
-                if !criticalIssues.isEmpty {
-                    DiagnosticSummaryView(criticalIssues: criticalIssues) {
-                        openSystemStatusSettings()
-                    }
+            if !criticalIssues.isEmpty {
+                DiagnosticSummaryView(criticalIssues: criticalIssues) {
+                    openSystemStatusSettings()
                 }
             }
+        }
+    }
 
-            Spacer()
-        }
-        .padding(.horizontal)
-        .padding(.top, 40)
-        .padding(.bottom, 0)
-        .frame(width: 500, alignment: .top)
-        .onAppear {
-            handleViewAppear()
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            // Fixed 80px space at bottom for toast - always present, stable layout
+    private var contentWithLayout: some View {
+        mainContent
+            .padding(.horizontal)
+            .padding(.top, 40)
+            .padding(.bottom, 0)
+            .frame(width: 500, alignment: .top)
+            .onAppear {
+                if FeatureFlags.allowOptionalWizard {
+                    Task { @MainActor in
+                        let snapshot = await PermissionOracle.shared.currentSnapshot()
+                        showSetupBanner = !snapshot.keyPath.hasAllPermissions
+                        AppLogger.shared.log("🔄 [ContentView] Initial setup banner: keyPath.hasAllPermissions=\(snapshot.keyPath.hasAllPermissions), showBanner=\(showSetupBanner)")
+                    }
+                }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+            // Status message toast
             Group {
-                if showStatusMessage, !statusMessage.contains("❌") {
-                    StatusMessageView(message: statusMessage, isVisible: true)
-                        .padding(.horizontal)
-                        .padding(.bottom, 12)
-                        .transition(.opacity)
+                if showStatusMessage {
+                    StatusMessageView(
+                        message: statusMessage,
+                        isVisible: true
+                    )
+                    .padding(.horizontal)
+                    .padding(.bottom, 12)
+                    .transition(.opacity)
                 } else {
                     Color.clear
                         .frame(height: 0)
@@ -201,52 +267,17 @@ struct ContentView: View {
             }
             .frame(height: showStatusMessage ? 80 : 0)
             .animation(.easeInOut(duration: 0.25), value: showStatusMessage)
-        }
-        .sheet(isPresented: $showingInstallationWizard) {
-            // Determine initial page if we're returning from permission granting or app restart
-            let initialPage: WizardPage? = {
-                // Check for FDA restart restore point (used when app restarts for Full Disk Access)
-                if let restorePoint = UserDefaults.standard.string(forKey: "KeyPath.WizardRestorePoint") {
-                    let restoreTime = UserDefaults.standard.double(forKey: "KeyPath.WizardRestoreTime")
-                    let timeSinceRestore = Date().timeIntervalSince1970 - restoreTime
+            }
+    }
 
-                    // Clear the restore point immediately
-                    UserDefaults.standard.removeObject(forKey: "KeyPath.WizardRestorePoint")
-                    UserDefaults.standard.removeObject(forKey: "KeyPath.WizardRestoreTime")
-
-                    // Only restore if within 5 minutes
-                    if timeSinceRestore < 300 {
-                        // Map string identifier to WizardPage
-                        let page = WizardPage.allCases.first { $0.rawValue == restorePoint }
-                            ?? WizardPage.allCases.first { String(describing: $0) == restorePoint }
-                        if let page {
-                            AppLogger.shared.log("🔄 [ContentView] Restoring wizard to \(page.displayName) after app restart")
-                            return page
-                        }
-                    } else {
-                        AppLogger.shared.log("⏱️ [ContentView] Wizard restore point expired (\(Int(timeSinceRestore))s old)")
-                    }
-                }
-
-                if UserDefaults.standard.bool(forKey: "wizard_return_to_summary") {
-                    UserDefaults.standard.removeObject(forKey: "wizard_return_to_summary")
-                    AppLogger.shared.log("✅ [ContentView] Permissions granted - returning to Summary")
-                    return .summary
-                } else if UserDefaults.standard.bool(forKey: "wizard_return_to_input_monitoring") {
-                    UserDefaults.standard.removeObject(forKey: "wizard_return_to_input_monitoring")
-                    return .inputMonitoring
-                } else if UserDefaults.standard.bool(forKey: "wizard_return_to_accessibility") {
-                    UserDefaults.standard.removeObject(forKey: "wizard_return_to_accessibility")
-                    return .accessibility
-                }
-                return nil
-            }()
-
-            InstallationWizardView(initialPage: initialPage)
+    private var contentWithSheets: some View {
+        contentWithLayout
+            .sheet(isPresented: $showingInstallationWizard) {
+            InstallationWizardView(initialPage: wizardInitialPage)
                 .customizeSheetWindow() // Remove border and fix dark mode
                 .onAppear {
                     AppLogger.shared.log("🔍 [ContentView] Installation wizard sheet is being presented")
-                    if let page = initialPage {
+                    if let page = wizardInitialPage {
                         AppLogger.shared.log(
                             "🔍 [ContentView] Starting at \(page.displayName) page after permission grant")
                     }
@@ -268,12 +299,6 @@ struct ContentView: View {
                 }
                 .environmentObject(kanataManager)
         }
-        .sheet(isPresented: $showingWhatsNew) {
-            WhatsNewView()
-                .onDisappear {
-                    WhatsNewTracker.markAsSeen()
-                }
-        }
         .sheet(isPresented: $showingSimpleMods) {
             SimpleModsView(configPath: kanataManager.configPath)
                 .environmentObject(kanataManager)
@@ -281,11 +306,15 @@ struct ContentView: View {
         .sheet(isPresented: $showingEmergencyStopDialog) {
             EmergencyStopDialog(isActivated: kanataManager.emergencyStopActivated)
         }
-        .sheet(isPresented: $showingUninstallDialog) {
-            UninstallKeyPathDialog()
-                .environmentObject(kanataManager)
-        }
-        .onAppear {
+            .sheet(isPresented: $showingUninstallDialog) {
+                UninstallKeyPathDialog()
+                    .environmentObject(kanataManager)
+            }
+    }
+
+    private var contentWithLifecycle: some View {
+        contentWithSheets
+            .onAppear {
             AppLogger.shared.log("🔍 [ContentView] onAppear called")
             AppLogger.shared.log(
                 "🏗️ [ContentView] Using shared SimpleRuntimeCoordinator"
@@ -316,7 +345,8 @@ struct ContentView: View {
                 if timeSinceRestore < 300 { // Within 5 minutes
                     AppLogger.shared.log("🔄 [ContentView] Found wizard restore point '\(restorePoint)' - auto-opening wizard")
                     // Delay slightly to ensure UI is ready
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    Task { @MainActor in
+                        try await Task.sleep(for: .milliseconds(500))
                         showingInstallationWizard = true
                     }
                 }
@@ -345,7 +375,7 @@ struct ContentView: View {
             // Status monitoring now handled centrally by SimpleRuntimeCoordinator
             // Defer these UI state reads to the next runloop to avoid doing work
             // during the initial display cycle (prevents AppKit layout reentrancy).
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 logInputDisabledReason()
                 logOutputDisabledReason()
             }
@@ -385,8 +415,12 @@ struct ContentView: View {
             keyboardCapture?.stopEmergencyMonitoring()
 
             // Status monitoring handled centrally - no cleanup needed
-        }
-        .alert("Emergency Stop Activated", isPresented: $showingEmergencyAlert) {
+            }
+    }
+
+    private var contentWithAlerts: some View {
+        contentWithLifecycle
+            .alert("Emergency Stop Activated", isPresented: $showingEmergencyAlert) {
             Button("OK") {
                 showingEmergencyAlert = false
             }
@@ -394,20 +428,6 @@ struct ContentView: View {
             Text(
                 "The Kanata emergency stop sequence (Ctrl+Space+Esc) was detected. Kanata has been stopped for safety."
             )
-        }
-        .onChange(of: stateController.validationState) { _, newState in
-            guard !hasCheckedWhatsNew else { return }
-            guard case .success = newState else { return }
-            guard !showingInstallationWizard else { return }
-
-            hasCheckedWhatsNew = true
-            guard WhatsNewTracker.shouldShowWhatsNew() else { return }
-
-            Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(300))
-                guard !showingInstallationWizard else { return }
-                showingWhatsNew = true
-            }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowWizard"))) { _ in
             showingInstallationWizard = true
@@ -435,21 +455,30 @@ struct ContentView: View {
                 Task { @MainActor in
                     AppLogger.shared.log("🔄 [ContentView] Wizard closed - triggering revalidation")
                     await stateController.revalidate()
+
+                    // Refresh setup banner state after wizard closes
+                    if FeatureFlags.allowOptionalWizard {
+                        let snapshot = await PermissionOracle.shared.forceRefresh()
+                        // Show banner if KeyPath lacks permissions - Kanata permissions are handled separately
+                        showSetupBanner = !snapshot.keyPath.hasAllPermissions
+                        AppLogger.shared.log("🔄 [ContentView] Setup banner refreshed: keyPath.hasAllPermissions=\(snapshot.keyPath.hasAllPermissions), showBanner=\(showSetupBanner)")
+                    }
                 }
 
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(500))
                     startEmergencyMonitoringIfPossible()
                 }
             }
         }
-        .alert("Kanata Service Not Ready", isPresented: $showingInstallAlert) {
+        .alert("Kanata Installation Required", isPresented: $showingInstallAlert) {
             Button("Open Wizard") {
                 showingInstallationWizard = true
             }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text(
-                "The Kanata background service needs to be installed and running to record shortcuts. Open the Installation Wizard to complete setup."
+                "Install the Kanata binary into /Library/KeyPath/bin using the Installation Wizard before recording shortcuts."
             )
         }
         .alert("Configuration Issue Detected", isPresented: $showingConfigCorruptionAlert) {
@@ -485,70 +514,101 @@ struct ContentView: View {
                 "Cannot save configuration because the Kanata service is not running. Please start Kanata using the Installation Wizard."
             )
         }
-        .withToasts(toastManager)
+        .alert("Configuration Validation Failed", isPresented: $showingConfigValidationError) {
+            Button("OK") { showingConfigValidationError = false }
+            Button("View Diagnostics") {
+                showingConfigValidationError = false
+                openSystemStatusSettings()
+            }
+        } message: {
+            Text(configValidationErrorMessage)
+        }
+        .sheet(isPresented: $showingValidationFailureModal, onDismiss: {
+            validationFailureErrors = []
+            validationFailureCopyText = ""
+        }) {
+            ValidationFailureDialog(
+                errors: validationFailureErrors,
+                configPath: kanataManager.configPath,
+                onCopyErrors: { copyValidationErrorsToClipboard() },
+                onOpenConfig: {
+                    showingValidationFailureModal = false
+                    openCurrentConfigInEditor()
+                },
+                onOpenDiagnostics: {
+                    showingValidationFailureModal = false
+                    openSystemStatusSettings()
+                },
+                onDismiss: {
+                    showingValidationFailureModal = false
+                }
+            )
+            .customizeSheetWindow()
+        }
+        .onChange(of: kanataManager.lastError) { _, newError in
+            if let error = newError {
+                configValidationErrorMessage = error
+                showingConfigValidationError = true
+                // Clear the error so it doesn't re-trigger
+                kanataManager.lastError = nil
+            }
+            }
+    }
+
+    var body: some View {
+        contentWithAlerts
+            .withToasts(toastManager)
         .overlay(alignment: .top) {
-            if let toastMessage = kanataManager.toastMessage {
-                ToastView(message: toastMessage, type: kanataManager.toastType)
+            // Active rules indicator
+            if !kanataManager.customRules.filter(\.isEnabled).isEmpty {
+                let activeCount = kanataManager.customRules.filter(\.isEnabled).count
+                Text("\(activeCount) active rule\(activeCount == 1 ? "" : "s")")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .onTapGesture {
+                        openRulesSettings()
+                    }
+                    .onHover { hovering in
+                        if hovering {
+                            NSCursor.pointingHand.push()
+                        } else {
+                            NSCursor.pop()
+                        }
+                    }
                     .padding(.top, 16)
                     .padding(.horizontal, 20)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                    .zIndex(1000)
+                    .transition(.opacity)
             }
         }
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: kanataManager.toastMessage)
+        .animation(.easeInOut(duration: 0.2), value: kanataManager.customRules.count)
     }
-
-    // MARK: - Lifecycle
-
-    private func handleViewAppear() {
-        if FeatureFlags.allowOptionalWizard {
-            Task { @MainActor in
-                let snapshot = await PermissionOracle.shared.currentSnapshot()
-                showSetupBanner = !snapshot.isSystemReady
-            }
-        }
-
-        // Auto-recover from stale SMAppService registration after app updates
-        Task {
-            let state = await KanataDaemonManager.shared.refreshManagementState()
-            // If SMAppService lost track (.unknown) but service is actually running,
-            // automatically re-register to fix it
-            if state == .unknown {
-                AppLogger.shared.log(
-                    "🔧 [ContentView] Detected stale service registration, attempting auto-recovery...")
-                do {
-                    try await KanataDaemonManager.shared.register()
-                    AppLogger.shared.log("✅ [ContentView] Auto-recovery successful")
-                    await KanataDaemonManager.shared.refreshManagementState()
-                } catch {
-                    AppLogger.shared.log("⚠️ [ContentView] Auto-recovery failed: \(error)")
-                    // Don't show error to user - wizard will handle it if they need it
-                }
-            }
-        }
-    }
-
-    // MARK: - UI Actions
 
     private func showStatusMessage(message: String) {
-        // Cancel any existing timer to ensure consistent 5-second display
-        statusMessageTimer?.cancel()
+        // Cancel any existing timer
+        statusMessageTask?.cancel()
 
         // Show message as toast
         statusMessage = message
         showStatusMessage = true
 
-        // Hide after 5 seconds with simple animation
-        let workItem = DispatchWorkItem {
+        // Errors get 10 seconds, success messages get 5 seconds
+        let isError = message.contains("❌") || message.contains("⚠️")
+        let duration: Double = isError ? 10 : 5
+
+        statusMessageTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(duration))
             showStatusMessage = false
         }
-        statusMessageTimer = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: workItem)
     }
 
     private func openSystemStatusSettings() {
         NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
         NotificationCenter.default.post(name: .openSettingsSystemStatus, object: nil)
+    }
+
+    private func openRulesSettings() {
+        NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+        NotificationCenter.default.post(name: .openSettingsRules, object: nil)
     }
 
     private func startEmergencyMonitoringIfPossible() {
@@ -671,11 +731,10 @@ struct ContentView: View {
                 kanataManager: kanataManager.underlyingManager // Phase 4: Business logic needs underlying manager
             ) { _ in
                 // Show wizard after service restart completes to display results
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(1))
                     // Reopen wizard to the appropriate permission page
-                    PermissionGrantCoordinator.shared.reopenWizard(
-                        for: permissionType
-                    )
+                    PermissionGrantCoordinator.shared.reopenWizard(for: permissionType)
                 }
             }
 
@@ -738,7 +797,7 @@ struct ContentView: View {
             }
 
             // Wait briefly for Kanata to resume
-            try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
+            try? await Task.sleep(for: .milliseconds(500)) // 500ms
             serviceState = await kanataManager.currentServiceState()
         }
 
@@ -763,9 +822,15 @@ struct ContentView: View {
     }
 
     private func handleSaveError(_ error: Error) {
-        // Handle coordination errors
+        // Handle coordination errors - invalid state (missing input/output)
         if case KeyPathError.coordination(.invalidState) = error {
             showStatusMessage(message: "❌ Please capture both input and output keys first")
+            return
+        }
+
+        // Handle coordination errors - recording failed (validation errors like self-reference)
+        if case let KeyPathError.coordination(.recordingFailed(reason)) = error {
+            showStatusMessage(message: "❌ Recording failed: \(reason)")
             return
         }
 
@@ -777,7 +842,8 @@ struct ContentView: View {
                || reasonLower.contains("failed") || reasonLower.contains("reload") {
                 // TCP connectivity issues - open wizard directly to Communication page
                 showStatusMessage(message: "⚠️ Service connection failed - opening setup wizard...")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                Task { @MainActor in
+                    try await Task.sleep(for: .milliseconds(500))
                     NotificationCenter.default.post(name: .openInstallationWizard, object: nil)
                 }
                 return
@@ -786,12 +852,7 @@ struct ContentView: View {
 
         // Handle configuration validation errors with detailed feedback
         if case let KeyPathError.configuration(.validationFailed(errors)) = error {
-            configCorruptionDetails = """
-            Configuration validation failed:
-
-            \(errors.joined(separator: "\n"))
-            """
-            showingConfigCorruptionAlert = true
+            presentValidationFailureModal(errors)
             showStatusMessage(message: "❌ Configuration validation failed")
             return
         }
@@ -830,9 +891,28 @@ struct ContentView: View {
         // Open wizard to help diagnose and fix the issue
         let errorDesc = error.localizedDescription
         showStatusMessage(message: "⚠️ \(errorDesc)")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+        Task { @MainActor in
+            try await Task.sleep(for: .seconds(1))
             NotificationCenter.default.post(name: .openInstallationWizard, object: nil)
         }
+    }
+
+    private func presentValidationFailureModal(_ errors: [String]) {
+        validationFailureErrors = errors
+        validationFailureCopyText = errors.joined(separator: "\n")
+        showingValidationFailureModal = true
+    }
+
+    private func copyValidationErrorsToClipboard() {
+        guard !validationFailureErrors.isEmpty else { return }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        let combined = validationFailureCopyText.isEmpty ? validationFailureErrors.joined(separator: "\n") : validationFailureCopyText
+        pasteboard.setString(combined, forType: .string)
+    }
+
+    private func openCurrentConfigInEditor() {
+        kanataManager.openFileInZed(kanataManager.configPath)
     }
 
     private func handleInputRecordTap() {
@@ -918,46 +998,99 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Toast View
+private struct ValidationFailureDialog: View {
+    let errors: [String]
+    let configPath: String
+    let onCopyErrors: () -> Void
+    let onOpenConfig: () -> Void
+    let onOpenDiagnostics: () -> Void
+    let onDismiss: () -> Void
 
-private struct ToastView: View {
-    let message: String
-    let type: KanataViewModel.ToastType
+    private var normalizedErrors: [String] {
+        errors.isEmpty
+            ? ["Kanata returned an unknown validation error."]
+            : errors
+    }
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: iconName)
-                .foregroundColor(iconColor)
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Configuration Validation Failed")
+                        .font(.title2.weight(.semibold))
+                    Text("Kanata refused to load the generated config. KeyPath left the previous configuration in place until you fix the issues below.")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button {
+                    onDismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                        .font(.title2)
+                }
+                .buttonStyle(.plain)
+            }
 
-            Text(message)
-                .font(.body)
-                .foregroundColor(.primary)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(NSColor.controlBackgroundColor))
-                .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
-        )
-    }
+            Divider()
 
-    private var iconName: String {
-        switch type {
-        case .success: "checkmark.circle.fill"
-        case .error: "exclamationmark.triangle.fill"
-        case .info: "info.circle.fill"
-        case .warning: "exclamationmark.triangle.fill"
-        }
-    }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(Array(normalizedErrors.enumerated()), id: \.offset) { index, error in
+                        HStack(alignment: .top, spacing: 8) {
+                            Text("\(index + 1).")
+                                .font(.body.bold())
+                                .foregroundStyle(.secondary)
+                            Text(error)
+                                .font(.body)
+                                .foregroundStyle(.primary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color(nsColor: .controlBackgroundColor))
+                        )
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(minHeight: 180, maxHeight: 260)
 
-    private var iconColor: Color {
-        switch type {
-        case .success: .green
-        case .error: .red
-        case .info: .blue
-        case .warning: .orange
+            HStack(spacing: 8) {
+                Image(systemName: "doc.text")
+                    .foregroundStyle(.secondary)
+                Text(configPath)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+                Spacer()
+            }
+
+            Divider()
+
+            HStack(spacing: 12) {
+                Button("Copy Errors") {
+                    onCopyErrors()
+                }
+                Button("Open Config in Zed") {
+                    onOpenConfig()
+                }
+                Spacer()
+                Button("Diagnostics") {
+                    onOpenDiagnostics()
+                }
+                Button("Done") {
+                    onDismiss()
+                }
+                .keyboardShortcut(.defaultAction)
+            }
         }
+        .frame(minWidth: 520, idealWidth: 580, maxWidth: 640)
+        .padding(24)
     }
 }
 

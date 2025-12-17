@@ -54,8 +54,8 @@ struct RecordingSection: View {
                 .frame(height: 44)
                 .frame(minWidth: 44)
                 .appSolidGlassButton(tint: .accentColor, radius: 8)
-                .foregroundColor(.white)
-                .cornerRadius(8)
+                .foregroundStyle(.white)
+                .clipShape(.rect(cornerRadius: 8))
                 .accessibilityIdentifier("input-key-record-button")
                 .accessibilityLabel(
                     coordinator.isInputRecording() ? "Stop recording input key" : "Record input key"
@@ -112,8 +112,8 @@ struct RecordingSection: View {
                 .frame(height: 44)
                 .frame(minWidth: 44)
                 .appSolidGlassButton(tint: .accentColor, radius: 8)
-                .foregroundColor(.white)
-                .cornerRadius(8)
+                .foregroundStyle(.white)
+                .clipShape(.rect(cornerRadius: 8))
                 .accessibilityIdentifier("output-key-record-button")
                 .accessibilityLabel(
                     coordinator.isOutputRecording() ? "Stop recording output key" : "Record output key"
