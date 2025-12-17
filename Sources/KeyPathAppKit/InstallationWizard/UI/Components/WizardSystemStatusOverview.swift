@@ -233,29 +233,7 @@ struct WizardSystemStatusOverview: View {
             if systemState == .initializing {
                 return .notStarted
             }
-
-            // Check for specific issue types to determine status color
-            let hasNotInstalledIssue = helperIssues.contains { issue in
-                if case let .component(req) = issue.identifier {
-                    return req == .privilegedHelper
-                }
-                return false
-            }
-            let hasUnhealthyIssue = helperIssues.contains { issue in
-                if case let .component(req) = issue.identifier {
-                    return req == .privilegedHelperUnhealthy
-                }
-                return false
-            }
-
-            // RED if not installed, ORANGE if installed but unhealthy, GREEN if working
-            if hasNotInstalledIssue {
-                return .failed // Red - not installed
-            } else if hasUnhealthyIssue {
-                return .failed // Treat unhealthy/not responding as error (red)
-            } else {
-                return .completed // Green - installed and working
-            }
+            return issueStatus(for: helperIssues)
         }()
         let helperSubtitle: String? = duplicateCopies.count > 1 ? "Multiple app copies detected" : nil
         items.append(
@@ -294,7 +272,7 @@ struct WizardSystemStatusOverview: View {
             if systemState == .initializing {
                 return .notStarted
             }
-            return !conflictIssues.isEmpty ? .failed : .completed
+            return issueStatus(for: conflictIssues)
         }()
         items.append(
             StatusItemModel(
@@ -500,10 +478,10 @@ struct WizardSystemStatusOverview: View {
         let karabinerDriverCompleted = getKarabinerComponentsStatus() == .completed
 
         // Communication item shown when Kanata is running
-        return DependencyVisibility(
-            showKanataEngineItem: karabinerDriverCompleted,
-            showCommunicationItem: kanataIsRunning
-        )
+                return DependencyVisibility(
+                    showKanataEngineItem: karabinerDriverCompleted,
+                    showCommunicationItem: kanataIsRunning
+                )
     }
 
     // MARK: - Dependency-aware filtering
@@ -597,33 +575,31 @@ struct WizardSystemStatusOverview: View {
     }
 
     private func getInputMonitoringStatus() -> InstallationStatus {
-        // If system is still initializing, don't show completed status
         if systemState == .initializing {
             return .notStarted
         }
 
-        let hasInputMonitoringIssues = issues.contains { issue in
+        let hasInputMonitoringIssues = issues.filter { issue in
             if case let .permission(permissionType) = issue.identifier {
                 return permissionType == .keyPathInputMonitoring || permissionType == .kanataInputMonitoring
             }
             return false
         }
-        return hasInputMonitoringIssues ? .failed : .completed
+        return issueStatus(for: hasInputMonitoringIssues)
     }
 
     private func getAccessibilityStatus() -> InstallationStatus {
-        // If system is still initializing, don't show completed status
         if systemState == .initializing {
             return .notStarted
         }
 
-        let hasAccessibilityIssues = issues.contains { issue in
+        let hasAccessibilityIssues = issues.filter { issue in
             if case let .permission(permissionType) = issue.identifier {
                 return permissionType == .keyPathAccessibility || permissionType == .kanataAccessibility
             }
             return false
         }
-        return hasAccessibilityIssues ? .failed : .completed
+        return issueStatus(for: hasAccessibilityIssues)
     }
 
     private func getKarabinerComponentsStatus() -> InstallationStatus {
@@ -635,13 +611,11 @@ struct WizardSystemStatusOverview: View {
     }
 
     private func getKanataComponentsStatus() -> InstallationStatus {
-        // If system is still initializing, don't show completed status
         if systemState == .initializing {
             return .notStarted
         }
 
-        // Check for Kanata-related issues
-        let hasKanataIssues = issues.contains { issue in
+        let kanataIssues = issues.filter { issue in
             if issue.category == .installation {
                 switch issue.identifier {
                 case .component(.kanataBinaryMissing),
@@ -654,8 +628,7 @@ struct WizardSystemStatusOverview: View {
             }
             return false
         }
-
-        return hasKanataIssues ? .failed : .completed
+        return issueStatus(for: kanataIssues)
     }
 
     private func getCommunicationServerStatus() -> InstallationStatus {
@@ -666,30 +639,23 @@ struct WizardSystemStatusOverview: View {
     }
 
     func getServiceStatus() -> InstallationStatus {
-        // If system is still initializing, show as in progress
         if systemState == .initializing {
             return .inProgress
         }
 
-        // Live signal: if Kanata is currently running, treat service as healthy even
-        // if a stale issue snapshot still contains daemon issues.
+        let daemonIssues = issues.filter { $0.identifier.isDaemon }
+        if !daemonIssues.isEmpty {
+            return issueStatus(for: daemonIssues)
+        }
+
+        if ServiceStatusEvaluator.blockingIssueMessage(from: issues) != nil {
+            return .failed
+        }
+
         if kanataIsRunning {
             return .completed
         }
 
-        // Check for service-related issues (daemon category)
-        // This includes both Kanata Service and Karabiner Daemon
-        let hasServiceIssues = issues.contains { issue in
-            issue.category == .daemon
-        }
-
-        // If there are service issues, show as failed (red X)
-        if hasServiceIssues {
-            return .failed
-        }
-
-        // Otherwise, show as not started (empty circle)
-        // This happens during initial setup before user clicks "Start Service"
         return .notStarted
     }
 
@@ -718,6 +684,10 @@ struct WizardSystemStatusOverview: View {
             // Default to service page if no specific permission issue
             return (.service, "Check service status")
         }
+    }
+
+    private func issueStatus(for issues: [WizardIssue]) -> InstallationStatus {
+        IssueSeverityInstallationStatusMapper.installationStatus(for: issues)
     }
 }
 

@@ -51,6 +51,11 @@ public struct KanataConfiguration: Sendable {
         )
         """
 
+        let safetyNotes = """
+        ;; SAFETY: This configuration is auto-generated. Do not edit by hand.
+        ;; SAFETY: Only explicitly enabled mappings are written to this file.
+        """
+
         let fakeKeysBlock = renderFakeKeysBlock(extraLayers)
         let aliasBlock = renderAliasBlock(aliasDefinitions)
         let chordsBlock = renderChordsBlock(chordMappings)
@@ -62,7 +67,7 @@ public struct KanataConfiguration: Sendable {
             }
         }.joined(separator: "\n")
 
-        return [header, fakeKeysBlock, aliasBlock, chordsBlock, sourceBlock, baseLayerBlock, additionalLayerBlocks]
+        return [header, safetyNotes, fakeKeysBlock, aliasBlock, chordsBlock, sourceBlock, baseLayerBlock, additionalLayerBlocks]
             .filter { !$0.isEmpty }
             .joined(separator: "\n")
     }
@@ -312,6 +317,8 @@ public struct KanataConfiguration: Sendable {
                 let sourceKey = KanataKeyConverter.convertToKanataKey(mapping.input)
                 var layerOutputs: [RuleCollectionLayer: String] = [:]
 
+                let trimmedOutput = mapping.output.trimmingCharacters(in: .whitespacesAndNewlines)
+
                 // Determine the output action based on behavior or simple output
                 let layerOutput: String
                 if mapping.behavior != nil {
@@ -327,14 +334,14 @@ public struct KanataConfiguration: Sendable {
                     let forkDef = buildForkDefinition(for: mapping)
                     aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: forkDef))
                     layerOutput = "@\(aliasName)"
-                } else if mapping.output.hasPrefix("(") {
+                } else if trimmedOutput.hasPrefix("(") && trimmedOutput.count > 1 {
                     // Complex action (push-msg, multi, etc.) - needs alias
                     let aliasName = actionAliasName(for: mapping, layer: collection.targetLayer)
-                    aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: mapping.output))
+                    aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: trimmedOutput))
                     layerOutput = "@\(aliasName)"
                 } else {
                     // Simple output (key name)
-                    layerOutput = KanataKeyConverter.convertToKanataSequence(mapping.output)
+                    layerOutput = KanataKeyConverter.convertToKanataSequence(trimmedOutput)
                 }
 
                 if collection.targetLayer != .base {

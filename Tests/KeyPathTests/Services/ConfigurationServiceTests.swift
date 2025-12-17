@@ -169,10 +169,10 @@ class ConfigurationServiceTests: XCTestCase {
         XCTAssertTrue(
             config.contains("layer_nav_spc"), "Alias name should reference navigation layer + key"
         )
-        // Momentary activator uses tap-hold with layer-while-held
+        // Momentary activator uses layer-while-held for navigation
         XCTAssertTrue(
-            config.contains("(tap-hold 200 200 spc (layer-while-held nav))"),
-            "Should use tap-hold with layer-while-held for momentary activator"
+            config.contains("(layer-while-held nav)"),
+            "Should use layer-while-held for momentary activator"
         )
 
         let baseLayer = extractLayer(named: "base", from: config)

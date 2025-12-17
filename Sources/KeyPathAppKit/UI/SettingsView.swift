@@ -348,9 +348,14 @@ struct StatusSettingsTabView: View {
             message: "Service is stopped. Use the switch above to turn it on.",
             icon: "pause.circle",
             level: .warning,
-            action: StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
-                wizardInitialPage = .summary
-            }
+            actions: [
+                StatusDetailAction(title: "Open Login Items", icon: "list.bullet") {
+                    SystemDiagnostics.open(.loginItems)
+                },
+                StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
+                    wizardInitialPage = .summary
+                }
+            ]
         )
     }
 
@@ -381,14 +386,34 @@ struct StatusSettingsTabView: View {
         }
         lines.append("Missing: \(evaluation.labels.joined(separator: ", "))")
 
+        var actions: [StatusDetailAction] = [
+            StatusDetailAction(title: "Fix", icon: "wand.and.stars") {
+                showingPermissionAlert = true
+            }
+        ]
+
+        if !snapshot.keyPath.inputMonitoring.isReady || !snapshot.kanata.inputMonitoring.isReady {
+            actions.append(
+                StatusDetailAction(title: "Open Input Monitoring", icon: "lock.shield") {
+                    SystemDiagnostics.open(.inputMonitoring)
+                }
+            )
+        }
+
+        if !snapshot.keyPath.accessibility.isReady || !snapshot.kanata.accessibility.isReady {
+            actions.append(
+                StatusDetailAction(title: "Open Accessibility", icon: "figure.walk") {
+                    SystemDiagnostics.open(.accessibility)
+                }
+            )
+        }
+
         return StatusDetail(
             title: "Permissions",
             message: lines.joined(separator: "\n"),
             icon: "exclamationmark.shield",
             level: evaluation.hasErrors ? .critical : .warning,
-            action: StatusDetailAction(title: "Fix", icon: "wand.and.stars") {
-                showingPermissionAlert = true
-            }
+            actions: actions
         )
     }
 
@@ -417,9 +442,14 @@ struct StatusSettingsTabView: View {
             message: "Service is missing the TCP port configuration. Open the wizard to repair communication settings.",
             icon: "exclamationmark.triangle",
             level: .critical,
-            action: StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
-                wizardInitialPage = .communication
-            }
+            actions: [
+                StatusDetailAction(title: "Open Kanata Logs", icon: "doc.text.magnifyingglass") {
+                    SystemDiagnostics.openKanataLogsInEditor()
+                },
+                StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
+                    wizardInitialPage = .communication
+                }
+            ]
         )
     }
 
@@ -451,9 +481,14 @@ struct StatusSettingsTabView: View {
             message: message,
             icon: "keyboard.macwindow",
             level: level,
-            action: StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
-                wizardInitialPage = .karabinerComponents
-            }
+            actions: [
+                StatusDetailAction(title: "Open Karabiner Logs", icon: "doc.on.doc") {
+                    SystemDiagnostics.openKarabinerLogsDirectory()
+                },
+                StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
+                    wizardInitialPage = .karabinerComponents
+                }
+            ]
         )
     }
 
@@ -465,11 +500,11 @@ struct StatusSettingsTabView: View {
             message: "Open the daemon stderr log for startup errors and permission failures.",
             icon: "doc.text.magnifyingglass",
             level: .info,
-            action: StatusDetailAction(title: "Open", icon: "doc.text") {
-                Task { @MainActor in
-                    openFileInPreferredEditor(URL(fileURLWithPath: KeyPathConstants.Logs.kanataStderr))
+            actions: [
+                StatusDetailAction(title: "Open", icon: "doc.text") {
+                    SystemDiagnostics.openKanataLogsInEditor()
                 }
-            }
+            ]
         )
     }
 
@@ -480,9 +515,11 @@ struct StatusSettingsTabView: View {
             message: "Open the Karabiner log directory for VirtualHID daemon/manager logs.",
             icon: "doc.on.doc",
             level: .info,
-            action: StatusDetailAction(title: "Open", icon: "folder") {
-                NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: KeyPathConstants.Logs.karabinerDir)
-            }
+            actions: [
+                StatusDetailAction(title: "Open", icon: "folder") {
+                    SystemDiagnostics.openKarabinerLogsDirectory()
+                }
+            ]
         )
     }
 
@@ -494,9 +531,11 @@ struct StatusSettingsTabView: View {
             message: "Found \(count) copies of KeyPath. Extra copies can confuse macOS permissions.",
             icon: "exclamationmark.triangle",
             level: .warning,
-            action: StatusDetailAction(title: "Review", icon: "arrow.right") {
-                NotificationCenter.default.post(name: .openSettingsAdvanced, object: nil)
-            }
+            actions: [
+                StatusDetailAction(title: "Review", icon: "arrow.right") {
+                    NotificationCenter.default.post(name: .openSettingsAdvanced, object: nil)
+                }
+            ]
         )
     }
 
@@ -890,7 +929,8 @@ private struct PermissionStatusRow: View {
     }
 }
 
-private struct StatusDetailAction {
+private struct StatusDetailAction: Identifiable {
+    let id = UUID()
     let title: String
     let icon: String?
     let handler: () -> Void
@@ -908,20 +948,24 @@ private struct StatusDetail: Identifiable {
     let message: String
     let icon: String
     let level: Level
-    let action: StatusDetailAction?
+    let actions: [StatusDetailAction]
 
     var id: String {
         "\(title)|\(message)"
     }
 
     init(
-        title: String, message: String, icon: String, level: Level, action: StatusDetailAction? = nil
+        title: String,
+        message: String,
+        icon: String,
+        level: Level,
+        actions: [StatusDetailAction] = []
     ) {
         self.title = title
         self.message = message
         self.icon = icon
         self.level = level
-        self.action = action
+        self.actions = actions
     }
 }
 
@@ -965,19 +1009,23 @@ private struct StatusDetailRow: View {
 
             Spacer()
 
-            if let action = detail.action {
-                Button {
-                    action.handler()
-                } label: {
-                    if let icon = action.icon {
-                        Label(action.title, systemImage: icon)
-                            .labelStyle(.titleAndIcon)
-                    } else {
-                        Text(action.title)
+            if !detail.actions.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(detail.actions) { action in
+                        Button {
+                            action.handler()
+                        } label: {
+                            if let icon = action.icon {
+                                Label(action.title, systemImage: icon)
+                                    .labelStyle(.titleAndIcon)
+                            } else {
+                                Text(action.title)
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
                     }
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
             }
         }
     }

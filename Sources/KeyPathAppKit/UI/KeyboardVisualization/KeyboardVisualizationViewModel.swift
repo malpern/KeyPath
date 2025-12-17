@@ -22,7 +22,9 @@ class KeyboardVisualizationViewModel: ObservableObject {
     struct OverlayTiming {
         /// Grace period to wait for a quick re-press before clearing hold state (seconds).
         /// Trade-off: higher = less flicker, lower = less linger.
-        static let holdReleaseGrace: TimeInterval = 0.06
+        static var holdReleaseGrace: TimeInterval {
+            TestEnvironment.isRunningTests ? 0 : 0.06
+        }
     }
 
     // MARK: - Layer State

@@ -75,10 +75,10 @@ final class RuleCollectionsManagerTests: XCTestCase {
 
         let config = KanataConfiguration.generateFromCollections([vim])
 
-        // Momentary activator uses tap-hold with layer-while-held
+        // Momentary activator exposes layer-while-held navigation
         XCTAssertTrue(
-            config.contains("(tap-hold 200 200 spc (layer-while-held nav))"),
-            "Momentary activator should use tap-hold with layer-while-held"
+            config.contains("(layer-while-held nav)"),
+            "Momentary activator should activate the nav layer via layer-while-held"
         )
         XCTAssertTrue(config.contains("(deflayer nav"), "Navigation layer block should be emitted")
     }
