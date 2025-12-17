@@ -334,7 +334,7 @@ public struct KanataConfiguration: Sendable {
                     let forkDef = buildForkDefinition(for: mapping)
                     aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: forkDef))
                     layerOutput = "@\(aliasName)"
-                } else if trimmedOutput.hasPrefix("("), trimmedOutput.count > 1 {
+                } else if trimmedOutput.hasPrefix("(") && trimmedOutput.count > 1 {
                     // Complex action (push-msg, multi, etc.) - needs alias
                     let aliasName = actionAliasName(for: mapping, layer: collection.targetLayer)
                     aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: trimmedOutput))

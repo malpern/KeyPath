@@ -30,7 +30,7 @@ enum SettingsSystemStatusRowsBuilder {
         }
         let helperStatus: InstallationStatus = wizardSystemState == .initializing
             ? .notStarted
-            : (helperIssues.isEmpty ? .completed : .failed)
+            : issueStatus(for: helperIssues)
         rows.append(
             SettingsSystemStatusRowModel(
                 id: "privileged-helper",
@@ -59,7 +59,7 @@ enum SettingsSystemStatusRowsBuilder {
         let conflictIssues = wizardIssues.filter { $0.category == .conflicts }
         let conflictStatus: InstallationStatus = wizardSystemState == .initializing
             ? .notStarted
-            : (conflictIssues.isEmpty ? .completed : .failed)
+            : issueStatus(for: conflictIssues)
         rows.append(
             SettingsSystemStatusRowModel(
                 id: "conflicts",
@@ -79,7 +79,7 @@ enum SettingsSystemStatusRowsBuilder {
         }
         let inputStatus: InstallationStatus = wizardSystemState == .initializing
             ? .notStarted
-            : (inputIssues.isEmpty ? .completed : .failed)
+            : issueStatus(for: inputIssues)
         rows.append(
             SettingsSystemStatusRowModel(
                 id: "input-monitoring",
@@ -99,7 +99,7 @@ enum SettingsSystemStatusRowsBuilder {
         }
         let accessibilityStatus: InstallationStatus = wizardSystemState == .initializing
             ? .notStarted
-            : (accessibilityIssues.isEmpty ? .completed : .failed)
+            : issueStatus(for: accessibilityIssues)
         rows.append(
             SettingsSystemStatusRowModel(
                 id: "accessibility",
@@ -126,11 +126,20 @@ enum SettingsSystemStatusRowsBuilder {
         )
 
         // 7) Kanata Service
+        let daemonIssues = wizardIssues.filter { $0.identifier.isDaemon }
+        let blockingPermissionIssue = ServiceStatusEvaluator.blockingIssueMessage(from: wizardIssues) != nil
         let serviceStatus: InstallationStatus = {
             if wizardSystemState == .initializing { return .inProgress }
-            if systemContext?.services.kanataRunning == true { return .completed }
-            let hasServiceIssues = wizardIssues.contains { $0.category == .daemon }
-            return hasServiceIssues ? .failed : .notStarted
+            if !daemonIssues.isEmpty {
+                return issueStatus(for: daemonIssues)
+            }
+            if blockingPermissionIssue {
+                return .failed
+            }
+            if systemContext?.services.kanataRunning == true {
+                return .completed
+            }
+            return .notStarted
         }()
         rows.append(
             SettingsSystemStatusRowModel(
@@ -144,7 +153,7 @@ enum SettingsSystemStatusRowsBuilder {
 
         // 8) Kanata Engine Setup (only once driver is healthy, mirrors wizard)
         if karabinerStatus == .completed {
-            let hasKanataIssues = wizardIssues.contains { issue in
+            let kanataIssues = wizardIssues.filter { issue in
                 if issue.category == .installation {
                     switch issue.identifier {
                     case .component(.kanataBinaryMissing),
@@ -157,12 +166,13 @@ enum SettingsSystemStatusRowsBuilder {
                 }
                 return false
             }
+            let kanataStatus = issueStatus(for: kanataIssues)
             rows.append(
                 SettingsSystemStatusRowModel(
                     id: "kanata-components",
                     title: "Kanata Engine Setup",
                     icon: "cpu.fill",
-                    status: hasKanataIssues ? .failed : .completed,
+                    status: kanataStatus,
                     targetPage: .kanataComponents
                 )
             )
@@ -186,6 +196,12 @@ enum SettingsSystemStatusRowsBuilder {
         )
 
         return rows
+    }
+}
+
+private extension SettingsSystemStatusRowsBuilder {
+    static func issueStatus(for issues: [WizardIssue]) -> InstallationStatus {
+        IssueSeverityInstallationStatusMapper.installationStatus(for: issues)
     }
 }
 
