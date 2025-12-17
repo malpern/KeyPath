@@ -540,6 +540,45 @@ KeyPath uses a one-way write architecture for config management. JSON stores are
 - Key mappings: kanata-simulator with layer held
 - See ADR-023 for details
 
+### ADR-026: System Validation Ordering - Components Before Service Status ✅
+System health validation must check component existence BEFORE checking service status to prevent false positives.
+
+**Context (December 2025):** The wizard displayed all green checkmarks (system healthy) but mappings failed with "Kanata Installation Required" error. The Kanata binary was missing from `/Library/KeyPath/bin/kanata`, yet the system was declared `.active`.
+
+**Root Cause:** `SystemContextAdapter.adaptSystemState()` checked if `kanataRunning == true` BEFORE verifying components existed. If `ServiceHealthChecker.isServiceHealthy()` returned a false positive (during the 2-second warmup period after service restart, or due to any health check bug), the system would be declared `.active` without ever checking if the Kanata binary existed.
+
+**Decision:** Validation checks MUST follow this order:
+
+```swift
+// ✅ CORRECT ORDER (enforced in SystemContextAdapter.adaptSystemState)
+1. Conflicts          // Highest priority - blocks everything
+2. Components         // Must exist before anything can run
+3. Permissions        // Required for services to work
+4. Service status     // Only checked if components exist + permissions granted
+5. Daemon health      // Final check
+```
+
+**Why This Matters:**
+
+1. **Health checks can have false positives** - Warmup windows, race conditions, bugs
+2. **Components are prerequisites** - A service can't truly be "running" if its binary doesn't exist
+3. **Fail-fast on missing components** - Better to show "missing binary" than "everything's working"
+4. **Prevents confusion** - Users shouldn't see green checkmarks when critical files are missing
+
+**Code Location:** `Sources/KeyPathAppKit/InstallationWizard/Core/SystemContextAdapter.swift:28-71`
+
+**What NOT to do:**
+- ❌ Don't check service status before verifying components exist
+- ❌ Don't trust health checks unconditionally - validate prerequisites first
+- ❌ Don't reorder these checks without understanding the implications
+
+**What to do when adding new checks:**
+- Ask: "Is this a prerequisite for something else?" → Place it earlier
+- Ask: "Can this have false positives?" → Validate prerequisites first
+- Ask: "What's the user impact if this check is wrong?" → Fail-fast on critical items
+
+**Related:** This follows the same principle as ADR-006 (Apple API priority) - trust authoritative sources over derivative checks. File existence is more authoritative than service health reports.
+
 ## Build Commands
 
 ```bash
