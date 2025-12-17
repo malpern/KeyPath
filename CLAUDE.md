@@ -4,25 +4,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ⚠️ CURRENT SESSION STATUS
 
-**LATEST WORK:** Strangler Fig Façade Migration Complete (November 24, 2025)
+**LATEST WORK:** Block 3 UI Polish Complete (December 16, 2025)
 
 **Recent Commits:**
-- Merge branch 'refactor/unify-service-layer': Strangler Fig façade migration
-  - Added health check APIs to InstallerEngine façade
-  - Migrated callers from direct LaunchDaemonInstaller usage
-  - Added InstallerEngineHealthCheckTests (11 tests)
-  - Updated documentation and status tracking
-- refactor: expose health check APIs via InstallerEngine façade
-- test: add InstallerEngine health check façade tests
-- docs: update refactoring plan with façade migration status
+- `9231fb22` chore: format and lint Block 3 code
+- `e0c50611` Document Block 3 completion
+- `95c2c7d5` Finalize Block 3 status polish
+- `ba123bb6` block3: add Settings status details and log shortcuts
+- `e6d1346e` block3: align Settings status with wizard semantics
+- `47466c22` fix: check components before service status in wizard (CRITICAL BUG FIX)
 
-**Previous Session Work:**
-- refactor: completed InstallerEngine migration (Phases 8-9)
-- refactor: internal cleanup (Phase 7)
-- feat: CLI migration (Phase 6)
+**Current Session Accomplishments:**
+1. **Critical Bug Fix**: Fixed wizard false positive where system showed green ✅ when Kanata binary was missing
+   - Root cause: SystemContextAdapter checked service status BEFORE verifying components existed
+   - Solution: Reordered checks to validate components first (Conflicts → Components → Permissions → Service Status)
+2. **Block 3 Cherry-Pick**: Successfully integrated all Block 3 UI improvements on top of bug fix
+   - Detailed status rows mirroring wizard pages
+   - SystemDiagnostics shortcuts (one-click access to logs and System Settings)
+   - Multi-level health indicators (Success/Warning/Critical/Checking)
+   - Multiple action buttons per status card
+3. **Full Notarization**: Built, signed, notarized (Submission ID: cf628ac7-efba-4183-a0d6-765f569e90fa), and deployed
+
+**Tagged State:** `mappingWorking` (9231fb22) - Block 2 + bug fix + Block 3 UI polish
 
 **⚠️ INCOMPLETE WORK (requires follow-up):**
-- ✅ DONE: Updated requiredDriverVersionMajor to 6 in VHIDDeviceManager.swift (Kanata v1.10.0 released Nov 2025)
 - HELPER.md: Phase 4 pending (Documentation & Testing) - Phases 1-3.5 complete
 
 **✅ Privileged Helper (Nov 2025):**
