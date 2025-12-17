@@ -34,23 +34,7 @@ struct SystemContextAdapter {
             return .conflictsDetected(conflicts: context.conflicts.conflicts)
         }
 
-        // 2. Check if Kanata is running FIRST
-        if context.services.kanataRunning {
-            AppLogger.shared.log("📊 [SystemContextAdapter] Decision: ACTIVE (kanata running)")
-            return .active
-        }
-
-        AppLogger.shared.log("📊 [SystemContextAdapter] Kanata NOT running, checking prerequisites...")
-
-        // 3. Check permissions if kanata is NOT running
-        let missingPerms = getMissingPermissions(context)
-        if !missingPerms.isEmpty {
-            AppLogger.shared.log(
-                "📊 [SystemContextAdapter] Decision: MISSING PERMISSIONS (\(missingPerms.count) missing)")
-            return .missingPermissions(missing: missingPerms)
-        }
-
-        // 4. Check components
+        // 2. Check components FIRST - can't be active if binary doesn't exist
         let missingComponents = getMissingComponents(context)
         if !missingComponents.isEmpty {
             AppLogger.shared.log(
@@ -58,6 +42,22 @@ struct SystemContextAdapter {
             )
             return .missingComponents(missing: missingComponents)
         }
+
+        // 3. Check permissions - components exist, but need permissions to run
+        let missingPerms = getMissingPermissions(context)
+        if !missingPerms.isEmpty {
+            AppLogger.shared.log(
+                "📊 [SystemContextAdapter] Decision: MISSING PERMISSIONS (\(missingPerms.count) missing)")
+            return .missingPermissions(missing: missingPerms)
+        }
+
+        // 4. Check if Kanata is running - components exist and permissions granted
+        if context.services.kanataRunning {
+            AppLogger.shared.log("📊 [SystemContextAdapter] Decision: ACTIVE (kanata running)")
+            return .active
+        }
+
+        AppLogger.shared.log("📊 [SystemContextAdapter] Kanata NOT running, checking daemon health...")
 
         // 5. Check daemon health
         if !context.services.karabinerDaemonRunning {
