@@ -16,6 +16,8 @@ struct OverlayKeycapView: View {
     var isCapsLockOn: Bool = false
     /// Fade amount: 0 = fully visible, 1 = fully faded
     var fadeAmount: CGFloat = 0
+    /// Whether this is a per-key release fade (vs global overlay fade)
+    var isReleaseFading: Bool = false
     /// Current layer name for Touch ID key display
     var currentLayerName: String = "base"
     /// Whether layer mapping is loading (shows spinner on Touch ID key)
@@ -530,20 +532,55 @@ struct OverlayKeycapView: View {
 
     // MARK: - Styling
 
+    /// Interpolate between two colors based on progress (0 = from, 1 = to)
+    private func interpolate(from: Color, to: Color, progress: CGFloat) -> (red: Double, green: Double, blue: Double) {
+        // Extract RGB components (simplified - assumes sRGB)
+        let fromRGB = NSColor(from).usingColorSpace(.sRGB) ?? NSColor.black
+        let toRGB = NSColor(to).usingColorSpace(.sRGB) ?? NSColor.black
+
+        let r = Double(fromRGB.redComponent) * (1 - progress) + Double(toRGB.redComponent) * progress
+        let g = Double(fromRGB.greenComponent) * (1 - progress) + Double(toRGB.greenComponent) * progress
+        let b = Double(fromRGB.blueComponent) * (1 - progress) + Double(toRGB.blueComponent) * progress
+
+        return (r, g, b)
+    }
+
     private var cornerRadius: CGFloat {
         key.layoutRole == .arrow ? 3 * scale : 4 * scale
     }
 
     private var keyBackground: Color {
-        backgroundColor.opacity(1 - 0.9 * fadeAmount)
+        // For per-key release fade: blend from blue to black
+        if isReleaseFading, fadeAmount > 0 {
+            let blue = Color.accentColor
+            let black = Color(white: 0.08)
+            return Color(
+                red: interpolate(from: blue, to: black, progress: fadeAmount).red,
+                green: interpolate(from: blue, to: black, progress: fadeAmount).green,
+                blue: interpolate(from: blue, to: black, progress: fadeAmount).blue
+            )
+        }
+        // For global overlay fade: use opacity
+        else if fadeAmount > 0 {
+            return backgroundColor.opacity(1 - 0.9 * fadeAmount)
+        }
+        // No fade: use base color
+        else {
+            return backgroundColor
+        }
     }
 
     private var keyStroke: Color {
-        Color.white.opacity(0.35 * fadeAmount)
+        // Show white stroke during global overlay fade only
+        if isReleaseFading {
+            Color.white.opacity(0)
+        } else {
+            Color.white.opacity(0.35 * fadeAmount)
+        }
     }
 
     private var strokeWidth: CGFloat {
-        fadeAmount * scale
+        isReleaseFading ? 0 : fadeAmount * scale
     }
 
     private var shadowColor: Color {

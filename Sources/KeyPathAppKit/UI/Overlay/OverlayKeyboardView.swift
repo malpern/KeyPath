@@ -8,7 +8,8 @@ struct OverlayKeyboardView: View {
     let layout: PhysicalLayout
     let pressedKeyCodes: Set<UInt16>
     var isDarkMode: Bool = false
-    var fadeAmount: CGFloat = 0 // 0 = fully visible, 1 = fully faded
+    var fadeAmount: CGFloat = 0 // 0 = fully visible, 1 = fully faded (global overlay fade)
+    var keyFadeAmounts: [UInt16: CGFloat] = [:] // Per-key fade amounts for release animation
     var currentLayerName: String = "base"
     var isLoadingLayerMap: Bool = false
     /// Key mapping for current layer: keyCode -> LayerKeyInfo
@@ -62,13 +63,18 @@ struct OverlayKeyboardView: View {
             )
         }
 
+        // Use per-key fade amount if available, otherwise use global fade
+        let hasPerKeyFade = keyFadeAmounts[key.keyCode] != nil
+        let effectiveFadeAmount = keyFadeAmounts[key.keyCode] ?? fadeAmount
+
         return OverlayKeycapView(
             key: key,
             isPressed: isPressed,
             scale: scale,
             isDarkMode: isDarkMode,
             isCapsLockOn: isCapsLockOn,
-            fadeAmount: fadeAmount,
+            fadeAmount: effectiveFadeAmount,
+            isReleaseFading: hasPerKeyFade,
             currentLayerName: currentLayerName,
             isLoadingLayerMap: isLoadingLayerMap,
             layerKeyInfo: layerKeyMap[key.keyCode],

@@ -27,6 +27,7 @@ struct LiveKeyboardOverlayView: View {
                 pressedKeyCodes: viewModel.pressedKeyCodes,
                 isDarkMode: isDark,
                 fadeAmount: fadeAmount,
+                keyFadeAmounts: viewModel.keyFadeAmounts,
                 currentLayerName: viewModel.currentLayerName,
                 isLoadingLayerMap: viewModel.isLoadingLayerMap,
                 layerKeyMap: viewModel.layerKeyMap,

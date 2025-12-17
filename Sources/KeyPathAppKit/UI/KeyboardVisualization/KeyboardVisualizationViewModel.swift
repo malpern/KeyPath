@@ -16,6 +16,10 @@ class KeyboardVisualizationViewModel: ObservableObject {
     @Published var fadeAmount: CGFloat = 0
     /// Deep fade level for full keyboard opacity (0 = normal, 1 = 5% visible)
     @Published var deepFadeAmount: CGFloat = 0
+    /// Per-key fade amounts for release animation (keyCode -> fade amount 0-1)
+    @Published var keyFadeAmounts: [UInt16: CGFloat] = [:]
+    /// Active fade-out timers for released keys
+    private var fadeOutTasks: [UInt16: Task<Void, Never>] = [:]
 
     // MARK: - Timing Tunables
 
@@ -24,6 +28,12 @@ class KeyboardVisualizationViewModel: ObservableObject {
         /// Trade-off: higher = less flicker, lower = less linger.
         static var holdReleaseGrace: TimeInterval {
             TestEnvironment.isRunningTests ? 0 : 0.06
+        }
+
+        /// Duration of fade-out animation when key is released (seconds).
+        /// Short enough to feel snappy, long enough to create a pleasant linger effect.
+        static var keyReleaseFadeDuration: TimeInterval {
+            TestEnvironment.isRunningTests ? 0 : 0.25
         }
     }
 
@@ -159,6 +169,44 @@ class KeyboardVisualizationViewModel: ObservableObject {
         pressedKeyCodes.contains(key.keyCode)
     }
 
+    /// Start fade-out animation for a released key
+    private func startKeyFadeOut(_ keyCode: UInt16) {
+        // Cancel any existing fade-out for this key
+        fadeOutTasks[keyCode]?.cancel()
+
+        // Animate fade from 0 (visible) to 1 (faded) over the duration
+        let duration = OverlayTiming.keyReleaseFadeDuration
+        let steps = 20 // 20 steps for smooth animation
+        let stepDuration = duration / Double(steps)
+
+        let task = Task { @MainActor in
+            for step in 1 ... steps {
+                guard !Task.isCancelled else {
+                    keyFadeAmounts.removeValue(forKey: keyCode)
+                    return
+                }
+
+                let progress = CGFloat(step) / CGFloat(steps)
+                keyFadeAmounts[keyCode] = progress
+
+                try? await Task.sleep(for: .milliseconds(Int(stepDuration * 1000)))
+            }
+
+            // Fade complete - clean up
+            keyFadeAmounts.removeValue(forKey: keyCode)
+            fadeOutTasks.removeValue(forKey: keyCode)
+        }
+
+        fadeOutTasks[keyCode] = task
+    }
+
+    /// Cancel fade-out for a key that was re-pressed
+    private func cancelKeyFadeOut(_ keyCode: UInt16) {
+        fadeOutTasks[keyCode]?.cancel()
+        fadeOutTasks.removeValue(forKey: keyCode)
+        keyFadeAmounts.removeValue(forKey: keyCode)
+    }
+
     // MARK: - Private Event Handling
 
     private func setupEventTap() {
@@ -214,11 +262,13 @@ class KeyboardVisualizationViewModel: ObservableObject {
         Task { @MainActor in
             switch type {
             case .keyDown:
+                cancelKeyFadeOut(keyCode) // Cancel any ongoing fade-out
                 pressedKeyCodes.insert(keyCode)
                 AppLogger.shared.debug("⌨️ [KeyboardViz] KeyDown: \(keyCode)")
 
             case .keyUp:
                 pressedKeyCodes.remove(keyCode)
+                startKeyFadeOut(keyCode) // Start fade-out animation
                 AppLogger.shared.debug("⌨️ [KeyboardViz] KeyUp: \(keyCode)")
 
             case .flagsChanged:
@@ -661,6 +711,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
         switch action {
         case "press", "repeat":
+            cancelKeyFadeOut(keyCode) // Cancel any ongoing fade-out
             tcpPressedKeyCodes.insert(keyCode)
             // If a hold is already active for this key, keep it active and cancel any pending clear.
             if holdActiveKeyCodes.contains(keyCode) {
@@ -675,6 +726,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
             AppLogger.shared.debug("⌨️ [KeyboardViz] TCP KeyPress: \(key) -> keyCode \(keyCode)")
         case "release":
             tcpPressedKeyCodes.remove(keyCode)
+            startKeyFadeOut(keyCode) // Start fade-out animation
             // Defer clearing hold state briefly to tolerate tap-hold-press sequences that emit rapid releases.
             let work = DispatchWorkItem { [weak self] in
                 guard let self else { return }
