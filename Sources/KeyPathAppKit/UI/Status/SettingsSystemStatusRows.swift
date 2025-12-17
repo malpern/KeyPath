@@ -70,47 +70,7 @@ enum SettingsSystemStatusRowsBuilder {
             )
         )
 
-        // 4) Input Monitoring
-        let inputIssues = wizardIssues.filter { issue in
-            if case let .permission(req) = issue.identifier {
-                return req == .keyPathInputMonitoring || req == .kanataInputMonitoring
-            }
-            return false
-        }
-        let inputStatus: InstallationStatus = wizardSystemState == .initializing
-            ? .notStarted
-            : issueStatus(for: inputIssues)
-        rows.append(
-            SettingsSystemStatusRowModel(
-                id: "input-monitoring",
-                title: "Input Monitoring Permission",
-                icon: "eye",
-                status: inputStatus,
-                targetPage: .inputMonitoring
-            )
-        )
-
-        // 5) Accessibility
-        let accessibilityIssues = wizardIssues.filter { issue in
-            if case let .permission(req) = issue.identifier {
-                return req == .keyPathAccessibility || req == .kanataAccessibility
-            }
-            return false
-        }
-        let accessibilityStatus: InstallationStatus = wizardSystemState == .initializing
-            ? .notStarted
-            : issueStatus(for: accessibilityIssues)
-        rows.append(
-            SettingsSystemStatusRowModel(
-                id: "accessibility",
-                title: "Accessibility",
-                icon: "accessibility",
-                status: accessibilityStatus,
-                targetPage: .accessibility
-            )
-        )
-
-        // 6) Karabiner Driver
+        // 4) Karabiner Driver
         let karabinerStatus = KarabinerComponentsStatusEvaluator.evaluate(
             systemState: wizardSystemState,
             issues: wizardIssues
