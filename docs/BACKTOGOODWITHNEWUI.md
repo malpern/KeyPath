@@ -66,15 +66,17 @@ Implementation plan:
 
 ## Block 3: Settings / Status Consistency Polish
 
-Status: In progress.
+Status: Done.
 
 Scope:
-- Ensure Settings → Status,
-  Settings → Status details,
-  and wizard summary all agree on red/yellow/green.
-- Improve diagnostics affordances:
-  one-click access to relevant logs and system panes.
+- Ensure Settings → Status, Settings → Status details, and wizard summary all agree on red/yellow/green.
+- Improve diagnostics affordances: one-click access to relevant logs and system panes.
 - Reduce “false green” states outside the wizard.
+
+Outcome:
+- Aligned all wizard/Settings status rows through the new `IssueSeverityInstallationStatusMapper`, so every status view shares a single canonical red/yellow/green determination without touching InstallerEngine or permission plumbing.
+- Added `SystemDiagnostics` helpers so each detail card exposes multi-action links to login items, accessibility/input monitoring panes, and Kanata/Karabiner logs directly from Settings.
+- Hardened the Kanata configuration generator (safety comments, output-trimming before aliasing, alias sanitization) and kept keyboard-visualizer tests stable with a zero hold-clear grace in test mode; the Block 3-focused tests pass (`swift test` exit 0).
 
 Safety notes:
 - Do not change permission checks or service launch model.
