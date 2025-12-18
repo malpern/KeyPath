@@ -1086,8 +1086,11 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         case .uninstalled:
             return false
         case .unknown:
-            // Treat unknown as not installed to avoid false positives in tests/UI
-            return false
+            // State is .unknown when process is running but SMAppService not fully registered yet.
+            // This happens during the startup window where SMAppService.status lags behind actual process state.
+            // Since .unknown specifically means "process running but unclear management" (see KanataDaemonManager:154),
+            // treat it as installed to allow recording during this transient state.
+            return true
         default:
             return true
         }

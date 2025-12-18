@@ -157,6 +157,18 @@ private struct CustomRuleRow: View {
         KeyboardVisualizationViewModel.extractAppLaunchIdentifier(from: rule.output)
     }
 
+    /// Extract system action identifier from push-msg output
+    private var systemActionIdentifier: String? {
+        // Look for (push-msg "system:ACTION_NAME") pattern
+        let pattern = #"\(push-msg\s+"system:([^"]+)"\)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []),
+              let match = regex.firstMatch(in: rule.output, range: NSRange(rule.output.startIndex..., in: rule.output)),
+              let actionRange = Range(match.range(at: 1), in: rule.output) else {
+            return nil
+        }
+        return String(rule.output[actionRange])
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 12) {
@@ -170,9 +182,11 @@ private struct CustomRuleRow: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
 
-                        // Show app icon + name for launch actions, otherwise show key chip
+                        // Show appropriate chip based on action type
                         if let appId = appLaunchIdentifier {
                             AppLaunchChip(appIdentifier: appId)
+                        } else if let actionId = systemActionIdentifier {
+                            SystemActionChip(actionIdentifier: actionId)
                         } else {
                             KeyCapChip(text: rule.output)
                         }
@@ -422,5 +436,51 @@ private struct AppLaunchChip: View {
             // Use filename without extension
             appName = url.deletingPathExtension().lastPathComponent
         }
+    }
+}
+
+// MARK: - System Action Chip
+
+/// Displays an SF Symbol icon and action name in a chip style for system actions
+private struct SystemActionChip: View {
+    let actionIdentifier: String
+
+    /// Map system action IDs to SF Symbol icons and display names
+    private var actionInfo: (icon: String, name: String) {
+        switch actionIdentifier.lowercased() {
+        case "spotlight": return ("magnifyingglass", "Spotlight")
+        case "mission-control", "missioncontrol": return ("rectangle.3.group", "Mission Control")
+        case "launchpad": return ("square.grid.3x3", "Launchpad")
+        case "dnd", "do-not-disturb", "donotdisturb": return ("moon.fill", "Do Not Disturb")
+        case "notification-center", "notificationcenter": return ("bell.fill", "Notification Center")
+        case "dictation": return ("mic.fill", "Dictation")
+        case "siri": return ("waveform.circle.fill", "Siri")
+        default: return ("gearshape.fill", actionIdentifier.capitalized)
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            // System action SF Symbol
+            Image(systemName: actionInfo.icon)
+                .font(.system(size: 12))
+                .foregroundColor(.accentColor)
+                .frame(width: 16, height: 16)
+
+            // Action name
+            Text(actionInfo.name)
+                .font(.caption)
+                .fontWeight(.medium)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.accentColor.opacity(0.15))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(Color.accentColor.opacity(0.3), lineWidth: 0.5)
+        )
     }
 }

@@ -78,6 +78,8 @@ struct MapperView: View {
     var presetOutput: String?
     /// Optional preset layer from overlay click
     var presetLayer: String?
+    /// Optional input keyCode from overlay click (for proper keycap rendering)
+    var presetInputKeyCode: UInt16?
 
     /// Error alert state
     @State private var showingErrorAlert = false
@@ -173,7 +175,7 @@ struct MapperView: View {
             viewModel.configure(kanataManager: kanataManager.underlyingManager)
             // Apply preset values if provided
             if let presetInput, let presetOutput {
-                viewModel.applyPresets(input: presetInput, output: presetOutput, layer: presetLayer)
+                viewModel.applyPresets(input: presetInput, output: presetOutput, layer: presetLayer, inputKeyCode: presetInputKeyCode)
             } else {
                 // No preset - use current layer from kanataManager
                 viewModel.setLayer(kanataManager.currentLayerName)
@@ -187,7 +189,8 @@ struct MapperView: View {
             if let input = notification.userInfo?["input"] as? String,
                let output = notification.userInfo?["output"] as? String {
                 let layer = notification.userInfo?["layer"] as? String
-                viewModel.applyPresets(input: input, output: output, layer: layer)
+                let inputKeyCode = notification.userInfo?["inputKeyCode"] as? UInt16
+                viewModel.applyPresets(input: input, output: output, layer: layer, inputKeyCode: inputKeyCode)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .kanataLayerChanged)) { notification in
@@ -369,30 +372,27 @@ struct MapperKeycapView: View {
     @State private var isHovered = false
     @State private var isPressed = false
 
-    // Sizing constants
-    private let baseHeight: CGFloat = 100 // Base keycap height (single line)
+    // Sizing constants (match MapperInputKeycap for consistency)
+    private let baseHeight: CGFloat = 100 // Base keycap height
+    private let baseWidth: CGFloat = 100 // Fixed width to match input keycap
     private let maxHeightMultiplier: CGFloat = 1.5 // Max height is 1.5x base (150pt)
-    private let minWidth: CGFloat = 100 // Minimum width
     private let horizontalPadding: CGFloat = 20 // Padding for text
     private let verticalPadding: CGFloat = 14 // Padding top/bottom
-    private let baseFontSize: CGFloat = 36 // Large base font size
+    private let baseFontSize: CGFloat = 32 // Match MapperInputKeycap (32pt)
     private let minFontSize: CGFloat = 12 // Minimum font size when shrinking
-    private let cornerRadius: CGFloat = 16
+    private let cornerRadius: CGFloat = 10 // Match MapperInputKeycap
 
     /// Maximum height for the keycap
     private var maxHeight: CGFloat {
         baseHeight * maxHeightMultiplier
     }
 
-    /// Calculate the actual width of the keycap
+    /// Fixed width to match input keycap
     private var keycapWidth: CGFloat {
-        let charWidth: CGFloat = dynamicFontSize * 0.6
-        let contentWidth = CGFloat(label.count) * charWidth + horizontalPadding * 2
-        let naturalWidth = max(minWidth, contentWidth)
-        return min(naturalWidth, maxWidth)
+        baseWidth
     }
 
-    /// Calculate font size - shrinks if content won't fit in max height
+    /// Dynamic font size - starts at 32pt, shrinks for long content
     private var dynamicFontSize: CGFloat {
         guard maxWidth < .infinity else { return baseFontSize }
 
@@ -412,16 +412,14 @@ struct MapperKeycapView: View {
         }
 
         // Otherwise, calculate what font size would fit
-        // We need to fit the same content in maxHeight
         let availableTextHeight = maxHeight - verticalPadding * 2
-        // Estimate: shrink proportionally
         let scaleFactor = availableTextHeight / (linesNeeded * lineHeight)
         let newFontSize = baseFontSize * scaleFactor
 
         return max(minFontSize, newFontSize)
     }
 
-    /// Calculate height based on content and font size, capped at max
+    /// Dynamic height - grows up to 150pt for long content
     private var keycapHeight: CGFloat {
         guard maxWidth < .infinity else { return baseHeight }
 
@@ -465,15 +463,17 @@ struct MapperKeycapView: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
             } else if let symbol = sfSymbol {
-                // System action mode: show SF Symbol icon
+                // System action mode: show SF Symbol icon (match input keycap size)
                 Image(systemName: symbol)
-                    .font(.system(size: 48, weight: .medium))
+                    .font(.system(size: 24, weight: .regular)) // Match MapperInputKeycap function key size
                     .foregroundStyle(foregroundColor)
                     .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity) // Center in available space
             } else {
-                // Key label - wraps to multiple lines, shrinks if needed
+                        // Key label - wraps to multiple lines, shrinks if needed
+                // Match INPUT keycap sizing for symbols
                 Text(label)
-                    .font(.system(size: dynamicFontSize, weight: .medium))
+                    .font(.system(size: label.count <= 2 ? 24 : dynamicFontSize, weight: .medium))
                     .foregroundStyle(foregroundColor)
                     .multilineTextAlignment(.center)
                     .lineSpacing(2)
@@ -752,20 +752,32 @@ struct MapperInputKeycap: View {
 
     @ViewBuilder
     private var bottomAlignedContent: some View {
-        let wordLabel = labelMetadata.wordLabel ?? label
+        // In mapper context, center all content (text or symbols) for consistency
+        // Mapper shows clean, centered keycaps without physical keyboard layout quirks
+        let isSimpleText = label.allSatisfy { $0.isLetter || $0.isNumber }
+        let isSingleSymbol = label.count <= 2 && !isSimpleText // Single icon/symbol
 
-        VStack {
-            Spacer()
-            HStack {
-                Text(wordLabel.lowercased())
-                    .font(.system(size: 16, weight: .regular))
-                    .foregroundStyle(foregroundColor)
+        if isSimpleText || isSingleSymbol {
+            // Mapper mode: show centered for consistency with output keycap
+            Text(label.lowercased())
+                .font(.system(size: 32, weight: .medium))
+                .foregroundStyle(foregroundColor)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            // Overlay mode: show bottom-aligned for word labels (shift, return, etc.)
+            VStack {
                 Spacer()
+                HStack {
+                    Text(label.lowercased())
+                        .font(.system(size: 16, weight: .regular))
+                        .foregroundStyle(foregroundColor)
+                    Spacer()
+                }
+                .padding(.leading, 12)
+                .padding(.bottom, 10)
             }
-            .padding(.leading, 12)
-            .padding(.bottom, 10)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Layout: Arrow
@@ -920,8 +932,77 @@ class MapperViewModel: ObservableObject {
 
     /// SF Symbol for the selected system action (if any)
     var outputSFSymbol: String? {
-        selectedSystemAction?.sfSymbol
+        // Check if a system action is selected
+        if let action = selectedSystemAction {
+            return action.sfSymbol
+        }
+
+        // Check if output sequence contains a media key or function key
+        if let sequence = outputSequence,
+           let firstKey = sequence.keys.first?.baseKey.uppercased() {
+            // Debug: log the key name to help with mapping
+            AppLogger.shared.log("🔍 [MapperViewModel] Looking up SF Symbol for key: '\(firstKey)'")
+            if let symbol = Self.mediaKeySymbols[firstKey] {
+                AppLogger.shared.log("✅ [MapperViewModel] Found SF Symbol: \(symbol)")
+                return symbol
+            } else {
+                AppLogger.shared.log("❌ [MapperViewModel] No SF Symbol mapping for: '\(firstKey)'")
+            }
+        }
+
+        return nil
     }
+
+    /// Mapping of media keys and function keys to SF Symbol icons
+    private static let mediaKeySymbols: [String: String] = [
+        // Media controls
+        "PREVIOUSSONG": "backward.fill",
+        "MEDIAPREVIOUSSONG": "backward.fill",
+        "PREVIOUSTRACK": "backward.fill",
+        "NEXTSONG": "forward.fill",
+        "MEDIANEXTSONG": "forward.fill",
+        "NEXTTRACK": "forward.fill",
+        "PLAYPAUSE": "playpause.fill",
+        "MEDIAPLAYPAUSE": "playpause.fill",
+        "PLAY": "play.fill",
+        "PAUSE": "pause.fill",
+        "STOP": "stop.fill",
+
+        // Volume (all variations)
+        "MUTE": "speaker.slash.fill",
+        "VOLUMEUP": "speaker.wave.3.fill",
+        "VOLUMEDOWN": "speaker.wave.1.fill",
+        "VOLUP": "speaker.wave.3.fill",
+        "VOLDWN": "speaker.wave.1.fill",
+        "VOLDOWN": "speaker.wave.1.fill",
+
+        // Brightness
+        "BRIGHTNESSUP": "sun.max.fill",
+        "BRIGHTNESSDOWN": "sun.min.fill",
+        "BRUP": "sun.max.fill",
+        "BRDWN": "sun.min.fill",
+        "BRDOWN": "sun.min.fill",
+
+        // Mission Control / Exposé
+        "MISSIONCONTROL": "rectangle.3.group.fill",
+        "EXPOSE": "rectangle.3.group.fill",
+        "LAUNCHPAD": "square.grid.3x3.fill",
+
+        // Spotlight & Dictation
+        "SPOTLIGHT": "magnifyingglass",
+        "DICTATION": "mic.fill",
+
+        // Keyboard backlight
+        "KBDILLUMUP": "light.max",
+        "KBDILLUMDOWN": "light.min",
+        "KBDILLUMTOGGLE": "lightbulb.fill",
+
+        // Function/Globe key
+        "FN": "globe",
+        "FUNCTION": "globe",
+        "K4": "globe",  // Kanata representation
+        "64": "globe"   // Key code
+    ]
 
     func configure(kanataManager: RuntimeCoordinator) {
         self.kanataManager = kanataManager
@@ -934,7 +1015,7 @@ class MapperViewModel: ObservableObject {
     }
 
     /// Apply preset values from overlay click
-    func applyPresets(input: String, output: String, layer: String? = nil) {
+    func applyPresets(input: String, output: String, layer: String? = nil, inputKeyCode: UInt16? = nil) {
         // Stop any active recording
         stopRecording()
 
@@ -956,10 +1037,10 @@ class MapperViewModel: ObservableObject {
         outputLabel = formatKeyForDisplay(output)
 
         // Create simple key sequences for the presets
-        // These are kanata key names, so we create basic sequences
-        // Use keyCode 0 as placeholder since we only have the kanata name
+        // Use provided keyCode if available (from overlay), otherwise 0 as placeholder
+        let keyCodeToUse = inputKeyCode ?? 0
         inputSequence = KeySequence(
-            keys: [KeyPress(baseKey: input, modifiers: [], keyCode: 0)],
+            keys: [KeyPress(baseKey: input, modifiers: [], keyCode: Int64(keyCodeToUse))],
             captureMode: .single
         )
         outputSequence = KeySequence(
@@ -967,14 +1048,22 @@ class MapperViewModel: ObservableObject {
             captureMode: .single
         )
 
+        // Store the keyCode for proper keycap rendering
+        if let inputKeyCode {
+            self.inputKeyCode = inputKeyCode
+        }
+
         statusMessage = nil
         statusIsError = false
 
-        AppLogger.shared.log("📝 [MapperViewModel] Applied presets: \(input) → \(output) [layer: \(currentLayer)]")
+        AppLogger.shared.log("📝 [MapperViewModel] Applied presets: \(input) → \(output) [layer: \(currentLayer)] [inputKeyCode: \(keyCodeToUse)]")
     }
 
     /// Format a kanata key name for display (e.g., "leftmeta" -> "⌘")
     private func formatKeyForDisplay(_ key: String) -> String {
+        // Log what we're trying to format for debugging
+        AppLogger.shared.log("🔤 [MapperViewModel] formatKeyForDisplay input: '\(key)'")
+
         let displayMap: [String: String] = [
             "leftmeta": "⌘",
             "rightmeta": "⌘",
@@ -985,17 +1074,49 @@ class MapperViewModel: ObservableObject {
             "leftctrl": "⌃",
             "rightctrl": "⌃",
             "capslock": "⇪",
-            "space": "␣",
+            // Space key - use bottom bracket symbol to match input
+            "space": "⎵",
+            "spc": "⎵",
+            "sp": "⎵",  // Convert SP abbreviation to match input symbol
+            "⎵": "⎵",  // Pass through bottom bracket
             "enter": "↩",
-            "tab": "⇥",
+            "tab": "tab",
+            "⭾": "tab",  // Simulator returns U+2B7E for unmapped tab
             "backspace": "⌫",
             "esc": "⎋",
+            // Arrow keys - match overlay symbols exactly
             "left": "←",
             "right": "→",
             "up": "↑",
-            "down": "↓"
+            "down": "↓",
+            "←": "←",  // Pass through left arrow
+            "→": "→",  // Pass through right arrow
+            "↑": "↑",  // Pass through up arrow
+            "↓": "↓",  // Pass through down arrow
+            "arrowleft": "←",
+            "arrowright": "→",
+            "arrowup": "↑",
+            "arrowdown": "↓",
+            "⬅": "←",  // Black leftwards arrow
+            "➡": "→",  // Black rightwards arrow
+            "⬆": "↑",  // Black upwards arrow
+            "⬇": "↓",  // Black downwards arrow
+            "⇦": "←",  // Leftwards white arrow
+            "⇨": "→",  // Rightwards white arrow
+            "⇩": "↓",  // Downwards white arrow
+            // Function/Globe key - map all possible representations
+            "fn": "🌐",
+            "🌐": "🌐",  // Globe symbol (pass through)
+            "function": "🌐",
+            "k4": "🌐",  // Kanata internal representation
+            "64": "🌐",  // Key code for fn key
+            "k4 64": "🌐",  // Combined format
+            "k464": "🌐"  // No-space format
         ]
-        return displayMap[key.lowercased()] ?? key.uppercased()
+
+        let result = displayMap[key.lowercased()] ?? key.uppercased()
+        AppLogger.shared.log("🔤 [MapperViewModel] formatKeyForDisplay output: '\(result)'")
+        return result
     }
 
     func toggleInputRecording() {
@@ -1176,8 +1297,7 @@ class MapperViewModel: ObservableObject {
             // Track the saved rule ID for potential clearing
             lastSavedRuleID = customRule.id
 
-            // Notify overlay to refresh with new mapping
-            NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
+            // Note: .kanataConfigChanged notification is posted by onRulesChanged callback
 
             statusMessage = "✓ Saved"
             statusIsError = false
@@ -1212,9 +1332,8 @@ class MapperViewModel: ObservableObject {
         if let ruleID = lastSavedRuleID, let manager = kanataManager {
             Task {
                 await manager.removeCustomRule(withID: ruleID)
-                // Notify overlay to refresh
-                NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
-                AppLogger.shared.log("🧹 [MapperViewModel] Deleted rule \(ruleID) and refreshed overlay")
+                // Note: .kanataConfigChanged notification is posted by onRulesChanged callback
+                AppLogger.shared.log("🧹 [MapperViewModel] Deleted rule \(ruleID)")
             }
             lastSavedRuleID = nil
         }
@@ -1256,8 +1375,7 @@ class MapperViewModel: ObservableObject {
             originalLayer = nil
             currentLayer = "base"
 
-            // Notify overlay to refresh
-            NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
+            // Note: .kanataConfigChanged notification is posted by onRulesChanged callback
 
             statusMessage = "✓ Reset to defaults"
             statusIsError = false
@@ -1354,8 +1472,7 @@ class MapperViewModel: ObservableObject {
 
         if success {
             lastSavedRuleID = customRule.id
-            // Notify overlay to refresh
-            NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
+            // Note: .kanataConfigChanged notification is posted by onRulesChanged callback
             statusMessage = "✓ Saved"
             statusIsError = false
             AppLogger.shared.log("✅ [MapperViewModel] Saved app launch: \(inputSeq.displayString) → launch:\(app.name) [layer: \(currentLayer)]")
@@ -1413,7 +1530,7 @@ class MapperViewModel: ObservableObject {
 
         if success {
             lastSavedRuleID = customRule.id
-            NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
+            // Note: .kanataConfigChanged notification is posted by onRulesChanged callback
             statusMessage = "✓ Saved"
             statusIsError = false
             AppLogger.shared.log("✅ [MapperViewModel] Saved system action: \(inputSeq.displayString) → \(action.name) [layer: \(currentLayer)]")
@@ -1481,8 +1598,8 @@ class MapperWindowController {
 
     static let shared = MapperWindowController()
 
-    /// Show the Mapper window, optionally with preset input/output values and layer from overlay click
-    func showWindow(viewModel: KanataViewModel, presetInput: String? = nil, presetOutput: String? = nil, layer: String? = nil) {
+    /// Show the Mapper window, optionally with preset input/output values, layer, and input keyCode from overlay click
+    func showWindow(viewModel: KanataViewModel, presetInput: String? = nil, presetOutput: String? = nil, layer: String? = nil, inputKeyCode: UInt16? = nil) {
         self.viewModel = viewModel
         pendingPresetInput = presetInput
         pendingPresetOutput = presetOutput
@@ -1495,6 +1612,9 @@ class MapperWindowController {
                 if let layer {
                     userInfo["layer"] = layer
                 }
+                if let inputKeyCode {
+                    userInfo["inputKeyCode"] = inputKeyCode
+                }
                 NotificationCenter.default.post(
                     name: .mapperPresetValues,
                     object: nil,
@@ -1505,7 +1625,7 @@ class MapperWindowController {
             return
         }
 
-        let contentView = MapperView(presetInput: presetInput, presetOutput: presetOutput, presetLayer: layer)
+        let contentView = MapperView(presetInput: presetInput, presetOutput: presetOutput, presetLayer: layer, presetInputKeyCode: inputKeyCode)
             .environmentObject(viewModel)
 
         // Window height calculation:

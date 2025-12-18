@@ -16,6 +16,9 @@ struct LayerKeyInfo: Equatable, Sendable {
     /// App identifier for launch action (bundle ID or app name)
     /// When set, overlay should show app icon instead of text
     let appLaunchIdentifier: String?
+    /// System action identifier (e.g., "dnd", "spotlight")
+    /// When set, overlay should show SF Symbol icon for the action
+    let systemActionIdentifier: String?
 
     init(
         displayLabel: String,
@@ -23,7 +26,8 @@ struct LayerKeyInfo: Equatable, Sendable {
         outputKeyCode: UInt16?,
         isTransparent: Bool,
         isLayerSwitch: Bool,
-        appLaunchIdentifier: String? = nil
+        appLaunchIdentifier: String? = nil,
+        systemActionIdentifier: String? = nil
     ) {
         self.displayLabel = displayLabel
         self.outputKey = outputKey
@@ -31,6 +35,7 @@ struct LayerKeyInfo: Equatable, Sendable {
         self.isTransparent = isTransparent
         self.isLayerSwitch = isLayerSwitch
         self.appLaunchIdentifier = appLaunchIdentifier
+        self.systemActionIdentifier = systemActionIdentifier
     }
 
     /// Creates info for a normal key mapping
@@ -85,14 +90,15 @@ struct LayerKeyInfo: Equatable, Sendable {
     /// - Parameters:
     ///   - action: The system action name (e.g., "dnd", "spotlight")
     ///   - description: Human-readable description for display
-    static func systemAction(action _: String, description: String) -> LayerKeyInfo {
+    static func systemAction(action: String, description: String) -> LayerKeyInfo {
         LayerKeyInfo(
             displayLabel: description,
             outputKey: nil,
             outputKeyCode: nil,
             isTransparent: false,
             isLayerSwitch: false,
-            appLaunchIdentifier: nil
+            appLaunchIdentifier: nil,
+            systemActionIdentifier: action
         )
     }
 

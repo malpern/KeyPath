@@ -144,42 +144,46 @@ struct LabelMetadata {
     // MARK: - Lookup
 
     static func forLabel(_ label: String) -> LabelMetadata {
-        switch label {
+        // Check for labels that start with symbol + space + text (e.g., "⇥ tab")
+        // Extract just the symbol part for matching
+        let cleanLabel = label.contains(" ") ? String(label.split(separator: " ").first ?? "") : label
+
+        switch cleanLabel {
         // Wide modifiers
-        case "⇧": LabelMetadata(wordLabel: "shift")
-        case "↩": LabelMetadata(wordLabel: "return")
-        case "⌫": LabelMetadata(wordLabel: "delete")
-        case "⇥": LabelMetadata(wordLabel: "tab")
-        case "⇪": LabelMetadata(wordLabel: "caps lock")
-        case "⎋": LabelMetadata(wordLabel: "esc")
+        case "⇧": return LabelMetadata(wordLabel: "shift")
+        case "↩": return LabelMetadata(wordLabel: "return")
+        case "⌫": return LabelMetadata(wordLabel: "delete")
+        case "⇥": return LabelMetadata(wordLabel: "tab")
+        case "⇪": return LabelMetadata(wordLabel: "caps lock")
+        case "⎋": return LabelMetadata(wordLabel: "esc")
         // Bottom modifiers
-        case "⌃": LabelMetadata(wordLabel: "control")
-        case "⌥": LabelMetadata(wordLabel: "option")
-        case "⌘": LabelMetadata(wordLabel: "command")
+        case "⌃": return LabelMetadata(wordLabel: "control")
+        case "⌥": return LabelMetadata(wordLabel: "option")
+        case "⌘": return LabelMetadata(wordLabel: "command")
         // Number row shift symbols
-        case "1": LabelMetadata(shiftSymbol: "!")
-        case "2": LabelMetadata(shiftSymbol: "@")
-        case "3": LabelMetadata(shiftSymbol: "#")
-        case "4": LabelMetadata(shiftSymbol: "$")
-        case "5": LabelMetadata(shiftSymbol: "%")
-        case "6": LabelMetadata(shiftSymbol: "^")
-        case "7": LabelMetadata(shiftSymbol: "&")
-        case "8": LabelMetadata(shiftSymbol: "*")
-        case "9": LabelMetadata(shiftSymbol: "(")
-        case "0": LabelMetadata(shiftSymbol: ")")
+        case "1": return LabelMetadata(shiftSymbol: "!")
+        case "2": return LabelMetadata(shiftSymbol: "@")
+        case "3": return LabelMetadata(shiftSymbol: "#")
+        case "4": return LabelMetadata(shiftSymbol: "$")
+        case "5": return LabelMetadata(shiftSymbol: "%")
+        case "6": return LabelMetadata(shiftSymbol: "^")
+        case "7": return LabelMetadata(shiftSymbol: "&")
+        case "8": return LabelMetadata(shiftSymbol: "*")
+        case "9": return LabelMetadata(shiftSymbol: "(")
+        case "0": return LabelMetadata(shiftSymbol: ")")
         // Dual symbol keys
-        case ",": LabelMetadata(shiftSymbol: "<")
-        case ".": LabelMetadata(shiftSymbol: ">")
-        case "/": LabelMetadata(shiftSymbol: "?")
-        case ";": LabelMetadata(shiftSymbol: ":")
-        case "'": LabelMetadata(shiftSymbol: "\"")
-        case "[": LabelMetadata(shiftSymbol: "{")
-        case "]": LabelMetadata(shiftSymbol: "}")
-        case "\\": LabelMetadata(shiftSymbol: "|")
-        case "`": LabelMetadata(shiftSymbol: "~")
-        case "-": LabelMetadata(shiftSymbol: "_")
-        case "=": LabelMetadata(shiftSymbol: "+")
-        default: LabelMetadata()
+        case ",": return LabelMetadata(shiftSymbol: "<")
+        case ".": return LabelMetadata(shiftSymbol: ">")
+        case "/": return LabelMetadata(shiftSymbol: "?")
+        case ";": return LabelMetadata(shiftSymbol: ":")
+        case "'": return LabelMetadata(shiftSymbol: "\"")
+        case "[": return LabelMetadata(shiftSymbol: "{")
+        case "]": return LabelMetadata(shiftSymbol: "}")
+        case "\\": return LabelMetadata(shiftSymbol: "|")
+        case "`": return LabelMetadata(shiftSymbol: "~")
+        case "-": return LabelMetadata(shiftSymbol: "_")
+        case "=": return LabelMetadata(shiftSymbol: "+")
+        default: return LabelMetadata()
         }
     }
 

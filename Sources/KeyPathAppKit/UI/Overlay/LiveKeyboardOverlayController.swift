@@ -185,12 +185,13 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
         AppLogger.shared.log("🖱️ [OverlayController] Key clicked: \(key.label) (keyCode: \(key.keyCode)) -> \(outputKey) [layer: \(currentLayer)]")
 
-        // Open Mapper with preset values and current layer
+        // Open Mapper with preset values, current layer, and input keyCode
         MapperWindowController.shared.showWindow(
             viewModel: kanataViewModel,
             presetInput: inputKey,
             presetOutput: outputKey,
-            layer: currentLayer
+            layer: currentLayer,
+            inputKeyCode: key.keyCode
         )
     }
 

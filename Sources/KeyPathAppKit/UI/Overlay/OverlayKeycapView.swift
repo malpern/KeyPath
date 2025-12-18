@@ -70,6 +70,28 @@ struct OverlayKeycapView: View {
         layerKeyInfo?.appLaunchIdentifier != nil
     }
 
+    /// Whether this key has a system action
+    private var hasSystemAction: Bool {
+        layerKeyInfo?.systemActionIdentifier != nil
+    }
+
+    /// SF Symbol icon for system action
+    private var systemActionIcon: String? {
+        guard let actionId = layerKeyInfo?.systemActionIdentifier else { return nil }
+
+        // Map system action IDs to SF Symbol icons (matching SystemActionInfo in MapperView)
+        switch actionId.lowercased() {
+        case "spotlight": return "magnifyingglass"
+        case "mission-control", "missioncontrol": return "rectangle.3.group"
+        case "launchpad": return "square.grid.3x3"
+        case "dnd", "do-not-disturb", "donotdisturb": return "moon.fill"
+        case "notification-center", "notificationcenter": return "bell.fill"
+        case "dictation": return "mic.fill"
+        case "siri": return "waveform.circle.fill"
+        default: return nil
+        }
+    }
+
     var body: some View {
         ZStack {
             // Key background with subtle shadow
@@ -202,10 +224,19 @@ struct OverlayKeycapView: View {
 
     @ViewBuilder
     private var keyContent: some View {
+        // Function keys always show F-label + icon (even when remapped)
+        if key.layoutRole == .functionKey {
+            functionKeyWithMappingContent
+        }
         // App launch keys show app icon regardless of layout role
-        if hasAppLaunch {
+        else if hasAppLaunch {
             appLaunchContent
-        } else {
+        }
+        // System action keys show SF Symbol icon
+        else if hasSystemAction {
+            systemActionContent
+        }
+        else {
             switch key.layoutRole {
             case .centered:
                 centeredContent
@@ -214,7 +245,7 @@ struct OverlayKeycapView: View {
             case .narrowModifier:
                 narrowModifierContent
             case .functionKey:
-                functionKeyContent
+                functionKeyContent // Should never reach here due to check above
             case .arrow:
                 arrowContent
             case .touchId:
@@ -240,6 +271,24 @@ struct OverlayKeycapView: View {
             Image(systemName: "app.fill")
                 .font(.system(size: 14 * scale, weight: .light))
                 .foregroundStyle(foregroundColor.opacity(0.6))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    // MARK: - Layout: System Action (shows SF Symbol icon)
+
+    @ViewBuilder
+    private var systemActionContent: some View {
+        if let iconName = systemActionIcon {
+            Image(systemName: iconName)
+                .font(.system(size: 10 * scale, weight: .medium))
+                .foregroundStyle(foregroundColor)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            // Fallback to text if icon not found
+            Text(effectiveLabel)
+                .font(.system(size: 14 * scale, weight: .medium))
+                .foregroundStyle(foregroundColor)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
@@ -420,6 +469,37 @@ struct OverlayKeycapView: View {
 
     // MARK: - Layout: Function Key
 
+    /// Function key with mapping support - shows icon + F-label
+    /// Handles both default function key icons and remapped actions
+    @ViewBuilder
+    private var functionKeyWithMappingContent: some View {
+        // Determine which icon to show:
+        // 1. System action icon (if mapped to system action like Spotlight)
+        // 2. Default function key icon (brightness, volume, etc.)
+        let iconName: String? = if hasSystemAction, let sysIcon = systemActionIcon {
+            sysIcon
+        } else {
+            LabelMetadata.sfSymbol(forKeyCode: key.keyCode)
+        }
+
+        VStack(spacing: 0) {
+            if let icon = iconName {
+                Image(systemName: icon)
+                    .font(.system(size: 8 * scale, weight: .regular))
+                    .foregroundStyle(foregroundColor)
+            }
+            Spacer()
+            // Always show F-key label (F1, F2, etc.)
+            Text(key.label)
+                .font(.system(size: 5.4 * scale, weight: .regular))
+                .foregroundStyle(foregroundColor.opacity(0.6))
+        }
+        .padding(.top, 4 * scale)
+        .padding(.bottom, 2 * scale)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Original function key content (kept for compatibility)
     @ViewBuilder
     private var functionKeyContent: some View {
         let sfSymbol = LabelMetadata.sfSymbol(forKeyCode: key.keyCode)
