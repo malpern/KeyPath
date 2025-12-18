@@ -900,14 +900,15 @@ struct SystemActionInfo: Equatable, Identifiable {
     }
 
     /// All available system actions
+    /// Uses non-.fill SF Symbol variants to match input keycap rendering for visual consistency
     static let allActions: [SystemActionInfo] = [
         SystemActionInfo(id: "spotlight", name: "Spotlight", sfSymbol: "magnifyingglass"),
         SystemActionInfo(id: "mission-control", name: "Mission Control", sfSymbol: "rectangle.3.group"),
         SystemActionInfo(id: "launchpad", name: "Launchpad", sfSymbol: "square.grid.3x3"),
-        SystemActionInfo(id: "dnd", name: "Do Not Disturb", sfSymbol: "moon.fill"),
-        SystemActionInfo(id: "notification-center", name: "Notification Center", sfSymbol: "bell.fill"),
-        SystemActionInfo(id: "dictation", name: "Dictation", sfSymbol: "mic.fill"),
-        SystemActionInfo(id: "siri", name: "Siri", sfSymbol: "waveform.circle.fill")
+        SystemActionInfo(id: "dnd", name: "Do Not Disturb", sfSymbol: "moon"),
+        SystemActionInfo(id: "notification-center", name: "Notification Center", sfSymbol: "bell"),
+        SystemActionInfo(id: "dictation", name: "Dictation", sfSymbol: "mic"),
+        SystemActionInfo(id: "siri", name: "Siri", sfSymbol: "waveform.circle")
     ]
 }
 
@@ -978,48 +979,49 @@ class MapperViewModel: ObservableObject {
     }
 
     /// Mapping of media keys and function keys to SF Symbol icons
+    /// Uses non-.fill variants to match input keycap rendering for visual consistency
     private static let mediaKeySymbols: [String: String] = [
-        // Media controls
-        "PREVIOUSSONG": "backward.fill",
-        "MEDIAPREVIOUSSONG": "backward.fill",
-        "PREVIOUSTRACK": "backward.fill",
-        "NEXTSONG": "forward.fill",
-        "MEDIANEXTSONG": "forward.fill",
-        "NEXTTRACK": "forward.fill",
-        "PLAYPAUSE": "playpause.fill",
-        "MEDIAPLAYPAUSE": "playpause.fill",
-        "PLAY": "play.fill",
-        "PAUSE": "pause.fill",
-        "STOP": "stop.fill",
+        // Media controls (match function keys F7-F9)
+        "PREVIOUSSONG": "backward",
+        "MEDIAPREVIOUSSONG": "backward",
+        "PREVIOUSTRACK": "backward",
+        "NEXTSONG": "forward",
+        "MEDIANEXTSONG": "forward",
+        "NEXTTRACK": "forward",
+        "PLAYPAUSE": "playpause",
+        "MEDIAPLAYPAUSE": "playpause",
+        "PLAY": "play",
+        "PAUSE": "pause",
+        "STOP": "stop",
 
-        // Volume (all variations)
-        "MUTE": "speaker.slash.fill",
-        "VOLUMEUP": "speaker.wave.3.fill",
-        "VOLUMEDOWN": "speaker.wave.1.fill",
-        "VOLUP": "speaker.wave.3.fill",
-        "VOLDWN": "speaker.wave.1.fill",
-        "VOLDOWN": "speaker.wave.1.fill",
+        // Volume (match function keys F10-F12)
+        "MUTE": "speaker.slash",
+        "VOLUMEUP": "speaker.wave.3",
+        "VOLUMEDOWN": "speaker.wave.1",
+        "VOLUP": "speaker.wave.3",
+        "VOLDWN": "speaker.wave.1",
+        "VOLDOWN": "speaker.wave.1",
 
-        // Brightness
-        "BRIGHTNESSUP": "sun.max.fill",
-        "BRIGHTNESSDOWN": "sun.min.fill",
-        "BRUP": "sun.max.fill",
-        "BRDWN": "sun.min.fill",
-        "BRDOWN": "sun.min.fill",
+        // Brightness (match function keys F1-F2)
+        "BRIGHTNESSUP": "sun.max",
+        "BRIGHTNESSDOWN": "sun.min",
+        "BRUP": "sun.max",
+        "BRDWN": "sun.min",
+        "BRDOWN": "sun.min",
 
-        // Mission Control / Exposé
-        "MISSIONCONTROL": "rectangle.3.group.fill",
-        "EXPOSE": "rectangle.3.group.fill",
-        "LAUNCHPAD": "square.grid.3x3.fill",
+        // Mission Control / Exposé (match function key F3-F4)
+        "MISSIONCONTROL": "rectangle.3.group",
+        "EXPOSE": "rectangle.3.group",
+        "LAUNCHPAD": "square.grid.3x3",
 
-        // Spotlight & Dictation
+        // Spotlight & Dictation (match function keys F4-F5)
         "SPOTLIGHT": "magnifyingglass",
-        "DICTATION": "mic.fill",
+        "DICTATION": "mic",
 
         // Keyboard backlight
         "KBDILLUMUP": "light.max",
         "KBDILLUMDOWN": "light.min",
-        "KBDILLUMTOGGLE": "lightbulb.fill",
+        "KBDILLUMTOGGLE": "lightbulb",
 
         // Function/Globe key
         "FN": "globe",
