@@ -140,6 +140,17 @@ struct MapperView: View {
                 .controlSize(.small)
                 .help("Pick app to launch")
 
+                // URL mapping button
+                Button {
+                    viewModel.showURLInputDialog()
+                } label: {
+                    Image(systemName: "link")
+                        .font(.caption)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("Map to web URL")
+
                 // Clear/reset button
                 // Single click: reset current mapping
                 // Double click: reset entire keyboard to defaults
@@ -222,6 +233,13 @@ struct MapperView: View {
             }
         } message: {
             Text("This will remove all custom rules and restore the keyboard to its default mappings.")
+        }
+        .sheet(isPresented: $viewModel.showingURLDialog) {
+            URLInputDialog(
+                urlText: $viewModel.urlInputText,
+                onSubmit: { viewModel.submitURL() },
+                onCancel: { viewModel.showingURLDialog = false }
+            )
         }
     }
 }
@@ -470,7 +488,7 @@ struct MapperKeycapView: View {
                     .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
                     .frame(maxWidth: .infinity, maxHeight: .infinity) // Center in available space
             } else {
-                        // Key label - wraps to multiple lines, shrinks if needed
+                // Key label - wraps to multiple lines, shrinks if needed
                 // Match INPUT keycap sizing for symbols
                 Text(label)
                     .font(.system(size: label.count <= 2 ? 24 : dynamicFontSize, weight: .medium))
@@ -907,6 +925,12 @@ class MapperViewModel: ObservableObject {
     @Published var selectedApp: AppLaunchInfo?
     /// Selected system action (nil = normal key output)
     @Published var selectedSystemAction: SystemActionInfo?
+    /// Selected URL for web URL mapping (nil = normal key output)
+    @Published var selectedURL: String?
+    /// Whether the URL input dialog is visible
+    @Published var showingURLDialog = false
+    /// Text input for URL dialog
+    @Published var urlInputText = ""
     /// Key code of the captured input (for overlay-style rendering)
     @Published var inputKeyCode: UInt16?
 
@@ -927,7 +951,7 @@ class MapperViewModel: ObservableObject {
     private let sequenceFinalizeDelay: TimeInterval = 0.8
 
     var canSave: Bool {
-        inputSequence != nil && (outputSequence != nil || selectedApp != nil || selectedSystemAction != nil)
+        inputSequence != nil && (outputSequence != nil || selectedApp != nil || selectedSystemAction != nil || selectedURL != nil)
     }
 
     /// SF Symbol for the selected system action (if any)
@@ -1000,8 +1024,8 @@ class MapperViewModel: ObservableObject {
         // Function/Globe key
         "FN": "globe",
         "FUNCTION": "globe",
-        "K4": "globe",  // Kanata representation
-        "64": "globe"   // Key code
+        "K4": "globe", // Kanata representation
+        "64": "globe" // Key code
     ]
 
     func configure(kanataManager: RuntimeCoordinator) {
@@ -1077,11 +1101,11 @@ class MapperViewModel: ObservableObject {
             // Space key - use bottom bracket symbol to match input
             "space": "⎵",
             "spc": "⎵",
-            "sp": "⎵",  // Convert SP abbreviation to match input symbol
-            "⎵": "⎵",  // Pass through bottom bracket
+            "sp": "⎵", // Convert SP abbreviation to match input symbol
+            "⎵": "⎵", // Pass through bottom bracket
             "enter": "↩",
             "tab": "tab",
-            "⭾": "tab",  // Simulator returns U+2B7E for unmapped tab
+            "⭾": "tab", // Simulator returns U+2B7E for unmapped tab
             "backspace": "⌫",
             "esc": "⎋",
             // Arrow keys - match overlay symbols exactly
@@ -1089,29 +1113,29 @@ class MapperViewModel: ObservableObject {
             "right": "→",
             "up": "↑",
             "down": "↓",
-            "←": "←",  // Pass through left arrow
-            "→": "→",  // Pass through right arrow
-            "↑": "↑",  // Pass through up arrow
-            "↓": "↓",  // Pass through down arrow
+            "←": "←", // Pass through left arrow
+            "→": "→", // Pass through right arrow
+            "↑": "↑", // Pass through up arrow
+            "↓": "↓", // Pass through down arrow
             "arrowleft": "←",
             "arrowright": "→",
             "arrowup": "↑",
             "arrowdown": "↓",
-            "⬅": "←",  // Black leftwards arrow
-            "➡": "→",  // Black rightwards arrow
-            "⬆": "↑",  // Black upwards arrow
-            "⬇": "↓",  // Black downwards arrow
-            "⇦": "←",  // Leftwards white arrow
-            "⇨": "→",  // Rightwards white arrow
-            "⇩": "↓",  // Downwards white arrow
+            "⬅": "←", // Black leftwards arrow
+            "➡": "→", // Black rightwards arrow
+            "⬆": "↑", // Black upwards arrow
+            "⬇": "↓", // Black downwards arrow
+            "⇦": "←", // Leftwards white arrow
+            "⇨": "→", // Rightwards white arrow
+            "⇩": "↓", // Downwards white arrow
             // Function/Globe key - map all possible representations
             "fn": "🌐",
-            "🌐": "🌐",  // Globe symbol (pass through)
+            "🌐": "🌐", // Globe symbol (pass through)
             "function": "🌐",
-            "k4": "🌐",  // Kanata internal representation
-            "64": "🌐",  // Key code for fn key
-            "k4 64": "🌐",  // Combined format
-            "k464": "🌐"  // No-space format
+            "k4": "🌐", // Kanata internal representation
+            "64": "🌐", // Key code for fn key
+            "k4 64": "🌐", // Combined format
+            "k464": "🌐" // No-space format
         ]
 
         let result = displayMap[key.lowercased()] ?? key.uppercased()
@@ -1218,13 +1242,21 @@ class MapperViewModel: ObservableObject {
 
         AppLogger.shared.log("🎯 [MapperViewModel] finalizeCapture: canSave=\(canSave) selectedApp=\(selectedApp?.name ?? "nil") inputSeq=\(inputSequence?.displayString ?? "nil")")
 
-        // Auto-save when input is captured and we have either output or app
+        // Auto-save when input is captured and we have either output or app/system action/URL
         if canSave, let manager = kanataManager {
             Task {
-                if selectedApp != nil {
+                if selectedURL != nil {
+                    // URL mapping
+                    AppLogger.shared.log("🎯 [MapperViewModel] Calling saveURLMapping")
+                    await saveURLMapping(kanataManager: manager)
+                } else if selectedApp != nil {
                     // App launch mapping
                     AppLogger.shared.log("🎯 [MapperViewModel] Calling saveAppLaunchMapping")
                     await saveAppLaunchMapping(kanataManager: manager)
+                } else if selectedSystemAction != nil {
+                    // System action mapping
+                    AppLogger.shared.log("🎯 [MapperViewModel] Calling saveSystemActionMapping")
+                    await saveSystemActionMapping(kanataManager: manager)
                 } else {
                     // Key-to-key mapping
                     await save(kanataManager: manager)
@@ -1327,6 +1359,7 @@ class MapperViewModel: ObservableObject {
         stopRecording()
         selectedApp = nil
         selectedSystemAction = nil
+        selectedURL = nil
 
         // Delete the saved rule if we have one
         if let ruleID = lastSavedRuleID, let manager = kanataManager {
@@ -1543,6 +1576,93 @@ class MapperViewModel: ObservableObject {
         isSaving = false
     }
 
+    /// Show the URL input dialog
+    func showURLInputDialog() {
+        urlInputText = ""
+        showingURLDialog = true
+    }
+
+    /// Submit the URL from the input dialog
+    func submitURL() {
+        let trimmed = urlInputText.trimmingCharacters(in: .whitespaces)
+
+        // Validate URL (no spaces, not empty)
+        guard !trimmed.isEmpty, !trimmed.contains(" ") else {
+            statusMessage = "Invalid URL"
+            statusIsError = true
+            return
+        }
+
+        selectedURL = trimmed
+        selectedApp = nil // Clear any app selection
+        selectedSystemAction = nil // Clear any system action selection
+        outputSequence = nil // Clear any key sequence output
+        outputLabel = extractDomain(from: trimmed)
+        showingURLDialog = false
+
+        AppLogger.shared.log("🌐 [MapperViewModel] Selected URL: \(trimmed)")
+
+        // Auto-save if input is already set
+        if let manager = kanataManager, inputSequence != nil {
+            AppLogger.shared.log("🌐 [MapperViewModel] Input already set, auto-saving...")
+            Task {
+                await saveURLMapping(kanataManager: manager)
+            }
+        }
+    }
+
+    /// Save a mapping that opens a web URL
+    private func saveURLMapping(kanataManager: RuntimeCoordinator) async {
+        AppLogger.shared.log("🌐 [MapperViewModel] saveURLMapping called")
+
+        guard let inputSeq = inputSequence, let url = selectedURL else {
+            AppLogger.shared.log("⚠️ [MapperViewModel] saveURLMapping: missing input or URL")
+            statusMessage = "Set input key first"
+            statusIsError = true
+            return
+        }
+
+        isSaving = true
+        statusMessage = nil
+
+        let inputKanata = convertSequenceToKanataFormat(inputSeq)
+        let outputKanata = "(push-msg \"open:\(url)\")"
+        let targetLayer = layerFromString(currentLayer)
+
+        AppLogger.shared.log("🌐 [MapperViewModel] Creating rule: input='\(inputKanata)' output='\(outputKanata)' layer=\(targetLayer)")
+
+        var customRule = kanataManager.makeCustomRule(input: inputKanata, output: outputKanata)
+        customRule.notes = "Open \(url) [\(currentLayer) layer]"
+        customRule.targetLayer = targetLayer
+
+        let success = await kanataManager.saveCustomRule(customRule, skipReload: false)
+        AppLogger.shared.log("🌐 [MapperViewModel] saveCustomRule returned: \(success)")
+
+        if success {
+            lastSavedRuleID = customRule.id
+            statusMessage = "✓ Saved"
+            statusIsError = false
+            AppLogger.shared.log("✅ [MapperViewModel] Saved URL mapping: \(inputSeq.displayString) → open:\(url) [layer: \(currentLayer)]")
+
+            // Trigger favicon fetch (fire-and-forget)
+            Task { _ = await FaviconFetcher.shared.fetchFavicon(for: url) }
+        } else {
+            statusMessage = "Failed to save"
+            statusIsError = true
+            AppLogger.shared.error("❌ [MapperViewModel] saveCustomRule returned false")
+        }
+
+        isSaving = false
+    }
+
+    /// Extract domain from URL for display purposes
+    private func extractDomain(from url: String) -> String {
+        let cleaned = url
+            .replacingOccurrences(of: "https://", with: "")
+            .replacingOccurrences(of: "http://", with: "")
+        return cleaned.components(separatedBy: "/").first ?? url
+    }
+
     /// Convert layer name string to RuleCollectionLayer
     private func layerFromString(_ name: String) -> RuleCollectionLayer {
         let lowercased = name.lowercased()
@@ -1656,6 +1776,41 @@ class MapperWindowController {
         window.makeKeyAndOrderFront(nil)
 
         self.window = window
+    }
+}
+
+// MARK: - URL Input Dialog
+
+/// Dialog for entering a web URL to map to a key
+private struct URLInputDialog: View {
+    @Binding var urlText: String
+    let onSubmit: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("Enter Web URL")
+                .font(.headline)
+
+            TextField("example.com or https://...", text: $urlText)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 300)
+                .onSubmit { onSubmit() }
+
+            HStack(spacing: 12) {
+                Button("Cancel") {
+                    onCancel()
+                }
+                .keyboardShortcut(.escape)
+
+                Button("OK") {
+                    onSubmit()
+                }
+                .keyboardShortcut(.return)
+            }
+        }
+        .padding(20)
+        .frame(width: 340)
     }
 }
 

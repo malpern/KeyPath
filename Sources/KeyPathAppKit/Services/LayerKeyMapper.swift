@@ -19,6 +19,9 @@ struct LayerKeyInfo: Equatable, Sendable {
     /// System action identifier (e.g., "dnd", "spotlight")
     /// When set, overlay should show SF Symbol icon for the action
     let systemActionIdentifier: String?
+    /// URL identifier for web URL mapping (e.g., "github.com", "https://example.com")
+    /// When set, overlay should show favicon instead of text
+    let urlIdentifier: String?
 
     init(
         displayLabel: String,
@@ -27,7 +30,8 @@ struct LayerKeyInfo: Equatable, Sendable {
         isTransparent: Bool,
         isLayerSwitch: Bool,
         appLaunchIdentifier: String? = nil,
-        systemActionIdentifier: String? = nil
+        systemActionIdentifier: String? = nil,
+        urlIdentifier: String? = nil
     ) {
         self.displayLabel = displayLabel
         self.outputKey = outputKey
@@ -36,6 +40,7 @@ struct LayerKeyInfo: Equatable, Sendable {
         self.isLayerSwitch = isLayerSwitch
         self.appLaunchIdentifier = appLaunchIdentifier
         self.systemActionIdentifier = systemActionIdentifier
+        self.urlIdentifier = urlIdentifier
     }
 
     /// Creates info for a normal key mapping
@@ -113,6 +118,34 @@ struct LayerKeyInfo: Equatable, Sendable {
             isLayerSwitch: false,
             appLaunchIdentifier: nil
         )
+    }
+
+    /// Creates info for a web URL action
+    /// - Parameter url: The URL to open (e.g., "github.com", "https://example.com")
+    /// - Note: displayLabel is set to the domain for text display,
+    ///         while urlIdentifier enables favicon rendering
+    static func webURL(url: String) -> LayerKeyInfo {
+        let displayDomain = extractDomain(from: url)
+        return LayerKeyInfo(
+            displayLabel: displayDomain,
+            outputKey: nil,
+            outputKeyCode: nil,
+            isTransparent: false,
+            isLayerSwitch: false,
+            appLaunchIdentifier: nil,
+            systemActionIdentifier: nil,
+            urlIdentifier: url
+        )
+    }
+
+    /// Extract domain from URL for display purposes
+    /// - Parameter url: The full URL
+    /// - Returns: Just the domain portion (e.g., "github.com" from "https://github.com/user/repo")
+    private static func extractDomain(from url: String) -> String {
+        let cleaned = url
+            .replacingOccurrences(of: "https://", with: "")
+            .replacingOccurrences(of: "http://", with: "")
+        return cleaned.components(separatedBy: "/").first ?? url
     }
 }
 
@@ -275,6 +308,13 @@ actor LayerKeyMapper {
                     isTransparent: false,
                     isLayerSwitch: false
                 )
+                continue
+            }
+
+            // Check if output is a URL mapping
+            if let urlMapping = extractURLMapping(from: keyMapping.outputs) {
+                mapping[keyCode] = .webURL(url: urlMapping)
+                AppLogger.shared.debug("🌐 [LayerKeyMapper] Mapped \(keyMapping.input)(\(keyCode)) -> URL(\(urlMapping))")
                 continue
             }
 
@@ -645,5 +685,29 @@ actor LayerKeyMapper {
         let first = data.first ?? 0
         let last = data.last ?? 0
         return "\(size)-\(first)-\(last)"
+    }
+
+    /// Extract URL from push-msg output if present
+    /// Returns URL string if output contains "open:...", nil otherwise
+    private func extractURLMapping(from outputs: [String]) -> String? {
+        for output in outputs {
+            let trimmed = output.trimmingCharacters(in: .whitespaces)
+
+            // Direct match: "open:github.com" (from push-msg in simulator output)
+            if trimmed.hasPrefix("open:") {
+                let url = String(trimmed.dropFirst(5)) // Remove "open:"
+                return url.isEmpty ? nil : url
+            }
+
+            // Also check for full push-msg format (in case simulator returns it verbatim)
+            // Pattern: (push-msg "open:...")
+            let pattern = #"push-msg\s+"open:([^"]+)""#
+            if let regex = try? NSRegularExpression(pattern: pattern),
+               let match = regex.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)),
+               let urlRange = Range(match.range(at: 1), in: trimmed) {
+                return String(trimmed[urlRange])
+            }
+        }
+        return nil
     }
 }

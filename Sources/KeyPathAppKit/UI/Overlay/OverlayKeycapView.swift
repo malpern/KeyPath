@@ -62,6 +62,9 @@ struct OverlayKeycapView: View {
     /// Cached app icon for launch actions
     @State private var appIcon: NSImage?
 
+    /// Cached favicon for URL actions
+    @State private var faviconImage: NSImage?
+
     /// Dwell time before key becomes clickable (200ms)
     private let clickableDwellTime: TimeInterval = 0.2
 
@@ -73,6 +76,11 @@ struct OverlayKeycapView: View {
     /// Whether this key has a system action
     private var hasSystemAction: Bool {
         layerKeyInfo?.systemActionIdentifier != nil
+    }
+
+    /// Whether this key has a URL mapping
+    private var hasURLMapping: Bool {
+        layerKeyInfo?.urlIdentifier != nil
     }
 
     /// SF Symbol icon for system action
@@ -169,12 +177,20 @@ struct OverlayKeycapView: View {
         )
         .onAppear {
             loadAppIconIfNeeded()
+            loadFaviconIfNeeded()
         }
         .onChange(of: layerKeyInfo?.appLaunchIdentifier) { _, newValue in
             if newValue != nil {
                 loadAppIconIfNeeded()
             } else {
                 appIcon = nil
+            }
+        }
+        .onChange(of: layerKeyInfo?.urlIdentifier) { _, newValue in
+            if newValue != nil {
+                loadFaviconIfNeeded()
+            } else {
+                faviconImage = nil
             }
         }
     }
@@ -220,6 +236,20 @@ struct OverlayKeycapView: View {
         return nil
     }
 
+    // MARK: - Favicon Loading
+
+    private func loadFaviconIfNeeded() {
+        guard let url = layerKeyInfo?.urlIdentifier else {
+            faviconImage = nil
+            return
+        }
+
+        Task { @MainActor in
+            let favicon = await FaviconFetcher.shared.fetchFavicon(for: url)
+            faviconImage = favicon
+        }
+    }
+
     // MARK: - Content Routing by Layout Role
 
     @ViewBuilder
@@ -228,6 +258,10 @@ struct OverlayKeycapView: View {
         if key.layoutRole == .functionKey {
             functionKeyWithMappingContent
         }
+        // URL mapping keys show favicon
+        else if hasURLMapping {
+            urlMappingContent
+        }
         // App launch keys show app icon regardless of layout role
         else if hasAppLaunch {
             appLaunchContent
@@ -235,8 +269,7 @@ struct OverlayKeycapView: View {
         // System action keys show SF Symbol icon
         else if hasSystemAction {
             systemActionContent
-        }
-        else {
+        } else {
             switch key.layoutRole {
             case .centered:
                 centeredContent
@@ -269,6 +302,25 @@ struct OverlayKeycapView: View {
         } else {
             // Fallback while loading or if icon not found
             Image(systemName: "app.fill")
+                .font(.system(size: 14 * scale, weight: .light))
+                .foregroundStyle(foregroundColor.opacity(0.6))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    // MARK: - Layout: URL Mapping (shows favicon)
+
+    @ViewBuilder
+    private var urlMappingContent: some View {
+        if let favicon = faviconImage {
+            Image(nsImage: favicon)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(4 * scale)
+        } else {
+            // Fallback while loading or if favicon not found
+            Image(systemName: "globe")
                 .font(.system(size: 14 * scale, weight: .light))
                 .foregroundStyle(foregroundColor.opacity(0.6))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
