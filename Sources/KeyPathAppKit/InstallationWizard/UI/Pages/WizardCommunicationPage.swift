@@ -234,6 +234,18 @@ struct WizardCommunicationPage: View {
                                     "Ready for instant configuration changes and external integrations")
                             }
                         }
+                    } else if reload.isCancellation {
+                        AppLogger.shared.log("⚠️ [WizardComm] TCP reload cancelled; retrying status check")
+                        await MainActor.run {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                commStatus = .checking
+                            }
+                        }
+                        Task {
+                            try? await Task.sleep(nanoseconds: 300_000_000)
+                            await checkCommunicationStatus()
+                        }
+                        return
                     } else {
                         let msg = reload.errorMessage ?? "TCP server responded but reload failed"
                         await MainActor.run {

@@ -1174,6 +1174,11 @@ enum TCPReloadResult {
             nil
         }
     }
+
+    var isCancellation: Bool {
+        guard let message = errorMessage else { return false }
+        return message.contains("CancellationError") || message.localizedCaseInsensitiveContains("cancel")
+    }
 }
 
 // MARK: - Timeout Helper
