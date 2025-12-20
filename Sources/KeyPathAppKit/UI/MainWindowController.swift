@@ -7,6 +7,7 @@ import SwiftUI
 @MainActor
 final class MainWindowController: NSWindowController {
     private var topLeftBeforeResize: NSPoint?
+    private var heightObserver: NSObjectProtocol?
 
     init(viewModel: KanataViewModel) {
         // Phase 4: MVVM - Use shared ViewModel (don't create a new one!)
@@ -70,11 +71,25 @@ final class MainWindowController: NSWindowController {
         window.delegate = self
 
         AppLogger.shared.log("🪟 [MainWindowController] Window controller initialized")
+
+        heightObserver = NotificationCenter.default.addObserver(
+            forName: .mainWindowHeightChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            self?.applyPreferredHeight(notification)
+        }
     }
 
     @available(*, unavailable)
     required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    deinit {
+        if let heightObserver {
+            NotificationCenter.default.removeObserver(heightObserver)
+        }
     }
 
     func show(focus _: Bool = true) {
@@ -123,6 +138,23 @@ final class MainWindowController: NSWindowController {
         guard let window else { return false }
         // Stronger predicate: check if window is actually key or visible on screen
         return window.isKeyWindow || window.occlusionState.contains(.visible)
+    }
+
+    private func applyPreferredHeight(_ notification: Notification) {
+        guard let window,
+              let height = notification.userInfo?["height"] as? CGFloat
+        else { return }
+
+        let clampedHeight = max(window.minSize.height, min(height, window.maxSize.height == 0 ? height : window.maxSize.height))
+        let currentHeight = window.frame.height
+        guard abs(currentHeight - clampedHeight) > 4 else { return }
+
+        let topLeft = NSPoint(x: window.frame.minX, y: window.frame.maxY)
+        var newFrame = window.frame
+        newFrame.size.height = clampedHeight
+        newFrame.origin.y = topLeft.y - clampedHeight
+
+        window.setFrame(newFrame, display: true, animate: true)
     }
 }
 

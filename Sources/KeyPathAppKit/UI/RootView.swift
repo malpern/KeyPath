@@ -11,12 +11,26 @@ struct RootView: View {
 
             // Foreground content places solid surfaces where needed for text
             ContentView()
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear
+                            .preference(key: WindowHeightPreferenceKey.self, value: proxy.size.height)
+                    }
+                )
         }
         .sheet(isPresented: $showingWhatsNew) {
             WhatsNewView()
                 .onDisappear {
                     WhatsNewTracker.markAsSeen()
                 }
+        }
+        .onPreferenceChange(WindowHeightPreferenceKey.self) { newHeight in
+            guard newHeight > 0 else { return }
+            NotificationCenter.default.post(
+                name: .mainWindowHeightChanged,
+                object: nil,
+                userInfo: ["height": newHeight]
+            )
         }
         .task {
             if WhatsNewTracker.shouldShowWhatsNew() {
