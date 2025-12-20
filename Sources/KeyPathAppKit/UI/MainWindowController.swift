@@ -7,7 +7,6 @@ import SwiftUI
 @MainActor
 final class MainWindowController: NSWindowController {
     private var topLeftBeforeResize: NSPoint?
-    private var heightObserver: NSObjectProtocol?
 
     init(viewModel: KanataViewModel) {
         // Phase 4: MVVM - Use shared ViewModel (don't create a new one!)
@@ -72,13 +71,12 @@ final class MainWindowController: NSWindowController {
 
         AppLogger.shared.log("🪟 [MainWindowController] Window controller initialized")
 
-        heightObserver = NotificationCenter.default.addObserver(
-            forName: .mainWindowHeightChanged,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            self?.applyPreferredHeight(notification)
-        }
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handlePreferredHeightNotification(_:)),
+            name: .mainWindowHeightChanged,
+            object: nil
+        )
     }
 
     @available(*, unavailable)
@@ -86,11 +84,6 @@ final class MainWindowController: NSWindowController {
         fatalError("init(coder:) has not been implemented")
     }
 
-    deinit {
-        if let heightObserver {
-            NotificationCenter.default.removeObserver(heightObserver)
-        }
-    }
 
     func show(focus _: Bool = true) {
         guard let window else { return }
@@ -140,7 +133,7 @@ final class MainWindowController: NSWindowController {
         return window.isKeyWindow || window.occlusionState.contains(.visible)
     }
 
-    private func applyPreferredHeight(_ notification: Notification) {
+    @objc private func handlePreferredHeightNotification(_ notification: Notification) {
         guard let window,
               let height = notification.userInfo?["height"] as? CGFloat
         else { return }

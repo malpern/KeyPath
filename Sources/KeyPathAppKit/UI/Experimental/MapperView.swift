@@ -964,6 +964,10 @@ struct SystemActionInfo: Equatable, Identifiable {
 
     /// Look up a SystemActionInfo by its kanata output (keycode, display name, or simulator name)
     static func find(byOutput output: String) -> SystemActionInfo? {
+        // Check by id (system action identifier)
+        if let action = allActions.first(where: { $0.id == output }) {
+            return action
+        }
         // Check by name first (for display labels from overlay)
         if let action = allActions.first(where: { $0.name == output }) {
             return action
@@ -1262,34 +1266,49 @@ class MapperViewModel: ObservableObject {
         selectedApp = nil
         selectedSystemAction = nil
 
+        let inputKey = OverlayKeyboardView.keyCodeToKanataName(keyCode)
+
         // Look up the current mapping from the overlay controller
         if let mapping = LiveKeyboardOverlayController.shared.lookupCurrentMapping(forKeyCode: keyCode) {
-            // Check if this is a system action or media key
-            if let systemAction = SystemActionInfo.find(byOutput: mapping.output) {
-                // It's a system action/media key - set selectedSystemAction for SF Symbol rendering
+            let info = mapping.info
+
+            if let appIdentifier = info.appLaunchIdentifier,
+               let appInfo = appLaunchInfo(for: appIdentifier) {
+                selectedApp = appInfo
+                outputLabel = appInfo.name
+                outputSequence = nil
+                AppLogger.shared.log("🔍 [MapperViewModel] Key \(keyCode) is app launch: \(appInfo.name)")
+            } else if let url = info.urlIdentifier {
+                selectedURL = url
+                outputLabel = url
+                outputSequence = nil
+                AppLogger.shared.log("🔍 [MapperViewModel] Key \(keyCode) is URL: \(url)")
+            } else if let systemId = info.systemActionIdentifier,
+                      let systemAction = SystemActionInfo.find(byOutput: systemId) ?? SystemActionInfo.find(byOutput: info.displayLabel) {
                 selectedSystemAction = systemAction
                 outputLabel = systemAction.name
                 outputSequence = nil
                 AppLogger.shared.log("🔍 [MapperViewModel] Key \(keyCode) is system action: \(systemAction.name)")
-            } else {
-                // Regular key mapping
-                outputLabel = formatKeyForDisplay(mapping.output)
+            } else if let outputKey = info.outputKey {
+                outputLabel = formatKeyForDisplay(outputKey)
                 outputSequence = KeySequence(
-                    keys: [KeyPress(baseKey: mapping.output, modifiers: [], keyCode: 0)],
+                    keys: [KeyPress(baseKey: outputKey, modifiers: [], keyCode: 0)],
                     captureMode: .single
                 )
+            } else {
+                outputLabel = info.displayLabel
+                outputSequence = nil
             }
 
             // Store original context for reset
-            originalInputKey = mapping.inputKey
-            originalOutputKey = mapping.output
-            originalLayer = LiveKeyboardOverlayController.shared.currentLayerName
-            currentLayer = originalLayer ?? "base"
+            originalInputKey = inputKey
+            originalOutputKey = info.outputKey ?? info.displayLabel
+            originalLayer = mapping.layer
+            currentLayer = mapping.layer
 
-            AppLogger.shared.log("🔍 [MapperViewModel] Key \(keyCode) maps to: \(mapping.output) in layer \(currentLayer)")
+            AppLogger.shared.log("🔍 [MapperViewModel] Key \(keyCode) maps to: \(outputLabel) in layer \(currentLayer)")
         } else {
             // No mapping found - default to key maps to itself
-            let inputKey = OverlayKeyboardView.keyCodeToKanataName(keyCode)
             outputLabel = formatKeyForDisplay(inputKey)
             outputSequence = KeySequence(
                 keys: [KeyPress(baseKey: inputKey, modifiers: [], keyCode: 0)],
@@ -1539,28 +1558,44 @@ class MapperViewModel: ObservableObject {
         }
     }
 
-    /// Process the selected app and update output
-    private func handleSelectedApp(at url: URL) {
+    private func appLaunchInfo(for identifier: String) -> AppLaunchInfo? {
+        let workspace = NSWorkspace.shared
+        if let url = workspace.urlForApplication(withBundleIdentifier: identifier) {
+            return buildAppLaunchInfo(from: url)
+        }
+
+        if let path = workspace.fullPath(forApplication: identifier) {
+            return buildAppLaunchInfo(from: URL(fileURLWithPath: path))
+        }
+
+        return nil
+    }
+
+    private func buildAppLaunchInfo(from url: URL) -> AppLaunchInfo {
         let appName = url.deletingPathExtension().lastPathComponent
         let bundle = Bundle(url: url)
         let bundleIdentifier = bundle?.bundleIdentifier
 
-        // Get the app icon
         let icon = NSWorkspace.shared.icon(forFile: url.path)
         icon.size = NSSize(width: 64, height: 64) // Reasonable size for display
 
-        let appInfo = AppLaunchInfo(
+        return AppLaunchInfo(
             name: appName,
             bundleIdentifier: bundleIdentifier,
             icon: icon
         )
+    }
+
+    /// Process the selected app and update output
+    private func handleSelectedApp(at url: URL) {
+        let appInfo = buildAppLaunchInfo(from: url)
 
         selectedApp = appInfo
         selectedSystemAction = nil // Clear any system action selection
-        outputLabel = appName
+        outputLabel = appInfo.name
         outputSequence = nil // Clear any key sequence output
 
-        AppLogger.shared.log("📱 [MapperViewModel] Selected app: \(appName) (\(bundleIdentifier ?? "no bundle ID"))")
+        AppLogger.shared.log("📱 [MapperViewModel] Selected app: \(appInfo.name) (\(appInfo.bundleIdentifier ?? "no bundle ID"))")
         AppLogger.shared.log("📱 [MapperViewModel] kanataOutput will be: \(appInfo.kanataOutput)")
 
         // Auto-save if input is already set

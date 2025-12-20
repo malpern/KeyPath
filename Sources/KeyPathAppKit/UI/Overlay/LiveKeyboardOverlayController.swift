@@ -51,6 +51,19 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         viewModel.updateLayer(layerName)
     }
 
+    /// Current layer name shown by the overlay
+    var currentLayerName: String {
+        viewModel.currentLayerName
+    }
+
+    /// Look up the current layer mapping for a key code, if available.
+    func lookupCurrentMapping(forKeyCode keyCode: UInt16) -> (layer: String, info: LayerKeyInfo)? {
+        guard let info = viewModel.layerKeyMap[keyCode] else {
+            return nil
+        }
+        return (layer: viewModel.currentLayerName, info: info)
+    }
+
     /// Set loading state for layer mapping
     func setLoadingLayerMap(_ isLoading: Bool) {
         viewModel.isLoadingLayerMap = isLoading
