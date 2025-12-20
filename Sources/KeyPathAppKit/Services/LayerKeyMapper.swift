@@ -311,6 +311,23 @@ actor LayerKeyMapper {
                 continue
             }
 
+            // Check for app launch mappings (push-msg "launch:...")
+            if let appIdentifier = extractAppLaunchMapping(from: keyMapping.outputs) {
+                mapping[keyCode] = .appLaunch(appIdentifier: appIdentifier)
+                AppLogger.shared.debug("🚀 [LayerKeyMapper] Mapped \(keyMapping.input)(\(keyCode)) -> AppLaunch(\(appIdentifier))")
+                continue
+            }
+
+            // Check for system action mappings (push-msg "system:...")
+            if let systemAction = extractSystemActionMapping(from: keyMapping.outputs) {
+                mapping[keyCode] = .systemAction(
+                    action: systemAction,
+                    description: systemActionDisplayLabel(systemAction)
+                )
+                AppLogger.shared.debug("⚙️ [LayerKeyMapper] Mapped \(keyMapping.input)(\(keyCode)) -> SystemAction(\(systemAction))")
+                continue
+            }
+
             // Check if output is a URL mapping
             if let urlMapping = extractURLMapping(from: keyMapping.outputs) {
                 mapping[keyCode] = .webURL(url: urlMapping)
@@ -689,25 +706,116 @@ actor LayerKeyMapper {
 
     /// Extract URL from push-msg output if present
     /// Returns URL string if output contains "open:...", nil otherwise
-    private func extractURLMapping(from outputs: [String]) -> String? {
+    nonisolated func extractURLMapping(from outputs: [String]) -> String? {
         for output in outputs {
-            let trimmed = output.trimmingCharacters(in: .whitespaces)
+            for candidate in pushMsgCandidates(from: output) {
+                // Direct match: "open:github.com" (from push-msg in simulator output)
+                if candidate.hasPrefix("open:") {
+                    let url = String(candidate.dropFirst(5)) // Remove "open:"
+                    return url.isEmpty ? nil : url
+                }
 
-            // Direct match: "open:github.com" (from push-msg in simulator output)
-            if trimmed.hasPrefix("open:") {
-                let url = String(trimmed.dropFirst(5)) // Remove "open:"
-                return url.isEmpty ? nil : url
-            }
-
-            // Also check for full push-msg format (in case simulator returns it verbatim)
-            // Pattern: (push-msg "open:...")
-            let pattern = #"push-msg\s+"open:([^"]+)""#
-            if let regex = try? NSRegularExpression(pattern: pattern),
-               let match = regex.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)),
-               let urlRange = Range(match.range(at: 1), in: trimmed) {
-                return String(trimmed[urlRange])
+                // Also check for full push-msg format (in case simulator returns it verbatim)
+                // Pattern: (push-msg "open:...")
+                let pattern = #"push-msg\s+"open:([^"]+)""#
+                if let regex = try? NSRegularExpression(pattern: pattern),
+                   let match = regex.firstMatch(in: candidate, range: NSRange(candidate.startIndex..., in: candidate)),
+                   let urlRange = Range(match.range(at: 1), in: candidate) {
+                    return String(candidate[urlRange])
+                }
             }
         }
         return nil
+    }
+
+    /// Extract app identifier from push-msg output if present
+    /// Returns app identifier string if output contains "launch:...", nil otherwise
+    nonisolated func extractAppLaunchMapping(from outputs: [String]) -> String? {
+        for output in outputs {
+            for candidate in pushMsgCandidates(from: output) {
+                if let action = extractKeyPathAction(from: candidate),
+                   action.action.lowercased() == "launch",
+                   let target = action.target {
+                    return target
+                }
+
+                if candidate.lowercased().hasPrefix("launch:") {
+                    let appId = String(candidate.dropFirst("launch:".count))
+                    return appId.isEmpty ? nil : appId
+                }
+            }
+        }
+        return nil
+    }
+
+    /// Extract system action identifier from push-msg output if present
+    /// Returns system action string if output contains "system:...", nil otherwise
+    nonisolated func extractSystemActionMapping(from outputs: [String]) -> String? {
+        for output in outputs {
+            for candidate in pushMsgCandidates(from: output) {
+                if let action = extractKeyPathAction(from: candidate),
+                   action.action.lowercased() == "system",
+                   let target = action.target {
+                    return target
+                }
+
+                if candidate.lowercased().hasPrefix("system:") {
+                    let actionId = String(candidate.dropFirst("system:".count))
+                    return actionId.isEmpty ? nil : actionId
+                }
+            }
+        }
+        return nil
+    }
+
+    /// Extract the payload from push-msg outputs, returning candidates to inspect.
+    private nonisolated func pushMsgCandidates(from output: String) -> [String] {
+        let trimmed = output.trimmingCharacters(in: .whitespaces)
+        var candidates: [String] = [trimmed]
+
+        let pattern = #"push-msg\s+"([^"]+)""#
+        if let regex = try? NSRegularExpression(pattern: pattern),
+           let match = regex.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)),
+           let payloadRange = Range(match.range(at: 1), in: trimmed) {
+            candidates.append(String(trimmed[payloadRange]))
+        }
+
+        return candidates
+    }
+
+    /// Extract a keypath:// action and target from a string (e.g., keypath://launch/Obsidian)
+    private nonisolated func extractKeyPathAction(from value: String) -> (action: String, target: String?)? {
+        guard let url = URL(string: value),
+              url.scheme?.lowercased() == "keypath",
+              let action = url.host, !action.isEmpty
+        else {
+            return nil
+        }
+
+        let rawPathComponents = url.pathComponents.filter { $0 != "/" && !$0.isEmpty }
+        let target = rawPathComponents.first?.removingPercentEncoding ?? rawPathComponents.first
+        return (action: action, target: target)
+    }
+
+    /// Human-readable label for system actions (matches overlay + mapper naming)
+    private nonisolated func systemActionDisplayLabel(_ action: String) -> String {
+        switch action.lowercased() {
+        case "dnd", "do-not-disturb", "donotdisturb", "focus":
+            "Do Not Disturb"
+        case "spotlight":
+            "Spotlight"
+        case "dictation":
+            "Dictation"
+        case "mission-control", "missioncontrol":
+            "Mission Control"
+        case "launchpad":
+            "Launchpad"
+        case "notification-center", "notificationcenter":
+            "Notification Center"
+        case "siri":
+            "Siri"
+        default:
+            action.capitalized
+        }
     }
 }

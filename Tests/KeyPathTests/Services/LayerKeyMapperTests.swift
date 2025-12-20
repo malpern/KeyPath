@@ -123,6 +123,58 @@ final class LayerKeyMapperTests: XCTestCase {
         XCTAssertEqual(keyBMapping?.displayLabel, "C", "Key b should display as C")
     }
 
+    // MARK: - Push-msg Parsing Tests
+
+    func testExtractsURLMappingFromPushMsg() {
+        let mapper = LayerKeyMapper()
+
+        XCTAssertEqual(
+            mapper.extractURLMapping(from: ["open:github.com"]),
+            "github.com"
+        )
+        XCTAssertEqual(
+            mapper.extractURLMapping(from: ["(push-msg \"open:https://example.com/path\")"]),
+            "https://example.com/path"
+        )
+        XCTAssertNil(mapper.extractURLMapping(from: ["launch:Safari"]))
+    }
+
+    func testExtractsAppLaunchMappingFromPushMsg() {
+        let mapper = LayerKeyMapper()
+
+        XCTAssertEqual(
+            mapper.extractAppLaunchMapping(from: ["(push-msg \"launch:com.apple.Safari\")"]),
+            "com.apple.Safari"
+        )
+        XCTAssertEqual(
+            mapper.extractAppLaunchMapping(from: ["launch:Obsidian"]),
+            "Obsidian"
+        )
+        XCTAssertEqual(
+            mapper.extractAppLaunchMapping(from: ["(push-msg \"keypath://launch/Visual%20Studio%20Code\")"]),
+            "Visual Studio Code"
+        )
+        XCTAssertNil(mapper.extractAppLaunchMapping(from: ["open:github.com"]))
+    }
+
+    func testExtractsSystemActionMappingFromPushMsg() {
+        let mapper = LayerKeyMapper()
+
+        XCTAssertEqual(
+            mapper.extractSystemActionMapping(from: ["(push-msg \"system:spotlight\")"]),
+            "spotlight"
+        )
+        XCTAssertEqual(
+            mapper.extractSystemActionMapping(from: ["system:dnd"]),
+            "dnd"
+        )
+        XCTAssertEqual(
+            mapper.extractSystemActionMapping(from: ["(push-msg \"keypath://system/notification-center\")"]),
+            "notification-center"
+        )
+        XCTAssertNil(mapper.extractSystemActionMapping(from: ["launch:Safari"]))
+    }
+
     // MARK: - Helpers
 
     private func createTempConfig(_ content: String, name: String) throws -> String {

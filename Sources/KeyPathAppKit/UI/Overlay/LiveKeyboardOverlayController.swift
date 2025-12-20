@@ -204,7 +204,10 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             presetInput: inputKey,
             presetOutput: outputKey,
             layer: currentLayer,
-            inputKeyCode: key.keyCode
+            inputKeyCode: key.keyCode,
+            appIdentifier: layerInfo?.appLaunchIdentifier,
+            systemActionIdentifier: layerInfo?.systemActionIdentifier,
+            urlIdentifier: layerInfo?.urlIdentifier
         )
     }
 

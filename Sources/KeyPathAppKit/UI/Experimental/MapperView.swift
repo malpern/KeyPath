@@ -80,6 +80,12 @@ struct MapperView: View {
     var presetLayer: String?
     /// Optional input keyCode from overlay click (for proper keycap rendering)
     var presetInputKeyCode: UInt16?
+    /// Optional app identifier from overlay click
+    var presetAppIdentifier: String?
+    /// Optional system action identifier from overlay click
+    var presetSystemActionIdentifier: String?
+    /// Optional URL identifier from overlay click
+    var presetURLIdentifier: String?
 
     /// Error alert state
     @State private var showingErrorAlert = false
@@ -188,7 +194,15 @@ struct MapperView: View {
             viewModel.configure(kanataManager: kanataManager.underlyingManager)
             // Apply preset values if provided
             if let presetInput, let presetOutput {
-                viewModel.applyPresets(input: presetInput, output: presetOutput, layer: presetLayer, inputKeyCode: presetInputKeyCode)
+                viewModel.applyPresets(
+                    input: presetInput,
+                    output: presetOutput,
+                    layer: presetLayer,
+                    inputKeyCode: presetInputKeyCode,
+                    appIdentifier: presetAppIdentifier,
+                    systemActionIdentifier: presetSystemActionIdentifier,
+                    urlIdentifier: presetURLIdentifier
+                )
             } else {
                 // No preset - use current layer from kanataManager
                 viewModel.setLayer(kanataManager.currentLayerName)
@@ -203,7 +217,18 @@ struct MapperView: View {
                let output = notification.userInfo?["output"] as? String {
                 let layer = notification.userInfo?["layer"] as? String
                 let inputKeyCode = notification.userInfo?["inputKeyCode"] as? UInt16
-                viewModel.applyPresets(input: input, output: output, layer: layer, inputKeyCode: inputKeyCode)
+                let appIdentifier = notification.userInfo?["appIdentifier"] as? String
+                let systemActionIdentifier = notification.userInfo?["systemActionIdentifier"] as? String
+                let urlIdentifier = notification.userInfo?["urlIdentifier"] as? String
+                viewModel.applyPresets(
+                    input: input,
+                    output: output,
+                    layer: layer,
+                    inputKeyCode: inputKeyCode,
+                    appIdentifier: appIdentifier,
+                    systemActionIdentifier: systemActionIdentifier,
+                    urlIdentifier: urlIdentifier
+                )
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .kanataLayerChanged)) { notification in
@@ -1017,6 +1042,9 @@ class MapperViewModel: ObservableObject {
     /// Original key context from overlay click (for reset after clear)
     var originalInputKey: String?
     private var originalOutputKey: String?
+    private var originalAppIdentifier: String?
+    private var originalSystemActionIdentifier: String?
+    private var originalURL: String?
     /// Original layer from overlay click
     private var originalLayer: String?
 
@@ -1044,19 +1072,31 @@ class MapperViewModel: ObservableObject {
     }
 
     /// Apply preset values from overlay click
-    func applyPresets(input: String, output: String, layer: String? = nil, inputKeyCode: UInt16? = nil) {
+    func applyPresets(
+        input: String,
+        output: String,
+        layer: String? = nil,
+        inputKeyCode: UInt16? = nil,
+        appIdentifier: String? = nil,
+        systemActionIdentifier: String? = nil,
+        urlIdentifier: String? = nil
+    ) {
         // Stop any active recording
         stopRecording()
 
         // Store original context for reset after clear
         originalInputKey = input
         originalOutputKey = output
+        originalAppIdentifier = appIdentifier
+        originalSystemActionIdentifier = systemActionIdentifier
+        originalURL = urlIdentifier
         originalLayer = layer
 
         // Clear any previously saved rule ID since we're starting fresh
         lastSavedRuleID = nil
         selectedApp = nil
         selectedSystemAction = nil
+        selectedURL = nil
 
         // Set the layer
         if let layer {
@@ -1073,9 +1113,25 @@ class MapperViewModel: ObservableObject {
             captureMode: .single
         )
 
-        // Check if output is a system action or media key
-        if let systemAction = SystemActionInfo.find(byOutput: output) {
+        if let appIdentifier, let appInfo = appLaunchInfo(for: appIdentifier) {
+            selectedApp = appInfo
+            outputLabel = appInfo.name
+            outputSequence = nil
+            AppLogger.shared.log("🗺️ [MapperViewModel] Preset output is app launch: \(appInfo.name)")
+        } else if let urlIdentifier {
+            selectedURL = urlIdentifier
+            outputLabel = extractDomain(from: urlIdentifier)
+            outputSequence = nil
+            AppLogger.shared.log("🗺️ [MapperViewModel] Preset output is URL: \(urlIdentifier)")
+        } else if let systemActionIdentifier,
+                  let systemAction = SystemActionInfo.find(byOutput: systemActionIdentifier) {
             // It's a system action/media key - set selectedSystemAction for SF Symbol rendering
+            selectedSystemAction = systemAction
+            outputLabel = systemAction.name
+            outputSequence = nil
+            AppLogger.shared.log("🗺️ [MapperViewModel] Preset output is system action: \(systemAction.name)")
+        } else if let systemAction = SystemActionInfo.find(byOutput: output) {
+            // Fallback: resolve by output label
             selectedSystemAction = systemAction
             outputLabel = systemAction.name
             outputSequence = nil
@@ -1265,6 +1321,7 @@ class MapperViewModel: ObservableObject {
         // Clear any selected app/system action since we're switching keys
         selectedApp = nil
         selectedSystemAction = nil
+        selectedURL = nil
 
         let inputKey = OverlayKeyboardView.keyCodeToKanataName(keyCode)
 
@@ -1277,17 +1334,26 @@ class MapperViewModel: ObservableObject {
                 selectedApp = appInfo
                 outputLabel = appInfo.name
                 outputSequence = nil
+                originalAppIdentifier = appIdentifier
+                originalSystemActionIdentifier = nil
+                originalURL = nil
                 AppLogger.shared.log("🔍 [MapperViewModel] Key \(keyCode) is app launch: \(appInfo.name)")
             } else if let url = info.urlIdentifier {
                 selectedURL = url
-                outputLabel = url
+                outputLabel = extractDomain(from: url)
                 outputSequence = nil
+                originalURL = url
+                originalAppIdentifier = nil
+                originalSystemActionIdentifier = nil
                 AppLogger.shared.log("🔍 [MapperViewModel] Key \(keyCode) is URL: \(url)")
             } else if let systemId = info.systemActionIdentifier,
                       let systemAction = SystemActionInfo.find(byOutput: systemId) ?? SystemActionInfo.find(byOutput: info.displayLabel) {
                 selectedSystemAction = systemAction
                 outputLabel = systemAction.name
                 outputSequence = nil
+                originalSystemActionIdentifier = systemId
+                originalAppIdentifier = nil
+                originalURL = nil
                 AppLogger.shared.log("🔍 [MapperViewModel] Key \(keyCode) is system action: \(systemAction.name)")
             } else if let outputKey = info.outputKey {
                 outputLabel = formatKeyForDisplay(outputKey)
@@ -1295,9 +1361,15 @@ class MapperViewModel: ObservableObject {
                     keys: [KeyPress(baseKey: outputKey, modifiers: [], keyCode: 0)],
                     captureMode: .single
                 )
+                originalAppIdentifier = nil
+                originalSystemActionIdentifier = nil
+                originalURL = nil
             } else {
                 outputLabel = info.displayLabel
                 outputSequence = nil
+                originalAppIdentifier = nil
+                originalSystemActionIdentifier = nil
+                originalURL = nil
             }
 
             // Store original context for reset
@@ -1460,6 +1532,7 @@ class MapperViewModel: ObservableObject {
         inputKeyCode = nil
         selectedApp = nil
         selectedSystemAction = nil
+        selectedURL = nil
         statusMessage = nil
     }
 
@@ -1470,14 +1543,23 @@ class MapperViewModel: ObservableObject {
         selectedSystemAction = nil
         selectedURL = nil
 
-        // Delete the saved rule if we have one
-        if let ruleID = lastSavedRuleID, let manager = kanataManager {
-            Task {
-                await manager.removeCustomRule(withID: ruleID)
-                // Note: .kanataConfigChanged notification is posted by onRulesChanged callback
-                AppLogger.shared.log("🧹 [MapperViewModel] Deleted rule \(ruleID)")
+        // Delete the saved rule if we have one, otherwise try to resolve by input
+        if let manager = kanataManager {
+            if let ruleID = lastSavedRuleID {
+                Task {
+                    await manager.removeCustomRule(withID: ruleID)
+                    // Note: .kanataConfigChanged notification is posted by onRulesChanged callback
+                    AppLogger.shared.log("🧹 [MapperViewModel] Deleted rule \(ruleID)")
+                }
+                lastSavedRuleID = nil
+            } else if let inputKanata = currentInputKanataString() {
+                // Use makeCustomRule to reuse existing rule ID for this input (if any)
+                let probeRule = manager.makeCustomRule(input: inputKanata, output: "xx")
+                Task {
+                    await manager.removeCustomRule(withID: probeRule.id)
+                    AppLogger.shared.log("🧹 [MapperViewModel] Deleted rule by input \(inputKanata) (id: \(probeRule.id))")
+                }
             }
-            lastSavedRuleID = nil
         }
 
         // Reset to original key context if opened from overlay, otherwise default
@@ -1489,8 +1571,21 @@ class MapperViewModel: ObservableObject {
                 captureMode: .single
             )
 
-            // Check if original output is a system action or media key
-            if let systemAction = SystemActionInfo.find(byOutput: origOutput) {
+            if let appIdentifier = originalAppIdentifier,
+               let appInfo = appLaunchInfo(for: appIdentifier) {
+                selectedApp = appInfo
+                outputLabel = appInfo.name
+                outputSequence = nil
+            } else if let url = originalURL {
+                selectedURL = url
+                outputLabel = extractDomain(from: url)
+                outputSequence = nil
+            } else if let systemActionId = originalSystemActionIdentifier,
+                      let systemAction = SystemActionInfo.find(byOutput: systemActionId) {
+                selectedSystemAction = systemAction
+                outputLabel = systemAction.name
+                outputSequence = nil
+            } else if let systemAction = SystemActionInfo.find(byOutput: origOutput) {
                 selectedSystemAction = systemAction
                 outputLabel = systemAction.name
                 outputSequence = nil
@@ -1598,6 +1693,7 @@ class MapperViewModel: ObservableObject {
 
         selectedApp = appInfo
         selectedSystemAction = nil // Clear any system action selection
+        selectedURL = nil
         outputLabel = appInfo.name
         outputSequence = nil // Clear any key sequence output
 
@@ -1662,6 +1758,7 @@ class MapperViewModel: ObservableObject {
     func selectSystemAction(_ action: SystemActionInfo) {
         selectedSystemAction = action
         selectedApp = nil // Clear any app selection
+        selectedURL = nil
         outputSequence = nil // Clear any key sequence output
         outputLabel = action.name
 
@@ -1843,6 +1940,21 @@ class MapperViewModel: ObservableObject {
 
         return keyStrings.joined(separator: " ")
     }
+
+    /// Best-effort input kanata string for rule removal
+    private func currentInputKanataString() -> String? {
+        if let inputSeq = inputSequence {
+            return convertSequenceToKanataFormat(inputSeq)
+        }
+        if let origInput = originalInputKey {
+            let seq = KeySequence(
+                keys: [KeyPress(baseKey: origInput, modifiers: [], keyCode: 0)],
+                captureMode: .single
+            )
+            return convertSequenceToKanataFormat(seq)
+        }
+        return nil
+    }
 }
 
 // MARK: - Window Controller
@@ -1855,15 +1967,30 @@ class MapperWindowController {
     private var pendingPresetInput: String?
     private var pendingPresetOutput: String?
     private var pendingLayer: String?
+    private var pendingPresetAppIdentifier: String?
+    private var pendingPresetSystemActionIdentifier: String?
+    private var pendingPresetURLIdentifier: String?
 
     static let shared = MapperWindowController()
 
     /// Show the Mapper window, optionally with preset input/output values, layer, and input keyCode from overlay click
-    func showWindow(viewModel: KanataViewModel, presetInput: String? = nil, presetOutput: String? = nil, layer: String? = nil, inputKeyCode: UInt16? = nil) {
+    func showWindow(
+        viewModel: KanataViewModel,
+        presetInput: String? = nil,
+        presetOutput: String? = nil,
+        layer: String? = nil,
+        inputKeyCode: UInt16? = nil,
+        appIdentifier: String? = nil,
+        systemActionIdentifier: String? = nil,
+        urlIdentifier: String? = nil
+    ) {
         self.viewModel = viewModel
         pendingPresetInput = presetInput
         pendingPresetOutput = presetOutput
         pendingLayer = layer
+        pendingPresetAppIdentifier = appIdentifier
+        pendingPresetSystemActionIdentifier = systemActionIdentifier
+        pendingPresetURLIdentifier = urlIdentifier
 
         if let existingWindow = window, existingWindow.isVisible {
             // Window already visible - apply presets to existing view
@@ -1875,6 +2002,15 @@ class MapperWindowController {
                 if let inputKeyCode {
                     userInfo["inputKeyCode"] = inputKeyCode
                 }
+                if let appIdentifier {
+                    userInfo["appIdentifier"] = appIdentifier
+                }
+                if let systemActionIdentifier {
+                    userInfo["systemActionIdentifier"] = systemActionIdentifier
+                }
+                if let urlIdentifier {
+                    userInfo["urlIdentifier"] = urlIdentifier
+                }
                 NotificationCenter.default.post(
                     name: .mapperPresetValues,
                     object: nil,
@@ -1885,7 +2021,15 @@ class MapperWindowController {
             return
         }
 
-        let contentView = MapperView(presetInput: presetInput, presetOutput: presetOutput, presetLayer: layer, presetInputKeyCode: inputKeyCode)
+        let contentView = MapperView(
+            presetInput: presetInput,
+            presetOutput: presetOutput,
+            presetLayer: layer,
+            presetInputKeyCode: inputKeyCode,
+            presetAppIdentifier: appIdentifier,
+            presetSystemActionIdentifier: systemActionIdentifier,
+            presetURLIdentifier: urlIdentifier
+        )
             .environmentObject(viewModel)
 
         // Window height calculation:
