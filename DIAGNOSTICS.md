@@ -194,6 +194,13 @@ done
 - **Kanata stdout:** `/var/log/com.keypath.kanata.stdout.log`
 - **Kanata stderr:** `/var/log/com.keypath.kanata.stderr.log`
 
+## Config Validation Debugging
+
+If config validation fails with a parse error and you need the exact generated config:
+
+- Set `KEYPATH_KEEP_FAILED_CONFIG=1` and retry the save.
+- The temp validation config path will be logged in `keypath-debug.log`.
+
 ## Clean Logs (Optional)
 
 To start fresh:

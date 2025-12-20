@@ -1086,6 +1086,16 @@ public final class ConfigurationService: FileConfigurationProviding {
             return (true, [])
         case let .failure(errors):
             AppLogger.shared.log("🌐 [Validation] TCP validation FAILED with \(errors.count) errors")
+            if shouldFallbackToCLIForTCPParseErrors(errors) {
+                AppLogger.shared.log(
+                    "🌐 [Validation] TCP parse error detected; falling back to CLI for details"
+                )
+                let cliResult = await validateConfigWithCLI(config)
+                AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
+                if !cliResult.isValid, !cliResult.errors.isEmpty {
+                    return (false, cliResult.errors)
+                }
+            }
             AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
             return (false, errors)
         case .networkError:
@@ -1096,9 +1106,19 @@ public final class ConfigurationService: FileConfigurationProviding {
         }
     }
 
+    private func shouldFallbackToCLIForTCPParseErrors(_ errors: [String]) -> Bool {
+        let needles = ["error in configuration", "config_parse", "parse error"]
+        return errors.contains { error in
+            let lowercased = error.lowercased()
+            return needles.contains { lowercased.contains($0) }
+        }
+    }
+
     /// Validate configuration via CLI (kanata --check)
     private func validateConfigWithCLI(_ config: String) async -> (isValid: Bool, errors: [String]) {
         AppLogger.shared.log("🖥️ [Validation-CLI] Starting CLI validation process...")
+        let keepFailedConfig =
+            ProcessInfo.processInfo.environment["KEYPATH_KEEP_FAILED_CONFIG"] == "1"
 
         // Write config to a unique temporary file for validation (UUID prevents race conditions)
         let uniqueID = UUID().uuidString.prefix(8)
@@ -1151,15 +1171,21 @@ public final class ConfigurationService: FileConfigurationProviding {
                 AppLogger.shared.log("📋 [Validation-CLI] Output: \(output.prefix(500))...")
             }
 
-            // Clean up temp file
-            try? FileManager.default.removeItem(at: tempConfigURL)
-            AppLogger.shared.log("🗑️ [Validation-CLI] Temp file cleaned up")
-
             if result.exitCode == 0 {
                 AppLogger.shared.log("✅ [Validation-CLI] CLI validation PASSED")
+                try? FileManager.default.removeItem(at: tempConfigURL)
+                AppLogger.shared.log("🗑️ [Validation-CLI] Temp file cleaned up")
                 return (true, [])
             } else {
                 let errors = parseKanataErrors(output)
+                if keepFailedConfig {
+                    AppLogger.shared.log(
+                        "🧪 [Validation-CLI] Keeping temp config for debugging at \(tempConfigPath)"
+                    )
+                } else {
+                    try? FileManager.default.removeItem(at: tempConfigURL)
+                    AppLogger.shared.log("🗑️ [Validation-CLI] Temp file cleaned up")
+                }
                 AppLogger.shared.log(
                     "❌ [Validation-CLI] CLI validation FAILED with \(errors.count) errors:")
                 for (index, error) in errors.enumerated() {
@@ -1169,7 +1195,13 @@ public final class ConfigurationService: FileConfigurationProviding {
             }
         } catch {
             // Clean up temp file on error
-            try? FileManager.default.removeItem(atPath: tempConfigPath)
+            if keepFailedConfig {
+                AppLogger.shared.log(
+                    "🧪 [Validation-CLI] Keeping temp config for debugging at \(tempConfigPath)"
+                )
+            } else {
+                try? FileManager.default.removeItem(atPath: tempConfigPath)
+            }
             AppLogger.shared.log("❌ [Validation-CLI] Validation process failed: \(error)")
             AppLogger.shared.log("❌ [Validation-CLI] Error type: \(type(of: error))")
             return (false, ["Validation failed: \(error.localizedDescription)"])
