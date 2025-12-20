@@ -1564,8 +1564,14 @@ class MapperViewModel: ObservableObject {
             return buildAppLaunchInfo(from: url)
         }
 
-        if let path = workspace.fullPath(forApplication: identifier) {
-            return buildAppLaunchInfo(from: URL(fileURLWithPath: path))
+        // Fallback: treat identifier as an app name and look in common locations.
+        let candidates = [
+            URL(fileURLWithPath: "/Applications/\(identifier).app"),
+            URL(fileURLWithPath: "/System/Applications/\(identifier).app")
+        ]
+
+        for url in candidates where FileManager.default.fileExists(atPath: url.path) {
+            return buildAppLaunchInfo(from: url)
         }
 
         return nil
