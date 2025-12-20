@@ -10,6 +10,7 @@ struct CleanupAndRepairView: View {
     @State private var useAppleScriptFallback = true
     @State private var duplicateCopies: [String] = []
     @State private var selectedTab: DiagnosticTab = .cleanup
+    @State private var helperHealth: HelperManager.HealthState?
 
     enum DiagnosticTab: String, CaseIterable {
         case cleanup = "Cleanup & Repair"
@@ -47,6 +48,7 @@ struct CleanupAndRepairView: View {
         .onAppear {
             duplicateCopies = HelperMaintenance.shared.detectDuplicateAppCopies()
             errorMonitor.markAllAsRead() // Mark errors as read when viewing diagnostics
+            refreshHelperHealth()
         }
         .onReceive(NotificationCenter.default.publisher(for: .showErrorsTab)) { _ in
             selectedTab = .errors
@@ -58,6 +60,8 @@ struct CleanupAndRepairView: View {
     @ViewBuilder
     private var cleanupTabContent: some View {
         VStack(alignment: .leading, spacing: 12) {
+            helperHealthCard
+
             Text(
                 "This will unregister the helper, remove stale artifacts, and re-register it from /Applications/KeyPath.app. You may be prompted for an administrator password."
             )
@@ -114,6 +118,7 @@ struct CleanupAndRepairView: View {
                         started = true
                         succeeded = await maintenance.runCleanupAndRepair(
                             useAppleScriptFallback: useAppleScriptFallback)
+                        refreshHelperHealth()
                     }
                 }
                 .disabled(maintenance.isRunning)
@@ -262,6 +267,88 @@ struct CleanupAndRepairView: View {
         case .critical: .red
         case .warning: .orange
         case .info: .gray
+        }
+    }
+
+    private var helperHealthCard: some View {
+        HStack(spacing: 10) {
+            Image(systemName: helperHealthIcon)
+                .foregroundColor(helperHealthTint)
+                .font(.system(size: 16))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Helper Health")
+                    .font(.system(size: 12, weight: .semibold))
+                Text(helperHealthMessage)
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            Button("Refresh") {
+                refreshHelperHealth()
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
+        )
+    }
+
+    private var helperHealthMessage: String {
+        switch helperHealth {
+        case .healthy(let version):
+            if let version {
+                return "Responding via XPC (v\(version))."
+            }
+            return "Responding via XPC."
+        case .requiresApproval(let detail):
+            return detail ?? "Approval required in Login Items."
+        case .registeredButUnresponsive(let detail):
+            return detail ?? "Registered but not responding."
+        case .notInstalled:
+            return "Not installed or not registered."
+        case .none:
+            return "Checking helper status…"
+        }
+    }
+
+    private var helperHealthIcon: String {
+        switch helperHealth {
+        case .healthy:
+            return "checkmark.shield.fill"
+        case .requiresApproval:
+            return "exclamationmark.triangle.fill"
+        case .registeredButUnresponsive, .notInstalled:
+            return "xmark.octagon.fill"
+        case .none:
+            return "ellipsis.circle"
+        }
+    }
+
+    private var helperHealthTint: Color {
+        switch helperHealth {
+        case .healthy:
+            return .green
+        case .requiresApproval:
+            return .orange
+        case .registeredButUnresponsive, .notInstalled:
+            return .red
+        case .none:
+            return .secondary
+        }
+    }
+
+    private func refreshHelperHealth() {
+        Task {
+            let state = await HelperManager.shared.getHelperHealth()
+            await MainActor.run {
+                helperHealth = state
+            }
         }
     }
 }
