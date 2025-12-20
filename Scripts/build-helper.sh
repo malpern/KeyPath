@@ -21,10 +21,28 @@ HELPER_NAME="KeyPathHelper"
 BUILD_DIR=".build/arm64-apple-macosx/release"
 HELPER_BUILD_DIR="${BUILD_DIR}/${HELPER_NAME}"
 SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X2RKZ5TG99)}"
+if [ "${KP_SIGN_DRY_RUN:-0}" != "1" ]; then
+    if ! security find-identity -v -p codesigning | grep -Fq "$SIGNING_IDENTITY"; then
+        echo "❌ ERROR: codesign identity not found: $SIGNING_IDENTITY" >&2
+        echo "Available identities:" >&2
+        security find-identity -v -p codesigning >&2 || true
+        echo "💡 TIP: Set CODESIGN_IDENTITY to a valid Developer ID Application identity." >&2
+        exit 1
+    fi
+fi
 
-# Build helper
+# Build helper with embedded Info.plist
 echo "1️⃣  Building helper executable..."
-swift build --configuration release --product "$HELPER_NAME" -Xswiftc -no-whole-module-optimization
+HELPER_INFO_PLIST="Sources/KeyPathHelper/Info.plist"
+
+if [ ! -f "$HELPER_INFO_PLIST" ]; then
+    echo "❌ ERROR: Helper Info.plist not found: $HELPER_INFO_PLIST"
+    exit 1
+fi
+
+swift build --configuration release --product "$HELPER_NAME" \
+    -Xswiftc -no-whole-module-optimization \
+    -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker "$HELPER_INFO_PLIST"
 
 # The executable is at BUILD_DIR/HELPER_NAME (not in a subdirectory)
 HELPER_EXECUTABLE="$BUILD_DIR/$HELPER_NAME"

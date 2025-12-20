@@ -439,6 +439,10 @@ actor HelperManager {
             throw HelperManagerError.installationFailed("Requires macOS 13+ for SMAppService")
         }
 
+        if let preflightError = await signingPreflightFailure() {
+            throw HelperManagerError.installationFailed(preflightError)
+        }
+
         // Diagnostic logging
         if let bundlePath = Bundle.main.bundlePath as String? {
             AppLogger.shared.log("📦 [HelperManager] App bundle: \(bundlePath)")
@@ -522,6 +526,62 @@ actor HelperManager {
                     "SMAppService register failed: \(error.localizedDescription)")
             }
         }
+    }
+
+    private nonisolated func signingPreflightFailure() async -> String? {
+        if TestEnvironment.isRunningTests { return nil }
+
+        let fm = FileManager.default
+        let bundlePath = Bundle.main.bundlePath
+        let helperPath = bundlePath + "/Contents/Library/HelperTools/KeyPathHelper"
+
+        if !fm.fileExists(atPath: helperPath) {
+            return "Bundled helper missing at \(helperPath). Reinstall KeyPath from /Applications."
+        }
+
+        let runner = Self.subprocessRunnerFactory()
+
+        do {
+            let appResult = try await runner.run(
+                "/usr/bin/codesign",
+                args: ["--verify", "--deep", "--strict", bundlePath],
+                timeout: 10
+            )
+            if appResult.exitCode != 0 {
+                AppLogger.shared.log(
+                    "❌ [HelperManager] App signature invalid: \(appResult.stderr.trimmingCharacters(in: .whitespacesAndNewlines))"
+                )
+                return "KeyPath is not properly signed. Install a Developer ID signed build in /Applications."
+            }
+        } catch {
+            AppLogger.shared.log("⚠️ [HelperManager] codesign verify failed: \(error.localizedDescription)")
+            return "Unable to verify KeyPath signature. Ensure you are running a signed build from /Applications."
+        }
+
+        do {
+            let helperResult = try await runner.run(
+                "/usr/bin/codesign",
+                args: ["--verify", "--strict", helperPath],
+                timeout: 10
+            )
+            if helperResult.exitCode != 0 {
+                AppLogger.shared.log(
+                    "❌ [HelperManager] Helper signature invalid: \(helperResult.stderr.trimmingCharacters(in: .whitespacesAndNewlines))"
+                )
+                return "KeyPath helper is not properly signed. Rebuild with Scripts/build-and-sign.sh and reinstall."
+            }
+        } catch {
+            AppLogger.shared.log("⚠️ [HelperManager] codesign verify (helper) failed: \(error.localizedDescription)")
+            return "Unable to verify KeyPath helper signature. Ensure you are running a signed build."
+        }
+
+        if !bundlePath.hasPrefix("/Applications/") {
+            AppLogger.shared.log(
+                "⚠️ [HelperManager] KeyPath running from non-/Applications path: \(bundlePath)"
+            )
+        }
+
+        return nil
     }
 
     /// Uninstall the privileged helper

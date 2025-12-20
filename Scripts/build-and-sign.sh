@@ -166,7 +166,7 @@ HELPER_TOOLS="$CONTENTS/Library/HelperTools"
 LAUNCH_DAEMONS="$CONTENTS/Library/LaunchDaemons"
 mkdir -p "$HELPER_TOOLS" "$LAUNCH_DAEMONS"
 
-# Copy helper binary into bundle-local HelperTools
+# Copy helper binary into Contents/Library/HelperTools/
 ditto "$BUILD_DIR/KeyPathHelper" "$HELPER_TOOLS/KeyPathHelper"
 
 # Copy daemon plist into bundle-local LaunchDaemons with final name
@@ -245,6 +245,15 @@ EOF
 
 echo "✍️  Signing executables..."
 SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X2RKZ5TG99)}"
+if [ "${KP_SIGN_DRY_RUN:-0}" != "1" ]; then
+    if ! security find-identity -v -p codesigning | grep -Fq "$SIGNING_IDENTITY"; then
+        echo "❌ ERROR: codesign identity not found: $SIGNING_IDENTITY" >&2
+        echo "Available identities:" >&2
+        security find-identity -v -p codesigning >&2 || true
+        echo "💡 TIP: Set CODESIGN_IDENTITY to a valid Developer ID Application identity." >&2
+        exit 1
+    fi
+fi
 
 # Sign from innermost to outermost (helper -> kanata -> main app)
 

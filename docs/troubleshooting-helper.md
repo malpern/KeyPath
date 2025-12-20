@@ -16,13 +16,22 @@ Quick Validation Checklist
 - `Info.plist` contains `SMPrivilegedExecutables` for `com.keypath.helper` with the correct requirement.
 - Helper binary is signed and satisfies the requirement (see Diagnostic Script below).
 - App bundle is signed, notarized, and stapled.
+- Local machine has a valid Developer ID Application identity (see "Signing Identity Check").
 
 Diagnostic Script
 - Run `Scripts/diagnose-helper.sh` (no root required). It prints:
   - App + helper code-signing details and requirements
+  - Signature validity for both app and helper
+  - Available codesigning identities in the local keychain
   - Extracted `SMPrivilegedExecutables` requirement
   - Requirement check against the helper (`codesign -R <req> <helper>`)
   - Launchctl state summary (best-effort)
+
+Signing Identity Check
+- Run: `security find-identity -v -p codesigning`
+- If it prints `0 valid identities found`, the helper **cannot** be installed via SMAppService.
+  - Install/import the Developer ID Application certificate + private key into the login keychain.
+  - Rebuild and re-sign the app bundle, then re-run the diagnostic script.
 
 Hypotheses To Investigate
 1) LaunchServices/SM cache confusion or stale state. Try a full system restart after installing the new build.
@@ -34,4 +43,3 @@ Hypotheses To Investigate
 Next Steps
 - Reproduce with the updated app and collect the full error details in logs.
 - Attach the script output and `BlessDiagnostics` report (from the app’s Diagnostics view) to any DTS report.
-
