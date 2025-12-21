@@ -10,10 +10,25 @@ struct LiveKeyboardOverlayView: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("overlayLayoutId") private var selectedLayoutId: String = "macbook-us"
+    @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
+    @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var keymapIncludePunctuationStore: String = "{}"
 
     /// The currently selected physical keyboard layout
     private var activeLayout: PhysicalLayout {
         PhysicalLayout.find(id: selectedLayoutId) ?? .macBookUS
+    }
+
+    /// The currently selected logical keymap for labeling
+    private var activeKeymap: LogicalKeymap {
+        LogicalKeymap.find(id: selectedKeymapId) ?? .qwertyUS
+    }
+
+    /// Whether to apply number row + outer punctuation mappings
+    private var includeKeymapPunctuation: Bool {
+        KeymapPreferences.includePunctuation(
+            for: selectedKeymapId,
+            store: keymapIncludePunctuationStore
+        )
     }
 
     var body: some View {
@@ -24,6 +39,8 @@ struct LiveKeyboardOverlayView: View {
             // Main keyboard with directional shadow (light from above)
             OverlayKeyboardView(
                 layout: activeLayout,
+                keymap: activeKeymap,
+                includeKeymapPunctuation: includeKeymapPunctuation,
                 pressedKeyCodes: viewModel.pressedKeyCodes,
                 isDarkMode: isDark,
                 fadeAmount: fadeAmount,

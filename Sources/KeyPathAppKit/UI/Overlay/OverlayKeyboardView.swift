@@ -6,6 +6,8 @@ import SwiftUI
 /// Renders a full keyboard layout with keys highlighting based on key codes.
 struct OverlayKeyboardView: View {
     let layout: PhysicalLayout
+    let keymap: LogicalKeymap
+    let includeKeymapPunctuation: Bool
     let pressedKeyCodes: Set<UInt16>
     var isDarkMode: Bool = false
     var fadeAmount: CGFloat = 0 // 0 = fully visible, 1 = fully faded (global overlay fade)
@@ -66,9 +68,14 @@ struct OverlayKeyboardView: View {
         // Use per-key fade amount if available, otherwise use global fade
         let hasPerKeyFade = keyFadeAmounts[key.keyCode] != nil
         let effectiveFadeAmount = keyFadeAmounts[key.keyCode] ?? fadeAmount
+        let baseLabel = keymap.displayLabel(
+            for: key,
+            includeExtraKeys: includeKeymapPunctuation
+        )
 
         return OverlayKeycapView(
             key: key,
+            baseLabel: baseLabel,
             isPressed: isPressed,
             scale: scale,
             isDarkMode: isDarkMode,
@@ -225,6 +232,8 @@ struct OverlayKeyboardView: View {
 #Preview {
     OverlayKeyboardView(
         layout: .macBookUS,
+        keymap: .qwertyUS,
+        includeKeymapPunctuation: false,
         pressedKeyCodes: [0, 56, 55] // a, leftshift, leftmeta
     )
     .padding()

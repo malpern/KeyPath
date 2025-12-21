@@ -7,6 +7,7 @@ import SwiftUI
 /// and optical adjustments (based on label) for visual harmony.
 struct OverlayKeycapView: View {
     let key: PhysicalKey
+    let baseLabel: String
     let isPressed: Bool
     /// Scale factor from keyboard resize (1.0 = default size)
     let scale: CGFloat
@@ -35,13 +36,45 @@ struct OverlayKeycapView: View {
     private var isSmallSize: Bool { scale < 0.8 }
     private var isLargeSize: Bool { scale >= 1.5 }
 
-    /// The effective label to display (hold label > layer mapping > physical key)
+    /// The effective label to display (hold label > layer mapping > keymap/physical)
     private var effectiveLabel: String {
         // When key is pressed with a hold label, show the hold label
         if isPressed, let holdLabel {
             return holdLabel
         }
-        return layerKeyInfo?.displayLabel ?? key.label
+
+        guard let info = layerKeyInfo else {
+            return baseLabel
+        }
+
+        if info.displayLabel.isEmpty {
+            return ""
+        }
+
+        if shouldUseBaseLabel, baseLabel != key.label {
+            return baseLabel
+        }
+
+        return info.displayLabel
+    }
+
+    /// Input key name (kanata/TCP) for identity mapping checks
+    private var inputKeyName: String {
+        OverlayKeyboardView.keyCodeToKanataName(key.keyCode).lowercased()
+    }
+
+    /// Whether the overlay should fall back to the base label (keymap or physical)
+    private var shouldUseBaseLabel: Bool {
+        guard let info = layerKeyInfo else { return true }
+        if info.isTransparent { return true }
+        if info.isLayerSwitch { return false }
+        if info.appLaunchIdentifier != nil || info.systemActionIdentifier != nil || info.urlIdentifier != nil {
+            return false
+        }
+        if let outputKey = info.outputKey {
+            return outputKey.lowercased() == inputKeyName
+        }
+        return true
     }
 
     /// Optical adjustments for current label
@@ -350,7 +383,7 @@ struct OverlayKeycapView: View {
     @ViewBuilder
     private var centeredContent: some View {
         if let navSymbol = navOverlaySymbol {
-            navOverlayContent(arrow: navSymbol, letter: key.label)
+            navOverlayContent(arrow: navSymbol, letter: baseLabel)
         } else if let shiftSymbol = metadata.shiftSymbol {
             // Dual content: shift symbol above, main below
             dualSymbolContent(main: effectiveLabel, shift: shiftSymbol)
@@ -803,6 +836,7 @@ struct OverlayKeycapView: View {
         // fn key
         OverlayKeycapView(
             key: PhysicalKey(keyCode: 63, label: "fn", x: 0, y: 5, width: 1.1),
+            baseLabel: "fn",
             isPressed: false,
             scale: 1.5
         )
@@ -811,6 +845,7 @@ struct OverlayKeycapView: View {
         // Control
         OverlayKeycapView(
             key: PhysicalKey(keyCode: 59, label: "⌃", x: 1.2, y: 5, width: 1.1),
+            baseLabel: "⌃",
             isPressed: false,
             scale: 1.5
         )
@@ -819,6 +854,7 @@ struct OverlayKeycapView: View {
         // Option
         OverlayKeycapView(
             key: PhysicalKey(keyCode: 58, label: "⌥", x: 2.4, y: 5, width: 1.1),
+            baseLabel: "⌥",
             isPressed: false,
             scale: 1.5
         )
@@ -827,6 +863,7 @@ struct OverlayKeycapView: View {
         // Command
         OverlayKeycapView(
             key: PhysicalKey(keyCode: 55, label: "⌘", x: 3.6, y: 5, width: 1.35),
+            baseLabel: "⌘",
             isPressed: false,
             scale: 1.5
         )
@@ -839,6 +876,7 @@ struct OverlayKeycapView: View {
 #Preview("Letter Key") {
     OverlayKeycapView(
         key: PhysicalKey(keyCode: 0, label: "a", x: 0, y: 0),
+        baseLabel: "a",
         isPressed: false,
         scale: 1.5,
         isDarkMode: true
@@ -853,6 +891,7 @@ struct OverlayKeycapView: View {
         // Base layer (muted)
         OverlayKeycapView(
             key: PhysicalKey(keyCode: 0xFFFF, label: "🔒", x: 14.5, y: 0, width: 1.0),
+            baseLabel: "🔒",
             isPressed: false,
             scale: 1.5,
             isDarkMode: true,
@@ -863,6 +902,7 @@ struct OverlayKeycapView: View {
         // Active layer (full opacity)
         OverlayKeycapView(
             key: PhysicalKey(keyCode: 0xFFFF, label: "🔒", x: 14.5, y: 0, width: 1.0),
+            baseLabel: "🔒",
             isPressed: false,
             scale: 1.5,
             isDarkMode: true,
@@ -873,6 +913,7 @@ struct OverlayKeycapView: View {
         // Loading state
         OverlayKeycapView(
             key: PhysicalKey(keyCode: 0xFFFF, label: "🔒", x: 14.5, y: 0, width: 1.0),
+            baseLabel: "🔒",
             isPressed: false,
             scale: 1.5,
             isDarkMode: true,
@@ -889,6 +930,7 @@ struct OverlayKeycapView: View {
         // Normal key
         OverlayKeycapView(
             key: PhysicalKey(keyCode: 0, label: "a", x: 0, y: 0),
+            baseLabel: "a",
             isPressed: false,
             scale: 1.5,
             isDarkMode: true
@@ -898,6 +940,7 @@ struct OverlayKeycapView: View {
         // Emphasized key (vim nav)
         OverlayKeycapView(
             key: PhysicalKey(keyCode: 4, label: "h", x: 0, y: 0),
+            baseLabel: "h",
             isPressed: false,
             scale: 1.5,
             isDarkMode: true,
@@ -908,6 +951,7 @@ struct OverlayKeycapView: View {
         // Emphasized + Pressed
         OverlayKeycapView(
             key: PhysicalKey(keyCode: 38, label: "j", x: 0, y: 0),
+            baseLabel: "j",
             isPressed: true,
             scale: 1.5,
             isDarkMode: true,
@@ -918,6 +962,7 @@ struct OverlayKeycapView: View {
         // Just pressed (not emphasized)
         OverlayKeycapView(
             key: PhysicalKey(keyCode: 40, label: "k", x: 0, y: 0),
+            baseLabel: "k",
             isPressed: true,
             scale: 1.5,
             isDarkMode: true

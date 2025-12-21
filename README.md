@@ -157,6 +157,7 @@ The wizard handles all technical setup automatically and provides one-click fixe
 | **Flexible Input** | Record single keys, combos (Cmd+C), or sequences (A→B→C) |
 | **Flexible Output** | Map to single keys, combos, or entire phrases |
 | **Visual Recording** | See exactly what keys you're pressing in real-time |
+| **Keyboard Overlay** | Live overlay with selectable physical layout and keymap labels (QWERTY/Colemak-DH/etc) |
 | **Instant Apply** | Changes work immediately - no restart needed |
 | **Safety Features** | Emergency stop (`Ctrl+Space+Esc`) prevents getting locked out |
 | **Smart Setup** | Installation wizard handles all technical setup automatically |
