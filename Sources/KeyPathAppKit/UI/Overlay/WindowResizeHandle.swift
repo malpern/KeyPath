@@ -133,9 +133,10 @@ struct WindowResizeHandles: ViewModifier {
                         .position(x: size.width - edgeWidth / 2, y: size.height / 2)
 
                     // Corners (on top)
-                    cornerHandleView(.topLeft)
-                        .frame(width: cornerSize, height: cornerSize)
-                        .position(x: cornerSize / 2, y: cornerSize / 2)
+                    // Top-left corner disabled to avoid conflict with header buttons
+                    // cornerHandleView(.topLeft)
+                    //     .frame(width: cornerSize, height: cornerSize)
+                    //     .position(x: cornerSize / 2, y: cornerSize / 2)
 
                     cornerHandleView(.topRight)
                         .frame(width: cornerSize, height: cornerSize)

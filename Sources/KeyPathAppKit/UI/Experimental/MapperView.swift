@@ -765,16 +765,16 @@ struct MapperInputKeycap: View {
         if label.lowercased() == "fn" {
             HStack(spacing: 8) {
                 Image(systemName: "globe")
-                    .font(.system(size: 20, weight: .regular))
+                    .font(.system(size: 28, weight: .regular))
                 Text("fn")
-                    .font(.system(size: 16, weight: .regular))
+                    .font(.system(size: 24, weight: .regular))
             }
             .foregroundStyle(foregroundColor)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             // Other narrow modifiers (ctrl, opt, cmd)
             Text(label)
-                .font(.system(size: 28, weight: .light))
+                .font(.system(size: 42, weight: .light))
                 .foregroundStyle(foregroundColor)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -822,7 +822,7 @@ struct MapperInputKeycap: View {
         if isSimpleText || isSingleSymbol {
             // Mapper mode: show centered for consistency with output keycap
             Text(label.lowercased())
-                .font(.system(size: 32, weight: .medium))
+                .font(.system(size: 42, weight: .medium))
                 .foregroundStyle(foregroundColor)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
@@ -831,7 +831,7 @@ struct MapperInputKeycap: View {
                 Spacer()
                 HStack {
                     Text(label.lowercased())
-                        .font(.system(size: 16, weight: .regular))
+                        .font(.system(size: 20, weight: .regular))
                         .foregroundStyle(foregroundColor)
                     Spacer()
                 }
@@ -847,7 +847,7 @@ struct MapperInputKeycap: View {
     @ViewBuilder
     private var arrowContent: some View {
         Text(label)
-            .font(.system(size: 24, weight: .regular))
+            .font(.system(size: 42, weight: .regular))
             .foregroundStyle(foregroundColor)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -860,17 +860,17 @@ struct MapperInputKeycap: View {
             // Dual symbol: shift above, main below
             VStack(spacing: 6) {
                 Text(shiftSymbol)
-                    .font(.system(size: 22, weight: .light))
+                    .font(.system(size: 28, weight: .light))
                     .foregroundStyle(foregroundColor.opacity(0.6))
                 Text(label.uppercased())
-                    .font(.system(size: 28, weight: .medium))
+                    .font(.system(size: 42, weight: .medium))
                     .foregroundStyle(foregroundColor)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             // Single centered content
             Text(label.uppercased())
-                .font(.system(size: 32, weight: .medium))
+                .font(.system(size: 42, weight: .medium))
                 .foregroundStyle(foregroundColor)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }

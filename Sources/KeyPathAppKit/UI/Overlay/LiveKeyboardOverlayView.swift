@@ -20,7 +20,7 @@ struct LiveKeyboardOverlayView: View {
     @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var keymapIncludePunctuationStore: String = "{}"
 
     @State private var escKeyLeftInset: CGFloat = 0
-    @State private var keyboardWidth: CGFloat = 0
+    @State private var keyboardSize: CGSize = .zero
 
     /// The currently selected physical keyboard layout
     private var activeLayout: PhysicalLayout {
@@ -45,10 +45,12 @@ struct LiveKeyboardOverlayView: View {
         let fadeAmount: CGFloat = viewModel.fadeAmount
         let headerHeight: CGFloat = 15
         let keyboardPadding: CGFloat = 6
+        let keyboardTrailingPadding: CGFloat = 2
         let headerBottomSpacing: CGFloat = 4
         let headerContentLeadingPadding = keyboardPadding + escKeyLeftInset
         let inspectorVisible = uiState.isInspectorOpen
-        let fixedKeyboardWidth = inspectorVisible && keyboardWidth > 0 ? keyboardWidth : nil
+        let inspectorSlideDuration: Double = 0.9
+        let fixedKeyboardSize = inspectorVisible && keyboardSize != .zero ? keyboardSize : nil
 
         VStack(spacing: 0) {
             VStack(spacing: 0) {
@@ -83,44 +85,41 @@ struct LiveKeyboardOverlayView: View {
                         onKeyClick: onKeyClick
                     )
                     .environmentObject(viewModel)
-                    .frame(width: fixedKeyboardWidth, alignment: .leading)
+                    .frame(
+                        width: fixedKeyboardSize?.width,
+                        height: fixedKeyboardSize?.height,
+                        alignment: .leading
+                    )
                     .background(
                         GeometryReader { proxy in
                             Color.clear
                                 .preference(
-                                    key: KeyboardWidthPreferenceKey.self,
-                                    value: proxy.size.width
+                                    key: KeyboardSizePreferenceKey.self,
+                                    value: proxy.size
                                 )
                         }
                     )
                     .onPreferenceChange(EscKeyLeftInsetPreferenceKey.self) { newValue in
                         escKeyLeftInset = newValue
                     }
-                    .onPreferenceChange(KeyboardWidthPreferenceKey.self) { newValue in
-                        if !inspectorVisible, newValue > 0 {
-                            keyboardWidth = newValue
+                    .onPreferenceChange(KeyboardSizePreferenceKey.self) { newValue in
+                        if !inspectorVisible, newValue != .zero {
+                            keyboardSize = newValue
                         }
                     }
-                    .overlay(alignment: .trailing) {
-                        Rectangle()
-                            .fill(Color.black.opacity(isDark ? 0.25 : 0.12))
-                            .frame(width: inspectorVisible ? 6 : 0)
-                            .opacity(inspectorVisible ? 1 : 0)
+
+                    if inspectorVisible {
+                        Divider()
                     }
-                    .zIndex(1)
 
                     OverlayInspectorPanel()
                         .frame(width: inspectorVisible ? inspectorWidth : 0, alignment: .leading)
                         .opacity(inspectorVisible ? 1 : 0)
                         .clipped()
-                        .overlay(alignment: .leading) {
-                            Rectangle()
-                                .fill(Color.black.opacity(isDark ? 0.18 : 0.08))
-                                .frame(width: inspectorVisible ? 1 : 0)
-                        }
+                        .animation(.easeInOut(duration: inspectorSlideDuration), value: inspectorVisible)
                 }
-                .animation(.easeOut(duration: 0.2), value: inspectorVisible)
-                .padding(.horizontal, keyboardPadding)
+                .padding(.leading, keyboardPadding)
+                .padding(.trailing, keyboardTrailingPadding)
                 .padding(.bottom, keyboardPadding)
             }
         }
@@ -277,24 +276,50 @@ private struct OverlayDragHeader: View {
     }
 }
 
-private struct KeyboardWidthPreferenceKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
+private struct KeyboardSizePreferenceKey: PreferenceKey {
+    static let defaultValue: CGSize = .zero
 
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
         value = nextValue()
     }
 }
 
 struct OverlayInspectorPanel: View {
     @Environment(\.colorScheme) private var colorScheme
+    @State private var selectedSection: InspectorSection = .keyboard
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Overlay")
+            HStack(spacing: 8) {
+                toolbarButton(
+                    systemImage: "keyboard",
+                    isSelected: selectedSection == .keyboard
+                ) {
+                    selectedSection = .keyboard
+                }
+                .accessibilityLabel("Keymap")
+
+                toolbarButton(
+                    systemImage: "square.grid.3x2",
+                    isSelected: selectedSection == .layout
+                ) {
+                    selectedSection = .layout
+                }
+                .accessibilityLabel("Physical Layout")
+
+                Spacer(minLength: 0)
+            }
+            .padding(6)
+            .background(
+                Rectangle()
+                    .fill(Color.white.opacity(isDark ? 0.06 : 0.08))
+            )
+
+            Text(sectionTitle)
                 .font(.headline)
                 .foregroundStyle(.primary)
 
-            Text("Quick access to overlay settings.")
+            Text(sectionSubtitle)
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -333,6 +358,47 @@ struct OverlayInspectorPanel: View {
     private var isDark: Bool {
         colorScheme == .dark
     }
+
+    private var sectionTitle: String {
+        switch selectedSection {
+        case .keyboard:
+            "Keymap"
+        case .layout:
+            "Physical Layout"
+        }
+    }
+
+    private var sectionSubtitle: String {
+        switch selectedSection {
+        case .keyboard:
+            "Logical labels for the keys you see."
+        case .layout:
+            "Choose the physical keyboard shape."
+        }
+    }
+
+    private func toolbarButton(
+        systemImage: String,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(isSelected ? .primary : .secondary)
+                .frame(width: 24, height: 20)
+                .background(
+                    Rectangle()
+                        .fill(Color.white.opacity(isSelected ? (isDark ? 0.12 : 0.2) : 0))
+                )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private enum InspectorSection {
+    case keyboard
+    case layout
 }
 
 // MARK: - Preview

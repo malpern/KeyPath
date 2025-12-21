@@ -711,6 +711,17 @@ struct StatusSettingsTabView: View {
                         }
                     }
 
+                    // Wizard button when there are problems
+                    if !isSystemHealthy {
+                        Button(action: { wizardInitialPage = .summary }) {
+                            Label("Fix it", systemImage: "wand.and.stars")
+                                .font(.body.weight(.semibold))
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .tint(overallHealthLevel == .critical ? .red : .orange)
+                    }
+
                     // Centered toggle
                     HStack(spacing: 12) {
                         Toggle(
@@ -778,23 +789,6 @@ struct StatusSettingsTabView: View {
                         )
                     }
 
-                    // Wizard button (primary - Enter key triggers)
-                    if let snapshot = permissionSnapshot {
-                        if snapshot.isSystemReady {
-                            Button(action: { wizardInitialPage = .summary }) {
-                                Label("Install wizard…", systemImage: "wand.and.stars.inverse")
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                        } else {
-                            Button(action: { showingPermissionAlert = true }) {
-                                Label("Fix it…", systemImage: "wand.and.stars")
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
-                        }
-                    }
-
                     VStack(alignment: .leading, spacing: 8) {
                         Text("System Status")
                             .font(.headline)
@@ -806,6 +800,7 @@ struct StatusSettingsTabView: View {
                                 title: row.title,
                                 icon: row.icon,
                                 status: row.status,
+                                message: row.message,
                                 onTap: row.targetPage.map { page in
                                     { wizardInitialPage = page }
                                 }
@@ -818,15 +813,6 @@ struct StatusSettingsTabView: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 24)
-
-            // Status details (actionable summaries)
-            VStack(alignment: .leading, spacing: 12) {
-                ForEach(statusDetails.filter { $0.level != .success }) { detail in
-                    StatusDetailRow(detail: detail)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
 
             Spacer()
         }
