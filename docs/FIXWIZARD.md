@@ -51,7 +51,7 @@ and should be preserved while iterating.
 - Wizard Helper page login-items UX,
   including an in-app screenshot and diagnostic logging.
   - `Sources/KeyPathAppKit/InstallationWizard/UI/Pages/WizardHelperPage.swift`
-  - `Sources/KeyPathApp/Resources/permissions-login-items.png`
+  - `Sources/KeyPathAppKit/Resources/permissions-login-items.png`
 - Wizard Karabiner page unblocking when Karabiner becomes healthy,
   plus readiness transition logs.
   - `Sources/KeyPathAppKit/InstallationWizard/UI/Pages/WizardKarabinerComponentsPage.swift`
