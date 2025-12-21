@@ -8,8 +8,7 @@ struct WizardCommunicationPage: View {
     @State private var commStatus: CommunicationStatus = .checking
     @State private var isFixing = false
     @State private var lastCheckTime = Date()
-    @State private var showingFixFeedback = false
-    @State private var fixResult: FixResult?
+    @State private var actionStatus: WizardDesign.ActionStatus = .idle
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
     @EnvironmentObject var kanataViewModel: KanataViewModel
     @Environment(\.preferencesService) private var preferences: PreferencesService
@@ -73,59 +72,54 @@ struct WizardCommunicationPage: View {
                 }
                 .padding(.vertical, WizardDesign.Spacing.pageVertical)
 
-                // Inline status banner following the shared pattern
-                if commStatus.isSuccess {
-                    InlineStatusView(
-                        status: .success(message: "Communication ready"),
-                        message: "Communication ready"
-                    )
-                } else if showingFixFeedback, let result = fixResult {
-                    InlineStatusView(
-                        status: result.success
-                            ? .success(message: result.message)
-                            : .error(message: result.message),
-                        message: result.message
-                    )
+                // Inline action status (immediately after hero for visual consistency)
+                if actionStatus.isActive, let message = actionStatus.message {
+                    InlineStatusView(status: actionStatus, message: message)
+                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
                 }
 
-                // Action area
+                // Action buttons
                 VStack(spacing: WizardDesign.Spacing.elementGap) {
                     if commStatus.isSuccess {
-                        WizardButton(nextStepButtonTitle, style: .primary) {
+                        Button(nextStepButtonTitle) {
                             navigateToNextStep()
                         }
-                        WizardButton("Re-check Status", style: .secondary) {
+                        .buttonStyle(WizardDesign.Component.PrimaryButton())
+                        .keyboardShortcut(.defaultAction)
+                        .padding(.top, WizardDesign.Spacing.sectionGap)
+
+                        Button("Re-check Status") {
                             Task { await checkCommunicationStatus() }
                         }
+                        .buttonStyle(WizardDesign.Component.SecondaryButton())
                     } else if commStatus.canAutoFix {
-                        WizardButton(
-                            commStatus.fixButtonText,
-                            style: .primary,
-                            isLoading: isFixing
-                        ) {
-                            await performAutoFix()
+                        Button(commStatus.fixButtonText) {
+                            Task { await performAutoFix() }
                         }
-                        WizardButton("Re-check Status", style: .secondary) {
+                        .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isFixing))
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(isFixing)
+                        .frame(minHeight: 44)
+                        .padding(.top, WizardDesign.Spacing.itemGap)
+
+                        Button("Re-check Status") {
                             Task { await checkCommunicationStatus() }
                         }
-                    } else if commStatus == .checking {
-                        VStack {
-                            ProgressView().scaleEffect(0.8)
-                            Text("Checking communication server...")
-                                .font(WizardDesign.Typography.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    } else if case .authTesting = commStatus {
-                        VStack {
-                            ProgressView().scaleEffect(0.8)
-                            Text("Setting up secure connection...")
-                                .font(WizardDesign.Typography.caption)
-                                .foregroundColor(.secondary)
-                        }
+                        .buttonStyle(WizardDesign.Component.SecondaryButton())
+                        .disabled(isFixing)
+                    } else if commStatus == .checking || isAuthTesting {
+                        Button("Checking...") {}
+                            .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: true))
+                            .disabled(true)
+                            .frame(minHeight: 44)
+                            .padding(.top, WizardDesign.Spacing.itemGap)
                     } else {
-                        WizardButton("Re-check Status", style: .primary) {
+                        Button("Re-check Status") {
                             Task { await checkCommunicationStatus() }
                         }
+                        .buttonStyle(WizardDesign.Component.PrimaryButton())
+                        .keyboardShortcut(.defaultAction)
+                        .padding(.top, WizardDesign.Spacing.sectionGap)
                     }
                 }
                 .padding(.horizontal, WizardDesign.Spacing.pageVertical)
@@ -135,6 +129,7 @@ struct WizardCommunicationPage: View {
 
             // Bottom buttons - HIG compliant button order
         }
+        .animation(WizardDesign.Animation.statusTransition, value: actionStatus)
         .frame(maxWidth: .infinity)
         .fixedSize(horizontal: false, vertical: true)
         .background(WizardDesign.Colors.wizardBackground)
@@ -150,12 +145,20 @@ struct WizardCommunicationPage: View {
         issues.isEmpty ? "Return to Summary" : "Next Issue"
     }
 
+    private var isAuthTesting: Bool {
+        if case .authTesting = commStatus {
+            return true
+        }
+        return false
+    }
+
     // MARK: - Communication Status Check (Using Shared SystemStatusChecker)
 
     private func checkCommunicationStatus() async {
         await MainActor.run {
             withAnimation(.easeInOut(duration: 0.3)) {
                 commStatus = .checking
+                actionStatus = .inProgress(message: "Checking communication server...")
             }
         }
         lastCheckTime = Date()
@@ -232,6 +235,8 @@ struct WizardCommunicationPage: View {
                             withAnimation(.easeInOut(duration: 0.3)) {
                                 commStatus = .ready(
                                     "Ready for instant configuration changes and external integrations")
+                                actionStatus = .success(message: "Communication ready")
+                                scheduleStatusClear()
                             }
                         }
                     } else if reload.isCancellation {
@@ -325,7 +330,10 @@ struct WizardCommunicationPage: View {
         guard let onAutoFix else { return }
 
         isFixing = true
-        showingFixFeedback = false
+
+        await MainActor.run {
+            actionStatus = .inProgress(message: "Fixing communication server...")
+        }
 
         let (action, successMessage, failureMessage) = getAutoFixAction()
         var success = await onAutoFix(action, true) // suppressToast=true for inline feedback
@@ -353,12 +361,15 @@ struct WizardCommunicationPage: View {
         }
 
         isFixing = false
-        fixResult = FixResult(
-            success: success,
-            message: success ? successMessage : failureMessage,
-            timestamp: Date()
-        )
-        showingFixFeedback = true
+
+        await MainActor.run {
+            if success {
+                actionStatus = .success(message: successMessage)
+                scheduleStatusClear()
+            } else {
+                actionStatus = .error(message: failureMessage)
+            }
+        }
 
         if success {
             // Recheck status after successful fix
@@ -370,6 +381,16 @@ struct WizardCommunicationPage: View {
                 }
             }
             await checkCommunicationStatus()
+        }
+    }
+
+    /// Auto-clear success status after 3 seconds
+    private func scheduleStatusClear() {
+        Task { @MainActor in
+            _ = await WizardSleep.seconds(3)
+            if case .success = actionStatus {
+                actionStatus = .idle
+            }
         }
     }
 
@@ -420,12 +441,6 @@ private struct BounceIfAvailable: ViewModifier {
 }
 
 // MARK: - Communication Status Types
-
-struct FixResult {
-    let success: Bool
-    let message: String
-    let timestamp: Date
-}
 
 enum CommunicationStatus: Equatable {
     case checking

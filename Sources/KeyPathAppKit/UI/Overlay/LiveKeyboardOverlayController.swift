@@ -261,11 +261,11 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
     private func createWindow() {
         // Keyboard aspect ratio: totalWidth / totalHeight ≈ 16.45 / 6.5 ≈ 2.53
-        // Account for: drag header (25pt) + header spacing, keyboard padding (10pt bottom), top padding, bottom shadow
-        // Total chrome ≈ 73pt vertical chrome with current layout constants.
+        // Account for: drag header (15pt) + header spacing, keyboard padding (10pt bottom), top padding, bottom shadow
+        // Total chrome ≈ 60pt vertical chrome with current layout constants.
         // Horizontal chrome = 10 (kb padding) * 2 + 4 (outer) * 2 = 28pt
         let keyboardAspectRatio: CGFloat = 2.53
-        let verticalChrome: CGFloat = 73
+        let verticalChrome: CGFloat = 60
         let horizontalChrome: CGFloat = 28
 
         // Restore saved frame or calculate from default height

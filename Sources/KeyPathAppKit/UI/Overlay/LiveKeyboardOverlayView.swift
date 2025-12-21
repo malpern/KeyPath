@@ -36,47 +36,45 @@ struct LiveKeyboardOverlayView: View {
     var body: some View {
         let cornerRadius: CGFloat = 10 // Fixed corner radius for glass container
         let fadeAmount: CGFloat = viewModel.fadeAmount
-        let headerHeight: CGFloat = 25
+        let headerHeight: CGFloat = 15
         let keyboardPadding: CGFloat = 10
-        let headerBottomSpacing: CGFloat = 6
+        let headerBottomSpacing: CGFloat = 4
         let inspectorWidth: CGFloat = 240
 
         VStack(spacing: 0) {
-            ZStack(alignment: .trailing) {
-                VStack(spacing: 0) {
-                    OverlayDragHeader(
-                        isDark: isDark,
-                        fadeAmount: fadeAmount,
-                        height: headerHeight,
-                        isInspectorOpen: isInspectorOpen,
-                        onToggleInspector: { isInspectorOpen.toggle() }
-                    )
-                    .padding(.horizontal, keyboardPadding)
-                    .padding(.top, 4)
-                    .padding(.bottom, headerBottomSpacing)
+            VStack(spacing: 0) {
+                OverlayDragHeader(
+                    isDark: isDark,
+                    fadeAmount: fadeAmount,
+                    height: headerHeight,
+                    isInspectorOpen: isInspectorOpen,
+                    onToggleInspector: { isInspectorOpen.toggle() }
+                )
+                .padding(.horizontal, keyboardPadding)
+                .padding(.bottom, headerBottomSpacing)
 
-                    // Main keyboard with directional shadow (light from above)
-                    OverlayKeyboardView(
-                        layout: activeLayout,
-                        keymap: activeKeymap,
-                        includeKeymapPunctuation: includeKeymapPunctuation,
-                        pressedKeyCodes: viewModel.pressedKeyCodes,
-                        isDarkMode: isDark,
-                        fadeAmount: fadeAmount,
-                        keyFadeAmounts: viewModel.keyFadeAmounts,
-                        currentLayerName: viewModel.currentLayerName,
-                        isLoadingLayerMap: viewModel.isLoadingLayerMap,
-                        layerKeyMap: viewModel.layerKeyMap,
-                        effectivePressedKeyCodes: viewModel.effectivePressedKeyCodes,
-                        emphasizedKeyCodes: viewModel.emphasizedKeyCodes,
-                        holdLabels: viewModel.holdLabels,
-                        onKeyClick: onKeyClick
-                    )
-                    .environmentObject(viewModel)
-                    .padding(.horizontal, keyboardPadding)
-                    .padding(.bottom, keyboardPadding)
-                }
-
+                // Main keyboard with directional shadow (light from above)
+                OverlayKeyboardView(
+                    layout: activeLayout,
+                    keymap: activeKeymap,
+                    includeKeymapPunctuation: includeKeymapPunctuation,
+                    pressedKeyCodes: viewModel.pressedKeyCodes,
+                    isDarkMode: isDark,
+                    fadeAmount: fadeAmount,
+                    keyFadeAmounts: viewModel.keyFadeAmounts,
+                    currentLayerName: viewModel.currentLayerName,
+                    isLoadingLayerMap: viewModel.isLoadingLayerMap,
+                    layerKeyMap: viewModel.layerKeyMap,
+                    effectivePressedKeyCodes: viewModel.effectivePressedKeyCodes,
+                    emphasizedKeyCodes: viewModel.emphasizedKeyCodes,
+                    holdLabels: viewModel.holdLabels,
+                    onKeyClick: onKeyClick
+                )
+                .environmentObject(viewModel)
+                .padding(.horizontal, keyboardPadding)
+                .padding(.bottom, keyboardPadding)
+            }
+            .overlay(alignment: .topTrailing) {
                 if isInspectorOpen {
                     OverlayInspectorPanel(isDark: isDark)
                         .frame(width: inspectorWidth)
@@ -95,7 +93,7 @@ struct LiveKeyboardOverlayView: View {
         // Minimal padding for shadow (just enough for bottom shadow)
         .padding(.bottom, 20)
         .padding(.horizontal, 4)
-        .padding(.top, 8)
+        .padding(.top, 4)
         .onHover { hovering in
             if hovering { viewModel.noteInteraction() }
         }
@@ -164,9 +162,13 @@ private struct OverlayDragHeader: View {
 
                 Button(action: onToggleInspector) {
                     Image(systemName: "rectangle.and.sidebar.right")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(isInspectorOpen ? Color.accentColor : headerIconColor)
-                        .padding(4)
+                        .padding(2)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(headerIconBackground)
+                        )
                 }
                 .buttonStyle(.plain)
                 .help(isInspectorOpen ? "Hide Inspector" : "Show Inspector")
@@ -188,6 +190,10 @@ private struct OverlayDragHeader: View {
 
     private var headerIconColor: Color {
         Color.white.opacity(isDark ? 0.7 : 0.6)
+    }
+
+    private var headerIconBackground: Color {
+        Color.white.opacity(isDark ? 0.08 : 0.18)
     }
 }
 
