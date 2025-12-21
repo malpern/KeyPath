@@ -116,7 +116,7 @@ struct GeneralSettingsTabView: View {
                             )
                         ) {
                             Label {
-                                Text("Record physical keys (pause KeyPath)")
+                                Text("Physical keys only (pause mappings)")
                             } icon: {
                                 Image(systemName: "keyboard")
                                     .foregroundColor(.secondary)
@@ -124,7 +124,7 @@ struct GeneralSettingsTabView: View {
                             .tag(false)
 
                             Label {
-                                Text("Record with KeyPath mappings running")
+                                Text("Include KeyPath mappings")
                             } icon: {
                                 Image(systemName: "wand.and.stars")
                                     .foregroundColor(.blue)
