@@ -369,7 +369,13 @@ struct MapperKeycapView: View {
     }
 
     /// Dynamic height - grows up to 150pt for long content
+    /// For short labels (≤3 chars), use fixed baseHeight to match input keycap size
     private var keycapHeight: CGFloat {
+        // Short labels (single keys, F-keys) use fixed height to match input
+        if label.count <= 3 {
+            return baseHeight
+        }
+
         guard maxWidth < .infinity else { return baseHeight }
 
         let availableTextWidth = maxWidth - horizontalPadding * 2

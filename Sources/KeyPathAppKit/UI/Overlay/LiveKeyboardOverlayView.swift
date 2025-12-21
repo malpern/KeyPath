@@ -55,8 +55,8 @@ struct LiveKeyboardOverlayView: View {
         let keyboardAspectRatio = activeLayout.totalWidth / activeLayout.totalHeight
         let inspectorVisible = uiState.isInspectorOpen
         let shouldFreezeKeyboard = inspectorVisible || isInspectorAnimating
-        let fixedKeyboardWidth = shouldFreezeKeyboard && keyboardWidth > 0 ? keyboardWidth : nil
-        let fixedKeyboardHeight = fixedKeyboardWidth.map { $0 / keyboardAspectRatio }
+        let fixedKeyboardWidth: CGFloat? = shouldFreezeKeyboard && keyboardWidth > 0 ? keyboardWidth : nil
+        let fixedKeyboardHeight: CGFloat? = fixedKeyboardWidth.map { $0 / keyboardAspectRatio }
 
         VStack(spacing: 0) {
             VStack(spacing: 0) {
