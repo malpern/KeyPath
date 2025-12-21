@@ -2,6 +2,14 @@ import AppKit
 import KeyPathCore
 import SwiftUI
 
+struct EscKeyLeftInsetPreferenceKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 /// Keyboard view for the live overlay.
 /// Renders a full keyboard layout with keys highlighting based on key codes.
 struct OverlayKeyboardView: View {
@@ -37,6 +45,12 @@ struct OverlayKeyboardView: View {
         GeometryReader { geometry in
             let scale = calculateScale(for: geometry.size)
             let keys = layout.keys
+            let escLeftInset = OverlayKeyboardView.escLeftInset(
+                for: layout,
+                scale: scale,
+                keyUnitSize: keyUnitSize,
+                keyGap: keyGap
+            )
 
             ZStack(alignment: .topLeading) {
                 ForEach(keys, id: \.id) { key in
@@ -44,6 +58,7 @@ struct OverlayKeyboardView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .preference(key: EscKeyLeftInsetPreferenceKey.self, value: escLeftInset)
         }
         .aspectRatio(layout.totalWidth / layout.totalHeight, contentMode: .fit)
         .onChange(of: effectivePressedKeyCodes) { _, _ in
@@ -125,6 +140,24 @@ struct OverlayKeyboardView: View {
         let baseY = key.y * (keyUnitSize + keyGap) * scale
         let halfHeight = keyHeight(for: key, scale: scale) / 2
         return baseY + halfHeight + keyGap * scale
+    }
+
+    static func escLeftInset(
+        for layout: PhysicalLayout,
+        scale: CGFloat,
+        keyUnitSize: CGFloat = 32,
+        keyGap: CGFloat = 2
+    ) -> CGFloat {
+        guard let escKey = layout.keys.first(where: { $0.keyCode == 53 }) else {
+            return keyGap * scale
+        }
+
+        let keyWidth = (escKey.width * keyUnitSize + (escKey.width - 1) * keyGap) * scale
+        let baseX = escKey.x * (keyUnitSize + keyGap) * scale
+        let halfWidth = keyWidth / 2
+        let positionX = baseX + halfWidth + keyGap * scale
+        let leftEdge = positionX - halfWidth
+        return max(0, leftEdge)
     }
 
     // MARK: - Key Code to Kanata Name Mapping

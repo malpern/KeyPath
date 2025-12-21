@@ -1,4 +1,5 @@
 import AppKit
+import QuartzCore
 import SwiftUI
 
 /// Controls the floating live keyboard overlay window.
@@ -9,7 +10,9 @@ import KeyPathCore
 @MainActor
 final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
+    private var inspectorPanel: NSPanel?
     private let viewModel = KeyboardVisualizationViewModel()
+    private let uiState = LiveKeyboardOverlayUIState()
     private var hasAutoHiddenForCurrentSettingsSession = false
 
     /// Timestamp when overlay was auto-hidden for settings (for restore on close)
@@ -35,6 +38,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
     /// Current frame version - increment to reset saved frames after layout changes
     private let currentFrameVersion = 2
+    private let inspectorPanelWidth: CGFloat = 240
+    private let inspectorAnimationDuration: TimeInterval = 0.2
 
     /// Shared instance for app-wide access
     static let shared = LiveKeyboardOverlayController()
@@ -125,6 +130,14 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         isVisible = !isVisible
     }
 
+    func toggleInspectorPanel() {
+        if uiState.isInspectorOpen {
+            hideInspectorPanel(animated: true)
+        } else {
+            showInspectorPanel(animated: true)
+        }
+    }
+
     /// Automatically hide the overlay once when Settings opens.
     /// If the user later shows it manually, we won't hide it again until Settings closes.
     func autoHideOnceForSettings() {
@@ -165,6 +178,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
     private func hideWindow() {
         viewModel.stopCapturing()
+        hideInspectorPanel(animated: false)
         window?.orderOut(nil)
     }
 
@@ -250,12 +264,14 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     nonisolated func windowDidMove(_: Notification) {
         Task { @MainActor in
             saveWindowFrame()
+            updateInspectorPanelFrame()
         }
     }
 
     nonisolated func windowDidResize(_: Notification) {
         Task { @MainActor in
             saveWindowFrame()
+            updateInspectorPanelFrame()
         }
     }
 
@@ -278,11 +294,15 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
         let contentView = LiveKeyboardOverlayView(
             viewModel: viewModel,
+            uiState: uiState,
             onKeyClick: { [weak self] key, layerInfo in
                 self?.handleKeyClick(key: key, layerInfo: layerInfo)
             },
             onClose: { [weak self] in
                 self?.isVisible = false
+            },
+            onToggleInspector: { [weak self] in
+                self?.toggleInspectorPanel()
             }
         )
 
@@ -330,6 +350,154 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         }
 
         self.window = window
+    }
+
+    // MARK: - Inspector Panel
+
+    private func showInspectorPanel(animated: Bool) {
+        guard let window else { return }
+        let panel = ensureInspectorPanel()
+        if panel.parent == nil {
+            window.addChildWindow(panel, ordered: .above)
+        }
+
+        let overlayFrame = window.frame
+        let collapsedFrame = inspectorCollapsedFrame(for: overlayFrame)
+        let targetFrame = inspectorTargetFrame(for: overlayFrame, screen: window.screen)
+
+        panel.setFrame(collapsedFrame, display: false)
+        panel.orderFront(nil)
+
+        if animated {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = inspectorAnimationDuration
+                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                panel.animator().setFrame(targetFrame, display: true)
+            }
+        } else {
+            panel.setFrame(targetFrame, display: true)
+        }
+
+        uiState.isInspectorOpen = true
+    }
+
+    private func hideInspectorPanel(animated: Bool) {
+        guard let panel = inspectorPanel else {
+            uiState.isInspectorOpen = false
+            return
+        }
+        guard let window else {
+            panel.orderOut(nil)
+            uiState.isInspectorOpen = false
+            return
+        }
+
+        let overlayFrame = window.frame
+        let collapsedFrame = inspectorCollapsedFrame(for: overlayFrame)
+
+        if animated {
+            let panelWindowNumber = panel.windowNumber
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = inspectorAnimationDuration
+                context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+                panel.animator().setFrame(collapsedFrame, display: true)
+            } completionHandler: {
+                Task { @MainActor in
+                    if let window = NSApp.window(withWindowNumber: panelWindowNumber) {
+                        window.orderOut(nil)
+                    }
+                }
+            }
+        } else {
+            panel.setFrame(collapsedFrame, display: false)
+            panel.orderOut(nil)
+        }
+
+        uiState.isInspectorOpen = false
+    }
+
+    private func updateInspectorPanelFrame() {
+        guard uiState.isInspectorOpen, let window, let panel = inspectorPanel else { return }
+        let targetFrame = inspectorTargetFrame(for: window.frame, screen: window.screen)
+        panel.setFrame(targetFrame, display: true)
+    }
+
+    private func ensureInspectorPanel() -> NSPanel {
+        if let panel = inspectorPanel {
+            return panel
+        }
+
+        let contentSize = NSSize(width: inspectorPanelWidth, height: window?.frame.height ?? 200)
+        let panel = NSPanel(
+            contentRect: NSRect(origin: .zero, size: contentSize),
+            styleMask: [.utilityWindow, .titled, .nonactivatingPanel, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        panel.titleVisibility = .hidden
+        panel.titlebarAppearsTransparent = true
+        panel.isMovableByWindowBackground = false
+        panel.isReleasedWhenClosed = false
+        panel.isFloatingPanel = true
+        panel.hidesOnDeactivate = false
+        panel.level = window?.level ?? .floating
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
+        panel.becomesKeyOnlyIfNeeded = true
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = true
+        panel.standardWindowButton(.closeButton)?.isHidden = true
+        panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        panel.standardWindowButton(.zoomButton)?.isHidden = true
+
+        let hostingView = NSHostingView(
+            rootView: OverlayInspectorPanel().environmentObject(uiState)
+        )
+        hostingView.autoresizingMask = [.width, .height]
+        panel.contentView = hostingView
+
+        inspectorPanel = panel
+        return panel
+    }
+
+    private func inspectorTargetFrame(for overlayFrame: NSRect, screen: NSScreen?) -> NSRect {
+        let maxVisibleX = screen?.visibleFrame.maxX ?? overlayFrame.maxX
+        return InspectorPanelLayout.targetFrame(
+            overlayFrame: overlayFrame,
+            maxVisibleX: maxVisibleX,
+            panelWidth: inspectorPanelWidth
+        )
+    }
+
+    private func inspectorCollapsedFrame(for overlayFrame: NSRect) -> NSRect {
+        InspectorPanelLayout.collapsedFrame(overlayFrame: overlayFrame)
+    }
+}
+
+@MainActor
+final class LiveKeyboardOverlayUIState: ObservableObject {
+    @Published var isInspectorOpen = false
+}
+
+enum InspectorPanelLayout {
+    static func targetFrame(overlayFrame: NSRect, maxVisibleX: CGFloat, panelWidth: CGFloat) -> NSRect {
+        let maxWidth = max(0, maxVisibleX - overlayFrame.maxX)
+        let width = max(0, min(panelWidth, maxWidth))
+        return NSRect(
+            x: overlayFrame.maxX,
+            y: overlayFrame.minY,
+            width: width,
+            height: overlayFrame.height
+        )
+    }
+
+    static func collapsedFrame(overlayFrame: NSRect) -> NSRect {
+        NSRect(
+            x: overlayFrame.maxX,
+            y: overlayFrame.minY,
+            width: 1,
+            height: overlayFrame.height
+        )
     }
 }
 

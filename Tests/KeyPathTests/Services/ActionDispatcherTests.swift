@@ -300,6 +300,10 @@ struct ActionDispatcherRoutingTests {
     @Test("Dispatches fakekey action")
     @MainActor
     func dispatchesFakekeyAction() {
+        let previous = FeatureFlags.simulatorAndVirtualKeysEnabled
+        FeatureFlags.setSimulatorAndVirtualKeysEnabled(true)
+        defer { FeatureFlags.setSimulatorAndVirtualKeysEnabled(previous) }
+
         let uri = KeyPathActionURI(string: "keypath://fakekey/test-key/tap")!
         let result = ActionDispatcher.shared.dispatch(uri)
 
@@ -310,6 +314,10 @@ struct ActionDispatcherRoutingTests {
     @Test("Returns missingTarget for fakekey without name")
     @MainActor
     func returnsMissingTargetForFakekeyWithoutName() {
+        let previous = FeatureFlags.simulatorAndVirtualKeysEnabled
+        FeatureFlags.setSimulatorAndVirtualKeysEnabled(true)
+        defer { FeatureFlags.setSimulatorAndVirtualKeysEnabled(previous) }
+
         let uri = KeyPathActionURI(string: "keypath://fakekey")!
         let result = ActionDispatcher.shared.dispatch(uri)
 

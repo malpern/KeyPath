@@ -5,17 +5,20 @@ import SwiftUI
 /// Shows a borderless floating keyboard that highlights keys as they are pressed.
 struct LiveKeyboardOverlayView: View {
     @ObservedObject var viewModel: KeyboardVisualizationViewModel
+    @ObservedObject var uiState: LiveKeyboardOverlayUIState
     /// Callback when a key is clicked (not dragged) - for opening Mapper with preset values
     var onKeyClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
     /// Callback when the overlay close button is pressed
     var onClose: (() -> Void)?
+    /// Callback when the inspector button is pressed
+    var onToggleInspector: (() -> Void)?
 
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("overlayLayoutId") private var selectedLayoutId: String = "macbook-us"
     @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
     @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var keymapIncludePunctuationStore: String = "{}"
 
-    @State private var isInspectorOpen = false
+    @State private var escKeyLeftInset: CGFloat = 0
 
     /// The currently selected physical keyboard layout
     private var activeLayout: PhysicalLayout {
@@ -41,7 +44,7 @@ struct LiveKeyboardOverlayView: View {
         let headerHeight: CGFloat = 15
         let keyboardPadding: CGFloat = 6
         let headerBottomSpacing: CGFloat = 4
-        let inspectorWidth: CGFloat = 240
+        let headerContentLeadingPadding = keyboardPadding + escKeyLeftInset
 
         VStack(spacing: 0) {
             VStack(spacing: 0) {
@@ -49,8 +52,9 @@ struct LiveKeyboardOverlayView: View {
                     isDark: isDark,
                     fadeAmount: fadeAmount,
                     height: headerHeight,
-                    isInspectorOpen: isInspectorOpen,
-                    onToggleInspector: { isInspectorOpen.toggle() },
+                    isInspectorOpen: uiState.isInspectorOpen,
+                    leadingContentPadding: headerContentLeadingPadding,
+                    onToggleInspector: { onToggleInspector?() },
                     onClose: { onClose?() }
                 )
                 .frame(maxWidth: .infinity)
@@ -76,15 +80,10 @@ struct LiveKeyboardOverlayView: View {
                 .environmentObject(viewModel)
                 .padding(.horizontal, keyboardPadding)
                 .padding(.bottom, keyboardPadding)
-            }
-            .overlay(alignment: .topTrailing) {
-                if isInspectorOpen {
-                    OverlayInspectorPanel(isDark: isDark)
-                        .frame(width: inspectorWidth)
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                .onPreferenceChange(EscKeyLeftInsetPreferenceKey.self) { newValue in
+                    escKeyLeftInset = newValue
                 }
             }
-            .animation(.easeOut(duration: 0.2), value: isInspectorOpen)
         }
         .background(
             glassBackground(cornerRadius: cornerRadius, fadeAmount: fadeAmount)
@@ -119,25 +118,47 @@ extension LiveKeyboardOverlayView {
             ? Color.white.opacity(0.12 - 0.07 * fadeAmount)
             : Color.black.opacity(0.08 - 0.04 * fadeAmount)
 
-        let ambientShadow = Color.black.opacity((isDark ? 0.20 : 0.12) * (1 - fadeAmount))
         let contactShadow = Color.black.opacity((isDark ? 0.12 : 0.08) * (1 - fadeAmount))
 
-        RoundedRectangle(cornerRadius: cornerRadius)
+        BottomRoundedRectangle(radius: cornerRadius)
             .fill(.ultraThinMaterial)
             .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius)
+                BottomRoundedRectangle(radius: cornerRadius)
                     .fill(tint)
             )
             // Fade overlay: animating material .opacity() directly causes discrete jumps,
             // so we overlay a semi-transparent wash that fades in smoothly instead
             .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius)
+                BottomRoundedRectangle(radius: cornerRadius)
                     .fill(Color(white: isDark ? 0.1 : 0.9).opacity(0.25 * fadeAmount))
             )
             // y >= radius ensures shadow only renders below (light from above)
-            .shadow(color: ambientShadow, radius: 14, x: 0, y: 14)
             .shadow(color: contactShadow, radius: 4, x: 0, y: 4)
             .animation(.easeOut(duration: 0.3), value: fadeAmount)
+    }
+}
+
+private struct BottomRoundedRectangle: Shape {
+    let radius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let r = min(radius, rect.width / 2, rect.height / 2)
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - r))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.maxX - r, y: rect.maxY),
+            control: CGPoint(x: rect.maxX, y: rect.maxY)
+        )
+        path.addLine(to: CGPoint(x: rect.minX + r, y: rect.maxY))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.minX, y: rect.maxY - r),
+            control: CGPoint(x: rect.minX, y: rect.maxY)
+        )
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.closeSubpath()
+        return path
     }
 }
 
@@ -148,6 +169,7 @@ private struct OverlayDragHeader: View {
     let fadeAmount: CGFloat
     let height: CGFloat
     let isInspectorOpen: Bool
+    let leadingContentPadding: CGFloat
     let onToggleInspector: () -> Void
     let onClose: () -> Void
 
@@ -191,7 +213,8 @@ private struct OverlayDragHeader: View {
 
                 Spacer()
             }
-            .padding(.horizontal, 6)
+            .padding(.leading, leadingContentPadding)
+            .padding(.trailing, 6)
         }
         .frame(height: height)
     }
@@ -215,8 +238,8 @@ private struct OverlayDragHeader: View {
     }
 }
 
-private struct OverlayInspectorPanel: View {
-    let isDark: Bool
+struct OverlayInspectorPanel: View {
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -254,6 +277,10 @@ private struct OverlayInspectorPanel: View {
                     .fill(Color(white: isDark ? 0.08 : 0.95).opacity(0.45))
             )
     }
+
+    private var isDark: Bool {
+        colorScheme == .dark
+    }
 }
 
 // MARK: - Preview
@@ -264,7 +291,8 @@ private struct OverlayInspectorPanel: View {
             let vm = KeyboardVisualizationViewModel()
             vm.pressedKeyCodes = [0, 56, 55] // a, leftshift, leftmeta
             return vm
-        }()
+        }(),
+        uiState: LiveKeyboardOverlayUIState()
     )
     .padding(40)
     .frame(width: 700, height: 350)
@@ -273,7 +301,8 @@ private struct OverlayInspectorPanel: View {
 
 #Preview("No Keys") {
     LiveKeyboardOverlayView(
-        viewModel: KeyboardVisualizationViewModel()
+        viewModel: KeyboardVisualizationViewModel(),
+        uiState: LiveKeyboardOverlayUIState()
     )
     .padding(40)
     .frame(width: 700, height: 350)
