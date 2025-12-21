@@ -114,9 +114,7 @@ struct LiveKeyboardOverlayView: View {
                     .animation(nil, value: fixedKeyboardSize)
 
                     if inspectorVisible {
-                        Rectangle()
-                            .fill(Color.white.opacity(isDark ? 0.12 : 0.22))
-                            .frame(width: 1)
+                        InspectorSeam(isDark: isDark)
                     }
 
                     OverlayInspectorPanel()
@@ -298,6 +296,32 @@ private struct KeyboardSizePreferenceKey: PreferenceKey {
 
     static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
         value = nextValue()
+    }
+}
+
+private struct InspectorSeam: View {
+    let isDark: Bool
+
+    var body: some View {
+        LinearGradient(
+            colors: [
+                Color.black.opacity(isDark ? 0.38 : 0.2),
+                Color.black.opacity(isDark ? 0.22 : 0.12)
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+        .frame(width: 8)
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(Color.white.opacity(isDark ? 0.08 : 0.2))
+                .frame(width: 1)
+        }
+        .overlay(alignment: .trailing) {
+            Rectangle()
+                .fill(Color.black.opacity(isDark ? 0.35 : 0.2))
+                .frame(width: 1)
+        }
     }
 }
 
