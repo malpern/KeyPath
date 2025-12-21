@@ -20,7 +20,7 @@ struct LiveKeyboardOverlayView: View {
     @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var keymapIncludePunctuationStore: String = "{}"
 
     @State private var escKeyLeftInset: CGFloat = 0
-    @State private var keyboardSize: CGSize = .zero
+    @State private var keyboardWidth: CGFloat = 0
     @State private var isInspectorAnimating = false
     @State private var inspectorAnimationToken = UUID()
 
@@ -52,9 +52,11 @@ struct LiveKeyboardOverlayView: View {
         let keyboardTrailingPadding: CGFloat = keyboardPadding
         let headerBottomSpacing: CGFloat = 4
         let headerContentLeadingPadding = keyboardPadding + escKeyLeftInset
+        let keyboardAspectRatio = activeLayout.totalWidth / activeLayout.totalHeight
         let inspectorVisible = uiState.isInspectorOpen
         let shouldFreezeKeyboard = inspectorVisible || isInspectorAnimating
-        let fixedKeyboardSize = shouldFreezeKeyboard && keyboardSize != .zero ? keyboardSize : nil
+        let fixedKeyboardWidth = shouldFreezeKeyboard && keyboardWidth > 0 ? keyboardWidth : nil
+        let fixedKeyboardHeight = fixedKeyboardWidth.map { $0 / keyboardAspectRatio }
 
         VStack(spacing: 0) {
             VStack(spacing: 0) {
@@ -90,34 +92,35 @@ struct LiveKeyboardOverlayView: View {
                     )
                     .environmentObject(viewModel)
                     .frame(
-                        width: fixedKeyboardSize?.width,
-                        height: fixedKeyboardSize?.height,
+                        width: fixedKeyboardWidth,
+                        height: fixedKeyboardHeight,
                         alignment: .leading
                     )
                     .background(
                         GeometryReader { proxy in
                             Color.clear
                                 .preference(
-                                    key: KeyboardSizePreferenceKey.self,
-                                    value: proxy.size
+                                    key: KeyboardWidthPreferenceKey.self,
+                                    value: proxy.size.width
                                 )
                         }
                     )
                     .onPreferenceChange(EscKeyLeftInsetPreferenceKey.self) { newValue in
                         escKeyLeftInset = newValue
                     }
-                    .onPreferenceChange(KeyboardSizePreferenceKey.self) { newValue in
-                        guard newValue != .zero else { return }
-                        let canUpdateSize = keyboardSize == .zero || !shouldFreezeKeyboard
-                        if canUpdateSize {
-                            keyboardSize = newValue
-                            let desiredHeight = headerHeight + headerBottomSpacing + newValue.height + keyboardPadding
+                    .onPreferenceChange(KeyboardWidthPreferenceKey.self) { newValue in
+                        guard newValue > 0 else { return }
+                        let canUpdateWidth = keyboardWidth == 0 || !shouldFreezeKeyboard
+                        if canUpdateWidth {
+                            keyboardWidth = newValue
+                            let keyboardHeight = newValue / keyboardAspectRatio
+                            let desiredHeight = headerHeight + headerBottomSpacing + keyboardHeight + keyboardPadding
                             if uiState.desiredContentHeight != desiredHeight {
                                 uiState.desiredContentHeight = desiredHeight
                             }
                         }
                     }
-                    .animation(nil, value: fixedKeyboardSize)
+                    .animation(nil, value: fixedKeyboardWidth)
 
                     if inspectorVisible {
                         InspectorSeam(isDark: isDark)
@@ -295,10 +298,10 @@ private struct OverlayDragHeader: View {
     }
 }
 
-private struct KeyboardSizePreferenceKey: PreferenceKey {
-    static let defaultValue: CGSize = .zero
+private struct KeyboardWidthPreferenceKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
 
-    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = nextValue()
     }
 }
