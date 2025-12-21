@@ -424,16 +424,13 @@ struct MapperKeycapView: View {
                     .font(.system(size: outputFontSize, weight: .medium))
                     .foregroundStyle(foregroundColor)
             } else {
-                // Key label - wraps to multiple lines, shrinks if needed
-                // Match INPUT keycap sizing for symbols
+                // Key label - match INPUT keycap layout (no internal padding for short labels)
                 Text(label)
                     .font(.system(size: dynamicOutputFontSize, weight: .medium))
                     .foregroundStyle(foregroundColor)
                     .multilineTextAlignment(.center)
                     .lineSpacing(2)
                     .minimumScaleFactor(minFontSize / outputFontSize)
-                    .padding(.horizontal, horizontalPadding)
-                    .padding(.vertical, verticalPadding / 2)
             }
         }
         .frame(width: appInfo != nil ? 120 : keycapWidth, height: appInfo != nil ? 100 : keycapHeight)
