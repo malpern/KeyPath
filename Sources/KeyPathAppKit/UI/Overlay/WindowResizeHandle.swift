@@ -165,81 +165,57 @@ struct WindowResizeHandles: ViewModifier {
     /// Creates an edge handle view (visual + gestures, no positioning)
     @ViewBuilder
     private func edgeHandleView(_ edge: ResizeEdge) -> some View {
-        Rectangle()
-            .fill(debugShowHandles ? Color.red.opacity(0.3) : Color.clear)
-            .contentShape(Rectangle())
-            .onHover { hovering in
-                if hovering, !isDragging {
-                    edge.cursor.push()
-                    activeEdge = edge
-                } else if !isDragging {
-                    NSCursor.pop()
-                    if activeEdge == edge { activeEdge = nil }
-                }
-            }
-            .gesture(
-                DragGesture(minimumDistance: 1, coordinateSpace: .global)
-                    .onChanged { _ in
-                        if !isDragging {
-                            if let window = findOverlayWindow() {
-                                initialFrame = window.frame
-                                initialMouseLocation = NSEvent.mouseLocation
-                            }
-                            isDragging = true
-                        }
+        if edge == .top || edge == .bottom {
+            Rectangle()
+                .fill(Color.clear)
+                .frame(width: 0, height: 0)
+                .allowsHitTesting(false)
+        } else {
+            Rectangle()
+                .fill(debugShowHandles ? Color.red.opacity(0.3) : Color.clear)
+                .contentShape(Rectangle())
+                .onHover { hovering in
+                    if hovering, !isDragging {
+                        edge.cursor.push()
                         activeEdge = edge
-                        let currentMouse = NSEvent.mouseLocation
-                        let delta = CGSize(
-                            width: currentMouse.x - initialMouseLocation.x,
-                            height: -(currentMouse.y - initialMouseLocation.y)
-                        )
-                        resizeWindow(edge: edge, translation: delta, from: initialFrame)
-                    }
-                    .onEnded { _ in
-                        isDragging = false
+                    } else if !isDragging {
                         NSCursor.pop()
+                        if activeEdge == edge { activeEdge = nil }
                     }
-            )
+                }
+                .gesture(
+                    DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                        .onChanged { _ in
+                            if !isDragging {
+                                if let window = findOverlayWindow() {
+                                    initialFrame = window.frame
+                                    initialMouseLocation = NSEvent.mouseLocation
+                                }
+                                isDragging = true
+                            }
+                            activeEdge = edge
+                            let currentMouse = NSEvent.mouseLocation
+                            let delta = CGSize(
+                                width: currentMouse.x - initialMouseLocation.x,
+                                height: -(currentMouse.y - initialMouseLocation.y)
+                            )
+                            resizeWindow(edge: edge, translation: delta, from: initialFrame)
+                        }
+                        .onEnded { _ in
+                            isDragging = false
+                            NSCursor.pop()
+                        }
+                )
+        }
     }
 
     /// Creates a corner handle view (visual + gestures, no positioning)
     @ViewBuilder
     private func cornerHandleView(_ corner: ResizeEdge) -> some View {
         Rectangle()
-            .fill(debugShowHandles ? Color.blue.opacity(0.3) : Color.clear)
-            .contentShape(Rectangle())
-            .onHover { hovering in
-                if hovering, !isDragging {
-                    corner.cursor.push()
-                    activeEdge = corner
-                } else if !isDragging {
-                    NSCursor.pop()
-                    if activeEdge == corner { activeEdge = nil }
-                }
-            }
-            .gesture(
-                DragGesture(minimumDistance: 1, coordinateSpace: .global)
-                    .onChanged { _ in
-                        if !isDragging {
-                            if let window = findOverlayWindow() {
-                                initialFrame = window.frame
-                                initialMouseLocation = NSEvent.mouseLocation
-                            }
-                            isDragging = true
-                        }
-                        activeEdge = corner
-                        let currentMouse = NSEvent.mouseLocation
-                        let delta = CGSize(
-                            width: currentMouse.x - initialMouseLocation.x,
-                            height: -(currentMouse.y - initialMouseLocation.y)
-                        )
-                        resizeWindow(edge: corner, translation: delta, from: initialFrame)
-                    }
-                    .onEnded { _ in
-                        isDragging = false
-                        NSCursor.pop()
-                    }
-            )
+            .fill(Color.clear)
+            .frame(width: 0, height: 0)
+            .allowsHitTesting(false)
     }
 
     // MARK: - Window Resizing

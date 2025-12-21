@@ -176,6 +176,9 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         }
         viewModel.startCapturing()
         viewModel.noteInteraction() // Reset fade state when showing
+        if uiState.desiredContentHeight > 0 {
+            applyDesiredContentHeight(uiState.desiredContentHeight)
+        }
         window?.orderFront(nil)
     }
 
@@ -238,11 +241,12 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         } else {
             window.frame
         }
+        let height = uiState.desiredContentHeight > 0 ? uiState.desiredContentHeight : frame.height
         let defaults = UserDefaults.standard
         defaults.set(frame.origin.x, forKey: DefaultsKey.windowX)
         defaults.set(frame.origin.y, forKey: DefaultsKey.windowY)
         defaults.set(frame.size.width, forKey: DefaultsKey.windowWidth)
-        defaults.set(frame.size.height, forKey: DefaultsKey.windowHeight)
+        defaults.set(height, forKey: DefaultsKey.windowHeight)
     }
 
     private func restoreWindowFrame() -> NSRect? {
