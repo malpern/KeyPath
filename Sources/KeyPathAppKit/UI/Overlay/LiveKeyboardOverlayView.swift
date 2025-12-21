@@ -6,6 +6,7 @@ import SwiftUI
 struct LiveKeyboardOverlayView: View {
     @ObservedObject var viewModel: KeyboardVisualizationViewModel
     @ObservedObject var uiState: LiveKeyboardOverlayUIState
+    let inspectorWidth: CGFloat
     /// Callback when a key is clicked (not dragged) - for opening Mapper with preset values
     var onKeyClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
     /// Callback when the overlay close button is pressed
@@ -60,29 +61,37 @@ struct LiveKeyboardOverlayView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.bottom, headerBottomSpacing)
 
-                // Main keyboard with directional shadow (light from above)
-                OverlayKeyboardView(
-                    layout: activeLayout,
-                    keymap: activeKeymap,
-                    includeKeymapPunctuation: includeKeymapPunctuation,
-                    pressedKeyCodes: viewModel.pressedKeyCodes,
-                    isDarkMode: isDark,
-                    fadeAmount: fadeAmount,
-                    keyFadeAmounts: viewModel.keyFadeAmounts,
-                    currentLayerName: viewModel.currentLayerName,
-                    isLoadingLayerMap: viewModel.isLoadingLayerMap,
-                    layerKeyMap: viewModel.layerKeyMap,
-                    effectivePressedKeyCodes: viewModel.effectivePressedKeyCodes,
-                    emphasizedKeyCodes: viewModel.emphasizedKeyCodes,
-                    holdLabels: viewModel.holdLabels,
-                    onKeyClick: onKeyClick
-                )
-                .environmentObject(viewModel)
+                HStack(spacing: 0) {
+                    // Main keyboard with directional shadow (light from above)
+                    OverlayKeyboardView(
+                        layout: activeLayout,
+                        keymap: activeKeymap,
+                        includeKeymapPunctuation: includeKeymapPunctuation,
+                        pressedKeyCodes: viewModel.pressedKeyCodes,
+                        isDarkMode: isDark,
+                        fadeAmount: fadeAmount,
+                        keyFadeAmounts: viewModel.keyFadeAmounts,
+                        currentLayerName: viewModel.currentLayerName,
+                        isLoadingLayerMap: viewModel.isLoadingLayerMap,
+                        layerKeyMap: viewModel.layerKeyMap,
+                        effectivePressedKeyCodes: viewModel.effectivePressedKeyCodes,
+                        emphasizedKeyCodes: viewModel.emphasizedKeyCodes,
+                        holdLabels: viewModel.holdLabels,
+                        onKeyClick: onKeyClick
+                    )
+                    .environmentObject(viewModel)
+                    .onPreferenceChange(EscKeyLeftInsetPreferenceKey.self) { newValue in
+                        escKeyLeftInset = newValue
+                    }
+
+                    if uiState.isInspectorOpen {
+                        Divider()
+                        OverlayInspectorPanel()
+                            .frame(width: inspectorWidth)
+                    }
+                }
                 .padding(.horizontal, keyboardPadding)
                 .padding(.bottom, keyboardPadding)
-                .onPreferenceChange(EscKeyLeftInsetPreferenceKey.self) { newValue in
-                    escKeyLeftInset = newValue
-                }
             }
         }
         .background(
@@ -292,7 +301,8 @@ struct OverlayInspectorPanel: View {
             vm.pressedKeyCodes = [0, 56, 55] // a, leftshift, leftmeta
             return vm
         }(),
-        uiState: LiveKeyboardOverlayUIState()
+        uiState: LiveKeyboardOverlayUIState(),
+        inspectorWidth: 240
     )
     .padding(40)
     .frame(width: 700, height: 350)
@@ -302,7 +312,8 @@ struct OverlayInspectorPanel: View {
 #Preview("No Keys") {
     LiveKeyboardOverlayView(
         viewModel: KeyboardVisualizationViewModel(),
-        uiState: LiveKeyboardOverlayUIState()
+        uiState: LiveKeyboardOverlayUIState(),
+        inspectorWidth: 240
     )
     .padding(40)
     .frame(width: 700, height: 350)
