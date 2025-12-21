@@ -29,6 +29,9 @@ actor SimulatorService {
         taps: [SimulatorKeyTap],
         configPath: String
     ) async throws -> SimulationResult {
+        guard FeatureFlags.simulatorAndVirtualKeysEnabled else {
+            throw SimulatorError.featureDisabled
+        }
         guard !taps.isEmpty else {
             return SimulationResult(events: [], finalLayer: nil, durationMs: 0)
         }
@@ -77,6 +80,9 @@ actor SimulatorService {
         configPath: String,
         startLayer: String? = nil
     ) async throws -> SimulationResult {
+        guard FeatureFlags.simulatorAndVirtualKeysEnabled else {
+            throw SimulatorError.featureDisabled
+        }
         guard fileManager.fileExists(atPath: simulatorPath) else {
             throw SimulatorError.simulatorNotFound
         }
@@ -107,6 +113,9 @@ actor SimulatorService {
         configPath: String,
         startLayer: String
     ) async throws -> SimulatorKeyMappingResult {
+        guard FeatureFlags.simulatorAndVirtualKeysEnabled else {
+            throw SimulatorError.featureDisabled
+        }
         guard fileManager.fileExists(atPath: simulatorPath) else {
             throw SimulatorError.simulatorNotFound
         }

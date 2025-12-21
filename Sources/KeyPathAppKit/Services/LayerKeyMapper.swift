@@ -172,6 +172,13 @@ actor LayerKeyMapper {
         let normalizedLayer = layer.lowercased()
         AppLogger.shared.info("🗺️ [LayerKeyMapper] getMapping called for layer '\(layer)' (normalized: '\(normalizedLayer)')")
 
+        if !FeatureFlags.simulatorAndVirtualKeysEnabled {
+            AppLogger.shared.info("🗺️ [LayerKeyMapper] Simulator disabled; using fallback mapping")
+            let mapping = buildFallbackMapping()
+            cache[normalizedLayer] = mapping
+            return mapping
+        }
+
         // Check if config changed (invalidate cache)
         let currentHash = try configFileHash(configPath)
         if currentHash != configHash {
@@ -212,6 +219,15 @@ actor LayerKeyMapper {
         // Normalize layer names to lowercase
         let normalizedLayers = layerNames.map { $0.lowercased() }
         AppLogger.shared.info("🗺️ [LayerKeyMapper] Pre-building mappings for \(normalizedLayers.count) layers: \(normalizedLayers.joined(separator: ", "))")
+
+        if !FeatureFlags.simulatorAndVirtualKeysEnabled {
+            let mapping = buildFallbackMapping()
+            for layer in normalizedLayers {
+                cache[layer] = mapping
+            }
+            AppLogger.shared.info("🗺️ [LayerKeyMapper] Simulator disabled; cached fallback mapping for \(normalizedLayers.count) layers")
+            return
+        }
 
         // Update config hash
         if let hash = try? configFileHash(configPath) {
@@ -425,6 +441,10 @@ actor LayerKeyMapper {
         configPath: String,
         startLayer: String
     ) async throws -> String? {
+        guard FeatureFlags.simulatorAndVirtualKeysEnabled else {
+            AppLogger.shared.debug("🔒 [LayerKeyMapper] Simulator disabled; skipping holdDisplayLabel")
+            return nil
+        }
         let tcpName = OverlayKeyboardView.keyCodeToKanataName(keyCode)
         let simName = toSimulatorKeyName(tcpName)
 
@@ -494,6 +514,28 @@ actor LayerKeyMapper {
         }
 
         return Self.labelForOutputKeys(keySet, displayForKey: kanataKeyToDisplayLabel)
+    }
+
+    /// Build a mapping that mirrors physical key labels without simulator output.
+    private func buildFallbackMapping() -> [UInt16: LayerKeyInfo] {
+        var mapping: [UInt16: LayerKeyInfo] = [:]
+
+        let physicalKeys = PhysicalLayout.macBookUS.keys
+            .filter { $0.keyCode != 0xFFFF } // Skip Touch ID
+            .filter { !OverlayKeyboardView.keyCodeToKanataName($0.keyCode).starts(with: "unknown") }
+
+        for key in physicalKeys {
+            mapping[key.keyCode] = LayerKeyInfo(
+                displayLabel: key.label,
+                outputKey: nil,
+                outputKeyCode: nil,
+                isTransparent: false,
+                isLayerSwitch: false
+            )
+        }
+
+        AppLogger.shared.info("🗺️ [LayerKeyMapper] Built fallback mapping: \(mapping.count) keys")
+        return mapping
     }
 
     /// Map a set of output key names (lowercased) to a display label, with Hyper/Meh detection.

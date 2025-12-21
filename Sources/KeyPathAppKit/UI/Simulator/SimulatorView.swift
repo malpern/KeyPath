@@ -7,6 +7,9 @@ struct SimulatorView: View {
     @FocusState private var isKeyboardFocused: Bool
 
     var body: some View {
+        if !FeatureFlags.simulatorAndVirtualKeysEnabled {
+            disabledView
+        } else {
         VStack(spacing: 0) {
             // Keyboard section (top) - fills available space
             keyboardSection
@@ -50,6 +53,7 @@ struct SimulatorView: View {
         }
         .onDisappear {
             viewModel.stopKeyMonitoring()
+        }
         }
     }
 
@@ -106,6 +110,21 @@ struct SimulatorView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
+    }
+
+    private var disabledView: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "keyboard.slash")
+                .font(.system(size: 36))
+                .foregroundColor(.secondary)
+            Text("Simulator Disabled")
+                .font(.title3.weight(.semibold))
+            Text("Enable the simulator feature flag to use the virtual keyboard simulator.")
+                .font(.callout)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

@@ -11,6 +11,7 @@ struct CleanupAndRepairView: View {
     @State private var duplicateCopies: [String] = []
     @State private var selectedTab: DiagnosticTab = .cleanup
     @State private var helperHealth: HelperManager.HealthState?
+    @State private var simulatorAndVirtualKeysEnabled = FeatureFlags.simulatorAndVirtualKeysEnabled
 
     enum DiagnosticTab: String, CaseIterable {
         case cleanup = "Cleanup & Repair"
@@ -48,6 +49,7 @@ struct CleanupAndRepairView: View {
         .onAppear {
             duplicateCopies = HelperMaintenance.shared.detectDuplicateAppCopies()
             errorMonitor.markAllAsRead() // Mark errors as read when viewing diagnostics
+            simulatorAndVirtualKeysEnabled = FeatureFlags.simulatorAndVirtualKeysEnabled
             refreshHelperHealth()
         }
         .onReceive(NotificationCenter.default.publisher(for: .showErrorsTab)) { _ in
@@ -61,6 +63,20 @@ struct CleanupAndRepairView: View {
     private var cleanupTabContent: some View {
         VStack(alignment: .leading, spacing: 12) {
             helperHealthCard
+
+            VStack(alignment: .leading, spacing: 4) {
+                Toggle("Enable Simulator + Virtual Keys", isOn: Binding(
+                    get: { simulatorAndVirtualKeysEnabled },
+                    set: { newValue in
+                        simulatorAndVirtualKeysEnabled = newValue
+                        FeatureFlags.setSimulatorAndVirtualKeysEnabled(newValue)
+                    }
+                ))
+                .font(.system(size: 12))
+                Text("Gates the simulator UI, overlay mapping via simulator, and virtual key actions.")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
 
             Text(
                 "This will unregister the helper, remove stale artifacts, and re-register it from /Applications/KeyPath.app. You may be prompted for an administrator password."

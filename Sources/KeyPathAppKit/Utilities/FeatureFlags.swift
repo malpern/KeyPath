@@ -70,6 +70,7 @@ extension FeatureFlags {
     private static let useJustInTimePermissionRequestsKey = "USE_JIT_PERMISSION_REQUESTS"
     private static let allowOptionalWizardKey = "ALLOW_OPTIONAL_WIZARD"
     private static let useUnifiedWizardRouterKey = "USE_UNIFIED_WIZARD_ROUTER"
+    private static let simulatorAndVirtualKeysEnabledKey = "SIMULATOR_AND_VIRTUAL_KEYS_ENABLED"
 
     static var captureListenOnlyEnabled: Bool {
         if UserDefaults.standard.object(forKey: captureListenOnlyKey) == nil {
@@ -170,5 +171,19 @@ extension FeatureFlags {
 
     static func setUseUnifiedWizardRouter(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: useUnifiedWizardRouterKey)
+    }
+
+    // MARK: - Simulator + Virtual Keys
+
+    /// Gate simulator UI/logic and virtual key actions (default OFF)
+    static var simulatorAndVirtualKeysEnabled: Bool {
+        if UserDefaults.standard.object(forKey: simulatorAndVirtualKeysEnabledKey) == nil {
+            return false // default OFF
+        }
+        return UserDefaults.standard.bool(forKey: simulatorAndVirtualKeysEnabledKey)
+    }
+
+    static func setSimulatorAndVirtualKeysEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: simulatorAndVirtualKeysEnabledKey)
     }
 }

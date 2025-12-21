@@ -128,6 +128,10 @@ final class SimulatorViewModel: ObservableObject {
     /// Run the simulation with queued taps
     func runSimulation() async {
         guard !queuedTaps.isEmpty else { return }
+        guard FeatureFlags.simulatorAndVirtualKeysEnabled else {
+            error = SimulatorError.featureDisabled
+            return
+        }
 
         isRunning = true
         error = nil

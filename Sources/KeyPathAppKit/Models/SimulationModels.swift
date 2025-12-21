@@ -226,6 +226,7 @@ struct SimulatorKeyMappingEntry: Codable, Equatable {
 // MARK: - Errors
 
 enum SimulatorError: Error, LocalizedError {
+    case featureDisabled
     case simulatorNotFound
     case configNotFound(String)
     case processFailedWithCode(Int, String)
@@ -233,6 +234,8 @@ enum SimulatorError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
+        case .featureDisabled:
+            "Simulator is disabled by feature flag"
         case .simulatorNotFound:
             "Simulator binary not found in app bundle"
         case let .configNotFound(path):

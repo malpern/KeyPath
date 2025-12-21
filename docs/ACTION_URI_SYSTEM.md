@@ -377,6 +377,7 @@ KeyPath includes a built-in inspector for viewing and testing virtual keys defin
 - Virtual keys must be defined in your Kanata config using `defvirtualkeys` or `deffakekeys`
 - Kanata service must be running to test keys (TCP connection required)
 - The inspector is read-only; edit your config file to add/modify keys
+- Feature flag `SIMULATOR_AND_VIRTUAL_KEYS_ENABLED` must be enabled to access the inspector and trigger virtual keys
 
 ### Troubleshooting
 

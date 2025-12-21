@@ -30,6 +30,13 @@ enum SettingsTab: Hashable, CaseIterable {
         case .advanced: "wrench.and.screwdriver"
         }
     }
+
+    static var visibleTabs: [SettingsTab] {
+        if FeatureFlags.simulatorAndVirtualKeysEnabled {
+            return allCases
+        }
+        return allCases.filter { $0 != .simulator }
+    }
 }
 
 struct SettingsContainerView: View {
@@ -65,6 +72,9 @@ struct SettingsContainerView: View {
         .frame(minWidth: 680, maxWidth: 680, minHeight: 550, idealHeight: 700)
         .task { await refreshCanManageRules() }
         .onAppear {
+            if !FeatureFlags.simulatorAndVirtualKeysEnabled, selection == .simulator {
+                selection = .advanced
+            }
             LiveKeyboardOverlayController.shared.autoHideOnceForSettings()
         }
         .onDisappear {
@@ -87,6 +97,10 @@ struct SettingsContainerView: View {
             selection = canManageRules ? .rules : .status
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsSimulator)) { _ in
+            guard FeatureFlags.simulatorAndVirtualKeysEnabled else {
+                selection = .status
+                return
+            }
             selection = .simulator
         }
         .onReceive(NotificationCenter.default.publisher(for: .wizardClosed)) { _ in
@@ -116,7 +130,7 @@ private struct SettingsTabPicker: View {
 
     var body: some View {
         HStack(spacing: 24) {
-            ForEach(SettingsTab.allCases, id: \.self) { tab in
+            ForEach(SettingsTab.visibleTabs, id: \.self) { tab in
                 let disabled = (tab == .rules && !rulesEnabled)
                 SettingsTabButton(
                     tab: tab,

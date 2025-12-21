@@ -130,9 +130,11 @@ struct GeneralSettingsTabView: View {
             Divider()
                 .padding(.vertical, 12)
 
-            // Virtual Keys Inspector
-            VirtualKeysInspectorView()
-                .padding(.horizontal, 20)
+            if FeatureFlags.simulatorAndVirtualKeysEnabled {
+                // Virtual Keys Inspector
+                VirtualKeysInspectorView()
+                    .padding(.horizontal, 20)
+            }
 
             Spacer()
         }

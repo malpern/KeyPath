@@ -5,10 +5,24 @@
 final class LayerKeyMapperTests: XCTestCase {
     /// Path to the real simulator binary in the installed app
     private let simulatorPath = "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-simulator"
+    private var previousSimulatorFlag: Bool?
 
     /// Check if simulator is available for integration tests
     private var simulatorAvailable: Bool {
         FileManager.default.fileExists(atPath: simulatorPath)
+    }
+
+    override func setUp() {
+        super.setUp()
+        previousSimulatorFlag = FeatureFlags.simulatorAndVirtualKeysEnabled
+        FeatureFlags.setSimulatorAndVirtualKeysEnabled(true)
+    }
+
+    override func tearDown() {
+        if let previousSimulatorFlag {
+            FeatureFlags.setSimulatorAndVirtualKeysEnabled(previousSimulatorFlag)
+        }
+        super.tearDown()
     }
 
     // MARK: - Simulator-based Tests

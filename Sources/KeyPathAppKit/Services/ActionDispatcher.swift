@@ -243,6 +243,14 @@ public final class ActionDispatcher {
     /// Format: keypath://fakekey/{key-name}[/{action}]
     /// Actions: tap (default), press, release, toggle
     private func handleFakeKey(_ uri: KeyPathActionURI) -> ActionDispatchResult {
+        guard FeatureFlags.simulatorAndVirtualKeysEnabled else {
+            let message = "Virtual keys are disabled by feature flag."
+            AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
+            onError?(message)
+            return .failed("fakekey", NSError(domain: "ActionDispatcher", code: 4, userInfo: [
+                NSLocalizedDescriptionKey: message
+            ]))
+        }
         guard let keyName = uri.target else {
             let message = "fakekey action requires key name: keypath://fakekey/{name}[/tap|press|release|toggle]"
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
