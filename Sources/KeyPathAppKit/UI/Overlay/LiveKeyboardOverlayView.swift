@@ -20,6 +20,7 @@ struct LiveKeyboardOverlayView: View {
     @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var keymapIncludePunctuationStore: String = "{}"
 
     @State private var escKeyLeftInset: CGFloat = 0
+    @State private var keyboardWidth: CGFloat = 0
 
     /// The currently selected physical keyboard layout
     private var activeLayout: PhysicalLayout {
@@ -46,6 +47,8 @@ struct LiveKeyboardOverlayView: View {
         let keyboardPadding: CGFloat = 6
         let headerBottomSpacing: CGFloat = 4
         let headerContentLeadingPadding = keyboardPadding + escKeyLeftInset
+        let inspectorVisible = uiState.isInspectorOpen
+        let fixedKeyboardWidth = inspectorVisible && keyboardWidth > 0 ? keyboardWidth : nil
 
         VStack(spacing: 0) {
             VStack(spacing: 0) {
@@ -80,16 +83,43 @@ struct LiveKeyboardOverlayView: View {
                         onKeyClick: onKeyClick
                     )
                     .environmentObject(viewModel)
+                    .frame(width: fixedKeyboardWidth, alignment: .leading)
+                    .background(
+                        GeometryReader { proxy in
+                            Color.clear
+                                .preference(
+                                    key: KeyboardWidthPreferenceKey.self,
+                                    value: proxy.size.width
+                                )
+                        }
+                    )
                     .onPreferenceChange(EscKeyLeftInsetPreferenceKey.self) { newValue in
                         escKeyLeftInset = newValue
                     }
-
-                    if uiState.isInspectorOpen {
-                        Divider()
-                        OverlayInspectorPanel()
-                            .frame(width: inspectorWidth)
+                    .onPreferenceChange(KeyboardWidthPreferenceKey.self) { newValue in
+                        if !inspectorVisible, newValue > 0 {
+                            keyboardWidth = newValue
+                        }
                     }
+                    .overlay(alignment: .trailing) {
+                        Rectangle()
+                            .fill(Color.black.opacity(isDark ? 0.25 : 0.12))
+                            .frame(width: inspectorVisible ? 6 : 0)
+                            .opacity(inspectorVisible ? 1 : 0)
+                    }
+                    .zIndex(1)
+
+                    OverlayInspectorPanel()
+                        .frame(width: inspectorVisible ? inspectorWidth : 0, alignment: .leading)
+                        .opacity(inspectorVisible ? 1 : 0)
+                        .clipped()
+                        .overlay(alignment: .leading) {
+                            Rectangle()
+                                .fill(Color.black.opacity(isDark ? 0.18 : 0.08))
+                                .frame(width: inspectorVisible ? 1 : 0)
+                        }
                 }
+                .animation(.easeOut(duration: 0.2), value: inspectorVisible)
                 .padding(.horizontal, keyboardPadding)
                 .padding(.bottom, keyboardPadding)
             }
@@ -247,6 +277,14 @@ private struct OverlayDragHeader: View {
     }
 }
 
+private struct KeyboardWidthPreferenceKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 struct OverlayInspectorPanel: View {
     @Environment(\.colorScheme) private var colorScheme
 
@@ -272,18 +310,23 @@ struct OverlayInspectorPanel: View {
         .frame(maxHeight: .infinity, alignment: .top)
         .background(panelBackground)
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
+            Rectangle()
                 .stroke(Color.white.opacity(isDark ? 0.08 : 0.15), lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     private var panelBackground: some View {
-        RoundedRectangle(cornerRadius: 8)
+        let leftTone = Color(white: isDark ? 0.08 : 0.94).opacity(0.9)
+        let rightTone = Color(white: isDark ? 0.12 : 0.98).opacity(0.9)
+
+        return Rectangle()
             .fill(.ultraThinMaterial)
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(white: isDark ? 0.08 : 0.95).opacity(0.45))
+                LinearGradient(
+                    colors: [leftTone, rightTone],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
             )
     }
 
