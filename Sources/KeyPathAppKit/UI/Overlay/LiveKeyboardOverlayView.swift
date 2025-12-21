@@ -24,6 +24,9 @@ struct LiveKeyboardOverlayView: View {
     @State private var isInspectorAnimating = false
     @State private var inspectorAnimationToken = UUID()
 
+    /// Shared state for tracking mouse interaction with keyboard (for refined click delay)
+    @StateObject private var keyboardMouseState = KeyboardMouseState()
+
     private let inspectorSlideDuration: Double = 1.2
 
     /// The currently selected physical keyboard layout
@@ -91,6 +94,13 @@ struct LiveKeyboardOverlayView: View {
                         onKeyClick: onKeyClick
                     )
                     .environmentObject(viewModel)
+                    .environmentObject(keyboardMouseState)
+                    .onHover { hovering in
+                        // Reset click state when mouse exits keyboard area
+                        if !hovering {
+                            keyboardMouseState.reset()
+                        }
+                    }
                     .frame(
                         width: fixedKeyboardWidth,
                         height: fixedKeyboardHeight,

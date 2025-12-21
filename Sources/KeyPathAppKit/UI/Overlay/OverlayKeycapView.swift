@@ -99,6 +99,9 @@ struct OverlayKeycapView: View {
     /// Cached favicon for URL actions
     @State private var faviconImage: NSImage?
 
+    /// Shared state for tracking mouse interaction with keyboard (for refined click delay)
+    @EnvironmentObject private var keyboardMouseState: KeyboardMouseState
+
     /// Dwell time before key becomes clickable (300ms)
     private let clickableDwellTime: TimeInterval = 0.3
     /// Drag distance threshold to treat gesture as window move (not a click)
@@ -185,11 +188,17 @@ struct OverlayKeycapView: View {
         .onHover { hovering in
             isHovering = hovering
             if hovering {
-                // Start dwell timer
-                hoverTask = Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(Int(clickableDwellTime * 1000)))
-                    if !Task.isCancelled, isHovering {
-                        isClickable = true
+                // If user has already clicked a key, make instantly clickable
+                // Otherwise, apply 300ms dwell delay
+                if keyboardMouseState.hasClickedAnyKey {
+                    isClickable = true
+                } else {
+                    // Start dwell timer for first hover
+                    hoverTask = Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(Int(clickableDwellTime * 1000)))
+                        if !Task.isCancelled, isHovering {
+                            isClickable = true
+                        }
                     }
                 }
             } else {
@@ -214,6 +223,8 @@ struct OverlayKeycapView: View {
                         didDragBeyondThreshold = false
                         return
                     }
+                    // Record that a key has been clicked (subsequent clicks will be instant)
+                    keyboardMouseState.recordClick()
                     onKeyClick(key, layerKeyInfo)
                     didDragBeyondThreshold = false
                 },
