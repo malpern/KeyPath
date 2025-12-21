@@ -201,45 +201,21 @@ extension LiveKeyboardOverlayView {
 
         let contactShadow = Color.black.opacity((isDark ? 0.12 : 0.08) * (1 - fadeAmount))
 
-        BottomRoundedRectangle(radius: cornerRadius)
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
             .fill(.ultraThinMaterial)
             .overlay(
-                BottomRoundedRectangle(radius: cornerRadius)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(tint)
             )
             // Fade overlay: animating material .opacity() directly causes discrete jumps,
             // so we overlay a semi-transparent wash that fades in smoothly instead
             .overlay(
-                BottomRoundedRectangle(radius: cornerRadius)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(Color(white: isDark ? 0.1 : 0.9).opacity(0.25 * fadeAmount))
             )
             // y >= radius ensures shadow only renders below (light from above)
             .shadow(color: contactShadow, radius: 4, x: 0, y: 4)
             .animation(.easeOut(duration: 0.3), value: fadeAmount)
-    }
-}
-
-private struct BottomRoundedRectangle: Shape {
-    let radius: CGFloat
-
-    func path(in rect: CGRect) -> Path {
-        let r = min(radius, rect.width / 2, rect.height / 2)
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - r))
-        path.addQuadCurve(
-            to: CGPoint(x: rect.maxX - r, y: rect.maxY),
-            control: CGPoint(x: rect.maxX, y: rect.maxY)
-        )
-        path.addLine(to: CGPoint(x: rect.minX + r, y: rect.maxY))
-        path.addQuadCurve(
-            to: CGPoint(x: rect.minX, y: rect.maxY - r),
-            control: CGPoint(x: rect.minX, y: rect.maxY)
-        )
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
-        path.closeSubpath()
-        return path
     }
 }
 
