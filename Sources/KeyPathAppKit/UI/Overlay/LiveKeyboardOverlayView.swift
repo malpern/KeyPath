@@ -7,6 +7,8 @@ struct LiveKeyboardOverlayView: View {
     @ObservedObject var viewModel: KeyboardVisualizationViewModel
     /// Callback when a key is clicked (not dragged) - for opening Mapper with preset values
     var onKeyClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
+    /// Callback when the overlay close button is pressed
+    var onClose: (() -> Void)?
 
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("overlayLayoutId") private var selectedLayoutId: String = "macbook-us"
@@ -37,7 +39,7 @@ struct LiveKeyboardOverlayView: View {
         let cornerRadius: CGFloat = 10 // Fixed corner radius for glass container
         let fadeAmount: CGFloat = viewModel.fadeAmount
         let headerHeight: CGFloat = 15
-        let keyboardPadding: CGFloat = 10
+        let keyboardPadding: CGFloat = 6
         let headerBottomSpacing: CGFloat = 4
         let inspectorWidth: CGFloat = 240
 
@@ -48,7 +50,8 @@ struct LiveKeyboardOverlayView: View {
                     fadeAmount: fadeAmount,
                     height: headerHeight,
                     isInspectorOpen: isInspectorOpen,
-                    onToggleInspector: { isInspectorOpen.toggle() }
+                    onToggleInspector: { isInspectorOpen.toggle() },
+                    onClose: { onClose?() }
                 )
                 .frame(maxWidth: .infinity)
                 .padding(.bottom, headerBottomSpacing)
@@ -146,31 +149,47 @@ private struct OverlayDragHeader: View {
     let height: CGFloat
     let isInspectorOpen: Bool
     let onToggleInspector: () -> Void
+    let onClose: () -> Void
 
     var body: some View {
+        let buttonSize = max(10, height * 0.9)
+
         ZStack {
-            RoundedRectangle(cornerRadius: 6)
+            Rectangle()
                 .fill(headerFill)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 6)
+                    Rectangle()
                         .stroke(headerStroke, lineWidth: 1)
                 )
 
-            HStack(spacing: 8) {
-                Spacer()
+            HStack(spacing: 6) {
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: buttonSize * 0.45, weight: .semibold))
+                        .foregroundStyle(headerIconColor)
+                        .frame(width: buttonSize, height: buttonSize)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(headerIconBackground)
+                        )
+                }
+                .buttonStyle(.plain)
+                .help("Close Overlay")
 
                 Button(action: onToggleInspector) {
                     Image(systemName: "rectangle.and.sidebar.right")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: buttonSize * 0.45, weight: .semibold))
                         .foregroundStyle(isInspectorOpen ? Color.accentColor : headerIconColor)
-                        .padding(1)
+                        .frame(width: buttonSize, height: buttonSize)
                         .background(
-                            RoundedRectangle(cornerRadius: 5)
+                            RoundedRectangle(cornerRadius: 4)
                                 .fill(headerIconBackground)
                         )
                 }
                 .buttonStyle(.plain)
                 .help(isInspectorOpen ? "Hide Inspector" : "Show Inspector")
+
+                Spacer()
             }
             .padding(.horizontal, 6)
         }

@@ -241,7 +241,7 @@ struct ContentView: View {
     private var contentWithLayout: some View {
         mainContent
             .padding(.horizontal)
-            .padding(.top, 40)
+            .padding(.top, 0)
             .padding(.bottom, 0)
             .frame(width: 500, alignment: .top)
             .onAppear {
@@ -598,29 +598,6 @@ struct ContentView: View {
     var body: some View {
         contentWithAlerts
             .withToasts(toastManager)
-            .overlay(alignment: .top) {
-            // Active rules indicator
-            if !kanataManager.customRules.filter(\.isEnabled).isEmpty {
-                let activeCount = kanataManager.customRules.filter(\.isEnabled).count
-                Text("\(activeCount) active rule\(activeCount == 1 ? "" : "s")")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .onTapGesture {
-                        openRulesSettings()
-                    }
-                    .onHover { hovering in
-                        if hovering {
-                            NSCursor.pointingHand.push()
-                        } else {
-                            NSCursor.pop()
-                        }
-                    }
-                    .padding(.top, 16)
-                    .padding(.horizontal, 20)
-                    .transition(.opacity)
-            }
-        }
-        .animation(.easeInOut(duration: 0.2), value: kanataManager.customRules.count)
     }
 
     private func showStatusMessage(message: String) {

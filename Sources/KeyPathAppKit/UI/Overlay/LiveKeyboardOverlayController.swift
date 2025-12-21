@@ -280,6 +280,9 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             viewModel: viewModel,
             onKeyClick: { [weak self] key, layerInfo in
                 self?.handleKeyClick(key: key, layerInfo: layerInfo)
+            },
+            onClose: { [weak self] in
+                self?.isVisible = false
             }
         )
 
