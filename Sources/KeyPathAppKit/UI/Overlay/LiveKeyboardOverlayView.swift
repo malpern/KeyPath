@@ -113,11 +113,6 @@ struct LiveKeyboardOverlayView: View {
                         let canUpdateWidth = keyboardWidth == 0 || !shouldFreezeKeyboard
                         if canUpdateWidth {
                             keyboardWidth = newValue
-                            let keyboardHeight = newValue / keyboardAspectRatio
-                            let desiredHeight = headerHeight + headerBottomSpacing + keyboardHeight + keyboardPadding
-                            if uiState.desiredContentHeight != desiredHeight {
-                                uiState.desiredContentHeight = desiredHeight
-                            }
                         }
                     }
                     .animation(nil, value: fixedKeyboardWidth)
@@ -136,6 +131,16 @@ struct LiveKeyboardOverlayView: View {
                 .padding(.trailing, keyboardTrailingPadding)
                 .padding(.bottom, keyboardPadding)
             }
+            .fixedSize(horizontal: false, vertical: true)
+            .background(
+                GeometryReader { proxy in
+                    Color.clear
+                        .preference(
+                            key: OverlayContentHeightPreferenceKey.self,
+                            value: proxy.size.height
+                        )
+                }
+            )
         }
         .background(
             glassBackground(cornerRadius: cornerRadius, fadeAmount: fadeAmount)
@@ -161,6 +166,12 @@ struct LiveKeyboardOverlayView: View {
                 if inspectorAnimationToken == token {
                     isInspectorAnimating = false
                 }
+            }
+        }
+        .onPreferenceChange(OverlayContentHeightPreferenceKey.self) { newValue in
+            guard newValue > 0 else { return }
+            if uiState.desiredContentHeight != newValue {
+                uiState.desiredContentHeight = newValue
             }
         }
     }
@@ -299,6 +310,14 @@ private struct OverlayDragHeader: View {
 }
 
 private struct KeyboardWidthPreferenceKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+private struct OverlayContentHeightPreferenceKey: PreferenceKey {
     static let defaultValue: CGFloat = 0
 
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
