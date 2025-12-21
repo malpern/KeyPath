@@ -21,13 +21,9 @@ struct LiveKeyboardOverlayView: View {
 
     @State private var escKeyLeftInset: CGFloat = 0
     @State private var keyboardWidth: CGFloat = 0
-    @State private var isInspectorAnimating = false
-    @State private var inspectorAnimationToken = UUID()
-
+    @State private var inspectorSection: InspectorSection = .keyboard
     /// Shared state for tracking mouse interaction with keyboard (for refined click delay)
     @StateObject private var keyboardMouseState = KeyboardMouseState()
-
-    private let inspectorSlideDuration: Double = 1.2
 
     /// The currently selected physical keyboard layout
     private var activeLayout: PhysicalLayout {
@@ -50,15 +46,21 @@ struct LiveKeyboardOverlayView: View {
     var body: some View {
         let cornerRadius: CGFloat = 10 // Fixed corner radius for glass container
         let fadeAmount: CGFloat = viewModel.fadeAmount
-        let headerHeight: CGFloat = 15
-        let keyboardPadding: CGFloat = 6
-        let keyboardTrailingPadding: CGFloat = keyboardPadding
-        let headerBottomSpacing: CGFloat = 4
+        let headerHeight = OverlayLayoutMetrics.headerHeight
+        let keyboardPadding = OverlayLayoutMetrics.keyboardPadding
+        let keyboardTrailingPadding = OverlayLayoutMetrics.keyboardTrailingPadding
+        let headerBottomSpacing = OverlayLayoutMetrics.headerBottomSpacing
+        let outerHorizontalPadding = OverlayLayoutMetrics.outerHorizontalPadding
         let headerContentLeadingPadding = keyboardPadding + escKeyLeftInset
+        let inspectorReveal = uiState.inspectorReveal
+        let inspectorVisible = inspectorReveal > 0
         let keyboardAspectRatio = activeLayout.totalWidth / activeLayout.totalHeight
-        let inspectorVisible = uiState.isInspectorOpen
-        let shouldFreezeKeyboard = inspectorVisible || isInspectorAnimating
-        let fixedKeyboardWidth: CGFloat? = shouldFreezeKeyboard && keyboardWidth > 0 ? keyboardWidth : nil
+        let inspectorSeamWidth = OverlayLayoutMetrics.inspectorSeamWidth
+        let inspectorChrome = uiState.isInspectorOpen ? inspectorWidth + inspectorSeamWidth : 0
+        let inspectorTotalWidth = inspectorWidth + inspectorSeamWidth
+        let verticalChrome = OverlayLayoutMetrics.verticalChrome
+        let shouldFreezeKeyboard = uiState.isInspectorAnimating
+        let fixedKeyboardWidth: CGFloat? = keyboardWidth > 0 ? keyboardWidth : nil
         let fixedKeyboardHeight: CGFloat? = fixedKeyboardWidth.map { $0 / keyboardAspectRatio }
 
         VStack(spacing: 0) {
@@ -69,94 +71,111 @@ struct LiveKeyboardOverlayView: View {
                     height: headerHeight,
                     isInspectorOpen: uiState.isInspectorOpen,
                     leadingContentPadding: headerContentLeadingPadding,
+                    inspectorReveal: inspectorReveal,
+                    inspectorHeaderWidth: inspectorTotalWidth,
                     onToggleInspector: { onToggleInspector?() },
                     onClose: { onClose?() }
                 )
                 .frame(maxWidth: .infinity)
                 .padding(.bottom, headerBottomSpacing)
 
-                HStack(alignment: .top, spacing: 0) {
-                    // Main keyboard with directional shadow (light from above)
-                    OverlayKeyboardView(
-                        layout: activeLayout,
-                        keymap: activeKeymap,
-                        includeKeymapPunctuation: includeKeymapPunctuation,
-                        pressedKeyCodes: viewModel.pressedKeyCodes,
-                        isDarkMode: isDark,
-                        fadeAmount: fadeAmount,
-                        keyFadeAmounts: viewModel.keyFadeAmounts,
-                        currentLayerName: viewModel.currentLayerName,
-                        isLoadingLayerMap: viewModel.isLoadingLayerMap,
-                        layerKeyMap: viewModel.layerKeyMap,
-                        effectivePressedKeyCodes: viewModel.effectivePressedKeyCodes,
-                        emphasizedKeyCodes: viewModel.emphasizedKeyCodes,
-                        holdLabels: viewModel.holdLabels,
-                        onKeyClick: onKeyClick
-                    )
-                    .environmentObject(viewModel)
-                    .environmentObject(keyboardMouseState)
-                    .onHover { hovering in
-                        // Reset click state when mouse exits keyboard area
-                        if !hovering {
-                            keyboardMouseState.reset()
+                ZStack(alignment: .topLeading) {
+                    HStack(alignment: .top, spacing: 0) {
+                        // Main keyboard with directional shadow (light from above)
+                        OverlayKeyboardView(
+                            layout: activeLayout,
+                            keymap: activeKeymap,
+                            includeKeymapPunctuation: includeKeymapPunctuation,
+                            pressedKeyCodes: viewModel.pressedKeyCodes,
+                            isDarkMode: isDark,
+                            fadeAmount: fadeAmount,
+                            keyFadeAmounts: viewModel.keyFadeAmounts,
+                            currentLayerName: viewModel.currentLayerName,
+                            isLoadingLayerMap: viewModel.isLoadingLayerMap,
+                            layerKeyMap: viewModel.layerKeyMap,
+                            effectivePressedKeyCodes: viewModel.effectivePressedKeyCodes,
+                            emphasizedKeyCodes: viewModel.emphasizedKeyCodes,
+                            holdLabels: viewModel.holdLabels,
+                            onKeyClick: onKeyClick
+                        )
+                        .environmentObject(viewModel)
+                        .environmentObject(keyboardMouseState)
+                        .onHover { hovering in
+                            // Reset click state when mouse exits keyboard area
+                            if !hovering {
+                                keyboardMouseState.reset()
+                            }
                         }
-                    }
-                    .frame(
-                        width: fixedKeyboardWidth,
-                        height: fixedKeyboardHeight,
-                        alignment: .leading
-                    )
-                    .background(
-                        GeometryReader { proxy in
-                            Color.clear
-                                .preference(
-                                    key: KeyboardWidthPreferenceKey.self,
-                                    value: proxy.size.width
-                                )
+                        .frame(
+                            width: fixedKeyboardWidth,
+                            height: fixedKeyboardHeight,
+                            alignment: .leading
+                        )
+                        .onPreferenceChange(EscKeyLeftInsetPreferenceKey.self) { newValue in
+                            escKeyLeftInset = newValue
                         }
-                    )
-                    .onPreferenceChange(EscKeyLeftInsetPreferenceKey.self) { newValue in
-                        escKeyLeftInset = newValue
+                        .animation(nil, value: fixedKeyboardWidth)
+
+                        Spacer(minLength: 0)
                     }
-                    .onPreferenceChange(KeyboardWidthPreferenceKey.self) { newValue in
-                        guard newValue > 0 else { return }
-                        let canUpdateWidth = keyboardWidth == 0 || !shouldFreezeKeyboard
-                        if canUpdateWidth {
-                            keyboardWidth = newValue
-                        }
-                    }
-                    .onPreferenceChange(KeyboardRenderedHeightPreferenceKey.self) { newValue in
-                        guard newValue > 0 else { return }
-                        let desiredHeight = headerHeight + headerBottomSpacing + newValue + keyboardPadding
-                        if uiState.desiredContentHeight != desiredHeight {
-                            uiState.desiredContentHeight = desiredHeight
-                        }
-                    }
-                    .animation(nil, value: fixedKeyboardWidth)
 
                     if inspectorVisible {
-                        InspectorSeam(isDark: isDark)
-                    }
-
-                    OverlayInspectorPanel()
-                        .frame(width: inspectorVisible ? inspectorWidth : 0, alignment: .leading)
-                        .opacity(inspectorVisible ? 1 : 0)
+                        OverlayInspectorPanel(
+                            selectedSection: inspectorSection,
+                            onSelectSection: { inspectorSection = $0 }
+                        )
+                        .frame(width: inspectorWidth, alignment: .leading)
+                        .frame(width: inspectorTotalWidth, alignment: .leading)
+                        .frame(width: inspectorTotalWidth * inspectorReveal, alignment: .leading)
                         .clipped()
-                        .animation(.easeInOut(duration: inspectorSlideDuration), value: inspectorVisible)
+                        .frame(maxWidth: .infinity, alignment: .topTrailing)
+                    }
                 }
                 .padding(.leading, keyboardPadding)
                 .padding(.trailing, keyboardTrailingPadding)
                 .padding(.bottom, keyboardPadding)
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear
+                            .preference(
+                                key: OverlayAvailableWidthPreferenceKey.self,
+                                value: proxy.size.width
+                            )
+                    }
+                )
             }
+        }
+        .onPreferenceChange(OverlayAvailableWidthPreferenceKey.self) { newValue in
+            guard newValue > 0 else { return }
+            let availableKeyboardWidth = max(0, newValue - keyboardPadding - keyboardTrailingPadding - inspectorChrome)
+            let canUpdateWidth = keyboardWidth == 0 || !shouldFreezeKeyboard
+            let targetWidth = canUpdateWidth ? availableKeyboardWidth : keyboardWidth
+            if canUpdateWidth {
+                keyboardWidth = availableKeyboardWidth
+            }
+            guard targetWidth > 0 else { return }
+            let desiredHeight = verticalChrome + (targetWidth / keyboardAspectRatio)
+            if uiState.desiredContentHeight != desiredHeight {
+                uiState.desiredContentHeight = desiredHeight
+            }
+        }
+        .onChange(of: selectedLayoutId) { _, _ in
+            uiState.keyboardAspectRatio = keyboardAspectRatio
+            guard keyboardWidth > 0 else { return }
+            let desiredHeight = verticalChrome + (keyboardWidth / keyboardAspectRatio)
+            if uiState.desiredContentHeight != desiredHeight {
+                uiState.desiredContentHeight = desiredHeight
+            }
+        }
+        .onAppear {
+            uiState.keyboardAspectRatio = keyboardAspectRatio
         }
         .background(
             glassBackground(cornerRadius: cornerRadius, fadeAmount: fadeAmount)
         )
-        // Resize/move handles on the keyboard background (not shadow area)
-        .windowResizeHandles()
         .environmentObject(viewModel)
         // Minimal padding for shadow (keep horizontal only)
-        .padding(.horizontal, 4)
+        .padding(.horizontal, outerHorizontalPadding)
         .onHover { hovering in
             if hovering { viewModel.noteInteraction() }
         }
@@ -165,16 +184,6 @@ struct LiveKeyboardOverlayView: View {
         // Animate deep fade smoothly; fade-in is instant
         .animation(viewModel.deepFadeAmount > 0 ? .easeOut(duration: 0.3) : nil,
                    value: viewModel.deepFadeAmount)
-        .onChange(of: uiState.isInspectorOpen) { _, _ in
-            let token = UUID()
-            inspectorAnimationToken = token
-            isInspectorAnimating = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + inspectorSlideDuration) {
-                if inspectorAnimationToken == token {
-                    isInspectorAnimating = false
-                }
-            }
-        }
     }
 }
 
@@ -242,18 +251,58 @@ private struct OverlayDragHeader: View {
     let height: CGFloat
     let isInspectorOpen: Bool
     let leadingContentPadding: CGFloat
+    let inspectorReveal: CGFloat
+    let inspectorHeaderWidth: CGFloat
     let onToggleInspector: () -> Void
     let onClose: () -> Void
 
+    @State private var isDragging = false
+    @State private var initialFrame: NSRect = .zero
+    @State private var initialMouseLocation: NSPoint = .zero
+
     var body: some View {
         let buttonSize = max(10, height * 0.9)
+        let revealWidth = inspectorHeaderWidth * inspectorReveal
+        let shouldShowInspector = inspectorReveal > 0.01
 
         ZStack {
             Rectangle()
-                .fill(headerFill)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    Rectangle()
+                        .fill(headerTint)
+                )
+                .overlay(alignment: .trailing) {
+                    if shouldShowInspector {
+                        Rectangle()
+                            .fill(inspectorTint)
+                            .frame(width: revealWidth)
+                    }
+                }
                 .overlay(
                     Rectangle()
                         .stroke(headerStroke, lineWidth: 1)
+                )
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                        .onChanged { _ in
+                            if !isDragging {
+                                if let window = findOverlayWindow() {
+                                    initialFrame = window.frame
+                                    initialMouseLocation = NSEvent.mouseLocation
+                                }
+                                isDragging = true
+                            }
+
+                            let currentMouse = NSEvent.mouseLocation
+                            let deltaX = currentMouse.x - initialMouseLocation.x
+                            let deltaY = currentMouse.y - initialMouseLocation.y
+                            moveWindow(deltaX: deltaX, deltaY: deltaY)
+                        }
+                        .onEnded { _ in
+                            isDragging = false
+                        }
                 )
 
             HStack(spacing: 6) {
@@ -287,13 +336,21 @@ private struct OverlayDragHeader: View {
             }
             .padding(.leading, leadingContentPadding)
             .padding(.trailing, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
         }
         .frame(height: height)
     }
 
-    private var headerFill: Color {
-        let base = isDark ? 0.14 : 0.92
-        let opacity = max(0.12, 0.3 - 0.15 * fadeAmount)
+    private var headerTint: Color {
+        let base = isDark ? 0.14 : 0.93
+        let opacity = max(0.18, 0.32 - 0.18 * fadeAmount)
+        return Color(white: base).opacity(opacity)
+    }
+
+    private var inspectorTint: Color {
+        let base = isDark ? 0.1 : 0.97
+        let opacity = max(0.22, 0.38 - 0.18 * fadeAmount)
         return Color(white: base).opacity(opacity)
     }
 
@@ -308,9 +365,23 @@ private struct OverlayDragHeader: View {
     private var headerIconBackground: Color {
         Color.white.opacity(isDark ? 0.08 : 0.18)
     }
+
+    private func moveWindow(deltaX: CGFloat, deltaY: CGFloat) {
+        guard let window = findOverlayWindow() else { return }
+        var newOrigin = initialFrame.origin
+        newOrigin.x += deltaX
+        newOrigin.y += deltaY
+        window.setFrameOrigin(newOrigin)
+    }
+
+    private func findOverlayWindow() -> NSWindow? {
+        NSApplication.shared.windows.first {
+            $0.styleMask.contains(.borderless) && $0.level == .floating
+        }
+    }
 }
 
-private struct KeyboardWidthPreferenceKey: PreferenceKey {
+private struct OverlayAvailableWidthPreferenceKey: PreferenceKey {
     static let defaultValue: CGFloat = 0
 
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
@@ -318,100 +389,49 @@ private struct KeyboardWidthPreferenceKey: PreferenceKey {
     }
 }
 
-private struct InspectorSeam: View {
-    let isDark: Bool
-
-    var body: some View {
-        LinearGradient(
-            colors: [
-                Color.black.opacity(isDark ? 0.38 : 0.2),
-                Color.black.opacity(isDark ? 0.22 : 0.12)
-            ],
-            startPoint: .leading,
-            endPoint: .trailing
-        )
-        .frame(width: 8)
-        .overlay(alignment: .leading) {
-            Rectangle()
-                .fill(Color.white.opacity(isDark ? 0.08 : 0.2))
-                .frame(width: 1)
-        }
-        .overlay(alignment: .trailing) {
-            Rectangle()
-                .fill(Color.black.opacity(isDark ? 0.35 : 0.2))
-                .frame(width: 1)
-        }
-    }
-}
-
 struct OverlayInspectorPanel: View {
     @Environment(\.colorScheme) private var colorScheme
-    @State private var selectedSection: InspectorSection = .keyboard
+    let selectedSection: InspectorSection
+    let onSelectSection: (InspectorSection) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                toolbarButton(
-                    systemImage: "keyboard",
-                    isSelected: selectedSection == .keyboard
-                ) {
-                    selectedSection = .keyboard
-                }
-                .accessibilityLabel("Keymap")
+        VStack(spacing: 12) {
+            InspectorPanelToolbar(
+                selectedSection: selectedSection,
+                onSelectSection: onSelectSection
+            )
+            .padding(.top, 10)
 
-                toolbarButton(
-                    systemImage: "square.grid.3x2",
-                    isSelected: selectedSection == .layout
-                ) {
-                    selectedSection = .layout
+            VStack(alignment: .leading, spacing: 12) {
+                Text(sectionTitle)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+
+                Text(sectionSubtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Button("Open Settings…") {
+                    NotificationCenter.default.post(name: .openSettingsGeneral, object: nil)
                 }
-                .accessibilityLabel("Physical Layout")
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
 
                 Spacer(minLength: 0)
             }
-            .padding(6)
-            .background(
-                Rectangle()
-                    .fill(Color.white.opacity(isDark ? 0.06 : 0.08))
-            )
-
-            Text(sectionTitle)
-                .font(.headline)
-                .foregroundStyle(.primary)
-
-            Text(sectionSubtitle)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Button("Open Settings…") {
-                NotificationCenter.default.post(name: .openSettingsGeneral, object: nil)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
-
-            Spacer(minLength: 0)
+            .padding(.horizontal, 12)
+            .padding(.bottom, 12)
         }
-        .padding(12)
         .background(panelBackground)
         .overlay(
             Rectangle()
-                .stroke(Color.white.opacity(isDark ? 0.08 : 0.15), lineWidth: 1)
+                .stroke(Color(white: isDark ? 0.35 : 0.7), lineWidth: 1)
         )
     }
 
     private var panelBackground: some View {
-        let leftTone = Color(white: isDark ? 0.07 : 0.95).opacity(0.9)
-        let rightTone = Color(white: isDark ? 0.11 : 0.99).opacity(0.9)
-
-        return Rectangle()
-            .fill(.ultraThinMaterial)
-            .overlay(
-                LinearGradient(
-                    colors: [leftTone, rightTone],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
+        let fill = Color(white: isDark ? 0.12 : 0.88)
+        return Rectangle().fill(fill)
     }
 
     private var isDark: Bool {
@@ -435,6 +455,37 @@ struct OverlayInspectorPanel: View {
             "Choose the physical keyboard shape."
         }
     }
+}
+
+private struct InspectorPanelToolbar: View {
+    let selectedSection: InspectorSection
+    let onSelectSection: (InspectorSection) -> Void
+    private let buttonSize: CGFloat = 22
+
+    var body: some View {
+        HStack(spacing: 8) {
+            toolbarButton(
+                systemImage: "keyboard",
+                isSelected: selectedSection == .keyboard
+            ) {
+                onSelectSection(.keyboard)
+            }
+            .accessibilityLabel("Keymap")
+
+            toolbarButton(
+                systemImage: "square.grid.3x2",
+                isSelected: selectedSection == .layout
+            ) {
+                onSelectSection(.layout)
+            }
+            .accessibilityLabel("Physical Layout")
+        }
+        .controlSize(.regular)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 6)
+        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 10))
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
 
     private func toolbarButton(
         systemImage: String,
@@ -443,19 +494,15 @@ struct OverlayInspectorPanel: View {
     ) -> some View {
         Button(action: action) {
             Image(systemName: systemImage)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: buttonSize * 0.5, weight: .semibold))
                 .foregroundStyle(isSelected ? .primary : .secondary)
-                .frame(width: 24, height: 20)
-                .background(
-                    Rectangle()
-                        .fill(Color.white.opacity(isSelected ? (isDark ? 0.12 : 0.2) : 0))
-                )
+                .frame(width: buttonSize, height: buttonSize)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.borderless)
     }
 }
 
-private enum InspectorSection {
+enum InspectorSection {
     case keyboard
     case layout
 }

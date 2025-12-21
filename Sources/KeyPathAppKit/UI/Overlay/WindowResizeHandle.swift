@@ -53,12 +53,12 @@ struct WindowResizeHandles: ViewModifier {
     let edgeWidth: CGFloat = 16
     /// Size of corner hit targets
     let cornerSize: CGFloat = 20
+    let keyboardAspectRatio: CGFloat
+    let horizontalChrome: CGFloat
+    let verticalChrome: CGFloat
 
     /// Debug: set to true to see handle positions (red = edges, blue = corners)
     private let debugShowHandles = false
-    /// Fixed aspect ratio for keyboard (width/height) - from PhysicalLayout.macBookUS
-    let keyboardAspectRatio: CGFloat = 15.66 / 6.5 // ~2.41
-
     @State private var activeEdge: ResizeEdge?
     @State private var isDragging = false
     @State private var isMoving = false
@@ -138,10 +138,6 @@ struct WindowResizeHandles: ViewModifier {
                     //     .frame(width: cornerSize, height: cornerSize)
                     //     .position(x: cornerSize / 2, y: cornerSize / 2)
 
-                    cornerHandleView(.topRight)
-                        .frame(width: cornerSize, height: cornerSize)
-                        .position(x: size.width - cornerSize / 2, y: cornerSize / 2)
-
                     cornerHandleView(.bottomLeft)
                         .frame(width: cornerSize, height: cornerSize)
                         .position(x: cornerSize / 2, y: size.height - cornerSize / 2)
@@ -213,9 +209,40 @@ struct WindowResizeHandles: ViewModifier {
     @ViewBuilder
     private func cornerHandleView(_ corner: ResizeEdge) -> some View {
         Rectangle()
-            .fill(Color.clear)
-            .frame(width: 0, height: 0)
-            .allowsHitTesting(false)
+            .fill(debugShowHandles ? Color.blue.opacity(0.3) : Color.clear)
+            .contentShape(Rectangle())
+            .onHover { hovering in
+                if hovering, !isDragging {
+                    corner.cursor.push()
+                    activeEdge = corner
+                } else if !isDragging {
+                    NSCursor.pop()
+                    if activeEdge == corner { activeEdge = nil }
+                }
+            }
+            .gesture(
+                DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                    .onChanged { _ in
+                        if !isDragging {
+                            if let window = findOverlayWindow() {
+                                initialFrame = window.frame
+                                initialMouseLocation = NSEvent.mouseLocation
+                            }
+                            isDragging = true
+                        }
+                        activeEdge = corner
+                        let currentMouse = NSEvent.mouseLocation
+                        let delta = CGSize(
+                            width: currentMouse.x - initialMouseLocation.x,
+                            height: -(currentMouse.y - initialMouseLocation.y)
+                        )
+                        resizeWindow(edge: corner, translation: delta, from: initialFrame)
+                    }
+                    .onEnded { _ in
+                        isDragging = false
+                        NSCursor.pop()
+                    }
+            )
     }
 
     // MARK: - Window Resizing
@@ -232,42 +259,61 @@ struct WindowResizeHandles: ViewModifier {
         let minSize = window.minSize
         let maxSize = window.maxSize
 
-        // Use a single scale factor based on drag direction
-        // This ensures smooth, proportional resize without jitter
-        let scale: CGFloat
+        let widthDelta = (edge == .left || edge == .topLeft || edge == .bottomLeft)
+            ? -translation.width
+            : translation.width
+        let heightDelta = (edge == .top || edge == .topLeft || edge == .topRight)
+            ? -translation.height
+            : translation.height
 
-        switch edge {
-        case .right:
-            scale = (initialFrame.width + translation.width) / initialFrame.width
-        case .left:
-            scale = (initialFrame.width - translation.width) / initialFrame.width
-        case .bottom:
-            scale = (initialFrame.height + translation.height) / initialFrame.height
-        case .top:
-            scale = (initialFrame.height - translation.height) / initialFrame.height
-        case .bottomRight, .topRight:
-            // Use the larger proportional change
-            let widthScale = (initialFrame.width + translation.width) / initialFrame.width
-            let heightScale = (initialFrame.height + (edge == .bottomRight ? translation.height : -translation.height)) / initialFrame.height
-            scale = abs(widthScale - 1) > abs(heightScale - 1) ? widthScale : heightScale
-        case .bottomLeft, .topLeft:
-            let widthScale = (initialFrame.width - translation.width) / initialFrame.width
-            let heightScale = (initialFrame.height + (edge == .bottomLeft ? translation.height : -translation.height)) / initialFrame.height
-            scale = abs(widthScale - 1) > abs(heightScale - 1) ? widthScale : heightScale
+        func heightForWidth(_ width: CGFloat) -> CGFloat {
+            let keyboardWidth = max(0, width - horizontalChrome)
+            return verticalChrome + (keyboardWidth / keyboardAspectRatio)
         }
 
-        // Apply scale to both dimensions (maintains aspect ratio perfectly)
-        var newWidth = initialFrame.width * scale
-        var newHeight = initialFrame.height * scale
+        func widthForHeight(_ height: CGFloat) -> CGFloat {
+            let keyboardHeight = max(0, height - verticalChrome)
+            return horizontalChrome + (keyboardHeight * keyboardAspectRatio)
+        }
 
-        // Clamp to min/max
-        newWidth = clamp(newWidth, min: minSize.width, max: maxSize.width)
-        newHeight = clamp(newHeight, min: minSize.height, max: maxSize.height)
+        func widthBasedFrame() -> (CGFloat, CGFloat) {
+            var width = clamp(initialFrame.width + widthDelta, min: minSize.width, max: maxSize.width)
+            var height = heightForWidth(width)
+            if height < minSize.height || height > maxSize.height {
+                height = clamp(height, min: minSize.height, max: maxSize.height)
+                width = widthForHeight(height)
+            }
+            return (width, height)
+        }
 
-        // Ensure aspect ratio is maintained after clamping
-        let clampedScale = min(newWidth / initialFrame.width, newHeight / initialFrame.height)
-        newWidth = initialFrame.width * clampedScale
-        newHeight = initialFrame.height * clampedScale
+        func heightBasedFrame() -> (CGFloat, CGFloat) {
+            var height = clamp(initialFrame.height + heightDelta, min: minSize.height, max: maxSize.height)
+            var width = widthForHeight(height)
+            if width < minSize.width || width > maxSize.width {
+                width = clamp(width, min: minSize.width, max: maxSize.width)
+                height = heightForWidth(width)
+            }
+            return (width, height)
+        }
+
+        let newWidth: CGFloat
+        let newHeight: CGFloat
+        switch edge {
+        case .left, .right:
+            (newWidth, newHeight) = widthBasedFrame()
+        case .top, .bottom:
+            (newWidth, newHeight) = heightBasedFrame()
+        case .topLeft, .topRight, .bottomLeft, .bottomRight:
+            let (widthFromX, heightFromX) = widthBasedFrame()
+            let (widthFromY, heightFromY) = heightBasedFrame()
+            if abs(widthFromX - initialFrame.width) >= abs(widthFromY - initialFrame.width) {
+                newWidth = widthFromX
+                newHeight = heightFromX
+            } else {
+                newWidth = widthFromY
+                newHeight = heightFromY
+            }
+        }
 
         var newFrame = initialFrame
         newFrame.size.width = newWidth
@@ -311,7 +357,17 @@ struct WindowResizeHandles: ViewModifier {
 
 extension View {
     /// Adds resize handles to all edges for borderless window resizing.
-    func windowResizeHandles() -> some View {
-        modifier(WindowResizeHandles())
+    func windowResizeHandles(
+        keyboardAspectRatio: CGFloat,
+        horizontalChrome: CGFloat,
+        verticalChrome: CGFloat
+    ) -> some View {
+        modifier(
+            WindowResizeHandles(
+                keyboardAspectRatio: keyboardAspectRatio,
+                horizontalChrome: horizontalChrome,
+                verticalChrome: verticalChrome
+            )
+        )
     }
 }
