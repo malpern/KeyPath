@@ -371,6 +371,11 @@ struct MapperKeycapView: View {
     /// Dynamic height - grows up to 150pt for long content
     /// For short labels (≤3 chars), use fixed baseHeight to match input keycap size
     private var keycapHeight: CGFloat {
+        // App icons and system action icons always use fixed height (icon doesn't need extra space)
+        if appInfo != nil || systemActionInfo != nil {
+            return baseHeight
+        }
+
         // Short labels (single keys, F-keys) use fixed height to match input
         if label.count <= 3 {
             return baseHeight
