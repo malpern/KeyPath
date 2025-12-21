@@ -89,8 +89,9 @@ struct OverlayKeycapView: View {
 
     /// State for hover-to-click behavior
     @State private var isHovering = false
-    @State private var isClickable = false // True after 100ms hover dwell
+    @State private var isClickable = false // True after dwell
     @State private var hoverTask: Task<Void, Never>?
+    @State private var didDragBeyondThreshold = false
 
     /// Cached app icon for launch actions
     @State private var appIcon: NSImage?
@@ -98,8 +99,10 @@ struct OverlayKeycapView: View {
     /// Cached favicon for URL actions
     @State private var faviconImage: NSImage?
 
-    /// Dwell time before key becomes clickable (200ms)
-    private let clickableDwellTime: TimeInterval = 0.2
+    /// Dwell time before key becomes clickable (300ms)
+    private let clickableDwellTime: TimeInterval = 0.3
+    /// Drag distance threshold to treat gesture as window move (not a click)
+    private let dragThreshold: CGFloat = 4
 
     /// Whether this key has an app launch action
     private var hasAppLaunch: Bool {
@@ -194,19 +197,28 @@ struct OverlayKeycapView: View {
                 hoverTask?.cancel()
                 hoverTask = nil
                 isClickable = false
+                didDragBeyondThreshold = false
             }
         }
         // Gesture that only activates when clickable, otherwise passes through
-        .gesture(
+        .simultaneousGesture(
             DragGesture(minimumDistance: 0)
-                .onEnded { _ in
-                    // Only handle click if we're in clickable state
-                    if isClickable, let onKeyClick {
-                        onKeyClick(key, layerKeyInfo)
+                .onChanged { value in
+                    let distance = hypot(value.translation.width, value.translation.height)
+                    if distance > dragThreshold {
+                        didDragBeyondThreshold = true
                     }
+                }
+                .onEnded { _ in
+                    guard isClickable, !didDragBeyondThreshold, let onKeyClick else {
+                        didDragBeyondThreshold = false
+                        return
+                    }
+                    onKeyClick(key, layerKeyInfo)
+                    didDragBeyondThreshold = false
                 },
             // When not clickable, let gestures pass through for window repositioning
-            isEnabled: isClickable
+            including: isClickable ? .all : .none
         )
         .onAppear {
             loadAppIconIfNeeded()

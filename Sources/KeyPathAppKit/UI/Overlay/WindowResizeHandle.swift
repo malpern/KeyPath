@@ -117,11 +117,6 @@ struct WindowResizeHandles: ViewModifier {
                 GeometryReader { geometry in
                     let size = geometry.size
 
-                    // Top edge
-                    edgeHandleView(.top)
-                        .frame(width: size.width - cornerSize * 2, height: edgeWidth)
-                        .position(x: size.width / 2, y: edgeWidth / 2)
-
                     // Bottom edge
                     edgeHandleView(.bottom)
                         .frame(width: size.width - cornerSize * 2, height: edgeWidth)

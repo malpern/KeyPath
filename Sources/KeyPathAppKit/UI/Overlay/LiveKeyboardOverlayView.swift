@@ -50,7 +50,7 @@ struct LiveKeyboardOverlayView: View {
                     isInspectorOpen: isInspectorOpen,
                     onToggleInspector: { isInspectorOpen.toggle() }
                 )
-                .padding(.horizontal, keyboardPadding)
+                .frame(maxWidth: .infinity)
                 .padding(.bottom, headerBottomSpacing)
 
                 // Main keyboard with directional shadow (light from above)
@@ -78,7 +78,6 @@ struct LiveKeyboardOverlayView: View {
                 if isInspectorOpen {
                     OverlayInspectorPanel(isDark: isDark)
                         .frame(width: inspectorWidth)
-                        .padding(.trailing, keyboardPadding)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
@@ -162,11 +161,11 @@ private struct OverlayDragHeader: View {
 
                 Button(action: onToggleInspector) {
                     Image(systemName: "rectangle.and.sidebar.right")
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(isInspectorOpen ? Color.accentColor : headerIconColor)
-                        .padding(2)
+                        .padding(1)
                         .background(
-                            RoundedRectangle(cornerRadius: 4)
+                            RoundedRectangle(cornerRadius: 5)
                                 .fill(headerIconBackground)
                         )
                 }
