@@ -9,61 +9,6 @@ extension Notification.Name {
     static let mapperPresetValues = Notification.Name("KeyPath.MapperPresetValues")
 }
 
-// MARK: - Reset Button with Double-Click Support
-
-/// A button that handles single click (reset current) and double click (reset all).
-/// Uses a timer to distinguish between single and double clicks.
-private struct ResetButton: View {
-    let isEnabled: Bool
-    let onSingleClick: () -> Void
-    let onDoubleClick: () -> Void
-
-    @State private var clickCount = 0
-    @State private var clickTimer: Timer?
-
-    private let doubleClickDelay: TimeInterval = 0.3
-
-    var body: some View {
-        Label("Reset", systemImage: "arrow.counterclockwise")
-            .font(.caption)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color(NSColor.controlBackgroundColor))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(Color.primary.opacity(0.2), lineWidth: 0.5)
-            )
-            .opacity(isEnabled ? 1.0 : 0.3)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                guard isEnabled else { return }
-                clickCount += 1
-
-                if clickCount == 1 {
-                    // Start timer to wait for potential second click
-                    clickTimer = Timer.scheduledTimer(withTimeInterval: doubleClickDelay, repeats: false) { _ in
-                        Task { @MainActor in
-                            if clickCount == 1 {
-                                onSingleClick()
-                            }
-                            clickCount = 0
-                        }
-                    }
-                } else if clickCount >= 2 {
-                    // Double click detected
-                    clickTimer?.invalidate()
-                    clickTimer = nil
-                    clickCount = 0
-                    onDoubleClick()
-                }
-            }
-            .help("Click: Reset mapping. Double-click: Reset all to defaults")
-    }
-}
-
 // MARK: - Mapper View
 
 /// Experimental key mapping page with visual keycap-based input/output capture.
@@ -96,79 +41,20 @@ struct MapperView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            // Compact toolbar with layer and clear
-            HStack(spacing: 8) {
-                // Layer indicator (compact)
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(viewModel.currentLayer.lowercased() == "base" ? Color.secondary.opacity(0.4) : Color.accentColor)
-                        .frame(width: 6, height: 6)
-                    Text(viewModel.currentLayer.lowercased())
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-
-                Spacer()
-
-                // Status message (centered area)
-                if let message = viewModel.statusMessage {
-                    Text(message)
-                        .font(.caption2)
-                        .foregroundColor(viewModel.statusIsError ? .red : .secondary)
-                        .lineLimit(1)
-                }
-
-                Spacer()
-
-                // System action picker menu
-                Menu {
-                    ForEach(SystemActionInfo.allActions) { action in
-                        Button {
-                            viewModel.selectSystemAction(action)
-                        } label: {
-                            Label(action.name, systemImage: action.sfSymbol)
-                        }
-                    }
-                } label: {
-                    Image(systemName: "gearshape")
-                        .font(.caption)
-                }
-                .menuStyle(.borderlessButton)
-                .frame(width: 24)
-                .help("System action")
-
-                // App launcher picker button
-                Button {
-                    viewModel.pickAppForOutput()
-                } label: {
-                    Image(systemName: "app.badge")
-                        .font(.caption)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .help("Pick app to launch")
-
-                // URL mapping button
-                Button {
-                    viewModel.showURLInputDialog()
-                } label: {
-                    Image(systemName: "link")
-                        .font(.caption)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .help("Map to web URL")
-
-                // Clear/reset button
-                // Single click: reset current mapping
-                // Double click: reset entire keyboard to defaults
-                ResetButton(
-                    isEnabled: viewModel.canSave || viewModel.inputLabel != "a" || viewModel.outputLabel != "a",
-                    onSingleClick: { viewModel.clear() },
-                    onDoubleClick: { showingResetAllConfirmation = true }
-                )
-            }
-            .padding(.horizontal, 4)
+            // Liquid Glass toolbar (macOS 26+) with AppGlass fallback
+            MapperToolbar(
+                currentLayer: viewModel.currentLayer,
+                statusMessage: viewModel.statusMessage,
+                statusIsError: viewModel.statusIsError,
+                canSave: viewModel.canSave,
+                inputLabel: viewModel.inputLabel,
+                outputLabel: viewModel.outputLabel,
+                onSystemActionPicked: { viewModel.selectSystemAction($0) },
+                onAppPicker: { viewModel.pickAppForOutput() },
+                onURLPicker: { viewModel.showURLInputDialog() },
+                onReset: { viewModel.clear() },
+                onResetAll: { showingResetAllConfirmation = true }
+            )
 
             // Keycaps for input and output
             MapperKeycapPair(

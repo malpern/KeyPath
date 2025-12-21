@@ -39,7 +39,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     /// Current frame version - increment to reset saved frames after layout changes
     private let currentFrameVersion = 2
     private let inspectorPanelWidth: CGFloat = 240
-    private let inspectorAnimationDuration: TimeInterval = 0.9
+    private let inspectorAnimationDuration: TimeInterval = 1.2
 
     /// Shared instance for app-wide access
     static let shared = LiveKeyboardOverlayController()

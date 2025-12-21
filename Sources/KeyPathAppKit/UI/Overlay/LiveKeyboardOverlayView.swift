@@ -21,6 +21,10 @@ struct LiveKeyboardOverlayView: View {
 
     @State private var escKeyLeftInset: CGFloat = 0
     @State private var keyboardSize: CGSize = .zero
+    @State private var isInspectorAnimating = false
+    @State private var inspectorAnimationToken = UUID()
+
+    private let inspectorSlideDuration: Double = 1.2
 
     /// The currently selected physical keyboard layout
     private var activeLayout: PhysicalLayout {
@@ -45,12 +49,12 @@ struct LiveKeyboardOverlayView: View {
         let fadeAmount: CGFloat = viewModel.fadeAmount
         let headerHeight: CGFloat = 15
         let keyboardPadding: CGFloat = 6
-        let keyboardTrailingPadding: CGFloat = 2
+        let keyboardTrailingPadding: CGFloat = 0
         let headerBottomSpacing: CGFloat = 4
         let headerContentLeadingPadding = keyboardPadding + escKeyLeftInset
         let inspectorVisible = uiState.isInspectorOpen
-        let inspectorSlideDuration: Double = 0.9
-        let fixedKeyboardSize = inspectorVisible && keyboardSize != .zero ? keyboardSize : nil
+        let shouldFreezeKeyboard = inspectorVisible || isInspectorAnimating
+        let fixedKeyboardSize = shouldFreezeKeyboard && keyboardSize != .zero ? keyboardSize : nil
 
         VStack(spacing: 0) {
             VStack(spacing: 0) {
@@ -103,13 +107,16 @@ struct LiveKeyboardOverlayView: View {
                         escKeyLeftInset = newValue
                     }
                     .onPreferenceChange(KeyboardSizePreferenceKey.self) { newValue in
-                        if !inspectorVisible, newValue != .zero {
+                        if keyboardSize == .zero || (!shouldFreezeKeyboard && newValue != .zero) {
                             keyboardSize = newValue
                         }
                     }
+                    .animation(nil, value: fixedKeyboardSize)
 
                     if inspectorVisible {
-                        Divider()
+                        Rectangle()
+                            .fill(Color.white.opacity(isDark ? 0.12 : 0.22))
+                            .frame(width: 1)
                     }
 
                     OverlayInspectorPanel()
@@ -141,6 +148,16 @@ struct LiveKeyboardOverlayView: View {
         // Animate deep fade smoothly; fade-in is instant
         .animation(viewModel.deepFadeAmount > 0 ? .easeOut(duration: 0.3) : nil,
                    value: viewModel.deepFadeAmount)
+        .onChange(of: uiState.isInspectorOpen) { _, _ in
+            let token = UUID()
+            inspectorAnimationToken = token
+            isInspectorAnimating = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + inspectorSlideDuration) {
+                if inspectorAnimationToken == token {
+                    isInspectorAnimating = false
+                }
+            }
+        }
     }
 }
 
@@ -341,8 +358,8 @@ struct OverlayInspectorPanel: View {
     }
 
     private var panelBackground: some View {
-        let leftTone = Color(white: isDark ? 0.08 : 0.94).opacity(0.9)
-        let rightTone = Color(white: isDark ? 0.12 : 0.98).opacity(0.9)
+        let leftTone = Color(white: isDark ? 0.07 : 0.95).opacity(0.9)
+        let rightTone = Color(white: isDark ? 0.11 : 0.99).opacity(0.9)
 
         return Rectangle()
             .fill(.ultraThinMaterial)
