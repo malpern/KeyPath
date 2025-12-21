@@ -10,6 +10,14 @@ struct EscKeyLeftInsetPreferenceKey: PreferenceKey {
     }
 }
 
+struct KeyboardRenderedHeightPreferenceKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 /// Keyboard view for the live overlay.
 /// Renders a full keyboard layout with keys highlighting based on key codes.
 struct OverlayKeyboardView: View {
@@ -51,6 +59,7 @@ struct OverlayKeyboardView: View {
                 keyUnitSize: keyUnitSize,
                 keyGap: keyGap
             )
+            let renderedHeight = layout.totalHeight * (keyUnitSize + keyGap) * scale
 
             ZStack(alignment: .topLeading) {
                 ForEach(keys, id: \.id) { key in
@@ -59,6 +68,7 @@ struct OverlayKeyboardView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .preference(key: EscKeyLeftInsetPreferenceKey.self, value: escLeftInset)
+            .preference(key: KeyboardRenderedHeightPreferenceKey.self, value: renderedHeight)
         }
         .aspectRatio(layout.totalWidth / layout.totalHeight, contentMode: .fit)
         .onChange(of: effectivePressedKeyCodes) { _, _ in

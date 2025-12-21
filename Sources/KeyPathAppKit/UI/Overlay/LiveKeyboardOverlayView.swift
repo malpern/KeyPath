@@ -123,11 +123,13 @@ struct LiveKeyboardOverlayView: View {
                         let canUpdateWidth = keyboardWidth == 0 || !shouldFreezeKeyboard
                         if canUpdateWidth {
                             keyboardWidth = newValue
-                            let keyboardHeight = newValue / keyboardAspectRatio
-                            let desiredHeight = headerHeight + headerBottomSpacing + keyboardHeight + keyboardPadding
-                            if uiState.desiredContentHeight != desiredHeight {
-                                uiState.desiredContentHeight = desiredHeight
-                            }
+                        }
+                    }
+                    .onPreferenceChange(KeyboardRenderedHeightPreferenceKey.self) { newValue in
+                        guard newValue > 0 else { return }
+                        let desiredHeight = headerHeight + headerBottomSpacing + newValue + keyboardPadding
+                        if uiState.desiredContentHeight != desiredHeight {
+                            uiState.desiredContentHeight = desiredHeight
                         }
                     }
                     .animation(nil, value: fixedKeyboardWidth)
