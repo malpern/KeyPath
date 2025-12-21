@@ -65,6 +65,7 @@ struct ContentView: View {
     @State private var failedConfigBackupPath = ""
     @State private var showingInstallAlert = false
     @State private var showingKanataNotRunningAlert = false
+    @State private var showingKanataServiceStoppedAlert = false
     @State private var showingSimpleMods = false
     @State private var showingEmergencyStopDialog = false
     @State private var showingUninstallDialog = false
@@ -84,6 +85,9 @@ struct ContentView: View {
     @State private var showingValidationFailureModal = false
     @State private var validationFailureErrors: [String] = []
     @State private var validationFailureCopyText: String = ""
+    @State private var lastKanataServiceIssuePresent = false
+    @State private var hasSeenHealthyKanataService = false
+    @State private var kanataServiceStoppedDetails = ""
 
     private var wizardInitialPage: WizardPage? {
         // Check for FDA restart restore point (used when app restarts for Full Disk Access)
@@ -419,146 +423,182 @@ struct ContentView: View {
     }
 
     private var contentWithAlerts: some View {
-        contentWithLifecycle
+        let base = contentWithLifecycle
             .alert("Emergency Stop Activated", isPresented: $showingEmergencyAlert) {
-            Button("OK") {
-                showingEmergencyAlert = false
+                Button("OK") {
+                    showingEmergencyAlert = false
+                }
+            } message: {
+                Text(
+                    "The Kanata emergency stop sequence (Ctrl+Space+Esc) was detected. Kanata has been stopped for safety."
+                )
             }
-        } message: {
-            Text(
-                "The Kanata emergency stop sequence (Ctrl+Space+Esc) was detected. Kanata has been stopped for safety."
-            )
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowWizard"))) { _ in
-            showingInstallationWizard = true
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowSimpleMods"))) {
-            _ in
-            showingSimpleMods = true
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowEmergencyStop"))) { _ in
-            showingEmergencyStopDialog = true
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowUninstall"))) {
-            _ in
-            showingUninstallDialog = true
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .keyPathUninstallCompleted)) { _ in
-            showingUninstallDialog = false
-            showStatusMessage(
-                message: "✅ KeyPath uninstalled\nYour config file was saved. You can quit now.")
-        }
-        .onChange(of: showingInstallationWizard) { _, showing in
-            // When wizard closes, try to start emergency monitoring if we now have permissions
-            if !showing {
-                // Trigger fresh validation to sync System indicator with wizard state
-                Task { @MainActor in
-                    AppLogger.shared.log("🔄 [ContentView] Wizard closed - triggering revalidation")
-                    await stateController.revalidate()
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowWizard"))) { _ in
+                showingInstallationWizard = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowSimpleMods"))) { _ in
+                showingSimpleMods = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowEmergencyStop"))) { _ in
+                showingEmergencyStopDialog = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowUninstall"))) { _ in
+                showingUninstallDialog = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .keyPathUninstallCompleted)) { _ in
+                showingUninstallDialog = false
+                showStatusMessage(
+                    message: "✅ KeyPath uninstalled\nYour config file was saved. You can quit now."
+                )
+            }
+            .onChange(of: showingInstallationWizard) { _, showing in
+                // When wizard closes, try to start emergency monitoring if we now have permissions
+                if !showing {
+                    // Trigger fresh validation to sync System indicator with wizard state
+                    Task { @MainActor in
+                        AppLogger.shared.log("🔄 [ContentView] Wizard closed - triggering revalidation")
+                        await stateController.revalidate()
 
-                    // Refresh setup banner state after wizard closes
-                    if FeatureFlags.allowOptionalWizard {
-                        let snapshot = await PermissionOracle.shared.forceRefresh()
-                        // Show banner if KeyPath lacks permissions - Kanata permissions are handled separately
-                        showSetupBanner = !snapshot.keyPath.hasAllPermissions
-                        AppLogger.shared.log("🔄 [ContentView] Setup banner refreshed: keyPath.hasAllPermissions=\(snapshot.keyPath.hasAllPermissions), showBanner=\(showSetupBanner)")
+                        // Refresh setup banner state after wizard closes
+                        if FeatureFlags.allowOptionalWizard {
+                            let snapshot = await PermissionOracle.shared.forceRefresh()
+                            // Show banner if KeyPath lacks permissions - Kanata permissions are handled separately
+                            showSetupBanner = !snapshot.keyPath.hasAllPermissions
+                            AppLogger.shared.log("🔄 [ContentView] Setup banner refreshed: keyPath.hasAllPermissions=\(snapshot.keyPath.hasAllPermissions), showBanner=\(showSetupBanner)")
+                        }
+                    }
+
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(500))
+                        startEmergencyMonitoringIfPossible()
                     }
                 }
+            }
 
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(500))
-                    startEmergencyMonitoringIfPossible()
+        let primaryAlerts = base
+            .alert("Kanata Installation Required", isPresented: $showingInstallAlert) {
+                Button("Open Wizard") {
+                    showingInstallationWizard = true
                 }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text(
+                    "Install the Kanata binary into /Library/KeyPath/bin using the Installation Wizard before recording shortcuts."
+                )
             }
-        }
-        .alert("Kanata Installation Required", isPresented: $showingInstallAlert) {
-            Button("Open Wizard") {
-                showingInstallationWizard = true
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text(
-                "Install the Kanata binary into /Library/KeyPath/bin using the Installation Wizard before recording shortcuts."
-            )
-        }
-        .alert("Configuration Issue Detected", isPresented: $showingConfigCorruptionAlert) {
-            Button("OK") { showingConfigCorruptionAlert = false }
-            Button("View Diagnostics") {
-                showingConfigCorruptionAlert = false
-                openSystemStatusSettings()
-            }
-        } message: {
-            Text(configCorruptionDetails)
-        }
-        .alert("Configuration Repair Failed", isPresented: $showingRepairFailedAlert) {
-            Button("OK") { showingRepairFailedAlert = false }
-            Button("Open Failed Config in Zed") {
-                showingRepairFailedAlert = false
-                Task { kanataManager.openFileInZed(failedConfigBackupPath) }
-            }
-            Button("View Diagnostics") {
-                showingRepairFailedAlert = false
-                openSystemStatusSettings()
-            }
-        } message: {
-            Text(repairFailedDetails)
-        }
-        .alert("Kanata Not Running", isPresented: $showingKanataNotRunningAlert) {
-            Button("OK") { showingKanataNotRunningAlert = false }
-            Button("Open Wizard") {
-                showingKanataNotRunningAlert = false
-                showingInstallationWizard = true
-            }
-        } message: {
-            Text(
-                "Cannot save configuration because the Kanata service is not running. Please start Kanata using the Installation Wizard."
-            )
-        }
-        .alert("Configuration Validation Failed", isPresented: $showingConfigValidationError) {
-            Button("OK") { showingConfigValidationError = false }
-            Button("View Diagnostics") {
-                showingConfigValidationError = false
-                openSystemStatusSettings()
-            }
-        } message: {
-            Text(configValidationErrorMessage)
-        }
-        .sheet(isPresented: $showingValidationFailureModal, onDismiss: {
-            validationFailureErrors = []
-            validationFailureCopyText = ""
-        }) {
-            ValidationFailureDialog(
-                errors: validationFailureErrors,
-                configPath: kanataManager.configPath,
-                onCopyErrors: { copyValidationErrorsToClipboard() },
-                onOpenConfig: {
-                    showingValidationFailureModal = false
-                    openCurrentConfigInEditor()
-                },
-                onOpenDiagnostics: {
-                    showingValidationFailureModal = false
+            .alert("Configuration Issue Detected", isPresented: $showingConfigCorruptionAlert) {
+                Button("OK") { showingConfigCorruptionAlert = false }
+                Button("View Diagnostics") {
+                    showingConfigCorruptionAlert = false
                     openSystemStatusSettings()
-                },
-                onDismiss: {
-                    showingValidationFailureModal = false
                 }
-            )
-            .customizeSheetWindow()
-        }
-        .onChange(of: kanataManager.lastError) { _, newError in
-            if let error = newError {
-                configValidationErrorMessage = error
-                showingConfigValidationError = true
-                // Clear the error so it doesn't re-trigger
-                kanataManager.lastError = nil
+            } message: {
+                Text(configCorruptionDetails)
             }
+            .alert("Configuration Repair Failed", isPresented: $showingRepairFailedAlert) {
+                Button("OK") { showingRepairFailedAlert = false }
+                Button("Open Failed Config in Zed") {
+                    showingRepairFailedAlert = false
+                    Task { kanataManager.openFileInZed(failedConfigBackupPath) }
+                }
+                Button("View Diagnostics") {
+                    showingRepairFailedAlert = false
+                    openSystemStatusSettings()
+                }
+            } message: {
+                Text(repairFailedDetails)
+            }
+
+        let serviceAlerts = primaryAlerts
+            .alert("Kanata Not Running", isPresented: $showingKanataNotRunningAlert) {
+                Button("OK") { showingKanataNotRunningAlert = false }
+                Button("Open Wizard") {
+                    showingKanataNotRunningAlert = false
+                    showingInstallationWizard = true
+                }
+            } message: {
+                Text(
+                    "Cannot save configuration because the Kanata service is not running. Please start Kanata using the Installation Wizard."
+                )
+            }
+            .alert("Kanata Service Stopped", isPresented: $showingKanataServiceStoppedAlert) {
+                Button("Restart Service") {
+                    showingKanataServiceStoppedAlert = false
+                    Task {
+                        let restarted = await kanataManager.restartKanata(
+                            reason: "Service stopped alert"
+                        )
+                        if restarted {
+                            showStatusMessage(message: "✅ Kanata restarted")
+                        } else {
+                            showStatusMessage(message: "❌ Failed to restart Kanata")
+                        }
+                    }
+                }
+                Button("Open Wizard") {
+                    showingKanataServiceStoppedAlert = false
+                    showingInstallationWizard = true
+                }
+                Button("View System Status") {
+                    showingKanataServiceStoppedAlert = false
+                    openSystemStatusSettings()
+                }
+                Button("Dismiss", role: .cancel) {
+                    showingKanataServiceStoppedAlert = false
+                }
+            } message: {
+                Text(kanataServiceStoppedDetails)
+            }
+
+        return serviceAlerts
+            .alert("Configuration Validation Failed", isPresented: $showingConfigValidationError) {
+                Button("OK") { showingConfigValidationError = false }
+                Button("View Diagnostics") {
+                    showingConfigValidationError = false
+                    openSystemStatusSettings()
+                }
+            } message: {
+                Text(configValidationErrorMessage)
+            }
+            .sheet(isPresented: $showingValidationFailureModal, onDismiss: {
+                validationFailureErrors = []
+                validationFailureCopyText = ""
+            }) {
+                ValidationFailureDialog(
+                    errors: validationFailureErrors,
+                    configPath: kanataManager.configPath,
+                    onCopyErrors: { copyValidationErrorsToClipboard() },
+                    onOpenConfig: {
+                        showingValidationFailureModal = false
+                        openCurrentConfigInEditor()
+                    },
+                    onOpenDiagnostics: {
+                        showingValidationFailureModal = false
+                        openSystemStatusSettings()
+                    },
+                    onDismiss: {
+                        showingValidationFailureModal = false
+                    }
+                )
+                .customizeSheetWindow()
+            }
+            .onChange(of: kanataManager.lastError) { _, newError in
+                if let error = newError {
+                    configValidationErrorMessage = error
+                    showingConfigValidationError = true
+                    // Clear the error so it doesn't re-trigger
+                    kanataManager.lastError = nil
+                }
+            }
+            .onReceive(stateController.$issues) { newIssues in
+                handleKanataServiceIssueChange(newIssues)
             }
     }
 
     var body: some View {
         contentWithAlerts
             .withToasts(toastManager)
-        .overlay(alignment: .top) {
+            .overlay(alignment: .top) {
             // Active rules indicator
             if !kanataManager.customRules.filter(\.isEnabled).isEmpty {
                 let activeCount = kanataManager.customRules.filter(\.isEnabled).count
@@ -609,6 +649,86 @@ struct ContentView: View {
     private func openRulesSettings() {
         NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
         NotificationCenter.default.post(name: .openSettingsRules, object: nil)
+    }
+
+    private func handleKanataServiceIssueChange(_ issues: [WizardIssue]) {
+        let serviceIssue = issues.first { issue in
+            if case .component(.kanataService) = issue.identifier {
+                return true
+            }
+            return false
+        }
+        let hasServiceIssue = serviceIssue != nil
+
+        if !hasServiceIssue {
+            if let state = stateController.validationState, state != .checking {
+                hasSeenHealthyKanataService = true
+            }
+        }
+
+        if hasServiceIssue, !lastKanataServiceIssuePresent, hasSeenHealthyKanataService {
+            let reason =
+                serviceIssue?.description
+                ?? "Kanata keyboard remapping service is not running. Open the setup wizard to diagnose and fix it."
+            var detailLines = [reason]
+            if let lastError = kanataManager.lastError, !lastError.isEmpty {
+                detailLines.append("")
+                detailLines.append("Last error: \(lastError)")
+            }
+            detailLines.append("")
+            detailLines.append("Details recorded in KeyPath log (search for ServiceStoppedSnapshot).")
+            kanataServiceStoppedDetails = detailLines.joined(separator: "\n")
+            logKanataServiceStopSnapshot(reason: reason)
+            showingKanataServiceStoppedAlert = true
+        }
+
+        lastKanataServiceIssuePresent = hasServiceIssue
+    }
+
+    private func logKanataServiceStopSnapshot(reason: String) {
+        Task {
+            let uiData = await fetchKanataServiceSnapshotUIData()
+            let managementState = await KanataDaemonManager.shared.refreshManagementState()
+            let smStatus = KanataDaemonManager.shared.getStatus()
+            let serviceStatus = await InstallerEngine().getServiceStatus()
+            let pids = await SubprocessRunner.shared.pgrep("kanata.*--cfg")
+            let pidSummary = pids.isEmpty ? "none" : pids.map(String.init).joined(separator: ",")
+
+            AppLogger.shared.log("📌 [ServiceStoppedSnapshot] Reason: \(reason)")
+            AppLogger.shared.log("📌 [ServiceStoppedSnapshot] ServiceState: \(uiData.serviceState.description)")
+            AppLogger.shared.log(
+                "📌 [ServiceStoppedSnapshot] Management: \(managementState.description), SMAppService: \(smStatus)"
+            )
+            AppLogger.shared.log(
+                "📌 [ServiceStoppedSnapshot] LaunchDaemons: loaded=\(serviceStatus.kanataServiceLoaded), healthy=\(serviceStatus.kanataServiceHealthy)"
+            )
+            AppLogger.shared.log("📌 [ServiceStoppedSnapshot] pgrep: \(pidSummary)")
+            AppLogger.shared.log(
+                "📌 [ServiceStoppedSnapshot] lastExitCode=\(uiData.exitCode) lastError=\(uiData.lastError)"
+            )
+            AppLogger.shared.log("📌 [ServiceStoppedSnapshot] configPath=\(uiData.configPath)")
+            AppLogger.shared.log(
+                "📌 [ServiceStoppedSnapshot] logs: \(NSHomeDirectory())/Library/Logs/KeyPath/keypath-debug.log | \(KeyPathConstants.Logs.kanataStderr) | \(KeyPathConstants.Logs.kanataStdout)"
+            )
+        }
+    }
+
+    @MainActor
+    private func fetchKanataServiceSnapshotUIData() async -> (
+        serviceState: KanataService.ServiceState,
+        exitCode: String,
+        lastError: String,
+        configPath: String
+    ) {
+        let serviceState = await kanataManager.currentServiceState()
+        let exitCode = kanataManager.lastProcessExitCode.map(String.init) ?? "nil"
+        let lastError = kanataManager.lastError ?? "none"
+        return (
+            serviceState: serviceState,
+            exitCode: exitCode,
+            lastError: lastError,
+            configPath: kanataManager.configPath
+        )
     }
 
     private func startEmergencyMonitoringIfPossible() {

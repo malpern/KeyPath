@@ -201,6 +201,16 @@ If config validation fails with a parse error and you need the exact generated c
 - Set `KEYPATH_KEEP_FAILED_CONFIG=1` and retry the save.
 - The temp validation config path will be logged in `keypath-debug.log`.
 
+## Service Stopped Snapshot
+
+When the Kanata service transitions from running → stopped, KeyPath logs a one-shot snapshot.
+Search `keypath-debug.log` for `ServiceStoppedSnapshot` to see:
+- Service state + SMAppService status
+- LaunchDaemon loaded/healthy flags
+- pgrep PID summary
+- last exit code / last error
+- config path + log locations
+
 ## Clean Logs (Optional)
 
 To start fresh:
