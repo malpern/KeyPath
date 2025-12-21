@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Combine
 
 /// Controls the floating live keyboard overlay window.
 /// Creates an always-on-top borderless window that shows the live keyboard state.
@@ -14,6 +15,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     private var hasAutoHiddenForCurrentSettingsSession = false
     private var collapsedFrameBeforeInspector: NSRect?
     private var lastWindowFrame: NSRect?
+    private var isAdjustingHeight = false
+    private var cancellables = Set<AnyCancellable>()
 
     /// Timestamp when overlay was auto-hidden for settings (for restore on close)
     private var autoHiddenTimestamp: Date?
@@ -357,6 +360,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         }
 
         self.window = window
+        observeDesiredContentHeight()
     }
 
     // MARK: - Inspector Panel
@@ -424,11 +428,40 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             window.setFrame(frame, display: true)
         }
     }
+
+    private func observeDesiredContentHeight() {
+        uiState.$desiredContentHeight
+            .removeDuplicates()
+            .sink { [weak self] height in
+                self?.applyDesiredContentHeight(height)
+            }
+            .store(in: &cancellables)
+    }
+
+    private func applyDesiredContentHeight(_ height: CGFloat) {
+        guard let window else { return }
+        guard height > 0 else { return }
+        guard !isAdjustingHeight else { return }
+
+        let currentFrame = window.frame
+        if abs(currentFrame.height - height) < 0.5 {
+            return
+        }
+
+        isAdjustingHeight = true
+        var newFrame = currentFrame
+        newFrame.size.height = height
+        newFrame.origin.y = currentFrame.maxY - height
+        let constrained = window.constrainFrameRect(newFrame, to: window.screen)
+        window.setFrame(constrained, display: true, animate: false)
+        isAdjustingHeight = false
+    }
 }
 
 @MainActor
 final class LiveKeyboardOverlayUIState: ObservableObject {
     @Published var isInspectorOpen = false
+    @Published var desiredContentHeight: CGFloat = 0
 }
 
 enum InspectorPanelLayout {

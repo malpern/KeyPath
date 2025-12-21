@@ -49,7 +49,7 @@ struct LiveKeyboardOverlayView: View {
         let fadeAmount: CGFloat = viewModel.fadeAmount
         let headerHeight: CGFloat = 15
         let keyboardPadding: CGFloat = 6
-        let keyboardTrailingPadding: CGFloat = 0
+        let keyboardTrailingPadding: CGFloat = keyboardPadding
         let headerBottomSpacing: CGFloat = 4
         let headerContentLeadingPadding = keyboardPadding + escKeyLeftInset
         let inspectorVisible = uiState.isInspectorOpen
@@ -70,7 +70,7 @@ struct LiveKeyboardOverlayView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.bottom, headerBottomSpacing)
 
-                HStack(spacing: 0) {
+                HStack(alignment: .top, spacing: 0) {
                     // Main keyboard with directional shadow (light from above)
                     OverlayKeyboardView(
                         layout: activeLayout,
@@ -107,8 +107,14 @@ struct LiveKeyboardOverlayView: View {
                         escKeyLeftInset = newValue
                     }
                     .onPreferenceChange(KeyboardSizePreferenceKey.self) { newValue in
-                        if keyboardSize == .zero || (!shouldFreezeKeyboard && newValue != .zero) {
+                        guard newValue != .zero else { return }
+                        let canUpdateSize = keyboardSize == .zero || !shouldFreezeKeyboard
+                        if canUpdateSize {
                             keyboardSize = newValue
+                            let desiredHeight = headerHeight + headerBottomSpacing + newValue.height + keyboardPadding
+                            if uiState.desiredContentHeight != desiredHeight {
+                                uiState.desiredContentHeight = desiredHeight
+                            }
                         }
                     }
                     .animation(nil, value: fixedKeyboardSize)
@@ -134,10 +140,8 @@ struct LiveKeyboardOverlayView: View {
         // Resize/move handles on the keyboard background (not shadow area)
         .windowResizeHandles()
         .environmentObject(viewModel)
-        // Minimal padding for shadow (just enough for bottom shadow)
-        .padding(.bottom, 20)
+        // Minimal padding for shadow (keep horizontal only)
         .padding(.horizontal, 4)
-        .padding(.top, 4)
         .onHover { hovering in
             if hovering { viewModel.noteInteraction() }
         }
@@ -373,7 +377,6 @@ struct OverlayInspectorPanel: View {
             Spacer(minLength: 0)
         }
         .padding(12)
-        .frame(maxHeight: .infinity, alignment: .top)
         .background(panelBackground)
         .overlay(
             Rectangle()
