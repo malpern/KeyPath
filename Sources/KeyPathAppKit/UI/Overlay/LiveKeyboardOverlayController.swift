@@ -398,6 +398,9 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         if uiState.isInspectorOpen {
             updateCollapsedFrame(forExpandedFrame: window.frame)
         }
+        if !isAdjustingHeight, uiState.desiredContentHeight > 0 {
+            applyDesiredContentHeight(uiState.desiredContentHeight)
+        }
         saveWindowFrame()
         lastWindowFrame = window.frame
     }
