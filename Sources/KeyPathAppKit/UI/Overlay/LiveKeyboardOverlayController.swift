@@ -461,7 +461,14 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         newFrame.origin.y = currentFrame.maxY - height
         let constrained = window.constrainFrameRect(newFrame, to: window.screen)
         window.setFrame(constrained, display: true, animate: false)
+        updateHeightConstraints(height)
         isAdjustingHeight = false
+    }
+
+    private func updateHeightConstraints(_ height: CGFloat) {
+        guard let window else { return }
+        window.minSize.height = height
+        window.maxSize.height = height
     }
 }
 
