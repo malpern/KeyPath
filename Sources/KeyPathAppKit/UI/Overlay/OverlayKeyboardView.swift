@@ -2,10 +2,20 @@ import AppKit
 import KeyPathCore
 import SwiftUI
 
+struct EscKeyLeftInsetPreferenceKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 /// Keyboard view for the live overlay.
 /// Renders a full keyboard layout with keys highlighting based on key codes.
 struct OverlayKeyboardView: View {
     let layout: PhysicalLayout
+    let keymap: LogicalKeymap
+    let includeKeymapPunctuation: Bool
     let pressedKeyCodes: Set<UInt16>
     var isDarkMode: Bool = false
     var fadeAmount: CGFloat = 0 // 0 = fully visible, 1 = fully faded (global overlay fade)
@@ -35,13 +45,19 @@ struct OverlayKeyboardView: View {
         GeometryReader { geometry in
             let scale = calculateScale(for: geometry.size)
             let keys = layout.keys
-
+            let escLeftInset = OverlayKeyboardView.escLeftInset(
+                for: layout,
+                scale: scale,
+                keyUnitSize: keyUnitSize,
+                keyGap: keyGap
+            )
             ZStack(alignment: .topLeading) {
                 ForEach(keys, id: \.id) { key in
                     keyView(key: key, scale: scale)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .preference(key: EscKeyLeftInsetPreferenceKey.self, value: escLeftInset)
         }
         .aspectRatio(layout.totalWidth / layout.totalHeight, contentMode: .fit)
         .onChange(of: effectivePressedKeyCodes) { _, _ in
@@ -66,9 +82,14 @@ struct OverlayKeyboardView: View {
         // Use per-key fade amount if available, otherwise use global fade
         let hasPerKeyFade = keyFadeAmounts[key.keyCode] != nil
         let effectiveFadeAmount = keyFadeAmounts[key.keyCode] ?? fadeAmount
+        let baseLabel = keymap.displayLabel(
+            for: key,
+            includeExtraKeys: includeKeymapPunctuation
+        )
 
         return OverlayKeycapView(
             key: key,
+            baseLabel: baseLabel,
             isPressed: isPressed,
             scale: scale,
             isDarkMode: isDarkMode,
@@ -118,6 +139,24 @@ struct OverlayKeyboardView: View {
         let baseY = key.y * (keyUnitSize + keyGap) * scale
         let halfHeight = keyHeight(for: key, scale: scale) / 2
         return baseY + halfHeight + keyGap * scale
+    }
+
+    static func escLeftInset(
+        for layout: PhysicalLayout,
+        scale: CGFloat,
+        keyUnitSize: CGFloat = 32,
+        keyGap: CGFloat = 2
+    ) -> CGFloat {
+        guard let escKey = layout.keys.first(where: { $0.keyCode == 53 }) else {
+            return keyGap * scale
+        }
+
+        let keyWidth = (escKey.width * keyUnitSize + (escKey.width - 1) * keyGap) * scale
+        let baseX = escKey.x * (keyUnitSize + keyGap) * scale
+        let halfWidth = keyWidth / 2
+        let positionX = baseX + halfWidth + keyGap * scale
+        let leftEdge = positionX - halfWidth
+        return max(0, leftEdge)
     }
 
     // MARK: - Key Code to Kanata Name Mapping
@@ -225,6 +264,8 @@ struct OverlayKeyboardView: View {
 #Preview {
     OverlayKeyboardView(
         layout: .macBookUS,
+        keymap: .qwertyUS,
+        includeKeymapPunctuation: false,
         pressedKeyCodes: [0, 56, 55] // a, leftshift, leftmeta
     )
     .padding()

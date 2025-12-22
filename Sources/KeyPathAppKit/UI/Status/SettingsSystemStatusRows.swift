@@ -8,6 +8,7 @@ struct SettingsSystemStatusRowModel: Identifiable {
     let icon: String
     let status: InstallationStatus
     let targetPage: WizardPage?
+    let message: String?
 }
 
 enum SettingsSystemStatusRowsBuilder {
@@ -31,13 +32,15 @@ enum SettingsSystemStatusRowsBuilder {
         let helperStatus: InstallationStatus = wizardSystemState == .initializing
             ? .notStarted
             : issueStatus(for: helperIssues)
+        let helperMessage: String? = helperStatus != .completed ? helperIssues.first?.title : nil
         rows.append(
             SettingsSystemStatusRowModel(
                 id: "privileged-helper",
                 title: "Privileged Helper",
                 icon: "shield.checkered",
                 status: helperStatus,
-                targetPage: .helper
+                targetPage: .helper,
+                message: helperMessage
             )
         )
 
@@ -45,13 +48,15 @@ enum SettingsSystemStatusRowsBuilder {
         let fdaStatus: InstallationStatus = wizardSystemState == .initializing
             ? .notStarted
             : (hasFullDiskAccess ? .completed : .notStarted)
+        let fdaMessage: String? = fdaStatus != .completed ? "Full Disk Access not granted" : nil
         rows.append(
             SettingsSystemStatusRowModel(
                 id: "full-disk-access",
                 title: "Full Disk Access (Optional)",
                 icon: "folder",
                 status: fdaStatus,
-                targetPage: .fullDiskAccess
+                targetPage: .fullDiskAccess,
+                message: fdaMessage
             )
         )
 
@@ -60,13 +65,15 @@ enum SettingsSystemStatusRowsBuilder {
         let conflictStatus: InstallationStatus = wizardSystemState == .initializing
             ? .notStarted
             : issueStatus(for: conflictIssues)
+        let conflictMessage: String? = conflictStatus != .completed ? conflictIssues.first?.title : nil
         rows.append(
             SettingsSystemStatusRowModel(
                 id: "conflicts",
                 title: "System Conflicts",
                 icon: "exclamationmark.triangle",
                 status: conflictStatus,
-                targetPage: .conflicts
+                targetPage: .conflicts,
+                message: conflictMessage
             )
         )
 
@@ -75,25 +82,32 @@ enum SettingsSystemStatusRowsBuilder {
             systemState: wizardSystemState,
             issues: wizardIssues
         )
+        let karabinerIssues = wizardIssues.filter { issue in
+            (issue.category == .installation && issue.identifier.isVHIDRelated)
+                || issue.category == .backgroundServices
+                || (issue.category == .daemon && issue.identifier == .component(.karabinerDaemon))
+        }
+        let karabinerMessage: String? = karabinerStatus != .completed ? karabinerIssues.first?.title : nil
         rows.append(
             SettingsSystemStatusRowModel(
                 id: "karabiner-components",
                 title: "Karabiner Driver",
                 icon: "keyboard.macwindow",
                 status: karabinerStatus,
-                targetPage: .karabinerComponents
+                targetPage: .karabinerComponents,
+                message: karabinerMessage
             )
         )
 
         // 5) Kanata Service
         let daemonIssues = wizardIssues.filter(\.identifier.isDaemon)
-        let blockingPermissionIssue = ServiceStatusEvaluator.blockingIssueMessage(from: wizardIssues) != nil
+        let blockingPermissionIssue = ServiceStatusEvaluator.blockingIssueMessage(from: wizardIssues)
         let serviceStatus: InstallationStatus = {
             if wizardSystemState == .initializing { return .inProgress }
             if !daemonIssues.isEmpty {
                 return issueStatus(for: daemonIssues)
             }
-            if blockingPermissionIssue {
+            if blockingPermissionIssue != nil {
                 return .failed
             }
             if systemContext?.services.kanataRunning == true {
@@ -101,13 +115,20 @@ enum SettingsSystemStatusRowsBuilder {
             }
             return .notStarted
         }()
+        let serviceMessage: String? = {
+            if serviceStatus != .completed {
+                return blockingPermissionIssue ?? daemonIssues.first?.title
+            }
+            return nil
+        }()
         rows.append(
             SettingsSystemStatusRowModel(
                 id: "kanata-service",
                 title: "Kanata Service",
                 icon: "app.badge.checkmark",
                 status: serviceStatus,
-                targetPage: .service
+                targetPage: .service,
+                message: serviceMessage
             )
         )
 
@@ -127,13 +148,15 @@ enum SettingsSystemStatusRowsBuilder {
                 return false
             }
             let kanataStatus = issueStatus(for: kanataIssues)
+            let kanataMessage: String? = kanataStatus != .completed ? kanataIssues.first?.title : nil
             rows.append(
                 SettingsSystemStatusRowModel(
                     id: "kanata-components",
                     title: "Kanata Engine Setup",
                     icon: "cpu.fill",
                     status: kanataStatus,
-                    targetPage: .kanataComponents
+                    targetPage: .kanataComponents,
+                    message: kanataMessage
                 )
             )
         }
@@ -145,13 +168,22 @@ enum SettingsSystemStatusRowsBuilder {
             guard let tcpConfigured else { return .inProgress }
             return tcpConfigured ? .completed : .failed
         }()
+        let commMessage: String? = {
+            if commStatus == .failed {
+                return "TCP port configuration missing"
+            } else if commStatus == .inProgress {
+                return "Checking TCP configuration…"
+            }
+            return nil
+        }()
         rows.append(
             SettingsSystemStatusRowModel(
                 id: "tcp-communication",
                 title: "TCP Communication",
                 icon: "network",
                 status: commStatus,
-                targetPage: .communication
+                targetPage: .communication,
+                message: commMessage
             )
         )
 
@@ -169,27 +201,37 @@ struct SettingsSystemStatusRow: View {
     let title: String
     let icon: String
     let status: InstallationStatus
+    let message: String?
     let onTap: (() -> Void)?
 
     var body: some View {
-        Button(action: { onTap?() }) {
-            HStack(spacing: 10) {
-                Image(systemName: icon)
+        VStack(alignment: .leading, spacing: 4) {
+            Button(action: { onTap?() }) {
+                HStack(spacing: 10) {
+                    Image(systemName: icon)
+                        .foregroundColor(statusColor)
+                        .frame(width: 20)
+
+                    Text(title)
+                        .font(.body)
+
+                    Spacer()
+
+                    Image(systemName: statusIcon)
+                        .foregroundColor(statusColor)
+                        .font(.body)
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(onTap == nil)
+
+            if let message, status != .completed {
+                Text(message)
+                    .font(.caption)
                     .foregroundColor(statusColor)
-                    .frame(width: 20)
-
-                Text(title)
-                    .font(.body)
-
-                Spacer()
-
-                Image(systemName: statusIcon)
-                    .foregroundColor(statusColor)
-                    .font(.body)
+                    .padding(.leading, 30)
             }
         }
-        .buttonStyle(.plain)
-        .disabled(onTap == nil)
     }
 
     private var statusColor: Color {

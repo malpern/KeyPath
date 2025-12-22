@@ -263,14 +263,20 @@ struct WizardHelperPage: View {
             // Show Login Items approval button if needed
             if needsLoginItemsApproval {
                 // Inline screenshot to make the user action explicit (placed above the button)
-                Image("permissions-login-items", bundle: .main)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(maxWidth: 360)  // Reduced from 480 to 360
-                    .clipShape(RoundedRectangle(cornerRadius: 10))  // Slightly smaller radius
-                    .shadow(radius: 4)  // Reduced shadow
-                    .padding(.top, 12)  // Reduced from itemGap to fixed 12pt
-                    .accessibilityLabel("System Settings Login Items - toggle KeyPath on")
+                if let screenshot = loginItemsScreenshot {
+                    Image(nsImage: screenshot)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxWidth: 360)  // Reduced from 480 to 360
+                        .clipShape(RoundedRectangle(cornerRadius: 10))  // Slightly smaller radius
+                        .shadow(radius: 4)  // Reduced shadow
+                        .padding(.top, 12)  // Reduced from itemGap to fixed 12pt
+                        .accessibilityLabel("System Settings Login Items - toggle KeyPath on")
+                } else {
+                    Color.clear
+                        .frame(height: 180)
+                        .padding(.top, 12)
+                }
 
                 Text("Toggle KeyPath to ON under Background Items, then return here.")
                     .font(.system(size: 13, weight: .regular))  // Reduced from 14 to 13
@@ -341,6 +347,19 @@ struct WizardHelperPage: View {
             - windowHeight=\(String(format: "%.1f", windowHeight))
             """
         )
+    }
+
+    private var loginItemsScreenshot: NSImage? {
+        let resourceName = "permissions-login-items"
+        if let moduleURL = Bundle.module.url(forResource: resourceName, withExtension: "png"),
+           let image = NSImage(contentsOf: moduleURL) {
+            return image
+        }
+        if let mainURL = Bundle.main.url(forResource: resourceName, withExtension: "png"),
+           let image = NSImage(contentsOf: mainURL) {
+            return image
+        }
+        return nil
     }
 
     private func installOrRepairHelper() async {

@@ -7,6 +7,7 @@ import SwiftUI
 /// and optical adjustments (based on label) for visual harmony.
 struct OverlayKeycapView: View {
     let key: PhysicalKey
+    let baseLabel: String
     let isPressed: Bool
     /// Scale factor from keyboard resize (1.0 = default size)
     let scale: CGFloat
@@ -35,13 +36,45 @@ struct OverlayKeycapView: View {
     private var isSmallSize: Bool { scale < 0.8 }
     private var isLargeSize: Bool { scale >= 1.5 }
 
-    /// The effective label to display (hold label > layer mapping > physical key)
+    /// The effective label to display (hold label > layer mapping > keymap/physical)
     private var effectiveLabel: String {
         // When key is pressed with a hold label, show the hold label
         if isPressed, let holdLabel {
             return holdLabel
         }
-        return layerKeyInfo?.displayLabel ?? key.label
+
+        guard let info = layerKeyInfo else {
+            return baseLabel
+        }
+
+        if info.displayLabel.isEmpty {
+            return ""
+        }
+
+        if shouldUseBaseLabel, baseLabel != key.label {
+            return baseLabel
+        }
+
+        return info.displayLabel
+    }
+
+    /// Input key name (kanata/TCP) for identity mapping checks
+    private var inputKeyName: String {
+        OverlayKeyboardView.keyCodeToKanataName(key.keyCode).lowercased()
+    }
+
+    /// Whether the overlay should fall back to the base label (keymap or physical)
+    private var shouldUseBaseLabel: Bool {
+        guard let info = layerKeyInfo else { return true }
+        if info.isTransparent { return true }
+        if info.isLayerSwitch { return false }
+        if info.appLaunchIdentifier != nil || info.systemActionIdentifier != nil || info.urlIdentifier != nil {
+            return false
+        }
+        if let outputKey = info.outputKey {
+            return outputKey.lowercased() == inputKeyName
+        }
+        return true
     }
 
     /// Optical adjustments for current label
@@ -56,8 +89,9 @@ struct OverlayKeycapView: View {
 
     /// State for hover-to-click behavior
     @State private var isHovering = false
-    @State private var isClickable = false // True after 100ms hover dwell
+    @State private var isClickable = false // True after dwell
     @State private var hoverTask: Task<Void, Never>?
+    @State private var didDragBeyondThreshold = false
 
     /// Cached app icon for launch actions
     @State private var appIcon: NSImage?
@@ -65,8 +99,13 @@ struct OverlayKeycapView: View {
     /// Cached favicon for URL actions
     @State private var faviconImage: NSImage?
 
-    /// Dwell time before key becomes clickable (200ms)
-    private let clickableDwellTime: TimeInterval = 0.2
+    /// Shared state for tracking mouse interaction with keyboard (for refined click delay)
+    @EnvironmentObject private var keyboardMouseState: KeyboardMouseState
+
+    /// Dwell time before key becomes clickable (300ms)
+    private let clickableDwellTime: TimeInterval = 0.3
+    /// Drag distance threshold to treat gesture as window move (not a click)
+    private let dragThreshold: CGFloat = 4
 
     /// Whether this key has an app launch action
     private var hasAppLaunch: Bool {
@@ -149,11 +188,17 @@ struct OverlayKeycapView: View {
         .onHover { hovering in
             isHovering = hovering
             if hovering {
-                // Start dwell timer
-                hoverTask = Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(Int(clickableDwellTime * 1000)))
-                    if !Task.isCancelled, isHovering {
-                        isClickable = true
+                // If user has already clicked a key, make instantly clickable
+                // Otherwise, apply 300ms dwell delay
+                if keyboardMouseState.hasClickedAnyKey {
+                    isClickable = true
+                } else {
+                    // Start dwell timer for first hover
+                    hoverTask = Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(Int(clickableDwellTime * 1000)))
+                        if !Task.isCancelled, isHovering {
+                            isClickable = true
+                        }
                     }
                 }
             } else {
@@ -161,19 +206,30 @@ struct OverlayKeycapView: View {
                 hoverTask?.cancel()
                 hoverTask = nil
                 isClickable = false
+                didDragBeyondThreshold = false
             }
         }
         // Gesture that only activates when clickable, otherwise passes through
-        .gesture(
+        .simultaneousGesture(
             DragGesture(minimumDistance: 0)
-                .onEnded { _ in
-                    // Only handle click if we're in clickable state
-                    if isClickable, let onKeyClick {
-                        onKeyClick(key, layerKeyInfo)
+                .onChanged { value in
+                    let distance = hypot(value.translation.width, value.translation.height)
+                    if distance > dragThreshold {
+                        didDragBeyondThreshold = true
                     }
+                }
+                .onEnded { _ in
+                    guard isClickable, !didDragBeyondThreshold, let onKeyClick else {
+                        didDragBeyondThreshold = false
+                        return
+                    }
+                    // Record that a key has been clicked (subsequent clicks will be instant)
+                    keyboardMouseState.recordClick()
+                    onKeyClick(key, layerKeyInfo)
+                    didDragBeyondThreshold = false
                 },
             // When not clickable, let gestures pass through for window repositioning
-            isEnabled: isClickable
+            including: isClickable ? .all : .none
         )
         .onAppear {
             loadAppIconIfNeeded()
@@ -350,7 +406,7 @@ struct OverlayKeycapView: View {
     @ViewBuilder
     private var centeredContent: some View {
         if let navSymbol = navOverlaySymbol {
-            navOverlayContent(arrow: navSymbol, letter: key.label)
+            navOverlayContent(arrow: navSymbol, letter: baseLabel)
         } else if let shiftSymbol = metadata.shiftSymbol {
             // Dual content: shift symbol above, main below
             dualSymbolContent(main: effectiveLabel, shift: shiftSymbol)
@@ -619,22 +675,39 @@ struct OverlayKeycapView: View {
                 .modifier(PulseAnimation())
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            // Layer name - bottom-left aligned like ESC key
+            // Layer indicator - icon + label like function keys
             let isBase = currentLayerName.lowercased() == "base"
 
-            VStack {
-                Spacer(minLength: 0)
-                HStack {
-                    Text(currentLayerName.lowercased())
-                        .font(.system(size: 7 * scale, weight: .regular))
-                        .foregroundStyle(foregroundColor.opacity(isBase ? 0.5 : 1.0))
-                    Spacer(minLength: 0)
+            if isBase {
+                // Base layer: sidebar icon with "base" label underneath (like F-keys)
+                VStack(spacing: 0) {
+                    Image(systemName: "sidebar.right")
+                        .font(.system(size: 8 * scale, weight: .regular))
+                        .foregroundStyle(foregroundColor)
+                    Spacer()
+                    Text("base")
+                        .font(.system(size: 5.4 * scale, weight: .regular))
+                        .foregroundStyle(foregroundColor.opacity(0.6))
                 }
-                .padding(.leading, 4 * scale)
-                .padding(.trailing, 4 * scale)
-                .padding(.bottom, 3 * scale)
+                .padding(.top, 4 * scale)
+                .padding(.bottom, 2 * scale)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                // Other layers: bottom-left aligned like ESC key
+                VStack {
+                    Spacer(minLength: 0)
+                    HStack {
+                        Text(currentLayerName.lowercased())
+                            .font(.system(size: 7 * scale, weight: .regular))
+                            .foregroundStyle(foregroundColor)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.leading, 4 * scale)
+                    .padding(.trailing, 4 * scale)
+                    .padding(.bottom, 3 * scale)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -803,6 +876,7 @@ struct OverlayKeycapView: View {
         // fn key
         OverlayKeycapView(
             key: PhysicalKey(keyCode: 63, label: "fn", x: 0, y: 5, width: 1.1),
+            baseLabel: "fn",
             isPressed: false,
             scale: 1.5
         )
@@ -811,6 +885,7 @@ struct OverlayKeycapView: View {
         // Control
         OverlayKeycapView(
             key: PhysicalKey(keyCode: 59, label: "⌃", x: 1.2, y: 5, width: 1.1),
+            baseLabel: "⌃",
             isPressed: false,
             scale: 1.5
         )
@@ -819,6 +894,7 @@ struct OverlayKeycapView: View {
         // Option
         OverlayKeycapView(
             key: PhysicalKey(keyCode: 58, label: "⌥", x: 2.4, y: 5, width: 1.1),
+            baseLabel: "⌥",
             isPressed: false,
             scale: 1.5
         )
@@ -827,6 +903,7 @@ struct OverlayKeycapView: View {
         // Command
         OverlayKeycapView(
             key: PhysicalKey(keyCode: 55, label: "⌘", x: 3.6, y: 5, width: 1.35),
+            baseLabel: "⌘",
             isPressed: false,
             scale: 1.5
         )
@@ -839,6 +916,7 @@ struct OverlayKeycapView: View {
 #Preview("Letter Key") {
     OverlayKeycapView(
         key: PhysicalKey(keyCode: 0, label: "a", x: 0, y: 0),
+        baseLabel: "a",
         isPressed: false,
         scale: 1.5,
         isDarkMode: true
@@ -853,6 +931,7 @@ struct OverlayKeycapView: View {
         // Base layer (muted)
         OverlayKeycapView(
             key: PhysicalKey(keyCode: 0xFFFF, label: "🔒", x: 14.5, y: 0, width: 1.0),
+            baseLabel: "🔒",
             isPressed: false,
             scale: 1.5,
             isDarkMode: true,
@@ -863,6 +942,7 @@ struct OverlayKeycapView: View {
         // Active layer (full opacity)
         OverlayKeycapView(
             key: PhysicalKey(keyCode: 0xFFFF, label: "🔒", x: 14.5, y: 0, width: 1.0),
+            baseLabel: "🔒",
             isPressed: false,
             scale: 1.5,
             isDarkMode: true,
@@ -873,6 +953,7 @@ struct OverlayKeycapView: View {
         // Loading state
         OverlayKeycapView(
             key: PhysicalKey(keyCode: 0xFFFF, label: "🔒", x: 14.5, y: 0, width: 1.0),
+            baseLabel: "🔒",
             isPressed: false,
             scale: 1.5,
             isDarkMode: true,
@@ -889,6 +970,7 @@ struct OverlayKeycapView: View {
         // Normal key
         OverlayKeycapView(
             key: PhysicalKey(keyCode: 0, label: "a", x: 0, y: 0),
+            baseLabel: "a",
             isPressed: false,
             scale: 1.5,
             isDarkMode: true
@@ -898,6 +980,7 @@ struct OverlayKeycapView: View {
         // Emphasized key (vim nav)
         OverlayKeycapView(
             key: PhysicalKey(keyCode: 4, label: "h", x: 0, y: 0),
+            baseLabel: "h",
             isPressed: false,
             scale: 1.5,
             isDarkMode: true,
@@ -908,6 +991,7 @@ struct OverlayKeycapView: View {
         // Emphasized + Pressed
         OverlayKeycapView(
             key: PhysicalKey(keyCode: 38, label: "j", x: 0, y: 0),
+            baseLabel: "j",
             isPressed: true,
             scale: 1.5,
             isDarkMode: true,
@@ -918,6 +1002,7 @@ struct OverlayKeycapView: View {
         // Just pressed (not emphasized)
         OverlayKeycapView(
             key: PhysicalKey(keyCode: 40, label: "k", x: 0, y: 0),
+            baseLabel: "k",
             isPressed: true,
             scale: 1.5,
             isDarkMode: true

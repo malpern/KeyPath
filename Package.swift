@@ -95,7 +95,7 @@ let package = Package(
                 "InstallationWizard/README.md"
             ],
             resources: [
-                .process("Resources/Keyboards")
+                .process("Resources")
             ],
             swiftSettings: [
                 .swiftLanguageMode(.v6)

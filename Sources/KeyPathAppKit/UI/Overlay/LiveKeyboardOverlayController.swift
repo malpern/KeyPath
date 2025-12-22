@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Combine
 
 /// Controls the floating live keyboard overlay window.
 /// Creates an always-on-top borderless window that shows the live keyboard state.
@@ -10,7 +11,17 @@ import KeyPathCore
 final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     private let viewModel = KeyboardVisualizationViewModel()
+    private let uiState = LiveKeyboardOverlayUIState()
     private var hasAutoHiddenForCurrentSettingsSession = false
+    private var collapsedFrameBeforeInspector: NSRect?
+    private var lastWindowFrame: NSRect?
+    private var isAdjustingHeight = false
+    private var isUserResizing = false
+    private var inspectorAnimationToken = UUID()
+    private var resizeAnchor: ResizeAnchor = .none
+    private var resizeStartMouse: NSPoint = .zero
+    private var resizeStartFrame: NSRect = .zero
+    private var cancellables = Set<AnyCancellable>()
 
     /// Timestamp when overlay was auto-hidden for settings (for restore on close)
     private var autoHiddenTimestamp: Date?
@@ -20,6 +31,9 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
     /// Reference to KanataViewModel for opening Mapper window
     private weak var kanataViewModel: KanataViewModel?
+
+    /// Reference to RuleCollectionsManager for keymap changes
+    private weak var ruleCollectionsManager: RuleCollectionsManager?
 
     // MARK: - UserDefaults Keys
 
@@ -34,7 +48,12 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     }
 
     /// Current frame version - increment to reset saved frames after layout changes
-    private let currentFrameVersion = 2
+    private let currentFrameVersion = 6
+    private let inspectorPanelWidth: CGFloat = 240
+    private let inspectorAnimationDuration: TimeInterval = 0.3
+    private var inspectorTotalWidth: CGFloat {
+        inspectorPanelWidth + OverlayLayoutMetrics.inspectorSeamWidth
+    }
 
     /// Shared instance for app-wide access
     static let shared = LiveKeyboardOverlayController()
@@ -103,8 +122,9 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     }
 
     /// Configure the KanataViewModel reference for opening Mapper from overlay clicks
-    func configure(kanataViewModel: KanataViewModel) {
+    func configure(kanataViewModel: KanataViewModel, ruleCollectionsManager: RuleCollectionsManager? = nil) {
         self.kanataViewModel = kanataViewModel
+        self.ruleCollectionsManager = ruleCollectionsManager
     }
 
     /// Show or hide the overlay window
@@ -123,6 +143,14 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     /// Toggle overlay visibility
     func toggle() {
         isVisible = !isVisible
+    }
+
+    func toggleInspectorPanel() {
+        if uiState.isInspectorOpen || uiState.inspectorReveal > 0 {
+            closeInspector(animated: true)
+        } else {
+            openInspector(animated: true)
+        }
     }
 
     /// Automatically hide the overlay once when Settings opens.
@@ -160,18 +188,49 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         }
         viewModel.startCapturing()
         viewModel.noteInteraction() // Reset fade state when showing
+        // Restore saved frame to prevent shrinking on hide/show cycle
+        if let savedFrame = restoreWindowFrame(), let window {
+            window.setFrame(savedFrame, display: false)
+        }
         window?.orderFront(nil)
     }
 
     private func hideWindow() {
+        // Save frame BEFORE closing inspector (which modifies the frame)
+        saveWindowFrame()
         viewModel.stopCapturing()
+        closeInspector(animated: false)
         window?.orderOut(nil)
     }
 
     // MARK: - Key Click Handling
 
+    /// Handle keymap selection change - regenerates Kanata config with new layout
+    private func handleKeymapChanged(keymapId: String, includePunctuation: Bool) {
+        guard let ruleCollectionsManager else {
+            AppLogger.shared.log("⚠️ [OverlayController] Cannot apply keymap - RuleCollectionsManager not configured")
+            return
+        }
+
+        AppLogger.shared.log("⌨️ [OverlayController] Keymap changed to '\(keymapId)' (punctuation: \(includePunctuation))")
+
+        Task { @MainActor in
+            let conflicts = await ruleCollectionsManager.setActiveKeymap(keymapId, includePunctuation: includePunctuation)
+
+            if !conflicts.isEmpty {
+                // The RuleCollectionsManager already logs and warns via its callback
+                AppLogger.shared.log("⚠️ [OverlayController] Keymap change had \(conflicts.count) conflict(s)")
+            }
+        }
+    }
+
     /// Handle click on a key in the overlay - opens Mapper with preset values
     private func handleKeyClick(key: PhysicalKey, layerInfo: LayerKeyInfo?) {
+        if key.layoutRole == .touchId {
+            toggleInspectorPanel()
+            return
+        }
+
         guard let kanataViewModel else {
             AppLogger.shared.log("⚠️ [OverlayController] Cannot open Mapper - KanataViewModel not configured")
             return
@@ -212,12 +271,22 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     }
 
     private func saveWindowFrame() {
-        guard let frame = window?.frame else { return }
+        guard let window else { return }
+        let frame = if uiState.isInspectorOpen {
+            collapsedFrameBeforeInspector ?? InspectorPanelLayout.collapsedFrame(
+                expandedFrame: window.frame,
+                inspectorWidth: inspectorTotalWidth
+            )
+        } else {
+            window.frame
+        }
+        let height = uiState.desiredContentHeight > 0 ? uiState.desiredContentHeight : frame.height
+        guard frame.width > 0, height > 0 else { return }
         let defaults = UserDefaults.standard
         defaults.set(frame.origin.x, forKey: DefaultsKey.windowX)
         defaults.set(frame.origin.y, forKey: DefaultsKey.windowY)
         defaults.set(frame.size.width, forKey: DefaultsKey.windowWidth)
-        defaults.set(frame.size.height, forKey: DefaultsKey.windowHeight)
+        defaults.set(height, forKey: DefaultsKey.windowHeight)
     }
 
     private func restoreWindowFrame() -> NSRect? {
@@ -242,6 +311,13 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         let x = defaults.double(forKey: DefaultsKey.windowX)
         let y = defaults.double(forKey: DefaultsKey.windowY)
         let height = defaults.double(forKey: DefaultsKey.windowHeight)
+        guard height > 0 else {
+            defaults.removeObject(forKey: DefaultsKey.windowWidth)
+            defaults.removeObject(forKey: DefaultsKey.windowHeight)
+            defaults.removeObject(forKey: DefaultsKey.windowX)
+            defaults.removeObject(forKey: DefaultsKey.windowY)
+            return nil
+        }
         return NSRect(x: x, y: y, width: width, height: height)
     }
 
@@ -249,23 +325,95 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
     nonisolated func windowDidMove(_: Notification) {
         Task { @MainActor in
-            saveWindowFrame()
+            handleWindowFrameChange()
         }
     }
 
     nonisolated func windowDidResize(_: Notification) {
         Task { @MainActor in
-            saveWindowFrame()
+            handleWindowFrameChange()
         }
+    }
+
+    func windowWillStartLiveResize(_: Notification) {
+        isUserResizing = true
+        resizeAnchor = .none
+        resizeStartMouse = NSEvent.mouseLocation
+        resizeStartFrame = window?.frame ?? .zero
+    }
+
+    func windowDidEndLiveResize(_: Notification) {
+        isUserResizing = false
+        resizeAnchor = .none
+        handleWindowFrameChange()
+    }
+
+    func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
+        let aspect = max(uiState.keyboardAspectRatio, 0.1)
+        let verticalChrome = OverlayLayoutMetrics.verticalChrome
+        let horizontalChrome = OverlayLayoutMetrics.horizontalChrome(
+            inspectorVisible: uiState.isInspectorOpen,
+            inspectorWidth: inspectorPanelWidth
+        )
+        let minSize = sender.minSize
+        let maxSize = sender.maxSize
+        let currentSize = sender.frame.size
+
+        func heightForWidth(_ width: CGFloat) -> CGFloat {
+            let keyboardWidth = max(0, width - horizontalChrome)
+            return verticalChrome + (keyboardWidth / aspect)
+        }
+
+        func widthForHeight(_ height: CGFloat) -> CGFloat {
+            let keyboardHeight = max(0, height - verticalChrome)
+            return horizontalChrome + (keyboardHeight * aspect)
+        }
+
+        let widthDelta = abs(frameSize.width - currentSize.width)
+        let heightDelta = abs(frameSize.height - currentSize.height)
+
+        var newWidth: CGFloat
+        var newHeight: CGFloat
+
+        let anchor = resolveResizeAnchor(
+            widthDelta: widthDelta,
+            heightDelta: heightDelta
+        )
+
+        if anchor == .height {
+            newHeight = clamp(frameSize.height, min: minSize.height, max: maxSize.height)
+            newWidth = widthForHeight(newHeight)
+        } else {
+            newWidth = clamp(frameSize.width, min: minSize.width, max: maxSize.width)
+            newHeight = heightForWidth(newWidth)
+        }
+
+        if newWidth < minSize.width {
+            newWidth = minSize.width
+            newHeight = heightForWidth(newWidth)
+        } else if newWidth > maxSize.width {
+            newWidth = maxSize.width
+            newHeight = heightForWidth(newWidth)
+        }
+
+        if newHeight < minSize.height {
+            newHeight = minSize.height
+            newWidth = widthForHeight(newHeight)
+        } else if newHeight > maxSize.height {
+            newHeight = maxSize.height
+            newWidth = widthForHeight(newHeight)
+        }
+
+        return NSSize(width: newWidth, height: newHeight)
     }
 
     private func createWindow() {
         // Keyboard aspect ratio: totalWidth / totalHeight ≈ 16.45 / 6.5 ≈ 2.53
-        // Account for: drag header (14pt), keyboard padding (10pt each side), bottom shadow padding (20pt)
-        // So total chrome = 14 (header) + 20 (kb top/bottom padding) + 20 (shadow) = 54pt vertical chrome
+        // Account for: drag header (15pt) + header spacing, keyboard padding (10pt bottom), top padding, bottom shadow
+        // Total chrome ≈ 60pt vertical chrome with current layout constants.
         // Horizontal chrome = 10 (kb padding) * 2 + 4 (outer) * 2 = 28pt
         let keyboardAspectRatio: CGFloat = 2.53
-        let verticalChrome: CGFloat = 54
+        let verticalChrome: CGFloat = 60
         let horizontalChrome: CGFloat = 28
 
         // Restore saved frame or calculate from default height
@@ -278,8 +426,19 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
         let contentView = LiveKeyboardOverlayView(
             viewModel: viewModel,
+            uiState: uiState,
+            inspectorWidth: inspectorPanelWidth,
             onKeyClick: { [weak self] key, layerInfo in
                 self?.handleKeyClick(key: key, layerInfo: layerInfo)
+            },
+            onClose: { [weak self] in
+                self?.isVisible = false
+            },
+            onToggleInspector: { [weak self] in
+                self?.toggleInspectorPanel()
+            },
+            onKeymapChanged: { [weak self] keymapId, includePunctuation in
+                self?.handleKeymapChanged(keymapId: keymapId, includePunctuation: includePunctuation)
             }
         )
 
@@ -313,7 +472,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         // Min: 150pt height -> keyboard area = 96pt -> width = 96 * 2.53 + 28 = 271
         // Max: 500pt height -> keyboard area = 446pt -> width = 446 * 2.53 + 28 = 1156
         window.minSize = NSSize(width: 270, height: 150)
-        window.maxSize = NSSize(width: 1160, height: 500)
+        window.maxSize = NSSize(width: 1160 + inspectorTotalWidth, height: 500)
 
         // Restore saved position or default to bottom-right corner
         if let savedFrame {
@@ -327,6 +486,227 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         }
 
         self.window = window
+        observeDesiredContentHeight()
+    }
+
+    // MARK: - Inspector Panel
+
+    private func openInspector(animated: Bool) {
+        guard let window else { return }
+        let token = UUID()
+        inspectorAnimationToken = token
+        let shouldAnimate = animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+
+        let baseFrame = window.frame
+        collapsedFrameBeforeInspector = baseFrame
+
+        let maxVisibleX = window.screen?.visibleFrame.maxX
+        let expandedFrame = InspectorPanelLayout.expandedFrame(
+            baseFrame: baseFrame,
+            inspectorWidth: inspectorTotalWidth,
+            maxVisibleX: maxVisibleX
+        )
+
+        // Content visible immediately - drawer emerges from behind keyboard
+        uiState.inspectorReveal = 1
+        uiState.isInspectorAnimating = shouldAnimate
+
+        if shouldAnimate {
+            // Animate only the window expansion with easing
+            setWindowFrame(expandedFrame, animated: true, duration: inspectorAnimationDuration)
+            DispatchQueue.main.asyncAfter(deadline: .now() + inspectorAnimationDuration) { [weak self] in
+                guard let self, self.inspectorAnimationToken == token else { return }
+                self.uiState.isInspectorOpen = true
+                self.uiState.isInspectorAnimating = false
+                self.lastWindowFrame = expandedFrame
+            }
+        } else {
+            setWindowFrame(expandedFrame, animated: false)
+            uiState.isInspectorOpen = true
+            uiState.isInspectorAnimating = false
+            lastWindowFrame = expandedFrame
+        }
+    }
+
+    private func closeInspector(animated: Bool) {
+        guard let window else { return }
+        let targetFrame = collapsedFrameBeforeInspector ?? InspectorPanelLayout.collapsedFrame(
+            expandedFrame: window.frame,
+            inspectorWidth: inspectorTotalWidth
+        )
+        let token = UUID()
+        inspectorAnimationToken = token
+        let shouldAnimate = animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+
+        uiState.isInspectorAnimating = shouldAnimate
+
+        if shouldAnimate {
+            // Keep content visible while window collapses (slides behind keyboard)
+            setWindowFrame(targetFrame, animated: true, duration: inspectorAnimationDuration)
+            DispatchQueue.main.asyncAfter(deadline: .now() + inspectorAnimationDuration) { [weak self] in
+                guard let self, self.inspectorAnimationToken == token else { return }
+                self.uiState.inspectorReveal = 0
+                self.uiState.isInspectorOpen = false
+                self.uiState.isInspectorAnimating = false
+                self.collapsedFrameBeforeInspector = nil
+                self.lastWindowFrame = targetFrame
+            }
+        } else {
+            setWindowFrame(targetFrame, animated: false)
+            uiState.inspectorReveal = 0
+            uiState.isInspectorOpen = false
+            uiState.isInspectorAnimating = false
+            collapsedFrameBeforeInspector = nil
+            lastWindowFrame = targetFrame
+        }
+    }
+
+    private func handleWindowFrameChange() {
+        guard let window else { return }
+        if uiState.isInspectorOpen {
+            updateCollapsedFrame(forExpandedFrame: window.frame)
+        }
+        if uiState.isInspectorAnimating {
+            return
+        }
+        saveWindowFrame()
+        lastWindowFrame = window.frame
+    }
+
+    private func updateCollapsedFrame(forExpandedFrame expandedFrame: NSRect) {
+        var baseFrame = collapsedFrameBeforeInspector ?? expandedFrame
+        if let lastFrame = lastWindowFrame {
+            let deltaX = expandedFrame.origin.x - lastFrame.origin.x
+            let deltaY = expandedFrame.origin.y - lastFrame.origin.y
+            baseFrame.origin.x += deltaX
+            baseFrame.origin.y += deltaY
+        } else {
+            baseFrame.origin = expandedFrame.origin
+        }
+        baseFrame.size.width = max(0, expandedFrame.width - inspectorTotalWidth)
+        baseFrame.size.height = expandedFrame.height
+        collapsedFrameBeforeInspector = baseFrame
+    }
+
+    private func setWindowFrame(_ frame: NSRect, animated: Bool, duration: TimeInterval? = nil) {
+        guard let window else { return }
+        if animated {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = duration ?? inspectorAnimationDuration
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                window.animator().setFrame(frame, display: true)
+            }
+        } else {
+            window.setFrame(frame, display: true)
+        }
+    }
+
+    private func observeDesiredContentHeight() {
+        uiState.$desiredContentHeight
+            .removeDuplicates()
+            .sink { [weak self] height in
+                guard let self, !self.isUserResizing else { return }
+                self.applyDesiredContentHeight(height)
+            }
+            .store(in: &cancellables)
+    }
+
+    private func applyDesiredContentHeight(_ height: CGFloat) {
+        guard let window else { return }
+        guard height > 0 else { return }
+        guard !isAdjustingHeight else { return }
+
+        let currentFrame = window.frame
+        if abs(currentFrame.height - height) < 0.5 {
+            return
+        }
+
+        isAdjustingHeight = true
+        var newFrame = currentFrame
+        newFrame.size.height = height
+        newFrame.origin.y = currentFrame.maxY - height
+        let constrained = window.constrainFrameRect(newFrame, to: window.screen)
+        window.setFrame(constrained, display: true, animate: false)
+        isAdjustingHeight = false
+    }
+
+    private func clamp(_ value: CGFloat, min minValue: CGFloat, max maxValue: CGFloat) -> CGFloat {
+        Swift.min(maxValue, Swift.max(minValue, value))
+    }
+
+    private func resolveResizeAnchor(widthDelta: CGFloat, heightDelta: CGFloat) -> ResizeAnchor {
+        if resizeAnchor != .none {
+            return resizeAnchor
+        }
+
+        let startSize = resizeStartFrame.size
+        let hasStart = startSize != .zero
+        let threshold: CGFloat = 6
+        let currentMouse = NSEvent.mouseLocation
+        let mouseDeltaX = abs(currentMouse.x - resizeStartMouse.x)
+        let mouseDeltaY = abs(currentMouse.y - resizeStartMouse.y)
+
+        if hasStart {
+            let frameWidthDelta = abs(startSize.width - (window?.frame.size.width ?? startSize.width))
+            let frameHeightDelta = abs(startSize.height - (window?.frame.size.height ?? startSize.height))
+            if frameWidthDelta > threshold || frameHeightDelta > threshold {
+                resizeAnchor = frameHeightDelta > frameWidthDelta ? .height : .width
+                return resizeAnchor
+            }
+        }
+
+        if mouseDeltaX > threshold || mouseDeltaY > threshold {
+            resizeAnchor = mouseDeltaY > mouseDeltaX ? .height : .width
+            return resizeAnchor
+        }
+
+        if heightDelta > widthDelta {
+            resizeAnchor = .height
+        } else {
+            resizeAnchor = .width
+        }
+        return resizeAnchor
+    }
+}
+
+private enum ResizeAnchor {
+    case none
+    case width
+    case height
+}
+
+@MainActor
+final class LiveKeyboardOverlayUIState: ObservableObject {
+    @Published var isInspectorOpen = false
+    @Published var inspectorReveal: CGFloat = 0
+    @Published var isInspectorAnimating = false
+    @Published var desiredContentHeight: CGFloat = 0
+    @Published var keyboardAspectRatio: CGFloat = PhysicalLayout.macBookUS.totalWidth / PhysicalLayout.macBookUS.totalHeight
+}
+
+enum InspectorPanelLayout {
+    static func expandedFrame(
+        baseFrame: NSRect,
+        inspectorWidth: CGFloat,
+        maxVisibleX: CGFloat?
+    ) -> NSRect {
+        var expanded = baseFrame
+        expanded.size.width += inspectorWidth
+
+        if let maxVisibleX {
+            let overflow = expanded.maxX - maxVisibleX
+            if overflow > 0 {
+                expanded.origin.x -= overflow
+            }
+        }
+
+        return expanded
+    }
+
+    static func collapsedFrame(expandedFrame: NSRect, inspectorWidth: CGFloat) -> NSRect {
+        var collapsed = expandedFrame
+        collapsed.size.width = max(0, expandedFrame.width - inspectorWidth)
+        return collapsed
     }
 }
 

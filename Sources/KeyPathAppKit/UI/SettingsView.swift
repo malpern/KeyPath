@@ -10,6 +10,9 @@ struct GeneralSettingsTabView: View {
     @EnvironmentObject var kanataManager: KanataViewModel
     @State private var settingsToastManager = WizardToastManager()
     @AppStorage("overlayLayoutId") private var selectedLayoutId: String = "macbook-us"
+    @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
+    @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var keymapIncludePunctuationStore: String = "{}"
+    @State private var showingKeymapInfo = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -56,11 +59,6 @@ struct GeneralSettingsTabView: View {
                         }
                     }
 
-                    Divider()
-                        .padding(.vertical, 4)
-
-                    // Verbose Logging Toggle
-                    VerboseLoggingToggle()
                 }
                 .frame(minWidth: 220)
 
@@ -79,8 +77,21 @@ struct GeneralSettingsTabView: View {
                                 set: { PreferencesService.shared.isSequenceMode = $0 }
                             )
                         ) {
-                            Text("Sequences - Keys one after another").tag(true)
-                            Text("Combos - Keys together").tag(false)
+                            Label {
+                                Text("Sequences - Keys one after another")
+                            } icon: {
+                                Image(systemName: "arrow.right")
+                                    .foregroundColor(.secondary)
+                            }
+                            .tag(true)
+
+                            Label {
+                                Text("Combos - Keys together")
+                            } icon: {
+                                Image(systemName: "command")
+                                    .foregroundColor(.secondary)
+                            }
+                            .tag(false)
                         }
                         .pickerStyle(.radioGroup)
                         .labelsHidden()
@@ -99,8 +110,21 @@ struct GeneralSettingsTabView: View {
                                 set: { PreferencesService.shared.applyMappingsDuringRecording = $0 }
                             )
                         ) {
-                            Text("Record physical keys (pause KeyPath)").tag(false)
-                            Text("Record with KeyPath mappings running").tag(true)
+                            Label {
+                                Text("Physical keys only (pause mappings)")
+                            } icon: {
+                                Image(systemName: "keyboard")
+                                    .foregroundColor(.secondary)
+                            }
+                            .tag(false)
+
+                            Label {
+                                Text("Include KeyPath mappings")
+                            } icon: {
+                                Image(systemName: "wand.and.stars")
+                                    .foregroundColor(.blue)
+                            }
+                            .tag(true)
                         }
                         .pickerStyle(.radioGroup)
                         .labelsHidden()
@@ -119,6 +143,30 @@ struct GeneralSettingsTabView: View {
                         }
                         .pickerStyle(.menu)
                         .frame(maxWidth: 200)
+
+                        HStack(spacing: 6) {
+                            Picker("Keymap", selection: $selectedKeymapId) {
+                                ForEach(LogicalKeymap.all) { keymap in
+                                    Text(keymap.name).tag(keymap.id)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .frame(maxWidth: 200)
+
+                            Button {
+                                showingKeymapInfo.toggle()
+                            } label: {
+                                Image(systemName: "info.circle")
+                            }
+                            .buttonStyle(.borderless)
+                            .help("Keymap details")
+                            .popover(isPresented: $showingKeymapInfo) {
+                                KeymapInfoPopover(keymap: selectedKeymap)
+                            }
+                        }
+
+                        Toggle("Include number row & punctuation", isOn: includePunctuationBinding)
+                            .toggleStyle(.switch)
                     }
                 }
 
@@ -166,6 +214,46 @@ struct GeneralSettingsTabView: View {
                 settingsToastManager.showError("Failed to open log file")
             }
         }
+    }
+
+    private var selectedKeymap: LogicalKeymap {
+        LogicalKeymap.find(id: selectedKeymapId) ?? .qwertyUS
+    }
+
+    private var includePunctuationBinding: Binding<Bool> {
+        Binding(
+            get: {
+                KeymapPreferences.includePunctuation(
+                    for: selectedKeymapId,
+                    store: keymapIncludePunctuationStore
+                )
+            },
+            set: { newValue in
+                keymapIncludePunctuationStore = KeymapPreferences.updatedIncludePunctuationStore(
+                    from: keymapIncludePunctuationStore,
+                    keymapId: selectedKeymapId,
+                    includePunctuation: newValue
+                )
+            }
+        )
+    }
+}
+
+private struct KeymapInfoPopover: View {
+    let keymap: LogicalKeymap
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(keymap.name)
+                .font(.headline)
+            Text(keymap.description)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Link("Learn more", destination: keymap.learnMoreURL)
+        }
+        .padding(12)
+        .frame(maxWidth: 260)
     }
 }
 
@@ -618,6 +706,17 @@ struct StatusSettingsTabView: View {
                         }
                     }
 
+                    // Wizard button when there are problems
+                    if !isSystemHealthy {
+                        Button(action: { wizardInitialPage = .summary }) {
+                            Label("Fix it", systemImage: "wand.and.stars")
+                                .font(.body.weight(.semibold))
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .tint(overallHealthLevel == .critical ? .red : .orange)
+                    }
+
                     // Centered toggle
                     HStack(spacing: 12) {
                         Toggle(
@@ -685,23 +784,6 @@ struct StatusSettingsTabView: View {
                         )
                     }
 
-                    // Wizard button (primary - Enter key triggers)
-                    if let snapshot = permissionSnapshot {
-                        if snapshot.isSystemReady {
-                            Button(action: { wizardInitialPage = .summary }) {
-                                Label("Install wizard…", systemImage: "wand.and.stars.inverse")
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                        } else {
-                            Button(action: { showingPermissionAlert = true }) {
-                                Label("Fix it…", systemImage: "wand.and.stars")
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
-                        }
-                    }
-
                     VStack(alignment: .leading, spacing: 8) {
                         Text("System Status")
                             .font(.headline)
@@ -713,6 +795,7 @@ struct StatusSettingsTabView: View {
                                 title: row.title,
                                 icon: row.icon,
                                 status: row.status,
+                                message: row.message,
                                 onTap: row.targetPage.map { page in
                                     { wizardInitialPage = page }
                                 }
@@ -725,15 +808,6 @@ struct StatusSettingsTabView: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 24)
-
-            // Status details (actionable summaries)
-            VStack(alignment: .leading, spacing: 12) {
-                ForEach(statusDetails.filter { $0.level != .success }) { detail in
-                    StatusDetailRow(detail: detail)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
 
             Spacer()
         }

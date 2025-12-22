@@ -217,6 +217,15 @@ else
     echo "⚠️ WARNING: Sources/KeyPath/Resources directory not found"
 fi
 
+# Copy SwiftPM resource bundles (KeyPath_KeyPath.bundle, KeyPath_KeyPathAppKit.bundle, etc.)
+for RESOURCE_BUNDLE in "$BUILD_DIR"/KeyPath_*.bundle; do
+    if [ -d "$RESOURCE_BUNDLE" ]; then
+        BUNDLE_NAME=$(basename "$RESOURCE_BUNDLE")
+        ditto "$RESOURCE_BUNDLE" "$RESOURCES/$BUNDLE_NAME"
+        echo "✅ Copied resource bundle: $BUNDLE_NAME"
+    fi
+done
+
 # Create PkgInfo file (required for app bundles)
 echo "APPL????" > "$CONTENTS/PkgInfo"
 

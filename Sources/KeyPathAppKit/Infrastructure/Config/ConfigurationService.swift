@@ -1088,13 +1088,12 @@ public final class ConfigurationService: FileConfigurationProviding {
             AppLogger.shared.log("🌐 [Validation] TCP validation FAILED with \(errors.count) errors")
             if shouldFallbackToCLIForTCPParseErrors(errors) {
                 AppLogger.shared.log(
-                    "🌐 [Validation] TCP parse error detected; falling back to CLI for details"
+                    "🌐 [Validation] TCP error requires CLI fallback; using CLI validation"
                 )
                 let cliResult = await validateConfigWithCLI(config)
                 AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
-                if !cliResult.isValid, !cliResult.errors.isEmpty {
-                    return (false, cliResult.errors)
-                }
+                // Use CLI result entirely - TCP error was a protocol issue, not config issue
+                return cliResult
             }
             AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
             return (false, errors)
@@ -1107,10 +1106,16 @@ public final class ConfigurationService: FileConfigurationProviding {
     }
 
     private func shouldFallbackToCLIForTCPParseErrors(_ errors: [String]) -> Bool {
-        let needles = ["error in configuration", "config_parse", "parse error"]
+        // Config parse errors that need CLI for better error messages
+        let parseErrorNeedles = ["error in configuration", "config_parse", "parse error"]
+        // Protocol errors indicate Kanata doesn't support the Validate command
+        let protocolErrorNeedles = ["unknown variant", "failed to deserialize command"]
+
         return errors.contains { error in
             let lowercased = error.lowercased()
-            return needles.contains { lowercased.contains($0) }
+            let isParseError = parseErrorNeedles.contains { lowercased.contains($0) }
+            let isProtocolError = protocolErrorNeedles.contains { lowercased.contains($0) }
+            return isParseError || isProtocolError
         }
     }
 

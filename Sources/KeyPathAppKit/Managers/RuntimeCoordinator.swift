@@ -234,6 +234,9 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
     private let ruleCollectionsManager: RuleCollectionsManager
     private let systemRequirementsChecker: SystemRequirementsChecker
 
+    /// Provides access to the rule collections manager for keymap changes
+    var rulesManager: RuleCollectionsManager { ruleCollectionsManager }
+
     // MARK: - Extracted Coordinators (Refactoring: Nov 2025)
 
     private let saveCoordinator: SaveCoordinator
@@ -441,6 +444,10 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         }
         ruleCollectionsManager.onActionURI = { actionURI in
             ActionDispatcher.shared.dispatch(actionURI)
+        }
+        ruleCollectionsManager.onBeforeSave = { [weak self] in
+            // Suppress file watcher to prevent double-reload when we save internally
+            self?.configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal rule change")
         }
 
         AppLogger.shared.log(
