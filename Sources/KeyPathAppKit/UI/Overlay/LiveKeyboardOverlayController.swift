@@ -32,6 +32,9 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     /// Reference to KanataViewModel for opening Mapper window
     private weak var kanataViewModel: KanataViewModel?
 
+    /// Reference to RuleCollectionsManager for keymap changes
+    private weak var ruleCollectionsManager: RuleCollectionsManager?
+
     // MARK: - UserDefaults Keys
 
     private enum DefaultsKey {
@@ -47,7 +50,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     /// Current frame version - increment to reset saved frames after layout changes
     private let currentFrameVersion = 6
     private let inspectorPanelWidth: CGFloat = 240
-    private let inspectorAnimationDuration: TimeInterval = 2.35
+    private let inspectorAnimationDuration: TimeInterval = 0.3
     private var inspectorTotalWidth: CGFloat {
         inspectorPanelWidth + OverlayLayoutMetrics.inspectorSeamWidth
     }
@@ -119,8 +122,9 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     }
 
     /// Configure the KanataViewModel reference for opening Mapper from overlay clicks
-    func configure(kanataViewModel: KanataViewModel) {
+    func configure(kanataViewModel: KanataViewModel, ruleCollectionsManager: RuleCollectionsManager? = nil) {
         self.kanataViewModel = kanataViewModel
+        self.ruleCollectionsManager = ruleCollectionsManager
     }
 
     /// Show or hide the overlay window
@@ -200,6 +204,25 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     }
 
     // MARK: - Key Click Handling
+
+    /// Handle keymap selection change - regenerates Kanata config with new layout
+    private func handleKeymapChanged(keymapId: String, includePunctuation: Bool) {
+        guard let ruleCollectionsManager else {
+            AppLogger.shared.log("⚠️ [OverlayController] Cannot apply keymap - RuleCollectionsManager not configured")
+            return
+        }
+
+        AppLogger.shared.log("⌨️ [OverlayController] Keymap changed to '\(keymapId)' (punctuation: \(includePunctuation))")
+
+        Task { @MainActor in
+            let conflicts = await ruleCollectionsManager.setActiveKeymap(keymapId, includePunctuation: includePunctuation)
+
+            if !conflicts.isEmpty {
+                // The RuleCollectionsManager already logs and warns via its callback
+                AppLogger.shared.log("⚠️ [OverlayController] Keymap change had \(conflicts.count) conflict(s)")
+            }
+        }
+    }
 
     /// Handle click on a key in the overlay - opens Mapper with preset values
     private func handleKeyClick(key: PhysicalKey, layerInfo: LayerKeyInfo?) {
@@ -413,6 +436,9 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             },
             onToggleInspector: { [weak self] in
                 self?.toggleInspectorPanel()
+            },
+            onKeymapChanged: { [weak self] keymapId, includePunctuation in
+                self?.handleKeymapChanged(keymapId: keymapId, includePunctuation: includePunctuation)
             }
         )
 
@@ -481,27 +507,21 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             maxVisibleX: maxVisibleX
         )
 
+        // Content visible immediately - drawer emerges from behind keyboard
+        uiState.inspectorReveal = 1
         uiState.isInspectorAnimating = shouldAnimate
-        uiState.inspectorReveal = 0
 
         if shouldAnimate {
-            let windowExpansionDuration: TimeInterval = 0.25
-            setWindowFrame(expandedFrame, animated: true, duration: windowExpansionDuration)
-            DispatchQueue.main.asyncAfter(deadline: .now() + windowExpansionDuration) { [weak self] in
+            // Animate only the window expansion with easing
+            setWindowFrame(expandedFrame, animated: true, duration: inspectorAnimationDuration)
+            DispatchQueue.main.asyncAfter(deadline: .now() + inspectorAnimationDuration) { [weak self] in
                 guard let self, self.inspectorAnimationToken == token else { return }
-                withAnimation(.easeInOut(duration: self.inspectorAnimationDuration)) {
-                    self.uiState.inspectorReveal = 1
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + self.inspectorAnimationDuration) { [weak self] in
-                    guard let self, self.inspectorAnimationToken == token else { return }
-                    self.uiState.isInspectorOpen = true
-                    self.uiState.isInspectorAnimating = false
-                    self.lastWindowFrame = expandedFrame
-                }
+                self.uiState.isInspectorOpen = true
+                self.uiState.isInspectorAnimating = false
+                self.lastWindowFrame = expandedFrame
             }
         } else {
             setWindowFrame(expandedFrame, animated: false)
-            uiState.inspectorReveal = 1
             uiState.isInspectorOpen = true
             uiState.isInspectorAnimating = false
             lastWindowFrame = expandedFrame
@@ -521,12 +541,11 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         uiState.isInspectorAnimating = shouldAnimate
 
         if shouldAnimate {
-            withAnimation(.easeInOut(duration: inspectorAnimationDuration)) {
-                uiState.inspectorReveal = 0
-            }
-            setWindowFrame(targetFrame, animated: true)
+            // Keep content visible while window collapses (slides behind keyboard)
+            setWindowFrame(targetFrame, animated: true, duration: inspectorAnimationDuration)
             DispatchQueue.main.asyncAfter(deadline: .now() + inspectorAnimationDuration) { [weak self] in
                 guard let self, self.inspectorAnimationToken == token else { return }
+                self.uiState.inspectorReveal = 0
                 self.uiState.isInspectorOpen = false
                 self.uiState.isInspectorAnimating = false
                 self.collapsedFrameBeforeInspector = nil
@@ -574,6 +593,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         if animated {
             NSAnimationContext.runAnimationGroup { context in
                 context.duration = duration ?? inspectorAnimationDuration
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                 window.animator().setFrame(frame, display: true)
             }
         } else {

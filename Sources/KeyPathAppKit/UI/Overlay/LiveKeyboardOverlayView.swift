@@ -13,6 +13,8 @@ struct LiveKeyboardOverlayView: View {
     var onClose: (() -> Void)?
     /// Callback when the inspector button is pressed
     var onToggleInspector: (() -> Void)?
+    /// Callback when keymap selection changes (keymapId, includePunctuation)
+    var onKeymapChanged: ((String, Bool) -> Void)?
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -72,17 +74,41 @@ struct LiveKeyboardOverlayView: View {
                     isDark: isDark,
                     fadeAmount: fadeAmount,
                     height: headerHeight,
-                    isInspectorOpen: uiState.isInspectorOpen,
                     leadingContentPadding: headerContentLeadingPadding,
                     reduceTransparency: reduceTransparency,
-                    inspectorReveal: inspectorReveal,
-                    inspectorHeaderWidth: inspectorTotalWidth,
-                    onToggleInspector: { onToggleInspector?() },
                     onClose: { onClose?() }
                 )
                 .frame(maxWidth: .infinity)
 
                 ZStack(alignment: .topLeading) {
+                    // 1. Inspector FIRST = renders at the back
+                    if inspectorVisible {
+                        OverlayInspectorPanel(
+                            selectedSection: inspectorSection,
+                            onSelectSection: { inspectorSection = $0 },
+                            fadeAmount: fadeAmount,
+                            onKeymapChanged: onKeymapChanged
+                        )
+                        .frame(width: inspectorWidth, alignment: .leading)
+                        .frame(width: inspectorTotalWidth, alignment: .leading)
+                        .frame(width: inspectorTotalWidth * inspectorReveal, alignment: .leading)
+                        .frame(maxHeight: .infinity, alignment: .top)
+                        .clipped()
+                        .frame(maxWidth: .infinity, alignment: .topTrailing)
+                    }
+
+                    // 2. Opaque blocker SECOND = blocks inspector behind keyboard area
+                    // This ensures inspector doesn't show through the transparent keyboard
+                    // Uses solid color matching the glass appearance (opaque, not window background)
+                    if inspectorVisible, let kbWidth = fixedKeyboardWidth, let kbHeight = fixedKeyboardHeight {
+                        Rectangle()
+                            .fill(Color(white: isDark ? 0.1 : 0.92))
+                            .frame(width: kbWidth, height: kbHeight)
+                            .padding(.top, headerBottomSpacing)
+                            .padding(.leading, keyboardPadding)
+                    }
+
+                    // 3. Keyboard THIRD = renders on top with transparent glass
                     HStack(alignment: .top, spacing: 0) {
                         // Main keyboard with directional shadow (light from above)
                         OverlayKeyboardView(
@@ -125,20 +151,6 @@ struct LiveKeyboardOverlayView: View {
                     .padding(.bottom, keyboardPadding)
                     .padding(.leading, keyboardPadding)
                     .padding(.trailing, keyboardTrailingPadding)
-
-                    if inspectorVisible {
-                        OverlayInspectorPanel(
-                            selectedSection: inspectorSection,
-                            onSelectSection: { inspectorSection = $0 },
-                            fadeAmount: fadeAmount
-                        )
-                        .frame(width: inspectorWidth, alignment: .leading)
-                        .frame(width: inspectorTotalWidth, alignment: .leading)
-                        .frame(width: inspectorTotalWidth * inspectorReveal, alignment: .leading)
-                        .frame(maxHeight: .infinity, alignment: .top)
-                        .clipped()
-                        .frame(maxWidth: .infinity, alignment: .topTrailing)
-                    }
                 }
                 .background(
                     GeometryReader { proxy in
@@ -246,12 +258,8 @@ private struct OverlayDragHeader: View {
     let isDark: Bool
     let fadeAmount: CGFloat
     let height: CGFloat
-    let isInspectorOpen: Bool
     let leadingContentPadding: CGFloat
     let reduceTransparency: Bool
-    let inspectorReveal: CGFloat
-    let inspectorHeaderWidth: CGFloat
-    let onToggleInspector: () -> Void
     let onClose: () -> Void
 
     @State private var isDragging = false
@@ -295,15 +303,6 @@ private struct OverlayDragHeader: View {
                 }
                 .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
                 .help("Close Overlay")
-
-                Button(action: onToggleInspector) {
-                    Image(systemName: "rectangle.and.sidebar.right")
-                        .font(.system(size: buttonSize * 0.45, weight: .semibold))
-                        .foregroundStyle(isInspectorOpen ? Color.accentColor : headerIconColor)
-                        .frame(width: buttonSize, height: buttonSize)
-                }
-                .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
-                .help(isInspectorOpen ? "Hide Inspector" : "Show Inspector")
 
                 Spacer()
             }
@@ -380,6 +379,8 @@ struct OverlayInspectorPanel: View {
     let selectedSection: InspectorSection
     let onSelectSection: (InspectorSection) -> Void
     let fadeAmount: CGFloat
+    /// Callback when keymap selection changes (keymapId, includePunctuation)
+    var onKeymapChanged: ((String, Bool) -> Void)?
 
     @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
     @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var includePunctuationStore: String = "{}"
@@ -414,6 +415,12 @@ struct OverlayInspectorPanel: View {
             }
         }
         .opacity(Double(1 - fadeAmount * 0.5)) // Fade with keyboard
+        .onChange(of: selectedKeymapId) { _, newValue in
+            onKeymapChanged?(newValue, includePunctuation)
+        }
+        .onChange(of: includePunctuationStore) { _, _ in
+            onKeymapChanged?(selectedKeymapId, includePunctuation)
+        }
     }
 
     // MARK: - Keymaps Content
@@ -626,7 +633,6 @@ private struct InspectorPanelToolbar: View {
     let selectedSection: InspectorSection
     let onSelectSection: (InspectorSection) -> Void
     private let buttonSize: CGFloat = 32
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @State private var isHoveringKeyboard = false
     @State private var isHoveringLayout = false
 
@@ -671,7 +677,7 @@ private struct InspectorPanelToolbar: View {
                 .foregroundStyle((isSelected || isHovering) ? .primary : .secondary)
                 .frame(width: buttonSize, height: buttonSize)
         }
-        .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
+        .buttonStyle(PlainButtonStyle())
         .onHover(perform: onHover)
     }
 }

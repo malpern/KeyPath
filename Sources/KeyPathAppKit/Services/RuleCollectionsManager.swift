@@ -43,6 +43,13 @@ final class RuleCollectionsManager {
     private(set) var customRules: [CustomRule] = []
     private(set) var currentLayerName: String = RuleCollectionLayer.base.displayName
 
+    /// Active keymap layout ID (e.g., "colemak-dh", "dvorak")
+    /// When set to non-QWERTY, generates remapping rules in the config
+    private(set) var activeKeymapId: String = LogicalKeymap.defaultId
+
+    /// Whether to include punctuation in keymap remapping
+    private(set) var keymapIncludesPunctuation: Bool = false
+
     // MARK: - Dependencies
 
     private let ruleCollectionStore: RuleCollectionStore
@@ -67,6 +74,9 @@ final class RuleCollectionsManager {
 
     /// Callback for reporting warnings (non-blocking)
     var onWarning: ((String) -> Void)?
+
+    /// Callback to suppress file watcher before internal saves (prevents double-reload beep)
+    var onBeforeSave: (() -> Void)?
 
     // MARK: - Initialization
 
@@ -93,6 +103,9 @@ final class RuleCollectionsManager {
 
     /// Load rule collections and custom rules from persistent storage
     func bootstrap() async {
+        // Restore keymap state first (before loading collections)
+        restoreKeymapState()
+
         async let storedCollectionsTask = ruleCollectionStore.loadCollections()
         async let storedCustomRulesTask = customRulesStore.loadRules()
 
@@ -135,6 +148,21 @@ final class RuleCollectionsManager {
         customRules = storedCustomRules
         AppLogger.shared.log("📊 [RuleCollectionsManager] bootstrap: loaded \(customRules.count) custom rules from store")
         ensureDefaultCollectionsIfNeeded()
+
+        // Restore keymap collection if a non-QWERTY layout was active
+        if activeKeymapId != LogicalKeymap.defaultId {
+            if let keymapCollection = KeymapMappingGenerator.generateCollection(
+                for: activeKeymapId,
+                includePunctuation: keymapIncludesPunctuation
+            ) {
+                // Remove any stale keymap collection first
+                ruleCollections.removeAll { $0.id == RuleCollectionIdentifier.keymapLayout }
+                // Insert at beginning so custom rules take priority
+                ruleCollections.insert(keymapCollection, at: 0)
+                AppLogger.shared.log("⌨️ [RuleCollections] Restored keymap collection for \(activeKeymapId)")
+            }
+        }
+
         dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
 
@@ -552,6 +580,117 @@ final class RuleCollectionsManager {
         }
     }
 
+    // MARK: - Keymap Layout Management
+
+    /// Set the active keyboard layout and regenerate the config.
+    ///
+    /// When a non-QWERTY layout is selected, this generates Kanata rules that
+    /// remap physical QWERTY keys to output the target layout's characters.
+    ///
+    /// - Parameters:
+    ///   - keymapId: The layout ID (e.g., "colemak-dh", "dvorak", or "qwerty-us" for none)
+    ///   - includePunctuation: Whether to remap punctuation keys (relevant for Dvorak)
+    /// - Returns: Array of conflicting custom rules, if any
+    @discardableResult
+    func setActiveKeymap(_ keymapId: String, includePunctuation: Bool) async -> [RuleConflictInfo] {
+        AppLogger.shared.log("⌨️ [RuleCollections] Setting active keymap to '\(keymapId)' (punctuation: \(includePunctuation))")
+
+        let previousKeymapId = activeKeymapId
+        activeKeymapId = keymapId
+        keymapIncludesPunctuation = includePunctuation
+
+        // Check for conflicts with custom rules
+        let conflicts = detectKeymapConflicts(keymapId: keymapId, includePunctuation: includePunctuation)
+
+        if !conflicts.isEmpty {
+            let conflictKeys = conflicts.flatMap(\.keys).joined(separator: ", ")
+            onWarning?(
+                "⚠️ Layout change affects custom rules on: \(conflictKeys). Custom rules will override layout mappings for those keys."
+            )
+            AppLogger.shared.log("⚠️ [RuleCollections] Keymap conflicts with custom rules on: \(conflictKeys)")
+        }
+
+        // Remove any existing keymap collection
+        ruleCollections.removeAll { $0.id == RuleCollectionIdentifier.keymapLayout }
+
+        // Add new keymap collection if not QWERTY
+        if let keymapCollection = KeymapMappingGenerator.generateCollection(
+            for: keymapId,
+            includePunctuation: includePunctuation
+        ) {
+            // Insert at the beginning so custom rules take priority
+            ruleCollections.insert(keymapCollection, at: 0)
+            AppLogger.shared.log("⌨️ [RuleCollections] Added keymap collection with \(keymapCollection.mappings.count) mappings")
+        } else if keymapId == LogicalKeymap.defaultId {
+            AppLogger.shared.log("⌨️ [RuleCollections] QWERTY selected - no keymap collection needed")
+        }
+
+        // Persist keymap state
+        await persistKeymapState()
+
+        // Regenerate config
+        let success = await regenerateConfigFromCollections()
+
+        if !success {
+            // Rollback on failure
+            AppLogger.shared.log("⌨️ [RuleCollections] Keymap change failed - rolling back")
+            activeKeymapId = previousKeymapId
+            ruleCollections.removeAll { $0.id == RuleCollectionIdentifier.keymapLayout }
+            if let previousCollection = KeymapMappingGenerator.generateCollection(
+                for: previousKeymapId,
+                includePunctuation: keymapIncludesPunctuation
+            ) {
+                ruleCollections.insert(previousCollection, at: 0)
+            }
+        }
+
+        return conflicts
+    }
+
+    /// Detect conflicts between the keymap layout and existing custom rules.
+    ///
+    /// Returns information about which custom rules target keys that the keymap will remap.
+    func detectKeymapConflicts(keymapId: String, includePunctuation: Bool) -> [RuleConflictInfo] {
+        guard let keymap = LogicalKeymap.find(id: keymapId),
+              keymapId != LogicalKeymap.defaultId else {
+            return []
+        }
+
+        let keymapMappings = KeymapMappingGenerator.generateMappings(
+            to: keymap,
+            includePunctuation: includePunctuation
+        )
+
+        let keymapKeys = Set(keymapMappings.map { KanataKeyConverter.convertToKanataKey($0.input) })
+
+        var conflicts: [RuleConflictInfo] = []
+
+        for rule in customRules where rule.isEnabled {
+            let normalizedInput = KanataKeyConverter.convertToKanataKey(rule.input)
+            if keymapKeys.contains(normalizedInput) {
+                conflicts.append(RuleConflictInfo(source: .customRule(rule), keys: [normalizedInput]))
+            }
+        }
+
+        return conflicts
+    }
+
+    /// Persist the current keymap state to UserDefaults
+    private func persistKeymapState() async {
+        UserDefaults.standard.set(activeKeymapId, forKey: "activeKeymapId")
+        UserDefaults.standard.set(keymapIncludesPunctuation, forKey: "keymapIncludesPunctuation")
+        AppLogger.shared.log("💾 [RuleCollections] Persisted keymap state: \(activeKeymapId)")
+    }
+
+    /// Restore keymap state from UserDefaults (called during bootstrap)
+    private func restoreKeymapState() {
+        if let storedKeymapId = UserDefaults.standard.string(forKey: "activeKeymapId") {
+            activeKeymapId = storedKeymapId
+        }
+        keymapIncludesPunctuation = UserDefaults.standard.bool(forKey: "keymapIncludesPunctuation")
+        AppLogger.shared.log("📂 [RuleCollections] Restored keymap state: \(activeKeymapId) (punctuation: \(keymapIncludesPunctuation))")
+    }
+
     // MARK: - Private Helpers
 
     private func ensureDefaultCollectionsIfNeeded() {
@@ -607,6 +746,11 @@ final class RuleCollectionsManager {
         }
 
         do {
+            // Suppress file watcher before saving to prevent double-reload race condition
+            // Without this, the file watcher detects our write and tries to reload,
+            // which can race with onRulesChanged reload and cause an error beep
+            onBeforeSave?()
+
             AppLogger.shared.log("🔄 [RuleCollections] Calling configurationService.saveConfiguration...")
             // IMPORTANT: Save config FIRST (validates before writing)
             // Only persist to stores AFTER config is successfully written
