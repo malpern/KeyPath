@@ -4,7 +4,7 @@ enum OverlayLayoutMetrics {
     static let headerHeight: CGFloat = 15
     static let headerBottomSpacing: CGFloat = 4
     static let keyboardPadding: CGFloat = 6
-    static let keyboardTrailingPadding: CGFloat = 0
+    static let keyboardTrailingPadding: CGFloat = keyboardPadding
     static let outerHorizontalPadding: CGFloat = 4
     static let inspectorSeamWidth: CGFloat = 0
 

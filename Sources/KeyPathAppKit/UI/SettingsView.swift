@@ -59,11 +59,6 @@ struct GeneralSettingsTabView: View {
                         }
                     }
 
-                    Divider()
-                        .padding(.vertical, 4)
-
-                    // Verbose Logging Toggle
-                    VerboseLoggingToggle()
                 }
                 .frame(minWidth: 220)
 

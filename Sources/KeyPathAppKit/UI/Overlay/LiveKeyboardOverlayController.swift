@@ -184,13 +184,16 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         }
         viewModel.startCapturing()
         viewModel.noteInteraction() // Reset fade state when showing
-        if uiState.desiredContentHeight > 0 {
-            applyDesiredContentHeight(uiState.desiredContentHeight)
+        // Restore saved frame to prevent shrinking on hide/show cycle
+        if let savedFrame = restoreWindowFrame(), let window {
+            window.setFrame(savedFrame, display: false)
         }
         window?.orderFront(nil)
     }
 
     private func hideWindow() {
+        // Save frame BEFORE closing inspector (which modifies the frame)
+        saveWindowFrame()
         viewModel.stopCapturing()
         closeInspector(animated: false)
         window?.orderOut(nil)

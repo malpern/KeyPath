@@ -5,6 +5,7 @@ struct LogicalKeymap: Identifiable {
     let name: String
     let description: String
     let learnMoreURL: URL
+    let iconFilename: String // SVG filename in Resources/Keymaps (without extension)
     let coreLabels: [UInt16: String] // 30-key letter block (always applied)
     let extraLabels: [UInt16: String] // Number row + outer punctuation (toggle)
 
@@ -24,7 +25,7 @@ struct LogicalKeymap: Identifiable {
 
     static let defaultId = "qwerty-us"
 
-    static let all: [LogicalKeymap] = [qwertyUS, colemakDH, workman, dvorak, norman]
+    static let all: [LogicalKeymap] = [qwertyUS, colemak, colemakDH, dvorak, workman]
 
     static func find(id: String) -> LogicalKeymap? {
         all.first { $0.id == id }
@@ -33,13 +34,30 @@ struct LogicalKeymap: Identifiable {
     static let qwertyUS: LogicalKeymap = {
         LogicalKeymap(
             id: "qwerty-us",
-            name: "QWERTY (US)",
+            name: "QWERTY",
             description: "The standard US layout used on most keyboards.",
             learnMoreURL: URL(string: "https://en.wikipedia.org/wiki/QWERTY")!,
+            iconFilename: "QWERTY",
             coreLabels: buildCoreMap(
                 top: ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
                 home: ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"],
                 bottom: ["z", "x", "c", "v", "b", "n", "m", ",", ".", "/"]
+            ),
+            extraLabels: [:]
+        )
+    }()
+
+    static let colemak: LogicalKeymap = {
+        LogicalKeymap(
+            id: "colemak",
+            name: "Colemak",
+            description: "Popular ergonomic layout that keeps many QWERTY shortcuts intact.",
+            learnMoreURL: URL(string: "https://colemak.com/")!,
+            iconFilename: "Colemak",
+            coreLabels: buildCoreMap(
+                top: ["q", "w", "f", "p", "g", "j", "l", "u", "y", ";"],
+                home: ["a", "r", "s", "t", "d", "h", "n", "e", "i", "o"],
+                bottom: ["z", "x", "c", "v", "b", "k", "m", ",", ".", "/"]
             ),
             extraLabels: [:]
         )
@@ -51,6 +69,7 @@ struct LogicalKeymap: Identifiable {
             name: "Colemak-DH",
             description: "Modern ergonomic layout; DH mod reduces lateral reaches while keeping many QWERTY shortcuts.",
             learnMoreURL: URL(string: "https://colemakmods.github.io/mod-dh/")!,
+            iconFilename: "Colemak-DH",
             coreLabels: buildCoreMap(
                 top: ["q", "w", "f", "p", "b", "j", "l", "u", "y", ";"],
                 home: ["a", "r", "s", "t", "g", "m", "n", "e", "i", "o"],
@@ -66,6 +85,7 @@ struct LogicalKeymap: Identifiable {
             name: "Workman",
             description: "Ergonomic layout optimized for finger travel and comfortable inward rolls.",
             learnMoreURL: URL(string: "https://workmanlayout.org/")!,
+            iconFilename: "Workman",
             coreLabels: buildCoreMap(
                 top: ["q", "d", "r", "w", "b", "j", "f", "u", "p", ";"],
                 home: ["a", "s", "h", "t", "g", "y", "n", "e", "o", "i"],
@@ -81,6 +101,7 @@ struct LogicalKeymap: Identifiable {
             name: "Dvorak",
             description: "Classic alternative layout that emphasizes home row usage and hand alternation.",
             learnMoreURL: URL(string: "https://en.wikipedia.org/wiki/Dvorak_keyboard_layout")!,
+            iconFilename: "Dvorak",
             coreLabels: buildCoreMap(
                 top: ["'", ",", ".", "p", "y", "f", "g", "c", "r", "l"],
                 home: ["a", "o", "e", "u", "i", "d", "h", "t", "n", "s"],
@@ -95,21 +116,6 @@ struct LogicalKeymap: Identifiable {
                 KeyCode.backslash: "\\",
                 KeyCode.apostrophe: "-"
             ]
-        )
-    }()
-
-    static let norman: LogicalKeymap = {
-        LogicalKeymap(
-            id: "norman",
-            name: "Norman",
-            description: "Minimal-change layout for easier QWERTY transition with improved balance.",
-            learnMoreURL: URL(string: "https://normanlayout.info/")!,
-            coreLabels: buildCoreMap(
-                top: ["q", "w", "d", "f", "k", "j", "u", "r", "l", ";"],
-                home: ["a", "s", "e", "t", "g", "y", "n", "i", "o", "h"],
-                bottom: ["z", "x", "c", "v", "b", "p", "m", ",", ".", "/"]
-            ),
-            extraLabels: [:]
         )
     }()
 

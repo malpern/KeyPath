@@ -675,22 +675,39 @@ struct OverlayKeycapView: View {
                 .modifier(PulseAnimation())
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            // Layer name - bottom-left aligned like ESC key
+            // Layer indicator - icon + label like function keys
             let isBase = currentLayerName.lowercased() == "base"
 
-            VStack {
-                Spacer(minLength: 0)
-                HStack {
-                    Text(currentLayerName.lowercased())
-                        .font(.system(size: 7 * scale, weight: .regular))
-                        .foregroundStyle(foregroundColor.opacity(isBase ? 0.5 : 1.0))
-                    Spacer(minLength: 0)
+            if isBase {
+                // Base layer: sidebar icon with "base" label underneath (like F-keys)
+                VStack(spacing: 0) {
+                    Image(systemName: "sidebar.right")
+                        .font(.system(size: 8 * scale, weight: .regular))
+                        .foregroundStyle(foregroundColor)
+                    Spacer()
+                    Text("base")
+                        .font(.system(size: 5.4 * scale, weight: .regular))
+                        .foregroundStyle(foregroundColor.opacity(0.6))
                 }
-                .padding(.leading, 4 * scale)
-                .padding(.trailing, 4 * scale)
-                .padding(.bottom, 3 * scale)
+                .padding(.top, 4 * scale)
+                .padding(.bottom, 2 * scale)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                // Other layers: bottom-left aligned like ESC key
+                VStack {
+                    Spacer(minLength: 0)
+                    HStack {
+                        Text(currentLayerName.lowercased())
+                            .font(.system(size: 7 * scale, weight: .regular))
+                            .foregroundStyle(foregroundColor)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.leading, 4 * scale)
+                    .padding(.trailing, 4 * scale)
+                    .padding(.bottom, 3 * scale)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 

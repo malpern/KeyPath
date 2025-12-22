@@ -83,14 +83,6 @@ struct LiveKeyboardOverlayView: View {
                 .frame(maxWidth: .infinity)
 
                 ZStack(alignment: .topLeading) {
-                    if inspectorVisible {
-                        Rectangle()
-                            .fill(overlayPanelFill)
-                            .frame(width: inspectorTotalWidth)
-                            .frame(maxHeight: .infinity)
-                            .frame(maxWidth: .infinity, alignment: .topTrailing)
-                    }
-
                     HStack(alignment: .top, spacing: 0) {
                         // Main keyboard with directional shadow (light from above)
                         OverlayKeyboardView(
@@ -131,6 +123,8 @@ struct LiveKeyboardOverlayView: View {
                     }
                     .padding(.top, headerBottomSpacing)
                     .padding(.bottom, keyboardPadding)
+                    .padding(.leading, keyboardPadding)
+                    .padding(.trailing, keyboardTrailingPadding)
 
                     if inspectorVisible {
                         OverlayInspectorPanel(
@@ -146,8 +140,6 @@ struct LiveKeyboardOverlayView: View {
                         .frame(maxWidth: .infinity, alignment: .topTrailing)
                     }
                 }
-                .padding(.leading, keyboardPadding)
-                .padding(.trailing, keyboardTrailingPadding)
                 .background(
                     GeometryReader { proxy in
                         Color.clear
@@ -328,7 +320,8 @@ private struct OverlayDragHeader: View {
     }
 
     private var headerFill: Color {
-        Color(white: isDark ? 0.11 : 0.88)
+        // Transparent to let the glass material show through
+        Color.clear
     }
 
     private var headerIconColor: Color {
@@ -383,12 +376,22 @@ private struct RightRoundedRectangle: Shape {
 
 struct OverlayInspectorPanel: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     let selectedSection: InspectorSection
     let onSelectSection: (InspectorSection) -> Void
     let fadeAmount: CGFloat
 
+    @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
+    @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var includePunctuationStore: String = "{}"
+    @AppStorage("overlayLayoutId") private var selectedLayoutId: String = "macbook-us"
+
+    private var includePunctuation: Bool {
+        KeymapPreferences.includePunctuation(for: selectedKeymapId, store: includePunctuationStore)
+    }
+
     var body: some View {
         VStack(spacing: 12) {
+            // Toolbar with section tabs
             InspectorPanelToolbar(
                 isDark: isDark,
                 selectedSection: selectedSection,
@@ -396,59 +399,225 @@ struct OverlayInspectorPanel: View {
             )
             .padding(.top, 6)
 
-            VStack(alignment: .leading, spacing: 12) {
-                Text(sectionTitle)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-
-                Text(sectionSubtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Button("Open Settings…") {
-                    NotificationCenter.default.post(name: .openSettingsGeneral, object: nil)
+            // Content based on selected section
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    switch selectedSection {
+                    case .keyboard:
+                        keymapsContent
+                    case .layout:
+                        physicalLayoutContent
+                    }
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-
-                Spacer(minLength: 0)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 12)
             }
-            .padding(.horizontal, 12)
-            .padding(.bottom, 12)
         }
-        .background(panelBackground)
-        .overlay(
-            RightRoundedRectangle(radius: 10)
-                .stroke(Color(white: isDark ? 0.35 : 0.7), lineWidth: 1)
-        )
-        .clipShape(RightRoundedRectangle(radius: 10))
+        .opacity(Double(1 - fadeAmount * 0.5)) // Fade with keyboard
     }
 
-    private var panelBackground: some View {
-        let fill = Color(white: isDark ? 0.11 : 0.88)
-        return RightRoundedRectangle(radius: 10).fill(fill)
+    // MARK: - Keymaps Content
+
+    @ViewBuilder
+    private var keymapsContent: some View {
+        // Keymap cards in 2-column grid
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+            ForEach(LogicalKeymap.all) { keymap in
+                KeymapCard(
+                    keymap: keymap,
+                    isSelected: selectedKeymapId == keymap.id,
+                    isDark: isDark,
+                    fadeAmount: fadeAmount
+                ) {
+                    selectedKeymapId = keymap.id
+                }
+            }
+        }
+
+        Divider()
+            .padding(.vertical, 4)
+
+        // Include punctuation switch
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Include punctuation")
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+
+            Toggle(isOn: Binding(
+                get: { includePunctuation },
+                set: { newValue in
+                    includePunctuationStore = KeymapPreferences.updatedIncludePunctuationStore(
+                        from: includePunctuationStore,
+                        keymapId: selectedKeymapId,
+                        includePunctuation: newValue
+                    )
+                }
+            )) {
+                EmptyView()
+            }
+            .toggleStyle(.switch)
+            .controlSize(.small)
+        }
+    }
+
+    // MARK: - Physical Layout Content
+
+    @ViewBuilder
+    private var physicalLayoutContent: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ForEach(PhysicalLayout.all) { layout in
+                PhysicalLayoutRow(
+                    layout: layout,
+                    isSelected: selectedLayoutId == layout.id,
+                    isDark: isDark
+                ) {
+                    selectedLayoutId = layout.id
+                }
+            }
+        }
     }
 
     private var isDark: Bool {
         colorScheme == .dark
     }
+}
 
-    private var sectionTitle: String {
-        switch selectedSection {
-        case .keyboard:
-            "Keymap"
-        case .layout:
-            "Physical Layout"
+/// Card view for a single keymap option with SVG image and info button
+private struct KeymapCard: View {
+    let keymap: LogicalKeymap
+    let isSelected: Bool
+    let isDark: Bool
+    let fadeAmount: CGFloat
+    let onSelect: () -> Void
+
+    @State private var isHovering = false
+    @State private var svgImage: NSImage?
+
+    var body: some View {
+        Button(action: onSelect) {
+            VStack(spacing: 4) {
+                // SVG Image - becomes monochromatic when fading
+                if let image = svgImage {
+                    Image(nsImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(height: 45)
+                        .saturation(Double(1 - fadeAmount)) // Monochromatic when faded
+                } else {
+                    keymapPlaceholder
+                        .frame(height: 45)
+                }
+
+                // Label with info button
+                HStack(spacing: 4) {
+                    Text(keymap.name)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(isSelected ? .primary : .secondary)
+                        .lineLimit(1)
+
+                    Button {
+                        NSWorkspace.shared.open(keymap.learnMoreURL)
+                    } label: {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(6)
+            .frame(maxWidth: .infinity)
+            .background(cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+        .onAppear { loadSVG() }
+    }
+
+    private func loadSVG() {
+        // SVGs are at bundle root (not in subdirectory) due to .process() flattening
+        guard let svgURL = Bundle.module.url(
+            forResource: keymap.iconFilename,
+            withExtension: "svg"
+        ) else { return }
+
+        svgImage = NSImage(contentsOf: svgURL)
+    }
+
+    private var cardBackground: some View {
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(isSelected
+                ? Color.accentColor.opacity(0.15)
+                : (isHovering ? Color.white.opacity(0.08) : Color.white.opacity(0.04)))
+    }
+
+    private var keymapPlaceholder: some View {
+        RoundedRectangle(cornerRadius: 6)
+            .fill(Color.gray.opacity(0.2))
+            .overlay(
+                Image(systemName: "keyboard")
+                    .font(.system(size: 16))
+                    .foregroundStyle(.secondary)
+            )
+    }
+}
+
+/// Row view for a physical layout option
+private struct PhysicalLayoutRow: View {
+    let layout: PhysicalLayout
+    let isSelected: Bool
+    let isDark: Bool
+    let onSelect: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: onSelect) {
+            HStack {
+                Image(systemName: layoutIcon)
+                    .font(.system(size: 16))
+                    .foregroundStyle(isSelected ? .primary : .secondary)
+                    .frame(width: 24)
+
+                Text(layout.name)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(isSelected ? .primary : .secondary)
+
+                Spacer()
+
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(rowBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+    }
+
+    private var layoutIcon: String {
+        switch layout.id {
+        case "macbook-us": "laptopcomputer"
+        case "kinesis-360": "keyboard"
+        default: "keyboard"
         }
     }
 
-    private var sectionSubtitle: String {
-        switch selectedSection {
-        case .keyboard:
-            "Logical labels for the keys you see."
-        case .layout:
-            "Choose the physical keyboard shape."
-        }
+    private var rowBackground: some View {
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(isSelected
+                ? Color.accentColor.opacity(0.15)
+                : (isHovering ? Color.white.opacity(0.08) : Color.white.opacity(0.04)))
     }
 }
 
@@ -486,13 +655,7 @@ private struct InspectorPanelToolbar: View {
         .controlSize(.regular)
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .modifier(
-            GlassEffectModifier(
-                isEnabled: !reduceTransparency,
-                cornerRadius: 12,
-                fallbackFill: Color(white: isDark ? 0.18 : 0.92)
-            )
-        )
+        // No background - transparent toolbar
     }
 
     private func toolbarButton(
@@ -533,7 +696,7 @@ private struct GlassEffectModifier: ViewModifier {
     let fallbackFill: Color
 
     func body(content: Content) -> some View {
-        if isEnabled {
+        if isEnabled, #available(macOS 26.0, *) {
             content.glassEffect(.regular.interactive(), in: .rect(cornerRadius: cornerRadius))
         } else {
             content
