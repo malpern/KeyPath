@@ -15,6 +15,8 @@ struct LiveKeyboardOverlayView: View {
     var onToggleInspector: (() -> Void)?
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @AppStorage("overlayLayoutId") private var selectedLayoutId: String = "macbook-us"
     @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
     @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var keymapIncludePunctuationStore: String = "{}"
@@ -54,6 +56,7 @@ struct LiveKeyboardOverlayView: View {
         let headerContentLeadingPadding = keyboardPadding + escKeyLeftInset
         let inspectorReveal = uiState.inspectorReveal
         let inspectorVisible = inspectorReveal > 0
+        let trailingOuterPadding = inspectorVisible ? 0 : outerHorizontalPadding
         let keyboardAspectRatio = activeLayout.totalWidth / activeLayout.totalHeight
         let inspectorSeamWidth = OverlayLayoutMetrics.inspectorSeamWidth
         let inspectorChrome = uiState.isInspectorOpen ? inspectorWidth + inspectorSeamWidth : 0
@@ -71,15 +74,23 @@ struct LiveKeyboardOverlayView: View {
                     height: headerHeight,
                     isInspectorOpen: uiState.isInspectorOpen,
                     leadingContentPadding: headerContentLeadingPadding,
+                    reduceTransparency: reduceTransparency,
                     inspectorReveal: inspectorReveal,
                     inspectorHeaderWidth: inspectorTotalWidth,
                     onToggleInspector: { onToggleInspector?() },
                     onClose: { onClose?() }
                 )
                 .frame(maxWidth: .infinity)
-                .padding(.bottom, headerBottomSpacing)
 
                 ZStack(alignment: .topLeading) {
+                    if inspectorVisible {
+                        Rectangle()
+                            .fill(overlayPanelFill)
+                            .frame(width: inspectorTotalWidth)
+                            .frame(maxHeight: .infinity)
+                            .frame(maxWidth: .infinity, alignment: .topTrailing)
+                    }
+
                     HStack(alignment: .top, spacing: 0) {
                         // Main keyboard with directional shadow (light from above)
                         OverlayKeyboardView(
@@ -118,22 +129,25 @@ struct LiveKeyboardOverlayView: View {
 
                         Spacer(minLength: 0)
                     }
+                    .padding(.top, headerBottomSpacing)
+                    .padding(.bottom, keyboardPadding)
 
                     if inspectorVisible {
                         OverlayInspectorPanel(
                             selectedSection: inspectorSection,
-                            onSelectSection: { inspectorSection = $0 }
+                            onSelectSection: { inspectorSection = $0 },
+                            fadeAmount: fadeAmount
                         )
                         .frame(width: inspectorWidth, alignment: .leading)
                         .frame(width: inspectorTotalWidth, alignment: .leading)
                         .frame(width: inspectorTotalWidth * inspectorReveal, alignment: .leading)
+                        .frame(maxHeight: .infinity, alignment: .top)
                         .clipped()
                         .frame(maxWidth: .infinity, alignment: .topTrailing)
                     }
                 }
                 .padding(.leading, keyboardPadding)
                 .padding(.trailing, keyboardTrailingPadding)
-                .padding(.bottom, keyboardPadding)
                 .background(
                     GeometryReader { proxy in
                         Color.clear
@@ -173,17 +187,21 @@ struct LiveKeyboardOverlayView: View {
         .background(
             glassBackground(cornerRadius: cornerRadius, fadeAmount: fadeAmount)
         )
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .environmentObject(viewModel)
         // Minimal padding for shadow (keep horizontal only)
-        .padding(.horizontal, outerHorizontalPadding)
+        .padding(.leading, outerHorizontalPadding)
+        .padding(.trailing, trailingOuterPadding)
         .onHover { hovering in
             if hovering { viewModel.noteInteraction() }
         }
         .background(MouseMoveMonitor { viewModel.noteInteraction() })
         .opacity(0.11 + 0.89 * (1 - viewModel.deepFadeAmount))
         // Animate deep fade smoothly; fade-in is instant
-        .animation(viewModel.deepFadeAmount > 0 ? .easeOut(duration: 0.3) : nil,
-                   value: viewModel.deepFadeAmount)
+        .animation(
+            reduceMotion ? nil : (viewModel.deepFadeAmount > 0 ? .easeOut(duration: 0.3) : nil),
+            value: viewModel.deepFadeAmount
+        )
     }
 }
 
@@ -191,6 +209,9 @@ struct LiveKeyboardOverlayView: View {
 
 extension LiveKeyboardOverlayView {
     var isDark: Bool { colorScheme == .dark }
+    var overlayPanelFill: Color {
+        Color(white: isDark ? 0.11 : 0.88)
+    }
 
     @ViewBuilder
     func glassBackground(cornerRadius: CGFloat, fadeAmount: CGFloat) -> some View {
@@ -201,21 +222,29 @@ extension LiveKeyboardOverlayView {
 
         let contactShadow = Color.black.opacity((isDark ? 0.12 : 0.08) * (1 - fadeAmount))
 
-        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(.ultraThinMaterial)
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(tint)
-            )
-            // Fade overlay: animating material .opacity() directly causes discrete jumps,
-            // so we overlay a semi-transparent wash that fades in smoothly instead
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color(white: isDark ? 0.1 : 0.9).opacity(0.25 * fadeAmount))
-            )
-            // y >= radius ensures shadow only renders below (light from above)
-            .shadow(color: contactShadow, radius: 4, x: 0, y: 4)
-            .animation(.easeOut(duration: 0.3), value: fadeAmount)
+        let baseShape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+
+        if reduceTransparency {
+            baseShape
+                .fill(Color(white: isDark ? 0.1 : 0.92))
+                .overlay(
+                    baseShape.stroke(Color.white.opacity(isDark ? 0.08 : 0.25), lineWidth: 0.5)
+                )
+        } else {
+            baseShape
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    baseShape.fill(tint)
+                )
+                // Fade overlay: animating material .opacity() directly causes discrete jumps,
+                // so we overlay a semi-transparent wash that fades in smoothly instead
+                .overlay(
+                    baseShape.fill(Color(white: isDark ? 0.1 : 0.9).opacity(0.25 * fadeAmount))
+                )
+                // y >= radius ensures shadow only renders below (light from above)
+                .shadow(color: contactShadow, radius: 4, x: 0, y: 4)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.3), value: fadeAmount)
+        }
     }
 }
 
@@ -227,6 +256,7 @@ private struct OverlayDragHeader: View {
     let height: CGFloat
     let isInspectorOpen: Bool
     let leadingContentPadding: CGFloat
+    let reduceTransparency: Bool
     let inspectorReveal: CGFloat
     let inspectorHeaderWidth: CGFloat
     let onToggleInspector: () -> Void
@@ -238,27 +268,10 @@ private struct OverlayDragHeader: View {
 
     var body: some View {
         let buttonSize = max(10, height * 0.9)
-        let revealWidth = inspectorHeaderWidth * inspectorReveal
-        let shouldShowInspector = inspectorReveal > 0.01
 
         ZStack {
             Rectangle()
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    Rectangle()
-                        .fill(headerTint)
-                )
-                .overlay(alignment: .trailing) {
-                    if shouldShowInspector {
-                        Rectangle()
-                            .fill(inspectorTint)
-                            .frame(width: revealWidth)
-                    }
-                }
-                .overlay(
-                    Rectangle()
-                        .stroke(headerStroke, lineWidth: 1)
-                )
+                .fill(headerFill)
                 .contentShape(Rectangle())
                 .gesture(
                     DragGesture(minimumDistance: 1, coordinateSpace: .global)
@@ -287,12 +300,8 @@ private struct OverlayDragHeader: View {
                         .font(.system(size: buttonSize * 0.45, weight: .semibold))
                         .foregroundStyle(headerIconColor)
                         .frame(width: buttonSize, height: buttonSize)
-                        .background(
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(headerIconBackground)
-                        )
                 }
-                .buttonStyle(.plain)
+                .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
                 .help("Close Overlay")
 
                 Button(action: onToggleInspector) {
@@ -300,12 +309,8 @@ private struct OverlayDragHeader: View {
                         .font(.system(size: buttonSize * 0.45, weight: .semibold))
                         .foregroundStyle(isInspectorOpen ? Color.accentColor : headerIconColor)
                         .frame(width: buttonSize, height: buttonSize)
-                        .background(
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(headerIconBackground)
-                        )
                 }
-                .buttonStyle(.plain)
+                .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
                 .help(isInspectorOpen ? "Hide Inspector" : "Show Inspector")
 
                 Spacer()
@@ -319,27 +324,15 @@ private struct OverlayDragHeader: View {
     }
 
     private var headerTint: Color {
-        let base = isDark ? 0.14 : 0.93
-        let opacity = max(0.18, 0.32 - 0.18 * fadeAmount)
-        return Color(white: base).opacity(opacity)
+        headerFill
     }
 
-    private var inspectorTint: Color {
-        let base = isDark ? 0.1 : 0.97
-        let opacity = max(0.22, 0.38 - 0.18 * fadeAmount)
-        return Color(white: base).opacity(opacity)
-    }
-
-    private var headerStroke: Color {
-        Color.white.opacity(isDark ? 0.08 : 0.2)
+    private var headerFill: Color {
+        Color(white: isDark ? 0.11 : 0.88)
     }
 
     private var headerIconColor: Color {
         Color.white.opacity(isDark ? 0.7 : 0.6)
-    }
-
-    private var headerIconBackground: Color {
-        Color.white.opacity(isDark ? 0.08 : 0.18)
     }
 
     private func moveWindow(deltaX: CGFloat, deltaY: CGFloat) {
@@ -365,18 +358,43 @@ private struct OverlayAvailableWidthPreferenceKey: PreferenceKey {
     }
 }
 
+private struct RightRoundedRectangle: Shape {
+    let radius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let r = min(radius, rect.width / 2, rect.height / 2)
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - r, y: rect.minY))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.maxX, y: rect.minY + r),
+            control: CGPoint(x: rect.maxX, y: rect.minY)
+        )
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - r))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.maxX - r, y: rect.maxY),
+            control: CGPoint(x: rect.maxX, y: rect.maxY)
+        )
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.closeSubpath()
+        return path
+    }
+}
+
 struct OverlayInspectorPanel: View {
     @Environment(\.colorScheme) private var colorScheme
     let selectedSection: InspectorSection
     let onSelectSection: (InspectorSection) -> Void
+    let fadeAmount: CGFloat
 
     var body: some View {
         VStack(spacing: 12) {
             InspectorPanelToolbar(
+                isDark: isDark,
                 selectedSection: selectedSection,
                 onSelectSection: onSelectSection
             )
-            .padding(.top, 10)
+            .padding(.top, 6)
 
             VStack(alignment: .leading, spacing: 12) {
                 Text(sectionTitle)
@@ -400,14 +418,15 @@ struct OverlayInspectorPanel: View {
         }
         .background(panelBackground)
         .overlay(
-            Rectangle()
+            RightRoundedRectangle(radius: 10)
                 .stroke(Color(white: isDark ? 0.35 : 0.7), lineWidth: 1)
         )
+        .clipShape(RightRoundedRectangle(radius: 10))
     }
 
     private var panelBackground: some View {
-        let fill = Color(white: isDark ? 0.12 : 0.88)
-        return Rectangle().fill(fill)
+        let fill = Color(white: isDark ? 0.11 : 0.88)
+        return RightRoundedRectangle(radius: 10).fill(fill)
     }
 
     private var isDark: Bool {
@@ -434,15 +453,21 @@ struct OverlayInspectorPanel: View {
 }
 
 private struct InspectorPanelToolbar: View {
+    let isDark: Bool
     let selectedSection: InspectorSection
     let onSelectSection: (InspectorSection) -> Void
-    private let buttonSize: CGFloat = 22
+    private let buttonSize: CGFloat = 32
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @State private var isHoveringKeyboard = false
+    @State private var isHoveringLayout = false
 
     var body: some View {
         HStack(spacing: 8) {
             toolbarButton(
                 systemImage: "keyboard",
-                isSelected: selectedSection == .keyboard
+                isSelected: selectedSection == .keyboard,
+                isHovering: isHoveringKeyboard,
+                onHover: { isHoveringKeyboard = $0 }
             ) {
                 onSelectSection(.keyboard)
             }
@@ -450,7 +475,9 @@ private struct InspectorPanelToolbar: View {
 
             toolbarButton(
                 systemImage: "square.grid.3x2",
-                isSelected: selectedSection == .layout
+                isSelected: selectedSection == .layout,
+                isHovering: isHoveringLayout,
+                onHover: { isHoveringLayout = $0 }
             ) {
                 onSelectSection(.layout)
             }
@@ -458,23 +485,63 @@ private struct InspectorPanelToolbar: View {
         }
         .controlSize(.regular)
         .padding(.horizontal, 14)
-        .padding(.vertical, 6)
-        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 10))
-        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.vertical, 8)
+        .modifier(
+            GlassEffectModifier(
+                isEnabled: !reduceTransparency,
+                cornerRadius: 12,
+                fallbackFill: Color(white: isDark ? 0.18 : 0.92)
+            )
+        )
     }
 
     private func toolbarButton(
         systemImage: String,
         isSelected: Bool,
+        isHovering: Bool,
+        onHover: @escaping (Bool) -> Void,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: buttonSize * 0.5, weight: .semibold))
-                .foregroundStyle(isSelected ? .primary : .secondary)
+                .foregroundStyle((isSelected || isHovering) ? .primary : .secondary)
                 .frame(width: buttonSize, height: buttonSize)
         }
-        .buttonStyle(.borderless)
+        .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
+        .onHover(perform: onHover)
+    }
+}
+
+private struct GlassButtonStyleModifier: ViewModifier {
+    let reduceTransparency: Bool
+
+    func body(content: Content) -> some View {
+        if reduceTransparency {
+            content.buttonStyle(PlainButtonStyle())
+        } else if #available(macOS 26.0, *) {
+            content.buttonStyle(GlassButtonStyle())
+        } else {
+            content.buttonStyle(PlainButtonStyle())
+        }
+    }
+}
+
+private struct GlassEffectModifier: ViewModifier {
+    let isEnabled: Bool
+    let cornerRadius: CGFloat
+    let fallbackFill: Color
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.glassEffect(.regular.interactive(), in: .rect(cornerRadius: cornerRadius))
+        } else {
+            content
+                .background(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(fallbackFill)
+                )
+        }
     }
 }
 

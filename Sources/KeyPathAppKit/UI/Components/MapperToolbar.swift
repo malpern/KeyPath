@@ -17,11 +17,19 @@ struct MapperToolbar: View {
     let onReset: () -> Void
     let onResetAll: () -> Void
 
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
     var body: some View {
         toolbarContent
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 12))
+            .modifier(
+                GlassEffectModifier(
+                    isEnabled: !reduceTransparency,
+                    cornerRadius: 12,
+                    fallbackFill: Color(NSColor.controlBackgroundColor)
+                )
+            )
     }
 
     @ViewBuilder
@@ -72,7 +80,7 @@ struct MapperToolbar: View {
                 } label: {
                     Image(systemName: "app.badge")
                 }
-                .buttonStyle(.bordered)
+                .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
                 .help("Pick app to launch")
 
                 // URL mapping button
@@ -81,12 +89,13 @@ struct MapperToolbar: View {
                 } label: {
                     Image(systemName: "link")
                 }
-                .buttonStyle(.bordered)
+                .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
                 .help("Map to web URL")
 
                 // Clear/reset button
                 ResetButton(
                     isEnabled: canSave || inputLabel != "a" || outputLabel != "a",
+                    reduceTransparency: reduceTransparency,
                     onSingleClick: onReset,
                     onDoubleClick: onResetAll
                 )
@@ -100,6 +109,7 @@ struct MapperToolbar: View {
 /// A button that handles single click (reset current) and double click (reset all).
 private struct ResetButton: View {
     let isEnabled: Bool
+    let reduceTransparency: Bool
     let onSingleClick: () -> Void
     let onDoubleClick: () -> Void
 
@@ -114,7 +124,7 @@ private struct ResetButton: View {
         } label: {
             Label("Reset", systemImage: "arrow.counterclockwise")
         }
-        .buttonStyle(.bordered)
+        .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
         .disabled(!isEnabled)
         .onTapGesture {
                 guard isEnabled else { return }
@@ -145,3 +155,35 @@ private struct ResetButton: View {
 // MARK: - Liquid Glass Effect (macOS 26+ only - no fallback)
 
 // Fallback code removed to verify Liquid Glass is being applied directly
+
+private struct GlassEffectModifier: ViewModifier {
+    let isEnabled: Bool
+    let cornerRadius: CGFloat
+    let fallbackFill: Color
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.glassEffect(.regular.interactive(), in: .rect(cornerRadius: cornerRadius))
+        } else {
+            content
+                .background(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(fallbackFill)
+                )
+        }
+    }
+}
+
+private struct GlassButtonStyleModifier: ViewModifier {
+    let reduceTransparency: Bool
+
+    func body(content: Content) -> some View {
+        if reduceTransparency {
+            content.buttonStyle(BorderedButtonStyle())
+        } else if #available(macOS 26.0, *) {
+            content.buttonStyle(GlassButtonStyle())
+        } else {
+            content.buttonStyle(BorderedButtonStyle())
+        }
+    }
+}

@@ -200,6 +200,11 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
     /// Handle click on a key in the overlay - opens Mapper with preset values
     private func handleKeyClick(key: PhysicalKey, layerInfo: LayerKeyInfo?) {
+        if key.layoutRole == .touchId {
+            toggleInspectorPanel()
+            return
+        }
+
         guard let kanataViewModel else {
             AppLogger.shared.log("⚠️ [OverlayController] Cannot open Mapper - KanataViewModel not configured")
             return
@@ -461,6 +466,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         guard let window else { return }
         let token = UUID()
         inspectorAnimationToken = token
+        let shouldAnimate = animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
 
         let baseFrame = window.frame
         collapsedFrameBeforeInspector = baseFrame
@@ -472,19 +478,23 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             maxVisibleX: maxVisibleX
         )
 
-        uiState.isInspectorAnimating = animated
+        uiState.isInspectorAnimating = shouldAnimate
         uiState.inspectorReveal = 0
 
-        if animated {
-            withAnimation(.easeInOut(duration: inspectorAnimationDuration)) {
-                uiState.inspectorReveal = 1
-            }
-            setWindowFrame(expandedFrame, animated: true)
-            DispatchQueue.main.asyncAfter(deadline: .now() + inspectorAnimationDuration) { [weak self] in
+        if shouldAnimate {
+            let windowExpansionDuration: TimeInterval = 0.25
+            setWindowFrame(expandedFrame, animated: true, duration: windowExpansionDuration)
+            DispatchQueue.main.asyncAfter(deadline: .now() + windowExpansionDuration) { [weak self] in
                 guard let self, self.inspectorAnimationToken == token else { return }
-                self.uiState.isInspectorOpen = true
-                self.uiState.isInspectorAnimating = false
-                self.lastWindowFrame = expandedFrame
+                withAnimation(.easeInOut(duration: self.inspectorAnimationDuration)) {
+                    self.uiState.inspectorReveal = 1
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + self.inspectorAnimationDuration) { [weak self] in
+                    guard let self, self.inspectorAnimationToken == token else { return }
+                    self.uiState.isInspectorOpen = true
+                    self.uiState.isInspectorAnimating = false
+                    self.lastWindowFrame = expandedFrame
+                }
             }
         } else {
             setWindowFrame(expandedFrame, animated: false)
@@ -503,10 +513,11 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         )
         let token = UUID()
         inspectorAnimationToken = token
+        let shouldAnimate = animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
 
-        uiState.isInspectorAnimating = animated
+        uiState.isInspectorAnimating = shouldAnimate
 
-        if animated {
+        if shouldAnimate {
             withAnimation(.easeInOut(duration: inspectorAnimationDuration)) {
                 uiState.inspectorReveal = 0
             }
@@ -555,11 +566,11 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         collapsedFrameBeforeInspector = baseFrame
     }
 
-    private func setWindowFrame(_ frame: NSRect, animated: Bool) {
+    private func setWindowFrame(_ frame: NSRect, animated: Bool, duration: TimeInterval? = nil) {
         guard let window else { return }
         if animated {
             NSAnimationContext.runAnimationGroup { context in
-                context.duration = inspectorAnimationDuration
+                context.duration = duration ?? inspectorAnimationDuration
                 window.animator().setFrame(frame, display: true)
             }
         } else {
