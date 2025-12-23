@@ -90,6 +90,13 @@ final class RuleCollectionsCoordinator {
         notifyStateChanged()
     }
 
+    /// Update window snapping key convention
+    func updateWindowKeyConvention(id: UUID, convention: WindowKeyConvention) async {
+        await ruleCollectionsManager.updateWindowKeyConvention(id: id, convention: convention)
+        applyMappings(ruleCollectionsManager.enabledMappings())
+        notifyStateChanged()
+    }
+
     /// Update home row mods configuration
     func updateHomeRowModsConfig(id: UUID, config: HomeRowModsConfig) async {
         await ruleCollectionsManager.updateHomeRowModsConfig(id: id, config: config)

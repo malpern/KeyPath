@@ -638,9 +638,10 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
                 let now = CFAbsoluteTimeGetCurrent()
                 if now - inspectorDebugLastLog > 0.2 {
                     inspectorDebugLastLog = now
+                    let revealStr = String(format: "%.3f", uiState.inspectorReveal)
                     AppLogger.shared.debug(
                         "🪟 [OverlayInspector] frame=\(window.frame.debugDescription) " +
-                            "reveal=\(String(format: \"%.3f\", uiState.inspectorReveal)) " +
+                            "reveal=\(revealStr) " +
                             "animating=\(uiState.isInspectorAnimating) closing=\(uiState.isInspectorClosing)"
                     )
                 }

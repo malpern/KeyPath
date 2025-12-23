@@ -460,6 +460,31 @@ final class RuleCollectionsManager {
         await regenerateConfigFromCollections()
     }
 
+    /// Update window snapping key convention (Standard vs Vim)
+    func updateWindowKeyConvention(id: UUID, convention: WindowKeyConvention) async {
+        guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
+            // Try to find in catalog and add it
+            let catalog = RuleCollectionCatalog()
+            if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
+                catalogCollection.windowKeyConvention = convention
+                catalogCollection.mappings = RuleCollectionCatalog.windowMappings(for: convention)
+                catalogCollection.isEnabled = true
+                ruleCollections.append(catalogCollection)
+                dedupeRuleCollectionsInPlace()
+                refreshLayerIndicatorState()
+                await regenerateConfigFromCollections()
+            }
+            return
+        }
+
+        ruleCollections[index].windowKeyConvention = convention
+        ruleCollections[index].mappings = RuleCollectionCatalog.windowMappings(for: convention)
+        ruleCollections[index].isEnabled = true
+        dedupeRuleCollectionsInPlace()
+        refreshLayerIndicatorState()
+        await regenerateConfigFromCollections()
+    }
+
     /// Update home row mods configuration
     func updateHomeRowModsConfig(id: UUID, config: HomeRowModsConfig) async {
         guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {

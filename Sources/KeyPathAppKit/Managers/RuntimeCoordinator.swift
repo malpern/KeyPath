@@ -794,6 +794,10 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         await ruleCollectionsCoordinator.updateCollectionLayerPreset(id: id, presetId: presetId)
     }
 
+    func updateWindowKeyConvention(_ id: UUID, convention: WindowKeyConvention) async {
+        await ruleCollectionsCoordinator.updateWindowKeyConvention(id: id, convention: convention)
+    }
+
     func updateHomeRowModsConfig(collectionId: UUID, config: HomeRowModsConfig) async {
         await ruleCollectionsCoordinator.updateHomeRowModsConfig(id: collectionId, config: config)
     }

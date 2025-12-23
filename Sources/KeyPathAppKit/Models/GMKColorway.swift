@@ -1,0 +1,278 @@
+import SwiftUI
+
+/// A GMK keycap colorway definition with hex colors for each key type.
+/// Colors sourced from MatrixZJ database and official Geekhack IC threads.
+struct GMKColorway: Identifiable, Codable, Equatable {
+    let id: String
+    let name: String
+    let designer: String
+    let year: Int
+
+    // Core colors (hex strings)
+    let alphaBase: String      // Alpha key background
+    let alphaLegend: String    // Alpha key legend
+    let modBase: String        // Modifier key background
+    let modLegend: String      // Modifier key legend
+    let accentBase: String     // Accent key background (if any)
+    let accentLegend: String   // Accent key legend
+
+    // Attribution
+    let sourceURL: String?
+
+    // MARK: - SwiftUI Colors
+
+    var alphaBaseColor: Color { Color(hex: alphaBase) }
+    var alphaLegendColor: Color { Color(hex: alphaLegend) }
+    var modBaseColor: Color { Color(hex: modBase) }
+    var modLegendColor: Color { Color(hex: modLegend) }
+    var accentBaseColor: Color { Color(hex: accentBase) }
+    var accentLegendColor: Color { Color(hex: accentLegend) }
+
+    /// Preview colors for swatch display (4 colors: alpha, mod, accent, legend)
+    var swatchColors: [Color] {
+        [alphaBaseColor, modBaseColor, accentBaseColor, alphaLegendColor]
+    }
+
+    // MARK: - Default Colorway
+
+    static let `default` = GMKColorway(
+        id: "default",
+        name: "Default",
+        designer: "KeyPath",
+        year: 2025,
+        alphaBase: "#3a3a3c",
+        alphaLegend: "#ffffff",
+        modBase: "#2c2c2e",
+        modLegend: "#ffffff",
+        accentBase: "#3a3a3c",
+        accentLegend: "#ffffff",
+        sourceURL: nil
+    )
+
+    // MARK: - Top 10 GMK Colorways
+
+    /// All available colorways including default
+    static let all: [GMKColorway] = [
+        .`default`,
+        .oliviaDark,
+        .oliviaLight,
+        .gmk8008,
+        .laser,
+        .redSamurai,
+        .botanical,
+        .bento,
+        .wob,
+        .hyperfuse,
+        .godspeed,
+        .dots
+    ]
+
+    /// Find a colorway by ID
+    static func find(id: String) -> GMKColorway? {
+        all.first { $0.id == id }
+    }
+
+    // MARK: - GMK Olivia (Dark)
+
+    static let oliviaDark = GMKColorway(
+        id: "olivia-dark",
+        name: "Olivia Dark",
+        designer: "Olivia",
+        year: 2018,
+        alphaBase: "#1e1e1e",
+        alphaLegend: "#e8c4b8",
+        modBase: "#1e1e1e",
+        modLegend: "#e8c4b8",
+        accentBase: "#e8c4b8",
+        accentLegend: "#1e1e1e",
+        sourceURL: "https://geekhack.org/index.php?topic=94386.0"
+    )
+
+    // MARK: - GMK Olivia (Light)
+
+    static let oliviaLight = GMKColorway(
+        id: "olivia-light",
+        name: "Olivia Light",
+        designer: "Olivia",
+        year: 2018,
+        alphaBase: "#f5f5f5",
+        alphaLegend: "#e8c4b8",
+        modBase: "#f5f5f5",
+        modLegend: "#e8c4b8",
+        accentBase: "#e8c4b8",
+        accentLegend: "#f5f5f5",
+        sourceURL: "https://geekhack.org/index.php?topic=94386.0"
+    )
+
+    // MARK: - GMK 8008
+
+    static let gmk8008 = GMKColorway(
+        id: "8008",
+        name: "8008",
+        designer: "Garrett",
+        year: 2019,
+        alphaBase: "#939598",      // Cool gray
+        alphaLegend: "#f5a4b8",    // Pink legend
+        modBase: "#3c4048",        // Dark gray
+        modLegend: "#f5a4b8",      // Pink legend
+        accentBase: "#f5a4b8",     // Pink accent
+        accentLegend: "#3c4048",   // Dark legend
+        sourceURL: "https://geekhack.org/index.php?topic=100308.0"
+    )
+
+    // MARK: - GMK Laser
+
+    static let laser = GMKColorway(
+        id: "laser",
+        name: "Laser",
+        designer: "MiTo",
+        year: 2017,
+        alphaBase: "#1a1a2e",      // Deep purple-black
+        alphaLegend: "#ff2a6d",    // Magenta
+        modBase: "#1a1a2e",
+        modLegend: "#05d9e8",      // Cyan
+        accentBase: "#ff2a6d",     // Magenta accent
+        accentLegend: "#1a1a2e",
+        sourceURL: "https://mitormk.com/laser"
+    )
+
+    // MARK: - GMK Red Samurai
+
+    static let redSamurai = GMKColorway(
+        id: "red-samurai",
+        name: "Red Samurai",
+        designer: "RedSuns",
+        year: 2018,
+        alphaBase: "#2e2e2e",      // Dark charcoal
+        alphaLegend: "#c9a227",    // Gold legend
+        modBase: "#8b2c2c",        // Deep red
+        modLegend: "#c9a227",      // Gold legend
+        accentBase: "#8b2c2c",     // Red accent
+        accentLegend: "#c9a227",   // Gold
+        sourceURL: "https://geekhack.org/index.php?topic=89970.0"
+    )
+
+    // MARK: - GMK Botanical
+
+    static let botanical = GMKColorway(
+        id: "botanical",
+        name: "Botanical",
+        designer: "Omnitype",
+        year: 2020,
+        alphaBase: "#f5f0e6",      // Warm cream
+        alphaLegend: "#2d5a45",    // Forest green
+        modBase: "#f5f0e6",
+        modLegend: "#6b8e5e",      // Sage green
+        accentBase: "#2d5a45",     // Forest green accent
+        accentLegend: "#f5f0e6",
+        sourceURL: "https://geekhack.org/index.php?topic=102350.0"
+    )
+
+    // MARK: - GMK Bento
+
+    static let bento = GMKColorway(
+        id: "bento",
+        name: "Bento",
+        designer: "Biip",
+        year: 2019,
+        alphaBase: "#f5f0e6",      // Cream
+        alphaLegend: "#2a4d69",    // Teal blue
+        modBase: "#2a4d69",        // Teal blue
+        modLegend: "#f5f0e6",      // Cream
+        accentBase: "#e87f7f",     // Salmon pink
+        accentLegend: "#2a4d69",
+        sourceURL: "https://geekhack.org/index.php?topic=97855.0"
+    )
+
+    // MARK: - GMK WoB (White on Black)
+
+    static let wob = GMKColorway(
+        id: "wob",
+        name: "WoB",
+        designer: "GMK",
+        year: 2015,
+        alphaBase: "#1a1a1a",      // Pure black
+        alphaLegend: "#ffffff",    // Pure white
+        modBase: "#1a1a1a",
+        modLegend: "#ffffff",
+        accentBase: "#1a1a1a",
+        accentLegend: "#ffffff",
+        sourceURL: "https://www.gmk.net/shop/en/gmk-cyl-wob-white-on-black-keycaps/fptk5009"
+    )
+
+    // MARK: - GMK Hyperfuse
+
+    static let hyperfuse = GMKColorway(
+        id: "hyperfuse",
+        name: "Hyperfuse",
+        designer: "BunnyLake",
+        year: 2015,
+        alphaBase: "#5c5c5c",      // Medium gray
+        alphaLegend: "#00bfa5",    // Teal/cyan
+        modBase: "#3d3d3d",        // Dark gray
+        modLegend: "#9c7cce",      // Purple
+        accentBase: "#00bfa5",     // Teal accent
+        accentLegend: "#3d3d3d",
+        sourceURL: "https://geekhack.org/index.php?topic=68198.0"
+    )
+
+    // MARK: - GMK Godspeed
+
+    static let godspeed = GMKColorway(
+        id: "godspeed",
+        name: "Godspeed",
+        designer: "MiTo",
+        year: 2017,
+        alphaBase: "#f5e6c8",      // Cream/beige
+        alphaLegend: "#3a6ea5",    // Blue
+        modBase: "#f5e6c8",
+        modLegend: "#e8873a",      // Orange
+        accentBase: "#3a6ea5",     // Blue accent
+        accentLegend: "#f5e6c8",
+        sourceURL: "https://geekhack.org/index.php?topic=84090.0"
+    )
+
+    // MARK: - GMK Dots
+
+    static let dots = GMKColorway(
+        id: "dots",
+        name: "Dots",
+        designer: "Biip",
+        year: 2019,
+        alphaBase: "#f5f5f5",      // Light cream
+        alphaLegend: "#1a1a1a",    // Black dots
+        modBase: "#f5f5f5",
+        modLegend: "#1a1a1a",
+        accentBase: "#ff6b6b",     // Coral accent
+        accentLegend: "#f5f5f5",
+        sourceURL: "https://geekhack.org/index.php?topic=100890.0"
+    )
+}
+
+// MARK: - Color Extension for Hex
+
+extension Color {
+    init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 3: // RGB (12-bit)
+            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6: // RGB (24-bit)
+            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8: // ARGB (32-bit)
+            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default:
+            (a, r, g, b) = (255, 0, 0, 0)
+        }
+        self.init(
+            .sRGB,
+            red: Double(r) / 255,
+            green: Double(g) / 255,
+            blue: Double(b) / 255,
+            opacity: Double(a) / 255
+        )
+    }
+}

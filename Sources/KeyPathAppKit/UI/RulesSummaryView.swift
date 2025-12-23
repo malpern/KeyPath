@@ -164,6 +164,9 @@ struct RulesTabView: View {
             onSelectLayerPreset: style == .layerPresetPicker ? { presetId in
                 Task { await kanataManager.updateCollectionLayerPreset(collection.id, presetId: presetId) }
             } : nil,
+            onSelectWindowConvention: collection.id == RuleCollectionIdentifier.windowSnapping ? { convention in
+                Task { await kanataManager.updateWindowKeyConvention(collection.id, convention: convention) }
+            } : nil,
             scrollID: "collection-\(collection.id.uuidString)",
             scrollProxy: scrollProxy
         )
@@ -524,6 +527,8 @@ private struct ExpandableCollectionRow: View {
     var onOpenHomeRowModsModalWithKey: ((String) -> Void)?
     /// For layerPresetPicker style: callback to select a layer preset
     var onSelectLayerPreset: ((String) -> Void)?
+    /// For windowSnapping: callback to change key convention
+    var onSelectWindowConvention: ((WindowKeyConvention) -> Void)?
     /// Unique ID for scroll-to behavior
     var scrollID: String?
     /// Scroll proxy for auto-scrolling when expanded
@@ -802,10 +807,16 @@ private struct ExpandableCollectionRow: View {
                             .padding(.horizontal, 12)
                     } else if collection?.id == RuleCollectionIdentifier.windowSnapping {
                         // Window snapping uses visual monitor canvas
-                        WindowSnappingView(mappings: collection?.mappings ?? [])
-                            .padding(.top, 8)
-                            .padding(.bottom, 12)
-                            .padding(.horizontal, 12)
+                        WindowSnappingView(
+                            mappings: collection?.mappings ?? [],
+                            convention: collection?.windowKeyConvention ?? .standard,
+                            onConventionChange: { convention in
+                                onSelectWindowConvention?(convention)
+                            }
+                        )
+                        .padding(.top, 8)
+                        .padding(.bottom, 12)
+                        .padding(.horizontal, 12)
                     } else {
                         // Generic table for other collections
                         MappingTableContent(mappings: mappings)

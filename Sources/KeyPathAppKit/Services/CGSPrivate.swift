@@ -51,6 +51,23 @@ func CGSRemoveWindowsFromSpaces(_ connection: CGSConnectionID, _ windowIDs: CFAr
 @_silgen_name("CGSCopySpacesForWindows")
 func CGSCopySpacesForWindows(_ connection: CGSConnectionID, _ mask: Int, _ windowIDs: CFArray) -> CFArray
 
+// MARK: - AXUIElement Private Extensions
+
+/// Get the CGWindowID for an AXUIElement window.
+/// This bridges the Accessibility API world to the CoreGraphics Services world,
+/// allowing direct lookup instead of enumerating all windows via CGWindowListCopyWindowInfo.
+///
+/// ## Usage
+/// ```swift
+/// let axWindow: AXUIElement = // ... from AXUIElementCopyAttributeValue
+/// var windowID: CGWindowID = 0
+/// if _AXUIElementGetWindow(axWindow, &windowID) == .success {
+///     SpaceManager.shared.moveWindow(windowID, to: targetSpace)
+/// }
+/// ```
+@_silgen_name("_AXUIElementGetWindow")
+func _AXUIElementGetWindow(_ element: AXUIElement, _ windowID: inout CGWindowID) -> AXError
+
 // MARK: - Space Mask Constants
 
 /// Mask for querying all spaces
@@ -68,7 +85,8 @@ public enum CGSPrivateAPI {
         "CGSManagedDisplayGetCurrentSpace",
         "CGSAddWindowsToSpaces",
         "CGSRemoveWindowsFromSpaces",
-        "CGSCopySpacesForWindows"
+        "CGSCopySpacesForWindows",
+        "_AXUIElementGetWindow"
     ]
 
     /// Cache the availability check result

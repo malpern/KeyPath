@@ -6,14 +6,22 @@ import SwiftUI
 /// Displays a monitor canvas with snap zones and floating action cards.
 struct WindowSnappingView: View {
     let mappings: [KeyMapping]
+    let convention: WindowKeyConvention
+    let onConventionChange: (WindowKeyConvention) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
+            // Convention picker
+            ConventionPicker(
+                convention: convention,
+                onConventionChange: onConventionChange
+            )
+
             // Monitor canvas with snap zones
-            MonitorCanvas()
+            MonitorCanvas(convention: convention)
 
             // Floating action cards row
-            ActionCardsRow()
+            ActionCardsRow(convention: convention)
 
             // Tip
             HStack(spacing: 6) {
@@ -29,19 +37,80 @@ struct WindowSnappingView: View {
     }
 }
 
+// MARK: - Convention Picker
+
+private struct ConventionPicker: View {
+    let convention: WindowKeyConvention
+    let onConventionChange: (WindowKeyConvention) -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Text("Key Layout:")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.secondary)
+
+            HStack(spacing: 0) {
+                ForEach(WindowKeyConvention.allCases, id: \.self) { option in
+                    ConventionButton(
+                        convention: option,
+                        isSelected: convention == option,
+                        onSelect: { onConventionChange(option) }
+                    )
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(NSColor.controlBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+            )
+
+            Spacer()
+        }
+    }
+}
+
+private struct ConventionButton: View {
+    let convention: WindowKeyConvention
+    let isSelected: Bool
+    let onSelect: () -> Void
+
+    var body: some View {
+        Button(action: onSelect) {
+            VStack(spacing: 2) {
+                Text(convention.displayName)
+                    .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
+                Text(convention.description)
+                    .font(.system(size: 9))
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 // MARK: - Monitor Canvas
 
 /// A stylized monitor showing window snap zones with embedded key badges.
 private struct MonitorCanvas: View {
+    let convention: WindowKeyConvention
     @State private var hoveredZone: SnapZone?
 
     var body: some View {
         VStack(spacing: 12) {
             // Quarter zones grid
-            QuarterZonesGrid(hoveredZone: $hoveredZone)
+            QuarterZonesGrid(convention: convention, hoveredZone: $hoveredZone)
 
             // Halves axis with maximize
-            HalvesAxis(hoveredZone: $hoveredZone)
+            HalvesAxis(convention: convention, hoveredZone: $hoveredZone)
         }
         .padding(16)
         .background(
@@ -58,21 +127,22 @@ private struct MonitorCanvas: View {
 // MARK: - Quarter Zones Grid
 
 private struct QuarterZonesGrid: View {
+    let convention: WindowKeyConvention
     @Binding var hoveredZone: SnapZone?
 
     var body: some View {
         // Monitor frame
         VStack(spacing: 0) {
             HStack(spacing: 0) {
-                ZoneCell(zone: .topLeft, hoveredZone: $hoveredZone)
+                ZoneCell(zone: .topLeft, convention: convention, hoveredZone: $hoveredZone)
                 ZoneDivider(orientation: .vertical)
-                ZoneCell(zone: .topRight, hoveredZone: $hoveredZone)
+                ZoneCell(zone: .topRight, convention: convention, hoveredZone: $hoveredZone)
             }
             ZoneDivider(orientation: .horizontal)
             HStack(spacing: 0) {
-                ZoneCell(zone: .bottomLeft, hoveredZone: $hoveredZone)
+                ZoneCell(zone: .bottomLeft, convention: convention, hoveredZone: $hoveredZone)
                 ZoneDivider(orientation: .vertical)
-                ZoneCell(zone: .bottomRight, hoveredZone: $hoveredZone)
+                ZoneCell(zone: .bottomRight, convention: convention, hoveredZone: $hoveredZone)
             }
         }
         .frame(height: 140)
@@ -92,6 +162,7 @@ private struct QuarterZonesGrid: View {
 
 private struct ZoneCell: View {
     let zone: SnapZone
+    let convention: WindowKeyConvention
     @Binding var hoveredZone: SnapZone?
 
     private var isHovered: Bool { hoveredZone == zone }
@@ -104,7 +175,7 @@ private struct ZoneCell: View {
 
             // Key badge
             SnapKeyBadge(
-                key: zone.key,
+                key: zone.key(for: convention),
                 color: zone.color,
                 isHighlighted: isHovered
             )
@@ -153,55 +224,58 @@ private struct ZoneDivider: View {
 // MARK: - Halves Axis
 
 private struct HalvesAxis: View {
+    let convention: WindowKeyConvention
     @Binding var hoveredZone: SnapZone?
 
     var body: some View {
-        HStack(spacing: 8) {
-            // Left half
-            HalfZoneButton(zone: .left, hoveredZone: $hoveredZone)
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                // Left half
+                HalfZoneButton(zone: .left, convention: convention, hoveredZone: $hoveredZone)
 
-            // Visual connector
-            Rectangle()
-                .fill(Color.secondary.opacity(0.3))
-                .frame(height: 2)
+                // Visual connector
+                Rectangle()
+                    .fill(Color.secondary.opacity(0.3))
+                    .frame(height: 2)
 
-            // Maximize (center of axis)
-            SnapKeyBadge(
-                key: "M",
-                color: SnapZone.maximize.color,
-                isHighlighted: hoveredZone == .maximize,
-                size: .large
-            )
-            .onHover { hovering in
-                withAnimation(.easeOut(duration: 0.15)) {
-                    hoveredZone = hovering ? .maximize : nil
+                // Maximize (center of axis)
+                SnapKeyBadge(
+                    key: SnapZone.maximize.key(for: convention),
+                    color: SnapZone.maximize.color,
+                    isHighlighted: hoveredZone == .maximize,
+                    size: .large
+                )
+                .onHover { hovering in
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        hoveredZone = hovering ? .maximize : nil
+                    }
                 }
+
+                // Visual connector
+                Rectangle()
+                    .fill(Color.secondary.opacity(0.3))
+                    .frame(height: 2)
+
+                // Right half
+                HalfZoneButton(zone: .right, convention: convention, hoveredZone: $hoveredZone)
             }
 
-            // Visual connector
-            Rectangle()
-                .fill(Color.secondary.opacity(0.3))
-                .frame(height: 2)
-
-            // Right half
-            HalfZoneButton(zone: .right, hoveredZone: $hoveredZone)
-        }
-
-        // Center button below
-        HStack {
-            Spacer()
-            SnapKeyBadge(
-                key: "C",
-                color: SnapZone.center.color,
-                isHighlighted: hoveredZone == .center,
-                label: "Center"
-            )
-            .onHover { hovering in
-                withAnimation(.easeOut(duration: 0.15)) {
-                    hoveredZone = hovering ? .center : nil
+            // Center button below
+            HStack {
+                Spacer()
+                SnapKeyBadge(
+                    key: SnapZone.center.key(for: convention),
+                    color: SnapZone.center.color,
+                    isHighlighted: hoveredZone == .center,
+                    label: "Center"
+                )
+                .onHover { hovering in
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        hoveredZone = hovering ? .center : nil
+                    }
                 }
+                Spacer()
             }
-            Spacer()
         }
     }
 }
@@ -210,6 +284,7 @@ private struct HalvesAxis: View {
 
 private struct HalfZoneButton: View {
     let zone: SnapZone
+    let convention: WindowKeyConvention
     @Binding var hoveredZone: SnapZone?
 
     private var isHovered: Bool { hoveredZone == zone }
@@ -217,7 +292,7 @@ private struct HalfZoneButton: View {
     var body: some View {
         HStack(spacing: 6) {
             if zone == .left {
-                SnapKeyBadge(key: zone.key, color: zone.color, isHighlighted: isHovered)
+                SnapKeyBadge(key: zone.key(for: convention), color: zone.color, isHighlighted: isHovered)
                 Text(zone.label)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(isHovered ? zone.color : .secondary)
@@ -225,7 +300,7 @@ private struct HalfZoneButton: View {
                 Text(zone.label)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(isHovered ? zone.color : .secondary)
-                SnapKeyBadge(key: zone.key, color: zone.color, isHighlighted: isHovered)
+                SnapKeyBadge(key: zone.key(for: convention), color: zone.color, isHighlighted: isHovered)
             }
         }
         .padding(.horizontal, 8)
@@ -245,11 +320,13 @@ private struct HalfZoneButton: View {
 // MARK: - Action Cards Row
 
 private struct ActionCardsRow: View {
+    let convention: WindowKeyConvention
+
     var body: some View {
         HStack(spacing: 12) {
-            DisplaysCard()
-            SpacesCard()
-            UndoCard()
+            DisplaysCard(convention: convention)
+            SpacesCard(convention: convention)
+            UndoCard(convention: convention)
         }
     }
 }
@@ -257,6 +334,7 @@ private struct ActionCardsRow: View {
 // MARK: - Displays Card
 
 private struct DisplaysCard: View {
+    let convention: WindowKeyConvention
     @State private var isHovered = false
 
     var body: some View {
@@ -281,7 +359,16 @@ private struct DisplaysCard: View {
 // MARK: - Spaces Card
 
 private struct SpacesCard: View {
+    let convention: WindowKeyConvention
     @State private var isHovered = false
+
+    private var prevKey: String {
+        convention == .standard ? "," : "A"
+    }
+
+    private var nextKey: String {
+        convention == .standard ? "." : "S"
+    }
 
     var body: some View {
         ActionCard(
@@ -291,11 +378,11 @@ private struct SpacesCard: View {
             accentColor: .cyan
         ) {
             HStack(spacing: 8) {
-                SnapKeyBadge(key: "A", color: .cyan, isHighlighted: isHovered, size: .small)
+                SnapKeyBadge(key: prevKey, color: .cyan, isHighlighted: isHovered, size: .small)
                 Image(systemName: "arrow.left.arrow.right")
                     .font(.system(size: 10))
                     .foregroundColor(.secondary)
-                SnapKeyBadge(key: "S", color: .cyan, isHighlighted: isHovered, size: .small)
+                SnapKeyBadge(key: nextKey, color: .cyan, isHighlighted: isHovered, size: .small)
             }
         }
         .onHover { isHovered = $0 }
@@ -305,6 +392,7 @@ private struct SpacesCard: View {
 // MARK: - Undo Card
 
 private struct UndoCard: View {
+    let convention: WindowKeyConvention
     @State private var isHovered = false
 
     var body: some View {
@@ -396,7 +484,7 @@ private struct SnapKeyBadge: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Text(key)
+            Text(key.uppercased())
                 .font(.system(size: size.fontSize, weight: .semibold, design: .monospaced))
                 .foregroundColor(isHighlighted ? .white : color)
                 .frame(width: size.dimension, height: size.dimension)
@@ -430,16 +518,30 @@ private enum SnapZone: String, CaseIterable {
     // Full
     case maximize, center
 
-    var key: String {
-        switch self {
-        case .topLeft: "Y"
-        case .topRight: "U"
-        case .bottomLeft: "B"
-        case .bottomRight: "N"
-        case .left: "H"
-        case .right: "L"
-        case .maximize: "M"
-        case .center: "C"
+    func key(for convention: WindowKeyConvention) -> String {
+        switch convention {
+        case .standard:
+            switch self {
+            case .topLeft: return "U"
+            case .topRight: return "I"
+            case .bottomLeft: return "J"
+            case .bottomRight: return "K"
+            case .left: return "L"
+            case .right: return "R"
+            case .maximize: return "M"
+            case .center: return "C"
+            }
+        case .vim:
+            switch self {
+            case .topLeft: return "Y"
+            case .topRight: return "U"
+            case .bottomLeft: return "B"
+            case .bottomRight: return "N"
+            case .left: return "H"
+            case .right: return "L"
+            case .maximize: return "M"
+            case .center: return "C"
+            }
         }
     }
 
@@ -471,7 +573,11 @@ private enum SnapZone: String, CaseIterable {
 // MARK: - Preview
 
 #Preview {
-    WindowSnappingView(mappings: [])
-        .frame(width: 400)
-        .padding()
+    WindowSnappingView(
+        mappings: [],
+        convention: .standard,
+        onConventionChange: { _ in }
+    )
+    .frame(width: 400)
+    .padding()
 }
