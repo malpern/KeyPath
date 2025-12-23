@@ -175,14 +175,13 @@ struct RuleCollectionCatalog {
 
     /// Window snapping collection - activated via Leader → w → action keys
     ///
-    /// ## Phase 2 TODO
-    /// Add workspace/space movement (requires SkyLight framework or drag simulation).
-    /// See Rectangle's implementation: https://github.com/rxhanson/Rectangle
+    /// Uses Accessibility API for window positioning and private CGS APIs for Space movement.
+    /// See `WindowManager.swift` and `CGSPrivate.swift` for implementation details.
     private var windowSnapping: RuleCollection {
         RuleCollection(
             id: RuleCollectionIdentifier.windowSnapping,
             name: "Window Snapping",
-            summary: "Snap windows to screen edges and corners. Leader → w → action key.",
+            summary: "Snap windows to edges/corners, move between displays and Spaces.",
             category: .productivity,
             mappings: [
                 // Halves
@@ -196,15 +195,19 @@ struct RuleCollectionCatalog {
                 KeyMapping(input: "u", output: #"(push-msg "window:top-right")"#, description: "Top-right"),
                 KeyMapping(input: "b", output: #"(push-msg "window:bottom-left")"#, description: "Bottom-left"),
                 KeyMapping(input: "n", output: #"(push-msg "window:bottom-right")"#, description: "Bottom-right"),
-                // Display & undo
+                // Display movement
                 KeyMapping(input: "[", output: #"(push-msg "window:previous-display")"#, description: "Previous display", sectionBreak: true),
                 KeyMapping(input: "]", output: #"(push-msg "window:next-display")"#, description: "Next display"),
-                KeyMapping(input: "z", output: #"(push-msg "window:undo")"#, description: "Undo")
+                // Space movement (uses private CGS APIs)
+                KeyMapping(input: "a", output: #"(push-msg "window:previous-space")"#, description: "Previous Space", sectionBreak: true),
+                KeyMapping(input: "s", output: #"(push-msg "window:next-space")"#, description: "Next Space"),
+                // Undo
+                KeyMapping(input: "z", output: #"(push-msg "window:undo")"#, description: "Undo", sectionBreak: true)
             ],
             isEnabled: false,
             isSystemDefault: false,
             icon: "rectangle.split.2x2",
-            tags: ["window", "snapping", "tiling", "rectangle", "display"],
+            tags: ["window", "snapping", "tiling", "rectangle", "display", "spaces"],
             targetLayer: .custom("window"),
             momentaryActivator: MomentaryActivator(
                 input: "w",
