@@ -10,6 +10,17 @@ struct EscKeyLeftInsetPreferenceKey: PreferenceKey {
     }
 }
 
+// MARK: - Keycap Frame Tracking for Animation
+
+/// Preference key to collect keycap frames by keyCode
+struct OverlayKeycapFramePreferenceKey: PreferenceKey {
+    nonisolated(unsafe) static var defaultValue: [UInt16: CGRect] = [:]
+
+    static func reduce(value: inout [UInt16: CGRect], nextValue: () -> [UInt16: CGRect]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
 /// Keyboard view for the live overlay.
 /// Renders a full keyboard layout with keys highlighting based on key codes.
 struct OverlayKeyboardView: View {
@@ -36,8 +47,11 @@ struct OverlayKeyboardView: View {
     /// Track caps lock state from system
     @State private var isCapsLockOn: Bool = NSEvent.modifierFlags.contains(.capsLock)
 
-    /// Track keymap flip animation
-    @State private var keymapFlipProgress: CGFloat = 0
+    /// Track keycap frames for floating label animation
+    @State private var keycapFrames: [UInt16: CGRect] = [:]
+    /// Whether user has changed keymap (prevents animation on first load)
+    @State private var hasUserChangedKeymap: Bool = false
+    /// Previous keymap ID for detecting changes
     @State private var previousKeymapId: String = ""
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -55,6 +69,29 @@ struct OverlayKeyboardView: View {
     /// Gap between keys
     private let keyGap: CGFloat = 2
 
+    /// Build mapping from label → keyCode for the current keymap
+    /// Used to determine which keycap a floating label should animate to
+    private var labelToKeyCode: [String: UInt16] {
+        var result: [String: UInt16] = [:]
+        for key in layout.keys {
+            let label = keymap.displayLabel(for: key, includeExtraKeys: includeKeymapPunctuation)
+            // Use uppercase for consistent matching
+            result[label.uppercased()] = key.keyCode
+        }
+        return result
+    }
+
+    /// All labels that can appear on the keyboard (letters + numbers + punctuation)
+    private static let allLabels: [String] = {
+        // Letters A-Z
+        let letters = (65...90).map { String(UnicodeScalar($0)) }
+        // Numbers 0-9
+        let numbers = (0...9).map { String($0) }
+        // Common punctuation
+        let punctuation = [";", "'", ",", ".", "/", "[", "]", "\\", "`", "-", "="]
+        return letters + numbers + punctuation
+    }()
+
     var body: some View {
         GeometryReader { geometry in
             let scale = calculateScale(for: geometry.size)
@@ -66,19 +103,40 @@ struct OverlayKeyboardView: View {
                 keyGap: keyGap
             )
             ZStack(alignment: .topLeading) {
+                // Layer 1: Keycap backgrounds (stable positions)
                 ForEach(keys, id: \.id) { key in
                     keyView(key: key, scale: scale)
+                        .background(
+                            GeometryReader { geo in
+                                Color.clear.preference(
+                                    key: OverlayKeycapFramePreferenceKey.self,
+                                    value: [key.keyCode: geo.frame(in: .named("overlayKeyboard"))]
+                                )
+                            }
+                        )
+                }
+
+                // Layer 2: Floating labels (animate between keycap positions)
+                // Only render for alpha keys when keymap animation is enabled
+                if hasUserChangedKeymap && !reduceMotion {
+                    ForEach(Self.allLabels, id: \.self) { label in
+                        FloatingKeymapLabel(
+                            label: label,
+                            targetFrame: targetFrameFor(label),
+                            isVisible: labelToKeyCode[label] != nil,
+                            scale: scale,
+                            colorway: activeColorway,
+                            enableAnimation: hasUserChangedKeymap
+                        )
+                    }
                 }
             }
+            .coordinateSpace(name: "overlayKeyboard")
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .preference(key: EscKeyLeftInsetPreferenceKey.self, value: escLeftInset)
-            // Apply flip animation to entire keyboard when keymap changes
-            .rotation3DEffect(
-                .degrees(keymapFlipProgress * 180),
-                axis: (x: 1, y: 0, z: 0),
-                perspective: 0.3
-            )
-            .opacity(keymapFlipProgress > 0.5 ? 0 : 1)
+            .onPreferenceChange(OverlayKeycapFramePreferenceKey.self) { frames in
+                keycapFrames = frames
+            }
         }
         .aspectRatio(layout.totalWidth / layout.totalHeight, contentMode: .fit)
         .onChange(of: effectivePressedKeyCodes) { _, _ in
@@ -86,22 +144,24 @@ struct OverlayKeyboardView: View {
             isCapsLockOn = NSEvent.modifierFlags.contains(.capsLock)
         }
         .onChange(of: keymap.id) { oldValue, newValue in
-            guard !reduceMotion else { return }
             guard oldValue != newValue else { return }
-
-            // Animate flip: 0 -> 1 (flip out), then back 1 -> 0 (flip in with new labels)
-            withAnimation(.easeIn(duration: 0.2)) {
-                keymapFlipProgress = 1
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                withAnimation(.easeOut(duration: 0.2)) {
-                    keymapFlipProgress = 0
-                }
-            }
+            // Mark that user has changed keymap (enables animation)
+            hasUserChangedKeymap = true
+            previousKeymapId = newValue
         }
         .onAppear {
             previousKeymapId = keymap.id
         }
+    }
+
+    /// Get target frame for a floating label based on current keymap
+    private func targetFrameFor(_ label: String) -> CGRect {
+        if let keyCode = labelToKeyCode[label],
+           let frame = keycapFrames[keyCode] {
+            return frame
+        }
+        // Park off-screen if not in current keymap
+        return CGRect(x: -100, y: -100, width: 20, height: 20)
     }
 
     private func keyView(key: PhysicalKey, scale: CGFloat) -> some View {
@@ -140,7 +200,8 @@ struct OverlayKeyboardView: View {
             isEmphasized: emphasizedKeyCodes.contains(key.keyCode),
             holdLabel: holdLabels[key.keyCode],
             onKeyClick: onKeyClick,
-            colorway: activeColorway
+            colorway: activeColorway,
+            useFloatingLabels: hasUserChangedKeymap && !reduceMotion
         )
         .frame(
             width: keyWidth(for: key, scale: scale),
@@ -294,6 +355,74 @@ struct OverlayKeyboardView: View {
         case 126: "up"
         default:
             "unknown-\(keyCode)"
+        }
+    }
+}
+
+// MARK: - Floating Keymap Label
+
+/// A label that floats above the keyboard and animates to its target keycap.
+/// Each label has randomized spring parameters for a playful shuffling effect.
+private struct FloatingKeymapLabel: View {
+    let label: String
+    let targetFrame: CGRect
+    let isVisible: Bool
+    let scale: CGFloat
+    let colorway: GMKColorway
+    var enableAnimation: Bool = false
+
+    // Randomized animation parameters (seeded by label for consistency)
+    private var springResponse: Double {
+        0.3 + Double(abs(label.hashValue) % 100) / 500.0  // 0.30-0.50s
+    }
+
+    private var dampingFraction: Double {
+        0.6 + Double(abs(label.hashValue >> 8) % 100) / 500.0  // 0.60-0.80
+    }
+
+    private var wobbleAngle: Double {
+        Double(abs(label.hashValue >> 16) % 25) - 12.0  // -12° to +12°
+    }
+
+    /// Animation to use - nil when disabled (prevents animation on first load)
+    private var positionAnimation: Animation? {
+        enableAnimation ? .spring(response: springResponse, dampingFraction: dampingFraction) : nil
+    }
+
+    @State private var rotation: Angle = .zero
+    @State private var scaleEffect: CGFloat = 1.0
+    @State private var wasVisible: Bool = false
+
+    var body: some View {
+        Text(label)
+            .font(.system(size: 12 * scale, weight: .medium))
+            .foregroundStyle(colorway.alphaLegendColor)
+            .frame(width: targetFrame.width, height: targetFrame.height)
+            .scaleEffect(scaleEffect)
+            .rotationEffect(rotation)
+            .opacity(isVisible ? 1.0 : 0.0)
+            .position(x: targetFrame.midX, y: targetFrame.midY)
+            .animation(positionAnimation, value: targetFrame)
+            .animation(positionAnimation, value: isVisible)
+            .onChange(of: targetFrame) { _, _ in
+                if isVisible && enableAnimation {
+                    triggerWobble()
+                }
+            }
+            .onChange(of: isVisible) { _, newVisible in
+                if newVisible && !wasVisible && enableAnimation {
+                    triggerWobble()
+                }
+                wasVisible = newVisible
+            }
+    }
+
+    private func triggerWobble() {
+        rotation = .degrees(wobbleAngle)
+        scaleEffect = 1.15
+        withAnimation(.spring(response: springResponse, dampingFraction: dampingFraction)) {
+            rotation = .zero
+            scaleEffect = 1.0
         }
     }
 }

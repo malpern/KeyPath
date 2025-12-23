@@ -33,6 +33,8 @@ struct OverlayKeycapView: View {
     var onKeyClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
     /// GMK colorway for keycap styling
     var colorway: GMKColorway = .default
+    /// Whether to hide alpha labels (used when floating labels handle animation)
+    var useFloatingLabels: Bool = false
 
     /// Size thresholds for typography adaptation
     private var isSmallSize: Bool { scale < 0.8 }
@@ -405,9 +407,21 @@ struct OverlayKeycapView: View {
 
     // MARK: - Layout: Centered (letters, symbols, spacebar)
 
+    /// Whether this key is a simple alpha key (single letter that floating labels handle)
+    private var isSimpleAlphaKey: Bool {
+        let label = effectiveLabel.uppercased()
+        // Single character A-Z or 0-9
+        guard label.count == 1 else { return false }
+        guard let char = label.first else { return false }
+        return char.isLetter || char.isNumber
+    }
+
     @ViewBuilder
     private var centeredContent: some View {
-        if let navSymbol = navOverlaySymbol {
+        // Hide label if floating labels are handling it (during keymap animation)
+        if useFloatingLabels && isSimpleAlphaKey {
+            Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if let navSymbol = navOverlaySymbol {
             navOverlayContent(arrow: navSymbol, letter: baseLabel)
         } else if let shiftSymbol = metadata.shiftSymbol {
             // Dual content: shift symbol above, main below
