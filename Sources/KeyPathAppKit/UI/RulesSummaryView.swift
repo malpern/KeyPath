@@ -115,7 +115,8 @@ struct RulesTabView: View {
         let style = collection.displayStyle
         let isSpecializedTable = style == .table && (
             collection.id == RuleCollectionIdentifier.numpadLayer ||
-            collection.id == RuleCollectionIdentifier.vimNavigation
+            collection.id == RuleCollectionIdentifier.vimNavigation ||
+            collection.id == RuleCollectionIdentifier.windowSnapping
         )
         let needsCollection = style == .singleKeyPicker || style == .homeRowMods || style == .tapHoldPicker || style == .layerPresetPicker || isSpecializedTable
 
@@ -796,6 +797,12 @@ private struct ExpandableCollectionRow: View {
                     } else if collection?.id == RuleCollectionIdentifier.vimNavigation {
                         // Vim uses animated category cards
                         VimCommandCardsView(mappings: collection?.mappings ?? [])
+                            .padding(.top, 8)
+                            .padding(.bottom, 12)
+                            .padding(.horizontal, 12)
+                    } else if collection?.id == RuleCollectionIdentifier.windowSnapping {
+                        // Window snapping uses visual monitor canvas
+                        WindowSnappingView(mappings: collection?.mappings ?? [])
                             .padding(.top, 8)
                             .padding(.bottom, 12)
                             .padding(.horizontal, 12)
