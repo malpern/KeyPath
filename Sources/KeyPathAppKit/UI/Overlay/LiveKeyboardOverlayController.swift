@@ -507,20 +507,24 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             maxVisibleX: maxVisibleX
         )
 
-        // Content visible immediately - drawer emerges from behind keyboard
-        uiState.inspectorReveal = 1
+        uiState.isInspectorClosing = false
         uiState.isInspectorAnimating = shouldAnimate
 
         if shouldAnimate {
+            withAnimation(SwiftUI.Animation.easeInOut(duration: inspectorAnimationDuration)) {
+                uiState.inspectorReveal = 1
+            }
             // Animate only the window expansion with easing
             setWindowFrame(expandedFrame, animated: true, duration: inspectorAnimationDuration)
             DispatchQueue.main.asyncAfter(deadline: .now() + inspectorAnimationDuration) { [weak self] in
                 guard let self, self.inspectorAnimationToken == token else { return }
                 self.uiState.isInspectorOpen = true
                 self.uiState.isInspectorAnimating = false
+                self.uiState.inspectorReveal = 1
                 self.lastWindowFrame = expandedFrame
             }
         } else {
+            uiState.inspectorReveal = 1
             setWindowFrame(expandedFrame, animated: false)
             uiState.isInspectorOpen = true
             uiState.isInspectorAnimating = false
@@ -539,15 +543,19 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         let shouldAnimate = animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
 
         uiState.isInspectorAnimating = shouldAnimate
+        uiState.isInspectorClosing = shouldAnimate
 
         if shouldAnimate {
-            // Keep content visible while window collapses (slides behind keyboard)
+            withAnimation(SwiftUI.Animation.easeInOut(duration: inspectorAnimationDuration)) {
+                uiState.inspectorReveal = 0
+            }
             setWindowFrame(targetFrame, animated: true, duration: inspectorAnimationDuration)
             DispatchQueue.main.asyncAfter(deadline: .now() + inspectorAnimationDuration) { [weak self] in
                 guard let self, self.inspectorAnimationToken == token else { return }
                 self.uiState.inspectorReveal = 0
                 self.uiState.isInspectorOpen = false
                 self.uiState.isInspectorAnimating = false
+                self.uiState.isInspectorClosing = false
                 self.collapsedFrameBeforeInspector = nil
                 self.lastWindowFrame = targetFrame
             }
@@ -556,6 +564,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             uiState.inspectorReveal = 0
             uiState.isInspectorOpen = false
             uiState.isInspectorAnimating = false
+            uiState.isInspectorClosing = false
             collapsedFrameBeforeInspector = nil
             lastWindowFrame = targetFrame
         }
@@ -680,6 +689,7 @@ final class LiveKeyboardOverlayUIState: ObservableObject {
     @Published var isInspectorOpen = false
     @Published var inspectorReveal: CGFloat = 0
     @Published var isInspectorAnimating = false
+    @Published var isInspectorClosing = false
     @Published var desiredContentHeight: CGFloat = 0
     @Published var keyboardAspectRatio: CGFloat = PhysicalLayout.macBookUS.totalWidth / PhysicalLayout.macBookUS.totalHeight
 }

@@ -247,7 +247,7 @@ private struct MapperInspectorPanel: View {
             // Key output (default)
             InspectorButton(
                 icon: "keyboard",
-                title: "Key",
+                title: "Send Keystroke",
                 isSelected: viewModel.selectedApp == nil && viewModel.selectedSystemAction == nil && viewModel.selectedURL == nil
             ) {
                 // Clear special outputs, allow normal key recording
@@ -259,7 +259,7 @@ private struct MapperInspectorPanel: View {
             // App launcher
             InspectorButton(
                 icon: "app.badge",
-                title: "App",
+                title: "Launch App",
                 isSelected: viewModel.selectedApp != nil
             ) {
                 viewModel.pickAppForOutput()
@@ -268,7 +268,7 @@ private struct MapperInspectorPanel: View {
             // URL
             InspectorButton(
                 icon: "link",
-                title: "URL",
+                title: "Open Link",
                 isSelected: viewModel.selectedURL != nil
             ) {
                 viewModel.showURLInputDialog()

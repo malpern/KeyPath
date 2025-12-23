@@ -237,6 +237,8 @@ public struct KanataConfiguration: Sendable {
                 generateHomeRowModsMappings(from: config)
             } else if collection.displayStyle == .tapHoldPicker {
                 generateTapHoldPickerMappings(from: collection)
+            } else if collection.displayStyle == .layerPresetPicker {
+                generateLayerPresetMappings(from: collection)
             } else {
                 collection.mappings
             }
@@ -265,15 +267,38 @@ public struct KanataConfiguration: Sendable {
             if !seenActivators.contains(aliasName) {
                 seenActivators.insert(aliasName)
                 let layerName = activator.targetLayer.kanataName
-                // Use multi to combine layer-while-held with fake key triggers for TCP layer notifications.
-                // This works around Kanata's limitation where layer-while-held doesn't broadcast LayerChange messages.
-                let definition = "(tap-hold 200 200 \(tapKey) (multi (layer-while-held \(layerName)) (on-press-fakekey kp-layer-\(layerName)-enter tap) (on-release-fakekey kp-layer-\(layerName)-exit tap)))"
+
+                // For chained layers (sourceLayer != .base), use one-shot-press instead of tap-hold
+                // This allows quick entry to nested layers without requiring hold
+                let definition: String
+                if activator.sourceLayer == .base {
+                    // Standard tap-hold for base layer activators
+                    // Use multi to combine layer-while-held with fake key triggers for TCP layer notifications.
+                    // This works around Kanata's limitation where layer-while-held doesn't broadcast LayerChange messages.
+                    definition = "(tap-hold 200 200 \(tapKey) (multi (layer-while-held \(layerName)) (on-press-fakekey kp-layer-\(layerName)-enter tap) (on-release-fakekey kp-layer-\(layerName)-exit tap)))"
+                } else {
+                    // One-shot for chained layers (e.g., nav → window)
+                    // Activates target layer for 2 seconds or until next key press
+                    definition = "(one-shot-press 2000 (layer-while-held \(layerName)))"
+                }
                 aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: definition))
-                let entry = LayerEntry(
-                    sourceKey: tapKey,
-                    baseOutput: "@\(aliasName)",
-                    layerOutputs: [:]
-                )
+
+                // Determine where to place the activator
+                let entry: LayerEntry
+                if activator.sourceLayer == .base {
+                    entry = LayerEntry(
+                        sourceKey: tapKey,
+                        baseOutput: "@\(aliasName)",
+                        layerOutputs: [:]
+                    )
+                } else {
+                    // Chained activator: place in source layer, passthrough in base
+                    entry = LayerEntry(
+                        sourceKey: tapKey,
+                        baseOutput: tapKey, // Passthrough in base layer
+                        layerOutputs: [activator.sourceLayer: "@\(aliasName)"]
+                    )
+                }
                 let metadata = metadataLines(for: activator, indent: "  ")
                 activatorBlocks.append(CollectionBlock(metadata: metadata, entries: [entry]))
             }
@@ -284,10 +309,13 @@ public struct KanataConfiguration: Sendable {
 
             // Handle home row mods: generate mappings from config
             // Handle tap-hold picker: generate tap-hold mapping from config
+            // Handle layer preset picker: generate mappings from selected preset
             let effectiveMappings: [KeyMapping] = if collection.displayStyle == .homeRowMods, let config = collection.homeRowModsConfig {
                 generateHomeRowModsMappings(from: config)
             } else if collection.displayStyle == .tapHoldPicker {
                 generateTapHoldPickerMappings(from: collection)
+            } else if collection.displayStyle == .layerPresetPicker {
+                generateLayerPresetMappings(from: collection)
             } else {
                 collection.mappings
             }
@@ -660,6 +688,18 @@ public struct KanataConfiguration: Sendable {
         )
 
         return [mapping]
+    }
+
+    /// Generate mappings for a layer preset picker collection (e.g., Symbol Layer)
+    private static func generateLayerPresetMappings(from collection: RuleCollection) -> [KeyMapping] {
+        guard let presets = collection.layerPresets, !presets.isEmpty else {
+            return collection.mappings
+        }
+
+        let selectedId = collection.selectedLayerPreset ?? presets.first?.id ?? ""
+        let selectedPreset = presets.first { $0.id == selectedId } ?? presets.first
+
+        return selectedPreset?.mappings ?? []
     }
 
     private static func convertSingleKeyToForkFormat(_ key: String) -> String {

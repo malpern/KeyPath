@@ -57,11 +57,11 @@ struct LiveKeyboardOverlayView: View {
         let outerHorizontalPadding = OverlayLayoutMetrics.outerHorizontalPadding
         let headerContentLeadingPadding = keyboardPadding + escKeyLeftInset
         let inspectorReveal = uiState.inspectorReveal
-        let inspectorVisible = inspectorReveal > 0
+        let inspectorVisible = inspectorReveal > 0 || uiState.isInspectorAnimating || uiState.isInspectorOpen
         let trailingOuterPadding = inspectorVisible ? 0 : outerHorizontalPadding
         let keyboardAspectRatio = activeLayout.totalWidth / activeLayout.totalHeight
         let inspectorSeamWidth = OverlayLayoutMetrics.inspectorSeamWidth
-        let inspectorChrome = uiState.isInspectorOpen ? inspectorWidth + inspectorSeamWidth : 0
+        let inspectorChrome = inspectorVisible ? inspectorWidth + inspectorSeamWidth : 0
         let inspectorTotalWidth = inspectorWidth + inspectorSeamWidth
         let verticalChrome = OverlayLayoutMetrics.verticalChrome
         let shouldFreezeKeyboard = uiState.isInspectorAnimating
@@ -83,17 +83,30 @@ struct LiveKeyboardOverlayView: View {
                 ZStack(alignment: .topLeading) {
                     // 1. Inspector FIRST = renders at the back
                     if inspectorVisible {
+                        let reveal = max(0, min(1, inspectorReveal))
+                        let slideOffset = -(1 - reveal) * inspectorTotalWidth
+                        let maskWidth = inspectorTotalWidth * reveal
+                        let closingOpacity = max(0, min(1, (reveal - 0.8) / 0.2))
+                        let inspectorOpacity = uiState.isInspectorClosing ? closingOpacity : 1
                         OverlayInspectorPanel(
                             selectedSection: inspectorSection,
                             onSelectSection: { inspectorSection = $0 },
                             fadeAmount: fadeAmount,
                             onKeymapChanged: onKeymapChanged
                         )
+                        .opacity(Double(inspectorOpacity))
                         .frame(width: inspectorWidth, alignment: .leading)
                         .frame(width: inspectorTotalWidth, alignment: .leading)
-                        .frame(width: inspectorTotalWidth * inspectorReveal, alignment: .leading)
+                        .offset(x: slideOffset)
+                        .mask(
+                            HStack(spacing: 0) {
+                                Rectangle()
+                                    .frame(width: maskWidth)
+                                Spacer(minLength: 0)
+                            }
+                        )
+                        .frame(width: inspectorTotalWidth, alignment: .leading)
                         .frame(maxHeight: .infinity, alignment: .top)
-                        .clipped()
                         .frame(maxWidth: .infinity, alignment: .topTrailing)
                     }
 

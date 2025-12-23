@@ -29,6 +29,10 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
     public var selectedTapOutput: String?
     /// For tapHoldPicker style: currently selected hold action
     public var selectedHoldOutput: String?
+    /// For layerPresetPicker style: available layer configuration presets
+    public var layerPresets: [LayerPreset]?
+    /// For layerPresetPicker style: currently selected preset ID
+    public var selectedLayerPreset: String?
 
     public init(
         id: UUID = UUID(),
@@ -50,7 +54,9 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         homeRowModsConfig: HomeRowModsConfig? = nil,
         tapHoldOptions: TapHoldPresetOptions? = nil,
         selectedTapOutput: String? = nil,
-        selectedHoldOutput: String? = nil
+        selectedHoldOutput: String? = nil,
+        layerPresets: [LayerPreset]? = nil,
+        selectedLayerPreset: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -72,12 +78,15 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         self.tapHoldOptions = tapHoldOptions
         self.selectedTapOutput = selectedTapOutput
         self.selectedHoldOutput = selectedHoldOutput
+        self.layerPresets = layerPresets
+        self.selectedLayerPreset = selectedLayerPreset
     }
 
     enum CodingKeys: String, CodingKey {
         case id, name, summary, category, mappings, isEnabled, isSystemDefault, icon, tags, targetLayer,
              momentaryActivator, activationHint, displayStyle, pickerInputKey, presetOptions, selectedOutput,
-             homeRowModsConfig, tapHoldOptions, selectedTapOutput, selectedHoldOutput
+             homeRowModsConfig, tapHoldOptions, selectedTapOutput, selectedHoldOutput, layerPresets,
+             selectedLayerPreset
     }
 
     public init(from decoder: Decoder) throws {
@@ -106,6 +115,8 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         tapHoldOptions = try container.decodeIfPresent(TapHoldPresetOptions.self, forKey: .tapHoldOptions)
         selectedTapOutput = try container.decodeIfPresent(String.self, forKey: .selectedTapOutput)
         selectedHoldOutput = try container.decodeIfPresent(String.self, forKey: .selectedHoldOutput)
+        layerPresets = try container.decodeIfPresent([LayerPreset].self, forKey: .layerPresets)
+        selectedLayerPreset = try container.decodeIfPresent(String.self, forKey: .selectedLayerPreset)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -130,6 +141,8 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         try container.encodeIfPresent(tapHoldOptions, forKey: .tapHoldOptions)
         try container.encodeIfPresent(selectedTapOutput, forKey: .selectedTapOutput)
         try container.encodeIfPresent(selectedHoldOutput, forKey: .selectedHoldOutput)
+        try container.encodeIfPresent(layerPresets, forKey: .layerPresets)
+        try container.encodeIfPresent(selectedLayerPreset, forKey: .selectedLayerPreset)
     }
 }
 
@@ -166,6 +179,9 @@ public enum RuleCollectionIdentifier {
     public static let customMappings = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
     public static let homeRowMods = UUID(uuidString: "B3E5F7A9-1C2D-4E5F-6A7B-8C9D0E1F2A3B")!
     public static let backupCapsLock = UUID(uuidString: "C4D6E8F0-2A3B-5C7D-9E1F-3A5B7C9D1E3F")!
+    public static let numpadLayer = UUID(uuidString: "D5E7F9A1-3B4C-6D8E-0F2A-4B6C8D0E2F4A")!
+    public static let symbolLayer = UUID(uuidString: "E6F8A0B2-4C5D-7E9F-1A3B-5C7D9E1F3A5B")!
+    public static let windowSnapping = UUID(uuidString: "F7A9B1C3-5D6E-8F0A-2B4C-6D8E0F2A4B6C")!
 }
 
 public extension Sequence<RuleCollection> {
@@ -245,10 +261,14 @@ public enum RuleCollectionLayer: Codable, Equatable, Sendable, Hashable {
 public struct MomentaryActivator: Codable, Equatable, Sendable {
     public let input: String
     public let targetLayer: RuleCollectionLayer
+    /// The layer where this activator should be placed. Defaults to `.base`.
+    /// Use `.navigation` to create chained layers (e.g., leader → nav → window).
+    public let sourceLayer: RuleCollectionLayer
 
-    public init(input: String, targetLayer: RuleCollectionLayer) {
+    public init(input: String, targetLayer: RuleCollectionLayer, sourceLayer: RuleCollectionLayer = .base) {
         self.input = input
         self.targetLayer = targetLayer
+        self.sourceLayer = sourceLayer
     }
 }
 
@@ -264,6 +284,8 @@ public enum RuleCollectionDisplayStyle: String, Codable, Sendable {
     case homeRowMods
     /// Tap-hold picker: separate preset options for tap and hold actions
     case tapHoldPicker
+    /// Layer preset picker: choose from predefined layer configurations (e.g., Symbol Layer presets)
+    case layerPresetPicker
 }
 
 /// A preset option for single-key picker collections
@@ -290,5 +312,22 @@ public struct TapHoldPresetOptions: Codable, Equatable, Sendable {
     public init(tapOptions: [SingleKeyPreset], holdOptions: [SingleKeyPreset]) {
         self.tapOptions = tapOptions
         self.holdOptions = holdOptions
+    }
+}
+
+/// A preset configuration for layer-based rules (e.g., Symbol Layer presets)
+public struct LayerPreset: Codable, Equatable, Sendable, Identifiable {
+    public let id: String
+    public let label: String
+    public let description: String
+    public let icon: String?
+    public let mappings: [KeyMapping]
+
+    public init(id: String, label: String, description: String, icon: String? = nil, mappings: [KeyMapping]) {
+        self.id = id
+        self.label = label
+        self.description = description
+        self.icon = icon
+        self.mappings = mappings
     }
 }

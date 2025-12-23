@@ -790,6 +790,10 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         await ruleCollectionsCoordinator.updateCollectionHoldOutput(id: id, holdOutput: holdOutput)
     }
 
+    func updateCollectionLayerPreset(_ id: UUID, presetId: String) async {
+        await ruleCollectionsCoordinator.updateCollectionLayerPreset(id: id, presetId: presetId)
+    }
+
     func updateHomeRowModsConfig(collectionId: UUID, config: HomeRowModsConfig) async {
         await ruleCollectionsCoordinator.updateHomeRowModsConfig(id: collectionId, config: config)
     }

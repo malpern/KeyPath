@@ -16,7 +16,7 @@ struct RuleCollectionCatalog {
     // MARK: - Predefined collections
 
     private var builtInList: [RuleCollection] {
-        [macOSFunctionKeys, leaderKeyConfig, navigationArrows, windowManagement, capsLockRemap, backupCapsLock, escapeRemap, deleteRemap, homeRowMods]
+        [macOSFunctionKeys, leaderKeyConfig, navigationArrows, missionControl, windowSnapping, capsLockRemap, backupCapsLock, escapeRemap, deleteRemap, homeRowMods, numpadLayer, symbolLayer]
     }
 
     private var builtInCollections: [UUID: RuleCollection] {
@@ -149,7 +149,7 @@ struct RuleCollectionCatalog {
         )
     }
 
-    private var windowManagement: RuleCollection {
+    private var missionControl: RuleCollection {
         RuleCollection(
             id: UUID(uuidString: "C3A5E2F1-8D4B-4C9A-A1E7-5F3D9B2C8A6E")!,
             name: "Mission Control",
@@ -167,6 +167,51 @@ struct RuleCollectionCatalog {
             isSystemDefault: false,
             icon: "rectangle.3.group",
             tags: ["mission control", "spaces", "desktop"],
+            displayStyle: .table
+        )
+    }
+
+    // MARK: - Window Snapping
+
+    /// Window snapping collection - activated via Leader → w → action keys
+    ///
+    /// ## Phase 2 TODO
+    /// Add workspace/space movement (requires SkyLight framework or drag simulation).
+    /// See Rectangle's implementation: https://github.com/rxhanson/Rectangle
+    private var windowSnapping: RuleCollection {
+        RuleCollection(
+            id: RuleCollectionIdentifier.windowSnapping,
+            name: "Window Snapping",
+            summary: "Snap windows to screen edges and corners. Leader → w → action key.",
+            category: .productivity,
+            mappings: [
+                // Halves
+                KeyMapping(input: "h", output: #"(push-msg "window:left")"#, description: "Left half"),
+                KeyMapping(input: "l", output: #"(push-msg "window:right")"#, description: "Right half"),
+                // Full/center
+                KeyMapping(input: "m", output: #"(push-msg "window:maximize")"#, description: "Maximize/Restore"),
+                KeyMapping(input: "c", output: #"(push-msg "window:center")"#, description: "Center"),
+                // Corners (using vim-adjacent keys: y/u for top, b/n for bottom)
+                KeyMapping(input: "y", output: #"(push-msg "window:top-left")"#, description: "Top-left", sectionBreak: true),
+                KeyMapping(input: "u", output: #"(push-msg "window:top-right")"#, description: "Top-right"),
+                KeyMapping(input: "b", output: #"(push-msg "window:bottom-left")"#, description: "Bottom-left"),
+                KeyMapping(input: "n", output: #"(push-msg "window:bottom-right")"#, description: "Bottom-right"),
+                // Display & undo
+                KeyMapping(input: "[", output: #"(push-msg "window:previous-display")"#, description: "Previous display", sectionBreak: true),
+                KeyMapping(input: "]", output: #"(push-msg "window:next-display")"#, description: "Next display"),
+                KeyMapping(input: "z", output: #"(push-msg "window:undo")"#, description: "Undo")
+            ],
+            isEnabled: false,
+            isSystemDefault: false,
+            icon: "rectangle.split.2x2",
+            tags: ["window", "snapping", "tiling", "rectangle", "display"],
+            targetLayer: .custom("window"),
+            momentaryActivator: MomentaryActivator(
+                input: "w",
+                targetLayer: .custom("window"),
+                sourceLayer: .navigation  // Activated from within navigation layer
+            ),
+            activationHint: "Leader → w → action key",
             displayStyle: .table
         )
     }
@@ -389,5 +434,193 @@ struct RuleCollectionCatalog {
             displayStyle: .homeRowMods,
             homeRowModsConfig: HomeRowModsConfig()
         )
+    }
+
+    // MARK: - Numpad Layer
+
+    private var numpadLayer: RuleCollection {
+        RuleCollection(
+            id: RuleCollectionIdentifier.numpadLayer,
+            name: "Numpad Layer",
+            summary: "Right hand becomes a numpad. Hold activator key + use U/I/O, J/K/L, M/,/. for 7-8-9, 4-5-6, 1-2-3.",
+            category: .productivity,
+            mappings: [
+                // Right hand numpad (standard layout)
+                KeyMapping(input: "u", output: "kp7", description: "7"),
+                KeyMapping(input: "i", output: "kp8", description: "8"),
+                KeyMapping(input: "o", output: "kp9", description: "9"),
+                KeyMapping(input: "j", output: "kp4", description: "4"),
+                KeyMapping(input: "k", output: "kp5", description: "5"),
+                KeyMapping(input: "l", output: "kp6", description: "6"),
+                KeyMapping(input: "m", output: "kp1", description: "1"),
+                KeyMapping(input: ",", output: "kp2", description: "2"),
+                KeyMapping(input: ".", output: "kp3", description: "3"),
+                KeyMapping(input: "n", output: "kp0", description: "0"),
+                KeyMapping(input: "/", output: "kp.", description: "."),
+                // Left hand operators
+                KeyMapping(input: "f", output: "kp+", description: "+", sectionBreak: true),
+                KeyMapping(input: "d", output: "kp-", description: "−"),
+                KeyMapping(input: "s", output: "kp*", description: "×"),
+                KeyMapping(input: "a", output: "kp/", description: "÷"),
+                KeyMapping(input: "g", output: "kprt", description: "⏎")
+            ],
+            isEnabled: false,
+            isSystemDefault: false,
+            icon: "number.square",
+            tags: ["numpad", "numbers", "data entry", "calculator"],
+            targetLayer: .custom("numpad"),
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .custom("numpad")),
+            activationHint: "Hold Leader key to access numpad",
+            displayStyle: .table
+        )
+    }
+
+    // MARK: - Symbol Layer
+
+    private var symbolLayer: RuleCollection {
+        RuleCollection(
+            id: RuleCollectionIdentifier.symbolLayer,
+            name: "Symbol Layer",
+            summary: "Quick access to programming symbols. Choose a layout optimized for your workflow.",
+            category: .productivity,
+            mappings: [], // Generated from selected layer preset
+            isEnabled: false,
+            isSystemDefault: false,
+            icon: "textformat.abc.dottedunderline",
+            tags: ["symbols", "programming", "brackets", "operators"],
+            targetLayer: .custom("sym"),
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .custom("sym")),
+            activationHint: "Hold Leader key to access symbols",
+            displayStyle: .layerPresetPicker,
+            layerPresets: symbolLayerPresets,
+            selectedLayerPreset: "mirrored"
+        )
+    }
+
+    /// Symbol layer preset configurations
+    private var symbolLayerPresets: [LayerPreset] {
+        [
+            LayerPreset(
+                id: "mirrored",
+                label: "Mirrored",
+                description: "Symbols mirror number positions (1→!, 2→@). Easy to learn.",
+                icon: "arrow.left.arrow.right",
+                mappings: [
+                    // Top row - shifted numbers in same positions
+                    KeyMapping(input: "1", output: "S-1", description: "!"),
+                    KeyMapping(input: "2", output: "S-2", description: "@"),
+                    KeyMapping(input: "3", output: "S-3", description: "#"),
+                    KeyMapping(input: "4", output: "S-4", description: "$"),
+                    KeyMapping(input: "5", output: "S-5", description: "%"),
+                    KeyMapping(input: "6", output: "S-6", description: "^"),
+                    KeyMapping(input: "7", output: "S-7", description: "&"),
+                    KeyMapping(input: "8", output: "S-8", description: "*"),
+                    KeyMapping(input: "9", output: "S-9", description: "("),
+                    KeyMapping(input: "0", output: "S-0", description: ")"),
+                    // Home row - common operators
+                    KeyMapping(input: "a", output: "S-grv", description: "~", sectionBreak: true),
+                    KeyMapping(input: "s", output: "grv", description: "`"),
+                    KeyMapping(input: "d", output: "min", description: "-"),
+                    KeyMapping(input: "f", output: "eql", description: "="),
+                    KeyMapping(input: "g", output: "S-eql", description: "+"),
+                    KeyMapping(input: "h", output: "[", description: "["),
+                    KeyMapping(input: "j", output: "]", description: "]"),
+                    KeyMapping(input: "k", output: "S-[", description: "{"),
+                    KeyMapping(input: "l", output: "S-]", description: "}"),
+                    KeyMapping(input: ";", output: "S-\\", description: "|"),
+                    // Bottom row - less common
+                    KeyMapping(input: "z", output: "\\", description: "\\", sectionBreak: true),
+                    KeyMapping(input: "x", output: "S-min", description: "_"),
+                    KeyMapping(input: "c", output: "/", description: "/"),
+                    KeyMapping(input: "v", output: "S-/", description: "?"),
+                    KeyMapping(input: "b", output: "'", description: "'"),
+                    KeyMapping(input: "n", output: "S-'", description: "\""),
+                    KeyMapping(input: "m", output: "S-;", description: ":"),
+                    KeyMapping(input: ",", output: "S-,", description: "<"),
+                    KeyMapping(input: ".", output: "S-.", description: ">")
+                ]
+            ),
+            LayerPreset(
+                id: "paired",
+                label: "Paired Brackets",
+                description: "Opening brackets on left, closing on right. Visual symmetry.",
+                icon: "curlybraces",
+                mappings: [
+                    // Left hand - opening brackets and operators
+                    KeyMapping(input: "q", output: "S-grv", description: "~"),
+                    KeyMapping(input: "w", output: "S-1", description: "!"),
+                    KeyMapping(input: "e", output: "S-2", description: "@"),
+                    KeyMapping(input: "r", output: "S-3", description: "#"),
+                    KeyMapping(input: "t", output: "S-4", description: "$"),
+                    KeyMapping(input: "a", output: "S-[", description: "{", sectionBreak: true),
+                    KeyMapping(input: "s", output: "S-9", description: "("),
+                    KeyMapping(input: "d", output: "[", description: "["),
+                    KeyMapping(input: "f", output: "S-,", description: "<"),
+                    KeyMapping(input: "g", output: "min", description: "-"),
+                    KeyMapping(input: "z", output: "S-\\", description: "|", sectionBreak: true),
+                    KeyMapping(input: "x", output: "S-eql", description: "+"),
+                    KeyMapping(input: "c", output: "S-min", description: "_"),
+                    KeyMapping(input: "v", output: "/", description: "/"),
+                    KeyMapping(input: "b", output: "\\", description: "\\"),
+                    // Right hand - closing brackets and symbols
+                    KeyMapping(input: "y", output: "S-5", description: "%", sectionBreak: true),
+                    KeyMapping(input: "u", output: "S-6", description: "^"),
+                    KeyMapping(input: "i", output: "S-7", description: "&"),
+                    KeyMapping(input: "o", output: "S-8", description: "*"),
+                    KeyMapping(input: "p", output: "grv", description: "`"),
+                    KeyMapping(input: "h", output: "eql", description: "=", sectionBreak: true),
+                    KeyMapping(input: "j", output: "S-.", description: ">"),
+                    KeyMapping(input: "k", output: "]", description: "]"),
+                    KeyMapping(input: "l", output: "S-0", description: ")"),
+                    KeyMapping(input: ";", output: "S-]", description: "}"),
+                    KeyMapping(input: "n", output: "S-/", description: "?", sectionBreak: true),
+                    KeyMapping(input: "m", output: "S-;", description: ":"),
+                    KeyMapping(input: ",", output: ";", description: ";"),
+                    KeyMapping(input: ".", output: "'", description: "'"),
+                    KeyMapping(input: "/", output: "S-'", description: "\"")
+                ]
+            ),
+            LayerPreset(
+                id: "programmer",
+                label: "Programmer",
+                description: "Common bigrams (→, !=, <=) as comfortable rolls. Optimized for coding.",
+                icon: "chevron.left.forwardslash.chevron.right",
+                mappings: [
+                    // Top row - numbers as-is for easy access
+                    KeyMapping(input: "q", output: "S-1", description: "!"),
+                    KeyMapping(input: "w", output: "S-2", description: "@"),
+                    KeyMapping(input: "e", output: "S-3", description: "#"),
+                    KeyMapping(input: "r", output: "S-4", description: "$"),
+                    KeyMapping(input: "t", output: "S-5", description: "%"),
+                    KeyMapping(input: "y", output: "S-6", description: "^"),
+                    KeyMapping(input: "u", output: "S-7", description: "&"),
+                    KeyMapping(input: "i", output: "S-8", description: "*"),
+                    KeyMapping(input: "o", output: "S-grv", description: "~"),
+                    KeyMapping(input: "p", output: "grv", description: "`"),
+                    // Home row - brackets optimized for -> <= != bigrams
+                    KeyMapping(input: "a", output: "S-[", description: "{", sectionBreak: true),
+                    KeyMapping(input: "s", output: "S-9", description: "("),
+                    KeyMapping(input: "d", output: "[", description: "["),
+                    KeyMapping(input: "f", output: "S-,", description: "<"),
+                    KeyMapping(input: "g", output: "eql", description: "="),
+                    KeyMapping(input: "h", output: "min", description: "-"),
+                    KeyMapping(input: "j", output: "S-.", description: ">"),
+                    KeyMapping(input: "k", output: "]", description: "]"),
+                    KeyMapping(input: "l", output: "S-0", description: ")"),
+                    KeyMapping(input: ";", output: "S-]", description: "}"),
+                    // Bottom row - less common symbols
+                    KeyMapping(input: "z", output: "S-\\", description: "|", sectionBreak: true),
+                    KeyMapping(input: "x", output: "S-eql", description: "+"),
+                    KeyMapping(input: "c", output: "S-min", description: "_"),
+                    KeyMapping(input: "v", output: "S-/", description: "?"),
+                    KeyMapping(input: "b", output: "\\", description: "\\"),
+                    KeyMapping(input: "n", output: "/", description: "/"),
+                    KeyMapping(input: "m", output: "S-;", description: ":"),
+                    KeyMapping(input: ",", output: ";", description: ";"),
+                    KeyMapping(input: ".", output: "'", description: "'"),
+                    KeyMapping(input: "/", output: "S-'", description: "\"")
+                ]
+            )
+        ]
     }
 }

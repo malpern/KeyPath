@@ -246,6 +246,10 @@ class KanataViewModel: ObservableObject {
         await manager.updateCollectionHoldOutput(id: id, holdOutput: holdOutput)
     }
 
+    func updateCollectionLayerPreset(_ id: UUID, presetId: String) async {
+        await manager.updateCollectionLayerPreset(id, presetId: presetId)
+    }
+
     func updateHomeRowModsConfig(collectionId: UUID, config: HomeRowModsConfig) async {
         await manager.updateHomeRowModsConfig(collectionId: collectionId, config: config)
     }

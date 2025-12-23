@@ -83,6 +83,13 @@ final class RuleCollectionsCoordinator {
         notifyStateChanged()
     }
 
+    /// Update a layer preset picker collection's selected preset
+    func updateCollectionLayerPreset(id: UUID, presetId: String) async {
+        await ruleCollectionsManager.updateCollectionLayerPreset(id: id, presetId: presetId)
+        applyMappings(ruleCollectionsManager.enabledMappings())
+        notifyStateChanged()
+    }
+
     /// Update home row mods configuration
     func updateHomeRowModsConfig(id: UUID, config: HomeRowModsConfig) async {
         await ruleCollectionsManager.updateHomeRowModsConfig(id: id, config: config)

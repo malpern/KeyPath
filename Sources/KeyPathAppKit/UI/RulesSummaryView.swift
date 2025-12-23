@@ -113,12 +113,13 @@ struct RulesTabView: View {
     @ViewBuilder
     private func collectionRow(for collection: RuleCollection, scrollProxy: ScrollViewProxy) -> some View {
         let style = collection.displayStyle
-        let needsCollection = style == .singleKeyPicker || style == .homeRowMods || style == .tapHoldPicker
+        let isNumpadTable = style == .table && collection.id == RuleCollectionIdentifier.numpadLayer
+        let needsCollection = style == .singleKeyPicker || style == .homeRowMods || style == .tapHoldPicker || style == .layerPresetPicker || isNumpadTable
 
         ExpandableCollectionRow(
             name: dynamicCollectionName(for: collection),
             icon: collection.icon ?? "circle",
-            count: style == .singleKeyPicker || style == .tapHoldPicker ? 1 : collection.mappings.count,
+            count: style == .singleKeyPicker || style == .tapHoldPicker ? 1 : (style == .layerPresetPicker ? (collection.layerPresets?.first { $0.id == collection.selectedLayerPreset }?.mappings.count ?? 0) : collection.mappings.count),
             isEnabled: pendingToggles[collection.id] ?? collection.isEnabled,
             mappings: collection.mappings.map {
                 ($0.input, $0.output, $0.shiftedOutput, $0.ctrlOutput, $0.description, $0.sectionBreak, collection.isEnabled, $0.id, nil)
@@ -155,6 +156,9 @@ struct RulesTabView: View {
             } : nil,
             onOpenHomeRowModsModalWithKey: style == .homeRowMods ? { key in
                 homeRowModsEditState = HomeRowModsEditState(collection: collection, selectedKey: key)
+            } : nil,
+            onSelectLayerPreset: style == .layerPresetPicker ? { presetId in
+                Task { await kanataManager.updateCollectionLayerPreset(collection.id, presetId: presetId) }
             } : nil,
             scrollID: "collection-\(collection.id.uuidString)",
             scrollProxy: scrollProxy
@@ -514,6 +518,8 @@ private struct ExpandableCollectionRow: View {
     var onOpenHomeRowModsModal: (() -> Void)?
     /// For homeRowMods style: callback to open modal with a specific key selected
     var onOpenHomeRowModsModalWithKey: ((String) -> Void)?
+    /// For layerPresetPicker style: callback to select a layer preset
+    var onSelectLayerPreset: ((String) -> Void)?
     /// Unique ID for scroll-to behavior
     var scrollID: String?
     /// Scroll proxy for auto-scrolling when expanded
@@ -760,12 +766,36 @@ private struct ExpandableCollectionRow: View {
                     .padding(.top, 8)
                     .padding(.bottom, 12)
                     .padding(.horizontal, 16)
+                } else if displayStyle == .layerPresetPicker, let coll = collection {
+                    // Layer preset picker for collections with multiple preset configurations
+                    LayerPresetPickerContent(
+                        collection: coll,
+                        onSelectPreset: { presetId in
+                            onSelectLayerPreset?(presetId)
+                        }
+                    )
+                    .padding(.top, 8)
+                    .padding(.bottom, 12)
+                    .padding(.horizontal, 16)
                 } else if displayStyle == .table {
-                    // Table view for complex collections like Vim
-                    MappingTableContent(mappings: mappings)
+                    // Check if this is the numpad collection - use specialized grid
+                    if collection?.id == RuleCollectionIdentifier.numpadLayer {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Transform your keyboard into a numpad")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            NumpadTransformGrid(mappings: collection?.mappings ?? [])
+                        }
                         .padding(.top, 8)
                         .padding(.bottom, 12)
-                        .padding(.horizontal, 12)
+                        .padding(.horizontal, 16)
+                    } else {
+                        // Table view for complex collections like Vim
+                        MappingTableContent(mappings: mappings)
+                            .padding(.top, 8)
+                            .padding(.bottom, 12)
+                            .padding(.horizontal, 12)
+                    }
                 } else {
                     // List view for standard collections and custom rules
                     VStack(spacing: 6) {
@@ -1283,6 +1313,352 @@ private struct SingleKeyPickerContent: View {
         }
         .padding(.vertical, 8)
         .animation(.easeInOut(duration: 0.15), value: selectedOutput)
+    }
+}
+
+// MARK: - Layer Preset Picker Content
+
+private struct LayerPresetPickerContent: View {
+    let collection: RuleCollection
+    let onSelectPreset: (String) -> Void
+
+    @State private var selectedPresetId: String
+
+    init(collection: RuleCollection, onSelectPreset: @escaping (String) -> Void) {
+        self.collection = collection
+        self.onSelectPreset = onSelectPreset
+        _selectedPresetId = State(initialValue: collection.selectedLayerPreset ?? collection.layerPresets?.first?.id ?? "")
+    }
+
+    private var selectedPreset: LayerPreset? {
+        collection.layerPresets?.first { $0.id == selectedPresetId }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Mini-preview cards for each preset
+            HStack(spacing: 12) {
+                ForEach(collection.layerPresets ?? []) { preset in
+                    MiniPresetCard(
+                        preset: preset,
+                        isSelected: selectedPresetId == preset.id
+                    ) {
+                        selectedPresetId = preset.id
+                        onSelectPreset(preset.id)
+                    }
+                }
+            }
+
+            // Full keyboard grid for selected preset
+            if let preset = selectedPreset {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(preset.description)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+
+                    KeyboardTransformGrid(mappings: preset.mappings)
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                .id(preset.id)
+            }
+        }
+        .padding(.vertical, 8)
+        .animation(.easeInOut(duration: 0.2), value: selectedPresetId)
+    }
+}
+
+// MARK: - Mini Preset Card
+
+private struct MiniPresetCard: View {
+    let preset: LayerPreset
+    let isSelected: Bool
+    let onSelect: () -> Void
+
+    @State private var isHovered = false
+
+    // Define keyboard rows for mini preview (home row focus)
+    private static let previewRows: [[String]] = [
+        ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"]
+    ]
+
+    var body: some View {
+        Button(action: onSelect) {
+            VStack(alignment: .leading, spacing: 6) {
+                // Label
+                HStack {
+                    if let icon = preset.icon {
+                        Image(systemName: icon)
+                            .font(.caption)
+                    }
+                    Text(preset.label)
+                        .font(.caption.weight(.medium))
+                }
+                .foregroundColor(isSelected ? .primary : .secondary)
+
+                // Mini keyboard preview (home row only)
+                HStack(spacing: 2) {
+                    ForEach(Self.previewRows[0], id: \.self) { key in
+                        let output = preset.mappings.first { $0.input.lowercased() == key }?.description ?? key
+                        MiniKeycap(label: output)
+                    }
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isSelected ? Color.accentColor.opacity(0.15) : Color(NSColor.controlBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isSelected ? Color.accentColor : Color.secondary.opacity(isHovered ? 0.4 : 0.2), lineWidth: isSelected ? 2 : 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+    }
+}
+
+// MARK: - Mini Keycap (for preset previews)
+
+private struct MiniKeycap: View {
+    let label: String
+
+    var body: some View {
+        Text(label)
+            .font(.system(size: 9, weight: .medium, design: .monospaced))
+            .frame(width: 16, height: 16)
+            .background(
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Color(NSColor.controlBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 3)
+                    .stroke(Color.secondary.opacity(0.3), lineWidth: 0.5)
+            )
+    }
+}
+
+// MARK: - Keyboard Transform Grid (Input → Output)
+
+private struct KeyboardTransformGrid: View {
+    let mappings: [KeyMapping]
+
+    // Standard QWERTY layout rows (letters only for cleaner display)
+    private static let keyboardRows: [[String]] = [
+        ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
+        ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"],
+        ["z", "x", "c", "v", "b", "n", "m", ",", ".", "/"]
+    ]
+
+    private func outputFor(_ input: String) -> String? {
+        mappings.first { $0.input.lowercased() == input.lowercased() }?.description
+    }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack(alignment: .center, spacing: 16) {
+                // Input keyboard
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Physical Position")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .padding(.bottom, 2)
+
+                    ForEach(Array(Self.keyboardRows.enumerated()), id: \.offset) { rowIndex, row in
+                        HStack(spacing: 3) {
+                            // Stagger for realistic keyboard look
+                            if rowIndex == 1 {
+                                Spacer().frame(width: 8)
+                            } else if rowIndex == 2 {
+                                Spacer().frame(width: 16)
+                            }
+
+                            ForEach(row, id: \.self) { key in
+                                let hasMapping = outputFor(key) != nil
+                                TransformKeycap(
+                                    label: key.uppercased(),
+                                    isHighlighted: hasMapping,
+                                    isInput: true
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Arrow
+                Image(systemName: "arrow.right")
+                    .font(.title3)
+                    .foregroundColor(.secondary)
+
+                // Output keyboard
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Becomes")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .padding(.bottom, 2)
+
+                    ForEach(Array(Self.keyboardRows.enumerated()), id: \.offset) { rowIndex, row in
+                        HStack(spacing: 3) {
+                            // Match stagger
+                            if rowIndex == 1 {
+                                Spacer().frame(width: 8)
+                            } else if rowIndex == 2 {
+                                Spacer().frame(width: 16)
+                            }
+
+                            ForEach(row, id: \.self) { key in
+                                let output = outputFor(key)
+                                TransformKeycap(
+                                    label: output ?? key.uppercased(),
+                                    isHighlighted: output != nil,
+                                    isInput: false
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Physical position note for alternative layout users
+            Text("Keys labeled by physical position (QWERTY). Works with any keyboard layout.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
+        )
+    }
+}
+
+// MARK: - Transform Keycap
+
+private struct TransformKeycap: View {
+    let label: String
+    let isHighlighted: Bool
+    let isInput: Bool
+
+    var body: some View {
+        Text(label)
+            .font(.system(size: 11, weight: isHighlighted ? .semibold : .regular, design: .monospaced))
+            .frame(width: 22, height: 22)
+            .foregroundColor(isHighlighted ? (isInput ? .primary : .accentColor) : .secondary)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(isHighlighted && !isInput ? Color.accentColor.opacity(0.15) : Color(NSColor.controlBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(isHighlighted ? (isInput ? Color.primary.opacity(0.3) : Color.accentColor.opacity(0.5)) : Color.secondary.opacity(0.2), lineWidth: 1)
+            )
+    }
+}
+
+// MARK: - Numpad Transform Grid (specialized for numpad layout)
+
+private struct NumpadTransformGrid: View {
+    let mappings: [KeyMapping]
+
+    // Right hand numpad keys
+    private static let numpadKeys: [[String]] = [
+        ["u", "i", "o"],
+        ["j", "k", "l"],
+        ["m", ",", "."]
+    ]
+
+    // Left hand operator keys
+    private static let operatorKeys: [String] = ["a", "s", "d", "f", "g"]
+
+    private func outputFor(_ input: String) -> String? {
+        mappings.first { $0.input.lowercased() == input.lowercased() }?.description
+    }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack(alignment: .top, spacing: 24) {
+                // Left hand - operators
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Left Hand")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+
+                    Text("Operators")
+                        .font(.caption.weight(.medium))
+
+                    HStack(spacing: 4) {
+                        ForEach(Self.operatorKeys, id: \.self) { key in
+                            VStack(spacing: 2) {
+                                TransformKeycap(label: key.uppercased(), isHighlighted: true, isInput: true)
+                                Image(systemName: "arrow.down")
+                                    .font(.system(size: 8))
+                                    .foregroundColor(.secondary)
+                                TransformKeycap(label: outputFor(key) ?? key, isHighlighted: true, isInput: false)
+                            }
+                        }
+                    }
+                }
+
+                Divider()
+                    .frame(height: 100)
+
+                // Right hand - numpad
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Right Hand")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+
+                    HStack(alignment: .center, spacing: 12) {
+                        // Input side
+                        VStack(spacing: 3) {
+                            ForEach(Self.numpadKeys, id: \.self) { row in
+                                HStack(spacing: 3) {
+                                    ForEach(row, id: \.self) { key in
+                                        TransformKeycap(label: key.uppercased(), isHighlighted: true, isInput: true)
+                                    }
+                                }
+                            }
+                            // Zero row
+                            HStack(spacing: 3) {
+                                TransformKeycap(label: "N", isHighlighted: true, isInput: true)
+                                TransformKeycap(label: "/", isHighlighted: true, isInput: true)
+                            }
+                        }
+
+                        Image(systemName: "arrow.right")
+                            .font(.title3)
+                            .foregroundColor(.secondary)
+
+                        // Output side (numpad)
+                        VStack(spacing: 3) {
+                            ForEach(Array(Self.numpadKeys.enumerated()), id: \.offset) { _, row in
+                                HStack(spacing: 3) {
+                                    ForEach(row, id: \.self) { key in
+                                        TransformKeycap(label: outputFor(key) ?? "?", isHighlighted: true, isInput: false)
+                                    }
+                                }
+                            }
+                            // Zero row
+                            HStack(spacing: 3) {
+                                TransformKeycap(label: outputFor("n") ?? "0", isHighlighted: true, isInput: false)
+                                TransformKeycap(label: outputFor("/") ?? ".", isHighlighted: true, isInput: false)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Physical position note for alternative layout users
+            Text("Keys labeled by physical position (QWERTY). Works with any keyboard layout.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
+        )
     }
 }
 

@@ -108,6 +108,7 @@ KeyPath registers a custom URL scheme for deep linking and Kanata integration:
 | `rule` | `keypath://rule/{id}/fired` | `keypath://rule/hyper/fired` |
 | `notify` | `keypath://notify?title=X&body=Y` | `keypath://notify?title=Done&body=Saved` |
 | `open` | `keypath://open/{url}` | `keypath://open/github.com` |
+| `window` | `keypath://window/{action}` | `keypath://window/left` |
 
 **Key Components:**
 - `KeyPathActionURI`: Parses `keypath://` URLs into action, target, path components, and query items
@@ -133,6 +134,41 @@ open "keypath://launch/Obsidian"
 ```
 
 **Error Handling:** `ActionDispatcher.onError` is wired to `UserNotificationService.notifyActionError()` for user-visible feedback on failures.
+
+### 🪟 Window Management
+
+Window snapping via the Accessibility API (`AXUIElement`). Requires Accessibility permission (same as Kanata).
+
+**Activation:** Leader → w → action key (chained layer activation)
+
+**Window Actions:**
+| Key | Action | Description |
+|-----|--------|-------------|
+| h | `window:left` | Left half of screen |
+| l | `window:right` | Right half of screen |
+| m | `window:maximize` | Maximize/Restore toggle |
+| c | `window:center` | Center window |
+| y | `window:top-left` | Top-left quarter |
+| u | `window:top-right` | Top-right quarter |
+| b | `window:bottom-left` | Bottom-left quarter |
+| n | `window:bottom-right` | Bottom-right quarter |
+| [ | `window:previous-display` | Move to previous display |
+| ] | `window:next-display` | Move to next display |
+| z | `window:undo` | Restore previous position |
+
+**Key Layout Mnemonic (vim-adjacent):**
+```
+  y   u      (top-left, top-right)
+h   l        (left half, right half)
+  b   n      (bottom-left, bottom-right)
+```
+
+**Implementation:**
+- `WindowManager.swift`: Accessibility API wrapper for window positioning
+- `ActionDispatcher`: Routes `window:*` push-msg to WindowManager
+- `RuleCollectionCatalog.windowSnapping`: Collection with chained layer activation
+
+**Phase 2 TODO:** Workspace/Space movement requires private SkyLight framework or drag simulation. See Rectangle's implementation: https://github.com/rxhanson/Rectangle
 
 ### 🔮 PermissionOracle Architecture (CRITICAL - DO NOT BREAK)
 

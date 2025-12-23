@@ -24,6 +24,7 @@ public enum ActionDispatchResult: Sendable {
 /// - `keypath://open/{url}` - Open URL in default browser
 /// - `keypath://fakekey/{name}/{action}` - Trigger Kanata virtual key (tap/press/release/toggle)
 /// - `keypath://system/{action}` - Trigger macOS system actions (mission-control, spotlight, dictation, dnd, launchpad, siri)
+/// - `keypath://window/{action}` - Window management (left, right, maximize, center, top-left, top-right, bottom-left, bottom-right, next-display, previous-display, undo)
 @MainActor
 public final class ActionDispatcher {
     // MARK: - Singleton
@@ -67,6 +68,8 @@ public final class ActionDispatcher {
             return handleFakeKey(uri)
         case "system":
             return handleSystem(uri)
+        case "window":
+            return handleWindow(uri)
         default:
             let message = "Unknown action type: \(uri.action)"
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
@@ -429,6 +432,39 @@ public final class ActionDispatcher {
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
             onError?(message)
             return .unknownAction(action)
+        }
+    }
+
+    /// Handle window management actions
+    /// Format: keypath://window/{action}
+    /// Actions: left, right, maximize, center, top-left, top-right, bottom-left, bottom-right, next-display, previous-display, undo
+    private func handleWindow(_ uri: KeyPathActionURI) -> ActionDispatchResult {
+        guard let action = uri.target else {
+            let message = "window action requires action name: keypath://window/{action}"
+            AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
+            onError?(message)
+            return .missingTarget("window")
+        }
+
+        AppLogger.shared.log("🪟 [ActionDispatcher] Window action: \(action)")
+
+        guard let position = WindowPosition(rawValue: action.lowercased()) else {
+            let message = "Unknown window action: \(action). Supported: \(WindowPosition.allValues)"
+            AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
+            onError?(message)
+            return .unknownAction(action)
+        }
+
+        let success = WindowManager.shared.moveWindow(to: position)
+
+        if success {
+            return .success
+        } else {
+            let message = "Window action '\(action)' failed. Is Accessibility enabled?"
+            onError?(message)
+            return .failed("window", NSError(domain: "ActionDispatcher", code: 5, userInfo: [
+                NSLocalizedDescriptionKey: message
+            ]))
         }
     }
 
