@@ -473,11 +473,11 @@ struct RuleCollectionCatalog {
             tags: ["numpad", "numbers", "data entry", "calculator"],
             targetLayer: .custom("numpad"),
             momentaryActivator: MomentaryActivator(
-                input: "n",
+                input: ";",
                 targetLayer: .custom("numpad"),
-                sourceLayer: .navigation  // Two-step: Leader → n → numpad layer
+                sourceLayer: .navigation  // Two-step: Leader → ; → numpad layer
             ),
-            activationHint: "Leader → n → numpad keys",
+            activationHint: "Leader → ; → numpad keys",
             displayStyle: .table
         )
     }
