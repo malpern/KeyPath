@@ -50,9 +50,22 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     /// Current frame version - increment to reset saved frames after layout changes
     private let currentFrameVersion = 6
     private let inspectorPanelWidth: CGFloat = 240
-    private let inspectorAnimationDuration: TimeInterval = 0.3
+    private let inspectorAnimationDuration: TimeInterval = 1.0
+    private let baseKeyboardAspectRatio: CGFloat = PhysicalLayout.macBookUS.totalWidth / PhysicalLayout.macBookUS.totalHeight
+    private let minKeyboardHeight: CGFloat = 180
+    private let minInspectorKeyboardHeight: CGFloat = 220
     private var inspectorTotalWidth: CGFloat {
         inspectorPanelWidth + OverlayLayoutMetrics.inspectorSeamWidth
+    }
+    private var minWindowHeight: CGFloat {
+        OverlayLayoutMetrics.verticalChrome + minKeyboardHeight
+    }
+    private var minWindowWidth: CGFloat {
+        let keyboardWidth = minKeyboardHeight * baseKeyboardAspectRatio
+        return keyboardWidth
+            + OverlayLayoutMetrics.keyboardPadding
+            + OverlayLayoutMetrics.keyboardTrailingPadding
+            + OverlayLayoutMetrics.outerHorizontalPadding * 2
     }
 
     /// Shared instance for app-wide access
@@ -149,6 +162,13 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         if uiState.isInspectorOpen || uiState.inspectorReveal > 0 {
             closeInspector(animated: true)
         } else {
+            if let window {
+                let minInspectorHeight = OverlayLayoutMetrics.verticalChrome + minInspectorKeyboardHeight
+                if window.frame.height < minInspectorHeight {
+                    AppLogger.shared.log("⚠️ [OverlayController] Inspector hidden: overlay too small (height \(window.frame.height.rounded()))")
+                    return
+                }
+            }
             openInspector(animated: true)
         }
     }
@@ -199,7 +219,9 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         // Save frame BEFORE closing inspector (which modifies the frame)
         saveWindowFrame()
         viewModel.stopCapturing()
-        closeInspector(animated: false)
+        if uiState.isInspectorOpen || uiState.inspectorReveal > 0 {
+            closeInspector(animated: false)
+        }
         window?.orderOut(nil)
     }
 
@@ -469,9 +491,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         // Note: This relies on OverlayWindow.canBecomeKey returning false
 
         // Allow resize - constrain to keyboard aspect ratio
-        // Min: 150pt height -> keyboard area = 96pt -> width = 96 * 2.53 + 28 = 271
         // Max: 500pt height -> keyboard area = 446pt -> width = 446 * 2.53 + 28 = 1156
-        window.minSize = NSSize(width: 270, height: 150)
+        window.minSize = NSSize(width: minWindowWidth, height: minWindowHeight)
         window.maxSize = NSSize(width: 1160 + inspectorTotalWidth, height: 500)
 
         // Restore saved position or default to bottom-right corner
@@ -534,6 +555,10 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
     private func closeInspector(animated: Bool) {
         guard let window else { return }
+        guard uiState.isInspectorOpen || uiState.inspectorReveal > 0 || uiState.isInspectorAnimating else {
+            uiState.isInspectorClosing = false
+            return
+        }
         let targetFrame = collapsedFrameBeforeInspector ?? InspectorPanelLayout.collapsedFrame(
             expandedFrame: window.frame,
             inspectorWidth: inspectorTotalWidth

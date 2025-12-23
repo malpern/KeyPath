@@ -17,6 +17,8 @@ public enum WindowPosition: String, CaseIterable {
     case bottomRight = "bottom-right"
     case nextDisplay = "next-display"
     case previousDisplay = "previous-display"
+    case nextSpace = "next-space"
+    case previousSpace = "previous-space"
     case undo = "undo"
 
     /// All position values for help text
@@ -31,9 +33,13 @@ public enum WindowPosition: String, CaseIterable {
 ///
 /// Requires Accessibility permission (same as Kanata).
 ///
-/// ## Phase 2 (Future)
-/// - Workspace/Space movement (requires private SkyLight framework or drag simulation)
-/// - See: https://github.com/rxhanson/Rectangle for implementation reference
+/// ## Space Movement
+/// Uses private CoreGraphics Services (CGS) APIs for moving windows between Spaces.
+/// These APIs are stable but undocumented. See `CGSPrivate.swift` for details.
+///
+/// ## References
+/// - https://github.com/lwouis/alt-tab-macos (Space enumeration)
+/// - https://github.com/ianyh/Amethyst (Window-to-space movement)
 @MainActor
 public final class WindowManager {
     // MARK: - Singleton
@@ -46,9 +52,34 @@ public final class WindowManager {
     private var previousFrame: CGRect?
     private var previousWindowRef: AXUIElement?
 
+    /// Track if we've shown the Space API unavailable warning (once per session)
+    private var hasShownSpaceAPIWarning = false
+
     // MARK: - Initialization
 
     private init() {}
+
+    // MARK: - API Status
+
+    /// Whether Space movement features are available.
+    /// Call this at startup to check and warn user if needed.
+    public var isSpaceMovementAvailable: Bool {
+        SpaceManager.shared.isAvailable
+    }
+
+    /// Check Space API availability and show one-time warning if unavailable.
+    /// Call this once at app startup.
+    public func checkSpaceAPIAvailability() {
+        guard !SpaceManager.shared.isAvailable else { return }
+        guard !hasShownSpaceAPIWarning else { return }
+
+        hasShownSpaceAPIWarning = true
+
+        AppLogger.shared.log("⚠️ [WindowManager] Space APIs unavailable at startup")
+        UserNotificationService.shared.notifyActionError(
+            "Space Movement Unavailable: The required macOS APIs may have changed. Window-to-Space features are disabled."
+        )
+    }
 
     // MARK: - Public API
 
@@ -70,6 +101,14 @@ public final class WindowManager {
         }
         if position == .previousDisplay {
             return moveToPreviousDisplay()
+        }
+
+        // Handle space switching
+        if position == .nextSpace {
+            return moveToNextSpace()
+        }
+        if position == .previousSpace {
+            return moveToPreviousSpace()
         }
 
         // Get the focused window
@@ -140,9 +179,84 @@ public final class WindowManager {
         case .bottomRight:
             return CGRect(x: x + halfWidth, y: y, width: halfWidth, height: halfHeight)
 
-        case .nextDisplay, .previousDisplay, .undo:
+        case .nextDisplay, .previousDisplay, .nextSpace, .previousSpace, .undo:
             // Handled separately
             return currentFrame
+        }
+    }
+
+    // MARK: - Space Movement
+
+    private func moveToNextSpace() -> Bool {
+        return moveToSpace(direction: .next)
+    }
+
+    private func moveToPreviousSpace() -> Bool {
+        return moveToSpace(direction: .previous)
+    }
+
+    private enum SpaceDirection {
+        case next, previous
+    }
+
+    private func moveToSpace(direction: SpaceDirection) -> Bool {
+        // Check API availability first and show user-facing error if unavailable
+        guard SpaceManager.shared.isAvailable else {
+            AppLogger.shared.log("⚠️ [WindowManager] Space movement unavailable - CGS APIs not found")
+
+            // Only show notification once per session to avoid spam
+            if !hasShownSpaceAPIWarning {
+                hasShownSpaceAPIWarning = true
+                UserNotificationService.shared.notifyActionError(
+                    "Space Movement Unavailable: The macOS APIs needed for this feature are not available. This may happen after a macOS update."
+                )
+            }
+            return false
+        }
+
+        guard let windowID = SpaceManager.shared.getFrontmostWindowID() else {
+            AppLogger.shared.log("⚠️ [WindowManager] No frontmost window for space switch")
+            return false
+        }
+
+        let targetSpaceID: CGSSpaceID?
+        switch direction {
+        case .next:
+            targetSpaceID = SpaceManager.shared.nextSpaceID()
+        case .previous:
+            targetSpaceID = SpaceManager.shared.previousSpaceID()
+        }
+
+        guard let spaceID = targetSpaceID else {
+            AppLogger.shared.log("⚠️ [WindowManager] Could not determine target space")
+            return false
+        }
+
+        let success = SpaceManager.shared.moveWindow(windowID, to: spaceID)
+
+        if success {
+            // Also switch to that space so the user follows the window
+            // Use keyboard shortcut: Ctrl+Arrow
+            simulateSpaceSwitch(direction: direction)
+        }
+
+        return success
+    }
+
+    private func simulateSpaceSwitch(direction: SpaceDirection) {
+        // Ctrl+Left or Ctrl+Right to switch spaces
+        let keyCode: CGKeyCode = direction == .next ? 0x7C : 0x7B // Right : Left arrow
+
+        guard let source = CGEventSource(stateID: .hidSystemState) else { return }
+
+        if let keyDown = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true) {
+            keyDown.flags = .maskControl
+            keyDown.post(tap: .cghidEventTap)
+        }
+
+        if let keyUp = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false) {
+            keyUp.flags = .maskControl
+            keyUp.post(tap: .cghidEventTap)
         }
     }
 

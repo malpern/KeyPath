@@ -837,12 +837,14 @@ private struct ExpandableCollectionRow: View {
 
     @ViewBuilder
     func iconView(for icon: String) -> some View {
+        let scale: CGFloat = 0.85
+        let iconSize: CGFloat = 24 * scale
         if icon.hasPrefix("text:") {
             let text = String(icon.dropFirst(5))
             Text(text)
-                .font(.system(size: 14, weight: .bold, design: .monospaced))
+                .font(.system(size: 14 * scale, weight: .bold, design: .monospaced))
                 .foregroundColor(.secondary)
-                .frame(width: 24, height: 24)
+                .frame(width: iconSize, height: iconSize)
         } else if icon.hasPrefix("resource:") {
             let resourceName = String(icon.dropFirst(9))
             if let resourceURL = Bundle.main.url(forResource: resourceName, withExtension: "svg"),
@@ -850,16 +852,16 @@ private struct ExpandableCollectionRow: View {
                 Image(nsImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 24, height: 24)
+                    .frame(width: iconSize, height: iconSize)
             } else {
                 // Fallback to system image
                 Image(systemName: "questionmark.circle")
-                    .font(.system(size: 24))
+                    .font(.system(size: iconSize))
                     .foregroundColor(.secondary)
             }
         } else {
             Image(systemName: icon)
-                .font(.system(size: 24))
+                .font(.system(size: iconSize))
                 .foregroundColor(.secondary)
         }
     }
