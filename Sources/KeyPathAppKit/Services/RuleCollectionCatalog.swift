@@ -472,8 +472,12 @@ struct RuleCollectionCatalog {
             icon: "number.square",
             tags: ["numpad", "numbers", "data entry", "calculator"],
             targetLayer: .custom("numpad"),
-            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .custom("numpad")),
-            activationHint: "Hold Leader key to access numpad",
+            momentaryActivator: MomentaryActivator(
+                input: "n",
+                targetLayer: .custom("numpad"),
+                sourceLayer: .navigation  // Two-step: Leader → n → numpad layer
+            ),
+            activationHint: "Leader → n → numpad keys",
             displayStyle: .table
         )
     }
@@ -492,8 +496,12 @@ struct RuleCollectionCatalog {
             icon: "textformat.abc.dottedunderline",
             tags: ["symbols", "programming", "brackets", "operators"],
             targetLayer: .custom("sym"),
-            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .custom("sym")),
-            activationHint: "Hold Leader key to access symbols",
+            momentaryActivator: MomentaryActivator(
+                input: "s",
+                targetLayer: .custom("sym"),
+                sourceLayer: .navigation  // Two-step: Leader → s → symbol layer
+            ),
+            activationHint: "Leader → s → symbol keys",
             displayStyle: .layerPresetPicker,
             layerPresets: symbolLayerPresets,
             selectedLayerPreset: "mirrored"

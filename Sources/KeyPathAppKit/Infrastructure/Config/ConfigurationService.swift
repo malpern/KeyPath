@@ -277,9 +277,11 @@ public struct KanataConfiguration: Sendable {
                     // This works around Kanata's limitation where layer-while-held doesn't broadcast LayerChange messages.
                     definition = "(tap-hold 200 200 \(tapKey) (multi (layer-while-held \(layerName)) (on-press-fakekey kp-layer-\(layerName)-enter tap) (on-release-fakekey kp-layer-\(layerName)-exit tap)))"
                 } else {
-                    // One-shot for chained layers (e.g., nav → window)
-                    // Activates target layer for 2 seconds or until next key press
-                    definition = "(one-shot-press 2000 (layer-while-held \(layerName)))"
+                    // One-shot for chained layers (e.g., nav → window, nav → sym)
+                    // Activates target layer for 2 seconds or until next key press.
+                    // Include layer notification fake keys for overlay and UI updates.
+                    // Exit notification triggers when one-shot releases, returning to parent layer.
+                    definition = "(multi (one-shot-press 2000 (layer-while-held \(layerName))) (on-press-fakekey kp-layer-\(layerName)-enter tap) (on-release-fakekey kp-layer-\(layerName)-exit tap))"
                 }
                 aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: definition))
 
