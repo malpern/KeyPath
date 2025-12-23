@@ -33,6 +33,8 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
     public var layerPresets: [LayerPreset]?
     /// For layerPresetPicker style: currently selected preset ID
     public var selectedLayerPreset: String?
+    /// For windowSnapping: which key convention to use (standard mnemonic vs vim)
+    public var windowKeyConvention: WindowKeyConvention?
 
     public init(
         id: UUID = UUID(),
@@ -56,7 +58,8 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         selectedTapOutput: String? = nil,
         selectedHoldOutput: String? = nil,
         layerPresets: [LayerPreset]? = nil,
-        selectedLayerPreset: String? = nil
+        selectedLayerPreset: String? = nil,
+        windowKeyConvention: WindowKeyConvention? = nil
     ) {
         self.id = id
         self.name = name
@@ -80,13 +83,14 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         self.selectedHoldOutput = selectedHoldOutput
         self.layerPresets = layerPresets
         self.selectedLayerPreset = selectedLayerPreset
+        self.windowKeyConvention = windowKeyConvention
     }
 
     enum CodingKeys: String, CodingKey {
         case id, name, summary, category, mappings, isEnabled, isSystemDefault, icon, tags, targetLayer,
              momentaryActivator, activationHint, displayStyle, pickerInputKey, presetOptions, selectedOutput,
              homeRowModsConfig, tapHoldOptions, selectedTapOutput, selectedHoldOutput, layerPresets,
-             selectedLayerPreset
+             selectedLayerPreset, windowKeyConvention
     }
 
     public init(from decoder: Decoder) throws {
@@ -117,6 +121,7 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         selectedHoldOutput = try container.decodeIfPresent(String.self, forKey: .selectedHoldOutput)
         layerPresets = try container.decodeIfPresent([LayerPreset].self, forKey: .layerPresets)
         selectedLayerPreset = try container.decodeIfPresent(String.self, forKey: .selectedLayerPreset)
+        windowKeyConvention = try container.decodeIfPresent(WindowKeyConvention.self, forKey: .windowKeyConvention)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -143,6 +148,27 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         try container.encodeIfPresent(selectedHoldOutput, forKey: .selectedHoldOutput)
         try container.encodeIfPresent(layerPresets, forKey: .layerPresets)
         try container.encodeIfPresent(selectedLayerPreset, forKey: .selectedLayerPreset)
+        try container.encodeIfPresent(windowKeyConvention, forKey: .windowKeyConvention)
+    }
+}
+
+/// Key convention for window snapping shortcuts
+public enum WindowKeyConvention: String, Codable, CaseIterable, Sendable {
+    case standard = "standard"
+    case vim = "vim"
+
+    public var displayName: String {
+        switch self {
+        case .standard: "Standard"
+        case .vim: "Vim"
+        }
+    }
+
+    public var description: String {
+        switch self {
+        case .standard: "L=Left, R=Right, U/I/J/K corners"
+        case .vim: "H=Left, L=Right, Y/U/B/N corners"
+        }
     }
 }
 
