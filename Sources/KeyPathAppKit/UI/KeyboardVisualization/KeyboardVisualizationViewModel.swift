@@ -413,14 +413,19 @@ class KeyboardVisualizationViewModel: ObservableObject {
                 )
 
                 // Augment mapping with push-msg actions from custom rules and rule collections
-                let customRules = await CustomRulesStore.shared.loadRules()
-                let ruleCollections = await RuleCollectionStore.shared.loadCollections()
-                AppLogger.shared.info("🗺️ [KeyboardViz] Augmenting with \(customRules.count) custom rules and \(ruleCollections.count) collections")
-                mapping = augmentWithPushMsgActions(
-                    mapping: mapping,
-                    customRules: customRules,
-                    ruleCollections: ruleCollections
-                )
+                // Skip augmentation on base layer - base should show normal key labels
+                if currentLayerName.lowercased() != "base" {
+                    let customRules = await CustomRulesStore.shared.loadRules()
+                    let ruleCollections = await RuleCollectionStore.shared.loadCollections()
+                    AppLogger.shared.info("🗺️ [KeyboardViz] Augmenting with \(customRules.count) custom rules and \(ruleCollections.count) collections")
+                    mapping = augmentWithPushMsgActions(
+                        mapping: mapping,
+                        customRules: customRules,
+                        ruleCollections: ruleCollections
+                    )
+                } else {
+                    AppLogger.shared.debug("🗺️ [KeyboardViz] Skipping push-msg augmentation on base layer")
+                }
 
                 // Update on main actor
                 await MainActor.run {
