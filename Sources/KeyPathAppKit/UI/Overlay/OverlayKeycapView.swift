@@ -783,11 +783,11 @@ struct OverlayKeycapView: View {
         // For per-key release fade: blend from blue to black
         if isReleaseFading, fadeAmount > 0 {
             let blue = Color.accentColor
-            let black = Color(white: 0.08)
+            let targetColor = backgroundColor // Use colorway's background color
             return Color(
-                red: interpolate(from: blue, to: black, progress: fadeAmount).red,
-                green: interpolate(from: blue, to: black, progress: fadeAmount).green,
-                blue: interpolate(from: blue, to: black, progress: fadeAmount).blue
+                red: interpolate(from: blue, to: targetColor, progress: fadeAmount).red,
+                green: interpolate(from: blue, to: targetColor, progress: fadeAmount).green,
+                blue: interpolate(from: blue, to: targetColor, progress: fadeAmount).blue
             )
         }
         // For global overlay fade: use opacity

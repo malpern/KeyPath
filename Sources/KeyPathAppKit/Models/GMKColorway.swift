@@ -35,17 +35,20 @@ struct GMKColorway: Identifiable, Codable, Equatable {
 
     // MARK: - Default Colorway
 
+    /// Default colorway matches the original KeyPath overlay colors exactly:
+    /// - Background: Color(white: 0.08) = #141414
+    /// - Legend: Color(red: 0.88, green: 0.93, blue: 1.0) = #e0edff (slight blue tint)
     static let `default` = GMKColorway(
         id: "default",
         name: "Default",
         designer: "KeyPath",
         year: 2025,
-        alphaBase: "#3a3a3c",
-        alphaLegend: "#ffffff",
-        modBase: "#2c2c2e",
-        modLegend: "#ffffff",
-        accentBase: "#3a3a3c",
-        accentLegend: "#ffffff",
+        alphaBase: "#141414",      // Color(white: 0.08)
+        alphaLegend: "#e0edff",    // Slightly blue-tinted white
+        modBase: "#141414",
+        modLegend: "#e0edff",
+        accentBase: "#141414",
+        accentLegend: "#e0edff",
         sourceURL: nil
     )
 
