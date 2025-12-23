@@ -36,6 +36,14 @@ struct OverlayKeyboardView: View {
     /// Track caps lock state from system
     @State private var isCapsLockOn: Bool = NSEvent.modifierFlags.contains(.capsLock)
 
+    /// Selected colorway ID from user preferences
+    @AppStorage("overlayColorwayId") private var selectedColorwayId: String = GMKColorway.default.id
+
+    /// The active GMK colorway
+    private var activeColorway: GMKColorway {
+        GMKColorway.find(id: selectedColorwayId) ?? .default
+    }
+
     /// Size of a standard 1u key in points
     private let keyUnitSize: CGFloat = 32
     /// Gap between keys
@@ -101,7 +109,8 @@ struct OverlayKeyboardView: View {
             layerKeyInfo: layerKeyMap[key.keyCode],
             isEmphasized: emphasizedKeyCodes.contains(key.keyCode),
             holdLabel: holdLabels[key.keyCode],
-            onKeyClick: onKeyClick
+            onKeyClick: onKeyClick,
+            colorway: activeColorway
         )
         .frame(
             width: keyWidth(for: key, scale: scale),

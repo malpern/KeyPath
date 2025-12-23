@@ -31,6 +31,8 @@ struct OverlayKeycapView: View {
     var holdLabel: String?
     /// Callback when key is clicked (not dragged)
     var onKeyClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
+    /// GMK colorway for keycap styling
+    var colorway: GMKColorway = .default
 
     /// Size thresholds for typography adaptation
     private var isSmallSize: Bool { scale < 0.8 }
@@ -823,9 +825,33 @@ struct OverlayKeycapView: View {
         (isPressed ? 0.2 * scale : 0.5 * scale) * (1 - fadeAmount)
     }
 
+    /// Whether this key is a modifier (shift, ctrl, opt, cmd, fn, etc.)
+    private var isModifierKey: Bool {
+        let modifierLabels = ["⇧", "⌃", "⌥", "⌘", "fn", "shift", "ctrl", "control", "opt", "option", "alt", "cmd", "command", "⇪", "caps"]
+        let label = baseLabel.lowercased()
+        return modifierLabels.contains { label.contains($0.lowercased()) }
+            || key.width >= 1.5 // Wide keys are typically modifiers
+            || key.keyCode == 63 // fn key
+            || (key.keyCode >= 54 && key.keyCode <= 61) // modifier key codes
+    }
+
+    /// Whether this key should use accent colors (enter, escape, etc.)
+    private var isAccentKey: Bool {
+        let accentLabels = ["⏎", "↵", "return", "enter", "esc", "escape", "⌫", "delete", "⇥", "tab"]
+        let label = baseLabel.lowercased()
+        return accentLabels.contains { label.contains($0.lowercased()) }
+    }
+
     private var foregroundColor: Color {
-        Color(red: 0.88, green: 0.93, blue: 1.0)
-            .opacity(isPressed ? 1.0 : 0.88)
+        let baseColor: Color
+        if isModifierKey {
+            baseColor = colorway.modLegendColor
+        } else if isAccentKey {
+            baseColor = colorway.accentLegendColor
+        } else {
+            baseColor = colorway.alphaLegendColor
+        }
+        return baseColor.opacity(isPressed ? 1.0 : 0.88)
     }
 
     private var backgroundColor: Color {
@@ -833,8 +859,12 @@ struct OverlayKeycapView: View {
             Color.accentColor
         } else if isEmphasized {
             Color.orange
+        } else if isModifierKey {
+            colorway.modBaseColor
+        } else if isAccentKey {
+            colorway.accentBaseColor
         } else {
-            Color(white: 0.08)
+            colorway.alphaBaseColor
         }
     }
 
