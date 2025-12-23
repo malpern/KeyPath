@@ -1,4 +1,5 @@
 import AppKit
+import KeyPathCore
 import SwiftUI
 
 /// The main live keyboard overlay view.
@@ -58,6 +59,7 @@ struct LiveKeyboardOverlayView: View {
         let headerContentLeadingPadding = keyboardPadding + escKeyLeftInset
         let inspectorReveal = uiState.inspectorReveal
         let inspectorVisible = inspectorReveal > 0 || uiState.isInspectorAnimating || uiState.isInspectorOpen
+        let inspectorDebugEnabled = UserDefaults.standard.bool(forKey: "OverlayInspectorDebug")
         let trailingOuterPadding = inspectorVisible ? 0 : outerHorizontalPadding
         let keyboardAspectRatio = activeLayout.totalWidth / activeLayout.totalHeight
         let inspectorSeamWidth = OverlayLayoutMetrics.inspectorSeamWidth
@@ -100,7 +102,8 @@ struct LiveKeyboardOverlayView: View {
                             reveal: reveal,
                             totalWidth: inspectorTotalWidth,
                             slideOffset: slideOffset,
-                            opacity: inspectorOpacity
+                            opacity: inspectorOpacity,
+                            debugEnabled: inspectorDebugEnabled
                         )
                         .frame(width: inspectorTotalWidth, alignment: .leading)
                         .frame(maxHeight: .infinity, alignment: .top)
@@ -389,6 +392,7 @@ private struct InspectorMaskedHost<Content: View>: NSViewRepresentable {
     var totalWidth: CGFloat
     var slideOffset: CGFloat
     var opacity: CGFloat
+    var debugEnabled: Bool
 
     func makeNSView(context: Context) -> InspectorMaskedHostingView<Content> {
         InspectorMaskedHostingView(content: content)
@@ -400,7 +404,8 @@ private struct InspectorMaskedHost<Content: View>: NSViewRepresentable {
             reveal: reveal,
             totalWidth: totalWidth,
             slideOffset: slideOffset,
-            opacity: opacity
+            opacity: opacity,
+            debugEnabled: debugEnabled
         )
     }
 }
@@ -412,6 +417,8 @@ private final class InspectorMaskedHostingView<Content: View>: NSView {
     private var totalWidth: CGFloat = 0
     private var slideOffset: CGFloat = 0
     private var contentOpacity: CGFloat = 1
+    private var debugEnabled: Bool = false
+    private var lastDebugLogTime: CFTimeInterval = 0
 
     init(content: Content) {
         self.hostingView = NSHostingView(rootView: content)
@@ -435,13 +442,15 @@ private final class InspectorMaskedHostingView<Content: View>: NSView {
         reveal: CGFloat,
         totalWidth: CGFloat,
         slideOffset: CGFloat,
-        opacity: CGFloat
+        opacity: CGFloat,
+        debugEnabled: Bool
     ) {
         hostingView.rootView = content
         self.reveal = reveal
         self.totalWidth = totalWidth
         self.slideOffset = slideOffset
         self.contentOpacity = opacity
+        self.debugEnabled = debugEnabled
         needsLayout = true
     }
 
@@ -454,6 +463,18 @@ private final class InspectorMaskedHostingView<Content: View>: NSView {
         let widthBasis = totalWidth > 0 ? totalWidth : bounds.width
         let width = max(0, min(widthBasis, widthBasis * reveal))
         maskLayer.frame = CGRect(x: 0, y: 0, width: width, height: bounds.height)
+
+        guard debugEnabled else { return }
+        let now = CFAbsoluteTimeGetCurrent()
+        guard now - lastDebugLogTime > 0.2 else { return }
+        lastDebugLogTime = now
+        let revealStr = String(format: "%.3f", reveal)
+        let slideStr = String(format: "%.1f", slideOffset)
+        let widthStr = String(format: "%.1f", width)
+        let opacityStr = String(format: "%.2f", contentOpacity)
+        AppLogger.shared.debug(
+            "🧱 [OverlayInspectorMask] bounds=\(bounds.size.debugDescription) reveal=\(revealStr) slide=\(slideStr) maskW=\(widthStr) opacity=\(opacityStr)"
+        )
     }
 }
 
@@ -469,6 +490,7 @@ struct OverlayInspectorPanel: View {
     @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
     @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var includePunctuationStore: String = "{}"
     @AppStorage("overlayLayoutId") private var selectedLayoutId: String = "macbook-us"
+    @AppStorage("overlayColorwayId") private var selectedColorwayId: String = GMKColorway.default.id
 
     private var includePunctuation: Bool {
         KeymapPreferences.includePunctuation(for: selectedKeymapId, store: includePunctuationStore)
@@ -574,37 +596,17 @@ struct OverlayInspectorPanel: View {
 
     @ViewBuilder
     private var keycapsContent: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Header
-            Text("Keycap Style")
-                .font(.headline)
-                .foregroundStyle(.primary)
-
-            Text("Customize your keyboard with iconic GMK colorways.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            // Coming soon placeholder
-            VStack(spacing: 12) {
-                Image(systemName: "swatchpalette.fill")
-                    .font(.system(size: 32))
-                    .foregroundStyle(.secondary)
-
-                Text("Coming Soon")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
-
-                Text("GMK Olivia, 8008, Laser, and more...")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .multilineTextAlignment(.center)
+        // Colorway cards in 2-column grid
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+            ForEach(GMKColorway.all) { colorway in
+                ColorwayCard(
+                    colorway: colorway,
+                    isSelected: selectedColorwayId == colorway.id,
+                    isDark: isDark
+                ) {
+                    selectedColorwayId = colorway.id
+                }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 24)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isDark ? Color.white.opacity(0.05) : Color.black.opacity(0.03))
-            )
         }
     }
 
@@ -695,6 +697,81 @@ private struct KeymapCard: View {
                     .font(.system(size: 16))
                     .foregroundStyle(.secondary)
             )
+    }
+}
+
+/// Card view for a GMK colorway option with color swatch preview
+private struct ColorwayCard: View {
+    let colorway: GMKColorway
+    let isSelected: Bool
+    let isDark: Bool
+    let onSelect: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: onSelect) {
+            VStack(spacing: 4) {
+                // Color swatch preview (horizontal bars)
+                colorSwatchPreview
+                    .frame(height: 36)
+                    .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+
+                // Name and designer
+                VStack(spacing: 1) {
+                    Text(colorway.name)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(isSelected ? .primary : .secondary)
+                        .lineLimit(1)
+
+                    Text(colorway.designer)
+                        .font(.system(size: 8))
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
+            }
+            .padding(6)
+            .frame(maxWidth: .infinity)
+            .background(cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+        .help("\(colorway.name) by \(colorway.designer) (\(colorway.year))")
+    }
+
+    /// Horizontal color bars showing the colorway
+    private var colorSwatchPreview: some View {
+        GeometryReader { geo in
+            HStack(spacing: 1) {
+                // Alpha base (largest - main key color)
+                colorway.alphaBaseColor
+                    .frame(width: geo.size.width * 0.35)
+
+                // Mod base
+                colorway.modBaseColor
+                    .frame(width: geo.size.width * 0.25)
+
+                // Accent base
+                colorway.accentBaseColor
+                    .frame(width: geo.size.width * 0.2)
+
+                // Legend color (shows as small bar)
+                colorway.alphaLegendColor
+                    .frame(width: geo.size.width * 0.2)
+            }
+        }
+    }
+
+    private var cardBackground: some View {
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(isSelected
+                ? Color.accentColor.opacity(0.15)
+                : (isHovering ? Color.white.opacity(0.08) : Color.white.opacity(0.04)))
     }
 }
 
