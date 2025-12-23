@@ -116,7 +116,8 @@ struct RulesTabView: View {
         let isSpecializedTable = style == .table && (
             collection.id == RuleCollectionIdentifier.numpadLayer ||
             collection.id == RuleCollectionIdentifier.vimNavigation ||
-            collection.id == RuleCollectionIdentifier.windowSnapping
+            collection.id == RuleCollectionIdentifier.windowSnapping ||
+            collection.id == RuleCollectionIdentifier.macFunctionKeys
         )
         let needsCollection = style == .singleKeyPicker || style == .homeRowMods || style == .tapHoldPicker || style == .layerPresetPicker || isSpecializedTable
 
@@ -817,6 +818,12 @@ private struct ExpandableCollectionRow: View {
                         .padding(.top, 8)
                         .padding(.bottom, 12)
                         .padding(.horizontal, 12)
+                    } else if collection?.id == RuleCollectionIdentifier.macFunctionKeys {
+                        // Function keys use flip card display
+                        FunctionKeysView(mappings: collection?.mappings ?? [])
+                            .padding(.top, 8)
+                            .padding(.bottom, 12)
+                            .padding(.horizontal, 12)
                     } else {
                         // Generic table for other collections
                         MappingTableContent(mappings: mappings)
