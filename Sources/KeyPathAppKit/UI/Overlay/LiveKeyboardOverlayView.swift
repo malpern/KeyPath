@@ -472,7 +472,7 @@ private final class InspectorMaskedHostingView<Content: View>: NSView {
         let slideStr = String(format: "%.1f", slideOffset)
         let widthStr = String(format: "%.1f", width)
         let opacityStr = String(format: "%.2f", contentOpacity)
-        AppLogger.shared.debug(
+        AppLogger.shared.log(
             "🧱 [OverlayInspectorMask] bounds=\(bounds.size.debugDescription) reveal=\(revealStr) slide=\(slideStr) maskW=\(widthStr) opacity=\(opacityStr)"
         )
     }

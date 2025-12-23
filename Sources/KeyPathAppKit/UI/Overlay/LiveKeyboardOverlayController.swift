@@ -533,7 +533,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         )
 
         if inspectorDebugEnabled {
-            AppLogger.shared.debug(
+            AppLogger.shared.log(
                 "📤 [OverlayInspector] open start frame=\(baseFrame.debugDescription) " +
                     "expanded=\(expandedFrame.debugDescription) totalW=\(inspectorTotalWidth.rounded())"
             )
@@ -552,7 +552,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
                 self.uiState.inspectorReveal = 1
                 self.lastWindowFrame = expandedFrame
                 if self.inspectorDebugEnabled {
-                    AppLogger.shared.debug(
+                    AppLogger.shared.log(
                         "📤 [OverlayInspector] open end frame=\(expandedFrame.debugDescription) reveal=\(self.uiState.inspectorReveal)"
                     )
                 }
@@ -564,7 +564,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             uiState.isInspectorAnimating = false
             lastWindowFrame = expandedFrame
             if inspectorDebugEnabled {
-                AppLogger.shared.debug(
+                AppLogger.shared.log(
                     "📤 [OverlayInspector] open instant frame=\(expandedFrame.debugDescription) reveal=\(uiState.inspectorReveal)"
                 )
             }
@@ -586,7 +586,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         let shouldAnimate = animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
 
         if inspectorDebugEnabled {
-            AppLogger.shared.debug(
+            AppLogger.shared.log(
                 "📥 [OverlayInspector] close start frame=\(window.frame.debugDescription) " +
                     "target=\(targetFrame.debugDescription) reveal=\(uiState.inspectorReveal)"
             )
@@ -606,7 +606,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
                 self.collapsedFrameBeforeInspector = nil
                 self.lastWindowFrame = targetFrame
                 if self.inspectorDebugEnabled {
-                    AppLogger.shared.debug(
+                    AppLogger.shared.log(
                         "📥 [OverlayInspector] close end frame=\(targetFrame.debugDescription) reveal=\(self.uiState.inspectorReveal)"
                     )
                 }
@@ -620,7 +620,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             collapsedFrameBeforeInspector = nil
             lastWindowFrame = targetFrame
             if inspectorDebugEnabled {
-                AppLogger.shared.debug(
+                AppLogger.shared.log(
                     "📥 [OverlayInspector] close instant frame=\(targetFrame.debugDescription) reveal=\(uiState.inspectorReveal)"
                 )
             }
@@ -639,7 +639,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
                 if now - inspectorDebugLastLog > 0.2 {
                     inspectorDebugLastLog = now
                     let revealStr = String(format: "%.3f", uiState.inspectorReveal)
-                    AppLogger.shared.debug(
+                    AppLogger.shared.log(
                         "🪟 [OverlayInspector] frame=\(window.frame.debugDescription) " +
                             "reveal=\(revealStr) " +
                             "animating=\(uiState.isInspectorAnimating) closing=\(uiState.isInspectorClosing)"
