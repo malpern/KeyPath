@@ -532,9 +532,6 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         uiState.isInspectorAnimating = shouldAnimate
 
         if shouldAnimate {
-            withAnimation(SwiftUI.Animation.easeInOut(duration: inspectorAnimationDuration)) {
-                uiState.inspectorReveal = 1
-            }
             // Animate only the window expansion with easing
             setWindowFrame(expandedFrame, animated: true, duration: inspectorAnimationDuration)
             DispatchQueue.main.asyncAfter(deadline: .now() + inspectorAnimationDuration) { [weak self] in
@@ -571,9 +568,6 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         uiState.isInspectorClosing = shouldAnimate
 
         if shouldAnimate {
-            withAnimation(SwiftUI.Animation.easeInOut(duration: inspectorAnimationDuration)) {
-                uiState.inspectorReveal = 0
-            }
             setWindowFrame(targetFrame, animated: true, duration: inspectorAnimationDuration)
             DispatchQueue.main.asyncAfter(deadline: .now() + inspectorAnimationDuration) { [weak self] in
                 guard let self, self.inspectorAnimationToken == token else { return }
@@ -601,10 +595,18 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             updateCollapsedFrame(forExpandedFrame: window.frame)
         }
         if uiState.isInspectorAnimating {
+            updateInspectorRevealFromWindow()
             return
         }
         saveWindowFrame()
         lastWindowFrame = window.frame
+    }
+
+    private func updateInspectorRevealFromWindow() {
+        guard let window else { return }
+        let collapsedWidth = collapsedFrameBeforeInspector?.width ?? max(0, window.frame.width - inspectorTotalWidth)
+        let reveal = (window.frame.width - collapsedWidth) / inspectorTotalWidth
+        uiState.inspectorReveal = max(0, min(1, reveal))
     }
 
     private func updateCollapsedFrame(forExpandedFrame expandedFrame: NSRect) {
