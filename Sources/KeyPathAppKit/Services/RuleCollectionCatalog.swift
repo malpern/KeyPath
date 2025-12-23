@@ -183,27 +183,7 @@ struct RuleCollectionCatalog {
             name: "Window Snapping",
             summary: "Snap windows to edges/corners, move between displays and Spaces.",
             category: .productivity,
-            mappings: [
-                // Halves
-                KeyMapping(input: "h", output: #"(push-msg "window:left")"#, description: "Left half"),
-                KeyMapping(input: "l", output: #"(push-msg "window:right")"#, description: "Right half"),
-                // Full/center
-                KeyMapping(input: "m", output: #"(push-msg "window:maximize")"#, description: "Maximize/Restore"),
-                KeyMapping(input: "c", output: #"(push-msg "window:center")"#, description: "Center"),
-                // Corners (using vim-adjacent keys: y/u for top, b/n for bottom)
-                KeyMapping(input: "y", output: #"(push-msg "window:top-left")"#, description: "Top-left", sectionBreak: true),
-                KeyMapping(input: "u", output: #"(push-msg "window:top-right")"#, description: "Top-right"),
-                KeyMapping(input: "b", output: #"(push-msg "window:bottom-left")"#, description: "Bottom-left"),
-                KeyMapping(input: "n", output: #"(push-msg "window:bottom-right")"#, description: "Bottom-right"),
-                // Display movement
-                KeyMapping(input: "[", output: #"(push-msg "window:previous-display")"#, description: "Previous display", sectionBreak: true),
-                KeyMapping(input: "]", output: #"(push-msg "window:next-display")"#, description: "Next display"),
-                // Space movement (uses private CGS APIs)
-                KeyMapping(input: "a", output: #"(push-msg "window:previous-space")"#, description: "Previous Space", sectionBreak: true),
-                KeyMapping(input: "s", output: #"(push-msg "window:next-space")"#, description: "Next Space"),
-                // Undo
-                KeyMapping(input: "z", output: #"(push-msg "window:undo")"#, description: "Undo", sectionBreak: true)
-            ],
+            mappings: Self.windowMappings(for: .standard),
             isEnabled: false,
             isSystemDefault: false,
             icon: "rectangle.split.2x2",
@@ -215,8 +195,61 @@ struct RuleCollectionCatalog {
                 sourceLayer: .navigation  // Activated from within navigation layer
             ),
             activationHint: "Leader → w → action key",
-            displayStyle: .table
+            displayStyle: .table,
+            windowKeyConvention: .standard
         )
+    }
+
+    /// Generate window snapping key mappings for a given convention
+    static func windowMappings(for convention: WindowKeyConvention) -> [KeyMapping] {
+        switch convention {
+        case .standard:
+            // Mnemonic keys: L=Left, R=Right, U/I/J/K spatial grid for corners
+            return [
+                // Halves (mnemonic)
+                KeyMapping(input: "l", output: #"(push-msg "window:left")"#, description: "Left half"),
+                KeyMapping(input: "r", output: #"(push-msg "window:right")"#, description: "Right half"),
+                // Full/center (mnemonic)
+                KeyMapping(input: "m", output: #"(push-msg "window:maximize")"#, description: "Maximize/Restore"),
+                KeyMapping(input: "c", output: #"(push-msg "window:center")"#, description: "Center"),
+                // Corners (U/I/J/K spatial grid mirrors screen quadrants)
+                KeyMapping(input: "u", output: #"(push-msg "window:top-left")"#, description: "Top-left", sectionBreak: true),
+                KeyMapping(input: "i", output: #"(push-msg "window:top-right")"#, description: "Top-right"),
+                KeyMapping(input: "j", output: #"(push-msg "window:bottom-left")"#, description: "Bottom-left"),
+                KeyMapping(input: "k", output: #"(push-msg "window:bottom-right")"#, description: "Bottom-right"),
+                // Display movement
+                KeyMapping(input: "[", output: #"(push-msg "window:previous-display")"#, description: "Previous display", sectionBreak: true),
+                KeyMapping(input: "]", output: #"(push-msg "window:next-display")"#, description: "Next display"),
+                // Space movement (< > direction via , .)
+                KeyMapping(input: ",", output: #"(push-msg "window:previous-space")"#, description: "Previous Space", sectionBreak: true),
+                KeyMapping(input: ".", output: #"(push-msg "window:next-space")"#, description: "Next Space"),
+                // Undo
+                KeyMapping(input: "z", output: #"(push-msg "window:undo")"#, description: "Undo", sectionBreak: true)
+            ]
+        case .vim:
+            // Vim-style: H/L for left/right, Y/U/B/N for corners
+            return [
+                // Halves (vim navigation)
+                KeyMapping(input: "h", output: #"(push-msg "window:left")"#, description: "Left half"),
+                KeyMapping(input: "l", output: #"(push-msg "window:right")"#, description: "Right half"),
+                // Full/center
+                KeyMapping(input: "m", output: #"(push-msg "window:maximize")"#, description: "Maximize/Restore"),
+                KeyMapping(input: "c", output: #"(push-msg "window:center")"#, description: "Center"),
+                // Corners (vim-adjacent keys: y/u for top, b/n for bottom)
+                KeyMapping(input: "y", output: #"(push-msg "window:top-left")"#, description: "Top-left", sectionBreak: true),
+                KeyMapping(input: "u", output: #"(push-msg "window:top-right")"#, description: "Top-right"),
+                KeyMapping(input: "b", output: #"(push-msg "window:bottom-left")"#, description: "Bottom-left"),
+                KeyMapping(input: "n", output: #"(push-msg "window:bottom-right")"#, description: "Bottom-right"),
+                // Display movement
+                KeyMapping(input: "[", output: #"(push-msg "window:previous-display")"#, description: "Previous display", sectionBreak: true),
+                KeyMapping(input: "]", output: #"(push-msg "window:next-display")"#, description: "Next display"),
+                // Space movement
+                KeyMapping(input: "a", output: #"(push-msg "window:previous-space")"#, description: "Previous Space", sectionBreak: true),
+                KeyMapping(input: "s", output: #"(push-msg "window:next-space")"#, description: "Next Space"),
+                // Undo
+                KeyMapping(input: "z", output: #"(push-msg "window:undo")"#, description: "Undo", sectionBreak: true)
+            ]
+        }
     }
 
     private var capsLockRemap: RuleCollection {
