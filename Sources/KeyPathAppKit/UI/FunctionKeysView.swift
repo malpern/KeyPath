@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 // MARK: - Function Keys View
@@ -7,33 +8,82 @@ import SwiftUI
 struct FunctionKeysView: View {
     let mappings: [KeyMapping]
 
-    /// Display mode: true = show media keys (default Mac behavior), false = show F-keys
-    @State private var showMediaKeys: Bool = true
+    /// User's preferred display mode: true = show media keys (default Mac behavior)
+    @State private var preferMediaKeys: Bool = true
+
+    /// Whether fn key is currently held (temporarily flips display)
+    @State private var isFnHeld: Bool = false
+
+    /// Event monitor for fn key
+    @State private var flagsMonitor: Any?
+
+    /// Effective display state (combines preference with fn key override)
+    private var showMediaKeys: Bool {
+        // If user prefers media keys and fn is held, show F-keys (flip)
+        // If user prefers F-keys and fn is held, show media keys (flip)
+        preferMediaKeys != isFnHeld
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 20) {
             // Function key row
             FunctionKeyRow(showMediaKeys: showMediaKeys)
 
             // Toggle control
-            DisplayModeToggle(showMediaKeys: $showMediaKeys)
+            DisplayModeToggle(showMediaKeys: $preferMediaKeys)
 
             // Educational tip
-            HStack(spacing: 6) {
-                Image(systemName: "fn")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(.white)
-                    .frame(width: 18, height: 18)
-                    .background(
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Color.secondary.opacity(0.6))
-                    )
-                Text("Hold fn to temporarily flip to function keys")
+            HStack(spacing: 8) {
+                FnKeyBadge()
+                Text("Hold fn to temporarily flip to \(preferMediaKeys ? "function keys" : "media keys")")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
+            .padding(.top, 4)
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 12)
+        .onAppear {
+            startMonitoringFnKey()
+        }
+        .onDisappear {
+            stopMonitoringFnKey()
+        }
+    }
+
+    // MARK: - Fn Key Monitoring
+
+    private func startMonitoringFnKey() {
+        flagsMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { event in
+            let fnPressed = event.modifierFlags.contains(.function)
+            if fnPressed != isFnHeld {
+                withAnimation(.easeInOut(duration: 0.1)) {
+                    isFnHeld = fnPressed
+                }
+            }
+            return event
+        }
+    }
+
+    private func stopMonitoringFnKey() {
+        if let monitor = flagsMonitor {
+            NSEvent.removeMonitor(monitor)
+            flagsMonitor = nil
+        }
+    }
+}
+
+// MARK: - Fn Key Badge
+
+private struct FnKeyBadge: View {
+    var body: some View {
+        Text("fn")
+            .font(.system(size: 9, weight: .bold, design: .rounded))
+            .foregroundColor(.white)
+            .frame(width: 20, height: 16)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.secondary.opacity(0.7))
+            )
     }
 }
 
@@ -43,7 +93,7 @@ private struct FunctionKeyRow: View {
     let showMediaKeys: Bool
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 6) {
             ForEach(FunctionKeyInfo.allKeys, id: \.keyCode) { keyInfo in
                 FunctionKeyCard(
                     keyInfo: keyInfo,
@@ -51,13 +101,13 @@ private struct FunctionKeyRow: View {
                 )
             }
         }
-        .padding(12)
+        .padding(16)
         .background(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 14)
                 .fill(Color(NSColor.controlBackgroundColor).opacity(0.6))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 14)
                 .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
         )
     }
@@ -80,28 +130,28 @@ private struct FunctionKeyCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 4) {
             // Icon/label area
             ZStack {
                 if displayedShowMedia {
                     // Media key icon
                     Image(systemName: keyInfo.mediaIcon)
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.system(size: 15, weight: .medium))
                         .foregroundColor(keyInfo.iconColor)
                 } else {
                     // Function key label
                     Text(keyInfo.fKeyLabel)
-                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
                         .foregroundColor(.primary)
                 }
             }
-            .frame(width: 28, height: 28)
+            .frame(width: 32, height: 32)
             .background(
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: 7)
                     .fill(displayedShowMedia ? keyInfo.iconColor.opacity(0.12) : Color.secondary.opacity(0.1))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: 7)
                     .stroke(displayedShowMedia ? keyInfo.iconColor.opacity(0.3) : Color.secondary.opacity(0.2), lineWidth: 1)
             )
             .rotation3DEffect(
@@ -112,14 +162,14 @@ private struct FunctionKeyCard: View {
 
             // Small label underneath
             Text(displayedShowMedia ? keyInfo.shortLabel : keyInfo.fKeyLabel)
-                .font(.system(size: 8, weight: .medium))
+                .font(.system(size: 9, weight: .medium))
                 .foregroundColor(.secondary)
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity)
         .onAppear {
             displayedShowMedia = showMediaKey
-            randomDelay = Double.random(in: 0...0.15)
+            randomDelay = Double.random(in: 0...0.12)
             durationMultiplier = Double.random(in: 0.8...1.3)
         }
         .onChange(of: showMediaKey) { oldValue, newValue in
@@ -154,18 +204,24 @@ private struct DisplayModeToggle: View {
     @Binding var showMediaKeys: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
+            // Segmented picker with icons
             Picker("Display Mode", selection: $showMediaKeys) {
-                Text("Media Keys").tag(true)
-                Text("Function Keys").tag(false)
+                Label("Media Keys", systemImage: "sun.max")
+                    .tag(true)
+                Label("Function Keys", systemImage: "function")
+                    .tag(false)
             }
             .pickerStyle(.segmented)
+            .labelsHidden()
 
+            // Description
             Text(showMediaKeys
                 ? "Shows brightness, volume, and media controls (default Mac behavior)"
                 : "Shows F1-F12 for apps that use function keys")
                 .font(.caption)
                 .foregroundColor(.secondary)
+                .padding(.horizontal, 2)
         }
     }
 }
@@ -199,6 +255,6 @@ private struct FunctionKeyInfo {
 
 #Preview {
     FunctionKeysView(mappings: [])
-        .frame(width: 450)
+        .frame(width: 500)
         .padding()
 }
