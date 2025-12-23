@@ -629,7 +629,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
     private func handleWindowFrameChange() {
         guard let window else { return }
-        if uiState.isInspectorOpen {
+        if uiState.isInspectorOpen && !uiState.isInspectorClosing {
             updateCollapsedFrame(forExpandedFrame: window.frame)
         }
         if uiState.isInspectorAnimating {

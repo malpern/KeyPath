@@ -11,7 +11,7 @@ struct WindowSnappingView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Convention picker
+            // Convention picker (leader key style)
             ConventionPicker(
                 convention: convention,
                 onConventionChange: onConventionChange
@@ -39,61 +39,39 @@ struct WindowSnappingView: View {
 
 // MARK: - Convention Picker
 
+/// Native macOS segmented picker for key layout convention
 private struct ConventionPicker: View {
     let convention: WindowKeyConvention
     let onConventionChange: (WindowKeyConvention) -> Void
 
-    var body: some View {
-        HStack(spacing: 12) {
-            Text("Key Layout:")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(.secondary)
+    @State private var localConvention: WindowKeyConvention
 
-            HStack(spacing: 0) {
-                ForEach(WindowKeyConvention.allCases, id: \.self) { option in
-                    ConventionButton(
-                        convention: option,
-                        isSelected: convention == option,
-                        onSelect: { onConventionChange(option) }
-                    )
-                }
-            }
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(NSColor.controlBackgroundColor))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-            )
-
-            Spacer()
-        }
+    init(convention: WindowKeyConvention, onConventionChange: @escaping (WindowKeyConvention) -> Void) {
+        self.convention = convention
+        self.onConventionChange = onConventionChange
+        _localConvention = State(initialValue: convention)
     }
-}
-
-private struct ConventionButton: View {
-    let convention: WindowKeyConvention
-    let isSelected: Bool
-    let onSelect: () -> Void
 
     var body: some View {
-        Button(action: onSelect) {
-            VStack(spacing: 2) {
-                Text(convention.displayName)
-                    .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
-                Text(convention.description)
-                    .font(.system(size: 9))
-                    .foregroundColor(.secondary)
+        VStack(alignment: .leading, spacing: 8) {
+            // Native macOS segmented control
+            Picker("Key Layout", selection: $localConvention) {
+                Text("Standard").tag(WindowKeyConvention.standard)
+                Text("Vim").tag(WindowKeyConvention.vim)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
-            )
+            .pickerStyle(.segmented)
+            .onChange(of: localConvention) { _, newValue in
+                onConventionChange(newValue)
+            }
+            .onChange(of: convention) { _, newValue in
+                localConvention = newValue
+            }
+
+            // Description
+            Text(convention.description)
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
-        .buttonStyle(.plain)
     }
 }
 
@@ -462,6 +440,16 @@ private struct SnapKeyBadge: View {
     var size: BadgeSize = .regular
     var label: String? = nil
 
+    /// Track displayed key and flip animation state
+    @State private var displayedKey: String = ""
+    @State private var flipAngle: Double = 0
+    /// Randomized delay for this badge (0-0.15s)
+    @State private var randomDelay: Double = 0
+    /// Randomized duration multiplier (0.8-1.2x)
+    @State private var durationMultiplier: Double = 1.0
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     enum BadgeSize {
         case small, regular, large
 
@@ -484,7 +472,7 @@ private struct SnapKeyBadge: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Text(key.uppercased())
+            Text(displayedKey.uppercased())
                 .font(.system(size: size.fontSize, weight: .semibold, design: .monospaced))
                 .foregroundColor(isHighlighted ? .white : color)
                 .frame(width: size.dimension, height: size.dimension)
@@ -497,12 +485,52 @@ private struct SnapKeyBadge: View {
                         .stroke(color.opacity(0.3), lineWidth: 1)
                 )
                 .scaleEffect(isHighlighted ? 1.1 : 1.0)
+                .rotation3DEffect(
+                    .degrees(flipAngle),
+                    axis: (x: 0, y: 1, z: 0),
+                    perspective: 0.5
+                )
                 .animation(.spring(response: 0.2, dampingFraction: 0.6), value: isHighlighted)
 
             if let label {
                 Text(label)
                     .font(.system(size: 10, weight: .medium))
                     .foregroundColor(.secondary)
+            }
+        }
+        .onAppear {
+            displayedKey = key
+            // Generate random timing characteristics for this badge
+            randomDelay = Double.random(in: 0...0.12)
+            durationMultiplier = Double.random(in: 0.8...1.3)
+        }
+        .onChange(of: key) { oldKey, newKey in
+            guard oldKey != newKey else { return }
+
+            if reduceMotion {
+                displayedKey = newKey
+            } else {
+                // Determine flip direction: Standard→Vim flips right (+90), Vim→Standard flips left (-90)
+                // We detect direction by checking if we're going to a "vim-style" key
+                let isGoingToVim = ["Y", "B", "N", "H"].contains(newKey.uppercased())
+                let targetAngle: Double = isGoingToVim ? 90 : -90
+
+                let baseDuration = 0.15 * durationMultiplier
+
+                // Staggered start with random delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + randomDelay) {
+                    // Flip out (to 90 or -90)
+                    withAnimation(.easeIn(duration: baseDuration)) {
+                        flipAngle = targetAngle
+                    }
+                    // Change key at midpoint and flip back in
+                    DispatchQueue.main.asyncAfter(deadline: .now() + baseDuration) {
+                        displayedKey = newKey
+                        withAnimation(.easeOut(duration: baseDuration)) {
+                            flipAngle = 0
+                        }
+                    }
+                }
             }
         }
     }
