@@ -408,6 +408,8 @@ struct OverlayInspectorPanel: View {
                         keymapsContent
                     case .layout:
                         physicalLayoutContent
+                    case .keycaps:
+                        keycapsContent
                     }
                 }
                 .padding(.horizontal, 12)
@@ -481,6 +483,44 @@ struct OverlayInspectorPanel: View {
                     selectedLayoutId = layout.id
                 }
             }
+        }
+    }
+
+    // MARK: - Keycaps Content
+
+    @ViewBuilder
+    private var keycapsContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Header
+            Text("Keycap Style")
+                .font(.headline)
+                .foregroundStyle(.primary)
+
+            Text("Customize your keyboard with iconic GMK colorways.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            // Coming soon placeholder
+            VStack(spacing: 12) {
+                Image(systemName: "swatchpalette.fill")
+                    .font(.system(size: 32))
+                    .foregroundStyle(.secondary)
+
+                Text("Coming Soon")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+
+                Text("GMK Olivia, 8008, Laser, and more...")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 24)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isDark ? Color.white.opacity(0.05) : Color.black.opacity(0.03))
+            )
         }
     }
 
@@ -635,6 +675,7 @@ private struct InspectorPanelToolbar: View {
     private let buttonSize: CGFloat = 32
     @State private var isHoveringKeyboard = false
     @State private var isHoveringLayout = false
+    @State private var isHoveringKeycaps = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -657,6 +698,16 @@ private struct InspectorPanelToolbar: View {
                 onSelectSection(.layout)
             }
             .accessibilityLabel("Physical Layout")
+
+            toolbarButton(
+                systemImage: "swatchpalette.fill",
+                isSelected: selectedSection == .keycaps,
+                isHovering: isHoveringKeycaps,
+                onHover: { isHoveringKeycaps = $0 }
+            ) {
+                onSelectSection(.keycaps)
+            }
+            .accessibilityLabel("Keycap Style")
         }
         .controlSize(.regular)
         .padding(.horizontal, 14)
@@ -717,6 +768,7 @@ private struct GlassEffectModifier: ViewModifier {
 enum InspectorSection {
     case keyboard
     case layout
+    case keycaps
 }
 
 // MARK: - Preview
