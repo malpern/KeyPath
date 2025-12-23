@@ -85,11 +85,7 @@ struct LiveKeyboardOverlayView: View {
                     if inspectorVisible {
                         let reveal = max(0, min(1, inspectorReveal))
                         let slideOffset = -(1 - reveal) * inspectorTotalWidth
-                        let closingOpacity = max(0, min(1, (reveal - 0.85) / 0.15))
-                        let openingOpacity = max(0, min(1, (reveal - 0.75) / 0.25))
-                        let inspectorOpacity: CGFloat = uiState.isInspectorClosing
-                            ? closingOpacity
-                            : (uiState.isInspectorAnimating ? openingOpacity : 1)
+                        let inspectorOpacity: CGFloat = 1
                         let inspectorContent = OverlayInspectorPanel(
                             selectedSection: inspectorSection,
                             onSelectSection: { inspectorSection = $0 },
