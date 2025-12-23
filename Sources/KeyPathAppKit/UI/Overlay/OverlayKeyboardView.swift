@@ -36,6 +36,12 @@ struct OverlayKeyboardView: View {
     /// Track caps lock state from system
     @State private var isCapsLockOn: Bool = NSEvent.modifierFlags.contains(.capsLock)
 
+    /// Track keymap flip animation
+    @State private var keymapFlipProgress: CGFloat = 0
+    @State private var previousKeymapId: String = ""
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     /// Selected colorway ID from user preferences
     @AppStorage("overlayColorwayId") private var selectedColorwayId: String = GMKColorway.default.id
 
@@ -66,11 +72,35 @@ struct OverlayKeyboardView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .preference(key: EscKeyLeftInsetPreferenceKey.self, value: escLeftInset)
+            // Apply flip animation to entire keyboard when keymap changes
+            .rotation3DEffect(
+                .degrees(keymapFlipProgress * 180),
+                axis: (x: 1, y: 0, z: 0),
+                perspective: 0.3
+            )
+            .opacity(keymapFlipProgress > 0.5 ? 0 : 1)
         }
         .aspectRatio(layout.totalWidth / layout.totalHeight, contentMode: .fit)
         .onChange(of: effectivePressedKeyCodes) { _, _ in
             // Update caps lock state when any key changes (captures toggle)
             isCapsLockOn = NSEvent.modifierFlags.contains(.capsLock)
+        }
+        .onChange(of: keymap.id) { oldValue, newValue in
+            guard !reduceMotion else { return }
+            guard oldValue != newValue else { return }
+
+            // Animate flip: 0 -> 1 (flip out), then back 1 -> 0 (flip in with new labels)
+            withAnimation(.easeIn(duration: 0.2)) {
+                keymapFlipProgress = 1
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    keymapFlipProgress = 0
+                }
+            }
+        }
+        .onAppear {
+            previousKeymapId = keymap.id
         }
     }
 
