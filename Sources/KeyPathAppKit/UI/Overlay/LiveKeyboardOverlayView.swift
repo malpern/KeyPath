@@ -85,28 +85,26 @@ struct LiveKeyboardOverlayView: View {
                     if inspectorVisible {
                         let reveal = max(0, min(1, inspectorReveal))
                         let slideOffset = -(1 - reveal) * inspectorTotalWidth
-                        let maskWidth = inspectorTotalWidth * reveal
                         let closingOpacity = max(0, min(1, (reveal - 0.85) / 0.15))
                         let openingOpacity = max(0, min(1, (reveal - 0.75) / 0.25))
                         let inspectorOpacity: CGFloat = uiState.isInspectorClosing
                             ? closingOpacity
                             : (uiState.isInspectorAnimating ? openingOpacity : 1)
-                        OverlayInspectorPanel(
+                        let inspectorContent = OverlayInspectorPanel(
                             selectedSection: inspectorSection,
                             onSelectSection: { inspectorSection = $0 },
                             fadeAmount: fadeAmount,
                             onKeymapChanged: onKeymapChanged
                         )
-                        .opacity(Double(inspectorOpacity))
                         .frame(width: inspectorWidth, alignment: .leading)
                         .frame(width: inspectorTotalWidth, alignment: .leading)
-                        .offset(x: slideOffset)
-                        .mask(
-                            HStack(spacing: 0) {
-                                Rectangle()
-                                    .frame(width: maskWidth)
-                                Spacer(minLength: 0)
-                            }
+
+                        InspectorMaskedHost(
+                            content: inspectorContent,
+                            reveal: reveal,
+                            totalWidth: inspectorTotalWidth,
+                            slideOffset: slideOffset,
+                            opacity: inspectorOpacity
                         )
                         .frame(width: inspectorTotalWidth, alignment: .leading)
                         .frame(maxHeight: .infinity, alignment: .top)
@@ -386,6 +384,80 @@ private struct RightRoundedRectangle: Shape {
         path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
         path.closeSubpath()
         return path
+    }
+}
+
+private struct InspectorMaskedHost<Content: View>: NSViewRepresentable {
+    var content: Content
+    var reveal: CGFloat
+    var totalWidth: CGFloat
+    var slideOffset: CGFloat
+    var opacity: CGFloat
+
+    func makeNSView(context: Context) -> InspectorMaskedHostingView<Content> {
+        InspectorMaskedHostingView(content: content)
+    }
+
+    func updateNSView(_ nsView: InspectorMaskedHostingView<Content>, context: Context) {
+        nsView.update(
+            content: content,
+            reveal: reveal,
+            totalWidth: totalWidth,
+            slideOffset: slideOffset,
+            opacity: opacity
+        )
+    }
+}
+
+private final class InspectorMaskedHostingView<Content: View>: NSView {
+    private let hostingView: NSHostingView<Content>
+    private let maskLayer = CALayer()
+    private var reveal: CGFloat = 0
+    private var totalWidth: CGFloat = 0
+    private var slideOffset: CGFloat = 0
+    private var contentOpacity: CGFloat = 1
+
+    init(content: Content) {
+        self.hostingView = NSHostingView(rootView: content)
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.masksToBounds = false
+        layer?.mask = maskLayer
+        maskLayer.backgroundColor = NSColor.black.cgColor
+
+        hostingView.wantsLayer = true
+        hostingView.translatesAutoresizingMaskIntoConstraints = true
+        addSubview(hostingView)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func update(
+        content: Content,
+        reveal: CGFloat,
+        totalWidth: CGFloat,
+        slideOffset: CGFloat,
+        opacity: CGFloat
+    ) {
+        hostingView.rootView = content
+        self.reveal = reveal
+        self.totalWidth = totalWidth
+        self.slideOffset = slideOffset
+        self.contentOpacity = opacity
+        needsLayout = true
+    }
+
+    override func layout() {
+        super.layout()
+        let bounds = self.bounds
+        hostingView.frame = bounds.offsetBy(dx: slideOffset, dy: 0)
+        hostingView.alphaValue = contentOpacity
+
+        let widthBasis = totalWidth > 0 ? totalWidth : bounds.width
+        let width = max(0, min(widthBasis, widthBasis * reveal))
+        maskLayer.frame = CGRect(x: 0, y: 0, width: width, height: bounds.height)
     }
 }
 
