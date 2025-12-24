@@ -51,6 +51,75 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         }
     }
 
+    /// Extract single key picker config if this is a `.singleKeyPicker` case
+    public var singleKeyPickerConfig: SingleKeyPickerConfig? {
+        if case let .singleKeyPicker(config) = self { return config }
+        return nil
+    }
+
+    /// Extract tap-hold picker config if this is a `.tapHoldPicker` case
+    public var tapHoldPickerConfig: TapHoldPickerConfig? {
+        if case let .tapHoldPicker(config) = self { return config }
+        return nil
+    }
+
+    /// Extract home row mods config if this is a `.homeRowMods` case
+    public var homeRowModsConfig: HomeRowModsConfig? {
+        if case let .homeRowMods(config) = self { return config }
+        return nil
+    }
+
+    /// Extract layer preset picker config if this is a `.layerPresetPicker` case
+    public var layerPresetPickerConfig: LayerPresetPickerConfig? {
+        if case let .layerPresetPicker(config) = self { return config }
+        return nil
+    }
+
+    // MARK: - Mutating Helpers
+
+    /// Update the selected output for single key picker configuration
+    public mutating func updateSelectedOutput(_ output: String) {
+        if case let .singleKeyPicker(config) = self {
+            var updated = config
+            updated.selectedOutput = output
+            self = .singleKeyPicker(updated)
+        }
+    }
+
+    /// Update the selected tap output for tap-hold picker configuration
+    public mutating func updateSelectedTapOutput(_ output: String) {
+        if case let .tapHoldPicker(config) = self {
+            var updated = config
+            updated.selectedTapOutput = output
+            self = .tapHoldPicker(updated)
+        }
+    }
+
+    /// Update the selected hold output for tap-hold picker configuration
+    public mutating func updateSelectedHoldOutput(_ output: String) {
+        if case let .tapHoldPicker(config) = self {
+            var updated = config
+            updated.selectedHoldOutput = output
+            self = .tapHoldPicker(updated)
+        }
+    }
+
+    /// Update the home row mods config
+    public mutating func updateHomeRowModsConfig(_ newConfig: HomeRowModsConfig) {
+        if case .homeRowMods = self {
+            self = .homeRowMods(newConfig)
+        }
+    }
+
+    /// Update the selected preset for layer preset picker configuration
+    public mutating func updateSelectedPreset(_ presetId: String) {
+        if case let .layerPresetPicker(config) = self {
+            var updated = config
+            updated.selectedPresetId = presetId
+            self = .layerPresetPicker(updated)
+        }
+    }
+
     // MARK: - Codable
 
     private enum CodingKeys: String, CodingKey {

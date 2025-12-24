@@ -112,8 +112,8 @@ private struct KeyboardIllustrationCard: View {
            let image = NSImage(contentsOf: imageURL) {
             Image(nsImage: image)
                 .resizable()
+                .interpolation(.high)
                 .aspectRatio(contentMode: .fit)
-                .antialiased(true)
         } else {
             // Fallback to SF Symbol
             Image(systemName: "keyboard")

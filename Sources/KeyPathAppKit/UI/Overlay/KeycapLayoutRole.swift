@@ -80,35 +80,76 @@ struct OpticalAdjustments {
 // MARK: - PhysicalKey Extension
 
 extension PhysicalKey {
-    /// Layout role determined by physical properties (position, size), not label.
-    /// This ensures remapping doesn't break layout.
+    // MARK: - KeyCode Sets for Role Detection
+
+    /// Function key keyCodes (F1-F12)
+    private static let functionKeyCodes: Set<UInt16> = [
+        122, // F1
+        120, // F2
+        99, // F3
+        118, // F4
+        96, // F5
+        97, // F6
+        98, // F7
+        100, // F8
+        101, // F9
+        109, // F10
+        103, // F11
+        111 // F12
+    ]
+
+    /// Narrow modifier keyCodes (fn, ctrl, opt, cmd on both sides)
+    private static let narrowModifierKeyCodes: Set<UInt16> = [
+        63, // fn
+        59, // left ctrl
+        58, // left opt
+        55, // left cmd
+        54, // right cmd
+        61, // right opt
+        62 // right ctrl (if present)
+    ]
+
+    /// Layout role determined by keyCode first, then physical properties as fallback.
+    /// Using keyCode ensures correct rendering across different keyboard layouts
+    /// (e.g., Kinesis 360 vs MacBook) where position-based detection would fail.
     var layoutRole: KeycapLayoutRole {
+        // 1. Use keyCode for definitive roles
+
+        // Function keys (F1-F12) by keyCode
+        if Self.functionKeyCodes.contains(keyCode) {
+            return .functionKey
+        }
+
+        // ESC key by keyCode
+        if keyCode == 53 {
+            return .escKey
+        }
+
+        // Touch ID / layer indicator: sentinel keyCode with specific label
+        // Only the MacBook Touch ID key (🔒) gets this role
+        if keyCode == 0xFFFF, label == "🔒" {
+            return .touchId
+        }
+
+        // Sentinel keyCode keys without Touch ID label (Kinesis Lyr, Fn, etc.)
+        // These should display as centered labels
+        if keyCode == 0xFFFF {
+            return .centered
+        }
+
+        // Narrow modifiers by keyCode (fn, ctrl, opt, cmd)
+        if Self.narrowModifierKeyCodes.contains(keyCode) {
+            return .narrowModifier
+        }
+
+        // 2. Use physical properties for remaining keys
+
         // Arrow keys: small height (< 0.5)
         if height < 0.5 {
             return .arrow
         }
 
-        // Function row: y position is 0 (first row)
-        if y < 0.5 {
-            // ESC is at x=0 (width 1.5, wider than function keys)
-            if x < 0.5 {
-                return .escKey
-            }
-            // Touch ID is at far right of function row (standard width 1.0)
-            if x > 14, width <= 1.0 {
-                return .touchId
-            }
-            // All other function row keys
-            return .functionKey
-        }
-
-        // Bottom row narrow modifiers: row 5 (y > 4.5), narrow width (1.0-1.4)
-        if y > 4.5, width >= 1.0, width < 1.4 {
-            return .narrowModifier
-        }
-
         // Wide keys: width >= 1.5 (shift, return, delete, tab, caps, spacebar)
-        // Exception: spacebar is wide but should be centered
         if width >= 1.5 {
             // Spacebar is very wide (> 5 units) - centered content
             if width > 5 {

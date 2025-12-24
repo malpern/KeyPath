@@ -42,7 +42,7 @@ final class LayerKeyMapperTests: XCTestCase {
 
         let simulatorService = SimulatorService.forTesting(simulatorPath: simulatorPath)
         let mapper = LayerKeyMapper(simulatorService: simulatorService)
-        let mapping = try await mapper.getMapping(for: "base", configPath: configPath)
+        let mapping = try await mapper.getMapping(for: "base", configPath: configPath, layout: .macBookUS)
 
         // Should have mapping for key 1 (keycode 18)
         let key1Mapping = mapping[18]
@@ -69,7 +69,7 @@ final class LayerKeyMapperTests: XCTestCase {
 
         let simulatorService = SimulatorService.forTesting(simulatorPath: simulatorPath)
         let mapper = LayerKeyMapper(simulatorService: simulatorService)
-        let mapping = try await mapper.getMapping(for: "base", configPath: configPath)
+        let mapping = try await mapper.getMapping(for: "base", configPath: configPath, layout: .macBookUS)
 
         // Caps Lock (keycode 57) should have some mapping
         // With tap-hold, a 50ms tap may not produce output (waits for timeout)
@@ -94,7 +94,7 @@ final class LayerKeyMapperTests: XCTestCase {
 
         let simulatorService = SimulatorService.forTesting(simulatorPath: simulatorPath)
         let mapper = LayerKeyMapper(simulatorService: simulatorService)
-        let mapping = try await mapper.getMapping(for: "base", configPath: configPath)
+        let mapping = try await mapper.getMapping(for: "base", configPath: configPath, layout: .macBookUS)
 
         // Check 1->2 mapping (keycode 18)
         let key1Mapping = mapping[18]
@@ -122,7 +122,7 @@ final class LayerKeyMapperTests: XCTestCase {
 
         let simulatorService = SimulatorService.forTesting(simulatorPath: simulatorPath)
         let mapper = LayerKeyMapper(simulatorService: simulatorService)
-        let mapping = try await mapper.getMapping(for: "base", configPath: configPath)
+        let mapping = try await mapper.getMapping(for: "base", configPath: configPath, layout: .macBookUS)
 
         // Key a (keycode 0) should NOT be marked as remapped since it maps to itself
         let keyAMapping = mapping[0]

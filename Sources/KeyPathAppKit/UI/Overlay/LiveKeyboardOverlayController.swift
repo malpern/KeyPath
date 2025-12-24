@@ -172,8 +172,21 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             if let window {
                 let minInspectorHeight = OverlayLayoutMetrics.verticalChrome + minInspectorKeyboardHeight
                 if window.frame.height < minInspectorHeight {
-                    AppLogger.shared.log("⚠️ [OverlayController] Inspector hidden: overlay too small (height \(window.frame.height.rounded()))")
-                    return
+                    // Auto-resize window to minimum height required for inspector
+                    AppLogger.shared.log("📐 [OverlayController] Auto-resizing window from \(window.frame.height.rounded())pt to \(minInspectorHeight)pt for inspector")
+                    var newFrame = window.frame
+                    let heightDelta = minInspectorHeight - newFrame.height
+                    newFrame.size.height = minInspectorHeight
+                    // Adjust width to maintain aspect ratio
+                    let keyboardHeight = minInspectorHeight - OverlayLayoutMetrics.verticalChrome
+                    let keyboardWidth = keyboardHeight * baseKeyboardAspectRatio
+                    let horizontalChrome = OverlayLayoutMetrics.keyboardPadding
+                        + OverlayLayoutMetrics.keyboardTrailingPadding
+                        + OverlayLayoutMetrics.outerHorizontalPadding * 2
+                    newFrame.size.width = keyboardWidth + horizontalChrome
+                    // Keep bottom-left anchored (move origin down by height increase)
+                    newFrame.origin.y -= heightDelta
+                    window.setFrame(newFrame, display: true, animate: true)
                 }
             }
             AppLogger.shared.log("🔧 [OverlayController] Opening inspector...")

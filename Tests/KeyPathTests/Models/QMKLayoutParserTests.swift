@@ -241,4 +241,93 @@ struct QMKLayoutParserTests {
         let hasTallKeys = layout.keys.contains { $0.height > 1.0 }
         #expect(hasTallKeys, "Should have tall keys (2u)")
     }
+
+    // MARK: - JSON keyCode/label Tests (Tier 1 format)
+
+    @Test func parseJSONWithEmbeddedKeyCodeAndLabel() {
+        // JSON with embedded keyCode and label (Tier 1 format)
+        let jsonWithKeyCode = """
+        {
+          "id": "tier1-keyboard",
+          "name": "Tier 1 Keyboard",
+          "layouts": {
+            "default_transform": {
+              "layout": [
+                { "row": 0, "col": 0, "x": 0, "y": 0, "keyCode": 18, "label": "1" },
+                { "row": 0, "col": 1, "x": 1, "y": 0, "keyCode": 0, "label": "a" },
+                { "row": 0, "col": 2, "x": 2, "y": 0, "keyCode": 115, "label": "Home" }
+              ]
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        // Pass a keyMapping function that returns nil - JSON should provide the mappings
+        func nilMapping(_: Int, _: Int) -> (keyCode: UInt16, label: String)? {
+            return nil
+        }
+
+        let layout = QMKLayoutParser.parse(
+            data: jsonWithKeyCode,
+            keyMapping: nilMapping
+        )
+
+        #expect(layout != nil, "Should parse JSON with embedded keyCode/label")
+        #expect(layout?.keys.count == 3, "Should have 3 keys")
+
+        // Verify keys have correct keyCode and label from JSON
+        let key1 = layout?.keys.first { $0.keyCode == 18 }
+        #expect(key1 != nil, "Should find key with keyCode 18")
+        #expect(key1?.label == "1", "Label should come from JSON")
+
+        let keyA = layout?.keys.first { $0.keyCode == 0 }
+        #expect(keyA != nil, "Should find key with keyCode 0")
+        #expect(keyA?.label == "a", "Label should come from JSON")
+
+        let keyHome = layout?.keys.first { $0.keyCode == 115 }
+        #expect(keyHome != nil, "Should find key with keyCode 115 (Home)")
+        #expect(keyHome?.label == "Home", "Label should come from JSON")
+    }
+
+    @Test func parseJSONWithMixedKeyCodeAndFallback() {
+        // JSON where some keys have embedded keyCode/label, others don't
+        let mixedJSON = """
+        {
+          "id": "mixed-keyboard",
+          "name": "Mixed Keyboard",
+          "layouts": {
+            "default_transform": {
+              "layout": [
+                { "row": 0, "col": 0, "x": 0, "y": 0, "keyCode": 18, "label": "1" },
+                { "row": 0, "col": 1, "x": 1, "y": 0 }
+              ]
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        // Provide fallback mapping for keys without embedded keyCode/label
+        func fallbackMapping(row: Int, col: Int) -> (keyCode: UInt16, label: String)? {
+            if row == 0 && col == 1 {
+                return (19, "2")
+            }
+            return nil
+        }
+
+        let layout = QMKLayoutParser.parse(
+            data: mixedJSON,
+            keyMapping: fallbackMapping
+        )
+
+        #expect(layout != nil, "Should parse mixed JSON")
+        #expect(layout?.keys.count == 2, "Should have 2 keys")
+
+        // First key from JSON
+        let key1 = layout?.keys.first { $0.keyCode == 18 }
+        #expect(key1?.label == "1", "Should use JSON label")
+
+        // Second key from fallback
+        let key2 = layout?.keys.first { $0.keyCode == 19 }
+        #expect(key2?.label == "2", "Should use fallback label")
+    }
 }

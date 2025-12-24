@@ -2,122 +2,69 @@ import Foundation
 
 /// Represents a group of related key mappings that can be toggled together.
 public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
+    // MARK: - Identity
+
     public let id: UUID
     public var name: String
+
+    // MARK: - Metadata
+
     public var summary: String
     public var category: RuleCollectionCategory
-    public var mappings: [KeyMapping]
-    public var isEnabled: Bool
-    public var isSystemDefault: Bool
     public var icon: String?
     public var tags: [String]
+    public var activationHint: String?
+
+    // MARK: - State
+
+    public var isEnabled: Bool
+    public var isSystemDefault: Bool
+
+    // MARK: - Core Behavior
+
+    public var mappings: [KeyMapping]
     public var targetLayer: RuleCollectionLayer
     public var momentaryActivator: MomentaryActivator?
-    public var activationHint: String?
-    public var displayStyle: RuleCollectionDisplayStyle
-    /// For singleKeyPicker style: the input key being remapped (e.g., "caps")
-    public var pickerInputKey: String?
-    /// For singleKeyPicker style: available preset output options
-    public var presetOptions: [SingleKeyPreset]
-    /// For singleKeyPicker style: currently selected output (can be preset or custom)
-    public var selectedOutput: String?
-    /// For homeRowMods style: configuration for home row mods
-    public var homeRowModsConfig: HomeRowModsConfig?
-    /// For tapHoldPicker style: preset options for tap and hold actions
-    public var tapHoldOptions: TapHoldPresetOptions?
-    /// For tapHoldPicker style: currently selected tap action
-    public var selectedTapOutput: String?
-    /// For tapHoldPicker style: currently selected hold action
-    public var selectedHoldOutput: String?
-    /// For layerPresetPicker style: available layer configuration presets
-    public var layerPresets: [LayerPreset]?
-    /// For layerPresetPicker style: currently selected preset ID
-    public var selectedLayerPreset: String?
-    /// For windowSnapping: which key convention to use (standard mnemonic vs vim)
-    public var windowKeyConvention: WindowKeyConvention?
-    /// For macFunctionKeys: true = media keys (default Mac), false = standard F-keys
-    public var functionKeyMode: FunctionKeyMode?
 
-    // MARK: - Configuration (Type-Safe Alternative)
+    // MARK: - Display Style Configuration
 
     /// Type-safe configuration for display-style-specific settings.
     ///
-    /// This property synthesizes the configuration from the flat optional fields.
-    /// It provides a cleaner API for callers while maintaining backwards compatibility.
+    /// This is the primary storage for display style and its associated data.
+    /// Use pattern matching to access style-specific configuration:
     ///
-    /// Usage:
     /// ```swift
     /// switch collection.configuration {
     /// case .list, .table:
-    ///     // Simple display
+    ///     // Simple display - no additional config
     /// case .singleKeyPicker(let config):
     ///     // Access config.inputKey, config.presetOptions, config.selectedOutput
     /// case .tapHoldPicker(let config):
     ///     // Access config.tapOptions, config.holdOptions, etc.
-    /// ...
+    /// case .homeRowMods(let config):
+    ///     // Access config.enabledKeys, config.modifierAssignments, etc.
+    /// case .layerPresetPicker(let config):
+    ///     // Access config.presets, config.selectedPresetId
     /// }
     /// ```
-    public var configuration: RuleCollectionConfiguration {
-        get {
-            switch displayStyle {
-            case .list:
-                .list
-            case .table:
-                .table
-            case .singleKeyPicker:
-                .singleKeyPicker(SingleKeyPickerConfig(
-                    inputKey: pickerInputKey ?? "",
-                    presetOptions: presetOptions,
-                    selectedOutput: selectedOutput
-                ))
-            case .homeRowMods:
-                .homeRowMods(homeRowModsConfig ?? HomeRowModsConfig())
-            case .tapHoldPicker:
-                .tapHoldPicker(TapHoldPickerConfig(
-                    inputKey: pickerInputKey ?? "",
-                    tapOptions: tapHoldOptions?.tapOptions ?? [],
-                    holdOptions: tapHoldOptions?.holdOptions ?? [],
-                    selectedTapOutput: selectedTapOutput,
-                    selectedHoldOutput: selectedHoldOutput
-                ))
-            case .layerPresetPicker:
-                .layerPresetPicker(LayerPresetPickerConfig(
-                    presets: layerPresets ?? [],
-                    selectedPresetId: selectedLayerPreset
-                ))
-            }
-        }
-        set {
-            // Update both displayStyle and the relevant optional fields
-            switch newValue {
-            case .list:
-                displayStyle = .list
-            case .table:
-                displayStyle = .table
-            case let .singleKeyPicker(config):
-                displayStyle = .singleKeyPicker
-                pickerInputKey = config.inputKey
-                presetOptions = config.presetOptions
-                selectedOutput = config.selectedOutput
-            case let .homeRowMods(config):
-                displayStyle = .homeRowMods
-                homeRowModsConfig = config
-            case let .tapHoldPicker(config):
-                displayStyle = .tapHoldPicker
-                pickerInputKey = config.inputKey
-                tapHoldOptions = TapHoldPresetOptions(
-                    tapOptions: config.tapOptions,
-                    holdOptions: config.holdOptions
-                )
-                selectedTapOutput = config.selectedTapOutput
-                selectedHoldOutput = config.selectedHoldOutput
-            case let .layerPresetPicker(config):
-                displayStyle = .layerPresetPicker
-                layerPresets = config.presets
-                selectedLayerPreset = config.selectedPresetId
-            }
-        }
+    public var configuration: RuleCollectionConfiguration
+
+    // MARK: - Style-Specific Options (not part of configuration)
+
+    /// For windowSnapping: which key convention to use (standard mnemonic vs vim)
+    public var windowKeyConvention: WindowKeyConvention?
+
+    /// For macFunctionKeys: media keys (default Mac) or standard F-keys
+    public var functionKeyMode: FunctionKeyMode?
+
+    // MARK: - Computed Properties
+
+    /// The display style (derived from configuration for convenience)
+    public var displayStyle: RuleCollectionDisplayStyle {
+        configuration.displayStyle
     }
+
+    // MARK: - Initializer
 
     public init(
         id: UUID = UUID(),
@@ -132,16 +79,7 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         targetLayer: RuleCollectionLayer = .base,
         momentaryActivator: MomentaryActivator? = nil,
         activationHint: String? = nil,
-        displayStyle: RuleCollectionDisplayStyle = .list,
-        pickerInputKey: String? = nil,
-        presetOptions: [SingleKeyPreset] = [],
-        selectedOutput: String? = nil,
-        homeRowModsConfig: HomeRowModsConfig? = nil,
-        tapHoldOptions: TapHoldPresetOptions? = nil,
-        selectedTapOutput: String? = nil,
-        selectedHoldOutput: String? = nil,
-        layerPresets: [LayerPreset]? = nil,
-        selectedLayerPreset: String? = nil,
+        configuration: RuleCollectionConfiguration = .list,
         windowKeyConvention: WindowKeyConvention? = nil,
         functionKeyMode: FunctionKeyMode? = nil
     ) {
@@ -157,139 +95,27 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         self.targetLayer = targetLayer
         self.momentaryActivator = momentaryActivator
         self.activationHint = activationHint
-        self.displayStyle = displayStyle
-        self.pickerInputKey = pickerInputKey
-        self.presetOptions = presetOptions
-        self.selectedOutput = selectedOutput
-        self.homeRowModsConfig = homeRowModsConfig
-        self.tapHoldOptions = tapHoldOptions
-        self.selectedTapOutput = selectedTapOutput
-        self.selectedHoldOutput = selectedHoldOutput
-        self.layerPresets = layerPresets
-        self.selectedLayerPreset = selectedLayerPreset
+        self.configuration = configuration
         self.windowKeyConvention = windowKeyConvention
         self.functionKeyMode = functionKeyMode
     }
 
-    /// Initializer using the new type-safe configuration.
-    ///
-    /// This is the preferred initializer for new code. It ensures that only
-    /// the relevant fields for the display style are populated.
-    public init(
-        id: UUID = UUID(),
-        name: String,
-        summary: String,
-        category: RuleCollectionCategory,
-        mappings: [KeyMapping],
-        isEnabled: Bool = true,
-        isSystemDefault: Bool = false,
-        icon: String? = nil,
-        tags: [String] = [],
-        targetLayer: RuleCollectionLayer = .base,
-        momentaryActivator: MomentaryActivator? = nil,
-        activationHint: String? = nil,
-        configuration: RuleCollectionConfiguration,
-        windowKeyConvention: WindowKeyConvention? = nil,
-        functionKeyMode: FunctionKeyMode? = nil
-    ) {
-        self.id = id
-        self.name = name
-        self.summary = summary
-        self.category = category
-        self.mappings = mappings
-        self.isEnabled = isEnabled
-        self.isSystemDefault = isSystemDefault
-        self.icon = icon
-        self.tags = tags
-        self.targetLayer = targetLayer
-        self.momentaryActivator = momentaryActivator
-        self.activationHint = activationHint
-        self.windowKeyConvention = windowKeyConvention
-        self.functionKeyMode = functionKeyMode
-
-        // Set displayStyle and related fields based on configuration
-        switch configuration {
-        case .list:
-            displayStyle = .list
-            pickerInputKey = nil
-            presetOptions = []
-            selectedOutput = nil
-            homeRowModsConfig = nil
-            tapHoldOptions = nil
-            selectedTapOutput = nil
-            selectedHoldOutput = nil
-            layerPresets = nil
-            selectedLayerPreset = nil
-        case .table:
-            displayStyle = .table
-            pickerInputKey = nil
-            presetOptions = []
-            selectedOutput = nil
-            homeRowModsConfig = nil
-            tapHoldOptions = nil
-            selectedTapOutput = nil
-            selectedHoldOutput = nil
-            layerPresets = nil
-            selectedLayerPreset = nil
-        case let .singleKeyPicker(config):
-            displayStyle = .singleKeyPicker
-            pickerInputKey = config.inputKey
-            presetOptions = config.presetOptions
-            selectedOutput = config.selectedOutput
-            homeRowModsConfig = nil
-            tapHoldOptions = nil
-            selectedTapOutput = nil
-            selectedHoldOutput = nil
-            layerPresets = nil
-            selectedLayerPreset = nil
-        case let .homeRowMods(config):
-            displayStyle = .homeRowMods
-            pickerInputKey = nil
-            presetOptions = []
-            selectedOutput = nil
-            homeRowModsConfig = config
-            tapHoldOptions = nil
-            selectedTapOutput = nil
-            selectedHoldOutput = nil
-            layerPresets = nil
-            selectedLayerPreset = nil
-        case let .tapHoldPicker(config):
-            displayStyle = .tapHoldPicker
-            pickerInputKey = config.inputKey
-            presetOptions = []
-            selectedOutput = nil
-            homeRowModsConfig = nil
-            tapHoldOptions = TapHoldPresetOptions(
-                tapOptions: config.tapOptions,
-                holdOptions: config.holdOptions
-            )
-            selectedTapOutput = config.selectedTapOutput
-            selectedHoldOutput = config.selectedHoldOutput
-            layerPresets = nil
-            selectedLayerPreset = nil
-        case let .layerPresetPicker(config):
-            displayStyle = .layerPresetPicker
-            pickerInputKey = nil
-            presetOptions = []
-            selectedOutput = nil
-            homeRowModsConfig = nil
-            tapHoldOptions = nil
-            selectedTapOutput = nil
-            selectedHoldOutput = nil
-            layerPresets = config.presets
-            selectedLayerPreset = config.selectedPresetId
-        }
-    }
+    // MARK: - Codable
 
     enum CodingKeys: String, CodingKey {
-        case id, name, summary, category, mappings, isEnabled, isSystemDefault, icon, tags, targetLayer,
-             momentaryActivator, activationHint, displayStyle, pickerInputKey, presetOptions, selectedOutput,
-             homeRowModsConfig, tapHoldOptions, selectedTapOutput, selectedHoldOutput, layerPresets,
-             selectedLayerPreset, windowKeyConvention, functionKeyMode
+        case id, name, summary, category, mappings, isEnabled, isSystemDefault
+        case icon, tags, targetLayer, momentaryActivator, activationHint
+        case configuration, windowKeyConvention, functionKeyMode
+        // Legacy keys for migration
+        case displayStyle, pickerInputKey, presetOptions, selectedOutput
+        case homeRowModsConfig, tapHoldOptions, selectedTapOutput, selectedHoldOutput
+        case layerPresets, selectedLayerPreset
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        // Core fields
         id = try container.decode(UUID.self, forKey: .id)
         name = try container.decode(String.self, forKey: .name)
         summary = try container.decode(String.self, forKey: .summary)
@@ -299,29 +125,62 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         isSystemDefault = try container.decode(Bool.self, forKey: .isSystemDefault)
         icon = try container.decodeIfPresent(String.self, forKey: .icon)
         tags = try container.decodeIfPresent([String].self, forKey: .tags) ?? []
-        targetLayer =
-            try container.decodeIfPresent(RuleCollectionLayer.self, forKey: .targetLayer) ?? .base
-        momentaryActivator = try container.decodeIfPresent(
-            MomentaryActivator.self, forKey: .momentaryActivator
-        )
+        targetLayer = try container.decodeIfPresent(RuleCollectionLayer.self, forKey: .targetLayer) ?? .base
+        momentaryActivator = try container.decodeIfPresent(MomentaryActivator.self, forKey: .momentaryActivator)
         activationHint = try container.decodeIfPresent(String.self, forKey: .activationHint)
-        displayStyle =
-            try container.decodeIfPresent(RuleCollectionDisplayStyle.self, forKey: .displayStyle) ?? .list
-        pickerInputKey = try container.decodeIfPresent(String.self, forKey: .pickerInputKey)
-        presetOptions = try container.decodeIfPresent([SingleKeyPreset].self, forKey: .presetOptions) ?? []
-        selectedOutput = try container.decodeIfPresent(String.self, forKey: .selectedOutput)
-        homeRowModsConfig = try container.decodeIfPresent(HomeRowModsConfig.self, forKey: .homeRowModsConfig)
-        tapHoldOptions = try container.decodeIfPresent(TapHoldPresetOptions.self, forKey: .tapHoldOptions)
-        selectedTapOutput = try container.decodeIfPresent(String.self, forKey: .selectedTapOutput)
-        selectedHoldOutput = try container.decodeIfPresent(String.self, forKey: .selectedHoldOutput)
-        layerPresets = try container.decodeIfPresent([LayerPreset].self, forKey: .layerPresets)
-        selectedLayerPreset = try container.decodeIfPresent(String.self, forKey: .selectedLayerPreset)
         windowKeyConvention = try container.decodeIfPresent(WindowKeyConvention.self, forKey: .windowKeyConvention)
         functionKeyMode = try container.decodeIfPresent(FunctionKeyMode.self, forKey: .functionKeyMode)
+
+        // Try new format first (configuration object)
+        if let config = try? container.decode(RuleCollectionConfiguration.self, forKey: .configuration) {
+            configuration = config
+        } else {
+            // Fall back to legacy format migration
+            let legacyDisplayStyle = try container.decodeIfPresent(RuleCollectionDisplayStyle.self, forKey: .displayStyle) ?? .list
+
+            switch legacyDisplayStyle {
+            case .list:
+                configuration = .list
+            case .table:
+                configuration = .table
+            case .singleKeyPicker:
+                let inputKey = try container.decodeIfPresent(String.self, forKey: .pickerInputKey) ?? ""
+                let presetOptions = try container.decodeIfPresent([SingleKeyPreset].self, forKey: .presetOptions) ?? []
+                let selectedOutput = try container.decodeIfPresent(String.self, forKey: .selectedOutput)
+                configuration = .singleKeyPicker(SingleKeyPickerConfig(
+                    inputKey: inputKey,
+                    presetOptions: presetOptions,
+                    selectedOutput: selectedOutput
+                ))
+            case .homeRowMods:
+                let config = try container.decodeIfPresent(HomeRowModsConfig.self, forKey: .homeRowModsConfig) ?? HomeRowModsConfig()
+                configuration = .homeRowMods(config)
+            case .tapHoldPicker:
+                let inputKey = try container.decodeIfPresent(String.self, forKey: .pickerInputKey) ?? ""
+                let tapHoldOptions = try container.decodeIfPresent(TapHoldPresetOptions.self, forKey: .tapHoldOptions)
+                let selectedTapOutput = try container.decodeIfPresent(String.self, forKey: .selectedTapOutput)
+                let selectedHoldOutput = try container.decodeIfPresent(String.self, forKey: .selectedHoldOutput)
+                configuration = .tapHoldPicker(TapHoldPickerConfig(
+                    inputKey: inputKey,
+                    tapOptions: tapHoldOptions?.tapOptions ?? [],
+                    holdOptions: tapHoldOptions?.holdOptions ?? [],
+                    selectedTapOutput: selectedTapOutput,
+                    selectedHoldOutput: selectedHoldOutput
+                ))
+            case .layerPresetPicker:
+                let presets = try container.decodeIfPresent([LayerPreset].self, forKey: .layerPresets) ?? []
+                let selectedPresetId = try container.decodeIfPresent(String.self, forKey: .selectedLayerPreset)
+                configuration = .layerPresetPicker(LayerPresetPickerConfig(
+                    presets: presets,
+                    selectedPresetId: selectedPresetId
+                ))
+            }
+        }
     }
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+
         try container.encode(id, forKey: .id)
         try container.encode(name, forKey: .name)
         try container.encode(summary, forKey: .summary)
@@ -329,25 +188,58 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         try container.encode(mappings, forKey: .mappings)
         try container.encode(isEnabled, forKey: .isEnabled)
         try container.encode(isSystemDefault, forKey: .isSystemDefault)
-        try container.encode(icon, forKey: .icon)
+        try container.encodeIfPresent(icon, forKey: .icon)
         try container.encode(tags, forKey: .tags)
         try container.encode(targetLayer, forKey: .targetLayer)
-        try container.encode(momentaryActivator, forKey: .momentaryActivator)
-        try container.encode(activationHint, forKey: .activationHint)
-        try container.encode(displayStyle, forKey: .displayStyle)
-        try container.encodeIfPresent(pickerInputKey, forKey: .pickerInputKey)
-        try container.encode(presetOptions, forKey: .presetOptions)
-        try container.encodeIfPresent(selectedOutput, forKey: .selectedOutput)
-        try container.encodeIfPresent(homeRowModsConfig, forKey: .homeRowModsConfig)
-        try container.encodeIfPresent(tapHoldOptions, forKey: .tapHoldOptions)
-        try container.encodeIfPresent(selectedTapOutput, forKey: .selectedTapOutput)
-        try container.encodeIfPresent(selectedHoldOutput, forKey: .selectedHoldOutput)
-        try container.encodeIfPresent(layerPresets, forKey: .layerPresets)
-        try container.encodeIfPresent(selectedLayerPreset, forKey: .selectedLayerPreset)
+        try container.encodeIfPresent(momentaryActivator, forKey: .momentaryActivator)
+        try container.encodeIfPresent(activationHint, forKey: .activationHint)
+        try container.encode(configuration, forKey: .configuration)
         try container.encodeIfPresent(windowKeyConvention, forKey: .windowKeyConvention)
         try container.encodeIfPresent(functionKeyMode, forKey: .functionKeyMode)
     }
 }
+
+// MARK: - Sequence Extension
+
+public extension Sequence<RuleCollection> {
+    /// Returns only the mappings belonging to enabled collections.
+    func enabledMappings() -> [KeyMapping] {
+        flatMap { collection in
+            collection.isEnabled ? collection.mappings : []
+        }
+    }
+}
+
+// MARK: - Array Extension
+
+extension [RuleCollection] {
+    /// Convenience helper to find and update a collection in-place.
+    mutating func updateCollection(_ collection: RuleCollection) {
+        if let index = firstIndex(where: { $0.id == collection.id }) {
+            self[index] = collection
+        }
+    }
+
+    /// Wraps raw mappings into a single synthetic collection (used for migration/compat).
+    static func collection(
+        named name: String, mappings: [KeyMapping], category: RuleCollectionCategory = .custom
+    ) -> [RuleCollection] {
+        guard !mappings.isEmpty else { return [] }
+        let collection = RuleCollection(
+            id: RuleCollectionIdentifier.customMappings,
+            name: name,
+            summary: "Automatically generated from existing mappings",
+            category: category,
+            mappings: mappings,
+            isEnabled: true,
+            isSystemDefault: false,
+            icon: "square.stack"
+        )
+        return [collection]
+    }
+}
+
+// MARK: - Supporting Types
 
 /// Key convention for window snapping shortcuts
 public enum WindowKeyConvention: String, Codable, CaseIterable, Sendable {
@@ -435,42 +327,6 @@ public enum RuleCollectionIdentifier {
     public static let numpadLayer = UUID(uuidString: "D5E7F9A1-3B4C-6D8E-0F2A-4B6C8D0E2F4A")!
     public static let symbolLayer = UUID(uuidString: "E6F8A0B2-4C5D-7E9F-1A3B-5C7D9E1F3A5B")!
     public static let windowSnapping = UUID(uuidString: "F7A9B1C3-5D6E-8F0A-2B4C-6D8E0F2A4B6C")!
-}
-
-public extension Sequence<RuleCollection> {
-    /// Returns only the mappings belonging to enabled collections.
-    func enabledMappings() -> [KeyMapping] {
-        flatMap { collection in
-            collection.isEnabled ? collection.mappings : []
-        }
-    }
-}
-
-extension [RuleCollection] {
-    /// Convenience helper to find and update a collection in-place.
-    mutating func updateCollection(_ collection: RuleCollection) {
-        if let index = firstIndex(where: { $0.id == collection.id }) {
-            self[index] = collection
-        }
-    }
-
-    /// Wraps raw mappings into a single synthetic collection (used for migration/compat).
-    static func collection(
-        named name: String, mappings: [KeyMapping], category: RuleCollectionCategory = .custom
-    ) -> [RuleCollection] {
-        guard !mappings.isEmpty else { return [] }
-        let collection = RuleCollection(
-            id: RuleCollectionIdentifier.customMappings,
-            name: name,
-            summary: "Automatically generated from existing mappings",
-            category: category,
-            mappings: mappings,
-            isEnabled: true,
-            isSystemDefault: false,
-            icon: "square.stack"
-        )
-        return [collection]
-    }
 }
 
 public enum RuleCollectionLayer: Codable, Equatable, Sendable, Hashable {

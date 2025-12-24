@@ -103,6 +103,28 @@ final class OverlayKeyboardViewTests: XCTestCase {
         XCTAssertEqual(OverlayKeyboardView.keyCodeToKanataName(24), "equal")
     }
 
+    func testKeyCodeToKanataName_navigationKeys() {
+        XCTAssertEqual(OverlayKeyboardView.keyCodeToKanataName(115), "home")
+        XCTAssertEqual(OverlayKeyboardView.keyCodeToKanataName(116), "pageup")
+        XCTAssertEqual(OverlayKeyboardView.keyCodeToKanataName(119), "end")
+        XCTAssertEqual(OverlayKeyboardView.keyCodeToKanataName(121), "pagedown")
+        XCTAssertEqual(OverlayKeyboardView.keyCodeToKanataName(114), "help")
+    }
+
+    func testKeyCodeToKanataName_extendedFunctionKeys() {
+        XCTAssertEqual(OverlayKeyboardView.keyCodeToKanataName(64), "f17")
+        XCTAssertEqual(OverlayKeyboardView.keyCodeToKanataName(79), "f18")
+        XCTAssertEqual(OverlayKeyboardView.keyCodeToKanataName(80), "f19")
+        XCTAssertEqual(OverlayKeyboardView.keyCodeToKanataName(105), "f13")
+        XCTAssertEqual(OverlayKeyboardView.keyCodeToKanataName(106), "f16")
+        XCTAssertEqual(OverlayKeyboardView.keyCodeToKanataName(107), "f14")
+        XCTAssertEqual(OverlayKeyboardView.keyCodeToKanataName(113), "f15")
+    }
+
+    func testKeyCodeToKanataName_rightControl() {
+        XCTAssertEqual(OverlayKeyboardView.keyCodeToKanataName(102), "rightctrl")
+    }
+
     func testKeyCodeToKanataName_unknownKeyCode() {
         XCTAssertEqual(OverlayKeyboardView.keyCodeToKanataName(255), "unknown-255")
         XCTAssertEqual(OverlayKeyboardView.keyCodeToKanataName(200), "unknown-200")

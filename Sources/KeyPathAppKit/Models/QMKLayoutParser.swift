@@ -26,6 +26,8 @@ enum QMKLayoutParser {
         let r: Double? // Rotation in degrees
         let rx: Double? // Rotation pivot X
         let ry: Double? // Rotation pivot Y
+        let keyCode: UInt16? // macOS CGEvent key code (optional for backward compatibility)
+        let label: String? // Display label (optional for backward compatibility)
     }
 
     // MARK: - Parsing
@@ -52,13 +54,25 @@ enum QMKLayoutParser {
             var keys: [PhysicalKey] = []
 
             for qmkKey in defaultLayout.layout {
-                guard let mapping = keyMapping(qmkKey.row, qmkKey.col) else {
-                    continue // Skip keys we don't have mappings for
+                // Prefer keyCode and label from JSON if present (Tier 1 keyboards)
+                // Fall back to keyMapping function for backward compatibility (Tier 2/3)
+                let (keyCode, label): (UInt16, String)
+                if let jsonKeyCode = qmkKey.keyCode, let jsonLabel = qmkKey.label {
+                    // JSON has keyCode and label - use them directly
+                    keyCode = jsonKeyCode
+                    label = jsonLabel
+                } else if let mapping = keyMapping(qmkKey.row, qmkKey.col) {
+                    // Fall back to keyMapping function
+                    keyCode = mapping.keyCode
+                    label = mapping.label
+                } else {
+                    // Skip keys we don't have mappings for
+                    continue
                 }
 
                 let key = PhysicalKey(
-                    keyCode: mapping.keyCode,
-                    label: mapping.label,
+                    keyCode: keyCode,
+                    label: label,
                     x: qmkKey.x,
                     y: qmkKey.y,
                     width: qmkKey.w ?? 1.0,

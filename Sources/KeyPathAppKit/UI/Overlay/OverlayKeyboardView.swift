@@ -355,6 +355,22 @@ struct OverlayKeyboardView: View {
         case 124: "right"
         case 125: "down"
         case 126: "up"
+        // Navigation keys
+        case 115: "home"
+        case 116: "pageup"
+        case 117: "del"
+        case 119: "end"
+        case 121: "pagedown"
+        case 114: "help"
+        // Extended function keys
+        case 64: "f17"
+        case 79: "f18"
+        case 80: "f19"
+        case 102: "rightctrl"
+        case 105: "f13"
+        case 106: "f16"
+        case 107: "f14"
+        case 113: "f15"
         default:
             "unknown-\(keyCode)"
         }

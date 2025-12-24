@@ -125,7 +125,7 @@ struct RulesTabView: View {
             name: dynamicCollectionName(for: collection),
             icon: collection.icon ?? "circle",
             count: style == .singleKeyPicker || style == .tapHoldPicker ? 1 :
-                (style == .layerPresetPicker ? (collection.layerPresets?.first { $0.id == collection.selectedLayerPreset }?.mappings.count ?? 0) : collection.mappings.count),
+                (style == .layerPresetPicker ? (collection.configuration.layerPresetPickerConfig?.selectedMappings.count ?? 0) : collection.mappings.count),
             isEnabled: pendingToggles[collection.id] ?? collection.isEnabled,
             mappings: collection.mappings.map {
                 ($0.input, $0.output, $0.shiftedOutput, $0.ctrlOutput, $0.description, $0.sectionBreak, collection.isEnabled, $0.id, nil)
@@ -292,7 +292,7 @@ struct RulesTabView: View {
         .sheet(item: $homeRowModsEditState) { editState in
             HomeRowModsModalView(
                 config: Binding(
-                    get: { editState.collection.homeRowModsConfig ?? HomeRowModsConfig() },
+                    get: { editState.collection.configuration.homeRowModsConfig ?? HomeRowModsConfig() },
                     set: { _ in }
                 ),
                 onSave: { newConfig in
@@ -348,7 +348,7 @@ struct RulesTabView: View {
         if let leaderCollection = allCollections.first(where: { $0.id == RuleCollectionIdentifier.leaderKey }) {
             // Check pending toggle for enabled state
             let isEnabled = pendingToggles[RuleCollectionIdentifier.leaderKey] ?? leaderCollection.isEnabled
-            if isEnabled, let selectedOutput = leaderCollection.selectedOutput {
+            if isEnabled, let selectedOutput = leaderCollection.configuration.singleKeyPickerConfig?.selectedOutput {
                 return selectedOutput
             }
         }
@@ -706,7 +706,7 @@ private struct ExpandableCollectionRow: View {
                         .padding(.horizontal, 16)
                     } else if displayStyle == .homeRowMods, let coll = collection {
                         // Home Row Mods: show summary with current config, click to customize
-                        let config = coll.homeRowModsConfig ?? HomeRowModsConfig()
+                        let config = coll.configuration.homeRowModsConfig ?? HomeRowModsConfig()
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Tap keys for letters, hold for modifiers")
                                 .font(.subheadline)
@@ -1281,18 +1281,24 @@ private struct SingleKeyPickerContent: View {
     @State private var showingCustomPopover = false
     @State private var customKeyInput = ""
 
+    private var config: SingleKeyPickerConfig? {
+        collection.configuration.singleKeyPickerConfig
+    }
+
     init(collection: RuleCollection, onSelectOutput: @escaping (String) -> Void) {
         self.collection = collection
         self.onSelectOutput = onSelectOutput
-        _selectedOutput = State(initialValue: collection.selectedOutput ?? collection.presetOptions.first?.output ?? "")
+        let cfg = collection.configuration.singleKeyPickerConfig
+        _selectedOutput = State(initialValue: cfg?.selectedOutput ?? cfg?.presetOptions.first?.output ?? "")
     }
 
     private var selectedPreset: SingleKeyPreset? {
-        collection.presetOptions.first { $0.output == selectedOutput }
+        config?.presetOptions.first { $0.output == selectedOutput }
     }
 
     private var isCustomSelection: Bool {
-        !collection.presetOptions.contains { $0.output == selectedOutput }
+        guard let cfg = config else { return false }
+        return !cfg.presetOptions.contains { $0.output == selectedOutput }
             && !selectedOutput.isEmpty
     }
 
@@ -1300,12 +1306,12 @@ private struct SingleKeyPickerContent: View {
         VStack(alignment: .leading, spacing: 12) {
             // Segmented picker
             HStack(spacing: 0) {
-                ForEach(collection.presetOptions) { preset in
+                ForEach(config?.presetOptions ?? []) { preset in
                     PickerSegment(
                         label: preset.label,
                         isSelected: selectedOutput == preset.output,
-                        isFirst: preset.id == collection.presetOptions.first?.id,
-                        isLast: preset.id == collection.presetOptions.last?.id && !isCustomSelection
+                        isFirst: preset.id == config?.presetOptions.first?.id,
+                        isLast: preset.id == config?.presetOptions.last?.id && !isCustomSelection
                     ) {
                         selectedOutput = preset.output
                         onSelectOutput(preset.output)
@@ -1380,21 +1386,26 @@ private struct LayerPresetPickerContent: View {
     @State private var hasInteracted = false // Track if user has clicked a preset
     @Namespace private var symbolAnimation
 
+    private var config: LayerPresetPickerConfig? {
+        collection.configuration.layerPresetPickerConfig
+    }
+
     init(collection: RuleCollection, onSelectPreset: @escaping (String) -> Void) {
         self.collection = collection
         self.onSelectPreset = onSelectPreset
-        _selectedPresetId = State(initialValue: collection.selectedLayerPreset ?? collection.layerPresets?.first?.id ?? "")
+        let cfg = collection.configuration.layerPresetPickerConfig
+        _selectedPresetId = State(initialValue: cfg?.selectedPresetId ?? cfg?.presets.first?.id ?? "")
     }
 
     private var selectedPreset: LayerPreset? {
-        collection.layerPresets?.first { $0.id == selectedPresetId }
+        config?.presets.first { $0.id == selectedPresetId }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Mini-preview cards for each preset
             HStack(spacing: 12) {
-                ForEach(collection.layerPresets ?? []) { preset in
+                ForEach(config?.presets ?? []) { preset in
                     MiniPresetCard(
                         preset: preset,
                         isSelected: selectedPresetId == preset.id
@@ -2082,22 +2093,27 @@ private struct TapHoldPickerContent: View {
     @State private var customTapInput = ""
     @State private var customHoldInput = ""
 
+    private var config: TapHoldPickerConfig? {
+        collection.configuration.tapHoldPickerConfig
+    }
+
     init(collection: RuleCollection, onSelectTapOutput: @escaping (String) -> Void, onSelectHoldOutput: @escaping (String) -> Void) {
         self.collection = collection
         self.onSelectTapOutput = onSelectTapOutput
         self.onSelectHoldOutput = onSelectHoldOutput
-        let tapOptions = collection.tapHoldOptions?.tapOptions ?? []
-        let holdOptions = collection.tapHoldOptions?.holdOptions ?? []
-        _selectedTap = State(initialValue: collection.selectedTapOutput ?? tapOptions.first?.output ?? "esc")
-        _selectedHold = State(initialValue: collection.selectedHoldOutput ?? holdOptions.first?.output ?? "hyper")
+        let cfg = collection.configuration.tapHoldPickerConfig
+        let tapOptions = cfg?.tapOptions ?? []
+        let holdOptions = cfg?.holdOptions ?? []
+        _selectedTap = State(initialValue: cfg?.selectedTapOutput ?? tapOptions.first?.output ?? "esc")
+        _selectedHold = State(initialValue: cfg?.selectedHoldOutput ?? holdOptions.first?.output ?? "hyper")
     }
 
     private var tapOptions: [SingleKeyPreset] {
-        collection.tapHoldOptions?.tapOptions ?? []
+        config?.tapOptions ?? []
     }
 
     private var holdOptions: [SingleKeyPreset] {
-        collection.tapHoldOptions?.holdOptions ?? []
+        config?.holdOptions ?? []
     }
 
     private var selectedTapPreset: SingleKeyPreset? {

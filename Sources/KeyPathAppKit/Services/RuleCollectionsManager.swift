@@ -116,7 +116,8 @@ final class RuleCollectionsManager {
         if storedCustomRules.isEmpty,
            let customIndex = storedCollections.firstIndex(where: {
                $0.id == RuleCollectionIdentifier.customMappings
-           }) {
+           })
+        {
             let legacy = storedCollections.remove(at: customIndex)
             storedCustomRules = legacy.mappings.map { mapping in
                 CustomRule(
@@ -298,15 +299,21 @@ final class RuleCollectionsManager {
         if let index = ruleCollections.firstIndex(where: { $0.id == id }) {
             ruleCollections[index].isEnabled = isEnabled
             // Ensure home row mods config exists if this is a home row mods collection
-            if resolvedCandidate.displayStyle == .homeRowMods, ruleCollections[index].homeRowModsConfig == nil {
-                ruleCollections[index].homeRowModsConfig = HomeRowModsConfig()
+            if case .homeRowMods = ruleCollections[index].configuration {
+                // Already has config, nothing to do
+            } else if resolvedCandidate.displayStyle == .homeRowMods {
+                ruleCollections[index].configuration = .homeRowMods(HomeRowModsConfig())
             }
         } else {
             var newCollection = resolvedCandidate
             newCollection.isEnabled = isEnabled
             // Ensure home row mods config exists if this is a home row mods collection
-            if newCollection.displayStyle == .homeRowMods, newCollection.homeRowModsConfig == nil {
-                newCollection.homeRowModsConfig = HomeRowModsConfig()
+            if newCollection.displayStyle == .homeRowMods {
+                if case .homeRowMods = newCollection.configuration {
+                    // Already has config
+                } else {
+                    newCollection.configuration = .homeRowMods(HomeRowModsConfig())
+                }
             }
             ruleCollections.append(newCollection)
         }
@@ -355,12 +362,12 @@ final class RuleCollectionsManager {
             // Try to find in catalog and add it
             let catalog = RuleCollectionCatalog()
             if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
-                catalogCollection.selectedOutput = output
+                catalogCollection.configuration.updateSelectedOutput(output)
                 catalogCollection.isEnabled = true
                 // Update the mapping based on selected output
-                if let inputKey = catalogCollection.pickerInputKey {
-                    let description = catalogCollection.presetOptions.first { $0.output == output }?.label ?? "Custom"
-                    catalogCollection.mappings = [KeyMapping(input: inputKey, output: output, description: description)]
+                if let config = catalogCollection.configuration.singleKeyPickerConfig {
+                    let description = config.presetOptions.first { $0.output == output }?.label ?? "Custom"
+                    catalogCollection.mappings = [KeyMapping(input: config.inputKey, output: output, description: description)]
                 }
                 ruleCollections.append(catalogCollection)
                 dedupeRuleCollectionsInPlace()
@@ -370,13 +377,15 @@ final class RuleCollectionsManager {
             return
         }
 
-        ruleCollections[index].selectedOutput = output
+        ruleCollections[index].configuration.updateSelectedOutput(output)
         ruleCollections[index].isEnabled = true
 
         // Update the mapping based on selected output (skip for Leader Key which has no mappings)
-        if let inputKey = ruleCollections[index].pickerInputKey, inputKey != "leader" {
-            let description = ruleCollections[index].presetOptions.first { $0.output == output }?.label ?? "Custom"
-            ruleCollections[index].mappings = [KeyMapping(input: inputKey, output: output, description: description)]
+        if let config = ruleCollections[index].configuration.singleKeyPickerConfig,
+           config.inputKey != "leader"
+        {
+            let description = config.presetOptions.first { $0.output == output }?.label ?? "Custom"
+            ruleCollections[index].mappings = [KeyMapping(input: config.inputKey, output: output, description: description)]
         }
 
         dedupeRuleCollectionsInPlace()
@@ -397,7 +406,7 @@ final class RuleCollectionsManager {
             // Try to find in catalog and add it
             let catalog = RuleCollectionCatalog()
             if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
-                catalogCollection.selectedTapOutput = tapOutput
+                catalogCollection.configuration.updateSelectedTapOutput(tapOutput)
                 catalogCollection.isEnabled = true
                 ruleCollections.append(catalogCollection)
                 dedupeRuleCollectionsInPlace()
@@ -407,7 +416,7 @@ final class RuleCollectionsManager {
             return
         }
 
-        ruleCollections[index].selectedTapOutput = tapOutput
+        ruleCollections[index].configuration.updateSelectedTapOutput(tapOutput)
         ruleCollections[index].isEnabled = true
         dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
@@ -420,7 +429,7 @@ final class RuleCollectionsManager {
             // Try to find in catalog and add it
             let catalog = RuleCollectionCatalog()
             if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
-                catalogCollection.selectedHoldOutput = holdOutput
+                catalogCollection.configuration.updateSelectedHoldOutput(holdOutput)
                 catalogCollection.isEnabled = true
                 ruleCollections.append(catalogCollection)
                 dedupeRuleCollectionsInPlace()
@@ -430,7 +439,7 @@ final class RuleCollectionsManager {
             return
         }
 
-        ruleCollections[index].selectedHoldOutput = holdOutput
+        ruleCollections[index].configuration.updateSelectedHoldOutput(holdOutput)
         ruleCollections[index].isEnabled = true
         dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
@@ -443,7 +452,7 @@ final class RuleCollectionsManager {
             // Try to find in catalog and add it
             let catalog = RuleCollectionCatalog()
             if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
-                catalogCollection.selectedLayerPreset = presetId
+                catalogCollection.configuration.updateSelectedPreset(presetId)
                 catalogCollection.isEnabled = true
                 ruleCollections.append(catalogCollection)
                 dedupeRuleCollectionsInPlace()
@@ -453,7 +462,7 @@ final class RuleCollectionsManager {
             return
         }
 
-        ruleCollections[index].selectedLayerPreset = presetId
+        ruleCollections[index].configuration.updateSelectedPreset(presetId)
         ruleCollections[index].isEnabled = true
         dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
@@ -516,7 +525,7 @@ final class RuleCollectionsManager {
             // Try to find in catalog and add it
             let catalog = RuleCollectionCatalog()
             if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
-                catalogCollection.homeRowModsConfig = config
+                catalogCollection.configuration.updateHomeRowModsConfig(config)
                 catalogCollection.isEnabled = true
                 ruleCollections.append(catalogCollection)
                 dedupeRuleCollectionsInPlace()
@@ -526,7 +535,7 @@ final class RuleCollectionsManager {
             return
         }
 
-        ruleCollections[index].homeRowModsConfig = config
+        ruleCollections[index].configuration.updateHomeRowModsConfig(config)
         ruleCollections[index].isEnabled = true
 
         dedupeRuleCollectionsInPlace()
@@ -563,7 +572,8 @@ final class RuleCollectionsManager {
         AppLogger.shared.log("💾 [CustomRules] saveCustomRule called: id=\(rule.id), input='\(rule.input)', output='\(rule.output)'")
 
         if rule.isEnabled,
-           let conflict = conflictInfo(for: rule) {
+           let conflict = conflictInfo(for: rule)
+        {
             onWarning?(
                 "⚠️ \(rule.displayTitle) conflicts with \(conflict.displayName) on key: \(conflict.keys.joined(separator: ", ")). Last enabled rule wins."
             )
@@ -608,7 +618,8 @@ final class RuleCollectionsManager {
         guard let existing = customRules.first(where: { $0.id == id }) else { return }
 
         if isEnabled,
-           let conflict = conflictInfo(for: existing) {
+           let conflict = conflictInfo(for: existing)
+        {
             onWarning?(
                 "⚠️ \(existing.displayTitle) conflicts with \(conflict.displayName) on key: \(conflict.keys.joined(separator: ", ")). Last enabled rule wins."
             )
@@ -725,7 +736,8 @@ final class RuleCollectionsManager {
     /// Returns information about which custom rules target keys that the keymap will remap.
     func detectKeymapConflicts(keymapId: String, includePunctuation: Bool) -> [RuleConflictInfo] {
         guard let keymap = LogicalKeymap.find(id: keymapId),
-              keymapId != LogicalKeymap.defaultId else {
+              keymapId != LogicalKeymap.defaultId
+        else {
             return []
         }
 
@@ -856,7 +868,8 @@ final class RuleCollectionsManager {
             // Extract user-friendly error message
             let userMessage = if let keyPathError = error as? KeyPathError,
                                  case let .configuration(configError) = keyPathError,
-                                 case let .validationFailed(errors) = configError {
+                                 case let .validationFailed(errors) = configError
+            {
                 "Configuration validation failed:\n\n" + errors.joined(separator: "\n")
             } else {
                 "Failed to save configuration: \(error.localizedDescription)"
@@ -897,7 +910,8 @@ final class RuleCollectionsManager {
             }
 
             if let act1 = candidateActivator,
-               let act2 = normalizedActivator(for: other) {
+               let act2 = normalizedActivator(for: other)
+            {
                 if act1 == act2 {
                     // Identical momentary activators are treated as redundant, not conflicts
                     continue

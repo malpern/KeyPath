@@ -414,7 +414,8 @@ class KeyboardVisualizationViewModel: ObservableObject {
                 // Build mapping for current layer
                 var mapping = try await layerKeyMapper.getMapping(
                     for: currentLayerName,
-                    configPath: configPath
+                    configPath: configPath,
+                    layout: layout
                 )
 
                 // Augment mapping with push-msg actions from custom rules and rule collections
@@ -897,8 +898,23 @@ class KeyboardVisualizationViewModel: ObservableObject {
             "f11": 103, "f10": 109, "f12": 111, "f4": 118, "f2": 120, "f1": 122,
             // Arrow keys
             "left": 123, "right": 124, "down": 125, "up": 126,
-            // Delete key (forward delete)
-            "del": 117, "delete": 117
+            // Navigation keys
+            "home": 115,
+            "pageup": 116, "pgup": 116,
+            "del": 117, "delete": 117,
+            "end": 119,
+            "pagedown": 121, "pgdn": 121,
+            "help": 114, "insert": 114,
+            // Extended function keys
+            "f13": 105,
+            "f14": 107,
+            "f15": 113,
+            "f16": 106,
+            "f17": 64,
+            "f18": 79,
+            "f19": 80,
+            // Right Control
+            "rightctrl": 102, "rctl": 102
         ]
         return mapping[name.lowercased()]
     }

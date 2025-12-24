@@ -182,4 +182,30 @@ final class KeyboardVisualizationViewModelTests: XCTestCase {
         XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("capslock"), 57)
         XCTAssertNil(KeyboardVisualizationViewModel.kanataNameToKeyCode("unknown-key"))
     }
+
+    func testKanataNameToKeyCode_navigationKeys() {
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("home"), 115)
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("pageup"), 116)
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("pgup"), 116)
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("end"), 119)
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("pagedown"), 121)
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("pgdn"), 121)
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("help"), 114)
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("insert"), 114)
+    }
+
+    func testKanataNameToKeyCode_extendedFunctionKeys() {
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("f13"), 105)
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("f14"), 107)
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("f15"), 113)
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("f16"), 106)
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("f17"), 64)
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("f18"), 79)
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("f19"), 80)
+    }
+
+    func testKanataNameToKeyCode_rightControl() {
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("rightctrl"), 102)
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("rctl"), 102)
+    }
 }

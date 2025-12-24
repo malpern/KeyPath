@@ -164,7 +164,8 @@ public struct KanataConfiguration: Sendable {
     // Note: renderDisabledCollections removed - disabled collections not written to config (ADR-025)
 
     private static func metadataLines(for collection: RuleCollection, indent: String, status: String)
-        -> [String] {
+        -> [String]
+    {
         [
             "\(indent);; === Collection: \(collection.name) (\(status)) ===",
             "\(indent);; UUID: \(collection.id.uuidString)",
@@ -233,13 +234,14 @@ public struct KanataConfiguration: Sendable {
         var layerMappedKeys: [RuleCollectionLayer: Set<String>] = [:]
 
         func effectiveMappings(for collection: RuleCollection) -> [KeyMapping] {
-            if collection.displayStyle == .homeRowMods, let config = collection.homeRowModsConfig {
+            switch collection.configuration {
+            case let .homeRowMods(config):
                 generateHomeRowModsMappings(from: config)
-            } else if collection.displayStyle == .tapHoldPicker {
+            case .tapHoldPicker:
                 generateTapHoldPickerMappings(from: collection)
-            } else if collection.displayStyle == .layerPresetPicker {
+            case .layerPresetPicker:
                 generateLayerPresetMappings(from: collection)
-            } else {
+            case .list, .table, .singleKeyPicker:
                 collection.mappings
             }
         }
@@ -270,32 +272,30 @@ public struct KanataConfiguration: Sendable {
 
                 // For chained layers (sourceLayer != .base), use one-shot-press instead of tap-hold
                 // This allows quick entry to nested layers without requiring hold
-                let definition: String
-                if activator.sourceLayer == .base {
+                let definition = if activator.sourceLayer == .base {
                     // Standard tap-hold for base layer activators
                     // Use multi to combine layer-while-held with fake key triggers for TCP layer notifications.
                     // This works around Kanata's limitation where layer-while-held doesn't broadcast LayerChange messages.
-                    definition = "(tap-hold 200 200 \(tapKey) (multi (layer-while-held \(layerName)) (on-press-fakekey kp-layer-\(layerName)-enter tap) (on-release-fakekey kp-layer-\(layerName)-exit tap)))"
+                    "(tap-hold 200 200 \(tapKey) (multi (layer-while-held \(layerName)) (on-press-fakekey kp-layer-\(layerName)-enter tap) (on-release-fakekey kp-layer-\(layerName)-exit tap)))"
                 } else {
                     // One-shot for chained layers (e.g., nav → window, nav → sym)
                     // Activates target layer for 2 seconds or until next key press.
                     // Include layer notification fake keys for overlay and UI updates.
                     // Exit notification triggers when one-shot releases, returning to parent layer.
-                    definition = "(multi (one-shot-press 2000 (layer-while-held \(layerName))) (on-press-fakekey kp-layer-\(layerName)-enter tap) (on-release-fakekey kp-layer-\(layerName)-exit tap))"
+                    "(multi (one-shot-press 2000 (layer-while-held \(layerName))) (on-press-fakekey kp-layer-\(layerName)-enter tap) (on-release-fakekey kp-layer-\(layerName)-exit tap))"
                 }
                 aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: definition))
 
                 // Determine where to place the activator
-                let entry: LayerEntry
-                if activator.sourceLayer == .base {
-                    entry = LayerEntry(
+                let entry = if activator.sourceLayer == .base {
+                    LayerEntry(
                         sourceKey: tapKey,
                         baseOutput: "@\(aliasName)",
                         layerOutputs: [:]
                     )
                 } else {
                     // Chained activator: place in source layer, passthrough in base
-                    entry = LayerEntry(
+                    LayerEntry(
                         sourceKey: tapKey,
                         baseOutput: tapKey, // Passthrough in base layer
                         layerOutputs: [activator.sourceLayer: "@\(aliasName)"]
@@ -309,16 +309,15 @@ public struct KanataConfiguration: Sendable {
         for collection in collections where collection.isEnabled {
             var metadata = metadataLines(for: collection, indent: "  ", status: "enabled")
 
-            // Handle home row mods: generate mappings from config
-            // Handle tap-hold picker: generate tap-hold mapping from config
-            // Handle layer preset picker: generate mappings from selected preset
-            let effectiveMappings: [KeyMapping] = if collection.displayStyle == .homeRowMods, let config = collection.homeRowModsConfig {
+            // Handle special display styles: generate mappings from config
+            let effectiveMappings: [KeyMapping] = switch collection.configuration {
+            case let .homeRowMods(config):
                 generateHomeRowModsMappings(from: config)
-            } else if collection.displayStyle == .tapHoldPicker {
+            case .tapHoldPicker:
                 generateTapHoldPickerMappings(from: collection)
-            } else if collection.displayStyle == .layerPresetPicker {
+            case .layerPresetPicker:
                 generateLayerPresetMappings(from: collection)
-            } else {
+            case .list, .table, .singleKeyPicker:
                 collection.mappings
             }
 
@@ -392,7 +391,8 @@ public struct KanataConfiguration: Sendable {
 
             // For Vim collection: optionally block unmapped keys in navigation layer
             if collection.id == RuleCollectionIdentifier.vimNavigation,
-               collection.targetLayer != .base {
+               collection.targetLayer != .base
+            {
                 let mappedKeys = layerMappedKeys[collection.targetLayer] ?? Set(entries.map(\.sourceKey))
                 let activatorKey = collection.momentaryActivator.map { KanataKeyConverter.convertToKanataKey($0.input) } ?? ""
                 let extraKeys = Self.navigationUnmappedKeys(
@@ -667,10 +667,12 @@ public struct KanataConfiguration: Sendable {
 
     /// Generate mappings for a tap-hold picker collection (e.g., Caps Lock Remap)
     private static func generateTapHoldPickerMappings(from collection: RuleCollection) -> [KeyMapping] {
-        guard let inputKey = collection.pickerInputKey else { return [] }
+        guard case let .tapHoldPicker(config) = collection.configuration else {
+            return []
+        }
 
-        let tapOutput = collection.selectedTapOutput ?? "esc"
-        let holdOutput = collection.selectedHoldOutput ?? "hyper"
+        let tapOutput = config.selectedTapOutput ?? "esc"
+        let holdOutput = config.selectedHoldOutput ?? "hyper"
 
         // Create dual-role behavior: tap = tapOutput, hold = holdOutput
         let behavior = DualRoleBehavior(
@@ -684,7 +686,7 @@ public struct KanataConfiguration: Sendable {
         )
 
         let mapping = KeyMapping(
-            input: inputKey,
+            input: config.inputKey,
             output: tapOutput, // Fallback, but behavior takes precedence
             behavior: .dualRole(behavior)
         )
@@ -694,14 +696,15 @@ public struct KanataConfiguration: Sendable {
 
     /// Generate mappings for a layer preset picker collection (e.g., Symbol Layer)
     private static func generateLayerPresetMappings(from collection: RuleCollection) -> [KeyMapping] {
-        guard let presets = collection.layerPresets, !presets.isEmpty else {
+        guard case let .layerPresetPicker(config) = collection.configuration else {
             return collection.mappings
         }
 
-        let selectedId = collection.selectedLayerPreset ?? presets.first?.id ?? ""
-        let selectedPreset = presets.first { $0.id == selectedId } ?? presets.first
+        guard !config.presets.isEmpty else {
+            return collection.mappings
+        }
 
-        return selectedPreset?.mappings ?? []
+        return config.selectedMappings.isEmpty ? (config.presets.first?.mappings ?? []) : config.selectedMappings
     }
 
     private static func convertSingleKeyToForkFormat(_ key: String) -> String {
@@ -858,7 +861,8 @@ public final class ConfigurationService: FileConfigurationProviding {
     }
 
     public func observe(_ onChange: @Sendable @escaping (Config) async -> Void)
-        -> ConfigurationObservationToken {
+        -> ConfigurationObservationToken
+    {
         var index = 0
         stateLock.lock()
         observers.append(onChange)
@@ -1275,7 +1279,8 @@ public final class ConfigurationService: FileConfigurationProviding {
     /// Backs up a failed config and applies safe default, returning backup path
     public func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping])
         async throws
-        -> String {
+        -> String
+    {
         AppLogger.shared.log("🛡️ [Config] Backing up failed config and applying safe default")
 
         // Create backup directory if it doesn't exist
@@ -1326,7 +1331,8 @@ public final class ConfigurationService: FileConfigurationProviding {
     /// Repair configuration using rule-based strategies (keeps output Kanata-compatible).
     public func repairConfiguration(config: String, errors: [String], mappings: [KeyMapping])
         async throws
-        -> String {
+        -> String
+    {
         AppLogger.shared.log("🔧 [Config] Performing rule-based repair for \(errors.count) errors")
 
         // Common repair strategies

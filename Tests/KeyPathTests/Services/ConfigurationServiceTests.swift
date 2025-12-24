@@ -801,7 +801,7 @@ class ConfigurationServiceTests: XCTestCase {
             isSystemDefault: false,
             targetLayer: .navigation,
             momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation),
-            displayStyle: .table
+            configuration: .table
         )
 
         let config = KanataConfiguration.generateFromCollections([nav])

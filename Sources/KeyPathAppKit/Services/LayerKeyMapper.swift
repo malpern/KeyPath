@@ -166,15 +166,16 @@ actor LayerKeyMapper {
     /// - Parameters:
     ///   - layer: The layer name (e.g., "base", "nav", "symbols")
     ///   - configPath: Path to the kanata config file
+    ///   - layout: The physical keyboard layout to use for mapping
     /// - Returns: Dictionary mapping physical key codes to their layer-specific info
-    func getMapping(for layer: String, configPath: String) async throws -> [UInt16: LayerKeyInfo] {
+    func getMapping(for layer: String, configPath: String, layout: PhysicalLayout) async throws -> [UInt16: LayerKeyInfo] {
         // Normalize layer name to lowercase for consistent cache keys
         let normalizedLayer = layer.lowercased()
         AppLogger.shared.info("🗺️ [LayerKeyMapper] getMapping called for layer '\(layer)' (normalized: '\(normalizedLayer)')")
 
         if !FeatureFlags.simulatorAndVirtualKeysEnabled {
             AppLogger.shared.info("🗺️ [LayerKeyMapper] Simulator disabled; using fallback mapping")
-            let mapping = buildFallbackMapping()
+            let mapping = buildFallbackMapping(layout: layout)
             cache[normalizedLayer] = mapping
             return mapping
         }
@@ -197,7 +198,7 @@ actor LayerKeyMapper {
 
         // Use batch simulation for accurate key mapping
         // This handles aliases, tap-hold, forks, macros, etc.
-        let mapping = try await buildMappingWithSimulator(for: normalizedLayer, configPath: configPath)
+        let mapping = try await buildMappingWithSimulator(for: normalizedLayer, configPath: configPath, layout: layout)
 
         cache[normalizedLayer] = mapping
         AppLogger.shared.info("🗺️ [LayerKeyMapper] Built mapping: \(mapping.count) keys")
@@ -215,13 +216,14 @@ actor LayerKeyMapper {
     /// - Parameters:
     ///   - layerNames: List of all layer names (from TCP RequestLayerNames)
     ///   - configPath: Path to the kanata config file
-    func prebuildAllLayers(_ layerNames: [String], configPath: String) async {
+    ///   - layout: The physical keyboard layout to use for mapping
+    func prebuildAllLayers(_ layerNames: [String], configPath: String, layout: PhysicalLayout) async {
         // Normalize layer names to lowercase
         let normalizedLayers = layerNames.map { $0.lowercased() }
         AppLogger.shared.info("🗺️ [LayerKeyMapper] Pre-building mappings for \(normalizedLayers.count) layers: \(normalizedLayers.joined(separator: ", "))")
 
         if !FeatureFlags.simulatorAndVirtualKeysEnabled {
-            let mapping = buildFallbackMapping()
+            let mapping = buildFallbackMapping(layout: layout)
             for layer in normalizedLayers {
                 cache[layer] = mapping
             }
@@ -242,7 +244,7 @@ actor LayerKeyMapper {
             for layer in normalizedLayers {
                 group.addTask {
                     do {
-                        let mapping = try await self.buildMappingWithSimulator(for: layer, configPath: configPath)
+                        let mapping = try await self.buildMappingWithSimulator(for: layer, configPath: configPath, layout: layout)
                         return (layer, mapping)
                     } catch {
                         AppLogger.shared.error("🗺️ [LayerKeyMapper] Failed to build mapping for '\(layer)': \(error)")
@@ -267,12 +269,16 @@ actor LayerKeyMapper {
     /// Build mapping using simulator's --key-mapping mode
     /// Each key is simulated independently to avoid tap-hold interference.
     /// This is slower but accurate - handles aliases, tap-hold, forks, macros, etc.
-    private func buildMappingWithSimulator(for layer: String, configPath: String) async throws -> [UInt16: LayerKeyInfo] {
+    /// - Parameters:
+    ///   - layer: The layer name to build mapping for
+    ///   - configPath: Path to the kanata config file
+    ///   - layout: The physical keyboard layout to use for mapping
+    private func buildMappingWithSimulator(for layer: String, configPath: String, layout: PhysicalLayout) async throws -> [UInt16: LayerKeyInfo] {
         var mapping: [UInt16: LayerKeyInfo] = [:]
 
-        // Get all physical keys from the layout
-        let physicalKeys = PhysicalLayout.macBookUS.keys
-            .filter { $0.keyCode != 0xFFFF } // Skip Touch ID
+        // Get all physical keys from the provided layout
+        let physicalKeys = layout.keys
+            .filter { $0.keyCode != 0xFFFF } // Skip sentinel keys (e.g., Touch ID, Kinesis Layer/Fn)
             .filter { !OverlayKeyboardView.keyCodeToKanataName($0.keyCode).starts(with: "unknown") }
 
         let startLayer = layer.lowercased() == "base" ? "base" : layer.lowercased()
@@ -517,11 +523,12 @@ actor LayerKeyMapper {
     }
 
     /// Build a mapping that mirrors physical key labels without simulator output.
-    private func buildFallbackMapping() -> [UInt16: LayerKeyInfo] {
+    /// - Parameter layout: The physical keyboard layout to use for mapping
+    private func buildFallbackMapping(layout: PhysicalLayout) -> [UInt16: LayerKeyInfo] {
         var mapping: [UInt16: LayerKeyInfo] = [:]
 
-        let physicalKeys = PhysicalLayout.macBookUS.keys
-            .filter { $0.keyCode != 0xFFFF } // Skip Touch ID
+        let physicalKeys = layout.keys
+            .filter { $0.keyCode != 0xFFFF } // Skip sentinel keys (e.g., Touch ID, Kinesis Layer/Fn)
             .filter { !OverlayKeyboardView.keyCodeToKanataName($0.keyCode).starts(with: "unknown") }
 
         for key in physicalKeys {
