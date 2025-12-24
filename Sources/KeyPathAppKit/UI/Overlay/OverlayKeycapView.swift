@@ -126,21 +126,10 @@ struct OverlayKeycapView: View {
         layerKeyInfo?.urlIdentifier != nil
     }
 
-    /// SF Symbol icon for system action
+    /// SF Symbol icon for system action (resolved via IconResolverService)
     private var systemActionIcon: String? {
         guard let actionId = layerKeyInfo?.systemActionIdentifier else { return nil }
-
-        // Map system action IDs to SF Symbol icons (matching SystemActionInfo in MapperView)
-        switch actionId.lowercased() {
-        case "spotlight": return "magnifyingglass"
-        case "mission-control", "missioncontrol": return "rectangle.3.group"
-        case "launchpad": return "square.grid.3x3"
-        case "dnd", "do-not-disturb", "donotdisturb": return "moon.fill"
-        case "notification-center", "notificationcenter": return "bell.fill"
-        case "dictation": return "mic.fill"
-        case "siri": return "waveform.circle.fill"
-        default: return nil
-        }
+        return IconResolverService.shared.systemActionSymbol(for: actionId)
     }
 
     var body: some View {
@@ -257,47 +246,20 @@ struct OverlayKeycapView: View {
 
     // MARK: - App Icon Loading
 
-    /// Load app icon for launch action if needed
+    /// Load app icon for launch action if needed (via IconResolverService)
     private func loadAppIconIfNeeded() {
         guard let appIdentifier = layerKeyInfo?.appLaunchIdentifier else {
             appIcon = nil
             return
         }
 
-        // Try to find app by bundle identifier or name
-        if let appURL = findAppURL(for: appIdentifier) {
-            let icon = NSWorkspace.shared.icon(forFile: appURL.path)
-            icon.size = NSSize(width: 64, height: 64)
-            appIcon = icon
-        } else {
-            appIcon = nil
-        }
-    }
-
-    /// Find app URL by bundle identifier or name
-    private func findAppURL(for identifier: String) -> URL? {
-        // First try as bundle identifier
-        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: identifier) {
-            return url
-        }
-
-        // Try as app name in /Applications
-        let applicationsPath = "/Applications/\(identifier).app"
-        if FileManager.default.fileExists(atPath: applicationsPath) {
-            return URL(fileURLWithPath: applicationsPath)
-        }
-
-        // Try with capitalized first letter
-        let capitalizedPath = "/Applications/\(identifier.capitalized).app"
-        if FileManager.default.fileExists(atPath: capitalizedPath) {
-            return URL(fileURLWithPath: capitalizedPath)
-        }
-
-        return nil
+        // Delegate to IconResolverService (handles caching internally)
+        appIcon = IconResolverService.shared.resolveAppIcon(for: appIdentifier)
     }
 
     // MARK: - Favicon Loading
 
+    /// Load favicon for URL action if needed (via IconResolverService)
     private func loadFaviconIfNeeded() {
         guard let url = layerKeyInfo?.urlIdentifier else {
             faviconImage = nil
@@ -305,8 +267,7 @@ struct OverlayKeycapView: View {
         }
 
         Task { @MainActor in
-            let favicon = await FaviconFetcher.shared.fetchFavicon(for: url)
-            faviconImage = favicon
+            faviconImage = await IconResolverService.shared.resolveFavicon(for: url)
         }
     }
 
@@ -419,7 +380,7 @@ struct OverlayKeycapView: View {
     @ViewBuilder
     private var centeredContent: some View {
         // Hide label if floating labels are handling it (during keymap animation)
-        if useFloatingLabels && isSimpleAlphaKey {
+        if useFloatingLabels, isSimpleAlphaKey {
             Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let navSymbol = navOverlaySymbol {
             navOverlayContent(arrow: navSymbol, letter: baseLabel)
@@ -643,7 +604,8 @@ struct OverlayKeycapView: View {
             // Standard function key layout: SF symbol on top, F-key label below
             let sfSymbol: String? = {
                 if let info = layerKeyInfo,
-                   let outputSymbol = LabelMetadata.sfSymbol(forOutputLabel: info.displayLabel) {
+                   let outputSymbol = LabelMetadata.sfSymbol(forOutputLabel: info.displayLabel)
+                {
                     return outputSymbol
                 }
                 // Fall back to physical key code
@@ -857,13 +819,12 @@ struct OverlayKeycapView: View {
     }
 
     private var foregroundColor: Color {
-        let baseColor: Color
-        if isModifierKey {
-            baseColor = colorway.modLegendColor
+        let baseColor: Color = if isModifierKey {
+            colorway.modLegendColor
         } else if isAccentKey {
-            baseColor = colorway.accentLegendColor
+            colorway.accentLegendColor
         } else {
-            baseColor = colorway.alphaLegendColor
+            colorway.alphaLegendColor
         }
         return baseColor.opacity(isPressed ? 1.0 : 0.88)
     }
