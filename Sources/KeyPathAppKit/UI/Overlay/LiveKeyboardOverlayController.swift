@@ -530,6 +530,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         self.window = window
         observeDesiredContentHeight()
         observeDesiredContentWidth()
+        observeKeyboardAspectRatio()
     }
 
     // MARK: - Inspector Panel
@@ -723,6 +724,51 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
                 self.applyDesiredContentWidth(width)
             }
             .store(in: &cancellables)
+    }
+
+    private func observeKeyboardAspectRatio() {
+        uiState.$keyboardAspectRatio
+            .removeDuplicates()
+            .sink { [weak self] newAspectRatio in
+                guard let self, let window = self.window, !self.isUserResizing else { return }
+                self.resizeWindowForNewAspectRatio(newAspectRatio)
+            }
+            .store(in: &cancellables)
+    }
+
+    private func resizeWindowForNewAspectRatio(_ newAspectRatio: CGFloat) {
+        guard let window else { return }
+        guard !isAdjustingHeight, !isAdjustingWidth else { return }
+        
+        let verticalChrome = OverlayLayoutMetrics.verticalChrome
+        let currentFrame = window.frame
+        let currentKeyboardHeight = currentFrame.height - verticalChrome
+        
+        // Calculate new keyboard width based on new aspect ratio
+        let newKeyboardWidth = currentKeyboardHeight * newAspectRatio
+        
+        // Calculate horizontal chrome (padding + inspector if open)
+        let horizontalChrome = OverlayLayoutMetrics.horizontalChrome(
+            inspectorVisible: uiState.isInspectorOpen,
+            inspectorWidth: inspectorPanelWidth
+        )
+        
+        let newWindowWidth = newKeyboardWidth + horizontalChrome
+        
+        // Only resize if there's a meaningful difference
+        guard abs(currentFrame.width - newWindowWidth) > 1.0 else { return }
+        
+        isAdjustingWidth = true
+        var newFrame = currentFrame
+        newFrame.size.width = newWindowWidth
+        
+        // Keep right edge anchored (window moves left as it shrinks, right as it grows)
+        newFrame.origin.x = currentFrame.maxX - newWindowWidth
+        
+        let constrained = window.constrainFrameRect(newFrame, to: window.screen)
+        window.setFrame(constrained, display: true, animate: true)
+        
+        isAdjustingWidth = false
     }
 
     private func applyDesiredContentHeight(_ height: CGFloat) {

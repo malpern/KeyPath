@@ -107,8 +107,9 @@ private struct KeyboardIllustrationCard: View {
     @ViewBuilder
     private var keyboardImage: some View {
         // Try to load illustration image from bundle resources
-        if let imageURL = Bundle.module.url(forResource: layout.id, withExtension: "png", subdirectory: "KeyboardIllustrations")
-            ?? Bundle.main.url(forResource: layout.id, withExtension: "png", subdirectory: "KeyboardIllustrations"),
+        // Images are in the bundle root (not in KeyboardIllustrations subdirectory)
+        if let imageURL = Bundle.module.url(forResource: layout.id, withExtension: "png")
+            ?? Bundle.main.url(forResource: layout.id, withExtension: "png"),
            let image = NSImage(contentsOf: imageURL) {
             Image(nsImage: image)
                 .resizable()
