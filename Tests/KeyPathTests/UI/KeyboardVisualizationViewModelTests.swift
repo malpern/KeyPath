@@ -99,4 +99,87 @@ final class KeyboardVisualizationViewModelTests: XCTestCase {
 
         XCTAssertNil(viewModel.holdLabels[57])
     }
+
+    // MARK: - Push-Msg Extraction Tests
+
+    func testExtractPushMsgInfoLaunch() {
+        let output = #"(push-msg "launch:Safari")"#
+        let result = KeyboardVisualizationViewModel.extractPushMsgInfo(from: output, description: nil)
+
+        XCTAssertNotNil(result)
+        XCTAssertEqual(result?.appLaunchIdentifier, "Safari")
+    }
+
+    func testExtractPushMsgInfoSystem() {
+        let output = #"(push-msg "system:spotlight")"#
+        let result = KeyboardVisualizationViewModel.extractPushMsgInfo(from: output, description: nil)
+
+        XCTAssertNotNil(result)
+        XCTAssertEqual(result?.systemActionIdentifier, "spotlight")
+        XCTAssertEqual(result?.displayLabel, "Spotlight")
+    }
+
+    func testExtractPushMsgInfoReturnsNilForNonMatching() {
+        let output = "some random string"
+        let result = KeyboardVisualizationViewModel.extractPushMsgInfo(from: output, description: nil)
+        XCTAssertNil(result)
+    }
+
+    func testExtractAppLaunchIdentifier() {
+        let output = #"(push-msg "launch:Terminal")"#
+        let result = KeyboardVisualizationViewModel.extractAppLaunchIdentifier(from: output)
+        XCTAssertEqual(result, "Terminal")
+    }
+
+    func testExtractAppLaunchIdentifierWithBundleId() {
+        let output = #"(push-msg "launch:com.apple.finder")"#
+        let result = KeyboardVisualizationViewModel.extractAppLaunchIdentifier(from: output)
+        XCTAssertEqual(result, "com.apple.finder")
+    }
+
+    func testExtractAppLaunchIdentifierReturnsNilForNonLaunch() {
+        let output = #"(push-msg "system:spotlight")"#
+        let result = KeyboardVisualizationViewModel.extractAppLaunchIdentifier(from: output)
+        XCTAssertNil(result)
+    }
+
+    // MARK: - Key Emphasis Tests
+
+    func testEmphasizedKeyCodesOnNavLayer() async {
+        let viewModel = KeyboardVisualizationViewModel()
+        viewModel.currentLayerName = "nav"
+
+        let emphasized = viewModel.emphasizedKeyCodes
+
+        // h=4, j=38, k=40, l=37 should be emphasized
+        XCTAssertTrue(emphasized.contains(4), "h (keyCode 4) should be emphasized")
+        XCTAssertTrue(emphasized.contains(38), "j (keyCode 38) should be emphasized")
+        XCTAssertTrue(emphasized.contains(40), "k (keyCode 40) should be emphasized")
+        XCTAssertTrue(emphasized.contains(37), "l (keyCode 37) should be emphasized")
+    }
+
+    func testEmphasizedKeyCodesOnBaseLayer() async {
+        let viewModel = KeyboardVisualizationViewModel()
+        viewModel.currentLayerName = "base"
+
+        let emphasized = viewModel.emphasizedKeyCodes
+
+        // HJKL should NOT be emphasized on base layer
+        XCTAssertFalse(emphasized.contains(4))
+        XCTAssertFalse(emphasized.contains(38))
+        XCTAssertFalse(emphasized.contains(40))
+        XCTAssertFalse(emphasized.contains(37))
+    }
+
+    func testKanataNameToKeyCodeMapsCorrectly() {
+        // Test a few key mappings to ensure the lookup works
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("h"), 4)
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("j"), 38)
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("k"), 40)
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("l"), 37)
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("space"), 49)
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("caps"), 57)
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("capslock"), 57)
+        XCTAssertNil(KeyboardVisualizationViewModel.kanataNameToKeyCode("unknown-key"))
+    }
 }

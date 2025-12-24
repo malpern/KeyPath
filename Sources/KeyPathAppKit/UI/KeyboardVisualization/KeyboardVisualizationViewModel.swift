@@ -75,13 +75,16 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
     // MARK: - Key Emphasis
 
+    /// HJKL key codes for nav layer auto-emphasis (computed once from key names)
+    private static let hjklKeyCodes: Set<UInt16> = {
+        ["h", "j", "k", "l"].compactMap { kanataNameToKeyCode($0) }.reduce(into: Set<UInt16>()) { $0.insert($1) }
+    }()
+
     /// Key codes to emphasize based on current layer and custom emphasis commands
     /// HJKL keys are auto-emphasized when on nav layer, plus any custom emphasis via push-msg
     var emphasizedKeyCodes: Set<UInt16> {
         // Auto-emphasis: HJKL on nav layer
-        // h=4, j=38, k=40, l=37
-        let hjklKeyCodes: Set<UInt16> = [4, 38, 40, 37]
-        let autoEmphasis = currentLayerName.lowercased() == "nav" ? hjklKeyCodes : []
+        let autoEmphasis = currentLayerName.lowercased() == "nav" ? Self.hjklKeyCodes : []
 
         // Merge with custom emphasis from push-msg
         return autoEmphasis.union(customEmphasisKeyCodes)
@@ -499,13 +502,26 @@ class KeyboardVisualizationViewModel: ObservableObject {
         return augmented
     }
 
+    // MARK: - Cached Regex Patterns
+
+    /// Cached regex for extracting push-msg type:value patterns
+    /// Pattern: (push-msg "type:value")
+    nonisolated(unsafe) private static let pushMsgTypeValueRegex = try! NSRegularExpression(
+        pattern: #"\(push-msg\s+\"([^:\"]+):([^\"]+)\"\)"#,
+        options: []
+    )
+
+    /// Cached regex for extracting app launch identifiers
+    /// Pattern: (push-msg "launch:AppName")
+    nonisolated(unsafe) private static let pushMsgLaunchRegex = try! NSRegularExpression(
+        pattern: #"\(push-msg\s+\"launch:([^\"]+)\"\)"#,
+        options: []
+    )
+
     /// Extract LayerKeyInfo from a push-msg output string
     /// Handles: launch:, system:, and generic push-msg patterns
     nonisolated static func extractPushMsgInfo(from output: String, description: String?) -> LayerKeyInfo? {
-        // Pattern: (push-msg "type:value")
-        let pattern = #"\(push-msg\s+\"([^:\"]+):([^\"]+)\"\)"#
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []),
-              let match = regex.firstMatch(in: output, range: NSRange(output.startIndex..., in: output)),
+        guard let match = pushMsgTypeValueRegex.firstMatch(in: output, range: NSRange(output.startIndex..., in: output)),
               let typeRange = Range(match.range(at: 1), in: output),
               let valueRange = Range(match.range(at: 2), in: output)
         else {
@@ -554,10 +570,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// - Parameter output: The kanata output string (e.g., "(push-msg \"launch:Safari\")")
     /// - Returns: The app identifier if this is a launch action, nil otherwise
     nonisolated static func extractAppLaunchIdentifier(from output: String) -> String? {
-        // Pattern: (push-msg "launch:AppName") or (push-msg "launch:com.bundle.id")
-        let pattern = #"\(push-msg\s+\"launch:([^\"]+)\"\)"#
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []),
-              let match = regex.firstMatch(
+        guard let match = pushMsgLaunchRegex.firstMatch(
                   in: output,
                   range: NSRange(output.startIndex..., in: output)
               ),
