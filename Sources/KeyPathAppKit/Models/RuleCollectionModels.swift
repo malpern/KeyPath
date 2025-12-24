@@ -35,6 +35,8 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
     public var selectedLayerPreset: String?
     /// For windowSnapping: which key convention to use (standard mnemonic vs vim)
     public var windowKeyConvention: WindowKeyConvention?
+    /// For macFunctionKeys: true = media keys (default Mac), false = standard F-keys
+    public var functionKeyMode: FunctionKeyMode?
 
     public init(
         id: UUID = UUID(),
@@ -59,7 +61,8 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         selectedHoldOutput: String? = nil,
         layerPresets: [LayerPreset]? = nil,
         selectedLayerPreset: String? = nil,
-        windowKeyConvention: WindowKeyConvention? = nil
+        windowKeyConvention: WindowKeyConvention? = nil,
+        functionKeyMode: FunctionKeyMode? = nil
     ) {
         self.id = id
         self.name = name
@@ -84,13 +87,14 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         self.layerPresets = layerPresets
         self.selectedLayerPreset = selectedLayerPreset
         self.windowKeyConvention = windowKeyConvention
+        self.functionKeyMode = functionKeyMode
     }
 
     enum CodingKeys: String, CodingKey {
         case id, name, summary, category, mappings, isEnabled, isSystemDefault, icon, tags, targetLayer,
              momentaryActivator, activationHint, displayStyle, pickerInputKey, presetOptions, selectedOutput,
              homeRowModsConfig, tapHoldOptions, selectedTapOutput, selectedHoldOutput, layerPresets,
-             selectedLayerPreset, windowKeyConvention
+             selectedLayerPreset, windowKeyConvention, functionKeyMode
     }
 
     public init(from decoder: Decoder) throws {
@@ -122,6 +126,7 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         layerPresets = try container.decodeIfPresent([LayerPreset].self, forKey: .layerPresets)
         selectedLayerPreset = try container.decodeIfPresent(String.self, forKey: .selectedLayerPreset)
         windowKeyConvention = try container.decodeIfPresent(WindowKeyConvention.self, forKey: .windowKeyConvention)
+        functionKeyMode = try container.decodeIfPresent(FunctionKeyMode.self, forKey: .functionKeyMode)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -149,6 +154,7 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         try container.encodeIfPresent(layerPresets, forKey: .layerPresets)
         try container.encodeIfPresent(selectedLayerPreset, forKey: .selectedLayerPreset)
         try container.encodeIfPresent(windowKeyConvention, forKey: .windowKeyConvention)
+        try container.encodeIfPresent(functionKeyMode, forKey: .functionKeyMode)
     }
 }
 
@@ -169,6 +175,36 @@ public enum WindowKeyConvention: String, Codable, CaseIterable, Sendable {
         case .standard: "L=Left, R=Right, U/I/J/K corners"
         case .vim: "H=Left, L=Right, Y/U/B/N corners"
         }
+    }
+}
+
+/// Function key mode: media keys (default Mac behavior) or standard F-keys
+public enum FunctionKeyMode: String, Codable, CaseIterable, Sendable {
+    case media = "media"
+    case function = "function"
+
+    public var displayName: String {
+        switch self {
+        case .media: "Media Keys"
+        case .function: "Function Keys"
+        }
+    }
+
+    public var description: String {
+        switch self {
+        case .media: "Shows brightness, volume, and media controls (default Mac behavior)"
+        case .function: "Shows F1-F12 for apps that use function keys"
+        }
+    }
+
+    /// Convert from Bool (true = media, false = function) for backwards compatibility
+    public init(preferMediaKeys: Bool) {
+        self = preferMediaKeys ? .media : .function
+    }
+
+    /// Convert to Bool for UI binding
+    public var preferMediaKeys: Bool {
+        self == .media
     }
 }
 

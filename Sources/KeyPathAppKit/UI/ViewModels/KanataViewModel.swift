@@ -254,6 +254,10 @@ class KanataViewModel: ObservableObject {
         await manager.updateWindowKeyConvention(id, convention: convention)
     }
 
+    func updateFunctionKeyMode(_ id: UUID, mode: FunctionKeyMode) async {
+        await manager.updateFunctionKeyMode(id, mode: mode)
+    }
+
     func updateHomeRowModsConfig(collectionId: UUID, config: HomeRowModsConfig) async {
         await manager.updateHomeRowModsConfig(collectionId: collectionId, config: config)
     }

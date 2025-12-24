@@ -252,6 +252,46 @@ struct RuleCollectionCatalog {
         }
     }
 
+    /// Generate function key mappings for a given mode
+    /// - Parameter mode: Media keys (default Mac behavior) or standard F-keys
+    /// - Returns: Key mappings for F1-F12
+    static func functionKeyMappings(for mode: FunctionKeyMode) -> [KeyMapping] {
+        switch mode {
+        case .media:
+            // Default Mac behavior: F1-F12 send media/system commands
+            return [
+                KeyMapping(input: "f1", output: "brdn", description: "Brightness down"),
+                KeyMapping(input: "f2", output: "brup", description: "Brightness up"),
+                KeyMapping(input: "f3", output: #"(push-msg "system:mission-control")"#, description: "Mission Control"),
+                KeyMapping(input: "f4", output: #"(push-msg "system:spotlight")"#, description: "Spotlight"),
+                KeyMapping(input: "f5", output: #"(push-msg "system:dictation")"#, description: "Dictation"),
+                KeyMapping(input: "f6", output: #"(push-msg "system:dnd")"#, description: "Do Not Disturb"),
+                KeyMapping(input: "f7", output: "prev", description: "Previous track"),
+                KeyMapping(input: "f8", output: "pp", description: "Play / Pause"),
+                KeyMapping(input: "f9", output: "next", description: "Next track"),
+                KeyMapping(input: "f10", output: "mute", description: "Mute"),
+                KeyMapping(input: "f11", output: "vold", description: "Volume down"),
+                KeyMapping(input: "f12", output: "volu", description: "Volume up")
+            ]
+        case .function:
+            // Standard F-keys: F1-F12 pass through as-is
+            return [
+                KeyMapping(input: "f1", output: "f1", description: "F1"),
+                KeyMapping(input: "f2", output: "f2", description: "F2"),
+                KeyMapping(input: "f3", output: "f3", description: "F3"),
+                KeyMapping(input: "f4", output: "f4", description: "F4"),
+                KeyMapping(input: "f5", output: "f5", description: "F5"),
+                KeyMapping(input: "f6", output: "f6", description: "F6"),
+                KeyMapping(input: "f7", output: "f7", description: "F7"),
+                KeyMapping(input: "f8", output: "f8", description: "F8"),
+                KeyMapping(input: "f9", output: "f9", description: "F9"),
+                KeyMapping(input: "f10", output: "f10", description: "F10"),
+                KeyMapping(input: "f11", output: "f11", description: "F11"),
+                KeyMapping(input: "f12", output: "f12", description: "F12")
+            ]
+        }
+    }
+
     private var capsLockRemap: RuleCollection {
         RuleCollection(
             id: RuleCollectionIdentifier.capsLockRemap,

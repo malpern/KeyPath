@@ -7,11 +7,21 @@ import SwiftUI
 /// Shows F1-F12 as flip cards that reveal either function keys or media icons.
 struct FunctionKeysView: View {
     let mappings: [KeyMapping]
-    /// Callback when display mode changes (true = media keys, false = function keys)
-    var onModeChange: ((Bool) -> Void)?
+    /// The current function key mode from the collection
+    let currentMode: FunctionKeyMode?
+    /// Callback when display mode changes
+    var onModeChange: ((FunctionKeyMode) -> Void)?
 
     /// User's preferred display mode: true = show media keys (default Mac behavior)
     @State private var preferMediaKeys: Bool = true
+
+    init(mappings: [KeyMapping], currentMode: FunctionKeyMode? = nil, onModeChange: ((FunctionKeyMode) -> Void)? = nil) {
+        self.mappings = mappings
+        self.currentMode = currentMode
+        self.onModeChange = onModeChange
+        // Initialize preferMediaKeys based on currentMode
+        _preferMediaKeys = State(initialValue: currentMode?.preferMediaKeys ?? true)
+    }
 
     /// Whether fn key is currently held (temporarily flips display)
     @State private var isFnHeld: Bool = false
@@ -51,7 +61,7 @@ struct FunctionKeysView: View {
             stopMonitoringFnKey()
         }
         .onChange(of: preferMediaKeys) { _, newValue in
-            onModeChange?(newValue)
+            onModeChange?(FunctionKeyMode(preferMediaKeys: newValue))
         }
     }
 

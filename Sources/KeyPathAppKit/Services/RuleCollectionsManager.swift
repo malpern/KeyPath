@@ -485,6 +485,31 @@ final class RuleCollectionsManager {
         await regenerateConfigFromCollections()
     }
 
+    /// Update function key mode (Media Keys vs Function Keys)
+    func updateFunctionKeyMode(id: UUID, mode: FunctionKeyMode) async {
+        guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
+            // Try to find in catalog and add it
+            let catalog = RuleCollectionCatalog()
+            if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
+                catalogCollection.functionKeyMode = mode
+                catalogCollection.mappings = RuleCollectionCatalog.functionKeyMappings(for: mode)
+                catalogCollection.isEnabled = true
+                ruleCollections.append(catalogCollection)
+                dedupeRuleCollectionsInPlace()
+                refreshLayerIndicatorState()
+                await regenerateConfigFromCollections()
+            }
+            return
+        }
+
+        ruleCollections[index].functionKeyMode = mode
+        ruleCollections[index].mappings = RuleCollectionCatalog.functionKeyMappings(for: mode)
+        ruleCollections[index].isEnabled = true
+        dedupeRuleCollectionsInPlace()
+        refreshLayerIndicatorState()
+        await regenerateConfigFromCollections()
+    }
+
     /// Update home row mods configuration
     func updateHomeRowModsConfig(id: UUID, config: HomeRowModsConfig) async {
         guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {

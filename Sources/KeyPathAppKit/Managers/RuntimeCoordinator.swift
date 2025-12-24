@@ -798,6 +798,10 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         await ruleCollectionsCoordinator.updateWindowKeyConvention(id: id, convention: convention)
     }
 
+    func updateFunctionKeyMode(_ id: UUID, mode: FunctionKeyMode) async {
+        await ruleCollectionsCoordinator.updateFunctionKeyMode(id: id, mode: mode)
+    }
+
     func updateHomeRowModsConfig(collectionId: UUID, config: HomeRowModsConfig) async {
         await ruleCollectionsCoordinator.updateHomeRowModsConfig(id: collectionId, config: config)
     }

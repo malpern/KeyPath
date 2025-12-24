@@ -83,6 +83,47 @@ final class RuleCollectionsManagerTests: XCTestCase {
         XCTAssertTrue(config.contains("(deflayer nav"), "Navigation layer block should be emitted")
     }
 
+    // MARK: - Function Key Mode Tests
+
+    func testFunctionKeyMappingsMediaMode() {
+        let mappings = RuleCollectionCatalog.functionKeyMappings(for: .media)
+
+        XCTAssertEqual(mappings.count, 12, "Should have 12 function key mappings")
+
+        // Verify media key outputs
+        XCTAssertTrue(mappings.contains { $0.input == "f1" && $0.output == "brdn" }, "F1 should map to brightness down")
+        XCTAssertTrue(mappings.contains { $0.input == "f2" && $0.output == "brup" }, "F2 should map to brightness up")
+        XCTAssertTrue(mappings.contains { $0.input == "f7" && $0.output == "prev" }, "F7 should map to previous track")
+        XCTAssertTrue(mappings.contains { $0.input == "f8" && $0.output == "pp" }, "F8 should map to play/pause")
+        XCTAssertTrue(mappings.contains { $0.input == "f10" && $0.output == "mute" }, "F10 should map to mute")
+        XCTAssertTrue(mappings.contains { $0.input == "f12" && $0.output == "volu" }, "F12 should map to volume up")
+    }
+
+    func testFunctionKeyMappingsFunctionMode() {
+        let mappings = RuleCollectionCatalog.functionKeyMappings(for: .function)
+
+        XCTAssertEqual(mappings.count, 12, "Should have 12 function key mappings")
+
+        // Verify passthrough outputs (each F-key maps to itself)
+        for i in 1...12 {
+            let key = "f\(i)"
+            XCTAssertTrue(
+                mappings.contains { $0.input == key && $0.output == key },
+                "\(key.uppercased()) should pass through as \(key)"
+            )
+        }
+    }
+
+    func testFunctionKeyModeConversion() {
+        // Test Bool -> FunctionKeyMode conversion
+        XCTAssertEqual(FunctionKeyMode(preferMediaKeys: true), .media)
+        XCTAssertEqual(FunctionKeyMode(preferMediaKeys: false), .function)
+
+        // Test FunctionKeyMode -> Bool conversion
+        XCTAssertTrue(FunctionKeyMode.media.preferMediaKeys)
+        XCTAssertFalse(FunctionKeyMode.function.preferMediaKeys)
+    }
+
     // MARK: - Conflict Detection Tests
 
     @MainActor

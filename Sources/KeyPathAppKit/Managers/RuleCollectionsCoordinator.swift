@@ -97,6 +97,13 @@ final class RuleCollectionsCoordinator {
         notifyStateChanged()
     }
 
+    /// Update function key mode (Media Keys vs Function Keys)
+    func updateFunctionKeyMode(id: UUID, mode: FunctionKeyMode) async {
+        await ruleCollectionsManager.updateFunctionKeyMode(id: id, mode: mode)
+        applyMappings(ruleCollectionsManager.enabledMappings())
+        notifyStateChanged()
+    }
+
     /// Update home row mods configuration
     func updateHomeRowModsConfig(id: UUID, config: HomeRowModsConfig) async {
         await ruleCollectionsManager.updateHomeRowModsConfig(id: id, config: config)

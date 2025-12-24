@@ -118,7 +118,9 @@ struct OverlayKeyboardView: View {
 
                 // Layer 2: Floating labels (animate between keycap positions)
                 // Only render for alpha keys when keymap animation is enabled
-                if hasUserChangedKeymap && !reduceMotion {
+                // IMPORTANT: Only render when keycapFrames has been populated to avoid
+                // labels appearing at (0,0) before frames are collected
+                if hasUserChangedKeymap && !reduceMotion && !keycapFrames.isEmpty {
                     ForEach(Self.allLabels, id: \.self) { label in
                         FloatingKeymapLabel(
                             label: label,
@@ -201,7 +203,9 @@ struct OverlayKeyboardView: View {
             holdLabel: holdLabels[key.keyCode],
             onKeyClick: onKeyClick,
             colorway: activeColorway,
-            useFloatingLabels: hasUserChangedKeymap && !reduceMotion
+            // Only hide keycap labels when floating labels will actually be shown
+            // (requires keycapFrames to be populated so labels have valid positions)
+            useFloatingLabels: hasUserChangedKeymap && !reduceMotion && !keycapFrames.isEmpty
         )
         .frame(
             width: keyWidth(for: key, scale: scale),

@@ -168,6 +168,9 @@ struct RulesTabView: View {
             onSelectWindowConvention: collection.id == RuleCollectionIdentifier.windowSnapping ? { convention in
                 Task { await kanataManager.updateWindowKeyConvention(collection.id, convention: convention) }
             } : nil,
+            onSelectFunctionKeyMode: collection.id == RuleCollectionIdentifier.macFunctionKeys ? { mode in
+                Task { await kanataManager.updateFunctionKeyMode(collection.id, mode: mode) }
+            } : nil,
             scrollID: "collection-\(collection.id.uuidString)",
             scrollProxy: scrollProxy
         )
@@ -530,8 +533,8 @@ private struct ExpandableCollectionRow: View {
     var onSelectLayerPreset: ((String) -> Void)?
     /// For windowSnapping: callback to change key convention
     var onSelectWindowConvention: ((WindowKeyConvention) -> Void)?
-    /// For functionKeys: callback to change display mode (true = media keys, false = function keys)
-    var onSelectFunctionKeyMode: ((Bool) -> Void)?
+    /// For functionKeys: callback to change mode (media keys vs function keys)
+    var onSelectFunctionKeyMode: ((FunctionKeyMode) -> Void)?
     /// Unique ID for scroll-to behavior
     var scrollID: String?
     /// Scroll proxy for auto-scrolling when expanded
@@ -826,6 +829,7 @@ private struct ExpandableCollectionRow: View {
                         // Function keys use flip card display
                         FunctionKeysView(
                             mappings: collection?.mappings ?? [],
+                            currentMode: collection?.functionKeyMode,
                             onModeChange: { mode in
                                 onSelectFunctionKeyMode?(mode)
                             }
