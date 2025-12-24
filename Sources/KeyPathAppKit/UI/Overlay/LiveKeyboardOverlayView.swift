@@ -78,7 +78,9 @@ struct LiveKeyboardOverlayView: View {
                     height: headerHeight,
                     leadingContentPadding: headerContentLeadingPadding,
                     reduceTransparency: reduceTransparency,
-                    onClose: { onClose?() }
+                    isInspectorOpen: uiState.isInspectorOpen,
+                    onClose: { onClose?() },
+                    onToggleInspector: { onToggleInspector?() }
                 )
                 .frame(maxWidth: .infinity)
 
@@ -197,6 +199,14 @@ struct LiveKeyboardOverlayView: View {
             if uiState.desiredContentHeight != desiredHeight {
                 uiState.desiredContentHeight = desiredHeight
             }
+            // When inspector is open and layout changes, request window resize to fit
+            // keyboard + inspector without overlap
+            if inspectorVisible {
+                let totalWidth = keyboardPadding + keyboardWidth + keyboardTrailingPadding + inspectorChrome
+                if uiState.desiredContentWidth != totalWidth {
+                    uiState.desiredContentWidth = totalWidth
+                }
+            }
         }
         .onAppear {
             uiState.keyboardAspectRatio = keyboardAspectRatio
@@ -273,7 +283,9 @@ private struct OverlayDragHeader: View {
     let height: CGFloat
     let leadingContentPadding: CGFloat
     let reduceTransparency: Bool
+    let isInspectorOpen: Bool
     let onClose: () -> Void
+    let onToggleInspector: () -> Void
 
     @State private var isDragging = false
     @State private var initialFrame: NSRect = .zero
@@ -282,49 +294,57 @@ private struct OverlayDragHeader: View {
     var body: some View {
         let buttonSize = max(10, height * 0.9)
 
-        ZStack {
-            Rectangle()
-                .fill(headerFill)
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 1, coordinateSpace: .global)
-                        .onChanged { _ in
-                            if !isDragging {
-                                if let window = findOverlayWindow() {
-                                    initialFrame = window.frame
-                                    initialMouseLocation = NSEvent.mouseLocation
-                                }
-                                isDragging = true
-                            }
-
-                            let currentMouse = NSEvent.mouseLocation
-                            let deltaX = currentMouse.x - initialMouseLocation.x
-                            let deltaY = currentMouse.y - initialMouseLocation.y
-                            moveWindow(deltaX: deltaX, deltaY: deltaY)
-                        }
-                        .onEnded { _ in
-                            isDragging = false
-                        }
-                )
-
-            HStack(spacing: 6) {
-                Button(action: onClose) {
-                    Image(systemName: "xmark")
+        HStack(spacing: 6) {
+            // TEST: Settings button on LEFT to test if position matters
+            if !isInspectorOpen {
+                Button(action: {
+                    AppLogger.shared.log("🔧 [Header] Drawer tab clicked! isInspectorOpen=\(isInspectorOpen)")
+                    onToggleInspector()
+                }) {
+                    Image(systemName: "slider.horizontal.3")
                         .font(.system(size: buttonSize * 0.45, weight: .semibold))
                         .foregroundStyle(headerIconColor)
                         .frame(width: buttonSize, height: buttonSize)
                 }
                 .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
-                .help("Close Overlay")
-
-                Spacer()
+                .help("Open Settings")
             }
-            .padding(.leading, leadingContentPadding)
-            .padding(.trailing, 6)
-            .frame(maxWidth: .infinity, alignment: .leading)
 
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: buttonSize * 0.45, weight: .semibold))
+                    .foregroundStyle(headerIconColor)
+                    .frame(width: buttonSize, height: buttonSize)
+            }
+            .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
+            .help("Close Overlay")
+
+            Spacer()
         }
+        .padding(.leading, leadingContentPadding)
+        .padding(.trailing, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: height)
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                .onChanged { _ in
+                    if !isDragging {
+                        if let window = findOverlayWindow() {
+                            initialFrame = window.frame
+                            initialMouseLocation = NSEvent.mouseLocation
+                        }
+                        isDragging = true
+                    }
+                    let currentMouse = NSEvent.mouseLocation
+                    let deltaX = currentMouse.x - initialMouseLocation.x
+                    let deltaY = currentMouse.y - initialMouseLocation.y
+                    moveWindow(deltaX: deltaX, deltaY: deltaY)
+                }
+                .onEnded { _ in
+                    isDragging = false
+                }
+        )
     }
 
     private var headerTint: Color {
@@ -516,6 +536,8 @@ struct OverlayInspectorPanel: View {
                         physicalLayoutContent
                     case .keycaps:
                         keycapsContent
+                    case .sounds:
+                        soundsContent
                     }
                 }
                 .padding(.horizontal, 12)
@@ -608,11 +630,12 @@ struct OverlayInspectorPanel: View {
                 }
             }
         }
+    }
 
-        Divider()
-            .padding(.vertical, 8)
+    // MARK: - Sounds Content
 
-        // Typing sounds section
+    @ViewBuilder
+    private var soundsContent: some View {
         TypingSoundsSection(isDark: isDark)
     }
 
@@ -843,6 +866,7 @@ private struct InspectorPanelToolbar: View {
     @State private var isHoveringKeyboard = false
     @State private var isHoveringLayout = false
     @State private var isHoveringKeycaps = false
+    @State private var isHoveringSounds = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -875,6 +899,16 @@ private struct InspectorPanelToolbar: View {
                 onSelectSection(.keycaps)
             }
             .accessibilityLabel("Keycap Style")
+
+            toolbarButton(
+                systemImage: "speaker.wave.2.fill",
+                isSelected: selectedSection == .sounds,
+                isHovering: isHoveringSounds,
+                onHover: { isHoveringSounds = $0 }
+            ) {
+                onSelectSection(.sounds)
+            }
+            .accessibilityLabel("Typing Sounds")
         }
         .controlSize(.regular)
         .padding(.horizontal, 14)
@@ -936,6 +970,7 @@ enum InspectorSection {
     case keyboard
     case layout
     case keycaps
+    case sounds
 }
 
 // MARK: - Preview

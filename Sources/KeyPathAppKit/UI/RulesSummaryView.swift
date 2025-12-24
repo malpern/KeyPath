@@ -1810,7 +1810,7 @@ private struct InsetBackPlane<Content: View>: View {
             .padding(.vertical, 4)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(NSColor.windowBackgroundColor).opacity(0.3))
+                    .fill(Color(NSColor.windowBackgroundColor).opacity(0.6))
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
                             .strokeBorder(

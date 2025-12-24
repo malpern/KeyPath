@@ -177,6 +177,44 @@ a   s        (prev space, next space)
 
 **Private API Note:** Space movement uses undocumented but stable CGS APIs (same as Amethyst, alt-tab-macos). These work with notarization but could break in future macOS versions.
 
+### 🤖 External Tools: Peekaboo for UI Automation
+
+For AI-driven UI automation (screenshots, clicks, typing, scrolling), use **Peekaboo** alongside KeyPath. KeyPath handles keyboard remapping; Peekaboo handles GUI automation. Unix philosophy - compose small tools.
+
+**Installation:**
+```bash
+brew install steipete/tap/peekaboo
+```
+
+**Available Commands:**
+| Command | Purpose |
+|---------|---------|
+| `peekaboo see` | Screenshot + AI analysis ("What buttons are visible?") |
+| `peekaboo click` | Click by element ID, label, or coordinates |
+| `peekaboo type` | Enter text with pacing options |
+| `peekaboo scroll` | Scroll in any direction |
+| `peekaboo hotkey` | Trigger keyboard shortcuts |
+| `peekaboo app` | Launch, quit, switch apps |
+| `peekaboo window` | Move/resize/focus windows |
+| `peekaboo menu` | Interact with app menus |
+
+**Composing with KeyPath:**
+```bash
+# Take screenshot, analyze, then trigger KeyPath action
+peekaboo see "Find the search field"
+open "keypath://layer/vim"  # Switch to vim layer
+peekaboo type "search query"
+```
+
+**For AI Agents:** Just document availability - agents discover and use CLIs on-demand:
+```markdown
+## Available Tools
+- `peekaboo` - macOS screenshots and UI automation
+- `open keypath://...` - Keyboard layer control
+```
+
+**Why not build our own?** Peekaboo uses the same AX/CGS APIs we have, but with 25+ polished tools. steipete maintains it actively. See `docs/LLM_VISION_UI_AUTOMATION.md` for architecture details.
+
 ### 🔮 PermissionOracle Architecture (CRITICAL - DO NOT BREAK)
 
 **THE FUNDAMENTAL RULE: Apple APIs ALWAYS take precedence over TCC database**

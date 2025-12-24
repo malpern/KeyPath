@@ -129,12 +129,13 @@ struct OverlayKeyboardView: View {
             guard oldValue != newValue else { return }
             // Mark that user has changed keymap (enables animation)
             hasUserChangedKeymap = true
-            // Update the animated mapping with spring animation
-            // This delays the position change so labels animate from old to new
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                animatedLabelToKeyCode = labelToKeyCode
-            }
             previousKeymapId = newValue
+            // Defer animation to next run loop so hasUserChangedKeymap propagates first
+            DispatchQueue.main.async {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                    animatedLabelToKeyCode = labelToKeyCode
+                }
+            }
         }
         .onAppear {
             previousKeymapId = keymap.id

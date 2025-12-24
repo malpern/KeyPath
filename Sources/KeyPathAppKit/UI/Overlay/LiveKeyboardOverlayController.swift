@@ -16,6 +16,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     private var collapsedFrameBeforeInspector: NSRect?
     private var lastWindowFrame: NSRect?
     private var isAdjustingHeight = false
+    private var isAdjustingWidth = false
     private var isUserResizing = false
     private var inspectorAnimationToken = UUID()
     private var resizeAnchor: ResizeAnchor = .none
@@ -163,7 +164,9 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     }
 
     func toggleInspectorPanel() {
+        AppLogger.shared.log("🔧 [OverlayController] toggleInspectorPanel called - isInspectorOpen=\(uiState.isInspectorOpen), reveal=\(uiState.inspectorReveal)")
         if uiState.isInspectorOpen || uiState.inspectorReveal > 0 {
+            AppLogger.shared.log("🔧 [OverlayController] Closing inspector...")
             closeInspector(animated: true)
         } else {
             if let window {
@@ -173,6 +176,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
                     return
                 }
             }
+            AppLogger.shared.log("🔧 [OverlayController] Opening inspector...")
             openInspector(animated: true)
         }
     }
@@ -512,6 +516,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
         self.window = window
         observeDesiredContentHeight()
+        observeDesiredContentWidth()
     }
 
     // MARK: - Inspector Panel
@@ -697,6 +702,16 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             .store(in: &cancellables)
     }
 
+    private func observeDesiredContentWidth() {
+        uiState.$desiredContentWidth
+            .removeDuplicates()
+            .sink { [weak self] width in
+                guard let self, !self.isUserResizing else { return }
+                self.applyDesiredContentWidth(width)
+            }
+            .store(in: &cancellables)
+    }
+
     private func applyDesiredContentHeight(_ height: CGFloat) {
         guard let window else { return }
         guard height > 0 else { return }
@@ -714,6 +729,29 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         let constrained = window.constrainFrameRect(newFrame, to: window.screen)
         window.setFrame(constrained, display: true, animate: false)
         isAdjustingHeight = false
+    }
+
+    private func applyDesiredContentWidth(_ width: CGFloat) {
+        guard let window else { return }
+        guard width > 0 else { return }
+        guard !isAdjustingWidth else { return }
+        guard uiState.isInspectorOpen else { return } // Only resize when inspector is open
+
+        let currentFrame = window.frame
+        if abs(currentFrame.width - width) < 0.5 {
+            return
+        }
+
+        isAdjustingWidth = true
+        var newFrame = currentFrame
+        newFrame.size.width = width
+        // Keep right edge anchored (inspector stays in place)
+        newFrame.origin.x = currentFrame.maxX - width
+        let constrained = window.constrainFrameRect(newFrame, to: window.screen)
+        window.setFrame(constrained, display: true, animate: true)
+        // Update collapsed frame reference to maintain correct keyboard width
+        updateCollapsedFrame(forExpandedFrame: constrained)
+        isAdjustingWidth = false
     }
 
     private func clamp(_ value: CGFloat, min minValue: CGFloat, max maxValue: CGFloat) -> CGFloat {
@@ -768,6 +806,7 @@ final class LiveKeyboardOverlayUIState: ObservableObject {
     @Published var isInspectorAnimating = false
     @Published var isInspectorClosing = false
     @Published var desiredContentHeight: CGFloat = 0
+    @Published var desiredContentWidth: CGFloat = 0
     @Published var keyboardAspectRatio: CGFloat = PhysicalLayout.macBookUS.totalWidth / PhysicalLayout.macBookUS.totalHeight
 }
 
