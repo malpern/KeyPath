@@ -211,6 +211,8 @@ struct ConflictResolutionDialog: View {
                 onCancel()
             }
             .keyboardShortcut(.cancelAction)
+            .accessibilityIdentifier("conflict-resolution-cancel-button")
+            .accessibilityLabel("Cancel")
 
             Spacer()
 
@@ -230,6 +232,8 @@ struct ConflictResolutionDialog: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.purple)
+                    .accessibilityIdentifier("conflict-resolution-switch-to-tap-button")
+                    .accessibilityLabel("Switch to Tap")
                 } else {
                     // User has tap dance, offer to keep it
                     Button {
@@ -241,6 +245,8 @@ struct ConflictResolutionDialog: View {
                         }
                     }
                     .buttonStyle(.bordered)
+                    .accessibilityIdentifier("conflict-resolution-keep-tap-dance-button")
+                    .accessibilityLabel("Keep Tap Dance")
                 }
 
                 // Hold option - prominent if it's what they're trying to add
@@ -256,6 +262,8 @@ struct ConflictResolutionDialog: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.orange)
+                    .accessibilityIdentifier("conflict-resolution-switch-to-hold-button")
+                    .accessibilityLabel("Switch to Hold")
                 } else {
                     // User has hold, offer to keep it
                     Button {
@@ -267,6 +275,8 @@ struct ConflictResolutionDialog: View {
                         }
                     }
                     .buttonStyle(.bordered)
+                    .accessibilityIdentifier("conflict-resolution-keep-hold-button")
+                    .accessibilityLabel("Keep Hold")
                 }
             }
         }

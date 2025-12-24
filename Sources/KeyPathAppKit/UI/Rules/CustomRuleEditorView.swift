@@ -378,6 +378,8 @@ struct CustomRuleEditorView: View {
             .buttonStyle(.plain)
             .focusable(false)
             .help("Clear")
+            .accessibilityIdentifier("custom-rule-editor-clear-button")
+            .accessibilityLabel("Clear")
             .onHover { hovering in
                 withAnimation(.easeInOut(duration: 0.15)) {
                     isHovered = hovering
@@ -508,6 +510,8 @@ struct CustomRuleEditorView: View {
                 Toggle("", isOn: $showAdvanced)
                     .toggleStyle(.switch)
                     .labelsHidden()
+                    .accessibilityIdentifier("custom-rule-editor-advanced-toggle")
+                    .accessibilityLabel("Show advanced options")
 
                 Text("Hold, Double Tap, etc.")
                     .font(.body)
@@ -827,6 +831,8 @@ struct CustomRuleEditorView: View {
                             }
                             .buttonStyle(.bordered)
                             .focusable(false)
+                            .accessibilityIdentifier("custom-rule-editor-reset-button")
+                            .accessibilityLabel("Reset advanced options")
                         }
                     }
                 }
@@ -951,12 +957,16 @@ struct CustomRuleEditorView: View {
             }
             .keyboardShortcut(.cancelAction)
             .focusable(false)
+            .accessibilityIdentifier("custom-rule-editor-cancel-button")
+            .accessibilityLabel("Cancel")
 
             Spacer()
 
             Button(mode == .create ? "Add" : "Save") {
                 saveRule()
             }
+            .accessibilityIdentifier("custom-rule-editor-save-button")
+            .accessibilityLabel(mode == .create ? "Add rule" : "Save rule")
             .keyboardShortcut(.defaultAction)
             .buttonStyle(.borderedProminent)
             .focusable(false)

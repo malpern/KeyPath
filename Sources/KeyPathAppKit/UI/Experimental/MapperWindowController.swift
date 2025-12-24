@@ -130,11 +130,15 @@ struct URLInputDialog: View {
                     onCancel()
                 }
                 .keyboardShortcut(.escape)
+                .accessibilityIdentifier("mapper-dialog-cancel-button")
+                .accessibilityLabel("Cancel")
 
                 Button("OK") {
                     onSubmit()
                 }
                 .keyboardShortcut(.return)
+                .accessibilityIdentifier("mapper-dialog-ok-button")
+                .accessibilityLabel("OK")
             }
         }
         .padding(20)

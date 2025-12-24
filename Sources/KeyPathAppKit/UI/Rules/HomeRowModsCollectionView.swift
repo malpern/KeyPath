@@ -47,6 +47,8 @@ struct HomeRowModsCollectionView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundColor(.accentColor)
+                .accessibilityIdentifier("home-row-mods-customize-button")
+                .accessibilityLabel("Customize home row mods")
             }
 
             // Modifier picker (contextual, appears when key is selected)
@@ -90,6 +92,8 @@ struct HomeRowModsCollectionView: View {
                     Text("Custom").tag(HomeRowPreset.custom)
                 }
                 .pickerStyle(.segmented)
+                .accessibilityIdentifier("home-row-mods-preset-picker")
+                .accessibilityLabel("Preset selection")
 
                 Picker("Key Selection", selection: Binding(
                     get: { config.keySelection },
@@ -106,6 +110,8 @@ struct HomeRowModsCollectionView: View {
                 }
                 .pickerStyle(.radioGroup)
                 .horizontalRadioGroupLayout()
+                .accessibilityIdentifier("home-row-mods-key-selection-picker")
+                .accessibilityLabel("Key selection")
 
                 // Custom key picker (appears contextually)
                 if config.keySelection == .custom {
@@ -170,6 +176,8 @@ struct HomeRowModsCollectionView: View {
                     }
                 ))
                 .toggleStyle(.checkbox)
+                .accessibilityIdentifier("home-row-mods-quick-tap-toggle")
+                .accessibilityLabel("Favor tap when another key is pressed")
 
                 HStack {
                     Text("Quick tap term")
@@ -197,6 +205,8 @@ struct HomeRowModsCollectionView: View {
                     }
                 ))
                 .toggleStyle(.checkbox)
+                .accessibilityIdentifier("home-row-mods-show-advanced-toggle")
+                .accessibilityLabel("Show per-key tap offsets")
 
                 if config.showAdvanced {
                     VStack(alignment: .leading, spacing: 6) {
@@ -254,6 +264,8 @@ struct HomeRowModsCollectionView: View {
             }
             .buttonStyle(.plain)
             .foregroundColor(.secondary)
+            .accessibilityIdentifier("home-row-mods-fewer-options-button")
+            .accessibilityLabel("Fewer options")
         }
         .padding()
         .background(
@@ -295,6 +307,8 @@ struct HomeRowModsCollectionView: View {
                             )
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("home-row-mods-key-button-\(key)")
+                    .accessibilityLabel("Toggle key \(key.uppercased())")
                 }
             }
         }
@@ -318,6 +332,8 @@ struct HomeRowModsCollectionView: View {
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("home-row-mods-modifier-picker-close-button")
+                .accessibilityLabel("Close modifier picker")
             }
 
             HStack(spacing: 12) {
@@ -371,6 +387,8 @@ struct HomeRowModsCollectionView: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("home-row-mods-modifier-button-\(label.lowercased())")
+        .accessibilityLabel("Select \(label) modifier")
     }
 
     // MARK: - Helpers

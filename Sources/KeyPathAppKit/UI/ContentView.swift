@@ -546,6 +546,8 @@ struct ContentView: View {
                 Button("Dismiss", role: .cancel) {
                     showingKanataServiceStoppedAlert = false
                 }
+                .accessibilityIdentifier("alert-dismiss-button")
+                .accessibilityLabel("Dismiss alert")
             } message: {
                 Text(kanataServiceStoppedDetails)
             }

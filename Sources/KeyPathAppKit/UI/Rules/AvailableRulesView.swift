@@ -73,6 +73,8 @@ private struct AvailableRuleCollectionCard: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
+                .accessibilityIdentifier("available-rules-activate-button-\(collection.id)")
+                .accessibilityLabel("Activate \(collection.name)")
             }
 
             if !collection.mappings.isEmpty {

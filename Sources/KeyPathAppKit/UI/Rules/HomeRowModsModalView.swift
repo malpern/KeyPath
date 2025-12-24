@@ -38,6 +38,8 @@ struct HomeRowModsModalView: View {
                         .font(.title3)
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("home-row-mods-modal-close-button")
+                .accessibilityLabel("Close")
             }
             .padding()
 
@@ -83,6 +85,8 @@ struct HomeRowModsModalView: View {
                             Text("Custom").tag(HomeRowPreset.custom)
                         }
                         .pickerStyle(.segmented)
+                        .accessibilityIdentifier("home-row-mods-modal-preset-picker")
+                        .accessibilityLabel("Preset selection")
 
                         Picker("Key Selection", selection: Binding(
                             get: { localConfig.keySelection },
@@ -98,6 +102,8 @@ struct HomeRowModsModalView: View {
                         }
                         .pickerStyle(.radioGroup)
                         .horizontalRadioGroupLayout()
+                        .accessibilityIdentifier("home-row-mods-modal-key-selection-picker")
+                        .accessibilityLabel("Key selection")
 
                         // Custom key picker (appears contextually)
                         if localConfig.keySelection == .custom {
@@ -154,6 +160,8 @@ struct HomeRowModsModalView: View {
                             set: { localConfig.timing.quickTapEnabled = $0 }
                         ))
                         .toggleStyle(.checkbox)
+                        .accessibilityIdentifier("home-row-mods-modal-quick-tap-toggle")
+                        .accessibilityLabel("Favor tap when another key is pressed")
 
                         HStack {
                             Text("Quick tap term")
@@ -175,6 +183,8 @@ struct HomeRowModsModalView: View {
                             set: { localConfig.showAdvanced = $0 }
                         ))
                         .toggleStyle(.checkbox)
+                        .accessibilityIdentifier("home-row-mods-modal-show-advanced-toggle")
+                        .accessibilityLabel("Show per-key tap offsets")
 
                         if localConfig.showAdvanced {
                             VStack(alignment: .leading, spacing: 8) {
@@ -232,11 +242,15 @@ struct HomeRowModsModalView: View {
                 Spacer()
                 Button("Cancel", action: onCancel)
                     .keyboardShortcut(.cancelAction)
+                    .accessibilityIdentifier("home-row-mods-modal-cancel-button")
+                    .accessibilityLabel("Cancel")
                 Button("Save", action: {
                     onSave(localConfig)
                 })
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("home-row-mods-modal-save-button")
+                .accessibilityLabel("Save")
             }
             .padding()
         }
@@ -284,6 +298,8 @@ struct HomeRowModsModalView: View {
                             )
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("home-row-mods-modal-key-button-\(key)")
+                    .accessibilityLabel("Toggle key \(key.uppercased())")
                 }
             }
         }
@@ -307,6 +323,8 @@ struct HomeRowModsModalView: View {
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("home-row-mods-modal-modifier-picker-close-button")
+                .accessibilityLabel("Close modifier picker")
             }
 
             HStack(spacing: 12) {
@@ -359,6 +377,8 @@ struct HomeRowModsModalView: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("home-row-mods-modal-modifier-button-\(label.lowercased())")
+        .accessibilityLabel("Select \(label) modifier")
     }
 }
 

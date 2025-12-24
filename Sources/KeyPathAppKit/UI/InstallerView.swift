@@ -37,6 +37,8 @@ struct InstallerView: View {
                     Button("Done") {
                         dismiss()
                     }
+                    .accessibilityIdentifier("installer-done-button")
+                    .accessibilityLabel("Done")
                 }
             }
         }

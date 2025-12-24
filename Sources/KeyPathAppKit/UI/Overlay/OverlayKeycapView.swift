@@ -863,31 +863,31 @@ struct OverlayKeycapView: View {
 
     // MARK: - Glow (dynamic based on fade)
 
-    /// Outer glow blur radius: must be large enough to look like a glow, not a duplicate
+    /// Outer glow blur radius: reduced when visible, increases when fading
     private var glowOuterRadius: CGFloat {
-        let base: CGFloat = 4.0 // Increased to create visible blur (was 1.5 which looked like duplicates)
-        let max: CGFloat = 8.0 // Enhanced when faded
+        let base: CGFloat = 1.5 // Reduced from 3 for crisper default
+        let max: CGFloat = 5.0 // Enhanced when faded
         return (base + (max - base) * fadeAmount) * scale
     }
 
     /// Outer glow opacity: subtle when visible, stronger when fading
     private var glowOuterOpacity: CGFloat {
-        let base: CGFloat = 0.12 // Reduced slightly for subtlety
-        let max: CGFloat = 0.35 // Enhanced when faded
+        let base: CGFloat = 0.15 // Reduced from 0.25 for crisper default
+        let max: CGFloat = 0.4 // Enhanced when faded
         return base + (max - base) * fadeAmount
     }
 
-    /// Inner glow blur radius: creates tight halo around content
+    /// Inner glow blur radius: tight when visible, softer when fading
     private var glowInnerRadius: CGFloat {
-        let base: CGFloat = 2.0 // Increased from 0.5 to create visible blur
-        let max: CGFloat = 4.0 // Enhanced when faded
+        let base: CGFloat = 0.5 // Reduced from 1 for crisper default
+        let max: CGFloat = 2.0 // Enhanced when faded
         return (base + (max - base) * fadeAmount) * scale
     }
 
     /// Inner glow opacity: subtle when visible, stronger when fading
     private var glowInnerOpacity: CGFloat {
-        let base: CGFloat = 0.15 // Reduced from 0.25 for subtlety
-        let max: CGFloat = 0.4 // Enhanced when faded
+        let base: CGFloat = 0.25 // Reduced from 0.4 for crisper default
+        let max: CGFloat = 0.5 // Enhanced when faded
         return base + (max - base) * fadeAmount
     }
 }

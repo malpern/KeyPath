@@ -130,6 +130,8 @@ struct CustomRulesView: View {
             )
         ) {
             Button("Cancel", role: .cancel) {}
+                .accessibilityIdentifier("custom-rules-delete-cancel-button")
+                .accessibilityLabel("Cancel")
             Button("Delete", role: .destructive) {
                 if let rule = pendingDeleteRule {
                     AppLogger.shared.log("🗑️ [CustomRulesView] Delete confirmed for rule: \(rule.id) '\(rule.displayTitle)'")
@@ -139,6 +141,8 @@ struct CustomRulesView: View {
                 }
                 pendingDeleteRule = nil
             }
+            .accessibilityIdentifier("custom-rules-delete-confirm-button")
+            .accessibilityLabel("Delete rule")
         } message: {
             Text("This removes the rule from Custom Rules but leaves preset collections untouched.")
         }
@@ -217,6 +221,8 @@ private struct CustomRuleRow: View {
                 )
                 .labelsHidden()
                 .toggleStyle(.switch)
+                .accessibilityIdentifier("custom-rules-toggle-\(rule.id)")
+                .accessibilityLabel("Toggle \(rule.displayTitle)")
 
                 Menu {
                     Button("Edit") { onEdit() }
