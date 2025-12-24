@@ -277,11 +277,13 @@ class KeyboardVisualizationViewModel: ObservableObject {
             case .keyDown:
                 cancelKeyFadeOut(keyCode) // Cancel any ongoing fade-out
                 pressedKeyCodes.insert(keyCode)
+                TypingSoundsManager.shared.playKeydown()
                 AppLogger.shared.debug("⌨️ [KeyboardViz] KeyDown: \(keyCode)")
 
             case .keyUp:
                 pressedKeyCodes.remove(keyCode)
                 startKeyFadeOut(keyCode) // Start fade-out animation
+                TypingSoundsManager.shared.playKeyup()
                 AppLogger.shared.debug("⌨️ [KeyboardViz] KeyUp: \(keyCode)")
 
             case .flagsChanged:

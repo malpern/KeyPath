@@ -608,6 +608,12 @@ struct OverlayInspectorPanel: View {
                 }
             }
         }
+
+        Divider()
+            .padding(.vertical, 8)
+
+        // Typing sounds section
+        TypingSoundsSection(isDark: isDark)
     }
 
     private var isDark: Bool {
