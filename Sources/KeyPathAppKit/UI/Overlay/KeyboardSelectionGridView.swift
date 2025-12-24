@@ -67,7 +67,7 @@ private struct KeyboardIllustrationCard: View {
                         )
                     
                     keyboardImage
-                        .frame(height: imageHeight)
+                        .frame(maxHeight: imageHeight)
                         .padding(12)
                 }
                 .frame(height: imageHeight + 24)
