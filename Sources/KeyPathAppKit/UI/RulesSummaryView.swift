@@ -530,6 +530,8 @@ private struct ExpandableCollectionRow: View {
     var onSelectLayerPreset: ((String) -> Void)?
     /// For windowSnapping: callback to change key convention
     var onSelectWindowConvention: ((WindowKeyConvention) -> Void)?
+    /// For functionKeys: callback to change display mode (true = media keys, false = function keys)
+    var onSelectFunctionKeyMode: ((Bool) -> Void)?
     /// Unique ID for scroll-to behavior
     var scrollID: String?
     /// Scroll proxy for auto-scrolling when expanded
@@ -653,6 +655,8 @@ private struct ExpandableCollectionRow: View {
 
             // Expanded Mappings or Zero State
             if isExpanded {
+                // Inset back plane container for expanded content
+                InsetBackPlane {
                 if showZeroState, mappings.isEmpty, let onCreate = onCreateFirstRule {
                     // Zero State - only show if BOTH showZeroState is true AND mappings is actually empty
                     VStack(spacing: 12) {
@@ -820,10 +824,15 @@ private struct ExpandableCollectionRow: View {
                         .padding(.horizontal, 12)
                     } else if collection?.id == RuleCollectionIdentifier.macFunctionKeys {
                         // Function keys use flip card display
-                        FunctionKeysView(mappings: collection?.mappings ?? [])
-                            .padding(.top, 8)
-                            .padding(.bottom, 12)
-                            .padding(.horizontal, 12)
+                        FunctionKeysView(
+                            mappings: collection?.mappings ?? [],
+                            onModeChange: { mode in
+                                onSelectFunctionKeyMode?(mode)
+                            }
+                        )
+                        .padding(.top, 8)
+                        .padding(.bottom, 12)
+                        .padding(.horizontal, 12)
                     } else {
                         // Generic table for other collections
                         MappingTableContent(mappings: mappings)
@@ -848,6 +857,7 @@ private struct ExpandableCollectionRow: View {
                     .padding(.top, 8)
                     .padding(.bottom, 12)
                 }
+                } // InsetBackPlane
             }
         }
         .onAppear {
@@ -1780,6 +1790,43 @@ private struct FloatingSymbol: View {
             rotation = .zero
             scale = 1.0
         }
+    }
+}
+
+// MARK: - Inset Back Plane
+
+/// A container that creates an inset "back plane" effect for expanded content.
+/// Uses an inner shadow and subtle gradient to create depth.
+private struct InsetBackPlane<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        content
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(NSColor.windowBackgroundColor).opacity(0.3))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: [
+                                        Color.black.opacity(0.15),
+                                        Color.clear,
+                                        Color.white.opacity(0.05)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                ),
+                                lineWidth: 1
+                            )
+                    )
+                    .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
+            )
+            .padding(.horizontal, 12)
+            .padding(.top, 4)
+            .padding(.bottom, 8)
     }
 }
 

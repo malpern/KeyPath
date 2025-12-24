@@ -7,6 +7,8 @@ import SwiftUI
 /// Shows F1-F12 as flip cards that reveal either function keys or media icons.
 struct FunctionKeysView: View {
     let mappings: [KeyMapping]
+    /// Callback when display mode changes (true = media keys, false = function keys)
+    var onModeChange: ((Bool) -> Void)?
 
     /// User's preferred display mode: true = show media keys (default Mac behavior)
     @State private var preferMediaKeys: Bool = true
@@ -47,6 +49,9 @@ struct FunctionKeysView: View {
         }
         .onDisappear {
             stopMonitoringFnKey()
+        }
+        .onChange(of: preferMediaKeys) { _, newValue in
+            onModeChange?(newValue)
         }
     }
 
@@ -205,15 +210,15 @@ private struct DisplayModeToggle: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            // Segmented picker with icons
-            Picker("Display Mode", selection: $showMediaKeys) {
-                Label("Media Keys", systemImage: "sun.max")
-                    .tag(true)
-                Label("Function Keys", systemImage: "function")
-                    .tag(false)
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
+            // Custom segmented control with icons
+            IconSegmentedControl(
+                selection: $showMediaKeys,
+                segments: [
+                    (true, "sun.max", "Media Keys"),
+                    (false, "function", "Function Keys")
+                ]
+            )
+            .padding(.horizontal, 4)
 
             // Description
             Text(showMediaKeys
@@ -221,7 +226,71 @@ private struct DisplayModeToggle: View {
                 : "Shows F1-F12 for apps that use function keys")
                 .font(.caption)
                 .foregroundColor(.secondary)
-                .padding(.horizontal, 2)
+                .padding(.horizontal, 6)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+// MARK: - Icon Segmented Control
+
+/// A segmented control that displays SF Symbol icons with labels
+private struct IconSegmentedControl<T: Hashable>: NSViewRepresentable {
+    @Binding var selection: T
+    let segments: [(value: T, icon: String, label: String)]
+
+    func makeNSView(context: Context) -> NSSegmentedControl {
+        let control = NSSegmentedControl()
+        control.segmentCount = segments.count
+        control.segmentStyle = .texturedRounded
+        control.trackingMode = .selectOne
+        control.target = context.coordinator
+        control.action = #selector(Coordinator.segmentChanged(_:))
+
+        for (index, segment) in segments.enumerated() {
+            // Create image from SF Symbol
+            if let image = NSImage(systemSymbolName: segment.icon, accessibilityDescription: segment.label) {
+                let config = NSImage.SymbolConfiguration(pointSize: 12, weight: .medium)
+                let configuredImage = image.withSymbolConfiguration(config)
+                control.setImage(configuredImage, forSegment: index)
+            }
+            control.setLabel(segment.label, forSegment: index)
+            control.setWidth(0, forSegment: index) // Auto-size
+        }
+
+        // Select initial segment
+        if let index = segments.firstIndex(where: { $0.value == selection }) {
+            control.selectedSegment = index
+        }
+
+        return control
+    }
+
+    func updateNSView(_ nsView: NSSegmentedControl, context: Context) {
+        if let index = segments.firstIndex(where: { $0.value == selection }) {
+            if nsView.selectedSegment != index {
+                nsView.selectedSegment = index
+            }
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    @MainActor
+    class Coordinator: NSObject {
+        var parent: IconSegmentedControl
+
+        init(_ parent: IconSegmentedControl) {
+            self.parent = parent
+        }
+
+        @objc func segmentChanged(_ sender: NSSegmentedControl) {
+            let index = sender.selectedSegment
+            if index >= 0 && index < parent.segments.count {
+                parent.selection = parent.segments[index].value
+            }
         }
     }
 }
