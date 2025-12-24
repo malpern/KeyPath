@@ -10,17 +10,6 @@ struct EscKeyLeftInsetPreferenceKey: PreferenceKey {
     }
 }
 
-// MARK: - Keycap Frame Tracking for Animation
-
-/// Preference key to collect keycap frames by keyCode
-struct OverlayKeycapFramePreferenceKey: PreferenceKey {
-    nonisolated(unsafe) static var defaultValue: [UInt16: CGRect] = [:]
-
-    static func reduce(value: inout [UInt16: CGRect], nextValue: () -> [UInt16: CGRect]) {
-        value.merge(nextValue()) { $1 }
-    }
-}
-
 /// Keyboard view for the live overlay.
 /// Renders a full keyboard layout with keys highlighting based on key codes.
 struct OverlayKeyboardView: View {
@@ -47,12 +36,13 @@ struct OverlayKeyboardView: View {
     /// Track caps lock state from system
     @State private var isCapsLockOn: Bool = NSEvent.modifierFlags.contains(.capsLock)
 
-    /// Track keycap frames for floating label animation
-    @State private var keycapFrames: [UInt16: CGRect] = [:]
+    // Note: keycapFrames removed - we now calculate frames directly from layout
     /// Whether user has changed keymap (prevents animation on first load)
     @State private var hasUserChangedKeymap: Bool = false
     /// Previous keymap ID for detecting changes
     @State private var previousKeymapId: String = ""
+    /// Cached label-to-keyCode mapping for animation (updated with animation timing)
+    @State private var animatedLabelToKeyCode: [String: UInt16] = [:]
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -106,54 +96,29 @@ struct OverlayKeyboardView: View {
                 // Layer 1: Keycap backgrounds (stable positions)
                 ForEach(keys, id: \.id) { key in
                     keyView(key: key, scale: scale)
-                        .background(
-                            GeometryReader { geo in
-                                Color.clear.preference(
-                                    key: OverlayKeycapFramePreferenceKey.self,
-                                    value: [key.keyCode: geo.frame(in: .named("overlayKeyboard"))]
-                                )
-                            }
-                        )
                 }
 
                 // Layer 2: Floating labels (animate between keycap positions)
-                // IMPORTANT: Always render ALL labels to maintain view identity for animation.
-                // Labels not in current keymap are hidden (opacity 0) but still present in view tree.
-                // This allows SwiftUI to track positions and animate changes correctly.
-                //
-                // Animation flow:
-                // 1. Initial: labels rendered at current positions, hidden (hasUserChangedKeymap=false)
-                // 2. User clicks new keymap: positions update to new layout
-                // 3. hasUserChangedKeymap becomes true: labels become visible
-                // 4. SwiftUI animates from old position to new position (spring animation)
-                if !reduceMotion && !keycapFrames.isEmpty {
+                // Labels are ALWAYS visible when in current keymap (like the working symbol animation).
+                // The enableAnimation flag controls whether position changes animate.
+                // Note: frames are calculated directly from layout, no GeometryReader needed.
+                if !reduceMotion {
                     ForEach(Self.allLabels, id: \.self) { label in
                         FloatingKeymapLabel(
                             label: label,
-                            targetFrame: targetFrameFor(label),
-                            // Only visible after user has changed keymap (replaces keycap labels)
-                            // Labels not in current keymap are parked off-screen
-                            isVisible: hasUserChangedKeymap && labelToKeyCode[label] != nil,
+                            targetFrame: targetFrameFor(label, scale: scale),
+                            // Visible when label exists in current keymap (no hasUserChangedKeymap guard!)
+                            isVisible: labelToKeyCode[label] != nil,
                             scale: scale,
                             colorway: activeColorway,
-                            // Only animate after first user interaction with keymap selector
+                            // Only animate position changes after first user interaction
                             enableAnimation: hasUserChangedKeymap
                         )
                     }
                 }
             }
-            .coordinateSpace(name: "overlayKeyboard")
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .preference(key: EscKeyLeftInsetPreferenceKey.self, value: escLeftInset)
-            .onPreferenceChange(OverlayKeycapFramePreferenceKey.self) { frames in
-                keycapFrames = frames
-                #if DEBUG
-                if frames.count > 0 && frames.count < 5 {
-                    // Log if we're getting suspiciously few frames
-                    AppLogger.shared.debug("⚠️ [OverlayKeyboard] Only \(frames.count) keycap frames collected")
-                }
-                #endif
-            }
         }
         .aspectRatio(layout.totalWidth / layout.totalHeight, contentMode: .fit)
         .onChange(of: effectivePressedKeyCodes) { _, _ in
@@ -164,18 +129,35 @@ struct OverlayKeyboardView: View {
             guard oldValue != newValue else { return }
             // Mark that user has changed keymap (enables animation)
             hasUserChangedKeymap = true
+            // Update the animated mapping with spring animation
+            // This delays the position change so labels animate from old to new
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                animatedLabelToKeyCode = labelToKeyCode
+            }
             previousKeymapId = newValue
         }
         .onAppear {
             previousKeymapId = keymap.id
+            // Initialize animated mapping without animation
+            animatedLabelToKeyCode = labelToKeyCode
         }
     }
 
     /// Get target frame for a floating label based on current keymap
-    private func targetFrameFor(_ label: String) -> CGRect {
+    /// Calculates frame directly from layout instead of using GeometryReader
+    private func targetFrameFor(_ label: String, scale: CGFloat) -> CGRect {
         if let keyCode = labelToKeyCode[label],
-           let frame = keycapFrames[keyCode] {
-            return frame
+           let key = layout.keys.first(where: { $0.keyCode == keyCode }) {
+            let width = keyWidth(for: key, scale: scale)
+            let height = keyHeight(for: key, scale: scale)
+            let centerX = keyPositionX(for: key, scale: scale)
+            let centerY = keyPositionY(for: key, scale: scale)
+            return CGRect(
+                x: centerX - width / 2,
+                y: centerY - height / 2,
+                width: width,
+                height: height
+            )
         }
         // Park off-screen if not in current keymap
         return CGRect(x: -100, y: -100, width: 20, height: 20)
@@ -218,9 +200,9 @@ struct OverlayKeyboardView: View {
             holdLabel: holdLabels[key.keyCode],
             onKeyClick: onKeyClick,
             colorway: activeColorway,
-            // Only hide keycap labels when floating labels will actually be shown
-            // (requires keycapFrames to be populated so labels have valid positions)
-            useFloatingLabels: hasUserChangedKeymap && !reduceMotion && !keycapFrames.isEmpty
+            // Hide keycap alpha labels when floating labels are rendered
+            // (floating labels handle animation, keycaps just show backgrounds)
+            useFloatingLabels: !reduceMotion
         )
         .frame(
             width: keyWidth(for: key, scale: scale),
