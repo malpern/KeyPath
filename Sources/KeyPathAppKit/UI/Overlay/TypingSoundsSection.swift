@@ -115,6 +115,8 @@ private struct SoundProfileCard: View {
             .animation(.easeOut(duration: 0.15), value: isHovered)
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("overlay-sound-profile-button-\(profile.id)")
+        .accessibilityLabel("Select sound profile \(profile.name)")
         .onHover { isHovering in
             onHover(isHovering)
         }

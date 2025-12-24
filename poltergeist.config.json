@@ -1,16 +1,77 @@
 {
+  "$schema": "https://poltergeist.dev/schema.json",
   "version": "1.0",
   "projectType": "swift",
+  "settings": {
+    "debounceMs": 500,
+    "parallelBuilds": false,
+    "showNotifications": true,
+    "logLevel": "info"
+  },
   "targets": [
     {
-      "name": "debug",
+      "name": "keypath",
       "type": "executable",
-      "buildCommand": "swift build",
-      "outputPath": ".build/debug/App",
+      "description": "Build + deploy to /Applications + restart (~2s)",
+      "buildCommand": "./Scripts/quick-deploy.sh",
+      "outputPath": ".build/debug/KeyPath",
+      "watchPaths": [
+        "Sources/KeyPathApp/**/*.swift",
+        "Sources/KeyPathAppKit/**/*.swift",
+        "Sources/KeyPathCore/**/*.swift",
+        "Sources/KeyPathPermissions/**/*.swift",
+        "Sources/KeyPathDaemonLifecycle/**/*.swift",
+        "Sources/KeyPathWizardCore/**/*.swift",
+        "Package.swift"
+      ],
+      "ignorePaths": [
+        ".build/**",
+        ".git/**",
+        "External/**",
+        "Tests/**",
+        "Scripts/**"
+      ],
+      "enabled": true
+    },
+    {
+      "name": "helper",
+      "type": "executable",
+      "description": "Privileged helper daemon (debug only)",
+      "buildCommand": "swift build --product KeyPathHelper",
+      "outputPath": ".build/debug/KeyPathHelper",
+      "watchPaths": [
+        "Sources/KeyPathHelper/**/*.swift",
+        "Sources/KeyPathCore/**/*.swift",
+        "Package.swift"
+      ],
+      "ignorePaths": [
+        ".build/**",
+        ".git/**"
+      ],
+      "enabled": false
+    },
+    {
+      "name": "tests",
+      "type": "test",
+      "description": "Run tests on source changes",
+      "buildCommand": "swift build --build-tests",
+      "testCommand": "swift test --skip-build",
       "watchPaths": [
         "Sources/**/*.swift",
+        "Tests/**/*.swift",
         "Package.swift"
-      ]
+      ],
+      "ignorePaths": [
+        ".build/**",
+        ".git/**",
+        "External/**"
+      ],
+      "enabled": false
     }
-  ]
+  ],
+  "hooks": {
+    "onBuildStart": [],
+    "onBuildSuccess": [],
+    "onBuildFailure": []
+  }
 }

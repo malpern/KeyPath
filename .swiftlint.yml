@@ -67,3 +67,16 @@ custom_rules:
       - "**/*Test*.swift"  # Allow Process() in tests (they may need to test Process directly)
       - "Sources/**/ProcessLifecycleManager.swift"  # Legacy lifecycle utility (monitored separately)
       - "dev-tools/**"  # Allow Process() in dev tools
+
+  # Flag Button/Toggle/Picker without accessibilityIdentifier
+  # All interactive UI elements must have accessibility identifiers for automation
+  require_accessibility_identifier:
+    name: "Missing Accessibility Identifier"
+    regex: '(Button|Toggle|Picker)\s*\([^)]*\)[^.]*\.(buttonStyle|toggleStyle|pickerStyle)'
+    message: "Interactive UI element (Button/Toggle/Picker) should have .accessibilityIdentifier() modifier. See ACCESSIBILITY_COVERAGE.md"
+    severity: warning
+    excluded:
+      - "**/*Test*.swift"  # Tests may not need identifiers
+      - "**/*Preview*.swift"  # Previews may not need identifiers
+      - "Sources/KeyPathAppKit/UI/Style/**"  # Style components
+      - "Sources/KeyPathAppKit/UI/Components/TitlebarHeaderAccessory.swift"  # System component

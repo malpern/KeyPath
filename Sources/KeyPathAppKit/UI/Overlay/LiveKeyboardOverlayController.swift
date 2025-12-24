@@ -506,9 +506,15 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         hostingView.setFrameSize(initialSize)
 
         // Borderless, resizable window
+        // In accessibility test mode, use titled window for automation tools like Peekaboo
+        let useAccessibilityTestMode = ProcessInfo.processInfo.environment["KEYPATH_ACCESSIBILITY_TEST_MODE"] != nil
+        let windowStyle: NSWindow.StyleMask = useAccessibilityTestMode
+            ? [.titled, .resizable, .closable]  // Standard window for automation
+            : [.borderless, .resizable]          // Normal borderless overlay
+        
         let window = OverlayWindow(
             contentRect: NSRect(origin: .zero, size: initialSize),
-            styleMask: [.borderless, .resizable],
+            styleMask: windowStyle,
             backing: .buffered,
             defer: false
         )
@@ -519,6 +525,11 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         window.isOpaque = false
         window.hasShadow = false
         window.delegate = self
+
+        // Accessibility: Make window discoverable by automation tools (Peekaboo, etc.)
+        window.title = "KeyPath Keyboard Overlay"  // Title for window listing
+        window.setAccessibilityIdentifier("keypath-keyboard-overlay-window")
+        window.setAccessibilityLabel("KeyPath Keyboard Overlay")
 
         // Always on top but not activating - prevents window from becoming key/main
         window.level = .floating

@@ -35,6 +35,8 @@ struct DiagnosticSummaryView: View {
                     }
                 )
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("diagnostic-summary-view-details-button")
+                .accessibilityLabel("View diagnostic details")
             }
 
             // Show first 2 critical issues as preview

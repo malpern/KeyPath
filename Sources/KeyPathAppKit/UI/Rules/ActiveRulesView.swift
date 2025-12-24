@@ -25,6 +25,8 @@ struct ActiveRulesView: View {
                 .onHover { hovering in
                     isHoveringEmptyState = hovering
                 }
+                .accessibilityIdentifier("active-rules-edit-config-button")
+                .accessibilityLabel("Edit configuration to add key remapping rules")
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .settingsBackground()
@@ -90,12 +92,16 @@ private struct RuleCollectionRow: View {
                 .labelsHidden()
                 .toggleStyle(.switch)
                 .tint(.blue)
+                .accessibilityIdentifier("active-rules-toggle-\(collection.id)")
+                .accessibilityLabel("Toggle \(collection.name)")
 
                 Button(action: { isExpanded.toggle() }) {
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("active-rules-expand-button-\(collection.id)")
+                .accessibilityLabel(isExpanded ? "Collapse \(collection.name)" : "Expand \(collection.name)")
             }
 
             if isExpanded {

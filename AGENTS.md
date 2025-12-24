@@ -35,9 +35,30 @@ Rationale: older CLI/tooling may still expose `tools.web_search`, which prints a
 - **Mock Time**: Do not use `Thread.sleep`. Use `Date` overrides or mock clocks.
 - **Environment**: Use `KEYPATH_USE_INSTALLER_ENGINE=1` (default now) for tests.
 
+### Accessibility (CRITICAL)
+- **ALL interactive UI elements MUST have `.accessibilityIdentifier()`**
+- **Required for:** Button, Toggle, Picker, and custom interactive components
+- **Enforcement:** Pre-commit hook + CI check (currently warning only)
+- **Verification:** Run `python3 Scripts/check-accessibility.py` before committing
+- **See:** `ACCESSIBILITY_COVERAGE.md` for complete reference
+- **Rationale:** Enables automation (Peekaboo, XCUITest) and ensures testability
+
 ## Available External Tools
 
 These CLI tools are available for agents to use on-demand. Do not add them as MCPs - just call them directly when needed.
+
+### Poltergeist (Auto-Deploy)
+Watches source files, auto-builds, deploys to /Applications, and restarts. Install: `brew install steipete/tap/poltergeist`
+
+| Command | Purpose |
+|---------|---------|
+| `poltergeist start` | Start watching and auto-deploying (~2s per change) |
+| `poltergeist status` | Check build status |
+| `poltergeist logs` | View build output |
+| `poltergeist stop` | Stop watching |
+| `poltergeist wait keypath` | Block until build completes |
+
+**Workflow tip:** Run `poltergeist start` at session start. After any Swift file edit, the app automatically rebuilds, deploys to /Applications, and restarts. No manual steps needed.
 
 ### Peekaboo (UI Automation)
 macOS screenshots and GUI automation. Install: `brew install steipete/tap/peekaboo`
@@ -63,11 +84,21 @@ open "keypath://fakekey/nav-mode/tap" # Trigger virtual key
 
 ### Composing Tools
 ```bash
-# Example: AI-driven workflow
-peekaboo see "What app is focused?"
-open "keypath://layer/vim"
-peekaboo type "Hello world"
-peekaboo hotkey "cmd+s"
+# Example: AI-driven development workflow
+poltergeist start                    # Ensure auto-rebuild is running
+# ... make code changes ...
+poltergeist wait keypath             # Wait for build to complete
+peekaboo see "Is the KeyPath app running?" # Check UI state
+open "keypath://layer/vim"           # Trigger keyboard action
+peekaboo type "Hello world"          # Type into focused app
+peekaboo hotkey "cmd+s"              # Save
 ```
+
+**Recommended agent workflow:**
+1. `poltergeist start` at session start (keeps builds fresh)
+2. Make code edits
+3. `poltergeist wait keypath` before testing
+4. Use Peekaboo for UI verification
+5. Use KeyPath URL scheme for keyboard actions
 
 See `docs/LLM_VISION_UI_AUTOMATION.md` for detailed architecture.

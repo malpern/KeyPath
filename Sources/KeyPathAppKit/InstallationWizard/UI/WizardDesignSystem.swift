@@ -776,6 +776,7 @@ struct WizardButton: View {
                 }
             }
             .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isLoading))
+            .accessibilityIdentifier("wizard-button-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
             .accessibilityLabel(isLoading ? "Loading, \(title)" : title)
             .accessibilityHint(isLoading ? "Operation in progress" : "Tap to \(title.lowercased())")
             .if(isDefaultAction) { $0.keyboardShortcut(.defaultAction) }
@@ -786,6 +787,7 @@ struct WizardButton: View {
                 }
             }
             .buttonStyle(WizardDesign.Component.SecondaryButton(isLoading: isLoading))
+            .accessibilityIdentifier("wizard-button-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
             .accessibilityLabel(isLoading ? "Loading, \(title)" : title)
             .accessibilityHint(isLoading ? "Operation in progress" : "Tap to \(title.lowercased())")
         case .destructive:
@@ -795,6 +797,7 @@ struct WizardButton: View {
                 }
             }
             .buttonStyle(WizardDesign.Component.DestructiveButton(isLoading: isLoading))
+            .accessibilityIdentifier("wizard-button-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
             .accessibilityLabel(isLoading ? "Loading, \(title)" : title)
             .accessibilityHint(
                 isLoading

@@ -27,6 +27,8 @@ struct WizardNavigationControl: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(!navigationCoordinator.canNavigateBack)
+                .accessibilityIdentifier("wizard-nav-back")
+                .accessibilityLabel("Previous page")
 
                 // Separator
                 Rectangle()
@@ -48,6 +50,8 @@ struct WizardNavigationControl: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(!navigationCoordinator.canNavigateForward)
+                .accessibilityIdentifier("wizard-nav-forward")
+                .accessibilityLabel("Next page")
             }
             .padding(.horizontal, 6) // Increased from 4 (25% larger + extra)
             .padding(.vertical, 3) // Increased from 2 (25% larger + extra)
@@ -116,6 +120,8 @@ struct CloseButton: View {
         }
         .buttonStyle(.plain)
         .help("Return to Overview")
+        .accessibilityIdentifier("wizard-close-button")
+        .accessibilityLabel("Return to Overview")
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovering = hovering

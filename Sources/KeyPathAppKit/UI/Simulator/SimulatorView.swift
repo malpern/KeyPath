@@ -105,6 +105,8 @@ struct SimulatorView: View {
             TextField("", value: $viewModel.defaultDelayMs, format: .number)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 50)
+                .accessibilityIdentifier("simulator-delay-input")
+                .accessibilityLabel("Delay between events in milliseconds")
 
             Text("ms")
                 .font(.caption)

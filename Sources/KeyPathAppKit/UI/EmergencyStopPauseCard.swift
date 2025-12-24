@@ -70,6 +70,8 @@ struct EmergencyStopPauseCard: View {
                 )
                 .buttonStyle(.plain)
                 .disabled(isRestarting)
+                .accessibilityIdentifier("emergency-stop-restart-button")
+                .accessibilityLabel(isRestarting ? "Restarting service" : "Restart keyboard remapping service")
             }
         }
         .padding()

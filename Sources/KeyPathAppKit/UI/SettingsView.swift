@@ -39,6 +39,8 @@ struct GeneralSettingsTabView: View {
                             }
                             .buttonStyle(.bordered)
                             .controlSize(.small)
+                            .accessibilityIdentifier("settings-open-keypath-log-button")
+                            .accessibilityLabel("Open KeyPath log")
                         }
 
                         // Kanata Log
@@ -56,6 +58,8 @@ struct GeneralSettingsTabView: View {
                             }
                             .buttonStyle(.bordered)
                             .controlSize(.small)
+                            .accessibilityIdentifier("settings-open-kanata-log-button")
+                            .accessibilityLabel("Open Kanata log")
                         }
                     }
 
@@ -95,6 +99,8 @@ struct GeneralSettingsTabView: View {
                         }
                         .pickerStyle(.radioGroup)
                         .labelsHidden()
+                        .accessibilityIdentifier("settings-capture-mode-picker")
+                        .accessibilityLabel("Capture Mode")
                     }
 
                     // Recording Behavior
@@ -128,6 +134,8 @@ struct GeneralSettingsTabView: View {
                         }
                         .pickerStyle(.radioGroup)
                         .labelsHidden()
+                        .accessibilityIdentifier("settings-recording-behavior-picker")
+                        .accessibilityLabel("Recording Behavior")
                     }
 
                     // Overlay Settings
@@ -143,6 +151,8 @@ struct GeneralSettingsTabView: View {
                         }
                         .pickerStyle(.menu)
                         .frame(maxWidth: 200)
+                        .accessibilityIdentifier("settings-overlay-layout-picker")
+                        .accessibilityLabel("Keyboard Overlay Layout")
 
                         HStack(spacing: 6) {
                             Picker("Keymap", selection: $selectedKeymapId) {
@@ -152,6 +162,8 @@ struct GeneralSettingsTabView: View {
                             }
                             .pickerStyle(.menu)
                             .frame(maxWidth: 200)
+                            .accessibilityIdentifier("settings-overlay-keymap-picker")
+                            .accessibilityLabel("Keyboard Overlay Keymap")
 
                             Button {
                                 showingKeymapInfo.toggle()
@@ -167,6 +179,8 @@ struct GeneralSettingsTabView: View {
 
                         Toggle("Include number row & punctuation", isOn: includePunctuationBinding)
                             .toggleStyle(.switch)
+                            .accessibilityIdentifier("settings-overlay-include-punctuation-toggle")
+                            .accessibilityLabel("Include number row and punctuation in overlay")
 
                         Button("Reset Overlay Size") {
                             LiveKeyboardOverlayController.shared.resetWindowFrame()
@@ -174,6 +188,8 @@ struct GeneralSettingsTabView: View {
                         .buttonStyle(.bordered)
                         .controlSize(.small)
                         .help("Reset the keyboard overlay to its default size and position")
+                        .accessibilityIdentifier("settings-reset-overlay-size-button")
+                        .accessibilityLabel("Reset Overlay Size")
                     }
                 }
 
@@ -684,6 +700,8 @@ struct StatusSettingsTabView: View {
                                     .foregroundColor(systemHealthTint)
                             }
                             .buttonStyle(.plain)
+                            .accessibilityIdentifier("status-system-health-button")
+                            .accessibilityLabel("System status: \(systemHealthMessage)")
                         }
 
                         VStack(spacing: 4) {
@@ -710,6 +728,8 @@ struct StatusSettingsTabView: View {
                                     .foregroundColor(.secondary)
                             }
                             .buttonStyle(.plain)
+                            .accessibilityIdentifier("status-active-rules-button")
+                            .accessibilityLabel("View active rules")
                         }
                     }
 
@@ -722,6 +742,8 @@ struct StatusSettingsTabView: View {
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
                         .tint(overallHealthLevel == .critical ? .red : .orange)
+                        .accessibilityIdentifier("status-fix-it-button")
+                        .accessibilityLabel("Fix system issues")
                     }
 
                     // Centered toggle
@@ -747,6 +769,8 @@ struct StatusSettingsTabView: View {
                         )
                         .toggleStyle(.switch)
                         .controlSize(.large)
+                        .accessibilityIdentifier("status-service-toggle")
+                        .accessibilityLabel("Kanata Service")
 
                         Text(effectiveServiceRunning ? "ON" : "OFF")
                             .font(.body.weight(.medium))
@@ -1106,6 +1130,8 @@ private struct StatusDetailRow: View {
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
+                        .accessibilityIdentifier("status-action-\(action.title.lowercased().replacingOccurrences(of: " ", with: "-"))")
+                        .accessibilityLabel(action.title)
                     }
                 }
             }

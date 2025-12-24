@@ -792,6 +792,50 @@ swift build             # Development
 ./Scripts/build-and-sign.sh # Release (signed)
 ```
 
+## Poltergeist (Auto-Deploy on Save)
+
+KeyPath uses [Poltergeist](https://github.com/steipete/poltergeist) for automatic building and deployment during development. Save a Swift file → app rebuilds → deploys to /Applications → restarts. **~2 seconds.**
+
+**One-time setup:**
+```bash
+brew install steipete/tap/poltergeist  # Install (if not already)
+./build.sh                              # Create initial app bundle (once)
+```
+
+**Start watching:**
+```bash
+poltergeist start      # Watches Swift files, auto-deploys on save
+```
+
+**Check status:**
+```bash
+poltergeist status     # Build status summary
+poltergeist logs       # View build output
+poltergeist panel      # Interactive dashboard
+```
+
+**Stop watching:**
+```bash
+poltergeist stop
+```
+
+**How it works:**
+1. Poltergeist watches `Sources/**/*.swift` and `Package.swift`
+2. On file change, runs `./Scripts/quick-deploy.sh`
+3. Script: `swift build` → copy to /Applications → ad-hoc sign → restart app
+
+**No Developer ID signing or notarization needed for development** — those are only required for distribution. Ad-hoc signing is sufficient for local testing.
+
+**Configured targets:**
+| Target | Description | Default |
+|--------|-------------|---------|
+| `keypath` | Build + deploy + restart (~2s) | ✅ Enabled |
+| `helper` | Build helper daemon only | ❌ Disabled |
+| `tests` | Build + run tests | ❌ Disabled |
+
+**Integration with AI agents:**
+Poltergeist ensures the app is always fresh when an AI agent makes code changes. Combined with Peekaboo for UI testing, this enables fully automated development loops.
+
 ## Quick Deploy
 
 **"dd"** → "Aye aye Captain!"

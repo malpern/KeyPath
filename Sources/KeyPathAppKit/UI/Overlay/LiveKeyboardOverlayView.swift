@@ -233,6 +233,10 @@ struct LiveKeyboardOverlayView: View {
             reduceMotion ? nil : (viewModel.deepFadeAmount > 0 ? .easeOut(duration: 0.3) : nil),
             value: viewModel.deepFadeAmount
         )
+        // Accessibility: Make the entire overlay discoverable
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("keyboard-overlay")
+        .accessibilityLabel("KeyPath keyboard overlay")
     }
 }
 
@@ -321,6 +325,8 @@ private struct OverlayDragHeader: View {
                 }
                 .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
                 .help(isInspectorOpen ? "Close Settings" : "Open Settings")
+                .accessibilityIdentifier("overlay-drawer-toggle")
+                .accessibilityLabel(isInspectorOpen ? "Close settings drawer" : "Open settings drawer")
 
                 Button {
                     onClose()
@@ -332,6 +338,8 @@ private struct OverlayDragHeader: View {
                 }
                 .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
                 .help("Close Overlay")
+                .accessibilityIdentifier("overlay-close-button")
+                .accessibilityLabel("Close keyboard overlay")
             }
             .frame(maxWidth: maxControlsWidth, alignment: .leading)
             .padding(.trailing, 6)
@@ -607,6 +615,8 @@ struct OverlayInspectorPanel: View {
             }
             .toggleStyle(.switch)
             .controlSize(.small)
+            .accessibilityIdentifier("overlay-include-punctuation-toggle")
+            .accessibilityLabel("Include punctuation and number row")
         }
     }
 
@@ -704,6 +714,8 @@ private struct KeymapCard: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("overlay-keymap-button-\(keymap.id)")
+        .accessibilityLabel("Select keymap \(keymap.name)")
         .onHover { isHovering = $0 }
         .onAppear { loadSVG() }
     }
@@ -776,6 +788,8 @@ private struct ColorwayCard: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("overlay-colorway-button-\(colorway.id)")
+        .accessibilityLabel("Select colorway \(colorway.name)")
         .onHover { isHovering = $0 }
         .help("\(colorway.name) by \(colorway.designer) (\(colorway.year))")
     }
@@ -844,6 +858,8 @@ private struct PhysicalLayoutRow: View {
             .padding(.vertical, 8)
             .background(rowBackground)
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .accessibilityIdentifier("overlay-layout-button-\(layout.id)")
+            .accessibilityLabel("Select layout \(layout.name)")
         }
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
@@ -885,6 +901,7 @@ private struct InspectorPanelToolbar: View {
             ) {
                 onSelectSection(.keyboard)
             }
+            .accessibilityIdentifier("inspector-tab-keymap")
             .accessibilityLabel("Keymap")
 
             toolbarButton(
@@ -895,6 +912,7 @@ private struct InspectorPanelToolbar: View {
             ) {
                 onSelectSection(.layout)
             }
+            .accessibilityIdentifier("inspector-tab-layout")
             .accessibilityLabel("Physical Layout")
 
             toolbarButton(
@@ -905,6 +923,7 @@ private struct InspectorPanelToolbar: View {
             ) {
                 onSelectSection(.keycaps)
             }
+            .accessibilityIdentifier("inspector-tab-keycaps")
             .accessibilityLabel("Keycap Style")
 
             toolbarButton(
@@ -915,6 +934,7 @@ private struct InspectorPanelToolbar: View {
             ) {
                 onSelectSection(.sounds)
             }
+            .accessibilityIdentifier("inspector-tab-sounds")
             .accessibilityLabel("Typing Sounds")
         }
         .controlSize(.regular)
@@ -937,6 +957,8 @@ private struct InspectorPanelToolbar: View {
                 .frame(width: buttonSize, height: buttonSize)
         }
         .buttonStyle(PlainButtonStyle())
+        .accessibilityIdentifier("overlay-toolbar-button-\(systemImage)")
+        .accessibilityLabel("Toolbar button \(systemImage)")
         .onHover(perform: onHover)
     }
 }

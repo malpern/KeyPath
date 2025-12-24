@@ -51,6 +51,8 @@ struct EventSequenceView: View {
             .buttonStyle(.borderless)
             .disabled(taps.isEmpty)
             .help("Clear all queued events")
+            .accessibilityIdentifier("simulator-clear-button")
+            .accessibilityLabel("Clear all queued events")
 
             // Run button
             Button(action: onRun) {
@@ -66,6 +68,8 @@ struct EventSequenceView: View {
             .disabled(taps.isEmpty || isRunning)
             .keyboardShortcut(.return, modifiers: .command)
             .help("Run simulation (⌘↩)")
+            .accessibilityIdentifier("simulator-run-button")
+            .accessibilityLabel(isRunning ? "Running simulation" : "Run simulation")
         }
     }
 }

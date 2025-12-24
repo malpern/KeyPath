@@ -260,6 +260,60 @@ Tests/KeyPathTests/     # Test files
 - **Comments:** Explain *why*, not *what* (code should be self-documenting)
 - **Logging:** Use emojis for visibility: 🚀 (start), ✅ (success), ❌ (error), ⚠️ (warning)
 
+## Accessibility Requirements ♿
+
+**All interactive UI elements MUST have accessibility identifiers** for automation and testing.
+
+### Required for:
+- ✅ `Button` - All buttons
+- ✅ `Toggle` - All toggles/switches
+- ✅ `Picker` - All pickers/dropdowns
+- ✅ Custom interactive components (add identifiers internally)
+
+### How to Add:
+
+```swift
+// ✅ CORRECT
+Button("Save") {
+    save()
+}
+.accessibilityIdentifier("settings-save-button")
+.accessibilityLabel("Save settings")
+
+// ❌ WRONG - Missing identifier
+Button("Save") {
+    save()
+}
+```
+
+### Naming Convention:
+
+- **Format:** `[screen]-[element-type]-[description]`
+- **Examples:**
+  - `settings-tab-rules` (Settings tab)
+  - `rules-create-button` (Rules tab button)
+  - `wizard-nav-forward` (Wizard navigation)
+  - `overlay-drawer-toggle` (Overlay control)
+
+### Verification:
+
+```bash
+# Check before committing
+python3 Scripts/check-accessibility.py
+
+# Pre-commit hook runs automatically (warning only for now)
+git commit -m "feat: add new feature"
+```
+
+### Documentation:
+
+See [ACCESSIBILITY_COVERAGE.md](ACCESSIBILITY_COVERAGE.md) for:
+- Complete identifier reference
+- Examples for each screen
+- Peekaboo automation examples
+
+**Note:** Pre-commit hook currently warns but doesn't block commits. This allows gradual adoption. We plan to make it blocking once all existing elements are covered.
+
 ## Pull Request Process
 
 1. **Create a branch:** `git checkout -b feature/my-feature`

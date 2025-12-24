@@ -122,6 +122,7 @@ struct RulesTabView: View {
         let needsCollection = style == .singleKeyPicker || style == .homeRowMods || style == .tapHoldPicker || style == .layerPresetPicker || isSpecializedTable
 
         ExpandableCollectionRow(
+            collectionId: collection.id.uuidString,
             name: dynamicCollectionName(for: collection),
             icon: collection.icon ?? "circle",
             count: style == .singleKeyPicker || style == .tapHoldPicker ? 1 :
@@ -188,6 +189,8 @@ struct RulesTabView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
+                .accessibilityIdentifier("rules-create-button")
+                .accessibilityLabel("Create Rule")
 
                 Spacer()
 
@@ -196,6 +199,8 @@ struct RulesTabView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
+                .accessibilityIdentifier("rules-edit-config-button")
+                .accessibilityLabel("Edit Config")
 
                 Button(action: { showingResetConfirmation = true }) {
                     Label("Reset", systemImage: "arrow.counterclockwise")
@@ -203,6 +208,8 @@ struct RulesTabView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.large)
                 .tint(.red)
+                .accessibilityIdentifier("rules-reset-button")
+                .accessibilityLabel("Reset Rules")
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -216,6 +223,7 @@ struct RulesTabView: View {
                     VStack(spacing: 0) {
                         // Custom Rules Section (toggleable, expanded when has rules)
                         ExpandableCollectionRow(
+                            collectionId: "custom-rules",
                             name: customRulesTitle,
                             icon: "square.and.pencil",
                             count: kanataManager.customRules.count,
@@ -501,6 +509,7 @@ struct RulesTabView: View {
 // MARK: - Expandable Collection Row
 
 private struct ExpandableCollectionRow: View {
+    let collectionId: String
     let name: String
     let icon: String
     let count: Int
@@ -635,6 +644,8 @@ private struct ExpandableCollectionRow: View {
                     .toggleStyle(.switch)
                     .tint(.blue)
                     .onTapGesture {} // Prevents toggle from triggering row expansion
+                    .accessibilityIdentifier("rule-toggle-\(collectionId)")
+                    .accessibilityLabel("Toggle \(name)")
                 }
                 .padding(12)
                 .contentShape(Rectangle())

@@ -274,6 +274,18 @@ jobs:
         ./Scripts/lint-no-sleep.sh
         echo "✅ Wizard sleep lint passed"
 
+    - name: Accessibility Check
+      run: |
+        echo "♿ Checking accessibility identifiers..."
+        python3 Scripts/check-accessibility.py || {
+          echo "⚠️ Some UI elements are missing accessibility identifiers"
+          echo "💡 See ACCESSIBILITY_COVERAGE.md for examples"
+          echo "💡 Add .accessibilityIdentifier() to all Button/Toggle/Picker elements"
+          # Don't fail CI yet - allow gradual adoption
+          exit 0
+        }
+        echo "✅ All UI elements have accessibility identifiers"
+
     - name: Critical Pattern Analysis
       run: |
         echo "🔍 Running critical code pattern checks (moved from pre-commit)..."

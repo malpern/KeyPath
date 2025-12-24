@@ -192,6 +192,8 @@ struct EmergencyStopDialog: View {
             .keyboardShortcut(.return)
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
+            .accessibilityIdentifier("emergency-stop-got-it-button")
+            .accessibilityLabel("Got it")
         }
         .padding(32)
         .frame(minWidth: 700, maxWidth: 700, minHeight: 650)

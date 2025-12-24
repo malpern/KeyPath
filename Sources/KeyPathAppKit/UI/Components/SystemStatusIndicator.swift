@@ -65,6 +65,7 @@ struct SystemStatusIndicator: View {
         .onHover { hovering in
             isHovered = hovering
         }
+        .accessibilityIdentifier("system-status-indicator")
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint("Click to open system setup wizard")
         .opacity(1) // Always visible; shows gear before first validation

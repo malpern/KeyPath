@@ -85,6 +85,8 @@ private struct KeyboardIllustrationCard: View {
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("overlay-keyboard-layout-button-\(layout.id)")
+        .accessibilityLabel("Select keyboard layout \(layout.name)")
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.2)) {
                 isHovering = hovering

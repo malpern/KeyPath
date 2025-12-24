@@ -94,6 +94,8 @@ struct MapperView: View {
                         Image(systemName: "sidebar.right")
                     }
                     .help(isInspectorOpen ? "Hide Inspector" : "Show Inspector")
+                    .accessibilityIdentifier("mapper-toggle-inspector-button")
+                    .accessibilityLabel(isInspectorOpen ? "Hide Inspector" : "Show Inspector")
                 }
             }
 
@@ -316,6 +318,8 @@ private struct MapperInspectorPanel: View {
                 .toggleStyle(.switch)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .accessibilityIdentifier("mapper-advanced-behavior-toggle")
+                .accessibilityLabel("Different actions for tap vs hold")
         }
         .padding(.vertical, 4)
     }
@@ -389,6 +393,8 @@ private struct InspectorButton: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
+        .accessibilityIdentifier("mapper-inspector-button-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
+        .accessibilityLabel(title)
     }
 }
 
@@ -428,6 +434,8 @@ private struct SystemActionButton: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
+        .accessibilityIdentifier("mapper-system-action-\(action.id)")
+        .accessibilityLabel(action.name)
     }
 }
 
@@ -449,6 +457,8 @@ private struct ResetMappingButton: View {
             Image(systemName: "arrow.counterclockwise")
         }
         .help("Click: Reset mapping. Double-click: Reset all to defaults")
+        .accessibilityIdentifier("mapper-reset-button")
+        .accessibilityLabel("Reset mapping")
         .simultaneousGesture(
             TapGesture().onEnded {
                 clickCount += 1
@@ -604,6 +614,8 @@ private struct AdvancedBehaviorContent: View {
                     }
                     .buttonStyle(.plain)
                     .help("Clear hold action")
+                    .accessibilityIdentifier("mapper-clear-hold-button")
+                    .accessibilityLabel("Clear hold action")
                 }
 
                 Spacer()
@@ -631,6 +643,8 @@ private struct AdvancedBehaviorContent: View {
                     }
                     .buttonStyle(.plain)
                     .help("Clear double tap action")
+                    .accessibilityIdentifier("mapper-clear-double-tap-button")
+                    .accessibilityLabel("Clear double tap action")
                 }
 
                 Spacer()

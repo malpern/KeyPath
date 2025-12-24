@@ -1173,17 +1173,25 @@ private struct ValidationFailureDialog: View {
                 Button("Copy Errors") {
                     onCopyErrors()
                 }
+                .accessibilityIdentifier("validation-copy-errors-button")
+                .accessibilityLabel("Copy Errors")
                 Button("Open Config in Zed") {
                     onOpenConfig()
                 }
+                .accessibilityIdentifier("validation-open-config-button")
+                .accessibilityLabel("Open Config in Zed")
                 Spacer()
                 Button("Diagnostics") {
                     onOpenDiagnostics()
                 }
+                .accessibilityIdentifier("validation-diagnostics-button")
+                .accessibilityLabel("View Diagnostics")
                 Button("Done") {
                     onDismiss()
                 }
                 .keyboardShortcut(.defaultAction)
+                .accessibilityIdentifier("validation-done-button")
+                .accessibilityLabel("Done")
             }
         }
         .frame(minWidth: 520, idealWidth: 580, maxWidth: 640)

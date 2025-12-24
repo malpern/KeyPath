@@ -242,6 +242,24 @@ struct OverlayKeycapView: View {
                 faviconImage = nil
             }
         }
+        // Accessibility: Make each key discoverable and clickable by automation
+        .accessibilityElement(children: .ignore)
+        .accessibilityIdentifier(keycapAccessibilityId)
+        .accessibilityLabel(keycapAccessibilityLabel)
+    }
+
+    /// Accessibility identifier for this keycap
+    private var keycapAccessibilityId: String {
+        "keycap-\(key.label.lowercased().replacingOccurrences(of: " ", with: "-"))"
+    }
+
+    /// Accessibility label describing the key and its current mapping
+    private var keycapAccessibilityLabel: String {
+        let keyName = key.label.isEmpty ? "Key \(key.keyCode)" : key.label
+        if let info = layerKeyInfo, !info.displayLabel.isEmpty, info.displayLabel != keyName {
+            return "\(keyName), mapped to \(info.displayLabel)"
+        }
+        return keyName
     }
 
     // MARK: - App Icon Loading

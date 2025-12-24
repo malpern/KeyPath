@@ -25,6 +25,8 @@ struct DiagnosticSummarySection: View {
                 .buttonStyle(.borderedProminent)
                 .focusable(false) // Prevent keyboard activation on main page
                 .controlSize(.small)
+                .accessibilityIdentifier("diagnostic-view-details-button")
+                .accessibilityLabel("View diagnostic details")
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -44,6 +46,8 @@ struct DiagnosticSummarySection: View {
                             }
                             .buttonStyle(.bordered)
                             .controlSize(.mini)
+                            .accessibilityIdentifier("diagnostic-fix-button-\(issue.id)")
+                            .accessibilityLabel("Fix \(issue.title)")
                         }
                     }
                 }

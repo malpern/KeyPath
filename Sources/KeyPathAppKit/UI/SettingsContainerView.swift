@@ -191,6 +191,20 @@ private struct SettingsTabButton: View {
         .buttonStyle(.plain)
         .focusEffectDisabled()
         .disabled(disabled)
+        .accessibilityIdentifier("settings-tab-\(tab.accessibilityId)")
+        .accessibilityLabel(tab.title)
+    }
+}
+
+extension SettingsTab {
+    var accessibilityId: String {
+        switch self {
+        case .status: return "status"
+        case .rules: return "rules"
+        case .simulator: return "simulator"
+        case .general: return "general"
+        case .advanced: return "repair"
+        }
     }
 }
 
@@ -271,6 +285,8 @@ struct AdvancedSettingsTabView: View {
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
+                    .accessibilityIdentifier("settings-uninstall-button")
+                    .accessibilityLabel("Uninstall KeyPath")
                 }
                 .frame(minWidth: 220)
 
@@ -307,6 +323,8 @@ struct AdvancedSettingsTabView: View {
                             .buttonStyle(.bordered)
                             .controlSize(.small)
                             .disabled(helperInProgress)
+                            .accessibilityIdentifier("settings-cleanup-repair-button")
+                            .accessibilityLabel("Cleanup and Repair")
 
                             Button(role: .destructive) {
                                 showingHelperUninstallConfirm = true
@@ -316,6 +334,8 @@ struct AdvancedSettingsTabView: View {
                             .buttonStyle(.bordered)
                             .controlSize(.small)
                             .disabled(helperInProgress || !helperInstalled)
+                            .accessibilityIdentifier("settings-uninstall-helper-button")
+                            .accessibilityLabel("Uninstall Privileged Helper")
                         }
                     }
 
@@ -337,6 +357,8 @@ struct AdvancedSettingsTabView: View {
                         .buttonStyle(.bordered)
                         .tint(.red)
                         .controlSize(.small)
+                        .accessibilityIdentifier("settings-reset-everything-button")
+                        .accessibilityLabel("Reset Everything")
                     }
                 }
 
@@ -452,6 +474,8 @@ struct AdvancedSettingsTabView: View {
             .buttonStyle(.borderedProminent)
             .tint(.orange)
             .disabled(removeDuplicatesInProgress)
+            .accessibilityIdentifier("settings-remove-duplicates-button")
+            .accessibilityLabel("Remove Extra Copies")
         }
         .padding(.vertical, 8)
     }

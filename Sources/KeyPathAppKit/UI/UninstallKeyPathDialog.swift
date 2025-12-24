@@ -50,6 +50,8 @@ struct UninstallKeyPathDialog: View {
                 HStack(spacing: 12) {
                     Button("Cancel") { dismiss() }
                         .keyboardShortcut(.escape, modifiers: [])
+                        .accessibilityIdentifier("uninstall-cancel-button")
+                        .accessibilityLabel("Cancel")
 
                     Button(role: .destructive) {
                         Task { await performUninstall() }
@@ -61,6 +63,8 @@ struct UninstallKeyPathDialog: View {
                     .disabled(isRunning)
                     .buttonStyle(.borderedProminent)
                     .tint(.red)
+                    .accessibilityIdentifier("uninstall-confirm-button")
+                    .accessibilityLabel(isRunning ? "Uninstalling" : "Uninstall KeyPath")
                 }
             }
         }
