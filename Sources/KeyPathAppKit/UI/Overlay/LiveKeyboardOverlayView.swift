@@ -69,6 +69,8 @@ struct LiveKeyboardOverlayView: View {
         let shouldFreezeKeyboard = uiState.isInspectorAnimating
         let fixedKeyboardWidth: CGFloat? = keyboardWidth > 0 ? keyboardWidth : nil
         let fixedKeyboardHeight: CGFloat? = fixedKeyboardWidth.map { $0 / keyboardAspectRatio }
+        // Calculate right-side position: keyboard width + padding, but before inspector
+        let keyboardRightEdge = keyboardPadding + (fixedKeyboardWidth ?? 0) + keyboardTrailingPadding
 
         VStack(spacing: 0) {
             VStack(spacing: 0) {
@@ -76,7 +78,9 @@ struct LiveKeyboardOverlayView: View {
                     isDark: isDark,
                     fadeAmount: fadeAmount,
                     height: headerHeight,
-                    leadingContentPadding: headerContentLeadingPadding,
+                    keyboardRightEdge: keyboardRightEdge,
+                    inspectorVisible: inspectorVisible,
+                    inspectorWidth: inspectorTotalWidth,
                     reduceTransparency: reduceTransparency,
                     isInspectorOpen: uiState.isInspectorOpen,
                     onClose: { onClose?() },
@@ -281,7 +285,9 @@ private struct OverlayDragHeader: View {
     let isDark: Bool
     let fadeAmount: CGFloat
     let height: CGFloat
-    let leadingContentPadding: CGFloat
+    let keyboardRightEdge: CGFloat
+    let inspectorVisible: Bool
+    let inspectorWidth: CGFloat
     let reduceTransparency: Bool
     let isInspectorOpen: Bool
     let onClose: () -> Void
@@ -293,36 +299,43 @@ private struct OverlayDragHeader: View {
 
     var body: some View {
         let buttonSize = max(10, height * 0.9)
+        // Position controls to the right of keyboard, expanding right but before inspector
+        let controlsStartX = keyboardRightEdge
+        let maxControlsWidth = inspectorVisible ? inspectorWidth - 12 : .infinity
 
-        HStack(spacing: 6) {
-            // Toggle inspector/drawer button - always visible
-            Button {
-                AppLogger.shared.log("🔘 [Header] Toggle drawer button clicked - isInspectorOpen=\(isInspectorOpen)")
-                onToggleInspector()
-            } label: {
-                Image(systemName: isInspectorOpen ? "xmark.circle" : "slider.horizontal.3")
-                    .font(.system(size: buttonSize * 0.45, weight: .semibold))
-                    .foregroundStyle(headerIconColor)
-                    .frame(width: buttonSize, height: buttonSize)
-            }
-            .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
-            .help(isInspectorOpen ? "Close Settings" : "Open Settings")
-
-            Button {
-                onClose()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: buttonSize * 0.45, weight: .semibold))
-                    .foregroundStyle(headerIconColor)
-                    .frame(width: buttonSize, height: buttonSize)
-            }
-            .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
-            .help("Close Overlay")
-
+        HStack(spacing: 0) {
             Spacer()
+                .frame(width: controlsStartX)
+            
+            // Controls expand right from keyboard edge, but stop before inspector
+            HStack(spacing: 6) {
+                // Toggle inspector/drawer button - always visible
+                Button {
+                    AppLogger.shared.log("🔘 [Header] Toggle drawer button clicked - isInspectorOpen=\(isInspectorOpen)")
+                    onToggleInspector()
+                } label: {
+                    Image(systemName: isInspectorOpen ? "xmark.circle" : "slider.horizontal.3")
+                        .font(.system(size: buttonSize * 0.45, weight: .semibold))
+                        .foregroundStyle(headerIconColor)
+                        .frame(width: buttonSize, height: buttonSize)
+                }
+                .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
+                .help(isInspectorOpen ? "Close Settings" : "Open Settings")
+
+                Button {
+                    onClose()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: buttonSize * 0.45, weight: .semibold))
+                        .foregroundStyle(headerIconColor)
+                        .frame(width: buttonSize, height: buttonSize)
+                }
+                .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
+                .help("Close Overlay")
+            }
+            .frame(maxWidth: maxControlsWidth, alignment: .leading)
+            .padding(.trailing, 6)
         }
-        .padding(.leading, leadingContentPadding)
-        .padding(.trailing, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: height)
         .contentShape(Rectangle())
