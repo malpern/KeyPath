@@ -108,15 +108,14 @@ private struct KeyboardIllustrationCard: View {
     
     @ViewBuilder
     private var keyboardImage: some View {
-        // Try to load illustration image from KeyboardIllustrations subdirectory
+        // Images are at bundle root (not in subdirectory) due to .process() flattening
+        // Same pattern as SVG loading in LiveKeyboardOverlayView
         let imageURL = Bundle.module.url(
             forResource: layout.id,
-            withExtension: "png",
-            subdirectory: "KeyboardIllustrations"
+            withExtension: "png"
         ) ?? Bundle.main.url(
             forResource: layout.id,
-            withExtension: "png",
-            subdirectory: "KeyboardIllustrations"
+            withExtension: "png"
         )
         
         if let url = imageURL,
