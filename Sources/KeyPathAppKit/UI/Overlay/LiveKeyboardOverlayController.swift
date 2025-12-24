@@ -163,6 +163,23 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         isVisible = !isVisible
     }
 
+    /// Reset the overlay window to its default size and position
+    func resetWindowFrame() {
+        let defaults = UserDefaults.standard
+        defaults.removeObject(forKey: DefaultsKey.windowWidth)
+        defaults.removeObject(forKey: DefaultsKey.windowHeight)
+        defaults.removeObject(forKey: DefaultsKey.windowX)
+        defaults.removeObject(forKey: DefaultsKey.windowY)
+
+        // If window is currently visible, close and reopen to apply default frame
+        if isVisible {
+            hideWindow()
+            showWindow()
+        }
+
+        AppLogger.shared.log("🔧 [OverlayController] Window frame reset to defaults")
+    }
+
     func toggleInspectorPanel() {
         AppLogger.shared.log("🔧 [OverlayController] toggleInspectorPanel called - isInspectorOpen=\(uiState.isInspectorOpen), reveal=\(uiState.inspectorReveal)")
         if uiState.isInspectorOpen || uiState.inspectorReveal > 0 {

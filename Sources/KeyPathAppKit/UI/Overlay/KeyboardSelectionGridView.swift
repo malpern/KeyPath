@@ -1,4 +1,5 @@
 import SwiftUI
+import KeyPathCore
 
 /// Visual keyboard selection grid component with illustrations
 struct KeyboardSelectionGridView: View {
@@ -6,9 +7,8 @@ struct KeyboardSelectionGridView: View {
     @Binding var selectedLayoutId: String
     let isDark: Bool
     
-    // Grid layout: 2 columns for better visual presentation
+    // Grid layout: 1 column for single-row keyboard previews
     private let columns = [
-        GridItem(.flexible(), spacing: 12),
         GridItem(.flexible(), spacing: 12)
     ]
     
@@ -55,7 +55,7 @@ private struct KeyboardIllustrationCard: View {
             onSelect()
         }) {
             VStack(spacing: 8) {
-                // Keyboard illustration
+                // Keyboard illustration - fixed height, horizontally centered
                 ZStack {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .fill(cardBackground)
@@ -73,14 +73,16 @@ private struct KeyboardIllustrationCard: View {
                 .frame(height: imageHeight + 24)
                 .scaleEffect(scale)
                 
-                // Label
+                // Label - centered below image, supports multi-line for long names
                 Text(layout.name)
                     .font(.system(size: 11, weight: isSelected ? .semibold : .medium))
                     .foregroundStyle(isSelected ? .primary : .secondary)
                     .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.8)
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity)
             }
+            .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
         .onHover { hovering in
@@ -107,7 +109,7 @@ private struct KeyboardIllustrationCard: View {
     @ViewBuilder
     private var keyboardImage: some View {
         // Try to load illustration image from KeyboardIllustrations subdirectory
-        if let imageURL = Bundle.module.url(
+        let imageURL = Bundle.module.url(
             forResource: layout.id,
             withExtension: "png",
             subdirectory: "KeyboardIllustrations"
@@ -115,14 +117,20 @@ private struct KeyboardIllustrationCard: View {
             forResource: layout.id,
             withExtension: "png",
             subdirectory: "KeyboardIllustrations"
-        ),
-           let image = NSImage(contentsOf: imageURL) {
+        )
+        
+        if let url = imageURL,
+           let image = NSImage(contentsOf: url) {
             Image(nsImage: image)
                 .resizable()
                 .interpolation(.high)
                 .aspectRatio(contentMode: .fit)
         } else {
             // Fallback to SF Symbol
+            // Log image loading failure for debugging
+            let _ = {
+                AppLogger.shared.debug("🖼️ [KeyboardSelection] Could not load image for layout '\(layout.id)'. URL: \(imageURL?.absoluteString ?? "nil")")
+            }()
             Image(systemName: "keyboard")
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary)

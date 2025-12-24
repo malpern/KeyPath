@@ -167,6 +167,13 @@ struct GeneralSettingsTabView: View {
 
                         Toggle("Include number row & punctuation", isOn: includePunctuationBinding)
                             .toggleStyle(.switch)
+
+                        Button("Reset Overlay Size") {
+                            LiveKeyboardOverlayController.shared.resetWindowFrame()
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .help("Reset the keyboard overlay to its default size and position")
                     }
                 }
 
