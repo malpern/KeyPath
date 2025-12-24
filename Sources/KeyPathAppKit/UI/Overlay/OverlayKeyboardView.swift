@@ -117,17 +117,26 @@ struct OverlayKeyboardView: View {
                 }
 
                 // Layer 2: Floating labels (animate between keycap positions)
-                // Only render for alpha keys when keymap animation is enabled
-                // IMPORTANT: Only render when keycapFrames has been populated to avoid
-                // labels appearing at (0,0) before frames are collected
-                if hasUserChangedKeymap && !reduceMotion && !keycapFrames.isEmpty {
+                // IMPORTANT: Always render ALL labels to maintain view identity for animation.
+                // Labels not in current keymap are hidden (opacity 0) but still present in view tree.
+                // This allows SwiftUI to track positions and animate changes correctly.
+                //
+                // Animation flow:
+                // 1. Initial: labels rendered at current positions, hidden (hasUserChangedKeymap=false)
+                // 2. User clicks new keymap: positions update to new layout
+                // 3. hasUserChangedKeymap becomes true: labels become visible
+                // 4. SwiftUI animates from old position to new position (spring animation)
+                if !reduceMotion && !keycapFrames.isEmpty {
                     ForEach(Self.allLabels, id: \.self) { label in
                         FloatingKeymapLabel(
                             label: label,
                             targetFrame: targetFrameFor(label),
-                            isVisible: labelToKeyCode[label] != nil,
+                            // Only visible after user has changed keymap (replaces keycap labels)
+                            // Labels not in current keymap are parked off-screen
+                            isVisible: hasUserChangedKeymap && labelToKeyCode[label] != nil,
                             scale: scale,
                             colorway: activeColorway,
+                            // Only animate after first user interaction with keymap selector
                             enableAnimation: hasUserChangedKeymap
                         )
                     }
@@ -138,6 +147,12 @@ struct OverlayKeyboardView: View {
             .preference(key: EscKeyLeftInsetPreferenceKey.self, value: escLeftInset)
             .onPreferenceChange(OverlayKeycapFramePreferenceKey.self) { frames in
                 keycapFrames = frames
+                #if DEBUG
+                if frames.count > 0 && frames.count < 5 {
+                    // Log if we're getting suspiciously few frames
+                    AppLogger.shared.debug("⚠️ [OverlayKeyboard] Only \(frames.count) keycap frames collected")
+                }
+                #endif
             }
         }
         .aspectRatio(layout.totalWidth / layout.totalHeight, contentMode: .fit)
