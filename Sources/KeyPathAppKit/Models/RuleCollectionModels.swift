@@ -379,6 +379,32 @@ public struct MomentaryActivator: Codable, Equatable, Sendable {
         self.targetLayer = targetLayer
         self.sourceLayer = sourceLayer
     }
+
+    // MARK: - Custom Codable Implementation
+
+    /// Custom decoding to handle backward compatibility with saved configurations
+    /// that lack the `sourceLayer` field (defaults to `.base` when missing)
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        input = try container.decode(String.self, forKey: .input)
+        targetLayer = try container.decode(RuleCollectionLayer.self, forKey: .targetLayer)
+        // Use decodeIfPresent to handle missing sourceLayer in old saved files
+        sourceLayer = try container.decodeIfPresent(RuleCollectionLayer.self, forKey: .sourceLayer) ?? .base
+    }
+
+    /// Custom encoding to ensure sourceLayer is always written (for consistency)
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(input, forKey: .input)
+        try container.encode(targetLayer, forKey: .targetLayer)
+        try container.encode(sourceLayer, forKey: .sourceLayer)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case input
+        case targetLayer
+        case sourceLayer
+    }
 }
 
 /// Controls how a rule collection's mappings are displayed in the UI.
