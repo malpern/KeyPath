@@ -295,22 +295,22 @@ private struct OverlayDragHeader: View {
         let buttonSize = max(10, height * 0.9)
 
         HStack(spacing: 6) {
-            // TEST: Settings button on LEFT to test if position matters
-            if !isInspectorOpen {
-                Button(action: {
-                    AppLogger.shared.log("🔧 [Header] Drawer tab clicked! isInspectorOpen=\(isInspectorOpen)")
-                    onToggleInspector()
-                }) {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: buttonSize * 0.45, weight: .semibold))
-                        .foregroundStyle(headerIconColor)
-                        .frame(width: buttonSize, height: buttonSize)
-                }
-                .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
-                .help("Open Settings")
+            // Toggle inspector/drawer button - always visible
+            Button {
+                AppLogger.shared.log("🔘 [Header] Toggle drawer button clicked - isInspectorOpen=\(isInspectorOpen)")
+                onToggleInspector()
+            } label: {
+                Image(systemName: isInspectorOpen ? "xmark.circle" : "slider.horizontal.3")
+                    .font(.system(size: buttonSize * 0.45, weight: .semibold))
+                    .foregroundStyle(headerIconColor)
+                    .frame(width: buttonSize, height: buttonSize)
             }
+            .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
+            .help(isInspectorOpen ? "Close Settings" : "Open Settings")
 
-            Button(action: onClose) {
+            Button {
+                onClose()
+            } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: buttonSize * 0.45, weight: .semibold))
                     .foregroundStyle(headerIconColor)
@@ -601,17 +601,11 @@ struct OverlayInspectorPanel: View {
 
     @ViewBuilder
     private var physicalLayoutContent: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ForEach(PhysicalLayout.all) { layout in
-                PhysicalLayoutRow(
-                    layout: layout,
-                    isSelected: selectedLayoutId == layout.id,
-                    isDark: isDark
-                ) {
-                    selectedLayoutId = layout.id
-                }
-            }
-        }
+        KeyboardSelectionGridView(
+            layouts: PhysicalLayout.all,
+            selectedLayoutId: $selectedLayoutId,
+            isDark: isDark
+        )
     }
 
     // MARK: - Keycaps Content
