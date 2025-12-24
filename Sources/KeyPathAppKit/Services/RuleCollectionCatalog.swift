@@ -47,7 +47,7 @@ struct RuleCollectionCatalog {
             isSystemDefault: true,
             icon: "applelogo",
             targetLayer: .base,
-            displayStyle: .table
+            configuration: .table
         )
     }
 
@@ -62,35 +62,36 @@ struct RuleCollectionCatalog {
             isSystemDefault: false,
             icon: "hand.point.up.left",
             tags: ["leader", "layer", "modifier", "navigation"],
-            displayStyle: .singleKeyPicker,
-            pickerInputKey: "leader",
-            presetOptions: [
-                SingleKeyPreset(
-                    output: "space",
-                    label: "␣ Space",
-                    description: "Spacebar - most common, easy thumb access. Tap for space, hold for shortcuts.",
-                    icon: "space"
-                ),
-                SingleKeyPreset(
-                    output: "caps",
-                    label: "⇪ Caps",
-                    description: "Caps Lock - dedicated modifier key, no conflict with typing.",
-                    icon: "capslock"
-                ),
-                SingleKeyPreset(
-                    output: "tab",
-                    label: "⇥ Tab",
-                    description: "Tab key - left pinky access, tap for tab, hold for shortcuts.",
-                    icon: "arrow.right.to.line"
-                ),
-                SingleKeyPreset(
-                    output: "grv",
-                    label: "` Grave",
-                    description: "Backtick key - upper left corner, rarely used in normal typing.",
-                    icon: "character"
-                )
-            ],
-            selectedOutput: "space"
+            configuration: .singleKeyPicker(SingleKeyPickerConfig(
+                inputKey: "leader",
+                presetOptions: [
+                    SingleKeyPreset(
+                        output: "space",
+                        label: "␣ Space",
+                        description: "Spacebar - most common, easy thumb access. Tap for space, hold for shortcuts.",
+                        icon: "space"
+                    ),
+                    SingleKeyPreset(
+                        output: "caps",
+                        label: "⇪ Caps",
+                        description: "Caps Lock - dedicated modifier key, no conflict with typing.",
+                        icon: "capslock"
+                    ),
+                    SingleKeyPreset(
+                        output: "tab",
+                        label: "⇥ Tab",
+                        description: "Tab key - left pinky access, tap for tab, hold for shortcuts.",
+                        icon: "arrow.right.to.line"
+                    ),
+                    SingleKeyPreset(
+                        output: "grv",
+                        label: "` Grave",
+                        description: "Backtick key - upper left corner, rarely used in normal typing.",
+                        icon: "character"
+                    )
+                ],
+                selectedOutput: "space"
+            ))
         )
     }
 
@@ -145,7 +146,7 @@ struct RuleCollectionCatalog {
             targetLayer: .navigation,
             momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation),
             activationHint: "Hold Leader key to enter Navigation layer",
-            displayStyle: .table
+            configuration: .table
         )
     }
 
@@ -167,7 +168,7 @@ struct RuleCollectionCatalog {
             isSystemDefault: false,
             icon: "rectangle.3.group",
             tags: ["mission control", "spaces", "desktop"],
-            displayStyle: .table
+            configuration: .table
         )
     }
 
@@ -192,10 +193,10 @@ struct RuleCollectionCatalog {
             momentaryActivator: MomentaryActivator(
                 input: "w",
                 targetLayer: .custom("window"),
-                sourceLayer: .navigation  // Activated from within navigation layer
+                sourceLayer: .navigation // Activated from within navigation layer
             ),
             activationHint: "Leader → w → action key",
-            displayStyle: .table,
+            configuration: .table,
             windowKeyConvention: .standard
         )
     }
@@ -205,7 +206,7 @@ struct RuleCollectionCatalog {
         switch convention {
         case .standard:
             // Mnemonic keys: L=Left, R=Right, U/I/J/K spatial grid for corners
-            return [
+            [
                 // Halves (mnemonic)
                 KeyMapping(input: "l", output: #"(push-msg "window:left")"#, description: "Left half"),
                 KeyMapping(input: "r", output: #"(push-msg "window:right")"#, description: "Right half"),
@@ -228,7 +229,7 @@ struct RuleCollectionCatalog {
             ]
         case .vim:
             // Vim-style: H/L for left/right, Y/U/B/N for corners
-            return [
+            [
                 // Halves (vim navigation)
                 KeyMapping(input: "h", output: #"(push-msg "window:left")"#, description: "Left half"),
                 KeyMapping(input: "l", output: #"(push-msg "window:right")"#, description: "Right half"),
@@ -259,7 +260,7 @@ struct RuleCollectionCatalog {
         switch mode {
         case .media:
             // Default Mac behavior: F1-F12 send media/system commands
-            return [
+            [
                 KeyMapping(input: "f1", output: "brdn", description: "Brightness down"),
                 KeyMapping(input: "f2", output: "brup", description: "Brightness up"),
                 KeyMapping(input: "f3", output: #"(push-msg "system:mission-control")"#, description: "Mission Control"),
@@ -275,7 +276,7 @@ struct RuleCollectionCatalog {
             ]
         case .function:
             // Standard F-keys: F1-F12 pass through as-is
-            return [
+            [
                 KeyMapping(input: "f1", output: "f1", description: "F1"),
                 KeyMapping(input: "f2", output: "f2", description: "F2"),
                 KeyMapping(input: "f3", output: "f3", description: "F3"),
@@ -320,9 +321,8 @@ struct RuleCollectionCatalog {
             isSystemDefault: true,
             icon: "capslock",
             tags: ["caps lock", "hyper", "escape", "control", "meh", "productivity", "tap-hold"],
-            displayStyle: .tapHoldPicker,
-            pickerInputKey: "caps",
-            tapHoldOptions: TapHoldPresetOptions(
+            configuration: .tapHoldPicker(TapHoldPickerConfig(
+                inputKey: "caps",
                 tapOptions: [
                     SingleKeyPreset(
                         output: "esc",
@@ -374,10 +374,10 @@ struct RuleCollectionCatalog {
                         description: "Shift modifier",
                         icon: "shift"
                     )
-                ]
-            ),
-            selectedTapOutput: "esc",
-            selectedHoldOutput: "hyper"
+                ],
+                selectedTapOutput: "esc",
+                selectedHoldOutput: "hyper"
+            ))
         )
     }
 
@@ -395,23 +395,24 @@ struct RuleCollectionCatalog {
             isSystemDefault: false,
             icon: "shift",
             tags: ["caps lock", "shift", "backup", "chord"],
-            displayStyle: .singleKeyPicker,
-            pickerInputKey: "backup-caps",
-            presetOptions: [
-                SingleKeyPreset(
-                    output: "both-shifts",
-                    label: "⇧⇧ Both Shifts",
-                    description: "Press both Shift keys together to toggle Caps Lock",
-                    icon: "shift"
-                ),
-                SingleKeyPreset(
-                    output: "double-tap-esc",
-                    label: "⎋⎋ Double-tap Esc",
-                    description: "Double-tap Escape to toggle Caps Lock",
-                    icon: "escape"
-                )
-            ],
-            selectedOutput: "both-shifts"
+            configuration: .singleKeyPicker(SingleKeyPickerConfig(
+                inputKey: "backup-caps",
+                presetOptions: [
+                    SingleKeyPreset(
+                        output: "both-shifts",
+                        label: "⇧⇧ Both Shifts",
+                        description: "Press both Shift keys together to toggle Caps Lock",
+                        icon: "shift"
+                    ),
+                    SingleKeyPreset(
+                        output: "double-tap-esc",
+                        label: "⎋⎋ Double-tap Esc",
+                        description: "Double-tap Escape to toggle Caps Lock",
+                        icon: "escape"
+                    )
+                ],
+                selectedOutput: "both-shifts"
+            ))
         )
     }
 
@@ -428,29 +429,30 @@ struct RuleCollectionCatalog {
             isSystemDefault: false,
             icon: "escape",
             tags: ["escape", "caps lock", "swap"],
-            displayStyle: .singleKeyPicker,
-            pickerInputKey: "esc",
-            presetOptions: [
-                SingleKeyPreset(
-                    output: "caps",
-                    label: "⇪ Caps Lock",
-                    description: "Swap Escape with Caps Lock (use with Caps Lock → Escape)",
-                    icon: "capslock"
-                ),
-                SingleKeyPreset(
-                    output: "grv",
-                    label: "` Backtick",
-                    description: "Remap Escape to backtick/grave accent",
-                    icon: "character"
-                ),
-                SingleKeyPreset(
-                    output: "tab",
-                    label: "⇥ Tab",
-                    description: "Remap Escape to Tab",
-                    icon: "arrow.right.to.line"
-                )
-            ],
-            selectedOutput: "caps"
+            configuration: .singleKeyPicker(SingleKeyPickerConfig(
+                inputKey: "esc",
+                presetOptions: [
+                    SingleKeyPreset(
+                        output: "caps",
+                        label: "⇪ Caps Lock",
+                        description: "Swap Escape with Caps Lock (use with Caps Lock → Escape)",
+                        icon: "capslock"
+                    ),
+                    SingleKeyPreset(
+                        output: "grv",
+                        label: "` Backtick",
+                        description: "Remap Escape to backtick/grave accent",
+                        icon: "character"
+                    ),
+                    SingleKeyPreset(
+                        output: "tab",
+                        label: "⇥ Tab",
+                        description: "Remap Escape to Tab",
+                        icon: "arrow.right.to.line"
+                    )
+                ],
+                selectedOutput: "caps"
+            ))
         )
     }
 
@@ -470,29 +472,30 @@ struct RuleCollectionCatalog {
             targetLayer: .navigation,
             momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation),
             activationHint: "Hold Leader + Delete",
-            displayStyle: .singleKeyPicker,
-            pickerInputKey: "bspc",
-            presetOptions: [
-                SingleKeyPreset(
-                    output: "del",
-                    label: "⌦ Fwd Delete",
-                    description: "Leader + Delete → Forward Delete (delete character after cursor)",
-                    icon: "delete.right"
-                ),
-                SingleKeyPreset(
-                    output: "A-bspc",
-                    label: "⌥⌫ Del Word",
-                    description: "Leader + Delete → Delete entire word",
-                    icon: "text.word.spacing"
-                ),
-                SingleKeyPreset(
-                    output: "M-bspc",
-                    label: "⌘⌫ Del Line",
-                    description: "Leader + Delete → Delete to beginning of line",
-                    icon: "text.alignleft"
-                )
-            ],
-            selectedOutput: "del"
+            configuration: .singleKeyPicker(SingleKeyPickerConfig(
+                inputKey: "bspc",
+                presetOptions: [
+                    SingleKeyPreset(
+                        output: "del",
+                        label: "⌦ Fwd Delete",
+                        description: "Leader + Delete → Forward Delete (delete character after cursor)",
+                        icon: "delete.right"
+                    ),
+                    SingleKeyPreset(
+                        output: "A-bspc",
+                        label: "⌥⌫ Del Word",
+                        description: "Leader + Delete → Delete entire word",
+                        icon: "text.word.spacing"
+                    ),
+                    SingleKeyPreset(
+                        output: "M-bspc",
+                        label: "⌘⌫ Del Line",
+                        description: "Leader + Delete → Delete to beginning of line",
+                        icon: "text.alignleft"
+                    )
+                ],
+                selectedOutput: "del"
+            ))
         )
     }
 
@@ -507,8 +510,7 @@ struct RuleCollectionCatalog {
             isSystemDefault: false,
             icon: "keyboard",
             tags: ["home row", "modifiers", "productivity", "ergonomics"],
-            displayStyle: .homeRowMods,
-            homeRowModsConfig: HomeRowModsConfig()
+            configuration: .homeRowMods(HomeRowModsConfig())
         )
     }
 
@@ -548,10 +550,10 @@ struct RuleCollectionCatalog {
             momentaryActivator: MomentaryActivator(
                 input: ";",
                 targetLayer: .custom("numpad"),
-                sourceLayer: .navigation  // Two-step: Leader → ; → numpad layer
+                sourceLayer: .navigation // Two-step: Leader → ; → numpad layer
             ),
             activationHint: "Leader → ; → numpad keys",
-            displayStyle: .table
+            configuration: .table
         )
     }
 
@@ -572,12 +574,13 @@ struct RuleCollectionCatalog {
             momentaryActivator: MomentaryActivator(
                 input: "s",
                 targetLayer: .custom("sym"),
-                sourceLayer: .navigation  // Two-step: Leader → s → symbol layer
+                sourceLayer: .navigation // Two-step: Leader → s → symbol layer
             ),
             activationHint: "Leader → s → symbol keys",
-            displayStyle: .layerPresetPicker,
-            layerPresets: symbolLayerPresets,
-            selectedLayerPreset: "mirrored"
+            configuration: .layerPresetPicker(LayerPresetPickerConfig(
+                presets: symbolLayerPresets,
+                selectedPresetId: "mirrored"
+            ))
         )
     }
 

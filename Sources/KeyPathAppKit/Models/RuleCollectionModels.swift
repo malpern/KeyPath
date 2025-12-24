@@ -38,6 +38,87 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
     /// For macFunctionKeys: true = media keys (default Mac), false = standard F-keys
     public var functionKeyMode: FunctionKeyMode?
 
+    // MARK: - Configuration (Type-Safe Alternative)
+
+    /// Type-safe configuration for display-style-specific settings.
+    ///
+    /// This property synthesizes the configuration from the flat optional fields.
+    /// It provides a cleaner API for callers while maintaining backwards compatibility.
+    ///
+    /// Usage:
+    /// ```swift
+    /// switch collection.configuration {
+    /// case .list, .table:
+    ///     // Simple display
+    /// case .singleKeyPicker(let config):
+    ///     // Access config.inputKey, config.presetOptions, config.selectedOutput
+    /// case .tapHoldPicker(let config):
+    ///     // Access config.tapOptions, config.holdOptions, etc.
+    /// ...
+    /// }
+    /// ```
+    public var configuration: RuleCollectionConfiguration {
+        get {
+            switch displayStyle {
+            case .list:
+                .list
+            case .table:
+                .table
+            case .singleKeyPicker:
+                .singleKeyPicker(SingleKeyPickerConfig(
+                    inputKey: pickerInputKey ?? "",
+                    presetOptions: presetOptions,
+                    selectedOutput: selectedOutput
+                ))
+            case .homeRowMods:
+                .homeRowMods(homeRowModsConfig ?? HomeRowModsConfig())
+            case .tapHoldPicker:
+                .tapHoldPicker(TapHoldPickerConfig(
+                    inputKey: pickerInputKey ?? "",
+                    tapOptions: tapHoldOptions?.tapOptions ?? [],
+                    holdOptions: tapHoldOptions?.holdOptions ?? [],
+                    selectedTapOutput: selectedTapOutput,
+                    selectedHoldOutput: selectedHoldOutput
+                ))
+            case .layerPresetPicker:
+                .layerPresetPicker(LayerPresetPickerConfig(
+                    presets: layerPresets ?? [],
+                    selectedPresetId: selectedLayerPreset
+                ))
+            }
+        }
+        set {
+            // Update both displayStyle and the relevant optional fields
+            switch newValue {
+            case .list:
+                displayStyle = .list
+            case .table:
+                displayStyle = .table
+            case let .singleKeyPicker(config):
+                displayStyle = .singleKeyPicker
+                pickerInputKey = config.inputKey
+                presetOptions = config.presetOptions
+                selectedOutput = config.selectedOutput
+            case let .homeRowMods(config):
+                displayStyle = .homeRowMods
+                homeRowModsConfig = config
+            case let .tapHoldPicker(config):
+                displayStyle = .tapHoldPicker
+                pickerInputKey = config.inputKey
+                tapHoldOptions = TapHoldPresetOptions(
+                    tapOptions: config.tapOptions,
+                    holdOptions: config.holdOptions
+                )
+                selectedTapOutput = config.selectedTapOutput
+                selectedHoldOutput = config.selectedHoldOutput
+            case let .layerPresetPicker(config):
+                displayStyle = .layerPresetPicker
+                layerPresets = config.presets
+                selectedLayerPreset = config.selectedPresetId
+            }
+        }
+    }
+
     public init(
         id: UUID = UUID(),
         name: String,
@@ -88,6 +169,116 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         self.selectedLayerPreset = selectedLayerPreset
         self.windowKeyConvention = windowKeyConvention
         self.functionKeyMode = functionKeyMode
+    }
+
+    /// Initializer using the new type-safe configuration.
+    ///
+    /// This is the preferred initializer for new code. It ensures that only
+    /// the relevant fields for the display style are populated.
+    public init(
+        id: UUID = UUID(),
+        name: String,
+        summary: String,
+        category: RuleCollectionCategory,
+        mappings: [KeyMapping],
+        isEnabled: Bool = true,
+        isSystemDefault: Bool = false,
+        icon: String? = nil,
+        tags: [String] = [],
+        targetLayer: RuleCollectionLayer = .base,
+        momentaryActivator: MomentaryActivator? = nil,
+        activationHint: String? = nil,
+        configuration: RuleCollectionConfiguration,
+        windowKeyConvention: WindowKeyConvention? = nil,
+        functionKeyMode: FunctionKeyMode? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.summary = summary
+        self.category = category
+        self.mappings = mappings
+        self.isEnabled = isEnabled
+        self.isSystemDefault = isSystemDefault
+        self.icon = icon
+        self.tags = tags
+        self.targetLayer = targetLayer
+        self.momentaryActivator = momentaryActivator
+        self.activationHint = activationHint
+        self.windowKeyConvention = windowKeyConvention
+        self.functionKeyMode = functionKeyMode
+
+        // Set displayStyle and related fields based on configuration
+        switch configuration {
+        case .list:
+            displayStyle = .list
+            pickerInputKey = nil
+            presetOptions = []
+            selectedOutput = nil
+            homeRowModsConfig = nil
+            tapHoldOptions = nil
+            selectedTapOutput = nil
+            selectedHoldOutput = nil
+            layerPresets = nil
+            selectedLayerPreset = nil
+        case .table:
+            displayStyle = .table
+            pickerInputKey = nil
+            presetOptions = []
+            selectedOutput = nil
+            homeRowModsConfig = nil
+            tapHoldOptions = nil
+            selectedTapOutput = nil
+            selectedHoldOutput = nil
+            layerPresets = nil
+            selectedLayerPreset = nil
+        case let .singleKeyPicker(config):
+            displayStyle = .singleKeyPicker
+            pickerInputKey = config.inputKey
+            presetOptions = config.presetOptions
+            selectedOutput = config.selectedOutput
+            homeRowModsConfig = nil
+            tapHoldOptions = nil
+            selectedTapOutput = nil
+            selectedHoldOutput = nil
+            layerPresets = nil
+            selectedLayerPreset = nil
+        case let .homeRowMods(config):
+            displayStyle = .homeRowMods
+            pickerInputKey = nil
+            presetOptions = []
+            selectedOutput = nil
+            homeRowModsConfig = config
+            tapHoldOptions = nil
+            selectedTapOutput = nil
+            selectedHoldOutput = nil
+            layerPresets = nil
+            selectedLayerPreset = nil
+        case let .tapHoldPicker(config):
+            displayStyle = .tapHoldPicker
+            pickerInputKey = config.inputKey
+            presetOptions = []
+            selectedOutput = nil
+            homeRowModsConfig = nil
+            tapHoldOptions = TapHoldPresetOptions(
+                tapOptions: config.tapOptions,
+                holdOptions: config.holdOptions
+            )
+            selectedTapOutput = config.selectedTapOutput
+            selectedHoldOutput = config.selectedHoldOutput
+            layerPresets = nil
+            selectedLayerPreset = nil
+        case let .layerPresetPicker(config):
+            displayStyle = .layerPresetPicker
+            pickerInputKey = nil
+            presetOptions = []
+            selectedOutput = nil
+            homeRowModsConfig = nil
+            tapHoldOptions = nil
+            selectedTapOutput = nil
+            selectedHoldOutput = nil
+            layerPresets = config.presets
+            selectedLayerPreset = config.selectedPresetId
+        }
     }
 
     enum CodingKeys: String, CodingKey {
@@ -160,8 +351,8 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
 
 /// Key convention for window snapping shortcuts
 public enum WindowKeyConvention: String, Codable, CaseIterable, Sendable {
-    case standard = "standard"
-    case vim = "vim"
+    case standard
+    case vim
 
     public var displayName: String {
         switch self {
@@ -180,8 +371,8 @@ public enum WindowKeyConvention: String, Codable, CaseIterable, Sendable {
 
 /// Function key mode: media keys (default Mac behavior) or standard F-keys
 public enum FunctionKeyMode: String, Codable, CaseIterable, Sendable {
-    case media = "media"
-    case function = "function"
+    case media
+    case function
 
     public var displayName: String {
         switch self {
