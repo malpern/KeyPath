@@ -254,62 +254,62 @@ struct ContentView: View {
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
-            // Status message toast
-            Group {
-                if showStatusMessage {
-                    StatusMessageView(
-                        message: statusMessage,
-                        isVisible: true
-                    )
-                    .padding(.horizontal)
-                    .padding(.bottom, 12)
-                    .transition(.opacity)
-                } else {
-                    Color.clear
-                        .frame(height: 0)
+                // Status message toast
+                Group {
+                    if showStatusMessage {
+                        StatusMessageView(
+                            message: statusMessage,
+                            isVisible: true
+                        )
+                        .padding(.horizontal)
+                        .padding(.bottom, 12)
+                        .transition(.opacity)
+                    } else {
+                        Color.clear
+                            .frame(height: 0)
+                    }
                 }
-            }
-            .frame(height: showStatusMessage ? 80 : 0)
-            .animation(.easeInOut(duration: 0.25), value: showStatusMessage)
+                .frame(height: showStatusMessage ? 80 : 0)
+                .animation(.easeInOut(duration: 0.25), value: showStatusMessage)
             }
     }
 
     private var contentWithSheets: some View {
         contentWithLayout
             .sheet(isPresented: $showingInstallationWizard) {
-            InstallationWizardView(initialPage: wizardInitialPage)
-                .customizeSheetWindow() // Remove border and fix dark mode
-                .onAppear {
-                    AppLogger.shared.log("🔍 [ContentView] Installation wizard sheet is being presented")
-                    if let page = wizardInitialPage {
-                        AppLogger.shared.log(
-                            "🔍 [ContentView] Starting at \(page.displayName) page after permission grant")
+                InstallationWizardView(initialPage: wizardInitialPage)
+                    .customizeSheetWindow() // Remove border and fix dark mode
+                    .onAppear {
+                        AppLogger.shared.log("🔍 [ContentView] Installation wizard sheet is being presented")
+                        if let page = wizardInitialPage {
+                            AppLogger.shared.log(
+                                "🔍 [ContentView] Starting at \(page.displayName) page after permission grant")
+                        }
+                        LiveKeyboardOverlayController.shared.autoHideOnceForSettings()
                     }
-                    LiveKeyboardOverlayController.shared.autoHideOnceForSettings()
-                }
-                .onDisappear {
-                    // When wizard closes, call SimpleRuntimeCoordinator to handle the closure
-                    AppLogger.shared.log("🎭 [ContentView] ========== WIZARD CLOSED ==========")
-                    AppLogger.shared.log("🎭 [ContentView] Installation wizard sheet dismissed by user")
-                    // onWizardClosed removed - legacy status plumbing is gone
+                    .onDisappear {
+                        // When wizard closes, call SimpleRuntimeCoordinator to handle the closure
+                        AppLogger.shared.log("🎭 [ContentView] ========== WIZARD CLOSED ==========")
+                        AppLogger.shared.log("🎭 [ContentView] Installation wizard sheet dismissed by user")
+                        // onWizardClosed removed - legacy status plumbing is gone
 
-                    Task {
-                        // Note: validation triggered via .kp_startupRevalidate notification
-                        // Do NOT trigger here to avoid duplicate validations
-                        await kanataManager.updateStatus()
+                        Task {
+                            // Note: validation triggered via .kp_startupRevalidate notification
+                            // Do NOT trigger here to avoid duplicate validations
+                            await kanataManager.updateStatus()
+                        }
+
+                        LiveKeyboardOverlayController.shared.resetSettingsAutoHideGuard()
                     }
-
-                    LiveKeyboardOverlayController.shared.resetSettingsAutoHideGuard()
-                }
-                .environmentObject(kanataManager)
-        }
-        .sheet(isPresented: $showingSimpleMods) {
-            SimpleModsView(configPath: kanataManager.configPath)
-                .environmentObject(kanataManager)
-        }
-        .sheet(isPresented: $showingEmergencyStopDialog) {
-            EmergencyStopDialog(isActivated: kanataManager.emergencyStopActivated)
-        }
+                    .environmentObject(kanataManager)
+            }
+            .sheet(isPresented: $showingSimpleMods) {
+                SimpleModsView(configPath: kanataManager.configPath)
+                    .environmentObject(kanataManager)
+            }
+            .sheet(isPresented: $showingEmergencyStopDialog) {
+                EmergencyStopDialog(isActivated: kanataManager.emergencyStopActivated)
+            }
             .sheet(isPresented: $showingUninstallDialog) {
                 UninstallKeyPathDialog()
                     .environmentObject(kanataManager)
@@ -319,106 +319,106 @@ struct ContentView: View {
     private var contentWithLifecycle: some View {
         contentWithSheets
             .onAppear {
-            AppLogger.shared.log("🔍 [ContentView] onAppear called")
-            AppLogger.shared.log(
-                "🏗️ [ContentView] Using shared SimpleRuntimeCoordinator"
-            )
+                AppLogger.shared.log("🔍 [ContentView] onAppear called")
+                AppLogger.shared.log(
+                    "🏗️ [ContentView] Using shared SimpleRuntimeCoordinator"
+                )
 
-            // 🎯 Phase 3/4: Configure state controller and recording coordinator with underlying RuntimeCoordinator
-            // Business logic components need the actual manager, not the ViewModel
-            stateController.configure(with: kanataManager.underlyingManager)
-            recordingCoordinator.configure(
-                kanataManager: kanataManager.underlyingManager,
-                statusHandler: { message in showStatusMessage(message: message) },
-                permissionProvider: permissionSnapshotProvider
-            )
+                // 🎯 Phase 3/4: Configure state controller and recording coordinator with underlying RuntimeCoordinator
+                // Business logic components need the actual manager, not the ViewModel
+                stateController.configure(with: kanataManager.underlyingManager)
+                recordingCoordinator.configure(
+                    kanataManager: kanataManager.underlyingManager,
+                    statusHandler: { message in showStatusMessage(message: message) },
+                    permissionProvider: permissionSnapshotProvider
+                )
 
-            // 🎯 Phase 3: Validation runs ONLY via notification at T+1000ms (after service starts at T+500ms)
-            // Do NOT validate here - service isn't running yet, would show false errors
+                // 🎯 Phase 3: Validation runs ONLY via notification at T+1000ms (after service starts at T+500ms)
+                // Do NOT validate here - service isn't running yet, would show false errors
 
-            // Observe phased startup notifications
-            setupStartupObservers()
+                // Observe phased startup notifications
+                setupStartupObservers()
 
-            // Check if we're returning from permission granting (Input Monitoring settings)
-            let isReturningFromPermissionGrant = checkForPendingPermissionGrant()
+                // Check if we're returning from permission granting (Input Monitoring settings)
+                let isReturningFromPermissionGrant = checkForPendingPermissionGrant()
 
-            // Check if we're returning from an app restart for FDA permission
-            if let restorePoint = UserDefaults.standard.string(forKey: "KeyPath.WizardRestorePoint") {
-                let restoreTime = UserDefaults.standard.double(forKey: "KeyPath.WizardRestoreTime")
-                let timeSinceRestore = Date().timeIntervalSince1970 - restoreTime
-                if timeSinceRestore < 300 { // Within 5 minutes
-                    AppLogger.shared.log("🔄 [ContentView] Found wizard restore point '\(restorePoint)' - auto-opening wizard")
-                    // Delay slightly to ensure UI is ready
-                    Task { @MainActor in
-                        try await Task.sleep(for: .milliseconds(500))
-                        showingInstallationWizard = true
+                // Check if we're returning from an app restart for FDA permission
+                if let restorePoint = UserDefaults.standard.string(forKey: "KeyPath.WizardRestorePoint") {
+                    let restoreTime = UserDefaults.standard.double(forKey: "KeyPath.WizardRestoreTime")
+                    let timeSinceRestore = Date().timeIntervalSince1970 - restoreTime
+                    if timeSinceRestore < 300 { // Within 5 minutes
+                        AppLogger.shared.log("🔄 [ContentView] Found wizard restore point '\(restorePoint)' - auto-opening wizard")
+                        // Delay slightly to ensure UI is ready
+                        Task { @MainActor in
+                            try await Task.sleep(for: .milliseconds(500))
+                            showingInstallationWizard = true
+                        }
                     }
                 }
+
+                // Set up notification handlers for recovery actions
+                setupRecoveryActionHandlers()
+
+                // ContentView no longer forwards triggers directly; RecordingSection handles triggers via NotificationCenter
+
+                // StartupCoordinator will publish auto-launch; if user returned from Settings,
+                // we’ll skip inside the observer.
+                if isReturningFromPermissionGrant {
+                    AppLogger.shared.log(
+                        "🔧 [ContentView] Skipping auto-launch - returning from permission granting")
+                    WizardLogger.shared.log("SKIPPING auto-launch (would reset wizard flag)")
+                }
+
+                if !hasCheckedRequirements {
+                    AppLogger.shared.log("🔍 [ContentView] First time setup")
+                    hasCheckedRequirements = true
+                }
+
+                // The StartupCoordinator will trigger emergency monitoring when safe.
+
+                // Status monitoring now handled centrally by SimpleRuntimeCoordinator
+                // Defer these UI state reads to the next runloop to avoid doing work
+                // during the initial display cycle (prevents AppKit layout reentrancy).
+                Task { @MainActor in
+                    logInputDisabledReason()
+                    logOutputDisabledReason()
+                }
+
+                // Trigger first-run validation on launch to drive the status indicator immediately
+                Task {
+                    await stateController.performInitialValidation()
+                }
             }
-
-            // Set up notification handlers for recovery actions
-            setupRecoveryActionHandlers()
-
-            // ContentView no longer forwards triggers directly; RecordingSection handles triggers via NotificationCenter
-
-            // StartupCoordinator will publish auto-launch; if user returned from Settings,
-            // we’ll skip inside the observer.
-            if isReturningFromPermissionGrant {
-                AppLogger.shared.log(
-                    "🔧 [ContentView] Skipping auto-launch - returning from permission granting")
-                WizardLogger.shared.log("SKIPPING auto-launch (would reset wizard flag)")
-            }
-
-            if !hasCheckedRequirements {
-                AppLogger.shared.log("🔍 [ContentView] First time setup")
-                hasCheckedRequirements = true
-            }
-
-            // The StartupCoordinator will trigger emergency monitoring when safe.
-
-            // Status monitoring now handled centrally by SimpleRuntimeCoordinator
-            // Defer these UI state reads to the next runloop to avoid doing work
-            // during the initial display cycle (prevents AppKit layout reentrancy).
-            Task { @MainActor in
+            .onReceive(recordingCoordinator.$input.map(\.isRecording).removeDuplicates()) { isRecording in
+                AppLogger.shared.log("🔁 [UI] isRecording changed -> \(isRecording)")
                 logInputDisabledReason()
+            }
+            .onReceive(recordingCoordinator.$output.map(\.isRecording).removeDuplicates()) {
+                isRecordingOutput in
+                AppLogger.shared.log("🔁 [UI] isRecordingOutput changed -> \(isRecordingOutput)")
                 logOutputDisabledReason()
             }
-
-            // Trigger first-run validation on launch to drive the status indicator immediately
-            Task {
-                await stateController.performInitialValidation()
+            .onReceive(recordingCoordinator.$isSequenceMode.removeDuplicates()) { mode in
+                AppLogger.shared.log("🔁 [UI] isSequenceMode changed -> \(mode ? "sequence" : "chord")")
             }
-        }
-        .onReceive(recordingCoordinator.$input.map(\.isRecording).removeDuplicates()) { isRecording in
-            AppLogger.shared.log("🔁 [UI] isRecording changed -> \(isRecording)")
-            logInputDisabledReason()
-        }
-        .onReceive(recordingCoordinator.$output.map(\.isRecording).removeDuplicates()) {
-            isRecordingOutput in
-            AppLogger.shared.log("🔁 [UI] isRecordingOutput changed -> \(isRecordingOutput)")
-            logOutputDisabledReason()
-        }
-        .onReceive(recordingCoordinator.$isSequenceMode.removeDuplicates()) { mode in
-            AppLogger.shared.log("🔁 [UI] isSequenceMode changed -> \(mode ? "sequence" : "chord")")
-        }
-        // Removed: onChange(of: kanataManager.showWizard) - legacy plumbing removed
-        .onChange(of: kanataManager.lastConfigUpdate) { _, _ in
-            // Skip toast on initial config load at app startup
-            guard !isInitialConfigLoad else {
-                isInitialConfigLoad = false
-                return
+            // Removed: onChange(of: kanataManager.showWizard) - legacy plumbing removed
+            .onChange(of: kanataManager.lastConfigUpdate) { _, _ in
+                // Skip toast on initial config load at app startup
+                guard !isInitialConfigLoad else {
+                    isInitialConfigLoad = false
+                    return
+                }
+
+                // Show status message when config is updated externally
+                showStatusMessage(message: "Key mappings updated")
+                // NOTE: Do NOT trigger validation here - causes validation spam during startup
+                // Validation happens on: app launch, wizard close, manual refresh only
             }
+            .onDisappear {
+                // Stop emergency monitoring when view disappears
+                keyboardCapture?.stopEmergencyMonitoring()
 
-            // Show status message when config is updated externally
-            showStatusMessage(message: "Key mappings updated")
-            // NOTE: Do NOT trigger validation here - causes validation spam during startup
-            // Validation happens on: app launch, wizard close, manual refresh only
-        }
-        .onDisappear {
-            // Stop emergency monitoring when view disappears
-            keyboardCapture?.stopEmergencyMonitoring()
-
-            // Status monitoring handled centrally - no cleanup needed
+                // Status monitoring handled centrally - no cleanup needed
             }
     }
 
@@ -648,7 +648,7 @@ struct ContentView: View {
         if hasServiceIssue, !lastKanataServiceIssuePresent, hasSeenHealthyKanataService {
             let reason =
                 serviceIssue?.description
-                ?? "Kanata keyboard remapping service is not running. Open the setup wizard to diagnose and fix it."
+                    ?? "Kanata keyboard remapping service is not running. Open the setup wizard to diagnose and fix it."
             var detailLines = [reason]
             if let lastError = kanataManager.lastError, !lastError.isEmpty {
                 detailLines.append("")

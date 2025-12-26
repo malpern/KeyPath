@@ -7,10 +7,10 @@ import KeyPathCore
 
 /// Represents a target window position/size
 public enum WindowPosition: String, CaseIterable {
-    case left = "left"
-    case right = "right"
-    case maximize = "maximize"
-    case center = "center"
+    case left
+    case right
+    case maximize
+    case center
     case topLeft = "top-left"
     case topRight = "top-right"
     case bottomLeft = "bottom-left"
@@ -19,7 +19,7 @@ public enum WindowPosition: String, CaseIterable {
     case previousDisplay = "previous-display"
     case nextSpace = "next-space"
     case previousSpace = "previous-space"
-    case undo = "undo"
+    case undo
 
     /// All position values for help text
     static var allValues: String {
@@ -188,11 +188,11 @@ public final class WindowManager {
     // MARK: - Space Movement
 
     private func moveToNextSpace() -> Bool {
-        return moveToSpace(direction: .next)
+        moveToSpace(direction: .next)
     }
 
     private func moveToPreviousSpace() -> Bool {
-        return moveToSpace(direction: .previous)
+        moveToSpace(direction: .previous)
     }
 
     private enum SpaceDirection {
@@ -219,12 +219,11 @@ public final class WindowManager {
             return false
         }
 
-        let targetSpaceID: CGSSpaceID?
-        switch direction {
+        let targetSpaceID: CGSSpaceID? = switch direction {
         case .next:
-            targetSpaceID = SpaceManager.shared.nextSpaceID()
+            SpaceManager.shared.nextSpaceID()
         case .previous:
-            targetSpaceID = SpaceManager.shared.previousSpaceID()
+            SpaceManager.shared.previousSpaceID()
         }
 
         guard let spaceID = targetSpaceID else {
@@ -263,11 +262,11 @@ public final class WindowManager {
     // MARK: - Display Movement
 
     private func moveToNextDisplay() -> Bool {
-        return moveToDisplay(offset: 1)
+        moveToDisplay(offset: 1)
     }
 
     private func moveToPreviousDisplay() -> Bool {
-        return moveToDisplay(offset: -1)
+        moveToDisplay(offset: -1)
     }
 
     private func moveToDisplay(offset: Int) -> Bool {
@@ -442,8 +441,7 @@ public final class WindowManager {
             // Check if window center is within this screen's frame
             // Account for coordinate system differences
             if screenFrame.contains(windowCenter) ||
-                isWindowOnScreen(frame: frame, screen: screen)
-            {
+                isWindowOnScreen(frame: frame, screen: screen) {
                 return screen
             }
         }

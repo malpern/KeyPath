@@ -131,13 +131,13 @@ struct PhysicalLayoutTests {
 
     @Test func ansi75LayoutHasFunctionKeys() {
         let layout = PhysicalLayout.ansi75Percent
-        let functionKeys = layout.keys.filter { (96...111).contains($0.keyCode) || [99, 118, 120, 122].contains($0.keyCode) }
+        let functionKeys = layout.keys.filter { (96 ... 111).contains($0.keyCode) || [99, 118, 120, 122].contains($0.keyCode) }
         #expect(!functionKeys.isEmpty, "75% ANSI should have function keys")
     }
 
     @Test func ansi80LayoutHasFunctionKeys() {
         let layout = PhysicalLayout.ansi80Percent
-        let functionKeys = layout.keys.filter { (96...111).contains($0.keyCode) || [99, 118, 120, 122].contains($0.keyCode) }
+        let functionKeys = layout.keys.filter { (96 ... 111).contains($0.keyCode) || [99, 118, 120, 122].contains($0.keyCode) }
         #expect(!functionKeys.isEmpty, "80% ANSI should have function keys")
     }
 

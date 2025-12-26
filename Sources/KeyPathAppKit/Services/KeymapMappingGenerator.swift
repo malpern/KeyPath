@@ -70,13 +70,13 @@ enum KeymapMappingGenerator {
     private static func punctuationForKeyCode(_ keyCode: UInt16) -> String? {
         // Standard QWERTY punctuation positions
         let punctuationMap: [UInt16: String] = [
-            50: "`",   // grave
-            27: "-",   // minus
-            24: "=",   // equal
-            33: "[",   // left bracket
-            30: "]",   // right bracket
-            42: "\\",  // backslash
-            39: "'"    // apostrophe
+            50: "`", // grave
+            27: "-", // minus
+            24: "=", // equal
+            33: "[", // left bracket
+            30: "]", // right bracket
+            42: "\\", // backslash
+            39: "'" // apostrophe
         ]
         return punctuationMap[keyCode]
     }

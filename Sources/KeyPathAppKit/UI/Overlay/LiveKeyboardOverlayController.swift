@@ -1,6 +1,6 @@
 import AppKit
-import SwiftUI
 import Combine
+import SwiftUI
 
 /// Controls the floating live keyboard overlay window.
 /// Creates an always-on-top borderless window that shows the live keyboard state.
@@ -59,12 +59,15 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     private var inspectorTotalWidth: CGFloat {
         inspectorPanelWidth + OverlayLayoutMetrics.inspectorSeamWidth
     }
+
     private var inspectorDebugEnabled: Bool {
         UserDefaults.standard.bool(forKey: "OverlayInspectorDebug")
     }
+
     private var minWindowHeight: CGFloat {
         OverlayLayoutMetrics.verticalChrome + minKeyboardHeight
     }
+
     private var minWindowWidth: CGFloat {
         let keyboardWidth = minKeyboardHeight * baseKeyboardAspectRatio
         return keyboardWidth
@@ -509,9 +512,9 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         // In accessibility test mode, use titled window for automation tools like Peekaboo
         let useAccessibilityTestMode = ProcessInfo.processInfo.environment["KEYPATH_ACCESSIBILITY_TEST_MODE"] != nil
         let windowStyle: NSWindow.StyleMask = useAccessibilityTestMode
-            ? [.titled, .resizable, .closable]  // Standard window for automation
-            : [.borderless, .resizable]          // Normal borderless overlay
-        
+            ? [.titled, .resizable, .closable] // Standard window for automation
+            : [.borderless, .resizable] // Normal borderless overlay
+
         let window = OverlayWindow(
             contentRect: NSRect(origin: .zero, size: initialSize),
             styleMask: windowStyle,
@@ -527,7 +530,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         window.delegate = self
 
         // Accessibility: Make window discoverable by automation tools (Peekaboo, etc.)
-        window.title = "KeyPath Keyboard Overlay"  // Title for window listing
+        window.title = "KeyPath Keyboard Overlay" // Title for window listing
         window.setAccessibilityIdentifier("keypath-keyboard-overlay-window")
         window.setAccessibilityLabel("KeyPath Keyboard Overlay")
 
@@ -593,14 +596,14 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             // Animate only the window expansion with easing
             setWindowFrame(expandedFrame, animated: true, duration: inspectorAnimationDuration)
             DispatchQueue.main.asyncAfter(deadline: .now() + inspectorAnimationDuration) { [weak self] in
-                guard let self, self.inspectorAnimationToken == token else { return }
-                self.uiState.isInspectorOpen = true
-                self.uiState.isInspectorAnimating = false
-                self.uiState.inspectorReveal = 1
-                self.lastWindowFrame = expandedFrame
-                if self.inspectorDebugEnabled {
+                guard let self, inspectorAnimationToken == token else { return }
+                uiState.isInspectorOpen = true
+                uiState.isInspectorAnimating = false
+                uiState.inspectorReveal = 1
+                lastWindowFrame = expandedFrame
+                if inspectorDebugEnabled {
                     AppLogger.shared.log(
-                        "📤 [OverlayInspector] open end frame=\(expandedFrame.debugDescription) reveal=\(self.uiState.inspectorReveal)"
+                        "📤 [OverlayInspector] open end frame=\(expandedFrame.debugDescription) reveal=\(uiState.inspectorReveal)"
                     )
                 }
             }
@@ -645,16 +648,16 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         if shouldAnimate {
             setWindowFrame(targetFrame, animated: true, duration: inspectorAnimationDuration)
             DispatchQueue.main.asyncAfter(deadline: .now() + inspectorAnimationDuration) { [weak self] in
-                guard let self, self.inspectorAnimationToken == token else { return }
-                self.uiState.inspectorReveal = 0
-                self.uiState.isInspectorOpen = false
-                self.uiState.isInspectorAnimating = false
-                self.uiState.isInspectorClosing = false
-                self.collapsedFrameBeforeInspector = nil
-                self.lastWindowFrame = targetFrame
-                if self.inspectorDebugEnabled {
+                guard let self, inspectorAnimationToken == token else { return }
+                uiState.inspectorReveal = 0
+                uiState.isInspectorOpen = false
+                uiState.isInspectorAnimating = false
+                uiState.isInspectorClosing = false
+                collapsedFrameBeforeInspector = nil
+                lastWindowFrame = targetFrame
+                if inspectorDebugEnabled {
                     AppLogger.shared.log(
-                        "📥 [OverlayInspector] close end frame=\(targetFrame.debugDescription) reveal=\(self.uiState.inspectorReveal)"
+                        "📥 [OverlayInspector] close end frame=\(targetFrame.debugDescription) reveal=\(uiState.inspectorReveal)"
                     )
                 }
             }
@@ -676,7 +679,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
     private func handleWindowFrameChange() {
         guard let window else { return }
-        if uiState.isInspectorOpen && !uiState.isInspectorClosing {
+        if uiState.isInspectorOpen, !uiState.isInspectorClosing {
             updateCollapsedFrame(forExpandedFrame: window.frame)
         }
         if uiState.isInspectorAnimating {
@@ -739,7 +742,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             .removeDuplicates()
             .sink { [weak self] height in
                 guard let self, !self.isUserResizing else { return }
-                self.applyDesiredContentHeight(height)
+                applyDesiredContentHeight(height)
             }
             .store(in: &cancellables)
     }
@@ -749,7 +752,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             .removeDuplicates()
             .sink { [weak self] width in
                 guard let self, !self.isUserResizing else { return }
-                self.applyDesiredContentWidth(width)
+                applyDesiredContentWidth(width)
             }
             .store(in: &cancellables)
     }
@@ -758,8 +761,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         uiState.$keyboardAspectRatio
             .removeDuplicates()
             .sink { [weak self] newAspectRatio in
-                guard let self, let window = self.window, !self.isUserResizing else { return }
-                self.resizeWindowForNewAspectRatio(newAspectRatio)
+                guard let self, let window, !self.isUserResizing else { return }
+                resizeWindowForNewAspectRatio(newAspectRatio)
             }
             .store(in: &cancellables)
     }
@@ -767,35 +770,35 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     private func resizeWindowForNewAspectRatio(_ newAspectRatio: CGFloat) {
         guard let window else { return }
         guard !isAdjustingHeight, !isAdjustingWidth else { return }
-        
+
         let verticalChrome = OverlayLayoutMetrics.verticalChrome
         let currentFrame = window.frame
         let currentKeyboardHeight = currentFrame.height - verticalChrome
-        
+
         // Calculate new keyboard width based on new aspect ratio
         let newKeyboardWidth = currentKeyboardHeight * newAspectRatio
-        
+
         // Calculate horizontal chrome (padding + inspector if open)
         let horizontalChrome = OverlayLayoutMetrics.horizontalChrome(
             inspectorVisible: uiState.isInspectorOpen,
             inspectorWidth: inspectorPanelWidth
         )
-        
+
         let newWindowWidth = newKeyboardWidth + horizontalChrome
-        
+
         // Only resize if there's a meaningful difference
         guard abs(currentFrame.width - newWindowWidth) > 1.0 else { return }
-        
+
         isAdjustingWidth = true
         var newFrame = currentFrame
         newFrame.size.width = newWindowWidth
-        
+
         // Keep right edge anchored (window moves left as it shrinks, right as it grows)
         newFrame.origin.x = currentFrame.maxX - newWindowWidth
-        
+
         let constrained = window.constrainFrameRect(newFrame, to: window.screen)
         window.setFrame(constrained, display: true, animate: true)
-        
+
         isAdjustingWidth = false
     }
 

@@ -70,4 +70,3 @@ final class SystemContextAdapterPermissionSeverityTests: XCTestCase {
         XCTAssertEqual(pageStatus, .warning, "Input Monitoring page should show warning when only 'unknown' kanata permission exists")
     }
 }
-

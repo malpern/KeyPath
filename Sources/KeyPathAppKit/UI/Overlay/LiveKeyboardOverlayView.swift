@@ -310,7 +310,7 @@ private struct OverlayDragHeader: View {
         HStack(spacing: 0) {
             Spacer()
                 .frame(width: controlsStartX)
-            
+
             // Controls expand right from keyboard edge, but stop before inspector
             HStack(spacing: 6) {
                 // Toggle inspector/drawer button - always visible
@@ -435,11 +435,11 @@ private struct InspectorMaskedHost<Content: View>: NSViewRepresentable {
     var opacity: CGFloat
     var debugEnabled: Bool
 
-    func makeNSView(context: Context) -> InspectorMaskedHostingView<Content> {
+    func makeNSView(context _: Context) -> InspectorMaskedHostingView<Content> {
         InspectorMaskedHostingView(content: content)
     }
 
-    func updateNSView(_ nsView: InspectorMaskedHostingView<Content>, context: Context) {
+    func updateNSView(_ nsView: InspectorMaskedHostingView<Content>, context _: Context) {
         nsView.update(
             content: content,
             reveal: reveal,
@@ -462,7 +462,7 @@ private final class InspectorMaskedHostingView<Content: View>: NSView {
     private var lastDebugLogTime: CFTimeInterval = 0
 
     init(content: Content) {
-        self.hostingView = NSHostingView(rootView: content)
+        hostingView = NSHostingView(rootView: content)
         super.init(frame: .zero)
         wantsLayer = true
         layer?.masksToBounds = false
@@ -474,7 +474,8 @@ private final class InspectorMaskedHostingView<Content: View>: NSView {
         addSubview(hostingView)
     }
 
-    required init?(coder: NSCoder) {
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
@@ -490,14 +491,14 @@ private final class InspectorMaskedHostingView<Content: View>: NSView {
         self.reveal = reveal
         self.totalWidth = totalWidth
         self.slideOffset = slideOffset
-        self.contentOpacity = opacity
+        contentOpacity = opacity
         self.debugEnabled = debugEnabled
         needsLayout = true
     }
 
     override func layout() {
         super.layout()
-        let bounds = self.bounds
+        let bounds = bounds
         hostingView.frame = bounds.offsetBy(dx: slideOffset, dy: 0)
         hostingView.alphaValue = contentOpacity
 

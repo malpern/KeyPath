@@ -178,13 +178,14 @@ final class TypingSoundsManager: ObservableObject {
         keyupPlayers.removeAll()
 
         guard let keydownURL = soundURL(for: profile, isKeydown: true),
-              let keyupURL = soundURL(for: profile, isKeydown: false) else {
+              let keyupURL = soundURL(for: profile, isKeydown: false)
+        else {
             AppLogger.shared.warn("Could not find sound files for profile: \(profile.id)")
             return
         }
 
         // Create pool of players for each sound type
-        for _ in 0..<playerPoolSize {
+        for _ in 0 ..< playerPoolSize {
             if let player = try? AVAudioPlayer(contentsOf: keydownURL) {
                 player.prepareToPlay()
                 keydownPlayers.append(player)

@@ -137,8 +137,7 @@ struct MapperView: View {
         .onReceive(NotificationCenter.default.publisher(for: .mapperPresetValues)) { notification in
             // Handle preset updates when window is already open
             if let input = notification.userInfo?["input"] as? String,
-               let output = notification.userInfo?["output"] as? String
-            {
+               let output = notification.userInfo?["output"] as? String {
                 let layer = notification.userInfo?["layer"] as? String
                 let inputKeyCode = notification.userInfo?["inputKeyCode"] as? UInt16
                 let appIdentifier = notification.userInfo?["appIdentifier"] as? String
@@ -158,8 +157,7 @@ struct MapperView: View {
         .onReceive(NotificationCenter.default.publisher(for: .kanataLayerChanged)) { notification in
             // Update layer when it changes (if not opened from overlay with specific layer)
             if let layerName = notification.userInfo?["layerName"] as? String,
-               viewModel.originalInputKey == nil
-            { // Only auto-update if not opened from overlay
+               viewModel.originalInputKey == nil { // Only auto-update if not opened from overlay
                 viewModel.setLayer(layerName)
             }
         }
@@ -346,7 +344,7 @@ private struct MapperInspectorPanel: View {
 private struct InspectorButton: View {
     let icon: String
     let title: String
-    var subtitle: String? = nil
+    var subtitle: String?
     let isSelected: Bool
     let action: () -> Void
 
@@ -685,7 +683,7 @@ private struct AdvancedBehaviorContent: View {
             "tab": "⇥",
             "bspc": "⌫", "backspace": "⌫",
             "esc": "⎋", "escape": "⎋",
-            "left": "←", "right": "→", "up": "↑", "down": "↓",
+            "left": "←", "right": "→", "up": "↑", "down": "↓"
         ]
         return displayMap[key.lowercased()] ?? key.uppercased()
     }

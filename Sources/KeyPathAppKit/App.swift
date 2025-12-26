@@ -486,7 +486,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // Configure overlay controller with viewModel for Mapper integration and keymap changes
             LiveKeyboardOverlayController.shared.configure(
                 kanataViewModel: vm,
-                ruleCollectionsManager: self.kanataManager?.rulesManager
+                ruleCollectionsManager: kanataManager?.rulesManager
             )
 
             // Defer all window fronting until the first applicationDidBecomeActive event

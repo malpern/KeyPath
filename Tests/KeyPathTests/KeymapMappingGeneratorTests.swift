@@ -1,5 +1,5 @@
-import XCTest
 @testable import KeyPathAppKit
+import XCTest
 
 final class KeymapMappingGeneratorTests: XCTestCase {
     // MARK: - QWERTY Tests

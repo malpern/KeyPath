@@ -85,7 +85,7 @@ let modifierPriority: [String: Int] = [
     "environmentObject": 9,
     "help": 9,
     "tag": 9,
-    "id": 9,
+    "id": 9
 ]
 
 struct Modifier {
@@ -199,7 +199,7 @@ func checkAndReportIssues(lines: [String], filename: String) -> [(line: Int, mes
 
 // Main execution
 let args = CommandLine.arguments
-var filename: String? = nil
+var filename: String?
 var dryRun = false
 
 for arg in args.dropFirst() {

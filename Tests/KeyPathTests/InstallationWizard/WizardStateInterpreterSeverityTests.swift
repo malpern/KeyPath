@@ -55,4 +55,3 @@ final class WizardStateInterpreterSeverityTests: XCTestCase {
         XCTAssertEqual(pageStatus, .warning)
     }
 }
-

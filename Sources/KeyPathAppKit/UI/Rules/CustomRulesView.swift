@@ -167,7 +167,8 @@ private struct CustomRuleRow: View {
         let pattern = #"\(push-msg\s+"system:([^"]+)"\)"#
         guard let regex = try? NSRegularExpression(pattern: pattern, options: []),
               let match = regex.firstMatch(in: rule.output, range: NSRange(rule.output.startIndex..., in: rule.output)),
-              let actionRange = Range(match.range(at: 1), in: rule.output) else {
+              let actionRange = Range(match.range(at: 1), in: rule.output)
+        else {
             return nil
         }
         return String(rule.output[actionRange])
@@ -460,14 +461,14 @@ private struct SystemActionChip: View {
     /// Map system action IDs to SF Symbol icons and display names
     private var actionInfo: (icon: String, name: String) {
         switch actionIdentifier.lowercased() {
-        case "spotlight": return ("magnifyingglass", "Spotlight")
-        case "mission-control", "missioncontrol": return ("rectangle.3.group", "Mission Control")
-        case "launchpad": return ("square.grid.3x3", "Launchpad")
-        case "dnd", "do-not-disturb", "donotdisturb": return ("moon.fill", "Do Not Disturb")
-        case "notification-center", "notificationcenter": return ("bell.fill", "Notification Center")
-        case "dictation": return ("mic.fill", "Dictation")
-        case "siri": return ("waveform.circle.fill", "Siri")
-        default: return ("gearshape.fill", actionIdentifier.capitalized)
+        case "spotlight": ("magnifyingglass", "Spotlight")
+        case "mission-control", "missioncontrol": ("rectangle.3.group", "Mission Control")
+        case "launchpad": ("square.grid.3x3", "Launchpad")
+        case "dnd", "do-not-disturb", "donotdisturb": ("moon.fill", "Do Not Disturb")
+        case "notification-center", "notificationcenter": ("bell.fill", "Notification Center")
+        case "dictation": ("mic.fill", "Dictation")
+        case "siri": ("waveform.circle.fill", "Siri")
+        default: ("gearshape.fill", actionIdentifier.capitalized)
         }
     }
 

@@ -199,11 +199,11 @@ private struct SettingsTabButton: View {
 extension SettingsTab {
     var accessibilityId: String {
         switch self {
-        case .status: return "status"
-        case .rules: return "rules"
-        case .simulator: return "simulator"
-        case .general: return "general"
-        case .advanced: return "repair"
+        case .status: "status"
+        case .rules: "rules"
+        case .simulator: "simulator"
+        case .general: "general"
+        case .advanced: "repair"
         }
     }
 }

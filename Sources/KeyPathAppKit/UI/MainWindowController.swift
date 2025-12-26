@@ -84,7 +84,6 @@ final class MainWindowController: NSWindowController {
         fatalError("init(coder:) has not been implemented")
     }
 
-
     func show(focus _: Bool = true) {
         guard let window else { return }
 

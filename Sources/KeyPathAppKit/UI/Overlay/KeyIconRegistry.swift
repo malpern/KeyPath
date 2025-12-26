@@ -73,7 +73,7 @@ enum KeyIconRegistry {
         "slack": .appIcon("Slack"),
         "discord": .appIcon("Discord"),
         "chrome": .appIcon("Google Chrome"),
-        "firefox": .appIcon("Firefox"),
+        "firefox": .appIcon("Firefox")
     ]
 
     /// Resolve an icon name to its source

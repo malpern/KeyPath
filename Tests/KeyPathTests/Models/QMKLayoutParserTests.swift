@@ -264,7 +264,7 @@ struct QMKLayoutParserTests {
 
         // Pass a keyMapping function that returns nil - JSON should provide the mappings
         func nilMapping(_: Int, _: Int) -> (keyCode: UInt16, label: String)? {
-            return nil
+            nil
         }
 
         let layout = QMKLayoutParser.parse(
@@ -308,7 +308,7 @@ struct QMKLayoutParserTests {
 
         // Provide fallback mapping for keys without embedded keyCode/label
         func fallbackMapping(row: Int, col: Int) -> (keyCode: UInt16, label: String)? {
-            if row == 0 && col == 1 {
+            if row == 0, col == 1 {
                 return (19, "2")
             }
             return nil

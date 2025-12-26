@@ -658,270 +658,270 @@ private struct ExpandableCollectionRow: View {
             }
         } label: {
             HStack(alignment: .top, spacing: 12) {
-                    iconView(for: icon)
-                        .frame(width: 24)
+                iconView(for: icon)
+                    .frame(width: 24)
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 4) {
-                            Text(name)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Text(name)
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        if count > 0, showZeroState || onEditMapping != nil {
+                            // Show count for custom rules section only
+                            Text("(\(count))")
                                 .font(.headline)
-                                .foregroundColor(.primary)
-                            if count > 0, showZeroState || onEditMapping != nil {
-                                // Show count for custom rules section only
-                                Text("(\(count))")
-                                    .font(.headline)
-                                    .fontWeight(.regular)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-
-                        if let desc = description {
-                            Text(desc)
-                                .font(.subheadline)
+                                .fontWeight(.regular)
                                 .foregroundColor(.secondary)
-                        }
-
-                        if layerActivator != nil {
-                            Label("Hold \(leaderKeyDisplay)", systemImage: "hand.point.up.left")
-                                .font(.caption)
-                                .foregroundColor(.accentColor)
                         }
                     }
 
-                    Spacer()
+                    if let desc = description {
+                        Text(desc)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
 
-                    Toggle(
-                        "",
-                        isOn: Binding(
-                            get: { effectiveEnabled },
-                            set: { newValue in
-                                // Optimistic update: change UI immediately
-                                localEnabled = newValue
-                                // Then trigger async operation
-                                onToggle(newValue)
-                            }
-                        )
-                    )
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .tint(.blue)
-                    .onTapGesture {} // Prevents toggle from triggering row expansion
-                    .accessibilityIdentifier("rules-summary-toggle-\(collectionId)")
-                    .accessibilityLabel("Toggle \(name)")
+                    if layerActivator != nil {
+                        Label("Hold \(leaderKeyDisplay)", systemImage: "hand.point.up.left")
+                            .font(.caption)
+                            .foregroundColor(.accentColor)
+                    }
                 }
-                .padding(12)
-                .contentShape(Rectangle())
+
+                Spacer()
+
+                Toggle(
+                    "",
+                    isOn: Binding(
+                        get: { effectiveEnabled },
+                        set: { newValue in
+                            // Optimistic update: change UI immediately
+                            localEnabled = newValue
+                            // Then trigger async operation
+                            onToggle(newValue)
+                        }
+                    )
+                )
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .tint(.blue)
+                .onTapGesture {} // Prevents toggle from triggering row expansion
+                .accessibilityIdentifier("rules-summary-toggle-\(collectionId)")
+                .accessibilityLabel("Toggle \(name)")
             }
-            .buttonStyle(.plain)
+            .padding(12)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
     private var expandedContentView: some View {
         if isExpanded {
-                // Inset back plane container for expanded content
-                InsetBackPlane {
-                    if showZeroState, mappings.isEmpty, let onCreate = onCreateFirstRule {
-                        // Zero State - only show if BOTH showZeroState is true AND mappings is actually empty
-                        VStack(spacing: 12) {
-                            Text("No rules yet")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
+            // Inset back plane container for expanded content
+            InsetBackPlane {
+                if showZeroState, mappings.isEmpty, let onCreate = onCreateFirstRule {
+                    // Zero State - only show if BOTH showZeroState is true AND mappings is actually empty
+                    VStack(spacing: 12) {
+                        Text("No rules yet")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
 
-                            Button {
-                                onCreate()
-                            } label: {
-                                Label("Create Your First Rule", systemImage: "plus.circle.fill")
-                                    .font(.body.weight(.medium))
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
+                        Button {
+                            onCreate()
+                        } label: {
+                            Label("Create Your First Rule", systemImage: "plus.circle.fill")
+                                .font(.body.weight(.medium))
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 20)
-                    } else if displayStyle == .singleKeyPicker, let coll = collection {
-                        // Segmented picker for single-key remapping
-                        SingleKeyPickerContent(
-                            collection: coll,
-                            onSelectOutput: { output in
-                                onSelectOutput?(output)
-                            }
-                        )
-                        .padding(.top, 8)
-                        .padding(.bottom, 12)
-                        .padding(.horizontal, 16)
-                    } else if displayStyle == .tapHoldPicker, let coll = collection {
-                        // Tap-hold picker for dual-role keys
-                        TapHoldPickerContent(
-                            collection: coll,
-                            onSelectTapOutput: { tap in
-                                onSelectTapOutput?(tap)
-                            },
-                            onSelectHoldOutput: { hold in
-                                onSelectHoldOutput?(hold)
-                            }
-                        )
-                        .padding(.top, 8)
-                        .padding(.bottom, 12)
-                        .padding(.horizontal, 16)
-                    } else if displayStyle == .homeRowMods, let coll = collection {
-                        // Home Row Mods: show summary with current config, click to customize
-                        let config = coll.configuration.homeRowModsConfig ?? HomeRowModsConfig()
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Tap keys for letters, hold for modifiers")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 20)
+                } else if displayStyle == .singleKeyPicker, let coll = collection {
+                    // Segmented picker for single-key remapping
+                    SingleKeyPickerContent(
+                        collection: coll,
+                        onSelectOutput: { output in
+                            onSelectOutput?(output)
+                        }
+                    )
+                    .padding(.top, 8)
+                    .padding(.bottom, 12)
+                    .padding(.horizontal, 16)
+                } else if displayStyle == .tapHoldPicker, let coll = collection {
+                    // Tap-hold picker for dual-role keys
+                    TapHoldPickerContent(
+                        collection: coll,
+                        onSelectTapOutput: { tap in
+                            onSelectTapOutput?(tap)
+                        },
+                        onSelectHoldOutput: { hold in
+                            onSelectHoldOutput?(hold)
+                        }
+                    )
+                    .padding(.top, 8)
+                    .padding(.bottom, 12)
+                    .padding(.horizontal, 16)
+                } else if displayStyle == .homeRowMods, let coll = collection {
+                    // Home Row Mods: show summary with current config, click to customize
+                    let config = coll.configuration.homeRowModsConfig ?? HomeRowModsConfig()
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Tap keys for letters, hold for modifiers")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
 
-                            // Summary of current configuration
-                            if !config.enabledKeys.isEmpty {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    HStack(spacing: 16) {
-                                        // Left hand
-                                        if config.enabledKeys.contains(where: { HomeRowModsConfig.leftHandKeys.contains($0) }) {
-                                            VStack(alignment: .leading, spacing: 4) {
-                                                Text("Left hand")
-                                                    .font(.caption)
-                                                    .foregroundColor(.secondary)
-                                                HStack(spacing: 6) {
-                                                    ForEach(HomeRowModsConfig.leftHandKeys, id: \.self) { key in
-                                                        if config.enabledKeys.contains(key) {
-                                                            let modSymbol = config.modifierAssignments[key].map { formatModifierForDisplay($0) } ?? ""
-                                                            HomeRowKeyButton(
-                                                                key: key,
-                                                                modSymbol: modSymbol,
-                                                                action: { onOpenHomeRowModsModalWithKey?(key) }
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        // Right hand
-                                        if config.enabledKeys.contains(where: { HomeRowModsConfig.rightHandKeys.contains($0) }) {
-                                            VStack(alignment: .leading, spacing: 4) {
-                                                Text("Right hand")
-                                                    .font(.caption)
-                                                    .foregroundColor(.secondary)
-                                                HStack(spacing: 6) {
-                                                    ForEach(HomeRowModsConfig.rightHandKeys, id: \.self) { key in
-                                                        if config.enabledKeys.contains(key) {
-                                                            let modSymbol = config.modifierAssignments[key].map { formatModifierForDisplay($0) } ?? ""
-                                                            HomeRowKeyButton(
-                                                                key: key,
-                                                                modSymbol: modSymbol,
-                                                                action: { onOpenHomeRowModsModalWithKey?(key) }
-                                                            )
-                                                        }
+                        // Summary of current configuration
+                        if !config.enabledKeys.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack(spacing: 16) {
+                                    // Left hand
+                                    if config.enabledKeys.contains(where: { HomeRowModsConfig.leftHandKeys.contains($0) }) {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Left hand")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                            HStack(spacing: 6) {
+                                                ForEach(HomeRowModsConfig.leftHandKeys, id: \.self) { key in
+                                                    if config.enabledKeys.contains(key) {
+                                                        let modSymbol = config.modifierAssignments[key].map { formatModifierForDisplay($0) } ?? ""
+                                                        HomeRowKeyButton(
+                                                            key: key,
+                                                            modSymbol: modSymbol,
+                                                            action: { onOpenHomeRowModsModalWithKey?(key) }
+                                                        )
                                                     }
                                                 }
                                             }
                                         }
                                     }
 
-                                    let hasOffsets = !config.timing.tapOffsets.isEmpty
-                                    let quickTapText = config.timing.quickTapEnabled ? "Quick tap on" : "Quick tap off"
-                                    let quickTapTerm = config.timing.quickTapEnabled && config.timing.quickTapTermMs > 0 ? " + \(config.timing.quickTapTermMs)ms" : ""
-                                    Text("Timing: \(config.timing.tapWindow)ms tap\(quickTapTerm)\(hasOffsets ? " (+ per-key offsets)" : ""), \(config.timing.holdDelay)ms hold · \(quickTapText)")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
+                                    // Right hand
+                                    if config.enabledKeys.contains(where: { HomeRowModsConfig.rightHandKeys.contains($0) }) {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Right hand")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                            HStack(spacing: 6) {
+                                                ForEach(HomeRowModsConfig.rightHandKeys, id: \.self) { key in
+                                                    if config.enabledKeys.contains(key) {
+                                                        let modSymbol = config.modifierAssignments[key].map { formatModifierForDisplay($0) } ?? ""
+                                                        HomeRowKeyButton(
+                                                            key: key,
+                                                            modSymbol: modSymbol,
+                                                            action: { onOpenHomeRowModsModalWithKey?(key) }
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
-                                .padding(.vertical, 8)
-                                .padding(.horizontal, 12)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
-                                )
-                            }
 
-                            Button("Customize...") {
-                                onOpenHomeRowModsModal?()
+                                let hasOffsets = !config.timing.tapOffsets.isEmpty
+                                let quickTapText = config.timing.quickTapEnabled ? "Quick tap on" : "Quick tap off"
+                                let quickTapTerm = config.timing.quickTapEnabled && config.timing.quickTapTermMs > 0 ? " + \(config.timing.quickTapTermMs)ms" : ""
+                                Text("Timing: \(config.timing.tapWindow)ms tap\(quickTapTerm)\(hasOffsets ? " (+ per-key offsets)" : ""), \(config.timing.holdDelay)ms hold · \(quickTapText)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
                             }
-                            .buttonStyle(.bordered)
-                            .accessibilityIdentifier("rules-summary-home-row-mods-customize-button")
-                            .accessibilityLabel("Customize home row mods")
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                            )
+                        }
+
+                        Button("Customize...") {
+                            onOpenHomeRowModsModal?()
+                        }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("rules-summary-home-row-mods-customize-button")
+                        .accessibilityLabel("Customize home row mods")
+                    }
+                    .padding(.top, 8)
+                    .padding(.bottom, 12)
+                    .padding(.horizontal, 16)
+                } else if displayStyle == .layerPresetPicker, let coll = collection {
+                    // Layer preset picker for collections with multiple preset configurations
+                    LayerPresetPickerContent(
+                        collection: coll,
+                        onSelectPreset: { presetId in
+                            onSelectLayerPreset?(presetId)
+                        }
+                    )
+                    .padding(.top, 8)
+                    .padding(.bottom, 12)
+                    .padding(.horizontal, 16)
+                } else if displayStyle == .table {
+                    // Check for specialized collection views
+                    if collection?.id == RuleCollectionIdentifier.numpadLayer {
+                        // Numpad uses specialized grid
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Transform your keyboard into a numpad")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            NumpadTransformGrid(mappings: collection?.mappings ?? [])
                         }
                         .padding(.top, 8)
                         .padding(.bottom, 12)
                         .padding(.horizontal, 16)
-                    } else if displayStyle == .layerPresetPicker, let coll = collection {
-                        // Layer preset picker for collections with multiple preset configurations
-                        LayerPresetPickerContent(
-                            collection: coll,
-                            onSelectPreset: { presetId in
-                                onSelectLayerPreset?(presetId)
+                    } else if collection?.id == RuleCollectionIdentifier.vimNavigation {
+                        // Vim uses animated category cards
+                        VimCommandCardsView(mappings: collection?.mappings ?? [])
+                            .padding(.top, 8)
+                            .padding(.bottom, 12)
+                            .padding(.horizontal, 12)
+                    } else if collection?.id == RuleCollectionIdentifier.windowSnapping {
+                        // Window snapping uses visual monitor canvas
+                        WindowSnappingView(
+                            mappings: collection?.mappings ?? [],
+                            convention: collection?.windowKeyConvention ?? .standard,
+                            onConventionChange: { convention in
+                                onSelectWindowConvention?(convention)
                             }
                         )
                         .padding(.top, 8)
                         .padding(.bottom, 12)
-                        .padding(.horizontal, 16)
-                    } else if displayStyle == .table {
-                        // Check for specialized collection views
-                        if collection?.id == RuleCollectionIdentifier.numpadLayer {
-                            // Numpad uses specialized grid
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Transform your keyboard into a numpad")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                                NumpadTransformGrid(mappings: collection?.mappings ?? [])
+                        .padding(.horizontal, 12)
+                    } else if collection?.id == RuleCollectionIdentifier.macFunctionKeys {
+                        // Function keys use flip card display
+                        FunctionKeysView(
+                            mappings: collection?.mappings ?? [],
+                            currentMode: collection?.functionKeyMode,
+                            onModeChange: { mode in
+                                onSelectFunctionKeyMode?(mode)
                             }
-                            .padding(.top, 8)
-                            .padding(.bottom, 12)
-                            .padding(.horizontal, 16)
-                        } else if collection?.id == RuleCollectionIdentifier.vimNavigation {
-                            // Vim uses animated category cards
-                            VimCommandCardsView(mappings: collection?.mappings ?? [])
-                                .padding(.top, 8)
-                                .padding(.bottom, 12)
-                                .padding(.horizontal, 12)
-                        } else if collection?.id == RuleCollectionIdentifier.windowSnapping {
-                            // Window snapping uses visual monitor canvas
-                            WindowSnappingView(
-                                mappings: collection?.mappings ?? [],
-                                convention: collection?.windowKeyConvention ?? .standard,
-                                onConventionChange: { convention in
-                                    onSelectWindowConvention?(convention)
-                                }
-                            )
-                            .padding(.top, 8)
-                            .padding(.bottom, 12)
-                            .padding(.horizontal, 12)
-                        } else if collection?.id == RuleCollectionIdentifier.macFunctionKeys {
-                            // Function keys use flip card display
-                            FunctionKeysView(
-                                mappings: collection?.mappings ?? [],
-                                currentMode: collection?.functionKeyMode,
-                                onModeChange: { mode in
-                                    onSelectFunctionKeyMode?(mode)
-                                }
-                            )
-                            .padding(.top, 8)
-                            .padding(.bottom, 12)
-                            .padding(.horizontal, 12)
-                        } else {
-                            // Generic table for other collections
-                            MappingTableContent(mappings: mappings)
-                                .padding(.top, 8)
-                                .padding(.bottom, 12)
-                                .padding(.horizontal, 12)
-                        }
-                    } else {
-                        // List view for standard collections and custom rules
-                        VStack(spacing: 6) {
-                            ForEach(mappings, id: \.id) { mapping in
-                                MappingRowView(
-                                    mapping: mapping,
-                                    layerActivator: layerActivator,
-                                    leaderKeyDisplay: leaderKeyDisplay,
-                                    onEditMapping: onEditMapping,
-                                    onDeleteMapping: onDeleteMapping,
-                                    prettyKeyName: prettyKeyName
-                                )
-                            }
-                        }
+                        )
                         .padding(.top, 8)
                         .padding(.bottom, 12)
+                        .padding(.horizontal, 12)
+                    } else {
+                        // Generic table for other collections
+                        MappingTableContent(mappings: mappings)
+                            .padding(.top, 8)
+                            .padding(.bottom, 12)
+                            .padding(.horizontal, 12)
                     }
-                } // InsetBackPlane
+                } else {
+                    // List view for standard collections and custom rules
+                    VStack(spacing: 6) {
+                        ForEach(mappings, id: \.id) { mapping in
+                            MappingRowView(
+                                mapping: mapping,
+                                layerActivator: layerActivator,
+                                leaderKeyDisplay: leaderKeyDisplay,
+                                onEditMapping: onEditMapping,
+                                onDeleteMapping: onDeleteMapping,
+                                prettyKeyName: prettyKeyName
+                            )
+                        }
+                    }
+                    .padding(.top, 8)
+                    .padding(.bottom, 12)
+                }
+            } // InsetBackPlane
         }
     }
 
@@ -1639,8 +1639,7 @@ private struct InputKeyboardGrid: View {
             ForEach(Array(keyboardRows.enumerated()), id: \.offset) { rowIndex, row in
                 HStack(spacing: 3) {
                     // Keyboard stagger: number=0, qwerty=0, home=8, bottom=16
-                    if rowIndex == 2 { Spacer().frame(width: 8) }
-                    else if rowIndex == 3 { Spacer().frame(width: 16) }
+                    if rowIndex == 2 { Spacer().frame(width: 8) } else if rowIndex == 3 { Spacer().frame(width: 16) }
 
                     ForEach(row, id: \.self) { key in
                         let hasMapping = outputFor(key) != nil
@@ -1700,8 +1699,7 @@ private struct OutputKeyboardWithAnimatedSymbols: View {
     /// Get the target frame for a symbol - either its mapped key position or the parking area
     private func targetFrameFor(_ symbol: String) -> CGRect {
         if let targetKey = symbolTargets[symbol],
-           let frame = keycapFrames[targetKey]
-        {
+           let frame = keycapFrames[targetKey] {
             return frame
         }
         return parkingFrame
@@ -1721,8 +1719,7 @@ private struct OutputKeyboardWithAnimatedSymbols: View {
                     ForEach(Array(keyboardRows.enumerated()), id: \.offset) { rowIndex, row in
                         HStack(spacing: 3) {
                             // Keyboard stagger: number=0, qwerty=0, home=8, bottom=16
-                            if rowIndex == 2 { Spacer().frame(width: 8) }
-                            else if rowIndex == 3 { Spacer().frame(width: 16) }
+                            if rowIndex == 2 { Spacer().frame(width: 8) } else if rowIndex == 3 { Spacer().frame(width: 16) }
 
                             ForEach(row, id: \.self) { key in
                                 let hasMapping = outputFor(key) != nil
@@ -3327,8 +3324,7 @@ private struct AppLaunchChip: View {
 
         // Get app name from bundle
         if let bundle = Bundle(url: url),
-           let name = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String
-        {
+           let name = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String {
             appName = name
         } else {
             // Use filename without extension

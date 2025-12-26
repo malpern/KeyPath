@@ -111,7 +111,7 @@ final class PermissionGate {
             let approved = await PermissionRequestDialog.show(
                 title: "Kanata Permission Required",
                 explanation:
-                    "Kanata is missing required permissions (\(perms)). Open the Installation Wizard to grant permission to /Library/KeyPath/bin/kanata.",
+                "Kanata is missing required permissions (\(perms)). Open the Installation Wizard to grant permission to /Library/KeyPath/bin/kanata.",
                 permissions: [],
                 approveButtonTitle: "Open Wizard",
                 cancelButtonTitle: "Not Now"
@@ -129,7 +129,7 @@ final class PermissionGate {
             let approved = await PermissionRequestDialog.show(
                 title: "Kanata Permission Not Verified",
                 explanation:
-                    "KeyPath can’t verify Kanata’s permissions (\(perms)) without Full Disk Access. If remapping doesn’t work, grant Full Disk Access to KeyPath to verify, then use the wizard to add /Library/KeyPath/bin/kanata in System Settings.",
+                "KeyPath can’t verify Kanata’s permissions (\(perms)) without Full Disk Access. If remapping doesn’t work, grant Full Disk Access to KeyPath to verify, then use the wizard to add /Library/KeyPath/bin/kanata in System Settings.",
                 permissions: [],
                 approveButtonTitle: "Open Wizard",
                 cancelButtonTitle: "Not Now"

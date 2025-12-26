@@ -6,7 +6,7 @@ final class KeyIconRegistryTests: XCTestCase {
 
     func testResolve_arrowLeft_returnsSFSymbol() {
         let result = KeyIconRegistry.resolve("arrow-left")
-        if case .sfSymbol(let name) = result {
+        if case let .sfSymbol(name) = result {
             XCTAssertEqual(name, "arrow.left")
         } else {
             XCTFail("Expected sfSymbol, got \(result)")
@@ -15,7 +15,7 @@ final class KeyIconRegistryTests: XCTestCase {
 
     func testResolve_arrowRight_returnsSFSymbol() {
         let result = KeyIconRegistry.resolve("arrow-right")
-        if case .sfSymbol(let name) = result {
+        if case let .sfSymbol(name) = result {
             XCTAssertEqual(name, "arrow.right")
         } else {
             XCTFail("Expected sfSymbol, got \(result)")
@@ -24,7 +24,7 @@ final class KeyIconRegistryTests: XCTestCase {
 
     func testResolve_home_returnsSFSymbol() {
         let result = KeyIconRegistry.resolve("home")
-        if case .sfSymbol(let name) = result {
+        if case let .sfSymbol(name) = result {
             XCTAssertEqual(name, "house")
         } else {
             XCTFail("Expected sfSymbol, got \(result)")
@@ -35,7 +35,7 @@ final class KeyIconRegistryTests: XCTestCase {
 
     func testResolve_delete_returnsSFSymbol() {
         let result = KeyIconRegistry.resolve("delete")
-        if case .sfSymbol(let name) = result {
+        if case let .sfSymbol(name) = result {
             XCTAssertEqual(name, "delete.left")
         } else {
             XCTFail("Expected sfSymbol, got \(result)")
@@ -44,7 +44,7 @@ final class KeyIconRegistryTests: XCTestCase {
 
     func testResolve_copy_returnsSFSymbol() {
         let result = KeyIconRegistry.resolve("copy")
-        if case .sfSymbol(let name) = result {
+        if case let .sfSymbol(name) = result {
             XCTAssertEqual(name, "doc.on.doc")
         } else {
             XCTFail("Expected sfSymbol, got \(result)")
@@ -53,7 +53,7 @@ final class KeyIconRegistryTests: XCTestCase {
 
     func testResolve_undo_returnsSFSymbol() {
         let result = KeyIconRegistry.resolve("undo")
-        if case .sfSymbol(let name) = result {
+        if case let .sfSymbol(name) = result {
             XCTAssertEqual(name, "arrow.uturn.backward")
         } else {
             XCTFail("Expected sfSymbol, got \(result)")
@@ -64,7 +64,7 @@ final class KeyIconRegistryTests: XCTestCase {
 
     func testResolve_play_returnsSFSymbol() {
         let result = KeyIconRegistry.resolve("play")
-        if case .sfSymbol(let name) = result {
+        if case let .sfSymbol(name) = result {
             XCTAssertEqual(name, "play.fill")
         } else {
             XCTFail("Expected sfSymbol, got \(result)")
@@ -73,7 +73,7 @@ final class KeyIconRegistryTests: XCTestCase {
 
     func testResolve_mute_returnsSFSymbol() {
         let result = KeyIconRegistry.resolve("mute")
-        if case .sfSymbol(let name) = result {
+        if case let .sfSymbol(name) = result {
             XCTAssertEqual(name, "speaker.slash.fill")
         } else {
             XCTFail("Expected sfSymbol, got \(result)")
@@ -84,7 +84,7 @@ final class KeyIconRegistryTests: XCTestCase {
 
     func testResolve_safari_returnsAppIcon() {
         let result = KeyIconRegistry.resolve("safari")
-        if case .appIcon(let name) = result {
+        if case let .appIcon(name) = result {
             XCTAssertEqual(name, "Safari")
         } else {
             XCTFail("Expected appIcon, got \(result)")
@@ -93,7 +93,7 @@ final class KeyIconRegistryTests: XCTestCase {
 
     func testResolve_terminal_returnsAppIcon() {
         let result = KeyIconRegistry.resolve("terminal")
-        if case .appIcon(let name) = result {
+        if case let .appIcon(name) = result {
             XCTAssertEqual(name, "Terminal")
         } else {
             XCTFail("Expected appIcon, got \(result)")
@@ -102,7 +102,7 @@ final class KeyIconRegistryTests: XCTestCase {
 
     func testResolve_xcode_returnsAppIcon() {
         let result = KeyIconRegistry.resolve("xcode")
-        if case .appIcon(let name) = result {
+        if case let .appIcon(name) = result {
             XCTAssertEqual(name, "Xcode")
         } else {
             XCTFail("Expected appIcon, got \(result)")
@@ -111,7 +111,7 @@ final class KeyIconRegistryTests: XCTestCase {
 
     func testResolve_vscode_returnsAppIcon() {
         let result = KeyIconRegistry.resolve("vscode")
-        if case .appIcon(let name) = result {
+        if case let .appIcon(name) = result {
             XCTAssertEqual(name, "Visual Studio Code")
         } else {
             XCTFail("Expected appIcon, got \(result)")
@@ -122,7 +122,7 @@ final class KeyIconRegistryTests: XCTestCase {
 
     func testResolve_unknownIcon_returnsTextFallback() {
         let result = KeyIconRegistry.resolve("unknown-icon-xyz")
-        if case .text(let name) = result {
+        if case let .text(name) = result {
             XCTAssertEqual(name, "unknown-icon-xyz")
         } else {
             XCTFail("Expected text fallback, got \(result)")
@@ -131,7 +131,7 @@ final class KeyIconRegistryTests: XCTestCase {
 
     func testResolve_emptyString_returnsTextFallback() {
         let result = KeyIconRegistry.resolve("")
-        if case .text(let name) = result {
+        if case let .text(name) = result {
             XCTAssertEqual(name, "")
         } else {
             XCTFail("Expected text fallback, got \(result)")

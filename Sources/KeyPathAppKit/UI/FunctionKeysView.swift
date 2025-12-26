@@ -184,8 +184,8 @@ private struct FunctionKeyCard: View {
         .frame(maxWidth: .infinity)
         .onAppear {
             displayedShowMedia = showMediaKey
-            randomDelay = Double.random(in: 0...0.12)
-            durationMultiplier = Double.random(in: 0.8...1.3)
+            randomDelay = Double.random(in: 0 ... 0.12)
+            durationMultiplier = Double.random(in: 0.8 ... 1.3)
         }
         .onChange(of: showMediaKey) { oldValue, newValue in
             guard oldValue != newValue else { return }
@@ -276,7 +276,7 @@ private struct IconSegmentedControl<T: Hashable>: NSViewRepresentable {
         return control
     }
 
-    func updateNSView(_ nsView: NSSegmentedControl, context: Context) {
+    func updateNSView(_ nsView: NSSegmentedControl, context _: Context) {
         if let index = segments.firstIndex(where: { $0.value == selection }) {
             if nsView.selectedSegment != index {
                 nsView.selectedSegment = index
@@ -298,7 +298,7 @@ private struct IconSegmentedControl<T: Hashable>: NSViewRepresentable {
 
         @objc func segmentChanged(_ sender: NSSegmentedControl) {
             let index = sender.selectedSegment
-            if index >= 0 && index < parent.segments.count {
+            if index >= 0, index < parent.segments.count {
                 parent.selection = parent.segments[index].value
             }
         }

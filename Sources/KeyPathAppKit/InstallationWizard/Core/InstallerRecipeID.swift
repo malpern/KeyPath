@@ -27,4 +27,3 @@ enum InstallerRecipeID {
     static let replaceKanataWithBundled = "replace-kanata-with-bundled"
     static let synchronizeConfigPaths = "synchronize-config-paths"
 }
-

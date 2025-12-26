@@ -440,7 +440,7 @@ private struct SnapKeyBadge: View {
     let color: Color
     var isHighlighted: Bool = false
     var size: BadgeSize = .regular
-    var label: String? = nil
+    var label: String?
 
     /// Track displayed key and flip animation state
     @State private var displayedKey: String = ""
@@ -503,8 +503,8 @@ private struct SnapKeyBadge: View {
         .onAppear {
             displayedKey = key
             // Generate random timing characteristics for this badge
-            randomDelay = Double.random(in: 0...0.12)
-            durationMultiplier = Double.random(in: 0.8...1.3)
+            randomDelay = Double.random(in: 0 ... 0.12)
+            durationMultiplier = Double.random(in: 0.8 ... 1.3)
         }
         .onChange(of: key) { oldKey, newKey in
             guard oldKey != newKey else { return }
@@ -552,25 +552,25 @@ private enum SnapZone: String, CaseIterable {
         switch convention {
         case .standard:
             switch self {
-            case .topLeft: return "U"
-            case .topRight: return "I"
-            case .bottomLeft: return "J"
-            case .bottomRight: return "K"
-            case .left: return "L"
-            case .right: return "R"
-            case .maximize: return "M"
-            case .center: return "C"
+            case .topLeft: "U"
+            case .topRight: "I"
+            case .bottomLeft: "J"
+            case .bottomRight: "K"
+            case .left: "L"
+            case .right: "R"
+            case .maximize: "M"
+            case .center: "C"
             }
         case .vim:
             switch self {
-            case .topLeft: return "Y"
-            case .topRight: return "U"
-            case .bottomLeft: return "B"
-            case .bottomRight: return "N"
-            case .left: return "H"
-            case .right: return "L"
-            case .maximize: return "M"
-            case .center: return "C"
+            case .topLeft: "Y"
+            case .topRight: "U"
+            case .bottomLeft: "B"
+            case .bottomRight: "N"
+            case .left: "H"
+            case .right: "L"
+            case .maximize: "M"
+            case .center: "C"
             }
         }
     }

@@ -56,4 +56,3 @@ final class PermissionGateEvaluationTests: XCTestCase {
         XCTAssertTrue(eval.kanataNotVerified.isEmpty)
     }
 }
-

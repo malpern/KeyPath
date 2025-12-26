@@ -9,12 +9,12 @@ struct GMKColorway: Identifiable, Codable, Equatable {
     let year: Int
 
     // Core colors (hex strings)
-    let alphaBase: String      // Alpha key background
-    let alphaLegend: String    // Alpha key legend
-    let modBase: String        // Modifier key background
-    let modLegend: String      // Modifier key legend
-    let accentBase: String     // Accent key background (if any)
-    let accentLegend: String   // Accent key legend
+    let alphaBase: String // Alpha key background
+    let alphaLegend: String // Alpha key legend
+    let modBase: String // Modifier key background
+    let modLegend: String // Modifier key legend
+    let accentBase: String // Accent key background (if any)
+    let accentLegend: String // Accent key legend
 
     // Attribution
     let sourceURL: String?
@@ -43,8 +43,8 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         name: "Default",
         designer: "KeyPath",
         year: 2025,
-        alphaBase: "#141414",      // Color(white: 0.08)
-        alphaLegend: "#e0edff",    // Slightly blue-tinted white
+        alphaBase: "#141414", // Color(white: 0.08)
+        alphaLegend: "#e0edff", // Slightly blue-tinted white
         modBase: "#141414",
         modLegend: "#e0edff",
         accentBase: "#141414",
@@ -56,7 +56,7 @@ struct GMKColorway: Identifiable, Codable, Equatable {
 
     /// All available colorways including default
     static let all: [GMKColorway] = [
-        .`default`,
+        .default,
         .oliviaDark,
         .oliviaLight,
         .gmk8008,
@@ -76,6 +76,7 @@ struct GMKColorway: Identifiable, Codable, Equatable {
     }
 
     // MARK: - GMK Olivia (Dark)
+
     // Source: MatrixZJ - RAL 000 20 00 (base), RAL 040 80 20 (legend)
 
     static let oliviaDark = GMKColorway(
@@ -83,8 +84,8 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         name: "Olivia Dark",
         designer: "Olivia",
         year: 2018,
-        alphaBase: "#2B2B2B",       // RAL 000 20 00 (Slate Black)
-        alphaLegend: "#F1BEB0",     // RAL 040 80 20 (Rose Pink)
+        alphaBase: "#2B2B2B", // RAL 000 20 00 (Slate Black)
+        alphaLegend: "#F1BEB0", // RAL 040 80 20 (Rose Pink)
         modBase: "#2B2B2B",
         modLegend: "#F1BEB0",
         accentBase: "#F1BEB0",
@@ -93,6 +94,7 @@ struct GMKColorway: Identifiable, Codable, Equatable {
     )
 
     // MARK: - GMK Olivia (Light)
+
     // Source: MatrixZJ - CP (base), RAL 040 80 20 (legend)
 
     static let oliviaLight = GMKColorway(
@@ -100,8 +102,8 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         name: "Olivia Light",
         designer: "Olivia",
         year: 2018,
-        alphaBase: "#E1DBD1",       // GMK CP (Cream)
-        alphaLegend: "#F1BEB0",     // RAL 040 80 20 (Rose Pink)
+        alphaBase: "#E1DBD1", // GMK CP (Cream)
+        alphaLegend: "#F1BEB0", // RAL 040 80 20 (Rose Pink)
         modBase: "#E1DBD1",
         modLegend: "#F1BEB0",
         accentBase: "#F1BEB0",
@@ -116,12 +118,12 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         name: "8008",
         designer: "Garrett",
         year: 2019,
-        alphaBase: "#939598",      // Cool gray
-        alphaLegend: "#f5a4b8",    // Pink legend
-        modBase: "#3c4048",        // Dark gray
-        modLegend: "#f5a4b8",      // Pink legend
-        accentBase: "#f5a4b8",     // Pink accent
-        accentLegend: "#3c4048",   // Dark legend
+        alphaBase: "#939598", // Cool gray
+        alphaLegend: "#f5a4b8", // Pink legend
+        modBase: "#3c4048", // Dark gray
+        modLegend: "#f5a4b8", // Pink legend
+        accentBase: "#f5a4b8", // Pink accent
+        accentLegend: "#3c4048", // Dark legend
         sourceURL: "https://geekhack.org/index.php?topic=100308.0"
     )
 
@@ -132,16 +134,17 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         name: "Laser",
         designer: "MiTo",
         year: 2017,
-        alphaBase: "#1a1a2e",      // Deep purple-black
-        alphaLegend: "#ff2a6d",    // Magenta
+        alphaBase: "#1a1a2e", // Deep purple-black
+        alphaLegend: "#ff2a6d", // Magenta
         modBase: "#1a1a2e",
-        modLegend: "#05d9e8",      // Cyan
-        accentBase: "#ff2a6d",     // Magenta accent
+        modLegend: "#05d9e8", // Cyan
+        accentBase: "#ff2a6d", // Magenta accent
         accentLegend: "#1a1a2e",
         sourceURL: "https://mitormk.com/laser"
     )
 
     // MARK: - GMK Red Samurai
+
     // Source: MatrixZJ - Pantone 426 C, 7421 C, 465 C
 
     static let redSamurai = GMKColorway(
@@ -149,16 +152,17 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         name: "Red Samurai",
         designer: "RedSuns",
         year: 2018,
-        alphaBase: "#25282A",       // Pantone 426 C (Charcoal)
-        alphaLegend: "#B9975B",     // Pantone 465 C (Gold)
-        modBase: "#651D32",         // Pantone 7421 C (Burgundy)
-        modLegend: "#B9975B",       // Pantone 465 C (Gold)
-        accentBase: "#651D32",      // Burgundy accent
-        accentLegend: "#B9975B",    // Gold
+        alphaBase: "#25282A", // Pantone 426 C (Charcoal)
+        alphaLegend: "#B9975B", // Pantone 465 C (Gold)
+        modBase: "#651D32", // Pantone 7421 C (Burgundy)
+        modLegend: "#B9975B", // Pantone 465 C (Gold)
+        accentBase: "#651D32", // Burgundy accent
+        accentLegend: "#B9975B", // Gold
         sourceURL: "https://geekhack.org/index.php?topic=89970.0"
     )
 
     // MARK: - GMK Botanical
+
     // Source: MatrixZJ - Pantone 656 C, 5575 C, 5477 C
 
     static let botanical = GMKColorway(
@@ -166,16 +170,17 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         name: "Botanical",
         designer: "Omnitype",
         year: 2020,
-        alphaBase: "#DDE5ED",       // Pantone 656 C (Pale Blue-Gray)
-        alphaLegend: "#92ACA0",     // Pantone 5575 C (Sage Green)
-        modBase: "#3E5D58",         // Pantone 5477 C (Forest Green)
-        modLegend: "#92ACA0",       // Pantone 5575 C (Sage Green)
-        accentBase: "#92ACA0",      // Sage green accent
-        accentLegend: "#3E5D58",    // Forest green
+        alphaBase: "#DDE5ED", // Pantone 656 C (Pale Blue-Gray)
+        alphaLegend: "#92ACA0", // Pantone 5575 C (Sage Green)
+        modBase: "#3E5D58", // Pantone 5477 C (Forest Green)
+        modLegend: "#92ACA0", // Pantone 5575 C (Sage Green)
+        accentBase: "#92ACA0", // Sage green accent
+        accentLegend: "#3E5D58", // Forest green
         sourceURL: "https://geekhack.org/index.php?topic=102350.0"
     )
 
     // MARK: - GMK Bento
+
     // Source: MatrixZJ - WS4, RAL 240 50 25, custom salmon
 
     static let bento = GMKColorway(
@@ -183,11 +188,11 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         name: "Bento",
         designer: "Biip",
         year: 2019,
-        alphaBase: "#EEE2D0",       // GMK WS4 (Warm Cream)
-        alphaLegend: "#2A4D69",     // Deep Teal Blue
-        modBase: "#2A4D69",         // Deep Teal Blue
-        modLegend: "#EEE2D0",       // Warm Cream
-        accentBase: "#E87F7F",      // Salmon/Coral
+        alphaBase: "#EEE2D0", // GMK WS4 (Warm Cream)
+        alphaLegend: "#2A4D69", // Deep Teal Blue
+        modBase: "#2A4D69", // Deep Teal Blue
+        modLegend: "#EEE2D0", // Warm Cream
+        accentBase: "#E87F7F", // Salmon/Coral
         accentLegend: "#2A4D69",
         sourceURL: "https://geekhack.org/index.php?topic=97855.0"
     )
@@ -199,8 +204,8 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         name: "WoB",
         designer: "GMK",
         year: 2015,
-        alphaBase: "#1a1a1a",      // Pure black
-        alphaLegend: "#ffffff",    // Pure white
+        alphaBase: "#1a1a1a", // Pure black
+        alphaLegend: "#ffffff", // Pure white
         modBase: "#1a1a1a",
         modLegend: "#ffffff",
         accentBase: "#1a1a1a",
@@ -209,6 +214,7 @@ struct GMKColorway: Identifiable, Codable, Equatable {
     )
 
     // MARK: - GMK Hyperfuse
+
     // Source: MatrixZJ - 2M, 2B, DY, TU2
 
     static let hyperfuse = GMKColorway(
@@ -216,12 +222,12 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         name: "Hyperfuse",
         designer: "BunnyLake",
         year: 2015,
-        alphaBase: "#C6C9C7",       // GMK 2M (Medium Gray)
-        alphaLegend: "#5D437E",     // GMK DY (Purple)
-        modBase: "#727474",         // GMK 2B (Dark Gray)
-        modLegend: "#00A4A9",       // GMK TU2 (Teal)
-        accentBase: "#00A4A9",      // Teal accent
-        accentLegend: "#5D437E",    // Purple
+        alphaBase: "#C6C9C7", // GMK 2M (Medium Gray)
+        alphaLegend: "#5D437E", // GMK DY (Purple)
+        modBase: "#727474", // GMK 2B (Dark Gray)
+        modLegend: "#00A4A9", // GMK TU2 (Teal)
+        accentBase: "#00A4A9", // Teal accent
+        accentLegend: "#5D437E", // Purple
         sourceURL: "https://geekhack.org/index.php?topic=68198.0"
     )
 
@@ -232,11 +238,11 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         name: "Godspeed",
         designer: "MiTo",
         year: 2017,
-        alphaBase: "#f5e6c8",      // Cream/beige
-        alphaLegend: "#3a6ea5",    // Blue
+        alphaBase: "#f5e6c8", // Cream/beige
+        alphaLegend: "#3a6ea5", // Blue
         modBase: "#f5e6c8",
-        modLegend: "#e8873a",      // Orange
-        accentBase: "#3a6ea5",     // Blue accent
+        modLegend: "#e8873a", // Orange
+        accentBase: "#3a6ea5", // Blue accent
         accentLegend: "#f5e6c8",
         sourceURL: "https://geekhack.org/index.php?topic=84090.0"
     )
@@ -248,11 +254,11 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         name: "Dots",
         designer: "Biip",
         year: 2019,
-        alphaBase: "#f5f5f5",      // Light cream
-        alphaLegend: "#1a1a1a",    // Black dots
+        alphaBase: "#f5f5f5", // Light cream
+        alphaLegend: "#1a1a1a", // Black dots
         modBase: "#f5f5f5",
         modLegend: "#1a1a1a",
-        accentBase: "#ff6b6b",     // Coral accent
+        accentBase: "#ff6b6b", // Coral accent
         accentLegend: "#f5f5f5",
         sourceURL: "https://geekhack.org/index.php?topic=100890.0"
     )

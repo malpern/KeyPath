@@ -144,16 +144,14 @@ struct SystemContextAdapter {
             userAction: String,
             includeUnknown: Bool
         ) {
-            let shouldInclude: Bool = {
-                switch status {
-                case .granted:
-                    return false
-                case .denied, .error:
-                    return true
-                case .unknown:
-                    return includeUnknown
-                }
-            }()
+            let shouldInclude: Bool = switch status {
+            case .granted:
+                false
+            case .denied, .error:
+                true
+            case .unknown:
+                includeUnknown
+            }
             guard shouldInclude else { return }
 
             let severity: WizardIssue.IssueSeverity = (status == .unknown) ? .warning : .error
@@ -161,18 +159,14 @@ struct SystemContextAdapter {
                 if status == .unknown {
                     // Standardize language: unknown means "not verified", not denied.
                     // This commonly occurs when KeyPath lacks Full Disk Access and cannot read TCC.db for Kanata.
-                    let suggested: String = {
-                        switch identifier {
-                        case .permission(.kanataInputMonitoring):
-                            return
-                                "Not verified (grant Full Disk Access to verify). If remapping doesn’t work, add /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Input Monitoring."
-                        case .permission(.kanataAccessibility):
-                            return
-                                "Not verified (grant Full Disk Access to verify). If remapping doesn’t work, add /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Accessibility."
-                        default:
-                            return "Not verified (grant Full Disk Access to verify)."
-                        }
-                    }()
+                    let suggested = switch identifier {
+                    case .permission(.kanataInputMonitoring):
+                        "Not verified (grant Full Disk Access to verify). If remapping doesn’t work, add /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Input Monitoring."
+                    case .permission(.kanataAccessibility):
+                        "Not verified (grant Full Disk Access to verify). If remapping doesn’t work, add /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Accessibility."
+                    default:
+                        "Not verified (grant Full Disk Access to verify)."
+                    }
                     return suggested
                 }
                 return deniedDescription

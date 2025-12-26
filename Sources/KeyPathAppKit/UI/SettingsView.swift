@@ -62,7 +62,6 @@ struct GeneralSettingsTabView: View {
                             .accessibilityLabel("Open Kanata log")
                         }
                     }
-
                 }
                 .frame(minWidth: 220)
 
@@ -1021,7 +1020,7 @@ struct StatusSettingsTabView: View {
     }
 
     private var systemStatusRows: [SettingsSystemStatusRowModel] {
-        return SettingsSystemStatusRowsBuilder.rows(
+        SettingsSystemStatusRowsBuilder.rows(
             wizardSystemState: wizardSystemState,
             wizardIssues: wizardIssues,
             systemContext: systemContext,

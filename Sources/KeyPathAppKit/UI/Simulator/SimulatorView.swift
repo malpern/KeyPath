@@ -10,50 +10,50 @@ struct SimulatorView: View {
         if !FeatureFlags.simulatorAndVirtualKeysEnabled {
             disabledView
         } else {
-        VStack(spacing: 0) {
-            // Keyboard section (top) - fills available space
-            keyboardSection
+            VStack(spacing: 0) {
+                // Keyboard section (top) - fills available space
+                keyboardSection
 
-            Divider()
+                Divider()
 
-            // Event queue strip
-            EventSequenceView(
-                taps: viewModel.queuedTaps,
-                onClear: { viewModel.clearAll() },
-                onRun: {
-                    Task {
-                        await viewModel.runSimulation()
-                    }
-                },
-                isRunning: viewModel.isRunning
-            )
+                // Event queue strip
+                EventSequenceView(
+                    taps: viewModel.queuedTaps,
+                    onClear: { viewModel.clearAll() },
+                    onRun: {
+                        Task {
+                            await viewModel.runSimulation()
+                        }
+                    },
+                    isRunning: viewModel.isRunning
+                )
 
-            Divider()
+                Divider()
 
-            // Results section (bottom, scrollable)
-            SimulationResultsView(
-                result: viewModel.result,
-                error: viewModel.error
-            )
-        }
-        .frame(minWidth: 600, minHeight: 500)
-        .focusable()
-        .focused($isKeyboardFocused)
-        .focusEffectDisabled()
-        .onKeyPress { keyPress in
-            if let key = SimulatorViewModel.physicalKeyFromCharacter(keyPress.key.character) {
-                viewModel.tapKey(key)
-                return .handled
+                // Results section (bottom, scrollable)
+                SimulationResultsView(
+                    result: viewModel.result,
+                    error: viewModel.error
+                )
             }
-            return .ignored
-        }
-        .onAppear {
-            isKeyboardFocused = true
-            viewModel.startKeyMonitoring()
-        }
-        .onDisappear {
-            viewModel.stopKeyMonitoring()
-        }
+            .frame(minWidth: 600, minHeight: 500)
+            .focusable()
+            .focused($isKeyboardFocused)
+            .focusEffectDisabled()
+            .onKeyPress { keyPress in
+                if let key = SimulatorViewModel.physicalKeyFromCharacter(keyPress.key.character) {
+                    viewModel.tapKey(key)
+                    return .handled
+                }
+                return .ignored
+            }
+            .onAppear {
+                isKeyboardFocused = true
+                viewModel.startKeyMonitoring()
+            }
+            .onDisappear {
+                viewModel.stopKeyMonitoring()
+            }
         }
     }
 

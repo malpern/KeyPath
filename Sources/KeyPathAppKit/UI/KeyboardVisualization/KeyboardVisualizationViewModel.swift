@@ -76,9 +76,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
     // MARK: - Key Emphasis
 
     /// HJKL key codes for nav layer auto-emphasis (computed once from key names)
-    private static let hjklKeyCodes: Set<UInt16> = {
-        ["h", "j", "k", "l"].compactMap { kanataNameToKeyCode($0) }.reduce(into: Set<UInt16>()) { $0.insert($1) }
-    }()
+    private static let hjklKeyCodes: Set<UInt16> = ["h", "j", "k", "l"].compactMap { kanataNameToKeyCode($0) }.reduce(into: Set<UInt16>()) { $0.insert($1) }
 
     /// Key codes to emphasize based on current layer and custom emphasis commands
     /// HJKL keys are auto-emphasized when on nav layer, plus any custom emphasis via push-msg
@@ -507,14 +505,14 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
     /// Cached regex for extracting push-msg type:value patterns
     /// Pattern: (push-msg "type:value")
-    nonisolated(unsafe) private static let pushMsgTypeValueRegex = try! NSRegularExpression(
+    private nonisolated(unsafe) static let pushMsgTypeValueRegex = try! NSRegularExpression(
         pattern: #"\(push-msg\s+\"([^:\"]+):([^\"]+)\"\)"#,
         options: []
     )
 
     /// Cached regex for extracting app launch identifiers
     /// Pattern: (push-msg "launch:AppName")
-    nonisolated(unsafe) private static let pushMsgLaunchRegex = try! NSRegularExpression(
+    private nonisolated(unsafe) static let pushMsgLaunchRegex = try! NSRegularExpression(
         pattern: #"\(push-msg\s+\"launch:([^\"]+)\"\)"#,
         options: []
     )
@@ -572,10 +570,10 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// - Returns: The app identifier if this is a launch action, nil otherwise
     nonisolated static func extractAppLaunchIdentifier(from output: String) -> String? {
         guard let match = pushMsgLaunchRegex.firstMatch(
-                  in: output,
-                  range: NSRange(output.startIndex..., in: output)
-              ),
-              let range = Range(match.range(at: 1), in: output)
+            in: output,
+            range: NSRange(output.startIndex..., in: output)
+        ),
+            let range = Range(match.range(at: 1), in: output)
         else {
             return nil
         }

@@ -333,14 +333,14 @@ struct CleanupAndRepairView: View {
 
     private var helperHealthMessage: String {
         switch helperHealth {
-        case .healthy(let version):
+        case let .healthy(version):
             if let version {
                 return "Responding via XPC (v\(version))."
             }
             return "Responding via XPC."
-        case .requiresApproval(let detail):
+        case let .requiresApproval(detail):
             return detail ?? "Approval required in Login Items."
-        case .registeredButUnresponsive(let detail):
+        case let .registeredButUnresponsive(detail):
             return detail ?? "Registered but not responding."
         case .notInstalled:
             return "Not installed or not registered."
@@ -352,26 +352,26 @@ struct CleanupAndRepairView: View {
     private var helperHealthIcon: String {
         switch helperHealth {
         case .healthy:
-            return "checkmark.shield.fill"
+            "checkmark.shield.fill"
         case .requiresApproval:
-            return "exclamationmark.triangle.fill"
+            "exclamationmark.triangle.fill"
         case .registeredButUnresponsive, .notInstalled:
-            return "xmark.octagon.fill"
+            "xmark.octagon.fill"
         case .none:
-            return "ellipsis.circle"
+            "ellipsis.circle"
         }
     }
 
     private var helperHealthTint: Color {
         switch helperHealth {
         case .healthy:
-            return .green
+            .green
         case .requiresApproval:
-            return .orange
+            .orange
         case .registeredButUnresponsive, .notInstalled:
-            return .red
+            .red
         case .none:
-            return .secondary
+            .secondary
         }
     }
 

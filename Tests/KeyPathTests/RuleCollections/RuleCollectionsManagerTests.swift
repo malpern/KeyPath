@@ -105,7 +105,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
         XCTAssertEqual(mappings.count, 12, "Should have 12 function key mappings")
 
         // Verify passthrough outputs (each F-key maps to itself)
-        for i in 1...12 {
+        for i in 1 ... 12 {
             let key = "f\(i)"
             XCTAssertTrue(
                 mappings.contains { $0.input == key && $0.output == key },

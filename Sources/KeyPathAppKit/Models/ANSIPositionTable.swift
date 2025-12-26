@@ -29,7 +29,6 @@ enum ANSIPositionTable {
         case (0, 10): (27, "-")
         case (0, 11): (24, "=")
         case (0, 12): (51, "⌫") // Backspace (1.5u on some layouts)
-
         // Row 1: Top row
         // Standard: `Tab q w e r t y u i o p [ ] \`
         case (1, 0): (48, "⇥") // Tab (1.5u on some layouts)
@@ -46,7 +45,6 @@ enum ANSIPositionTable {
         case (1, 11): (33, "[")
         case (1, 12): (30, "]")
         case (1, 13): (42, "\\")
-
         // Row 2: Home row
         // Standard: `Caps a s d f g h j k l ; ' Enter`
         case (2, 0): (57, "⇪") // Caps Lock (1.75u on some layouts)
@@ -62,7 +60,6 @@ enum ANSIPositionTable {
         case (2, 10): (41, ";")
         case (2, 11): (39, "'")
         case (2, 12): (36, "↩") // Enter (2.25u on some layouts)
-
         // Row 3: Bottom row
         // Standard: `Shift z x c v b n m , . / Shift`
         case (3, 0): (56, "⇧") // Left Shift (2.25u on some layouts)
@@ -77,7 +74,6 @@ enum ANSIPositionTable {
         case (3, 9): (47, ".")
         case (3, 10): (44, "/")
         case (3, 11): (60, "⇧") // Right Shift (2.75u on some layouts)
-
         // Row 4: Modifier row
         // Standard ANSI: `Ctrl Win Alt Space Alt Win Menu Ctrl`
         // macOS variant: `Ctrl Option Cmd Space Cmd Option Ctrl`
@@ -88,7 +84,6 @@ enum ANSIPositionTable {
         case (4, 4): (54, "⌘") // Right Command/Win
         case (4, 5): (61, "⌥") // Right Option/Alt
         case (4, 6): (102, "⌃") // Right Control (if present)
-
         // Extended keys (for layouts with more keys)
         // Function row (Row -1 or Row 5, depending on layout)
         // Standard ANSI function row: F1-F12 in columns 0-11
@@ -104,7 +99,6 @@ enum ANSIPositionTable {
         case (-1, 9), (5, 9): (109, "f10")
         case (-1, 10), (5, 10): (103, "f11")
         case (-1, 11), (5, 11): (111, "f12")
-
         // Arrow keys (for 65% and larger layouts)
         // Typically in a cluster below right Shift
         // Common positions vary by layout - handle multiple possible positions
@@ -113,17 +107,14 @@ enum ANSIPositionTable {
         case (3, 13): (123, "◀") // Left Arrow
         case (3, 14): (125, "▼") // Down Arrow
         case (3, 15): (124, "▶") // Right Arrow
-
         // Additional navigation keys (for 75% and larger layouts)
         // Positioned above arrow cluster or in separate row
         case (3, 16): (115, "Home")
         case (3, 17): (116, "PgUp")
         case (3, 18): (119, "End")
         case (3, 19): (121, "PgDn")
-
         // ESC key (for layouts that have it separate from function row)
         case (-1, -1), (0, -1): (53, "esc")
-
         default:
             nil
         }

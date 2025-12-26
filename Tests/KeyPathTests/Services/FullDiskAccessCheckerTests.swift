@@ -49,4 +49,3 @@ final class FullDiskAccessCheckerTests: XCTestCase {
         XCTAssertEqual(probeCalls, 2)
     }
 }
-

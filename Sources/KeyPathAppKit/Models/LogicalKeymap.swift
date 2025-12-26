@@ -31,93 +31,83 @@ struct LogicalKeymap: Identifiable {
         all.first { $0.id == id }
     }
 
-    static let qwertyUS: LogicalKeymap = {
-        LogicalKeymap(
-            id: "qwerty-us",
-            name: "QWERTY",
-            description: "The standard US layout used on most keyboards.",
-            learnMoreURL: URL(string: "https://en.wikipedia.org/wiki/QWERTY")!,
-            iconFilename: "QWERTY",
-            coreLabels: buildCoreMap(
-                top: ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
-                home: ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"],
-                bottom: ["z", "x", "c", "v", "b", "n", "m", ",", ".", "/"]
-            ),
-            extraLabels: [:]
-        )
-    }()
+    static let qwertyUS: LogicalKeymap = .init(
+        id: "qwerty-us",
+        name: "QWERTY",
+        description: "The standard US layout used on most keyboards.",
+        learnMoreURL: URL(string: "https://en.wikipedia.org/wiki/QWERTY")!,
+        iconFilename: "QWERTY",
+        coreLabels: buildCoreMap(
+            top: ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
+            home: ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"],
+            bottom: ["z", "x", "c", "v", "b", "n", "m", ",", ".", "/"]
+        ),
+        extraLabels: [:]
+    )
 
-    static let colemak: LogicalKeymap = {
-        LogicalKeymap(
-            id: "colemak",
-            name: "Colemak",
-            description: "Popular ergonomic layout that keeps many QWERTY shortcuts intact.",
-            learnMoreURL: URL(string: "https://colemak.com/")!,
-            iconFilename: "Colemak",
-            coreLabels: buildCoreMap(
-                top: ["q", "w", "f", "p", "g", "j", "l", "u", "y", ";"],
-                home: ["a", "r", "s", "t", "d", "h", "n", "e", "i", "o"],
-                bottom: ["z", "x", "c", "v", "b", "k", "m", ",", ".", "/"]
-            ),
-            extraLabels: [:]
-        )
-    }()
+    static let colemak: LogicalKeymap = .init(
+        id: "colemak",
+        name: "Colemak",
+        description: "Popular ergonomic layout that keeps many QWERTY shortcuts intact.",
+        learnMoreURL: URL(string: "https://colemak.com/")!,
+        iconFilename: "Colemak",
+        coreLabels: buildCoreMap(
+            top: ["q", "w", "f", "p", "g", "j", "l", "u", "y", ";"],
+            home: ["a", "r", "s", "t", "d", "h", "n", "e", "i", "o"],
+            bottom: ["z", "x", "c", "v", "b", "k", "m", ",", ".", "/"]
+        ),
+        extraLabels: [:]
+    )
 
-    static let colemakDH: LogicalKeymap = {
-        LogicalKeymap(
-            id: "colemak-dh",
-            name: "Colemak-DH",
-            description: "Modern ergonomic layout; DH mod reduces lateral reaches while keeping many QWERTY shortcuts.",
-            learnMoreURL: URL(string: "https://colemakmods.github.io/mod-dh/")!,
-            iconFilename: "Colemak-DH",
-            coreLabels: buildCoreMap(
-                top: ["q", "w", "f", "p", "b", "j", "l", "u", "y", ";"],
-                home: ["a", "r", "s", "t", "g", "m", "n", "e", "i", "o"],
-                bottom: ["z", "x", "c", "d", "v", "k", "h", ",", ".", "/"]
-            ),
-            extraLabels: [:]
-        )
-    }()
+    static let colemakDH: LogicalKeymap = .init(
+        id: "colemak-dh",
+        name: "Colemak-DH",
+        description: "Modern ergonomic layout; DH mod reduces lateral reaches while keeping many QWERTY shortcuts.",
+        learnMoreURL: URL(string: "https://colemakmods.github.io/mod-dh/")!,
+        iconFilename: "Colemak-DH",
+        coreLabels: buildCoreMap(
+            top: ["q", "w", "f", "p", "b", "j", "l", "u", "y", ";"],
+            home: ["a", "r", "s", "t", "g", "m", "n", "e", "i", "o"],
+            bottom: ["z", "x", "c", "d", "v", "k", "h", ",", ".", "/"]
+        ),
+        extraLabels: [:]
+    )
 
-    static let workman: LogicalKeymap = {
-        LogicalKeymap(
-            id: "workman",
-            name: "Workman",
-            description: "Ergonomic layout optimized for finger travel and comfortable inward rolls.",
-            learnMoreURL: URL(string: "https://workmanlayout.org/")!,
-            iconFilename: "Workman",
-            coreLabels: buildCoreMap(
-                top: ["q", "d", "r", "w", "b", "j", "f", "u", "p", ";"],
-                home: ["a", "s", "h", "t", "g", "y", "n", "e", "o", "i"],
-                bottom: ["z", "x", "m", "c", "v", "k", "l", ",", ".", "/"]
-            ),
-            extraLabels: [:]
-        )
-    }()
+    static let workman: LogicalKeymap = .init(
+        id: "workman",
+        name: "Workman",
+        description: "Ergonomic layout optimized for finger travel and comfortable inward rolls.",
+        learnMoreURL: URL(string: "https://workmanlayout.org/")!,
+        iconFilename: "Workman",
+        coreLabels: buildCoreMap(
+            top: ["q", "d", "r", "w", "b", "j", "f", "u", "p", ";"],
+            home: ["a", "s", "h", "t", "g", "y", "n", "e", "o", "i"],
+            bottom: ["z", "x", "m", "c", "v", "k", "l", ",", ".", "/"]
+        ),
+        extraLabels: [:]
+    )
 
-    static let dvorak: LogicalKeymap = {
-        LogicalKeymap(
-            id: "dvorak",
-            name: "Dvorak",
-            description: "Classic alternative layout that emphasizes home row usage and hand alternation.",
-            learnMoreURL: URL(string: "https://en.wikipedia.org/wiki/Dvorak_keyboard_layout")!,
-            iconFilename: "Dvorak",
-            coreLabels: buildCoreMap(
-                top: ["'", ",", ".", "p", "y", "f", "g", "c", "r", "l"],
-                home: ["a", "o", "e", "u", "i", "d", "h", "t", "n", "s"],
-                bottom: [";", "q", "j", "k", "x", "b", "m", "w", "v", "z"]
-            ),
-            extraLabels: [
-                KeyCode.grave: "`",
-                KeyCode.minus: "[",
-                KeyCode.equal: "]",
-                KeyCode.leftBracket: "/",
-                KeyCode.rightBracket: "=",
-                KeyCode.backslash: "\\",
-                KeyCode.apostrophe: "-"
-            ]
-        )
-    }()
+    static let dvorak: LogicalKeymap = .init(
+        id: "dvorak",
+        name: "Dvorak",
+        description: "Classic alternative layout that emphasizes home row usage and hand alternation.",
+        learnMoreURL: URL(string: "https://en.wikipedia.org/wiki/Dvorak_keyboard_layout")!,
+        iconFilename: "Dvorak",
+        coreLabels: buildCoreMap(
+            top: ["'", ",", ".", "p", "y", "f", "g", "c", "r", "l"],
+            home: ["a", "o", "e", "u", "i", "d", "h", "t", "n", "s"],
+            bottom: [";", "q", "j", "k", "x", "b", "m", "w", "v", "z"]
+        ),
+        extraLabels: [
+            KeyCode.grave: "`",
+            KeyCode.minus: "[",
+            KeyCode.equal: "]",
+            KeyCode.leftBracket: "/",
+            KeyCode.rightBracket: "=",
+            KeyCode.backslash: "\\",
+            KeyCode.apostrophe: "-"
+        ]
+    )
 
     private static let topRowKeyCodes: [UInt16] = [12, 13, 14, 15, 17, 16, 32, 34, 31, 35]
     private static let homeRowKeyCodes: [UInt16] = [0, 1, 2, 3, 5, 4, 38, 40, 37, 41]

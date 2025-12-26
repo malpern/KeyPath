@@ -1,17 +1,17 @@
-import SwiftUI
 import KeyPathCore
+import SwiftUI
 
 /// Visual keyboard selection grid component with illustrations
 struct KeyboardSelectionGridView: View {
     let layouts: [PhysicalLayout]
     @Binding var selectedLayoutId: String
     let isDark: Bool
-    
+
     // Grid layout: 1 column for single-row keyboard previews
     private let columns = [
         GridItem(.flexible(), spacing: 12)
     ]
-    
+
     var body: some View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: 16) {
@@ -39,19 +39,19 @@ private struct KeyboardIllustrationCard: View {
     let isSelected: Bool
     let isDark: Bool
     let onSelect: () -> Void
-    
+
     @State private var isHovering = false
     @State private var scale: CGFloat = 1.0
-    
+
     // Image size - fairly big as requested
     private let imageHeight: CGFloat = 120
-    
+
     var body: some View {
         Button(action: {
             // Haptic feedback
             let generator = NSHapticFeedbackManager.defaultPerformer
             generator.perform(.alignment, performanceTime: .default)
-            
+
             onSelect()
         }) {
             VStack(spacing: 8) {
@@ -65,14 +65,14 @@ private struct KeyboardIllustrationCard: View {
                             x: 0,
                             y: isSelected ? 4 : 2
                         )
-                    
+
                     keyboardImage
                         .frame(maxHeight: imageHeight)
                         .padding(12)
                 }
                 .frame(height: imageHeight + 24)
                 .scaleEffect(scale)
-                
+
                 // Label - centered below image, supports multi-line for long names
                 Text(layout.name)
                     .font(.system(size: 11, weight: isSelected ? .semibold : .medium))
@@ -107,7 +107,7 @@ private struct KeyboardIllustrationCard: View {
             }
         }
     }
-    
+
     @ViewBuilder
     private var keyboardImage: some View {
         // Images are at bundle root (not in subdirectory) due to .process() flattening
@@ -119,7 +119,7 @@ private struct KeyboardIllustrationCard: View {
             forResource: layout.id,
             withExtension: "png"
         )
-        
+
         if let url = imageURL,
            let image = NSImage(contentsOf: url) {
             Image(nsImage: image)
@@ -129,26 +129,24 @@ private struct KeyboardIllustrationCard: View {
         } else {
             // Fallback to SF Symbol
             // Log image loading failure for debugging
-            let _ = {
-                AppLogger.shared.debug("🖼️ [KeyboardSelection] Could not load image for layout '\(layout.id)'. URL: \(imageURL?.absoluteString ?? "nil")")
-            }()
+            _ = AppLogger.shared.debug("🖼️ [KeyboardSelection] Could not load image for layout '\(layout.id)'. URL: \(imageURL?.absoluteString ?? "nil")")
             Image(systemName: "keyboard")
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary)
         }
     }
-    
+
     private var cardBackground: some ShapeStyle {
         if isSelected {
-            return AnyShapeStyle(
+            AnyShapeStyle(
                 Color.accentColor.opacity(isDark ? 0.2 : 0.15)
             )
         } else if isHovering {
-            return AnyShapeStyle(
+            AnyShapeStyle(
                 Color.white.opacity(isDark ? 0.1 : 0.08)
             )
         } else {
-            return AnyShapeStyle(
+            AnyShapeStyle(
                 Color.white.opacity(isDark ? 0.05 : 0.04)
             )
         }

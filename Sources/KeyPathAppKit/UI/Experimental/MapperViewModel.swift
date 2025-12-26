@@ -72,7 +72,7 @@ struct SystemActionInfo: Equatable, Identifiable {
         SystemActionInfo(id: "volume-up", name: "Volume Up", sfSymbol: "speaker.wave.3", kanataKeycode: "volu", simulatorName: "VolUp"),
         SystemActionInfo(id: "volume-down", name: "Volume Down", sfSymbol: "speaker.wave.1", kanataKeycode: "voldwn", simulatorName: "VolDown"),
         SystemActionInfo(id: "brightness-up", name: "Brightness Up", sfSymbol: "sun.max", kanataKeycode: "brup", simulatorName: "BrightnessUp"),
-        SystemActionInfo(id: "brightness-down", name: "Brightness Down", sfSymbol: "sun.min", kanataKeycode: "brdown", simulatorName: "BrightnessDown"),
+        SystemActionInfo(id: "brightness-down", name: "Brightness Down", sfSymbol: "sun.min", kanataKeycode: "brdown", simulatorName: "BrightnessDown")
     ]
 
     /// Look up a SystemActionInfo by its kanata output (keycode, display name, or simulator name)
@@ -224,8 +224,7 @@ class MapperViewModel: ObservableObject {
             outputSequence = nil
             AppLogger.shared.log("🗺️ [MapperViewModel] Preset output is URL: \(urlIdentifier)")
         } else if let systemActionIdentifier,
-                  let systemAction = SystemActionInfo.find(byOutput: systemActionIdentifier)
-        {
+                  let systemAction = SystemActionInfo.find(byOutput: systemActionIdentifier) {
             // It's a system action/media key - set selectedSystemAction for SF Symbol rendering
             selectedSystemAction = systemAction
             outputLabel = systemAction.name
@@ -309,7 +308,7 @@ class MapperViewModel: ObservableObject {
             "k4": "🌐", // Kanata internal representation
             "64": "🌐", // Key code for fn key
             "k4 64": "🌐", // Combined format
-            "k464": "🌐", // No-space format
+            "k464": "🌐" // No-space format
         ]
 
         let result = displayMap[key.lowercased()] ?? key.uppercased()
@@ -587,8 +586,7 @@ class MapperViewModel: ObservableObject {
             let info = mapping.info
 
             if let appIdentifier = info.appLaunchIdentifier,
-               let appInfo = appLaunchInfo(for: appIdentifier)
-            {
+               let appInfo = appLaunchInfo(for: appIdentifier) {
                 selectedApp = appInfo
                 outputLabel = appInfo.name
                 outputSequence = nil
@@ -605,8 +603,7 @@ class MapperViewModel: ObservableObject {
                 originalSystemActionIdentifier = nil
                 AppLogger.shared.log("🔍 [MapperViewModel] Key \(keyCode) is URL: \(url)")
             } else if let systemId = info.systemActionIdentifier,
-                      let systemAction = SystemActionInfo.find(byOutput: systemId) ?? SystemActionInfo.find(byOutput: info.displayLabel)
-            {
+                      let systemAction = SystemActionInfo.find(byOutput: systemId) ?? SystemActionInfo.find(byOutput: info.displayLabel) {
                 selectedSystemAction = systemAction
                 outputLabel = systemAction.name
                 outputSequence = nil
@@ -831,8 +828,7 @@ class MapperViewModel: ObservableObject {
             )
 
             if let appIdentifier = originalAppIdentifier,
-               let appInfo = appLaunchInfo(for: appIdentifier)
-            {
+               let appInfo = appLaunchInfo(for: appIdentifier) {
                 selectedApp = appInfo
                 outputLabel = appInfo.name
                 outputSequence = nil
@@ -841,8 +837,7 @@ class MapperViewModel: ObservableObject {
                 outputLabel = extractDomain(from: url)
                 outputSequence = nil
             } else if let systemActionId = originalSystemActionIdentifier,
-                      let systemAction = SystemActionInfo.find(byOutput: systemActionId)
-            {
+                      let systemAction = SystemActionInfo.find(byOutput: systemActionId) {
                 selectedSystemAction = systemAction
                 outputLabel = systemAction.name
                 outputSequence = nil
@@ -923,7 +918,7 @@ class MapperViewModel: ObservableObject {
         // Fallback: treat identifier as an app name and look in common locations.
         let candidates = [
             URL(fileURLWithPath: "/Applications/\(identifier).app"),
-            URL(fileURLWithPath: "/System/Applications/\(identifier).app"),
+            URL(fileURLWithPath: "/System/Applications/\(identifier).app")
         ]
 
         for url in candidates where FileManager.default.fileExists(atPath: url.path) {
@@ -1195,7 +1190,7 @@ class MapperViewModel: ObservableObject {
                 "enter": "ret",
                 "escape": "esc",
                 "backspace": "bspc",
-                "delete": "del",
+                "delete": "del"
             ]
 
             if let mapped = keyMap[result] {

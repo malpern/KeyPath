@@ -74,9 +74,9 @@ struct OverlayKeyboardView: View {
     /// All labels that can appear on the keyboard (letters + numbers + punctuation)
     private static let allLabels: [String] = {
         // Letters A-Z
-        let letters = (65...90).map { String(UnicodeScalar($0)) }
+        let letters = (65 ... 90).map { String(UnicodeScalar($0)) }
         // Numbers 0-9
-        let numbers = (0...9).map { String($0) }
+        let numbers = (0 ... 9).map { String($0) }
         // Common punctuation
         let punctuation = [";", "'", ",", ".", "/", "[", "]", "\\", "`", "-", "="]
         return letters + numbers + punctuation
@@ -391,15 +391,15 @@ private struct FloatingKeymapLabel: View {
 
     // Randomized animation parameters (seeded by label for consistency)
     private var springResponse: Double {
-        0.3 + Double(abs(label.hashValue) % 100) / 500.0  // 0.30-0.50s
+        0.3 + Double(abs(label.hashValue) % 100) / 500.0 // 0.30-0.50s
     }
 
     private var dampingFraction: Double {
-        0.6 + Double(abs(label.hashValue >> 8) % 100) / 500.0  // 0.60-0.80
+        0.6 + Double(abs(label.hashValue >> 8) % 100) / 500.0 // 0.60-0.80
     }
 
     private var wobbleAngle: Double {
-        Double(abs(label.hashValue >> 16) % 25) - 12.0  // -12° to +12°
+        Double(abs(label.hashValue >> 16) % 25) - 12.0 // -12° to +12°
     }
 
     /// Animation to use - nil when disabled (prevents animation on first load)
@@ -423,12 +423,12 @@ private struct FloatingKeymapLabel: View {
             .animation(positionAnimation, value: targetFrame)
             .animation(positionAnimation, value: isVisible)
             .onChange(of: targetFrame) { _, _ in
-                if isVisible && enableAnimation {
+                if isVisible, enableAnimation {
                     triggerWobble()
                 }
             }
             .onChange(of: isVisible) { _, newVisible in
-                if newVisible && !wasVisible && enableAnimation {
+                if newVisible, !wasVisible, enableAnimation {
                     triggerWobble()
                 }
                 wasVisible = newVisible

@@ -24,24 +24,24 @@ struct WizardInputMonitoringPage: View {
     private func statusIcon(for status: InstallationStatus) -> (name: String, color: Color) {
         switch status {
         case .completed:
-            return ("checkmark.circle.fill", .green)
+            ("checkmark.circle.fill", .green)
         case .warning:
-            return ("questionmark.circle.fill", .orange)
+            ("questionmark.circle.fill", .orange)
         case .failed:
-            return ("xmark.circle.fill", .red)
+            ("xmark.circle.fill", .red)
         case .notStarted, .inProgress:
-            return ("ellipsis.circle", .secondary)
+            ("ellipsis.circle", .secondary)
         }
     }
 
     private func kanataSubtitle(for status: InstallationStatus) -> String {
         switch status {
         case .completed:
-            return " - Remapping engine processes keyboard events"
+            " - Remapping engine processes keyboard events"
         case .warning:
-            return " - Permission not verified"
+            " - Permission not verified"
         case .failed, .notStarted, .inProgress:
-            return " - Remapping engine needs permission"
+            " - Remapping engine needs permission"
         }
     }
 

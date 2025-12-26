@@ -185,7 +185,7 @@ private struct SoundProfileDescriptionBar: View {
                         .font(.system(size: 10))
                         .foregroundStyle(.secondary)
 
-                    Slider(value: $volume, in: 0...1)
+                    Slider(value: $volume, in: 0 ... 1)
                         .controlSize(.small)
 
                     Image(systemName: "speaker.wave.3.fill")
