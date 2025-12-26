@@ -207,10 +207,12 @@ final class TypingSoundsManager: ObservableObject {
         let filename = "\(profile.id)-\(suffix)"
 
         // Try Bundle.module first (Swift Package resources), then Bundle.main
-        if let url = Bundle.module.url(forResource: filename, withExtension: "mp3", subdirectory: "Sounds") {
+        // Note: .process() in Package.swift flattens directory structure, so files
+        // are at bundle root, not in a Sounds subdirectory
+        if let url = Bundle.module.url(forResource: filename, withExtension: "mp3") {
             return url
         }
-        if let url = Bundle.module.url(forResource: filename, withExtension: "wav", subdirectory: "Sounds") {
+        if let url = Bundle.module.url(forResource: filename, withExtension: "wav") {
             return url
         }
         if let url = Bundle.main.url(forResource: filename, withExtension: "mp3") {
