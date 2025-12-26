@@ -73,19 +73,26 @@ struct SystemContextAdapter {
     private static func getMissingPermissions(_ context: SystemContext) -> [PermissionRequirement] {
         var missing: [PermissionRequirement] = []
 
-        // KeyPath permissions (use isMissing to catch .unknown state)
-        if context.permissions.keyPath.inputMonitoring.isMissing {
+        // KeyPath permissions:
+        // - `.unknown` is treated as "checking" (startup mode) and should not route the wizard
+        //   into permission pages or mark the system as missing permissions.
+        // - Only hard failures (`.denied`/`.error`) should block.
+        if context.permissions.keyPath.inputMonitoring.isBlocking {
             missing.append(.keyPathInputMonitoring)
         }
-        if context.permissions.keyPath.accessibility.isMissing {
+        if context.permissions.keyPath.accessibility.isBlocking {
             missing.append(.keyPathAccessibility)
         }
 
-        // Kanata permissions (use isMissing to catch .unknown state)
-        if context.permissions.kanata.inputMonitoring.isMissing {
+        // Kanata permissions:
+        // - `.unknown` means "not verified" (commonly due to missing Full Disk Access to read TCC.db).
+        //   This should surface as a warning, but NOT be treated as a blocking "missing permission"
+        //   for routing/state purposes.
+        // - Only hard failures (`.denied`/`.error`) should block the wizard state.
+        if context.permissions.kanata.inputMonitoring.isBlocking {
             missing.append(.kanataInputMonitoring)
         }
-        if context.permissions.kanata.accessibility.isMissing {
+        if context.permissions.kanata.accessibility.isBlocking {
             missing.append(.kanataAccessibility)
         }
 
@@ -133,9 +140,21 @@ struct SystemContextAdapter {
             identifier: WizardIssueIdentifier,
             title: String,
             deniedDescription: String,
-            userAction: String
+            userAction: String,
+            includeUnknown: Bool
         ) {
-            guard status.isMissing else { return }
+            let shouldInclude: Bool = {
+                switch status {
+                case .granted:
+                    return false
+                case .denied, .error:
+                    return true
+                case .unknown:
+                    return includeUnknown
+                }
+            }()
+            guard shouldInclude else { return }
+
             let severity: WizardIssueSeverity = (status == .unknown) ? .warning : .error
             let description: String = {
                 if status == .unknown {
@@ -161,28 +180,32 @@ struct SystemContextAdapter {
             identifier: .permission(.keyPathInputMonitoring),
             title: "Input Monitoring Permission Required",
             deniedDescription: "KeyPath needs Input Monitoring permission to function",
-            userAction: "Grant Input Monitoring permission in System Settings"
+            userAction: "Grant Input Monitoring permission in System Settings",
+            includeUnknown: false
         )
         appendPermissionIssue(
             context.permissions.keyPath.accessibility,
             identifier: .permission(.keyPathAccessibility),
             title: "Accessibility Permission Required",
             deniedDescription: "KeyPath needs Accessibility permission to function",
-            userAction: "Grant Accessibility permission in System Settings"
+            userAction: "Grant Accessibility permission in System Settings",
+            includeUnknown: false
         )
         appendPermissionIssue(
             context.permissions.kanata.inputMonitoring,
             identifier: .permission(.kanataInputMonitoring),
             title: "Kanata Input Monitoring Permission Required",
             deniedDescription: "Kanata needs Input Monitoring permission",
-            userAction: "Grant Input Monitoring permission to kanata in System Settings"
+            userAction: "Grant Input Monitoring permission to kanata in System Settings",
+            includeUnknown: true
         )
         appendPermissionIssue(
             context.permissions.kanata.accessibility,
             identifier: .permission(.kanataAccessibility),
             title: "Kanata Accessibility Permission Required",
             deniedDescription: "Kanata needs Accessibility permission",
-            userAction: "Grant Accessibility permission to kanata in System Settings"
+            userAction: "Grant Accessibility permission to kanata in System Settings",
+            includeUnknown: true
         )
 
         // Component issues

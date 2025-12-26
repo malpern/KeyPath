@@ -149,6 +149,25 @@ class WizardNavigationEngineTests: XCTestCase {
         )
     }
 
+    func testNavigationDoesNotRouteToPermissionsForWarningOnly() async {
+        // Given: Only a non-blocking permission warning (e.g. Kanata permissions not verified without FDA)
+        let warningIssue = WizardIssue(
+            identifier: .permission(.kanataInputMonitoring),
+            severity: .warning,
+            category: .permissions,
+            title: "Kanata Input Monitoring (Not Verified)",
+            description: "Not verified without Full Disk Access",
+            autoFixAction: nil,
+            userAction: nil
+        )
+
+        // When: System is otherwise ready but service not running
+        let page = await engine.determineCurrentPage(for: .serviceNotRunning, issues: [warningIssue])
+
+        // Then: Should route to service (not force the permission page)
+        XCTAssertEqual(page, .service)
+    }
+
     func testNavigationServiceNotRunning() async {
         // Given: System is ready but service not running
         let issues: [WizardIssue] = []
