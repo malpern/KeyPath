@@ -366,7 +366,7 @@ public final class InstallerEngine {
 
     /// Execute installService recipe
     /// Includes pre-check for VHID Manager activation (per Karabiner documentation)
-    private func executeInstallService(_: ServiceRecipe, using broker: PrivilegeBroker) async throws {
+    private func executeInstallService(_ recipe: ServiceRecipe, using broker: PrivilegeBroker) async throws {
         // CRITICAL: Ensure VHID Manager is activated BEFORE installing daemon services
         // Per Karabiner documentation, manager activation must happen before daemon startup
         let vhidManager = VHIDDeviceManager()
@@ -384,6 +384,15 @@ public final class InstallerEngine {
             } else {
                 AppLogger.shared.log("✅ [InstallerEngine] Manager activated successfully")
             }
+        }
+
+        // Ensure canonical Kanata binary exists at /Library/KeyPath/bin/kanata before installing services.
+        // This prevents "service installed" while the daemon runs with a different path (bundle fallback),
+        // which would cause permission identity drift (AX/IM entries keyed by executable path).
+        if recipe.serviceID == nil, KanataBinaryDetector.shared.needsInstallation() {
+            AppLogger.shared.log(
+                "🔧 [InstallerEngine] Kanata system binary missing - installing bundled kanata to system location")
+            try await broker.installBundledKanata()
         }
 
         // Install all LaunchDaemon services

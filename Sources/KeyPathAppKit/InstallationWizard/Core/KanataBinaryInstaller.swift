@@ -85,7 +85,7 @@ final class KanataBinaryInstaller {
                 "🔍 [KanataBinaryInstaller] Post-installation detection: \(result.status) at \(result.path ?? "unknown")"
             )
 
-            // With SMAppService, bundled Kanata is sufficient
+            // The installer writes the canonical system path; the detector should now report installed.
             return detector.isInstalled()
         } else {
             AppLogger.shared.log("❌ [KanataBinaryInstaller] Failed to install bundled kanata binary")

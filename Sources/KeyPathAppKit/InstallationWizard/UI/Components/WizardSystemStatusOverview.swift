@@ -562,13 +562,13 @@ struct WizardSystemStatusOverview: View {
     private func checkFullDiskAccess() -> Bool {
         if let cached = Self.cache.fullDiskAccessIfFresh() { return cached }
 
-        // FDA detection: avoid direct TCC.db access from UI. Use PermissionService heuristic cache.
-        let granted = !PermissionService.lastTCCAuthorizationDenied
+        // FDA detection: best-effort probe via shared checker (cached + lightweight).
+        let granted = FullDiskAccessChecker.shared.hasFullDiskAccess()
 
         AppLogger.shared.log(
             granted
-                ? "🔐 [WizardSystemStatusOverview] FDA granted via PermissionOracle (cached)"
-                : "🔐 [WizardSystemStatusOverview] FDA not granted via PermissionOracle (cached)")
+                ? "🔐 [WizardSystemStatusOverview] FDA granted (cached)"
+                : "🔐 [WizardSystemStatusOverview] FDA not granted (cached)")
 
         Self.cache.updateFullDiskAccess(granted)
         return granted

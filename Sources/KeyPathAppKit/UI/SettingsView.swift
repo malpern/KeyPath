@@ -285,7 +285,7 @@ struct StatusSettingsTabView: View {
     }
 
     private var hasFullDiskAccess: Bool {
-        !PermissionService.lastTCCAuthorizationDenied
+        FullDiskAccessChecker.shared.hasFullDiskAccess()
     }
 
     private var isSystemHealthy: Bool {

@@ -158,7 +158,7 @@ struct InputMonitoringHelpSheet: View {
                     .background(Color(NSColor.controlBackgroundColor))
                     .cornerRadius(8)
 
-                    if PermissionService.lastTCCAuthorizationDenied {
+                    if !FullDiskAccessChecker.shared.hasFullDiskAccess() {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack(spacing: 8) {
                                 Image(systemName: "exclamationmark.triangle.fill")

@@ -49,10 +49,12 @@ final class InstallationCoordinator {
         let detector = KanataBinaryDetector.shared
 
         if detector.isInstalled() {
-            AppLogger.shared.log("✅ [Installation] Step \(stepNumber) SUCCESS: Kanata binary ready (SMAppService uses bundled path)")
+            AppLogger.shared.log(
+                "✅ [Installation] Step \(stepNumber) SUCCESS: Kanata binary ready at /Library/KeyPath/bin/kanata")
             return StepResult(stepNumber: stepNumber, totalSteps: totalSteps, success: true, warning: false)
         } else {
-            AppLogger.shared.log("⚠️ [Installation] Step \(stepNumber) WARNING: Kanata binary not found in bundle (SMAppService mode)")
+            AppLogger.shared.log(
+                "⚠️ [Installation] Step \(stepNumber) WARNING: Kanata system binary missing at /Library/KeyPath/bin/kanata")
             return StepResult(stepNumber: stepNumber, totalSteps: totalSteps, success: false, warning: true)
         }
     }
