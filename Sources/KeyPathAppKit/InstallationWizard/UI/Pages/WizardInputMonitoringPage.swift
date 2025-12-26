@@ -21,6 +21,30 @@ struct WizardInputMonitoringPage: View {
 
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
+    private func statusIcon(for status: InstallationStatus) -> (name: String, color: Color) {
+        switch status {
+        case .completed:
+            return ("checkmark.circle.fill", .green)
+        case .warning:
+            return ("questionmark.circle.fill", .orange)
+        case .failed:
+            return ("xmark.circle.fill", .red)
+        case .notStarted, .inProgress:
+            return ("ellipsis.circle", .secondary)
+        }
+    }
+
+    private func kanataSubtitle(for status: InstallationStatus) -> String {
+        switch status {
+        case .completed:
+            return " - Remapping engine processes keyboard events"
+        case .warning:
+            return " - Permission not verified"
+        case .failed, .notStarted, .inProgress:
+            return " - Remapping engine needs permission"
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Use experimental hero design when permissions are granted
@@ -102,11 +126,9 @@ struct WizardInputMonitoringPage: View {
                     // Component details for error state
                     VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
                         HStack(spacing: 12) {
-                            Image(
-                                systemName: keyPathInputMonitoringStatus == .completed
-                                    ? "checkmark.circle.fill" : "xmark.circle.fill"
-                            )
-                            .foregroundColor(keyPathInputMonitoringStatus == .completed ? .green : .red)
+                            let icon = statusIcon(for: keyPathInputMonitoringStatus)
+                            Image(systemName: icon.name)
+                                .foregroundColor(icon.color)
                             HStack(spacing: 0) {
                                 Text("KeyPath.app")
                                     .font(.headline)
@@ -127,16 +149,14 @@ struct WizardInputMonitoringPage: View {
                         .help(keyPathInputMonitoringIssues.asTooltipText())
 
                         HStack(spacing: 12) {
-                            Image(
-                                systemName: kanataInputMonitoringStatus == .completed
-                                    ? "checkmark.circle.fill" : "xmark.circle.fill"
-                            )
-                            .foregroundColor(kanataInputMonitoringStatus == .completed ? .green : .red)
+                            let icon = statusIcon(for: kanataInputMonitoringStatus)
+                            Image(systemName: icon.name)
+                                .foregroundColor(icon.color)
                             HStack(spacing: 0) {
                                 Text("kanata")
                                     .font(.headline)
                                     .fontWeight(.semibold)
-                                Text(" - Remapping engine needs permission")
+                                Text(kanataSubtitle(for: kanataInputMonitoringStatus))
                                     .font(.headline)
                                     .fontWeight(.regular)
                             }
@@ -146,6 +166,14 @@ struct WizardInputMonitoringPage: View {
                                     AppLogger.shared.log(
                                         "🔧 [WizardInputMonitoringPage] Kanata Fix clicked - opening System Settings and revealing kanata"
                                     )
+                                    let path = WizardSystemPaths.kanataSystemInstallPath
+                                    if !FileManager.default.fileExists(atPath: path) {
+                                        AppLogger.shared.warn(
+                                            "⚠️ [WizardInputMonitoringPage] Kanata system binary missing at \(path) - routing to Kanata Components"
+                                        )
+                                        navigationCoordinator.navigateToPage(.kanataComponents)
+                                        return
+                                    }
                                     openInputMonitoringPreferencesPanel()
                                     revealKanataInFinder()
                                     startPermissionPolling(for: .inputMonitoring)
@@ -350,7 +378,11 @@ struct WizardInputMonitoringPage: View {
 private func openInputMonitoringPreferencesPanel() {
     if let url = URL(
         string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
-        NSWorkspace.shared.open(url)
+        let ok = NSWorkspace.shared.open(url)
+        if !ok {
+            // Fallback: open System Settings app if deep-link fails
+            _ = NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app"))
+        }
     }
 }
 

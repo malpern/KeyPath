@@ -16,6 +16,30 @@ struct WizardAccessibilityPage: View {
 
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
+    private func statusIcon(for status: InstallationStatus) -> (name: String, color: Color) {
+        switch status {
+        case .completed:
+            return ("checkmark.circle.fill", .green)
+        case .warning:
+            return ("questionmark.circle.fill", .orange)
+        case .failed:
+            return ("xmark.circle.fill", .red)
+        case .notStarted, .inProgress:
+            return ("ellipsis.circle", .secondary)
+        }
+    }
+
+    private func kanataSubtitle(for status: InstallationStatus) -> String {
+        switch status {
+        case .completed:
+            return " - Keyboard monitoring engine"
+        case .warning:
+            return " - Permission not verified"
+        case .failed, .notStarted, .inProgress:
+            return " - Keyboard monitoring engine"
+        }
+    }
+
     // State interpreter for consistent status computation
     private let stateInterpreter = WizardStateInterpreter()
 
@@ -115,11 +139,9 @@ struct WizardAccessibilityPage: View {
                     // Component details for error state
                     VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
                         HStack(spacing: 12) {
-                            Image(
-                                systemName: keyPathAccessibilityStatus == .completed
-                                    ? "checkmark.circle.fill" : "xmark.circle.fill"
-                            )
-                            .foregroundColor(keyPathAccessibilityStatus == .completed ? .green : .red)
+                            let icon = statusIcon(for: keyPathAccessibilityStatus)
+                            Image(systemName: icon.name)
+                                .foregroundColor(icon.color)
                             HStack(spacing: 0) {
                                 Text("KeyPath.app")
                                     .font(.headline)
@@ -143,16 +165,14 @@ struct WizardAccessibilityPage: View {
                         .help(keyPathAccessibilityIssues.asTooltipText())
 
                         HStack(spacing: 12) {
-                            Image(
-                                systemName: kanataAccessibilityStatus == .completed
-                                    ? "checkmark.circle.fill" : "xmark.circle.fill"
-                            )
-                            .foregroundColor(kanataAccessibilityStatus == .completed ? .green : .red)
+                            let icon = statusIcon(for: kanataAccessibilityStatus)
+                            Image(systemName: icon.name)
+                                .foregroundColor(icon.color)
                             HStack(spacing: 0) {
                                 Text("kanata")
                                     .font(.headline)
                                     .fontWeight(.semibold)
-                                Text(" - Keyboard monitoring engine")
+                                Text(kanataSubtitle(for: kanataAccessibilityStatus))
                                     .font(.headline)
                                     .fontWeight(.regular)
                             }
@@ -162,6 +182,14 @@ struct WizardAccessibilityPage: View {
                                     AppLogger.shared.log(
                                         "🔘 [WizardAccessibilityPage] Fix clicked for kanata - opening System Settings and revealing kanata"
                                     )
+                                    let path = WizardSystemPaths.kanataSystemInstallPath
+                                    if !FileManager.default.fileExists(atPath: path) {
+                                        AppLogger.shared.warn(
+                                            "⚠️ [WizardAccessibilityPage] Kanata system binary missing at \(path) - routing to Kanata Components"
+                                        )
+                                        navigationCoordinator.navigateToPage(.kanataComponents)
+                                        return
+                                    }
                                     openAccessibilitySettings()
                                     revealKanataInFinder()
                                 }
@@ -340,7 +368,11 @@ struct WizardAccessibilityPage: View {
         // Fallback: Open System Settings > Privacy & Security > Accessibility
         if let url = URL(
             string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-            NSWorkspace.shared.open(url)
+            let ok = NSWorkspace.shared.open(url)
+            if !ok {
+                // Fallback: open System Settings app if deep-link fails
+                _ = NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app"))
+            }
         }
     }
 
