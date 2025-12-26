@@ -375,7 +375,7 @@ struct WizardAccessibilityPage: View {
     }
 
     private func revealKanataInFinder() {
-        let path = "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
+        let path = WizardSystemPaths.kanataSystemInstallPath
         let dir = (path as NSString).deletingLastPathComponent
         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
         AppLogger.shared.log("📂 [WizardAccessibilityPage] Revealed kanata in Finder: \(path)")
@@ -384,7 +384,7 @@ struct WizardAccessibilityPage: View {
     }
 
     private func copyKanataPathToClipboard() {
-        let path = "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
+        let path = WizardSystemPaths.kanataSystemInstallPath
         let pb = NSPasteboard.general
         pb.clearContents()
         pb.setString(path, forType: .string)
@@ -399,7 +399,7 @@ struct KanataAccessibilityInstructionsSheet: View {
     let onCancel: () -> Void
 
     private var kanataPath: String {
-        "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
+        WizardSystemPaths.kanataSystemInstallPath
     }
 
     var body: some View {

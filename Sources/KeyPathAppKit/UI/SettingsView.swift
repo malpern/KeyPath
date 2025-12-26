@@ -284,6 +284,10 @@ struct StatusSettingsTabView: View {
         localServiceRunning ?? isServiceRunning
     }
 
+    private var hasFullDiskAccess: Bool {
+        !PermissionService.lastTCCAuthorizationDenied
+    }
+
     private var isSystemHealthy: Bool {
         overallHealthLevel == .success
     }
@@ -461,7 +465,7 @@ struct StatusSettingsTabView: View {
 
         let evaluation = permissionGaps(in: snapshot)
 
-        if evaluation.labels.isEmpty {
+        if evaluation.missingOrDenied.isEmpty, evaluation.unknown.isEmpty {
             return StatusDetail(
                 title: "Permissions",
                 message: "All required permissions are granted.",
@@ -474,13 +478,32 @@ struct StatusSettingsTabView: View {
         if let blocking = snapshot.blockingIssue {
             lines.append(blocking)
         }
-        lines.append("Missing: \(evaluation.labels.joined(separator: ", "))")
+        if !evaluation.missingOrDenied.isEmpty {
+            lines.append("Missing: \(evaluation.missingOrDenied.joined(separator: ", "))")
+        }
+        if !evaluation.unknown.isEmpty {
+            if hasFullDiskAccess {
+                lines.append("Not verified: \(evaluation.unknown.joined(separator: ", "))")
+            } else {
+                lines.append(
+                    "Not verified (grant Full Disk Access to verify): \(evaluation.unknown.joined(separator: ", "))"
+                )
+            }
+        }
 
         var actions: [StatusDetailAction] = [
             StatusDetailAction(title: "Fix", icon: "wand.and.stars") {
                 showingPermissionAlert = true
             }
         ]
+
+        if !hasFullDiskAccess, snapshot.kanata.accessibility == .unknown || snapshot.kanata.inputMonitoring == .unknown {
+            actions.append(
+                StatusDetailAction(title: "Grant Full Disk Access", icon: "folder") {
+                    SystemDiagnostics.open(.fullDiskAccess)
+                }
+            )
+        }
 
         if !snapshot.keyPath.inputMonitoring.isReady || !snapshot.kanata.inputMonitoring.isReady {
             actions.append(
@@ -630,16 +653,26 @@ struct StatusSettingsTabView: View {
     }
 
     private func permissionGaps(in snapshot: PermissionOracle.Snapshot) -> (
-        labels: [String], hasErrors: Bool
+        missingOrDenied: [String],
+        unknown: [String],
+        hasErrors: Bool
     ) {
-        var labels: [String] = []
+        var missingOrDenied: [String] = []
+        var unknown: [String] = []
         var hasErrors = false
 
         func append(status: PermissionOracle.Status, label: String) {
             guard !status.isReady else { return }
-            labels.append(label)
-            if case .error = status {
+            switch status {
+            case .unknown:
+                unknown.append(label)
+            case .denied:
+                missingOrDenied.append(label)
+            case .error:
+                missingOrDenied.append(label)
                 hasErrors = true
+            case .granted:
+                break
             }
         }
 
@@ -648,7 +681,7 @@ struct StatusSettingsTabView: View {
         append(status: snapshot.kanata.accessibility, label: "Kanata Accessibility")
         append(status: snapshot.kanata.inputMonitoring, label: "Kanata Input Monitoring")
 
-        return (labels, hasErrors)
+        return (missingOrDenied, unknown, hasErrors)
     }
 
     var body: some View {
@@ -758,28 +791,36 @@ struct StatusSettingsTabView: View {
                         PermissionStatusRow(
                             title: "KeyPath Accessibility",
                             icon: "checkmark.shield",
-                            granted: permissionSnapshot?.keyPath.accessibility.isReady,
+                            status: permissionSnapshot?.keyPath.accessibility,
+                            isKanata: false,
+                            hasFullDiskAccess: hasFullDiskAccess,
                             onTap: { wizardInitialPage = .accessibility }
                         )
 
                         PermissionStatusRow(
                             title: "KeyPath Input Monitoring",
                             icon: "keyboard",
-                            granted: permissionSnapshot?.keyPath.inputMonitoring.isReady,
+                            status: permissionSnapshot?.keyPath.inputMonitoring,
+                            isKanata: false,
+                            hasFullDiskAccess: hasFullDiskAccess,
                             onTap: { wizardInitialPage = .inputMonitoring }
                         )
 
                         PermissionStatusRow(
                             title: "Kanata Accessibility",
                             icon: "checkmark.shield",
-                            granted: permissionSnapshot?.kanata.accessibility.isReady,
+                            status: permissionSnapshot?.kanata.accessibility,
+                            isKanata: true,
+                            hasFullDiskAccess: hasFullDiskAccess,
                             onTap: { wizardInitialPage = .accessibility }
                         )
 
                         PermissionStatusRow(
                             title: "Kanata Input Monitoring",
                             icon: "keyboard",
-                            granted: permissionSnapshot?.kanata.inputMonitoring.isReady,
+                            status: permissionSnapshot?.kanata.inputMonitoring,
+                            isKanata: true,
+                            hasFullDiskAccess: hasFullDiskAccess,
                             onTap: { wizardInitialPage = .inputMonitoring }
                         )
                     }
@@ -949,7 +990,6 @@ struct StatusSettingsTabView: View {
     }
 
     private var systemStatusRows: [SettingsSystemStatusRowModel] {
-        let hasFullDiskAccess = !PermissionService.lastTCCAuthorizationDenied
         return SettingsSystemStatusRowsBuilder.rows(
             wizardSystemState: wizardSystemState,
             wizardIssues: wizardIssues,
@@ -965,7 +1005,9 @@ struct StatusSettingsTabView: View {
 private struct PermissionStatusRow: View {
     let title: String
     let icon: String
-    let granted: Bool?
+    let status: PermissionOracle.Status?
+    let isKanata: Bool
+    let hasFullDiskAccess: Bool
     let onTap: (() -> Void)?
 
     var body: some View {
@@ -980,9 +1022,9 @@ private struct PermissionStatusRow: View {
 
                 Spacer()
 
-                if let granted {
-                    Image(systemName: granted ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundColor(granted ? .green : .red)
+                if let status {
+                    Image(systemName: trailingIcon)
+                        .foregroundColor(trailingColor)
                         .font(.body)
                 } else {
                     ProgressView()
@@ -996,10 +1038,43 @@ private struct PermissionStatusRow: View {
     }
 
     private var statusColor: Color {
-        if let granted {
-            granted ? .green : .red
-        } else {
-            .secondary
+        guard let status else { return .secondary }
+        switch status {
+        case .granted:
+            .green
+        case .denied, .error:
+            .red
+        case .unknown:
+            // For Kanata, unknown is commonly due to missing Full Disk Access (TCC not readable).
+            // For KeyPath, unknown is usually a transient "still checking" (startup mode).
+            isKanata ? .orange : .secondary
+        }
+    }
+
+    private var trailingIcon: String {
+        guard let status else { return "ellipsis.circle" }
+        switch status {
+        case .granted:
+            "checkmark.circle.fill"
+        case .denied, .error:
+            "xmark.circle.fill"
+        case .unknown:
+            if isKanata, !hasFullDiskAccess {
+                return "questionmark.circle.fill"
+            }
+            return "questionmark.circle"
+        }
+    }
+
+    private var trailingColor: Color {
+        guard let status else { return .secondary }
+        switch status {
+        case .granted:
+            .green
+        case .denied, .error:
+            .red
+        case .unknown:
+            isKanata ? .orange : .secondary
         }
     }
 }

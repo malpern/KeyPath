@@ -297,7 +297,8 @@ sudo -l | grep kanata
 
 **macOS Specific Permission Requirements:**
 1. **Input Monitoring**: System Settings > Privacy & Security > Input Monitoring
-   - Add `/usr/local/bin/kanata` (or `/opt/homebrew/bin/kanata` on ARM Macs)
+   - If using **KeyPath-managed kanata**, add `/Library/KeyPath/bin/kanata`
+   - If running **standalone kanata** outside KeyPath, add `/usr/local/bin/kanata` (or `/opt/homebrew/bin/kanata` on ARM Macs)
    - Add Terminal.app or your terminal (e.g., Ghostty)
    - Add KeyPath.app if using the GUI
 

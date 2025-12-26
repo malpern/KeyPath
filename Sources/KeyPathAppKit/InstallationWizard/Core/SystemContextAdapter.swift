@@ -122,55 +122,68 @@ struct SystemContextAdapter {
     private static func adaptIssues(_ context: SystemContext) -> [WizardIssue] {
         var issues: [WizardIssue] = []
 
-        // Permission issues (use isMissing to catch .unknown state)
-        if context.permissions.keyPath.inputMonitoring.isMissing {
+        // Permission issues
+        //
+        // IMPORTANT UI SEMANTICS:
+        // - `.denied` is a hard failure (red).
+        // - `.unknown` means "not verified" (often because TCC cannot be read without Full Disk Access).
+        //   We surface this as a warning so we don't mislead users into thinking permission was denied.
+        func appendPermissionIssue(
+            _ status: PermissionOracle.Status,
+            identifier: WizardIssueIdentifier,
+            title: String,
+            deniedDescription: String,
+            userAction: String
+        ) {
+            guard status.isMissing else { return }
+            let severity: WizardIssueSeverity = (status == .unknown) ? .warning : .error
+            let description: String = {
+                if status == .unknown {
+                    return "\(deniedDescription) (Status not verified. Grant Full Disk Access for accurate verification.)"
+                }
+                return deniedDescription
+            }()
             issues.append(
                 WizardIssue(
-                    identifier: .permission(.keyPathInputMonitoring),
-                    severity: .error,
+                    identifier: identifier,
+                    severity: severity,
                     category: .installation,
-                    title: "Input Monitoring Permission Required",
-                    description: "KeyPath needs Input Monitoring permission to function",
+                    title: title,
+                    description: description,
                     autoFixAction: nil,
-                    userAction: "Grant Input Monitoring permission in System Settings"
-                ))
+                    userAction: userAction
+                )
+            )
         }
-        if context.permissions.keyPath.accessibility.isMissing {
-            issues.append(
-                WizardIssue(
-                    identifier: .permission(.keyPathAccessibility),
-                    severity: .error,
-                    category: .installation,
-                    title: "Accessibility Permission Required",
-                    description: "KeyPath needs Accessibility permission to function",
-                    autoFixAction: nil,
-                    userAction: "Grant Accessibility permission in System Settings"
-                ))
-        }
-        if context.permissions.kanata.inputMonitoring.isMissing {
-            issues.append(
-                WizardIssue(
-                    identifier: .permission(.kanataInputMonitoring),
-                    severity: .error,
-                    category: .installation,
-                    title: "Kanata Input Monitoring Permission Required",
-                    description: "Kanata needs Input Monitoring permission",
-                    autoFixAction: nil,
-                    userAction: "Grant Input Monitoring permission to Kanata in System Settings"
-                ))
-        }
-        if context.permissions.kanata.accessibility.isMissing {
-            issues.append(
-                WizardIssue(
-                    identifier: .permission(.kanataAccessibility),
-                    severity: .error,
-                    category: .installation,
-                    title: "Kanata Accessibility Permission Required",
-                    description: "Kanata needs Accessibility permission",
-                    autoFixAction: nil,
-                    userAction: "Grant Accessibility permission to Kanata in System Settings"
-                ))
-        }
+
+        appendPermissionIssue(
+            context.permissions.keyPath.inputMonitoring,
+            identifier: .permission(.keyPathInputMonitoring),
+            title: "Input Monitoring Permission Required",
+            deniedDescription: "KeyPath needs Input Monitoring permission to function",
+            userAction: "Grant Input Monitoring permission in System Settings"
+        )
+        appendPermissionIssue(
+            context.permissions.keyPath.accessibility,
+            identifier: .permission(.keyPathAccessibility),
+            title: "Accessibility Permission Required",
+            deniedDescription: "KeyPath needs Accessibility permission to function",
+            userAction: "Grant Accessibility permission in System Settings"
+        )
+        appendPermissionIssue(
+            context.permissions.kanata.inputMonitoring,
+            identifier: .permission(.kanataInputMonitoring),
+            title: "Kanata Input Monitoring Permission Required",
+            deniedDescription: "Kanata needs Input Monitoring permission",
+            userAction: "Grant Input Monitoring permission to kanata in System Settings"
+        )
+        appendPermissionIssue(
+            context.permissions.kanata.accessibility,
+            identifier: .permission(.kanataAccessibility),
+            title: "Kanata Accessibility Permission Required",
+            deniedDescription: "Kanata needs Accessibility permission",
+            userAction: "Grant Accessibility permission to kanata in System Settings"
+        )
 
         // Component issues
         if !context.components.kanataBinaryInstalled {
