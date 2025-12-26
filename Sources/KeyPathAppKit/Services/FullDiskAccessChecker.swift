@@ -16,6 +16,10 @@ final class FullDiskAccessChecker {
 
     private init() {}
 
+    /// Test seam: override the probe result (used by unit tests).
+    /// This must remain nil in production.
+    nonisolated(unsafe) static var probeOverride: (() -> Bool)?
+
     private var cachedValue: Bool?
     private var lastCheckTime: Date?
 
@@ -50,7 +54,17 @@ final class FullDiskAccessChecker {
         lastCheckTime = Date()
     }
 
+    /// Clear cached state (primarily for tests).
+    func resetCache() {
+        cachedValue = nil
+        lastCheckTime = nil
+    }
+
     private func performFDACheck() -> Bool {
+        if let override = Self.probeOverride {
+            return override()
+        }
+
         // Avoid any heavy or invasive probing. This is a lightweight "can we read system TCC.db" test.
         guard FileManager.default.isReadableFile(atPath: systemTCCPath) else {
             return false
