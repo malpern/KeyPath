@@ -758,11 +758,44 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     }
 
     /// Ease-in-out timing function to match NSAnimationContext's .easeInEaseOut
+    /// Core Animation uses cubic bezier control points (0.42, 0, 0.58, 1.0)
     private func easeInOutProgress(_ t: CGFloat) -> CGFloat {
-        // Attempt 6: Approximate NSAnimationContext kCAMediaTimingFunctionEaseInEaseOut
-        // Core Animation uses a cubic bezier: (0.42, 0, 0.58, 1.0) - very gentle
-        // This is a simple sinusoidal approximation
-        return (1 - cos(t * .pi)) / 2
+        // Attempt 7: Exact cubic bezier matching CAMediaTimingFunction.easeInEaseOut
+        // Control points: P0=(0,0), P1=(0.42,0), P2=(0.58,1), P3=(1,1)
+        return evaluateCubicBezierY(t: t, p1y: 0.0, p2y: 1.0, p1x: 0.42, p2x: 0.58)
+    }
+
+    /// Evaluate cubic bezier curve Y value for a given X (time) value
+    /// Uses Newton-Raphson iteration to find t parameter, then evaluates Y
+    private func evaluateCubicBezierY(t inputX: CGFloat, p1y: CGFloat, p2y: CGFloat, p1x: CGFloat, p2x: CGFloat) -> CGFloat {
+        // For simple ease-in-out where x and y curves are symmetric, we can use a simpler approach
+        // The bezier curve: B(t) = 3(1-t)²t·P1 + 3(1-t)t²·P2 + t³
+        // For easeInEaseOut (0.42, 0, 0.58, 1), we need to solve for t given x, then compute y
+
+        // Newton-Raphson to find t for given x
+        var tGuess = inputX
+        for _ in 0 ..< 8 {
+            let x = bezierValue(t: tGuess, p1: p1x, p2: p2x)
+            let dx = bezierDerivative(t: tGuess, p1: p1x, p2: p2x)
+            if abs(dx) < 0.00001 { break }
+            tGuess -= (x - inputX) / dx
+            tGuess = max(0, min(1, tGuess))
+        }
+
+        // Now compute Y at this t
+        return bezierValue(t: tGuess, p1: p1y, p2: p2y)
+    }
+
+    /// Cubic bezier value: B(t) = 3(1-t)²t·p1 + 3(1-t)t²·p2 + t³
+    private func bezierValue(t: CGFloat, p1: CGFloat, p2: CGFloat) -> CGFloat {
+        let oneMinusT = 1 - t
+        return 3 * oneMinusT * oneMinusT * t * p1 + 3 * oneMinusT * t * t * p2 + t * t * t
+    }
+
+    /// Derivative of cubic bezier: B'(t) = 3(1-t)²·p1 + 6(1-t)t·(p2-p1) + 3t²·(1-p2)
+    private func bezierDerivative(t: CGFloat, p1: CGFloat, p2: CGFloat) -> CGFloat {
+        let oneMinusT = 1 - t
+        return 3 * oneMinusT * oneMinusT * p1 + 6 * oneMinusT * t * (p2 - p1) + 3 * t * t * (1 - p2)
     }
 
     private func updateCollapsedFrame(forExpandedFrame expandedFrame: NSRect) {
