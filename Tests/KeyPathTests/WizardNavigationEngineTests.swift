@@ -168,6 +168,25 @@ class WizardNavigationEngineTests: XCTestCase {
         XCTAssertEqual(page, .service)
     }
 
+    func testNavigationWarningOnlyDoesNotShowFDAPageWhenActive() async {
+        // Given: Only a non-blocking permission warning (kanata not verified, e.g. no FDA)
+        let warningIssue = WizardIssue(
+            identifier: .permission(.kanataInputMonitoring),
+            severity: .warning,
+            category: .permissions,
+            title: "Kanata Input Monitoring (Not Verified)",
+            description: "Not verified without Full Disk Access",
+            autoFixAction: nil,
+            userAction: nil
+        )
+
+        // When: System is active
+        let page = await engine.determineCurrentPage(for: .active, issues: [warningIssue])
+
+        // Then: Should land on summary (and NOT show the optional FDA page when active)
+        XCTAssertEqual(page, .summary)
+    }
+
     func testNavigationServiceNotRunning() async {
         // Given: System is ready but service not running
         let issues: [WizardIssue] = []
