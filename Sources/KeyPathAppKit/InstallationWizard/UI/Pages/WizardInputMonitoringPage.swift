@@ -189,6 +189,28 @@ struct WizardInputMonitoringPage: View {
                     .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
                     .padding(.horizontal, WizardDesign.Spacing.pageVertical)
                     .padding(.top, WizardDesign.Spacing.pageVertical)
+
+                    // Restart helper - shown when KeyPath permission appears denied
+                    // macOS caches permission state; restart required to detect changes
+                    if keyPathInputMonitoringStatus != .completed {
+                        VStack(spacing: 12) {
+                            Text("Already granted permission in System Settings?")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.secondary)
+
+                            Text("macOS requires an app restart to detect permission changes.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+
+                            Button("Restart KeyPath to Apply") {
+                                AppRestarter.restartForWizard(at: "inputMonitoring")
+                            }
+                            .buttonStyle(WizardDesign.Component.SecondaryButton())
+                        }
+                        .padding(.top, WizardDesign.Spacing.sectionGap)
+                    }
                 }
                 .heroSectionContainer()
                 .frame(maxWidth: .infinity)
