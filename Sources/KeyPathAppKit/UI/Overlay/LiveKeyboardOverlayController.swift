@@ -64,6 +64,9 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         UserDefaults.standard.bool(forKey: "OverlayInspectorDebug")
     }
 
+    /// Timer for smooth inspector reveal animation (windowDidResize doesn't fire continuously)
+    private var inspectorAnimationTimer: Timer?
+
     private var minWindowHeight: CGFloat {
         OverlayLayoutMetrics.verticalChrome + minKeyboardHeight
     }
@@ -593,10 +596,32 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         uiState.isInspectorAnimating = shouldAnimate
 
         if shouldAnimate {
-            // Animate only the window expansion with easing
+            // Start timer to smoothly animate reveal (windowDidResize doesn't fire continuously)
+            let startTime = CACurrentMediaTime()
+            let startReveal = uiState.inspectorReveal
+            inspectorAnimationTimer?.invalidate()
+            inspectorAnimationTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] timer in
+                guard let self else {
+                    timer.invalidate()
+                    return
+                }
+                let elapsed = CACurrentMediaTime() - startTime
+                let progress = min(1.0, elapsed / inspectorAnimationDuration)
+                // Use ease-in-out curve to match NSAnimationContext
+                let easedProgress = easeInOutProgress(progress)
+                uiState.inspectorReveal = startReveal + (1 - startReveal) * easedProgress
+
+                if progress >= 1.0 {
+                    timer.invalidate()
+                    inspectorAnimationTimer = nil
+                }
+            }
+
             setWindowFrame(expandedFrame, animated: true, duration: inspectorAnimationDuration)
             DispatchQueue.main.asyncAfter(deadline: .now() + inspectorAnimationDuration) { [weak self] in
                 guard let self, inspectorAnimationToken == token else { return }
+                inspectorAnimationTimer?.invalidate()
+                inspectorAnimationTimer = nil
                 uiState.isInspectorOpen = true
                 uiState.isInspectorAnimating = false
                 uiState.inspectorReveal = 1
@@ -646,9 +671,32 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         uiState.isInspectorClosing = shouldAnimate
 
         if shouldAnimate {
+            // Start timer to smoothly animate reveal (windowDidResize doesn't fire continuously)
+            let startTime = CACurrentMediaTime()
+            let startReveal = uiState.inspectorReveal
+            inspectorAnimationTimer?.invalidate()
+            inspectorAnimationTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] timer in
+                guard let self else {
+                    timer.invalidate()
+                    return
+                }
+                let elapsed = CACurrentMediaTime() - startTime
+                let progress = min(1.0, elapsed / inspectorAnimationDuration)
+                // Use ease-in-out curve to match NSAnimationContext
+                let easedProgress = easeInOutProgress(progress)
+                uiState.inspectorReveal = startReveal * (1 - easedProgress)
+
+                if progress >= 1.0 {
+                    timer.invalidate()
+                    inspectorAnimationTimer = nil
+                }
+            }
+
             setWindowFrame(targetFrame, animated: true, duration: inspectorAnimationDuration)
             DispatchQueue.main.asyncAfter(deadline: .now() + inspectorAnimationDuration) { [weak self] in
                 guard let self, inspectorAnimationToken == token else { return }
+                inspectorAnimationTimer?.invalidate()
+                inspectorAnimationTimer = nil
                 uiState.inspectorReveal = 0
                 uiState.isInspectorOpen = false
                 uiState.isInspectorAnimating = false
@@ -707,6 +755,14 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         let collapsedWidth = collapsedFrameBeforeInspector?.width ?? max(0, window.frame.width - inspectorTotalWidth)
         let reveal = (window.frame.width - collapsedWidth) / inspectorTotalWidth
         uiState.inspectorReveal = max(0, min(1, reveal))
+    }
+
+    /// Ease-in-out timing function to match NSAnimationContext's .easeInEaseOut
+    private func easeInOutProgress(_ t: CGFloat) -> CGFloat {
+        // Attempt 6: Approximate NSAnimationContext kCAMediaTimingFunctionEaseInEaseOut
+        // Core Animation uses a cubic bezier: (0.42, 0, 0.58, 1.0) - very gentle
+        // This is a simple sinusoidal approximation
+        return (1 - cos(t * .pi)) / 2
     }
 
     private func updateCollapsedFrame(forExpandedFrame expandedFrame: NSRect) {
