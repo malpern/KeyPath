@@ -659,14 +659,16 @@ struct WizardSystemStatusOverview: View {
 
     private func getServiceNavigationTarget() -> (page: WizardPage, reason: String) {
         // When service fails, navigate to the most critical missing permission
-        let hasInputMonitoringIssues = issues.contains { issue in
+        let hasBlockingInputMonitoring = issues.contains { issue in
+            guard issue.severity == .critical || issue.severity == .error else { return false }
             if case let .permission(permission) = issue.identifier {
                 return permission == .kanataInputMonitoring
             }
             return false
         }
 
-        let hasAccessibilityIssues = issues.contains { issue in
+        let hasBlockingAccessibility = issues.contains { issue in
+            guard issue.severity == .critical || issue.severity == .error else { return false }
             if case let .permission(permission) = issue.identifier {
                 return permission == .kanataAccessibility
             }
@@ -674,9 +676,9 @@ struct WizardSystemStatusOverview: View {
         }
 
         // Navigate to the first blocking permission page
-        if hasInputMonitoringIssues {
+        if hasBlockingInputMonitoring {
             return (.inputMonitoring, "Input Monitoring permission required")
-        } else if hasAccessibilityIssues {
+        } else if hasBlockingAccessibility {
             return (.accessibility, "Accessibility permission required")
         } else {
             // Default to service page if no specific permission issue

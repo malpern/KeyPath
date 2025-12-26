@@ -54,6 +54,16 @@ final class SystemContextAdapterPermissionSeverityTests: XCTestCase {
         let kanataIMIssue = result.issues.first { $0.identifier == .permission(.kanataInputMonitoring) }
         XCTAssertNotNil(kanataIMIssue, "Adapter should surface a kanata input monitoring issue")
         XCTAssertEqual(kanataIMIssue?.severity, .warning, "Unknown/not-verified kanata permission should be a warning")
+        XCTAssertNotNil(kanataIMIssue?.description)
+        XCTAssertTrue(kanataIMIssue?.description.localizedCaseInsensitiveContains("not verified") ?? false)
+        XCTAssertFalse(
+            kanataIMIssue?.description.localizedCaseInsensitiveContains("required") ?? false,
+            "Unknown/not verified should not claim permission is required"
+        )
+        XCTAssertFalse(
+            kanataIMIssue?.description.localizedCaseInsensitiveContains("denied") ?? false,
+            "Unknown/not verified should not claim permission is denied"
+        )
 
         let interpreter = WizardStateInterpreter()
         let pageStatus = interpreter.getPageStatus(for: .inputMonitoring, in: result.issues)
