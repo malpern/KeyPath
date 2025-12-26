@@ -37,12 +37,12 @@ struct OverlayKeyboardView: View {
     @State private var isCapsLockOn: Bool = NSEvent.modifierFlags.contains(.capsLock)
 
     // Note: keycapFrames removed - we now calculate frames directly from layout
-    /// Whether user has changed keymap (prevents animation on first load)
-    @State private var hasUserChangedKeymap: Bool = false
-    /// Previous keymap ID for detecting changes
+    /// Whether initial render is complete (enables animation for subsequent changes)
+    /// Set to true asynchronously after onAppear, so the first render positions keys
+    /// without animation, but all subsequent keymap changes animate.
+    @State private var initialRenderComplete: Bool = false
+    /// Previous keymap ID for detecting changes (used for wobble trigger)
     @State private var previousKeymapId: String = ""
-    /// Cached label-to-keyCode mapping for animation (updated with animation timing)
-    @State private var animatedLabelToKeyCode: [String: UInt16] = [:]
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -107,12 +107,12 @@ struct OverlayKeyboardView: View {
                         FloatingKeymapLabel(
                             label: label,
                             targetFrame: targetFrameFor(label, scale: scale),
-                            // Visible when label exists in current keymap (no hasUserChangedKeymap guard!)
+                            // Visible when label exists in current keymap
                             isVisible: labelToKeyCode[label] != nil,
                             scale: scale,
                             colorway: activeColorway,
-                            // Only animate position changes after first user interaction
-                            enableAnimation: hasUserChangedKeymap
+                            // Enable animation after initial render (prevents animation on drawer open)
+                            enableAnimation: initialRenderComplete
                         )
                     }
                 }
@@ -127,20 +127,16 @@ struct OverlayKeyboardView: View {
         }
         .onChange(of: keymap.id) { oldValue, newValue in
             guard oldValue != newValue else { return }
-            // Mark that user has changed keymap (enables animation)
-            hasUserChangedKeymap = true
             previousKeymapId = newValue
-            // Defer animation to next run loop so hasUserChangedKeymap propagates first
-            DispatchQueue.main.async {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                    animatedLabelToKeyCode = labelToKeyCode
-                }
-            }
         }
         .onAppear {
             previousKeymapId = keymap.id
-            // Initialize animated mapping without animation
-            animatedLabelToKeyCode = labelToKeyCode
+            // Enable animation after initial render completes
+            // This ensures the first load positions keys without animation,
+            // but subsequent keymap changes animate properly
+            DispatchQueue.main.async {
+                initialRenderComplete = true
+            }
         }
     }
 

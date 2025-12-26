@@ -128,8 +128,6 @@ private struct KeyboardIllustrationCard: View {
                 .aspectRatio(contentMode: .fit)
         } else {
             // Fallback to SF Symbol
-            // Log image loading failure for debugging
-            _ = AppLogger.shared.debug("🖼️ [KeyboardSelection] Could not load image for layout '\(layout.id)'. URL: \(imageURL?.absoluteString ?? "nil")")
             Image(systemName: "keyboard")
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary)
