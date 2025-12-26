@@ -184,7 +184,7 @@ struct SystemContextAdapter {
                 WizardIssue(
                     identifier: identifier,
                     severity: severity,
-                    category: .installation,
+                    category: .permissions,
                     title: title,
                     description: description,
                     autoFixAction: nil,
