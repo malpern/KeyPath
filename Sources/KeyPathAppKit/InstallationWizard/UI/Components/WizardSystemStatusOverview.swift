@@ -219,7 +219,8 @@ struct WizardSystemStatusOverview: View {
 
     // MARK: - Status Items Creation
 
-    private var statusItems: [StatusItemModel] {
+    // Internal for tests: accessed via @testable without adding a dedicated test-only accessor.
+    var statusItems: [StatusItemModel] {
         var items: [StatusItemModel] = []
 
         // 1. Privileged Helper (required for system operations)
@@ -560,17 +561,14 @@ struct WizardSystemStatusOverview: View {
     // MARK: - Status Helpers
 
     private func checkFullDiskAccess() -> Bool {
-        if let cached = Self.cache.fullDiskAccessIfFresh() { return cached }
-
-        // FDA detection: avoid direct TCC.db access from UI. Use PermissionService heuristic cache.
-        let granted = !PermissionService.lastTCCAuthorizationDenied
+        // FDA detection: best-effort probe via shared checker (cached + lightweight).
+        // Avoid double-caching: FullDiskAccessChecker already caches.
+        let granted = FullDiskAccessChecker.shared.hasFullDiskAccess()
 
         AppLogger.shared.log(
             granted
-                ? "🔐 [WizardSystemStatusOverview] FDA granted via PermissionOracle (cached)"
-                : "🔐 [WizardSystemStatusOverview] FDA not granted via PermissionOracle (cached)")
-
-        Self.cache.updateFullDiskAccess(granted)
+                ? "🔐 [WizardSystemStatusOverview] FDA granted (cached)"
+                : "🔐 [WizardSystemStatusOverview] FDA not granted (cached)")
         return granted
     }
 
@@ -661,14 +659,16 @@ struct WizardSystemStatusOverview: View {
 
     private func getServiceNavigationTarget() -> (page: WizardPage, reason: String) {
         // When service fails, navigate to the most critical missing permission
-        let hasInputMonitoringIssues = issues.contains { issue in
+        let hasBlockingInputMonitoring = issues.contains { issue in
+            guard issue.severity == .critical || issue.severity == .error else { return false }
             if case let .permission(permission) = issue.identifier {
                 return permission == .kanataInputMonitoring
             }
             return false
         }
 
-        let hasAccessibilityIssues = issues.contains { issue in
+        let hasBlockingAccessibility = issues.contains { issue in
+            guard issue.severity == .critical || issue.severity == .error else { return false }
             if case let .permission(permission) = issue.identifier {
                 return permission == .kanataAccessibility
             }
@@ -676,9 +676,9 @@ struct WizardSystemStatusOverview: View {
         }
 
         // Navigate to the first blocking permission page
-        if hasInputMonitoringIssues {
+        if hasBlockingInputMonitoring {
             return (.inputMonitoring, "Input Monitoring permission required")
-        } else if hasAccessibilityIssues {
+        } else if hasBlockingAccessibility {
             return (.accessibility, "Accessibility permission required")
         } else {
             // Default to service page if no specific permission issue

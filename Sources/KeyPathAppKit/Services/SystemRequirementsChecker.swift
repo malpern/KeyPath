@@ -28,7 +28,7 @@ final class SystemRequirementsChecker {
     /// Check if KeyPath is installed (binary exists)
     func isInstalled() -> Bool {
         // Use KanataBinaryDetector for consistent detection across wizard and UI
-        // This accepts both system installation AND bundled binary (for SMAppService)
+        // Canonical path architecture: system-installed kanata is the stable identity for permissions.
         KanataBinaryDetector.shared.isInstalled()
     }
 
@@ -43,10 +43,11 @@ final class SystemRequirementsChecker {
         let detection = detector.detectCurrentStatus()
         let driverInstalled = isKarabinerDriverInstalled()
 
-        // With SMAppService, bundled Kanata is sufficient
         switch detection.status {
-        case .bundledAvailable, .systemInstalled:
+        case .systemInstalled:
             return driverInstalled ? "✅ Fully installed" : "⚠️ Driver missing"
+        case .bundledAvailable:
+            return "⚠️ Kanata engine needs installation"
         case .bundledUnsigned:
             return "⚠️ Bundled Kanata unsigned (needs Developer ID signature)"
         case .missing:
@@ -83,7 +84,7 @@ final class SystemRequirementsChecker {
         let snapshot = await PermissionOracle.shared.currentSnapshot()
 
         let keyPathPath = Bundle.main.bundlePath
-        let kanataPath = WizardSystemPaths.kanataActiveBinary
+        let kanataPath = WizardSystemPaths.kanataSystemInstallPath
 
         let keyPathHasInputMonitoring = snapshot.keyPath.inputMonitoring.isReady
         let keyPathHasAccessibility = snapshot.keyPath.accessibility.isReady
@@ -157,7 +158,7 @@ final class SystemRequirementsChecker {
 
     /// Reveal the canonical kanata binary in Finder to assist drag-and-drop into permissions
     func revealKanataInFinder(onRevealed: (() -> Void)? = nil) {
-        let kanataPath = WizardSystemPaths.kanataActiveBinary
+        let kanataPath = WizardSystemPaths.kanataSystemInstallPath
         let folderPath = (kanataPath as NSString).deletingLastPathComponent
 
         let script = """

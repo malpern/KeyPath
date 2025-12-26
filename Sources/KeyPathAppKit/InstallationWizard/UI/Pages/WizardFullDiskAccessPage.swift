@@ -263,8 +263,8 @@ struct WizardFullDiskAccessPage: View {
         AppLogger.shared.log(
             "🔐 [Wizard] Full Disk Access check: \(hasFullDiskAccess) (was: \(previousValue))")
 
-        // Update the static flag so other parts of the app know
-        PermissionService.lastTCCAuthorizationDenied = !hasFullDiskAccess
+        // Update shared cache so other parts of the app reflect FDA immediately.
+        FullDiskAccessChecker.shared.updateCachedValue(hasFullDiskAccess)
     }
 
     private var nextStepButtonTitle: String {
@@ -345,6 +345,7 @@ struct WizardFullDiskAccessPage: View {
                     cachedFDAStatus = true
                     lastFDACheckTime = Date()
                     hasFullDiskAccess = true
+                    FullDiskAccessChecker.shared.updateCachedValue(true)
                     if showingSystemSettingsWait {
                         showingSystemSettingsWait = false
                         showSuccessAnimation = true

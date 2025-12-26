@@ -21,9 +21,6 @@ class PermissionService {
 
     // MARK: - Legacy Compatibility (Minimal Stubs)
 
-    /// Legacy compatibility flag for TCC access
-    static var lastTCCAuthorizationDenied = false
-
     /// Legacy method stub - functionality moved to Oracle
     func clearCache() {
         AppLogger.shared.log("🔮 [PermissionService] clearCache() called - Oracle handles caching now")

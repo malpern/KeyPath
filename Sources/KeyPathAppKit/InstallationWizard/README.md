@@ -22,6 +22,14 @@ KeyPath requires deep macOS system integration:
 
 The wizard's size reflects the **legitimate complexity** of making keyboard remapping "just work" on macOS.
 
+## Canonical kanata Path (Permissions + Diagnostics)
+
+KeyPath treats the **system-installed kanata binary** as the canonical identity for TCC permissions:
+
+- `kanata`: `/Library/KeyPath/bin/kanata`
+
+The app bundle copy is **installer payload**. If the daemon executes a different path than the wizard instructs users to add, macOS will treat them as different identities and permissions can appear “green” while remapping fails.
+
 ## Architecture
 
 ```
@@ -288,7 +296,7 @@ Each page is 400-600 lines and follows a consistent pattern:
 ### Quick Debugging
 - **Wizard won't advance**: Check `WizardNavigationEngine.determineCurrentPage()` logs
 - **Auto-fix fails**: Look at `WizardAutoFixer.performAutoFix()` return value
-- **Permissions incorrect**: Trust `PermissionOracle` (see `Services/PermissionOracle.swift`)
+- **Permissions incorrect**: Trust `PermissionOracle` (see `Sources/KeyPathPermissions/PermissionOracle.swift`)
 - **Service won't start**: Check `/var/log/kanata.log` and `launchctl print system/com.keypath.kanata`
 
 ## Related Documentation

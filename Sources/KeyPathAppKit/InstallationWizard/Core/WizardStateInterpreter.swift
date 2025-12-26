@@ -11,8 +11,8 @@ struct WizardStateInterpreter {
     /// Get the status of a specific permission requirement
     func getPermissionStatus(_ permission: PermissionRequirement, in issues: [WizardIssue])
         -> InstallationStatus {
-        let hasIssue = issues.contains { $0.identifier == .permission(permission) }
-        return hasIssue ? .failed : .completed
+        let relevant = issues.filter { $0.identifier == .permission(permission) }
+        return IssueSeverityInstallationStatusMapper.installationStatus(for: relevant)
     }
 
     /// Check if any permission issues exist
@@ -209,13 +209,7 @@ struct WizardStateInterpreter {
     func getPageStatus(for page: WizardPage, in issues: [WizardIssue]) -> InstallationStatus {
         let relevantIssues = getRelevantIssues(for: page, in: issues)
 
-        if relevantIssues.isEmpty {
-            return .completed
-        } else if relevantIssues.contains(where: { $0.severity == .critical || $0.severity == .error }) {
-            return .failed
-        } else {
-            return .failed // Warnings also indicate incomplete status
-        }
+        return IssueSeverityInstallationStatusMapper.installationStatus(for: relevantIssues)
     }
 
     // MARK: - UI Helper Methods

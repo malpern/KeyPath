@@ -391,14 +391,27 @@ public actor PermissionOracle {
 
     // MARK: - Utilities
 
-    // Add this helper to prefer the active daemon path, falling back to bundled path
+    // Resolve the canonical Kanata executable path for TCC queries.
+    //
+    // IMPORTANT:
+    // - TCC entries for CLI binaries are keyed by *executable path* (client_type=1).
+    // - If the daemon executes a different path than the wizard instructs users to add,
+    //   we can get false positives/negatives (green UI while remapping fails).
+    // - We intentionally prefer the system-installed canonical path to avoid bundle-path churn.
     private func resolveKanataExecutablePath() -> String {
-        // Prefer bundled path for SMAppService deployments (stable, signed path)
+        // Canonical runtime/permission identity (preferred)
+        let system = WizardSystemPaths.kanataSystemInstallPath
+        if FileManager.default.fileExists(atPath: system) {
+            return system
+        }
+
+        // Fallback: bundled binary (installer payload, may be used during setup)
         let bundled = WizardSystemPaths.bundledKanataPath
         if FileManager.default.fileExists(atPath: bundled) {
             return bundled
         }
-        // Fallback: legacy active path if present
+
+        // Last resort: whatever path helper returns (should be stable in tests)
         return WizardSystemPaths.kanataActiveBinary
     }
 
