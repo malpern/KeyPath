@@ -62,9 +62,17 @@ final class FullDiskAccessChecker {
 
     private func performFDACheck() -> Bool {
         if let override = Self.probeOverride {
-            return override()
+            // Guardrail: this seam is for unit tests only.
+            // In production builds, ignore any override to avoid accidental behavior changes.
+            if !TestEnvironment.isRunningTests {
+                AppLogger.shared.warn("⚠️ [FullDiskAccessChecker] probeOverride set outside tests - ignoring")
+            } else {
+                return override()
+            }
         }
 
+        // NOTE: We intentionally do NOT probe the user-scoped TCC.db here.
+        // The purpose is to detect FDA needed for Kanata verification (system TCC.db readability).
         // Avoid any heavy or invasive probing. This is a lightweight "can we read system TCC.db" test.
         guard FileManager.default.isReadableFile(atPath: systemTCCPath) else {
             return false

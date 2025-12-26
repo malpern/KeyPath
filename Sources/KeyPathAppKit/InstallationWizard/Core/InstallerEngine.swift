@@ -389,7 +389,8 @@ public final class InstallerEngine {
         // Ensure canonical Kanata binary exists at /Library/KeyPath/bin/kanata before installing services.
         // This prevents "service installed" while the daemon runs with a different path (bundle fallback),
         // which would cause permission identity drift (AX/IM entries keyed by executable path).
-        if recipe.id == "install-launch-daemon-services", KanataBinaryDetector.shared.needsInstallation() {
+        if recipe.id == InstallerRecipeID.installLaunchDaemonServices,
+           KanataBinaryDetector.shared.needsInstallation() {
             AppLogger.shared.log(
                 "🔧 [InstallerEngine] Kanata system binary missing - installing bundled kanata to system location")
             try await broker.installBundledKanata()

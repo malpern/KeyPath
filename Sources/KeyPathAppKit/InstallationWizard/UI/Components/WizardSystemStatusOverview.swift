@@ -691,6 +691,17 @@ struct WizardSystemStatusOverview: View {
     }
 }
 
+#if DEBUG
+// MARK: - Test Accessors
+extension WizardSystemStatusOverview {
+    /// Expose computed status items for unit tests (no UI rendering required).
+    /// Keeps production API clean while allowing regression coverage for status visibility.
+    func statusItemsForTesting() -> [WizardStatusItemModel] {
+        statusItems
+    }
+}
+#endif
+
 // MARK: - Hoverable Row Wrapper
 
 private struct HoverableRow<Content: View>: View {

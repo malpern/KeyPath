@@ -158,10 +158,27 @@ struct SystemContextAdapter {
             let severity: WizardIssueSeverity = (status == .unknown) ? .warning : .error
             let description: String = {
                 if status == .unknown {
-                    return "\(deniedDescription) (Status not verified. Grant Full Disk Access for accurate verification.)"
+                    // Standardize language: unknown means "not verified", not denied.
+                    // This commonly occurs when KeyPath lacks Full Disk Access and cannot read TCC.db for Kanata.
+                    let suggested: String = {
+                        switch identifier {
+                        case .permission(.kanataInputMonitoring):
+                            return
+                                "Not verified (grant Full Disk Access to verify). If remapping doesn’t work, add /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Input Monitoring."
+                        case .permission(.kanataAccessibility):
+                            return
+                                "Not verified (grant Full Disk Access to verify). If remapping doesn’t work, add /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Accessibility."
+                        default:
+                            return "Not verified (grant Full Disk Access to verify)."
+                        }
+                    }()
+                    return suggested
                 }
                 return deniedDescription
             }()
+            let userActionText: String = (status == .unknown)
+                ? "Grant Full Disk Access to verify (optional)"
+                : userAction
             issues.append(
                 WizardIssue(
                     identifier: identifier,
@@ -170,7 +187,7 @@ struct SystemContextAdapter {
                     title: title,
                     description: description,
                     autoFixAction: nil,
-                    userAction: userAction
+                    userAction: userActionText
                 )
             )
         }
@@ -194,7 +211,7 @@ struct SystemContextAdapter {
         appendPermissionIssue(
             context.permissions.kanata.inputMonitoring,
             identifier: .permission(.kanataInputMonitoring),
-            title: "Kanata Input Monitoring Permission Required",
+            title: "Kanata Input Monitoring Permission",
             deniedDescription: "Kanata needs Input Monitoring permission",
             userAction: "Grant Input Monitoring permission to kanata in System Settings",
             includeUnknown: true
@@ -202,7 +219,7 @@ struct SystemContextAdapter {
         appendPermissionIssue(
             context.permissions.kanata.accessibility,
             identifier: .permission(.kanataAccessibility),
-            title: "Kanata Accessibility Permission Required",
+            title: "Kanata Accessibility Permission",
             deniedDescription: "Kanata needs Accessibility permission",
             userAction: "Grant Accessibility permission to kanata in System Settings",
             includeUnknown: true

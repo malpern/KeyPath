@@ -37,7 +37,7 @@ extension InstallerEngine {
         switch action {
         case .installLaunchDaemonServices:
             ServiceRecipe(
-                id: "install-launch-daemon-services",
+                id: InstallerRecipeID.installLaunchDaemonServices,
                 type: .installService,
                 serviceID: nil,
                 launchctlActions: [
@@ -50,7 +50,7 @@ extension InstallerEngine {
 
         case .installBundledKanata:
             ServiceRecipe(
-                id: "install-bundled-kanata",
+                id: InstallerRecipeID.installBundledKanata,
                 type: .installComponent,
                 serviceID: nil
             )
@@ -220,9 +220,9 @@ extension InstallerEngine {
     func recipeIDForAction(_ action: AutoFixAction) -> String {
         switch action {
         case .installLaunchDaemonServices:
-            "install-launch-daemon-services"
+            InstallerRecipeID.installLaunchDaemonServices
         case .installBundledKanata:
-            "install-bundled-kanata"
+            InstallerRecipeID.installBundledKanata
         case .installCorrectVHIDDriver:
             "install-correct-vhid-driver"
         case .installLogRotation:
