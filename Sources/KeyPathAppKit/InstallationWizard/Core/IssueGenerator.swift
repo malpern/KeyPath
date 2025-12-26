@@ -285,9 +285,9 @@ class IssueGenerator {
     private func permissionDescription(for permission: PermissionRequirement) -> String {
         switch permission {
         case .kanataInputMonitoring:
-            "The kanata binary needs Input Monitoring permission to process keys."
+            "Kanata needs Input Monitoring permission to process keys. Add /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Input Monitoring."
         case .kanataAccessibility:
-            "The kanata binary needs Accessibility permission for system access."
+            "Kanata needs Accessibility permission for system access. Add /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Accessibility."
         case .driverExtensionEnabled:
             "Karabiner driver extension must be enabled in System Settings."
         case .backgroundServicesEnabled:
@@ -302,9 +302,9 @@ class IssueGenerator {
     private func userActionForPermission(_ permission: PermissionRequirement) -> String {
         switch permission {
         case .kanataInputMonitoring:
-            "Grant permission in System Settings > Privacy & Security > Input Monitoring"
+            "Grant permission to /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Input Monitoring"
         case .kanataAccessibility:
-            "Grant permission in System Settings > Privacy & Security > Accessibility"
+            "Grant permission to /Library/KeyPath/bin/kanata in System Settings > Privacy & Security > Accessibility"
         case .driverExtensionEnabled:
             "Enable in System Settings > Privacy & Security > Driver Extensions"
         case .backgroundServicesEnabled:

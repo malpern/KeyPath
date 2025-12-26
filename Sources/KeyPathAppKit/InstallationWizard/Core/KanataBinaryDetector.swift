@@ -44,7 +44,7 @@ final class KanataBinaryDetector {
             case .systemInstalled:
                 "Kanata is properly installed at system location and ready for LaunchDaemon use"
             case .bundledAvailable:
-                "Kanata binary is bundled with the app and ready for SMAppService (via BundleProgram)"
+                "Kanata binary is bundled with the app and ready to be installed to the system location for stable permissions"
             case .bundledUnsigned:
                 "Kanata binary found but lacks proper Developer ID signature"
             case .missing:
@@ -106,29 +106,31 @@ final class KanataBinaryDetector {
     }
 
     /// Check if kanata needs installation (for auto-fix logic)
-    /// With SMAppService, bundled Kanata is sufficient (via BundleProgram).
+    /// With KeyPath’s permission model, the system-installed kanata path is the canonical identity.
+    /// The bundled binary is installer payload; users should grant permissions to /Library/KeyPath/bin/kanata.
     func needsInstallation() -> Bool {
         let result = detectCurrentStatus()
-        // Bundled Kanata with proper signature is ready for SMAppService
-        return result.status == .missing || result.status == .bundledUnsigned
+        // Anything other than a valid system installation should be treated as needing install.
+        return result.status != .systemInstalled
     }
 
     /// Check if Kanata binary is installed and ready for use
-    /// With SMAppService, bundled Kanata is considered installed.
+    /// Installed == present at the canonical system location.
     func isInstalled() -> Bool {
         let result = detectCurrentStatus()
-        // Bundled Kanata with proper signature is ready for SMAppService
-        return result.status == .bundledAvailable || result.status == .systemInstalled
+        return result.status == .systemInstalled
     }
 
     /// Get recommended installation action
-    /// With SMAppService, no action needed if bundled Kanata is available.
+    /// Bundled Kanata is not sufficient for canonical TCC identity; we still want the system install.
     func getRecommendedAction() -> ComponentRequirement? {
         let result = detectCurrentStatus()
 
         switch result.status {
-        case .bundledAvailable, .systemInstalled:
+        case .systemInstalled:
             return nil // No action needed
+        case .bundledAvailable:
+            return .kanataBinaryMissing // Needs installation to system path
         case .bundledUnsigned:
             return .kanataBinaryMissing // Needs proper signature
         case .missing:
@@ -193,14 +195,14 @@ final class KanataBinaryDetector {
     // MARK: - Component Integration
 
     /// Convert detection result to ComponentRequirement array for SystemStatusChecker
-    /// With SMAppService, bundled Kanata is considered installed.
+    /// With canonical path architecture, only system-installed kanata counts as installed.
     func getMissingComponents() -> [ComponentRequirement] {
         let result = detectCurrentStatus()
 
         switch result.status {
-        case .bundledAvailable, .systemInstalled:
+        case .systemInstalled:
             return [] // No missing components
-        case .bundledUnsigned, .missing:
+        case .bundledAvailable, .bundledUnsigned, .missing:
             return [.kanataBinaryMissing]
         case .bundledMissing:
             return [.bundledKanataMissing] // CRITICAL: App bundle corrupted

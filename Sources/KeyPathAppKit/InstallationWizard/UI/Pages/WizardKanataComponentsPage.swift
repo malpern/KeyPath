@@ -274,7 +274,7 @@ struct WizardKanataComponentsPage: View {
             switch component {
             case .kanataBinaryMissing:
                 return
-                    "Kanata binary is bundled with KeyPath and ready for use (SMAppService uses BundleProgram)"
+                    "Kanata must be installed to /Library/KeyPath/bin/kanata for stable macOS permissions (Input Monitoring + Accessibility). KeyPath can install it automatically."
             case .kanataService:
                 return "Service configuration files for running kanata in the background"
             default:

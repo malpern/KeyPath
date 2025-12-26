@@ -18,9 +18,32 @@ struct WizardInputMonitoringPage: View {
     @State private var showingStaleEntryCleanup = false
     @State private var staleEntryDetails: [String] = []
     @State private var permissionPollingTask: Task<Void, Never>?
-    @State private var showingKanataInstructions = false
 
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
+
+    private func statusIcon(for status: InstallationStatus) -> (name: String, color: Color) {
+        switch status {
+        case .completed:
+            return ("checkmark.circle.fill", .green)
+        case .warning:
+            return ("questionmark.circle.fill", .orange)
+        case .failed:
+            return ("xmark.circle.fill", .red)
+        case .notStarted, .inProgress:
+            return ("ellipsis.circle", .secondary)
+        }
+    }
+
+    private func kanataSubtitle(for status: InstallationStatus) -> String {
+        switch status {
+        case .completed:
+            return " - Remapping engine processes keyboard events"
+        case .warning:
+            return " - Permission not verified"
+        case .failed, .notStarted, .inProgress:
+            return " - Remapping engine needs permission"
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -103,11 +126,9 @@ struct WizardInputMonitoringPage: View {
                     // Component details for error state
                     VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
                         HStack(spacing: 12) {
-                            Image(
-                                systemName: keyPathInputMonitoringStatus == .completed
-                                    ? "checkmark.circle.fill" : "xmark.circle.fill"
-                            )
-                            .foregroundColor(keyPathInputMonitoringStatus == .completed ? .green : .red)
+                            let icon = statusIcon(for: keyPathInputMonitoringStatus)
+                            Image(systemName: icon.name)
+                                .foregroundColor(icon.color)
                             HStack(spacing: 0) {
                                 Text("KeyPath.app")
                                     .font(.headline)
@@ -128,24 +149,34 @@ struct WizardInputMonitoringPage: View {
                         .help(keyPathInputMonitoringIssues.asTooltipText())
 
                         HStack(spacing: 12) {
-                            Image(
-                                systemName: kanataInputMonitoringStatus == .completed
-                                    ? "checkmark.circle.fill" : "xmark.circle.fill"
-                            )
-                            .foregroundColor(kanataInputMonitoringStatus == .completed ? .green : .red)
+                            let icon = statusIcon(for: kanataInputMonitoringStatus)
+                            Image(systemName: icon.name)
+                                .foregroundColor(icon.color)
                             HStack(spacing: 0) {
                                 Text("kanata")
                                     .font(.headline)
                                     .fontWeight(.semibold)
-                                Text(" - Remapping engine needs permission")
+                                Text(kanataSubtitle(for: kanataInputMonitoringStatus))
                                     .font(.headline)
                                     .fontWeight(.regular)
                             }
                             Spacer()
                             if kanataInputMonitoringStatus != .completed {
                                 Button("Fix") {
-                                    AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Kanata Fix clicked - showing instructions")
-                                    showingKanataInstructions = true
+                                    AppLogger.shared.log(
+                                        "🔧 [WizardInputMonitoringPage] Kanata Fix clicked - opening System Settings and revealing kanata"
+                                    )
+                                    let path = WizardSystemPaths.kanataSystemInstallPath
+                                    if !FileManager.default.fileExists(atPath: path) {
+                                        AppLogger.shared.warn(
+                                            "⚠️ [WizardInputMonitoringPage] Kanata system binary missing at \(path) - routing to Kanata Components"
+                                        )
+                                        navigationCoordinator.navigateToPage(.kanataComponents)
+                                        return
+                                    }
+                                    openInputMonitoringPreferencesPanel()
+                                    revealKanataInFinder()
+                                    startPermissionPolling(for: .inputMonitoring)
                                 }
                                 .buttonStyle(WizardDesign.Component.SecondaryButton())
                                 .scaleEffect(0.8)
@@ -174,19 +205,6 @@ struct WizardInputMonitoringPage: View {
         .onDisappear {
             permissionPollingTask?.cancel()
             permissionPollingTask = nil
-        }
-        .sheet(isPresented: $showingKanataInstructions) {
-            KanataPermissionInstructionsSheet(
-                onOpenSettings: {
-                    showingKanataInstructions = false
-                    openInputMonitoringPreferencesPanel()
-                    copyKanataPathToClipboard()
-                    startPermissionPolling(for: .inputMonitoring)
-                },
-                onCancel: {
-                    showingKanataInstructions = false
-                }
-            )
         }
     }
 
@@ -360,14 +378,18 @@ struct WizardInputMonitoringPage: View {
 private func openInputMonitoringPreferencesPanel() {
     if let url = URL(
         string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
-        NSWorkspace.shared.open(url)
+        let ok = NSWorkspace.shared.open(url)
+        if !ok {
+            // Fallback: open System Settings app if deep-link fails
+            _ = NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app"))
+        }
     }
 }
 
 // MARK: - Helpers for Kanata add flow
 
 private func revealKanataInFinder() {
-    let path = WizardSystemPaths.kanataActiveBinary
+    let path = WizardSystemPaths.kanataSystemInstallPath
     let dir = (path as NSString).deletingLastPathComponent
     NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
     _ = NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: dir)
@@ -375,7 +397,7 @@ private func revealKanataInFinder() {
 }
 
 private func copyKanataPathToClipboard() {
-    let path = WizardSystemPaths.kanataActiveBinary
+    let path = WizardSystemPaths.kanataSystemInstallPath
     let pb = NSPasteboard.general
     pb.clearContents()
     pb.setString(path, forType: .string)
@@ -480,101 +502,6 @@ struct CleanupStep: View {
             Text(text)
                 .font(.caption)
                 .foregroundColor(.primary)
-        }
-    }
-}
-
-// MARK: - Kanata Permission Instructions Sheet
-
-struct KanataPermissionInstructionsSheet: View {
-    let onOpenSettings: () -> Void
-    let onCancel: () -> Void
-
-    private var kanataPath: String {
-        WizardSystemPaths.kanataActiveBinary
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            VStack(spacing: 12) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 48))
-                    .foregroundColor(.accentColor)
-
-                Text("Add kanata to Input Monitoring")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-            }
-            .padding(.top, 24)
-            .padding(.bottom, 20)
-
-            // Instructions
-            VStack(alignment: .leading, spacing: 16) {
-                InstructionRow(number: 1, text: "Click the + button in System Settings")
-                InstructionRow(number: 2, text: "Press ⌘⇧G and paste the path (already copied)")
-                InstructionRow(number: 3, text: "Select kanata and click Open")
-                InstructionRow(number: 4, text: "Toggle the switch to enable it")
-            }
-            .padding(.horizontal, 24)
-
-            // Path display
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Path to kanata:")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-
-                Text(kanataPath)
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundColor(.secondary)
-                    .lineLimit(2)
-                    .truncationMode(.middle)
-                    .padding(8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.secondary.opacity(0.1))
-                    .cornerRadius(6)
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 20)
-
-            Spacer()
-
-            // Buttons
-            HStack(spacing: 12) {
-                Button("Cancel") {
-                    onCancel()
-                }
-                .buttonStyle(.bordered)
-
-                Button("Open System Settings") {
-                    onOpenSettings()
-                }
-                .buttonStyle(.borderedProminent)
-            }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 24)
-        }
-        .frame(width: 400, height: 380)
-    }
-}
-
-private struct InstructionRow: View {
-    let number: Int
-    let text: String
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Text("\(number)")
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
-                .frame(width: 24, height: 24)
-                .background(Color.accentColor)
-                .clipShape(Circle())
-
-            Text(text)
-                .font(.body)
-                .foregroundColor(.primary)
-                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }

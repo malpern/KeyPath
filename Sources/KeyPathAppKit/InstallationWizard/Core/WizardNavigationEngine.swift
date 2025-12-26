@@ -173,8 +173,9 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
         if helperNeedsApproval { return .helper }
         if !helperInstalled { return .helper }
 
-        // Permissions
+        // Permissions (blocking only). Warnings/infos are advisory and should not force navigation.
         let hasInputMonitoring = issues.contains {
+            guard $0.severity == .critical || $0.severity == .error else { return false }
             if case let .permission(permissionType) = $0.identifier {
                 return permissionType == .keyPathInputMonitoring || permissionType == .kanataInputMonitoring
             }
@@ -183,6 +184,7 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
         if hasInputMonitoring { return .inputMonitoring }
 
         let hasAccessibility = issues.contains {
+            guard $0.severity == .critical || $0.severity == .error else { return false }
             if case let .permission(permissionType) = $0.identifier {
                 return permissionType == .keyPathAccessibility || permissionType == .kanataAccessibility
             }

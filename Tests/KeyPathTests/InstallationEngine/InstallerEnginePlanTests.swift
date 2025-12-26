@@ -13,8 +13,8 @@ final class InstallerEnginePlanTests: KeyPathAsyncTestCase {
         let ids = plan.recipes.map(\.id)
 
         XCTAssertFalse(ids.isEmpty, "Install plan should produce recipes for clean installs")
-        XCTAssertTrue(ids.contains("install-launch-daemon-services"), "Should install LaunchDaemon services")
-        XCTAssertTrue(ids.contains("install-bundled-kanata"), "Should install bundled Kanata binary")
+        XCTAssertTrue(ids.contains(InstallerRecipeID.installLaunchDaemonServices), "Should install LaunchDaemon services")
+        XCTAssertTrue(ids.contains(InstallerRecipeID.installBundledKanata), "Should install bundled Kanata binary")
     }
 
     func testRepairPlanTargetsUnhealthyServices() async {

@@ -13,9 +13,32 @@ struct WizardAccessibilityPage: View {
     let onDismiss: (() -> Void)?
     let kanataManager: RuntimeCoordinator
     @State private var permissionPollingTask: Task<Void, Never>?
-    @State private var showingKanataInstructions = false
 
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
+
+    private func statusIcon(for status: InstallationStatus) -> (name: String, color: Color) {
+        switch status {
+        case .completed:
+            return ("checkmark.circle.fill", .green)
+        case .warning:
+            return ("questionmark.circle.fill", .orange)
+        case .failed:
+            return ("xmark.circle.fill", .red)
+        case .notStarted, .inProgress:
+            return ("ellipsis.circle", .secondary)
+        }
+    }
+
+    private func kanataSubtitle(for status: InstallationStatus) -> String {
+        switch status {
+        case .completed:
+            return " - Keyboard monitoring engine"
+        case .warning:
+            return " - Permission not verified"
+        case .failed, .notStarted, .inProgress:
+            return " - Keyboard monitoring engine"
+        }
+    }
 
     // State interpreter for consistent status computation
     private let stateInterpreter = WizardStateInterpreter()
@@ -116,11 +139,9 @@ struct WizardAccessibilityPage: View {
                     // Component details for error state
                     VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
                         HStack(spacing: 12) {
-                            Image(
-                                systemName: keyPathAccessibilityStatus == .completed
-                                    ? "checkmark.circle.fill" : "xmark.circle.fill"
-                            )
-                            .foregroundColor(keyPathAccessibilityStatus == .completed ? .green : .red)
+                            let icon = statusIcon(for: keyPathAccessibilityStatus)
+                            Image(systemName: icon.name)
+                                .foregroundColor(icon.color)
                             HStack(spacing: 0) {
                                 Text("KeyPath.app")
                                     .font(.headline)
@@ -144,16 +165,14 @@ struct WizardAccessibilityPage: View {
                         .help(keyPathAccessibilityIssues.asTooltipText())
 
                         HStack(spacing: 12) {
-                            Image(
-                                systemName: kanataAccessibilityStatus == .completed
-                                    ? "checkmark.circle.fill" : "xmark.circle.fill"
-                            )
-                            .foregroundColor(kanataAccessibilityStatus == .completed ? .green : .red)
+                            let icon = statusIcon(for: kanataAccessibilityStatus)
+                            Image(systemName: icon.name)
+                                .foregroundColor(icon.color)
                             HStack(spacing: 0) {
                                 Text("kanata")
                                     .font(.headline)
                                     .fontWeight(.semibold)
-                                Text(" - Keyboard monitoring engine")
+                                Text(kanataSubtitle(for: kanataAccessibilityStatus))
                                     .font(.headline)
                                     .fontWeight(.regular)
                             }
@@ -161,8 +180,18 @@ struct WizardAccessibilityPage: View {
                             if kanataAccessibilityStatus != .completed {
                                 Button("Fix") {
                                     AppLogger.shared.log(
-                                        "🔘 [WizardAccessibilityPage] Fix clicked for kanata - showing instructions")
-                                    showingKanataInstructions = true
+                                        "🔘 [WizardAccessibilityPage] Fix clicked for kanata - opening System Settings and revealing kanata"
+                                    )
+                                    let path = WizardSystemPaths.kanataSystemInstallPath
+                                    if !FileManager.default.fileExists(atPath: path) {
+                                        AppLogger.shared.warn(
+                                            "⚠️ [WizardAccessibilityPage] Kanata system binary missing at \(path) - routing to Kanata Components"
+                                        )
+                                        navigationCoordinator.navigateToPage(.kanataComponents)
+                                        return
+                                    }
+                                    openAccessibilitySettings()
+                                    revealKanataInFinder()
                                 }
                                 .buttonStyle(WizardDesign.Component.SecondaryButton())
                                 .scaleEffect(0.8)
@@ -212,21 +241,6 @@ struct WizardAccessibilityPage: View {
         .onDisappear {
             permissionPollingTask?.cancel()
             permissionPollingTask = nil
-        }
-        .sheet(isPresented: $showingKanataInstructions) {
-            KanataAccessibilityInstructionsSheet(
-                onOpenSettings: {
-                    showingKanataInstructions = false
-                    openAccessibilitySettings()
-                    copyKanataPathToClipboard()
-                    PermissionGrantCoordinator.shared.setServiceBounceNeeded(
-                        reason: "Accessibility permission fix for kanata binary")
-                    openAccessibilityPermissionGrant()
-                },
-                onCancel: {
-                    showingKanataInstructions = false
-                }
-            )
         }
     }
 
@@ -354,7 +368,11 @@ struct WizardAccessibilityPage: View {
         // Fallback: Open System Settings > Privacy & Security > Accessibility
         if let url = URL(
             string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-            NSWorkspace.shared.open(url)
+            let ok = NSWorkspace.shared.open(url)
+            if !ok {
+                // Fallback: open System Settings app if deep-link fails
+                _ = NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app"))
+            }
         }
     }
 
@@ -375,7 +393,7 @@ struct WizardAccessibilityPage: View {
     }
 
     private func revealKanataInFinder() {
-        let path = WizardSystemPaths.kanataActiveBinary
+        let path = WizardSystemPaths.kanataSystemInstallPath
         let dir = (path as NSString).deletingLastPathComponent
         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
         AppLogger.shared.log("📂 [WizardAccessibilityPage] Revealed kanata in Finder: \(path)")
@@ -384,106 +402,11 @@ struct WizardAccessibilityPage: View {
     }
 
     private func copyKanataPathToClipboard() {
-        let path = WizardSystemPaths.kanataActiveBinary
+        let path = WizardSystemPaths.kanataSystemInstallPath
         let pb = NSPasteboard.general
         pb.clearContents()
         pb.setString(path, forType: .string)
         AppLogger.shared.log("📋 [WizardAccessibilityPage] Copied kanata path to clipboard: \(path)")
-    }
-}
-
-// MARK: - Kanata Accessibility Instructions Sheet
-
-struct KanataAccessibilityInstructionsSheet: View {
-    let onOpenSettings: () -> Void
-    let onCancel: () -> Void
-
-    private var kanataPath: String {
-        WizardSystemPaths.kanataActiveBinary
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            VStack(spacing: 12) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 48))
-                    .foregroundColor(.accentColor)
-
-                Text("Add kanata to Accessibility")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-            }
-            .padding(.top, 24)
-            .padding(.bottom, 20)
-
-            // Instructions
-            VStack(alignment: .leading, spacing: 16) {
-                AccessibilityInstructionRow(number: 1, text: "Click the + button in System Settings")
-                AccessibilityInstructionRow(number: 2, text: "Press ⌘⇧G and paste the path (already copied)")
-                AccessibilityInstructionRow(number: 3, text: "Select kanata and click Open")
-                AccessibilityInstructionRow(number: 4, text: "Toggle the switch to enable it")
-            }
-            .padding(.horizontal, 24)
-
-            // Path display
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Path to kanata:")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-
-                Text(kanataPath)
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundColor(.secondary)
-                    .lineLimit(2)
-                    .truncationMode(.middle)
-                    .padding(8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.secondary.opacity(0.1))
-                    .cornerRadius(6)
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 20)
-
-            Spacer()
-
-            // Buttons
-            HStack(spacing: 12) {
-                Button("Cancel") {
-                    onCancel()
-                }
-                .buttonStyle(.bordered)
-
-                Button("Open System Settings") {
-                    onOpenSettings()
-                }
-                .buttonStyle(.borderedProminent)
-            }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 24)
-        }
-        .frame(width: 400, height: 380)
-    }
-}
-
-private struct AccessibilityInstructionRow: View {
-    let number: Int
-    let text: String
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Text("\(number)")
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
-                .frame(width: 24, height: 24)
-                .background(Color.accentColor)
-                .clipShape(Circle())
-
-            Text(text)
-                .font(.body)
-                .foregroundColor(.primary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
     }
 }
 

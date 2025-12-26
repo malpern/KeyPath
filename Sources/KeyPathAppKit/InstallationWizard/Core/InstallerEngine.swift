@@ -366,7 +366,7 @@ public final class InstallerEngine {
 
     /// Execute installService recipe
     /// Includes pre-check for VHID Manager activation (per Karabiner documentation)
-    private func executeInstallService(_: ServiceRecipe, using broker: PrivilegeBroker) async throws {
+    private func executeInstallService(_ recipe: ServiceRecipe, using broker: PrivilegeBroker) async throws {
         // CRITICAL: Ensure VHID Manager is activated BEFORE installing daemon services
         // Per Karabiner documentation, manager activation must happen before daemon startup
         let vhidManager = VHIDDeviceManager()
@@ -384,6 +384,16 @@ public final class InstallerEngine {
             } else {
                 AppLogger.shared.log("✅ [InstallerEngine] Manager activated successfully")
             }
+        }
+
+        // Ensure canonical Kanata binary exists at /Library/KeyPath/bin/kanata before installing services.
+        // This prevents "service installed" while the daemon runs with a different path (bundle fallback),
+        // which would cause permission identity drift (AX/IM entries keyed by executable path).
+        if recipe.id == InstallerRecipeID.installLaunchDaemonServices,
+           KanataBinaryDetector.shared.needsInstallation() {
+            AppLogger.shared.log(
+                "🔧 [InstallerEngine] Kanata system binary missing - installing bundled kanata to system location")
+            try await broker.installBundledKanata()
         }
 
         // Install all LaunchDaemon services
@@ -420,47 +430,49 @@ public final class InstallerEngine {
         async throws {
         // Map recipe ID to component installation method
         switch recipe.id {
-        case "install-bundled-kanata":
+        case InstallerRecipeID.installBundledKanata:
             try await broker.installBundledKanata()
 
-        case "install-correct-vhid-driver":
+        case InstallerRecipeID.installCorrectVHIDDriver:
             try await broker.downloadAndInstallCorrectVHIDDriver()
 
-        case "install-log-rotation":
+        case InstallerRecipeID.installLogRotation:
             try await broker.installLogRotation()
 
-        case "fix-driver-version-mismatch":
+        case InstallerRecipeID.fixDriverVersionMismatch:
             try await broker.downloadAndInstallCorrectVHIDDriver()
 
-        case "install-missing-components":
+        case InstallerRecipeID.installMissingComponents:
             // Install all missing components (Kanata + drivers)
             try await broker.installBundledKanata()
             try await broker.downloadAndInstallCorrectVHIDDriver()
 
-        case "create-config-directories":
+        case InstallerRecipeID.createConfigDirectories:
             // No privileged work needed; treated as success (idempotent)
             return
 
-        case "activate-vhid-manager":
+        case InstallerRecipeID.activateVHIDManager:
             try await broker.activateVirtualHIDManager()
 
-        case "repair-vhid-daemon-services":
+        case InstallerRecipeID.repairVHIDDaemonServices:
             try await broker.repairVHIDDaemonServices()
 
-        case "enable-tcp-server", "setup-tcp-authentication", "regenerate-comm-service-config":
+        case InstallerRecipeID.enableTCPServer,
+             InstallerRecipeID.setupTCPAuthentication,
+             InstallerRecipeID.regenerateCommServiceConfig:
             try await broker.regenerateServiceConfiguration()
 
-        case "restart-comm-server":
+        case InstallerRecipeID.restartCommServer:
             try await broker.restartUnhealthyServices()
 
-        case "adopt-orphaned-process":
+        case InstallerRecipeID.adoptOrphanedProcess:
             try await broker.installLaunchDaemonServicesWithoutLoading()
 
-        case "replace-orphaned-process":
+        case InstallerRecipeID.replaceOrphanedProcess:
             try await broker.killAllKanataProcesses()
             try await broker.installLaunchDaemonServicesWithoutLoading()
 
-        case "replace-kanata-with-bundled":
+        case InstallerRecipeID.replaceKanataWithBundled:
             try await broker.installBundledKanata()
 
         default:
@@ -483,11 +495,11 @@ public final class InstallerEngine {
         async throws {
         // Check requirement recipes (e.g., terminate conflicting processes)
         switch recipe.id {
-        case "terminate-conflicting-processes":
+        case InstallerRecipeID.terminateConflictingProcesses:
             // Kill all Kanata processes (conflict resolution)
             try await broker.killAllKanataProcesses()
 
-        case "synchronize-config-paths":
+        case InstallerRecipeID.synchronizeConfigPaths:
             // No privileged action required; treat as satisfied
             return
 

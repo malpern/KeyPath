@@ -375,9 +375,9 @@ class SystemValidator {
     private func checkComponents() async -> ComponentStatus {
         AppLogger.shared.log("🔍 [SystemValidator] Checking components")
 
-        // Check Kanata binary installation
-        // When SMAppService is active, bundled Kanata is sufficient (via BundleProgram).
-        // When launchctl is active, system installation is required (for TCC permissions).
+        // Check Kanata binary installation (canonical identity).
+        // We require `/Library/KeyPath/bin/kanata` so macOS permissions (TCC) remain stable across upgrades
+        // and all mechanisms (daemon, wizard instructions, diagnostics) agree on a single executable path.
         let kanataBinaryDetector = KanataBinaryDetector.shared
         let kanataBinaryInstalled = kanataBinaryDetector.isInstalled()
 

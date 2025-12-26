@@ -13,6 +13,13 @@ enum WizardRouter {
         helperInstalled: Bool,
         helperNeedsApproval: Bool
     ) -> WizardPage {
+        let hasBlockingPermissionIssue: (IssueIdentifier) -> Bool = { identifier in
+            issues.contains { issue in
+                guard issue.severity == .error || issue.severity == .critical else { return false }
+                return issue.identifier == identifier
+            }
+        }
+
         // 1. Conflicts (highest priority)
         if issues.contains(where: { $0.category == .conflicts }) {
             return .conflicts
@@ -22,30 +29,22 @@ enum WizardRouter {
         if helperNeedsApproval { return .helper }
         if !helperInstalled { return .helper }
 
-        // 3. Permissions
-        let hasInputMonitoringIssues = issues.contains {
-            if case let .permission(permissionType) = $0.identifier {
-                return permissionType == .keyPathInputMonitoring || permissionType == .kanataInputMonitoring
-            }
-            return false
+        // 3. Permissions (blocking only).
+        //
+        // We intentionally ignore warning/info permission issues here:
+        // - Kanata `.unknown` is "not verified" (often no FDA), and should not force the user
+        //   into permission pages.
+        // - KeyPath `.unknown` during startup mode is "checking" and should not route.
+        //
+        // Users can still navigate to the permission pages manually from Summary/status rows.
+        if hasBlockingPermissionIssue(.permission(.keyPathInputMonitoring))
+            || hasBlockingPermissionIssue(.permission(.kanataInputMonitoring)) {
+            return .inputMonitoring
         }
-        if hasInputMonitoringIssues { return .inputMonitoring }
-
-        let keyPathAXMissing = issues.contains {
-            if case let .permission(permissionType) = $0.identifier {
-                return permissionType == .keyPathAccessibility
-            }
-            return false
+        if hasBlockingPermissionIssue(.permission(.keyPathAccessibility))
+            || hasBlockingPermissionIssue(.permission(.kanataAccessibility)) {
+            return .accessibility
         }
-        if keyPathAXMissing { return .accessibility }
-
-        let kanataPermMissing = issues.contains {
-            if case let .permission(permissionType) = $0.identifier {
-                return permissionType == .kanataAccessibility || permissionType == .kanataInputMonitoring
-            }
-            return false
-        }
-        if kanataPermMissing { return .accessibility }
 
         // 4. Communication configuration
         let hasCommunicationIssues = issues.contains {

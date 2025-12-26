@@ -508,4 +508,23 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
             XCTAssertNotNil(recipe, "Action \(action) should produce a ServiceRecipe")
         }
     }
+
+    func testRecipeIDsAreCentralizedForInstallLaunchDaemonsAndKanata() async {
+        let context = await engine.inspectSystem()
+
+        XCTAssertEqual(
+            engine.recipeIDForAction(.installLaunchDaemonServices),
+            InstallerRecipeID.installLaunchDaemonServices
+        )
+        XCTAssertEqual(
+            engine.recipeIDForAction(.installBundledKanata),
+            InstallerRecipeID.installBundledKanata
+        )
+
+        let launchRecipe = engine.recipeForAction(.installLaunchDaemonServices, context: context)
+        XCTAssertEqual(launchRecipe?.id, InstallerRecipeID.installLaunchDaemonServices)
+
+        let kanataRecipe = engine.recipeForAction(.installBundledKanata, context: context)
+        XCTAssertEqual(kanataRecipe?.id, InstallerRecipeID.installBundledKanata)
+    }
 }
