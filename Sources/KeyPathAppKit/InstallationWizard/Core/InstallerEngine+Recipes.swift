@@ -57,35 +57,35 @@ extension InstallerEngine {
 
         case .installCorrectVHIDDriver:
             ServiceRecipe(
-                id: "install-correct-vhid-driver",
+                id: InstallerRecipeID.installCorrectVHIDDriver,
                 type: .installComponent,
                 serviceID: nil
             )
 
         case .installLogRotation:
             ServiceRecipe(
-                id: "install-log-rotation",
+                id: InstallerRecipeID.installLogRotation,
                 type: .installComponent,
                 serviceID: nil
             )
 
         case .installPrivilegedHelper:
             ServiceRecipe(
-                id: "install-privileged-helper",
+                id: InstallerRecipeID.installPrivilegedHelper,
                 type: .installService,
                 serviceID: KeyPathConstants.Bundle.helperID
             )
 
         case .reinstallPrivilegedHelper:
             ServiceRecipe(
-                id: "reinstall-privileged-helper",
+                id: InstallerRecipeID.reinstallPrivilegedHelper,
                 type: .installService,
                 serviceID: KeyPathConstants.Bundle.helperID
             )
 
         case .startKarabinerDaemon:
             ServiceRecipe(
-                id: "start-karabiner-daemon",
+                id: InstallerRecipeID.startKarabinerDaemon,
                 type: .restartService,
                 serviceID: KeyPathConstants.Bundle.daemonID,
                 launchctlActions: [.kickstart(serviceID: KeyPathConstants.Bundle.daemonID)],
@@ -94,7 +94,7 @@ extension InstallerEngine {
 
         case .restartUnhealthyServices:
             ServiceRecipe(
-                id: "restart-unhealthy-services",
+                id: InstallerRecipeID.restartUnhealthyServices,
                 type: .restartService,
                 serviceID: nil
             )
@@ -102,105 +102,105 @@ extension InstallerEngine {
         case .restartVirtualHIDDaemon:
             // Same recipe as restartUnhealthyServices (verified restart path)
             ServiceRecipe(
-                id: "restart-unhealthy-services",
+                id: InstallerRecipeID.restartUnhealthyServices,
                 type: .restartService,
                 serviceID: nil
             )
 
         case .terminateConflictingProcesses:
             ServiceRecipe(
-                id: "terminate-conflicting-processes",
+                id: InstallerRecipeID.terminateConflictingProcesses,
                 type: .checkRequirement,
                 serviceID: nil
             )
 
         case .fixDriverVersionMismatch:
             ServiceRecipe(
-                id: "fix-driver-version-mismatch",
+                id: InstallerRecipeID.fixDriverVersionMismatch,
                 type: .installComponent,
                 serviceID: nil
             )
 
         case .installMissingComponents:
             ServiceRecipe(
-                id: "install-missing-components",
+                id: InstallerRecipeID.installMissingComponents,
                 type: .installComponent,
                 serviceID: nil
             )
 
         case .createConfigDirectories:
             ServiceRecipe(
-                id: "create-config-directories",
+                id: InstallerRecipeID.createConfigDirectories,
                 type: .installComponent,
                 serviceID: nil
             )
 
         case .activateVHIDDeviceManager:
             ServiceRecipe(
-                id: "activate-vhid-manager",
+                id: InstallerRecipeID.activateVHIDManager,
                 type: .installComponent,
                 serviceID: nil
             )
 
         case .repairVHIDDaemonServices:
             ServiceRecipe(
-                id: "repair-vhid-daemon-services",
+                id: InstallerRecipeID.repairVHIDDaemonServices,
                 type: .installComponent,
                 serviceID: nil
             )
 
         case .enableTCPServer:
             ServiceRecipe(
-                id: "enable-tcp-server",
+                id: InstallerRecipeID.enableTCPServer,
                 type: .installComponent,
                 serviceID: nil
             )
 
         case .setupTCPAuthentication:
             ServiceRecipe(
-                id: "setup-tcp-authentication",
+                id: InstallerRecipeID.setupTCPAuthentication,
                 type: .installComponent,
                 serviceID: nil
             )
 
         case .regenerateCommServiceConfiguration:
             ServiceRecipe(
-                id: "regenerate-comm-service-config",
+                id: InstallerRecipeID.regenerateCommServiceConfig,
                 type: .installComponent,
                 serviceID: nil
             )
 
         case .restartCommServer:
             ServiceRecipe(
-                id: "restart-comm-server",
+                id: InstallerRecipeID.restartCommServer,
                 type: .installComponent,
                 serviceID: nil
             )
 
         case .adoptOrphanedProcess:
             ServiceRecipe(
-                id: "adopt-orphaned-process",
+                id: InstallerRecipeID.adoptOrphanedProcess,
                 type: .installComponent,
                 serviceID: nil
             )
 
         case .replaceOrphanedProcess:
             ServiceRecipe(
-                id: "replace-orphaned-process",
+                id: InstallerRecipeID.replaceOrphanedProcess,
                 type: .installComponent,
                 serviceID: nil
             )
 
         case .replaceKanataWithBundled:
             ServiceRecipe(
-                id: "replace-kanata-with-bundled",
+                id: InstallerRecipeID.replaceKanataWithBundled,
                 type: .installComponent,
                 serviceID: nil
             )
 
         case .synchronizeConfigPaths:
             ServiceRecipe(
-                id: "synchronize-config-paths",
+                id: InstallerRecipeID.synchronizeConfigPaths,
                 type: .checkRequirement,
                 serviceID: nil
             )
@@ -224,48 +224,48 @@ extension InstallerEngine {
         case .installBundledKanata:
             InstallerRecipeID.installBundledKanata
         case .installCorrectVHIDDriver:
-            "install-correct-vhid-driver"
+            InstallerRecipeID.installCorrectVHIDDriver
         case .installLogRotation:
-            "install-log-rotation"
+            InstallerRecipeID.installLogRotation
         case .installPrivilegedHelper:
-            "install-privileged-helper"
+            InstallerRecipeID.installPrivilegedHelper
         case .reinstallPrivilegedHelper:
-            "reinstall-privileged-helper"
+            InstallerRecipeID.reinstallPrivilegedHelper
         case .startKarabinerDaemon:
-            "start-karabiner-daemon"
+            InstallerRecipeID.startKarabinerDaemon
         case .restartUnhealthyServices:
-            "restart-unhealthy-services"
+            InstallerRecipeID.restartUnhealthyServices
         case .terminateConflictingProcesses:
-            "terminate-conflicting-processes"
+            InstallerRecipeID.terminateConflictingProcesses
         case .fixDriverVersionMismatch:
-            "fix-driver-version-mismatch"
+            InstallerRecipeID.fixDriverVersionMismatch
         case .installMissingComponents:
-            "install-missing-components"
+            InstallerRecipeID.installMissingComponents
         case .restartVirtualHIDDaemon:
             // restartVirtualHIDDaemon maps to restartUnhealthyServices recipe
-            "restart-unhealthy-services"
+            InstallerRecipeID.restartUnhealthyServices
         case .createConfigDirectories:
-            "create-config-directories"
+            InstallerRecipeID.createConfigDirectories
         case .activateVHIDDeviceManager:
-            "activate-vhid-manager"
+            InstallerRecipeID.activateVHIDManager
         case .repairVHIDDaemonServices:
-            "repair-vhid-daemon-services"
+            InstallerRecipeID.repairVHIDDaemonServices
         case .enableTCPServer:
-            "enable-tcp-server"
+            InstallerRecipeID.enableTCPServer
         case .setupTCPAuthentication:
-            "setup-tcp-authentication"
+            InstallerRecipeID.setupTCPAuthentication
         case .regenerateCommServiceConfiguration:
-            "regenerate-comm-service-config"
+            InstallerRecipeID.regenerateCommServiceConfig
         case .restartCommServer:
-            "restart-comm-server"
+            InstallerRecipeID.restartCommServer
         case .adoptOrphanedProcess:
-            "adopt-orphaned-process"
+            InstallerRecipeID.adoptOrphanedProcess
         case .replaceOrphanedProcess:
-            "replace-orphaned-process"
+            InstallerRecipeID.replaceOrphanedProcess
         case .replaceKanataWithBundled:
-            "replace-kanata-with-bundled"
+            InstallerRecipeID.replaceKanataWithBundled
         case .synchronizeConfigPaths:
-            "synchronize-config-paths"
+            InstallerRecipeID.synchronizeConfigPaths
         }
     }
 }

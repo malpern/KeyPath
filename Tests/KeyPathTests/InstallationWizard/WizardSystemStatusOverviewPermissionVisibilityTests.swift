@@ -28,7 +28,7 @@ final class WizardSystemStatusOverviewPermissionVisibilityTests: XCTestCase {
             visibleIssueCount: .constant(visible)
         )
 
-        let items = overview.statusItemsForTesting()
+        let items = overview.statusItems
         let input = items.first(where: { $0.id == "input-monitoring" })
         XCTAssertNotNil(input, "Expected an Input Monitoring status row")
         XCTAssertEqual(input?.status, .warning, "Not verified permission should display as warning")

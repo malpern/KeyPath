@@ -219,7 +219,8 @@ struct WizardSystemStatusOverview: View {
 
     // MARK: - Status Items Creation
 
-    private var statusItems: [StatusItemModel] {
+    // Internal for tests: accessed via @testable without adding a dedicated test-only accessor.
+    var statusItems: [StatusItemModel] {
         var items: [StatusItemModel] = []
 
         // 1. Privileged Helper (required for system operations)
@@ -560,17 +561,14 @@ struct WizardSystemStatusOverview: View {
     // MARK: - Status Helpers
 
     private func checkFullDiskAccess() -> Bool {
-        if let cached = Self.cache.fullDiskAccessIfFresh() { return cached }
-
         // FDA detection: best-effort probe via shared checker (cached + lightweight).
+        // Avoid double-caching: FullDiskAccessChecker already caches.
         let granted = FullDiskAccessChecker.shared.hasFullDiskAccess()
 
         AppLogger.shared.log(
             granted
                 ? "🔐 [WizardSystemStatusOverview] FDA granted (cached)"
                 : "🔐 [WizardSystemStatusOverview] FDA not granted (cached)")
-
-        Self.cache.updateFullDiskAccess(granted)
         return granted
     }
 
@@ -690,17 +688,6 @@ struct WizardSystemStatusOverview: View {
         IssueSeverityInstallationStatusMapper.installationStatus(for: issues)
     }
 }
-
-#if DEBUG
-// MARK: - Test Accessors
-extension WizardSystemStatusOverview {
-    /// Expose computed status items for unit tests (no UI rendering required).
-    /// Keeps production API clean while allowing regression coverage for status visibility.
-    func statusItemsForTesting() -> [WizardStatusItemModel] {
-        statusItems
-    }
-}
-#endif
 
 // MARK: - Hoverable Row Wrapper
 
