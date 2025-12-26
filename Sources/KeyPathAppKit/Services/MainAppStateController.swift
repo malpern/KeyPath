@@ -417,6 +417,8 @@ class MainAppStateController: ObservableObject {
 
             if blockingIssues.isEmpty, tcpConfigured {
                 validationState = .success
+                // Clear stale diagnostics when system is healthy
+                kanataManager?.clearDiagnostics()
                 AppLogger.shared.info(
                     "✅ [MainAppStateController] Validation SUCCESS - adapter state is .active (kanata running), no blocking issues, TCP configured"
                 )
@@ -446,6 +448,8 @@ class MainAppStateController: ObservableObject {
         case .ready:
             // Everything ready but not running
             validationState = .success
+            // Clear stale diagnostics when system is healthy
+            kanataManager?.clearDiagnostics()
             AppLogger.shared.info(
                 "✅ [MainAppStateController] Validation SUCCESS - adapter state is .ready")
 
@@ -453,6 +457,8 @@ class MainAppStateController: ObservableObject {
             // Service not running but could be starting
             if blockingIssues.isEmpty {
                 validationState = .success
+                // Clear stale diagnostics when system is healthy
+                kanataManager?.clearDiagnostics()
                 AppLogger.shared.info("✅ [MainAppStateController] Validation SUCCESS - no blocking issues")
             } else {
                 validationState = .failed(

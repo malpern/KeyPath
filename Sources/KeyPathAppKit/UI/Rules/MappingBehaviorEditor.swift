@@ -47,6 +47,8 @@ struct MappingBehaviorEditor: View {
                 }
             }
             .pickerStyle(.segmented)
+            .accessibilityIdentifier("mapping-behavior-mode-picker")
+            .accessibilityLabel("Mapping mode")
             .onChange(of: mode) { _, newMode in
                 if newMode == .simple {
                     // Clear behavior when switching to simple
@@ -99,6 +101,8 @@ struct MappingBehaviorEditor: View {
                 }
             }
             .pickerStyle(.segmented)
+            .accessibilityIdentifier("mapping-behavior-type-picker")
+            .accessibilityLabel("Behavior type")
             .onChange(of: behaviorType) { _, _ in
                 syncBehaviorFromState()
             }
@@ -190,6 +194,8 @@ struct MappingBehaviorEditor: View {
                         }
                     }
                     .onChange(of: activateHoldOnOtherKey) { _, _ in syncBehaviorFromState() }
+                    .accessibilityIdentifier("mapping-behavior-activate-hold-toggle")
+                    .accessibilityLabel("Activate hold on other key")
 
                     Toggle(isOn: $quickTap) {
                         VStack(alignment: .leading, spacing: 2) {
@@ -199,6 +205,8 @@ struct MappingBehaviorEditor: View {
                                 .foregroundColor(.secondary)
                         }
                     }
+                    .accessibilityIdentifier("mapping-behavior-quick-tap-toggle")
+                    .accessibilityLabel("Quick tap")
                     .onChange(of: quickTap) { _, _ in syncBehaviorFromState() }
                 }
                 .padding(.vertical, 4)

@@ -131,15 +131,21 @@ struct ActionButtonRow: View {
             baseButton
                 .buttonStyle(.borderedProminent)
                 .controlSize(.regular)
+                .accessibilityIdentifier("settings-action-button-\(button.title.lowercased().replacingOccurrences(of: " ", with: "-"))")
+                .accessibilityLabel(button.title)
         case .secondary:
             baseButton
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
+                .accessibilityIdentifier("settings-action-button-\(button.title.lowercased().replacingOccurrences(of: " ", with: "-"))")
+                .accessibilityLabel(button.title)
         case .destructive:
             baseButton
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
                 .tint(.red)
+                .accessibilityIdentifier("settings-action-button-\(button.title.lowercased().replacingOccurrences(of: " ", with: "-"))")
+                .accessibilityLabel(button.title)
         }
     }
 }
@@ -213,6 +219,8 @@ struct SimpleListItem: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("settings-info-row-button-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
+        .accessibilityLabel(title)
     }
 }
 

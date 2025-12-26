@@ -224,6 +224,8 @@ struct SettingsSystemStatusRow: View {
             }
             .buttonStyle(.plain)
             .disabled(onTap == nil)
+            .accessibilityIdentifier("settings-status-row-button-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
+            .accessibilityLabel(title)
 
             if let message, status != .completed {
                 Text(message)

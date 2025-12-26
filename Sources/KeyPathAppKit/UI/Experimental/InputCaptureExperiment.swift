@@ -106,6 +106,8 @@ struct InputCaptureExperimentView: View {
             .foregroundColor(.secondary)
             .opacity(viewModel.capturedInputs.isEmpty ? 0.5 : 1)
             .disabled(viewModel.capturedInputs.isEmpty)
+            .accessibilityIdentifier("input-capture-clear-button")
+            .accessibilityLabel("Clear all captured inputs")
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
@@ -263,6 +265,8 @@ struct InputCaptureExperimentView: View {
                 NSApp.keyWindow?.close()
             }
             .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("input-capture-done-button")
+            .accessibilityLabel("Done")
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
@@ -341,6 +345,8 @@ struct InputChipView: View {
                 .buttonStyle(.plain)
                 .offset(x: 6, y: -6)
                 .transition(.scale.combined(with: .opacity))
+                .accessibilityIdentifier("input-capture-delete-button")
+                .accessibilityLabel("Delete")
             }
         }
     }

@@ -26,6 +26,8 @@ struct SetupBanner: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .focusable(false) // Prevent keyboard activation
+                    .accessibilityIdentifier("setup-banner-complete-button")
+                    .accessibilityLabel("Complete Setup")
 
                     Button {
                         isDismissed = true
@@ -34,6 +36,8 @@ struct SetupBanner: View {
                             .foregroundColor(.secondary)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("setup-banner-dismiss-button")
+                    .accessibilityLabel("Dismiss")
                 }
                 .padding()
                 .background(Color.orange.opacity(0.1))

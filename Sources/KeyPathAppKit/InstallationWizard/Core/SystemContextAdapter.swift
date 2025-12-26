@@ -123,12 +123,13 @@ struct SystemContextAdapter {
         var issues: [WizardIssue] = []
 
         // Permission issues (use isMissing to catch .unknown state)
+        // NOTE: Category must be .permissions for wizard pages to filter correctly
         if context.permissions.keyPath.inputMonitoring.isMissing {
             issues.append(
                 WizardIssue(
                     identifier: .permission(.keyPathInputMonitoring),
                     severity: .error,
-                    category: .installation,
+                    category: .permissions,
                     title: "Input Monitoring Permission Required",
                     description: "KeyPath needs Input Monitoring permission to function",
                     autoFixAction: nil,
@@ -140,7 +141,7 @@ struct SystemContextAdapter {
                 WizardIssue(
                     identifier: .permission(.keyPathAccessibility),
                     severity: .error,
-                    category: .installation,
+                    category: .permissions,
                     title: "Accessibility Permission Required",
                     description: "KeyPath needs Accessibility permission to function",
                     autoFixAction: nil,
@@ -152,7 +153,7 @@ struct SystemContextAdapter {
                 WizardIssue(
                     identifier: .permission(.kanataInputMonitoring),
                     severity: .error,
-                    category: .installation,
+                    category: .permissions,
                     title: "Kanata Input Monitoring Permission Required",
                     description: "Kanata needs Input Monitoring permission",
                     autoFixAction: nil,
@@ -164,7 +165,7 @@ struct SystemContextAdapter {
                 WizardIssue(
                     identifier: .permission(.kanataAccessibility),
                     severity: .error,
-                    category: .installation,
+                    category: .permissions,
                     title: "Kanata Accessibility Permission Required",
                     description: "Kanata needs Accessibility permission",
                     autoFixAction: nil,

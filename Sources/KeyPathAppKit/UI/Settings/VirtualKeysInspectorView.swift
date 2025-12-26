@@ -50,6 +50,8 @@ struct VirtualKeysInspectorView: View {
                 }
                 .buttonStyle(.borderless)
                 .help("Refresh")
+                .accessibilityIdentifier("virtual-keys-refresh-button")
+                .accessibilityLabel("Refresh virtual keys")
             }
 
             Text("Virtual keys defined in your config can be triggered via deep links")
@@ -170,6 +172,8 @@ struct VirtualKeysInspectorView: View {
             }
             .buttonStyle(.borderless)
             .help("Copy deep link URL")
+            .accessibilityIdentifier("virtual-keys-copy-button-\(key.name)")
+            .accessibilityLabel("Copy deep link for \(key.name)")
 
             // Test button
             Button(action: { Task { await testKey(key) } }) {
@@ -184,6 +188,8 @@ struct VirtualKeysInspectorView: View {
             .buttonStyle(.borderless)
             .disabled(testingKey != nil)
             .help("Test this virtual key")
+            .accessibilityIdentifier("virtual-keys-test-button-\(key.name)")
+            .accessibilityLabel("Test virtual key \(key.name)")
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 10)

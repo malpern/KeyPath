@@ -226,13 +226,19 @@ private struct CustomRuleRow: View {
 
                 Menu {
                     Button("Edit") { onEdit() }
+                        .accessibilityIdentifier("custom-rules-menu-edit-button-\(rule.id)")
+                        .accessibilityLabel("Edit rule")
                     Button("Delete", role: .destructive) { onDelete() }
+                        .accessibilityIdentifier("custom-rules-menu-delete-button-\(rule.id)")
+                        .accessibilityLabel("Delete rule")
                 } label: {
                     Image(systemName: "ellipsis.circle")
                         .imageScale(.large)
                         .padding(.leading, 4)
                 }
                 .menuStyle(.borderlessButton)
+                .accessibilityIdentifier("custom-rules-menu-\(rule.id)")
+                .accessibilityLabel("Rule options menu")
             }
         }
         .padding(14)

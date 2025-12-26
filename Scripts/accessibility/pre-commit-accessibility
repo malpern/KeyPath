@@ -1,0 +1,93 @@
+#!/bin/bash
+# Pre-commit hook for accessibility modifier validation
+# Install: cp Scripts/accessibility/pre-commit-accessibility .git/hooks/pre-commit
+#
+# Or add to existing pre-commit:
+#   ./Scripts/accessibility/pre-commit-accessibility || exit 1
+
+set -euo pipefail
+
+SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Handle both direct execution and .git/hooks location
+if [[ "$SCRIPTS_DIR" == *".git/hooks"* ]]; then
+    REPO_ROOT="$(cd "$SCRIPTS_DIR/../.." && pwd)"
+    SCRIPTS_DIR="$REPO_ROOT/Scripts/accessibility"
+fi
+
+# Colors
+RED='\033[0;31m'
+YELLOW='\033[0;33m'
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+echo -e "${CYAN}🔍 Accessibility Pre-commit Check${NC}"
+echo ""
+
+# Get list of staged Swift files
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.swift$' || true)
+
+if [[ -z "$STAGED_FILES" ]]; then
+    echo -e "${GREEN}✅ No Swift files staged, skipping accessibility checks${NC}"
+    exit 0
+fi
+
+echo "Checking $(echo "$STAGED_FILES" | wc -l | tr -d ' ') staged Swift file(s)..."
+echo ""
+
+ERRORS=0
+WARNINGS=0
+
+# Check each staged file
+for file in $STAGED_FILES; do
+    if [[ ! -f "$file" ]]; then
+        continue
+    fi
+
+    # Check 1: Accessibility modifiers inside closures
+    if grep -n '\}\s*\.\(accessibilityIdentifier\|accessibilityLabel\)(' "$file" 2>/dev/null | grep -v '^\s*//' > /dev/null; then
+        echo -e "${RED}ERROR${NC} $file"
+        echo "       Accessibility modifier appears to be inside a closure"
+        grep -n '\}\s*\.\(accessibilityIdentifier\|accessibilityLabel\)(' "$file" 2>/dev/null | head -3
+        echo ""
+        ((ERRORS++)) || true
+    fi
+
+    # Check 2: Interactive elements should have identifiers
+    if grep -q 'Button\s*{\|Button\s*(' "$file" 2>/dev/null; then
+        if ! grep -q '\.accessibilityIdentifier' "$file" 2>/dev/null; then
+            # Only warn for UI files
+            if echo "$file" | grep -q 'View\|Screen\|Controller'; then
+                echo -e "${YELLOW}WARNING${NC} $file"
+                echo "        Has Button(s) but no accessibilityIdentifier"
+                echo ""
+                ((WARNINGS++)) || true
+            fi
+        fi
+    fi
+
+    # Check 3: Run modifier order check if script exists
+    if [[ -f "$SCRIPTS_DIR/fix-modifier-order.swift" ]]; then
+        if ! swift "$SCRIPTS_DIR/fix-modifier-order.swift" "$file" --dry-run 2>/dev/null; then
+            ((WARNINGS++)) || true
+        fi
+    fi
+done
+
+# Summary
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+if [[ $ERRORS -eq 0 && $WARNINGS -eq 0 ]]; then
+    echo -e "${GREEN}✅ All accessibility checks passed!${NC}"
+    exit 0
+elif [[ $ERRORS -eq 0 ]]; then
+    echo -e "${YELLOW}⚠️  $WARNINGS warning(s) - commit allowed${NC}"
+    echo "   Run: ./Scripts/accessibility/lint-accessibility.sh for details"
+    exit 0
+else
+    echo -e "${RED}❌ $ERRORS error(s) found - commit blocked${NC}"
+    echo ""
+    echo "Fix the errors above, then try again."
+    echo "To bypass (not recommended): git commit --no-verify"
+    exit 1
+fi

@@ -28,6 +28,8 @@ struct SimpleLogViewer: View {
                 }
                 .buttonStyle(.plain)
                 .help("Click to open folder in Finder")
+                .accessibilityIdentifier("log-viewer-open-folder-button")
+                .accessibilityLabel("Open log folder in Finder")
 
                 Button(action: refreshLog) {
                     Label("Refresh", systemImage: "arrow.clockwise")
@@ -35,12 +37,16 @@ struct SimpleLogViewer: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .disabled(isLoading)
+                .accessibilityIdentifier("log-viewer-refresh-button")
+                .accessibilityLabel("Refresh log")
 
                 Button(action: openInEditor) {
                     Label("Open Full Log", systemImage: "arrow.up.forward.app")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .accessibilityIdentifier("log-viewer-open-editor-button")
+                .accessibilityLabel("Open full log in editor")
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)

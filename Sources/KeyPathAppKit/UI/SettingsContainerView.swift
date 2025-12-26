@@ -227,6 +227,8 @@ private struct RulesDisabledView: View {
                 Label("Go to Status", systemImage: "arrow.right.circle.fill")
             }
             .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("settings-go-to-status-button")
+            .accessibilityLabel("Go to Status")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -606,6 +608,8 @@ private struct AdvancedDuplicateCallout: View {
             .buttonStyle(.bordered)
             .controlSize(.small)
             .disabled(isBusy)
+            .accessibilityIdentifier("settings-remove-extras-button")
+            .accessibilityLabel("Remove extra copies")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -623,6 +627,8 @@ struct VerboseLoggingToggle: View {
         VStack(alignment: .leading, spacing: 8) {
             Toggle("Verbose Kanata Logging", isOn: $verboseLogging)
                 .toggleStyle(.switch)
+                .accessibilityIdentifier("settings-verbose-logging-toggle")
+                .accessibilityLabel("Verbose Kanata Logging")
                 .onChange(of: verboseLogging) { _, newValue in
                     Task { @MainActor in
                         PreferencesService.shared.verboseKanataLogging = newValue

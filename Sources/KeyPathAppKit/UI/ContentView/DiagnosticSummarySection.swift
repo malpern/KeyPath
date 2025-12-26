@@ -1,6 +1,33 @@
 import KeyPathCore
 import SwiftUI
 
+/// Helper view for individual diagnostic issue rows
+private struct DiagnosticIssueRow: View {
+    let issue: KanataDiagnostic
+    @ObservedObject var kanataManager: KanataViewModel
+
+    var body: some View {
+        HStack {
+            Text(issue.severity.emoji)
+            Text(issue.title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Spacer()
+            if issue.canAutoFix {
+                Button("Fix") {
+                    Task {
+                        await kanataManager.autoFixDiagnostic(issue)
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.mini)
+                .accessibilityIdentifier("diagnostic-fix-button-\(issue.title.lowercased().replacingOccurrences(of: " ", with: "-"))")
+                .accessibilityLabel("Fix \(issue.title)")
+            }
+        }
+    }
+}
+
 struct DiagnosticSummarySection: View {
     let criticalIssues: [KanataDiagnostic]
     @ObservedObject var kanataManager: KanataViewModel // Phase 4: MVVM
@@ -31,25 +58,10 @@ struct DiagnosticSummarySection: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(criticalIssues.prefix(3).indices, id: \.self) { index in
-                    let issue = criticalIssues[index]
-                    HStack {
-                        Text(issue.severity.emoji)
-                        Text(issue.title)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        if issue.canAutoFix {
-                            Button("Fix") {
-                                Task {
-                                    await kanataManager.autoFixDiagnostic(issue)
-                                }
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.mini)
-                            .accessibilityIdentifier("diagnostic-fix-button-\(issue.id)")
-                            .accessibilityLabel("Fix \(issue.title)")
-                        }
-                    }
+                    DiagnosticIssueRow(
+                        issue: criticalIssues[index],
+                        kanataManager: kanataManager
+                    )
                 }
 
                 if criticalIssues.count > 3 {

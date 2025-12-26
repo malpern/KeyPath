@@ -5,6 +5,22 @@ import SwiftUI
     import AppKit
 #endif
 
+/// Helper view for home row key button - extracted to reduce view body complexity
+private struct HomeRowKeyButton: View {
+    let key: String
+    let modSymbol: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HomeRowKeyChipSmall(letter: key.uppercased(), symbol: modSymbol)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("rules-summary-home-row-key-button-\(key)")
+        .accessibilityLabel("Customize \(key.uppercased()) key")
+    }
+}
+
 /// State for home row mods editing modal
 struct HomeRowModsEditState: Identifiable {
     let id = UUID()
@@ -572,30 +588,76 @@ private struct ExpandableCollectionRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Scroll anchor for auto-scroll when expanded
-            if let id = scrollID {
-                Color.clear
-                    .frame(height: 0)
-                    .id(id)
-            }
+        mainContent
+    }
 
-            // Header Row (clickable for expand/collapse)
-            Button {
+    @ViewBuilder
+    private var mainContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            scrollAnchorView
+            headerButtonView
+            expandedContentView
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(isHovered ? Color(NSColor.controlBackgroundColor).opacity(0.5) : Color(NSColor.windowBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.white.opacity(isHovered ? 0.15 : 0), lineWidth: 1)
+        )
+        .onHover { hovering in
+            isHovered = hovering
+            if hovering {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
+        .onAppear {
+            if !hasInitialized {
+                isExpanded = defaultExpanded
+                hasInitialized = true
+            }
+        }
+        .onChange(of: defaultExpanded) { _, newValue in
+            if newValue, !isExpanded {
                 withAnimation(.easeInOut(duration: 0.2)) {
-                    isExpanded.toggle()
-                    // Auto-scroll to show expanded content
-                    if isExpanded, let id = scrollID, let proxy = scrollProxy {
-                        // Delay slightly to allow expansion animation to begin
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                proxy.scrollTo(id, anchor: .top)
-                            }
+                    isExpanded = true
+                }
+            }
+        }
+        .onChange(of: isEnabled) { _, _ in
+            localEnabled = nil
+        }
+    }
+
+    @ViewBuilder
+    private var scrollAnchorView: some View {
+        if let id = scrollID {
+            Color.clear
+                .frame(height: 0)
+                .id(id)
+        }
+    }
+
+    @ViewBuilder
+    private var headerButtonView: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isExpanded.toggle()
+                // Auto-scroll to show expanded content
+                if isExpanded, let id = scrollID, let proxy = scrollProxy {
+                    // Delay slightly to allow expansion animation to begin
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            proxy.scrollTo(id, anchor: .top)
                         }
                     }
                 }
-            } label: {
-                HStack(alignment: .top, spacing: 12) {
+            }
+        } label: {
+            HStack(alignment: .top, spacing: 12) {
                     iconView(for: icon)
                         .frame(width: 24)
 
@@ -644,32 +706,18 @@ private struct ExpandableCollectionRow: View {
                     .toggleStyle(.switch)
                     .tint(.blue)
                     .onTapGesture {} // Prevents toggle from triggering row expansion
-                    .accessibilityIdentifier("rule-toggle-\(collectionId)")
+                    .accessibilityIdentifier("rules-summary-toggle-\(collectionId)")
                     .accessibilityLabel("Toggle \(name)")
                 }
                 .padding(12)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(isHovered ? Color(NSColor.controlBackgroundColor).opacity(0.5) : Color(NSColor.windowBackgroundColor))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.white.opacity(isHovered ? 0.15 : 0), lineWidth: 1)
-            )
-            .onHover { hovering in
-                isHovered = hovering
-                if hovering {
-                    NSCursor.pointingHand.push()
-                } else {
-                    NSCursor.pop()
-                }
-            }
+    }
 
-            // Expanded Mappings or Zero State
-            if isExpanded {
+    @ViewBuilder
+    private var expandedContentView: some View {
+        if isExpanded {
                 // Inset back plane container for expanded content
                 InsetBackPlane {
                     if showZeroState, mappings.isEmpty, let onCreate = onCreateFirstRule {
@@ -737,12 +785,11 @@ private struct ExpandableCollectionRow: View {
                                                     ForEach(HomeRowModsConfig.leftHandKeys, id: \.self) { key in
                                                         if config.enabledKeys.contains(key) {
                                                             let modSymbol = config.modifierAssignments[key].map { formatModifierForDisplay($0) } ?? ""
-                                                            Button(action: {
-                                                                onOpenHomeRowModsModalWithKey?(key)
-                                                            }) {
-                                                                HomeRowKeyChipSmall(letter: key.uppercased(), symbol: modSymbol)
-                                                            }
-                                                            .buttonStyle(.plain)
+                                                            HomeRowKeyButton(
+                                                                key: key,
+                                                                modSymbol: modSymbol,
+                                                                action: { onOpenHomeRowModsModalWithKey?(key) }
+                                                            )
                                                         }
                                                     }
                                                 }
@@ -759,12 +806,11 @@ private struct ExpandableCollectionRow: View {
                                                     ForEach(HomeRowModsConfig.rightHandKeys, id: \.self) { key in
                                                         if config.enabledKeys.contains(key) {
                                                             let modSymbol = config.modifierAssignments[key].map { formatModifierForDisplay($0) } ?? ""
-                                                            Button(action: {
-                                                                onOpenHomeRowModsModalWithKey?(key)
-                                                            }) {
-                                                                HomeRowKeyChipSmall(letter: key.uppercased(), symbol: modSymbol)
-                                                            }
-                                                            .buttonStyle(.plain)
+                                                            HomeRowKeyButton(
+                                                                key: key,
+                                                                modSymbol: modSymbol,
+                                                                action: { onOpenHomeRowModsModalWithKey?(key) }
+                                                            )
                                                         }
                                                     }
                                                 }
@@ -791,6 +837,8 @@ private struct ExpandableCollectionRow: View {
                                 onOpenHomeRowModsModal?()
                             }
                             .buttonStyle(.bordered)
+                            .accessibilityIdentifier("rules-summary-home-row-mods-customize-button")
+                            .accessibilityLabel("Customize home row mods")
                         }
                         .padding(.top, 8)
                         .padding(.bottom, 12)
@@ -874,30 +922,11 @@ private struct ExpandableCollectionRow: View {
                         .padding(.bottom, 12)
                     }
                 } // InsetBackPlane
-            }
-        }
-        .onAppear {
-            if !hasInitialized {
-                isExpanded = defaultExpanded
-                hasInitialized = true
-            }
-        }
-        .onChange(of: defaultExpanded) { _, newValue in
-            // Auto-expand when rules are added (going from empty to non-empty)
-            if newValue, !isExpanded {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isExpanded = true
-                }
-            }
-        }
-        .onChange(of: isEnabled) { _, _ in
-            // Parent state updated, clear local override to stay in sync
-            localEnabled = nil
         }
     }
 
     @ViewBuilder
-    func iconView(for icon: String) -> some View {
+    private func iconView(for icon: String) -> some View {
         let scale: CGFloat = 0.85
         let iconSize: CGFloat = 24 * scale
         if icon.hasPrefix("text:") {
@@ -1378,6 +1407,8 @@ private struct SingleKeyPickerContent: View {
                     }
                     .buttonStyle(.link)
                     .font(.subheadline)
+                    .accessibilityIdentifier("rules-summary-custom-key-edit-button")
+                    .accessibilityLabel("Edit custom key")
                 }
                 .padding(.horizontal, 4)
             }
@@ -1497,6 +1528,8 @@ private struct MiniPresetCard: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("rules-summary-preset-button-\(preset.id)")
+        .accessibilityLabel("Select preset \(preset.label)")
         .onHover { isHovered = $0 }
     }
 }
@@ -2361,6 +2394,8 @@ private struct CustomKeyPopover: View {
                     onCancel()
                 }
                 .keyboardShortcut(.escape)
+                .accessibilityIdentifier("rules-summary-custom-key-cancel-button")
+                .accessibilityLabel("Cancel")
 
                 Spacer()
 
@@ -2370,6 +2405,8 @@ private struct CustomKeyPopover: View {
                 .keyboardShortcut(.return)
                 .disabled(!isValidKey)
                 .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("rules-summary-custom-key-ok-button")
+                .accessibilityLabel("OK")
             }
         }
         .padding(16)
@@ -2404,6 +2441,8 @@ private struct PickerSegment: View {
                 )
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("rules-summary-segment-button-\(label.lowercased().replacingOccurrences(of: " ", with: "-"))")
+        .accessibilityLabel(label)
         .onHover { isHovered = $0 }
     }
 }

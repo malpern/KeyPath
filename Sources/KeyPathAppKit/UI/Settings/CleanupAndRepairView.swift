@@ -25,6 +25,8 @@ struct CleanupAndRepairView: View {
                     .font(.system(size: 16, weight: .semibold))
                 Spacer()
                 Button("Close") { dismiss() }
+                    .accessibilityIdentifier("cleanup-repair-close-button")
+                    .accessibilityLabel("Close")
             }
             .padding(.bottom, 4)
 
@@ -36,6 +38,8 @@ struct CleanupAndRepairView: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
+            .accessibilityIdentifier("cleanup-repair-tab-picker")
+            .accessibilityLabel("Diagnostic tab")
 
             // Tab content
             if selectedTab == .cleanup {
@@ -73,6 +77,8 @@ struct CleanupAndRepairView: View {
                     }
                 ))
                 .font(.system(size: 12))
+                .accessibilityIdentifier("cleanup-repair-simulator-toggle")
+                .accessibilityLabel("Enable Simulator + Virtual Keys")
                 Text("Gates the simulator UI, overlay mapping via simulator, and virtual key actions.")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
@@ -97,6 +103,8 @@ struct CleanupAndRepairView: View {
                             NSWorkspace.shared.activateFileViewerSelecting([url])
                         }
                     }
+                    .accessibilityIdentifier("cleanup-repair-reveal-copies-button")
+                    .accessibilityLabel("Reveal duplicate copies")
                 }
             }
 
@@ -119,6 +127,8 @@ struct CleanupAndRepairView: View {
 
             Toggle("Use Admin Prompt Fallback (AppleScript)", isOn: $useAppleScriptFallback)
                 .font(.system(size: 12))
+                .accessibilityIdentifier("cleanup-repair-applescript-toggle")
+                .accessibilityLabel("Use Admin Prompt Fallback")
 
             HStack {
                 if maintenance.isRunning {
@@ -139,6 +149,8 @@ struct CleanupAndRepairView: View {
                 }
                 .disabled(maintenance.isRunning)
                 .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("cleanup-repair-run-button")
+                .accessibilityLabel(maintenance.isRunning ? "Working" : "Run Cleanup")
             }
         }
     }
@@ -165,6 +177,8 @@ struct CleanupAndRepairView: View {
                     }
                     .buttonStyle(.borderless)
                     .font(.system(size: 12))
+                    .accessibilityIdentifier("cleanup-repair-clear-errors-button")
+                    .accessibilityLabel("Clear all errors")
                 }
             }
             .padding(.vertical, 4)
@@ -307,6 +321,8 @@ struct CleanupAndRepairView: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
+            .accessibilityIdentifier("cleanup-repair-refresh-button")
+            .accessibilityLabel("Refresh helper health")
         }
         .padding(10)
         .background(

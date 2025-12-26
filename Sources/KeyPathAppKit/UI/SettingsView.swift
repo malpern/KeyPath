@@ -1024,6 +1024,8 @@ private struct PermissionStatusRow: View {
         }
         .buttonStyle(.plain)
         .disabled(onTap == nil)
+        .accessibilityIdentifier("settings-status-action-button-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
+        .accessibilityLabel(title)
     }
 
     private var statusColor: Color {

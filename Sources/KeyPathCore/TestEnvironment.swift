@@ -41,8 +41,10 @@ public enum TestEnvironment {
             return true
         }
 
-        // Check for CI environment variables
-        let ciIndicators = ["CI", "GITHUB_ACTIONS", "TRAVIS", "CIRCLE_CI", "JENKINS_URL"]
+        // Check for CI environment variables - but only specific CI systems, NOT just "CI"
+        // The generic "CI" env var is too common (can be set by various tools, editors, etc.)
+        // and causes false positives when inherited from user's shell environment
+        let ciIndicators = ["GITHUB_ACTIONS", "TRAVIS", "CIRCLE_CI", "JENKINS_URL"]
         for indicator in ciIndicators where ProcessInfo.processInfo.environment[indicator] != nil {
             return true
         }

@@ -106,8 +106,8 @@ def find_interactive_elements(file_path: Path) -> List[Tuple[int, str, str]]:
                     continue  # Custom picker component
                 
                 # Found an interactive element - check if it has accessibilityIdentifier
-                # Look ahead up to 30 lines for the modifier
-                end_idx = min(line_idx + 30, len(lines))
+                # Look ahead up to 50 lines for the modifier (increased from 30 to catch identifiers added later in modifier chains)
+                end_idx = min(line_idx + 50, len(lines))
                 
                 if not has_accessibility_identifier(lines, line_idx - 1, end_idx):
                     # Check if this is inside a comment or string literal
@@ -117,6 +117,16 @@ def find_interactive_elements(file_path: Path) -> List[Tuple[int, str, str]]:
                     
                     # Skip if it's a toolbar item (system component)
                     if re.search(r"ToolbarItem", content[max(0, line_idx - 5):line_idx]):
+                        continue
+                    
+                    # Skip guard statements (not actual UI elements)
+                    if re.search(r"guard\s+case\s+let\s+\.(tapHoldPicker|singleKeyPicker)", line):
+                        continue
+                    
+                    # Skip NSAlert buttons (system-managed, use different APIs)
+                    # Check if this Button is inside NSAlert context
+                    context_before = "\n".join(lines[max(0, line_idx - 15):line_idx])
+                    if re.search(r"alert\.addButton|NSAlert\(\)|let alert = NSAlert", context_before):
                         continue
                     
                     issues.append((line_idx, element_type, line.strip()))

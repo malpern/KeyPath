@@ -64,6 +64,8 @@ struct WhatsNewView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
+            .accessibilityIdentifier("whats-new-continue-button")
+            .accessibilityLabel("Continue")
             .padding(.horizontal, 24)
             .padding(.bottom, 24)
         }

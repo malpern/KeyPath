@@ -117,6 +117,8 @@ struct SimpleModsView: View {
                                         }
                                     )
                                     .buttonStyle(.bordered)
+                                    .accessibilityIdentifier("simple-mods-browse-presets-button")
+                                    .accessibilityLabel("Browse available presets")
                                     .controlSize(.small)
                                 }
                             } else {
@@ -170,6 +172,8 @@ struct SimpleModsView: View {
                     Button("Done") {
                         dismiss()
                     }
+                    .accessibilityIdentifier("simple-mods-done-button")
+                    .accessibilityLabel("Done")
                 }
             }
             .onAppear {
@@ -322,29 +326,28 @@ private struct TabButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button(
-            action: action,
-            label: {
-                HStack(spacing: 6) {
-                    Text(title)
-                        .font(.headline)
-                    if badge > 0 {
-                        Text("\(badge)")
-                            .font(.caption2)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(isSelected ? Color.white.opacity(0.3) : Color.secondary.opacity(0.2))
-                            .cornerRadius(8)
-                    }
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text(title)
+                    .font(.headline)
+                if badge > 0 {
+                    Text("\(badge)")
+                        .font(.caption2)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(isSelected ? Color.white.opacity(0.3) : Color.secondary.opacity(0.2))
+                        .cornerRadius(8)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-                .background(isSelected ? Color.accentColor : Color.clear)
-                .foregroundColor(isSelected ? .white : .primary)
-                .cornerRadius(8)
             }
-        )
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(isSelected ? Color.accentColor : Color.clear)
+            .foregroundColor(isSelected ? .white : .primary)
+            .cornerRadius(8)
+        }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("simple-mods-tab-button-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
+        .accessibilityLabel(title)
     }
 }
 
@@ -387,6 +390,8 @@ private struct CategoryButton: View {
                 .foregroundColor(isSelected ? .white : .primary)
                 .cornerRadius(6)
         }
+        .accessibilityIdentifier("simple-mods-category-button-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
+        .accessibilityLabel(title)
         .buttonStyle(.plain)
     }
 }
@@ -424,6 +429,8 @@ private struct InstalledMappingRow: View {
             )
             .toggleStyle(.switch)
             .disabled(service.isApplying)
+            .accessibilityIdentifier("simple-mods-mapping-toggle-\(mapping.id)")
+            .accessibilityLabel("Toggle \(mapping.fromKey) → \(mapping.toKey)")
 
             Button(
                 action: {
@@ -436,6 +443,8 @@ private struct InstalledMappingRow: View {
             )
             .buttonStyle(.plain)
             .disabled(service.isApplying)
+            .accessibilityIdentifier("simple-mods-delete-button-\(mapping.id)")
+            .accessibilityLabel("Delete mapping")
         }
         .padding()
         .background(Color(NSColor.controlBackgroundColor))
@@ -515,6 +524,8 @@ private struct AvailablePresetRow: View {
             )
             .buttonStyle(.plain)
             .disabled(service.isApplying)
+            .accessibilityIdentifier("simple-mods-add-preset-button-\(preset.fromKey)")
+            .accessibilityLabel("Add preset \(preset.fromKey) → \(preset.toKey)")
         }
         .padding()
         .background(Color(NSColor.controlBackgroundColor))
@@ -600,8 +611,12 @@ private struct ConflictMappingDialog: View {
             HStack(spacing: 12) {
                 Button("Replace with New", role: .destructive) { onReplace() }
                     .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("simple-mods-conflict-replace-button")
+                    .accessibilityLabel("Replace with New")
                 Button("Keep Existing") { onKeep() }
                     .buttonStyle(.bordered)
+                    .accessibilityIdentifier("simple-mods-conflict-keep-button")
+                    .accessibilityLabel("Keep Existing")
             }
             .padding(.top, 4)
         }

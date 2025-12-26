@@ -60,6 +60,8 @@ private struct ConventionPicker: View {
                 Text("Vim").tag(WindowKeyConvention.vim)
             }
             .pickerStyle(.segmented)
+            .accessibilityIdentifier("window-snapping-convention-picker")
+            .accessibilityLabel("Key layout convention")
             .onChange(of: localConvention) { _, newValue in
                 onConventionChange(newValue)
             }
