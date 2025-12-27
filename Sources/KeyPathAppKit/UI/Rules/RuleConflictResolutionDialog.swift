@@ -2,15 +2,23 @@ import SwiftUI
 
 // MARK: - Rule Conflict Types
 
+/// A single key mapping for display in conflict resolution
+struct ConflictMapping: Sendable, Equatable, Identifiable {
+    let input: String
+    let output: String
+
+    var id: String { input }
+}
+
 /// Snapshot of a rule source for conflict resolution UI (Sendable for state transfer)
-struct RuleConflictSourceSnapshot: Sendable {
+struct RuleConflictSourceSnapshot: Sendable, Equatable {
     let name: String
     let icon: String
     let summary: String
-    let mappings: [(input: String, output: String)]
+    let mappings: [ConflictMapping]
 
     /// Memberwise initializer for direct construction
-    init(name: String, icon: String, summary: String, mappings: [(input: String, output: String)]) {
+    init(name: String, icon: String, summary: String, mappings: [ConflictMapping]) {
         self.name = name
         self.icon = icon
         self.summary = summary
@@ -26,15 +34,15 @@ struct RuleConflictSourceSnapshot: Sendable {
         // Copy all mappings for later filtering
         switch source {
         case let .collection(collection):
-            mappings = collection.mappings.map { ($0.input, $0.output) }
+            mappings = collection.mappings.map { ConflictMapping(input: $0.input, output: $0.output) }
         case let .customRule(rule):
-            mappings = [(rule.input, rule.output)]
+            mappings = [ConflictMapping(input: rule.input, output: rule.output)]
         }
     }
 }
 
 /// Represents a conflict between two rule sources for UI presentation (Sendable)
-struct RuleConflictContext: Sendable {
+struct RuleConflictContext: Sendable, Equatable {
     let newRule: RuleConflictSourceSnapshot
     let existingRule: RuleConflictSourceSnapshot
     let conflictingKeys: [String]
@@ -233,7 +241,7 @@ struct RuleConflictResolutionDialog: View {
             let mappings = relevantMappings(from: source, for: context.conflictingKeys)
             if !mappings.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    ForEach(mappings.prefix(4), id: \.input) { mapping in
+                    ForEach(Array(mappings.prefix(4))) { mapping in
                         HStack(spacing: 4) {
                             Text(KeyDisplayName.display(for: mapping.input))
                                 .font(.system(.caption, design: .monospaced))
@@ -291,7 +299,7 @@ struct RuleConflictResolutionDialog: View {
     private func relevantMappings(
         from source: RuleConflictSourceSnapshot,
         for conflictingKeys: [String]
-    ) -> [(input: String, output: String)] {
+    ) -> [ConflictMapping] {
         let conflictSet = Set(conflictingKeys)
         return source.mappings.filter { mapping in
             conflictSet.contains(KanataKeyConverter.convertToKanataKey(mapping.input))
@@ -341,24 +349,6 @@ extension RuleConflictInfo.Source {
             rule.notes ?? "Custom key mapping"
         }
     }
-
-    /// Get mappings that are relevant to the given conflicting keys
-    func relevantMappings(for conflictingKeys: [String]) -> [(input: String, output: String)] {
-        let conflictSet = Set(conflictingKeys)
-
-        switch self {
-        case let .collection(collection):
-            return collection.mappings
-                .filter { conflictSet.contains(KanataKeyConverter.convertToKanataKey($0.input)) }
-                .map { (input: $0.input, output: $0.output) }
-        case let .customRule(rule):
-            let normalizedInput = KanataKeyConverter.convertToKanataKey(rule.input)
-            if conflictSet.contains(normalizedInput) {
-                return [(input: rule.input, output: rule.output)]
-            }
-            return []
-        }
-    }
 }
 
 // MARK: - Preview
@@ -372,10 +362,10 @@ extension RuleConflictInfo.Source {
                 icon: "keyboard",
                 summary: "HJKL as arrow keys",
                 mappings: [
-                    (input: "h", output: "left"),
-                    (input: "j", output: "down"),
-                    (input: "k", output: "up"),
-                    (input: "l", output: "right"),
+                    ConflictMapping(input: "h", output: "left"),
+                    ConflictMapping(input: "j", output: "down"),
+                    ConflictMapping(input: "k", output: "up"),
+                    ConflictMapping(input: "l", output: "right"),
                 ]
             )
 
@@ -384,10 +374,10 @@ extension RuleConflictInfo.Source {
                 icon: "keyboard.badge.ellipsis",
                 summary: "Alternative keyboard layout",
                 mappings: [
-                    (input: "h", output: "d"),
-                    (input: "j", output: "n"),
-                    (input: "k", output: "e"),
-                    (input: "l", output: "i"),
+                    ConflictMapping(input: "h", output: "d"),
+                    ConflictMapping(input: "j", output: "n"),
+                    ConflictMapping(input: "k", output: "e"),
+                    ConflictMapping(input: "l", output: "i"),
                 ]
             )
 

@@ -127,14 +127,8 @@ class KanataViewModel: ObservableObject {
         }
 
         // Handle rule conflict resolution dialog
-        if let conflict = state.pendingRuleConflict {
-            pendingRuleConflict = conflict
-            showRuleConflictDialog = true
-        } else if pendingRuleConflict != nil {
-            // Conflict was resolved, close dialog
-            pendingRuleConflict = nil
-            showRuleConflictDialog = false
-        }
+        pendingRuleConflict = state.pendingRuleConflict
+        showRuleConflictDialog = state.pendingRuleConflict != nil
 
         // Map validation error to alert properties
         if let error = state.validationError {
