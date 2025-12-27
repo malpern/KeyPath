@@ -9,6 +9,14 @@ struct RuleConflictSourceSnapshot: Sendable {
     let summary: String
     let mappings: [(input: String, output: String)]
 
+    /// Memberwise initializer for direct construction
+    init(name: String, icon: String, summary: String, mappings: [(input: String, output: String)]) {
+        self.name = name
+        self.icon = icon
+        self.summary = summary
+        self.mappings = mappings
+    }
+
     /// Create a snapshot from a RuleConflictInfo.Source
     @MainActor
     init(from source: RuleConflictInfo.Source) {
@@ -18,7 +26,7 @@ struct RuleConflictSourceSnapshot: Sendable {
         // Copy all mappings for later filtering
         switch source {
         case let .collection(collection):
-            self.mappings = collection.mappings.map { ($0.fromKey, $0.toKey) }
+            self.mappings = collection.mappings.map { ($0.input, $0.output) }
         case let .customRule(rule):
             self.mappings = [(rule.input, rule.output)]
         }
@@ -30,6 +38,13 @@ struct RuleConflictContext: Sendable {
     let newRule: RuleConflictSourceSnapshot
     let existingRule: RuleConflictSourceSnapshot
     let conflictingKeys: [String]
+
+    /// Memberwise initializer for direct construction (used by previews)
+    init(newRule: RuleConflictSourceSnapshot, existingRule: RuleConflictSourceSnapshot, conflictingKeys: [String]) {
+        self.newRule = newRule
+        self.existingRule = existingRule
+        self.conflictingKeys = conflictingKeys
+    }
 
     /// Create a context from RuleConflictInfo sources
     @MainActor
