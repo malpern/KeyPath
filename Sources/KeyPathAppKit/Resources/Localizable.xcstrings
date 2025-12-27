@@ -1,1605 +1,5189 @@
 {
-  "sourceLanguage" : "en",
-  "version" : "1.0",
-  "strings" : {
-    "→" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "→" } }
-      }
-    },
-    "⌘ ⇧ ⌥ ⌃ + any key" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "⌘ ⇧ ⌥ ⌃ + 任意のキー" } }
-      }
-    },
-    " - Emergency stop detection" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : " - 緊急停止の検出" } }
-      }
-    },
-    " - Emergency stop detection and system monitoring" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : " - 緊急停止の検出とシステム監視" } }
-      }
-    },
-    " - Karabiner services in Login Items for startup" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : " - ログイン項目でのKarabinerサービスの起動設定" } }
-      }
-    },
-    " - Keyboard monitoring and remapping engine" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : " - キーボード監視とリマッピングエンジン" } }
-      }
-    },
-    " - KeyPath's bundled & Developer ID signed version" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : " - KeyPath同梱のDeveloper ID署名済みバージョン" } }
-      }
-    },
-    " - Main application captures keyboard input" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : " - メインアプリがキーボード入力をキャプチャ" } }
-      }
-    },
-    " - Main application needs permission" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : " - メインアプリに許可が必要" } }
-      }
-    },
-    " - Remapping engine processes keyboard events" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : " - リマッピングエンジンがキーボードイベントを処理" } }
-      }
-    },
-    " - System service configuration & management" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : " - システムサービスの設定と管理" } }
-      }
-    },
-    " - Virtual keyboard driver for input capture" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : " - 入力キャプチャ用仮想キーボードドライバ" } }
-      }
-    },
-    "← H" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "← H" } }
-      }
-    },
-    "• Karabiner-Elements Non-Privileged Agents.app" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "• Karabiner-Elements Non-Privileged Agents.app" } }
-      }
-    },
-    "• Karabiner-Elements Privileged Daemons.app" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "• Karabiner-Elements Privileged Daemons.app" } }
-      }
-    },
-    "⚠️ Multiple Installations" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "⚠️ 複数のインストール" } }
-      }
-    },
-    "..." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "..." } }
-      }
-    },
-    "(Press all three keys at the same time)" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "（3つのキーを同時に押してください）" } }
-      }
-    },
-    "+" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "+" } }
-      }
-    },
-    "= Arrow keys" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "= 矢印キー" } }
-      }
-    },
-    "1." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "1." } }
-      }
-    },
-    "1. Open System Settings → Privacy & Security" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "1. システム設定 → プライバシーとセキュリティを開く" } }
-      }
-    },
-    "2." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "2." } }
-      }
-    },
-    "2. Navigate to Input Monitoring" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "2. 入力監視に移動" } }
-      }
-    },
-    "3." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "3." } }
-      }
-    },
-    "3. Add both KeyPath.app and /Library/KeyPath/bin/kanata" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "3. KeyPath.appと/Library/KeyPath/bin/kanataの両方を追加" } }
-      }
-    },
-    "4." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "4." } }
-      }
-    },
-    "4. Navigate to Accessibility" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "4. アクセシビリティに移動" } }
-      }
-    },
-    "5." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "5." } }
-      }
-    },
-    "5. Add both KeyPath.app and /Library/KeyPath/bin/kanata" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "5. KeyPath.appと/Library/KeyPath/bin/kanataの両方を追加" } }
-      }
-    },
-    "6." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "6." } }
-      }
-    },
-    "6. You may need to restart KeyPath after granting permissions" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "6. 許可を付与後、KeyPathの再起動が必要な場合があります" } }
-      }
-    },
-    "7." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "7." } }
-      }
-    },
-    "About Full Disk Access" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "フルディスクアクセスについて" } }
-      }
-    },
-    "Accessibility Permission Help" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "アクセシビリティ許可のヘルプ" } }
-      }
-    },
-    "Action Required:" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "操作が必要:" } }
-      }
-    },
-    "Activate hold on other key" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "他のキーを押したときにホールドを有効化" } }
-      }
-    },
-    "Activate via Leader → w, then press the action key" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Leader → wで有効化し、アクションキーを押す" } }
-      }
-    },
-    "Add" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "追加" } }
-      }
-    },
-    "Add `defvirtualkeys` or `deffakekeys` blocks to your config to define triggerable macros." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "設定に`defvirtualkeys`または`deffakekeys`ブロックを追加してトリガー可能なマクロを定義してください。" } }
-      }
-    },
-    "Add App" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "アプリを追加" } }
-      }
-    },
-    "Add these two applications (drag & drop or use + button):" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "以下の2つのアプリを追加（ドラッグ＆ドロップまたは+ボタン）:" } }
-      }
-    },
-    "Add Triple Tap, etc." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "トリプルタップなどを追加" } }
-      }
-    },
-    "Add URL" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "URLを追加" } }
-      }
-    },
-    "All built-in collections are active." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "すべての組み込みコレクションが有効です。" } }
-      }
-    },
-    "All KeyPath.app copies outside /Applications will be moved to the Trash." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "/Applications以外のKeyPath.appコピーはすべてゴミ箱に移動されます。" } }
-      }
-    },
-    "Applying changes..." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "変更を適用中..." } }
-      }
-    },
-    "Background Services" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "バックグラウンドサービス" } }
-      }
-    },
-    "Background Services Setup Help" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "バックグラウンドサービス設定のヘルプ" } }
-      }
-    },
-    "base" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ベース" } }
-      }
-    },
-    "Becomes" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "変換後" } }
-      }
-    },
-    "Benefits" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "メリット" } }
-      }
-    },
-    "Both hands" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "両手" } }
-      }
-    },
-    "Both rules want to control the same keys. Choose which rule to keep enabled." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "両方のルールが同じキーを制御しようとしています。どちらを有効にするか選択してください。" } }
-      }
-    },
-    "Browse available presets" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "利用可能なプリセットを閲覧" } }
-      }
-    },
-    "Cancel" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "キャンセル" } }
-      }
-    },
-    "Capture Mode" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "キャプチャモード" } }
-      }
-    },
-    "Checking" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "確認中" } }
-      }
-    },
-    "Choose One" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "1つ選択" } }
-      }
-    },
-    "Clear" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "クリア" } }
-      }
-    },
-    "Click 'Check Permission Status' to verify" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "「許可ステータスを確認」をクリックして確認" } }
-      }
-    },
-    "Click 'Open System Settings' below" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "下の「システム設定を開く」をクリック" } }
-      }
-    },
-    "Click keys above, then Run to simulate" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "上のキーをクリックし、実行でシミュレート" } }
-      }
-    },
-    "Click keys to queue events" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "キーをクリックしてイベントをキューに追加" } }
-      }
-    },
-    "Click to record" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "クリックして記録" } }
-      }
-    },
-    "Click to tap • Long-press to hold • Type to add keys" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "クリックでタップ • 長押しでホールド • 入力でキー追加" } }
-      }
-    },
-    "Combos - Keys together" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "コンボ - 同時押し" } }
-      }
-    },
-    "Complete Setup" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "セットアップを完了" } }
-      }
-    },
-    "Completely Optional" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "完全に任意" } }
-      }
-    },
-    "Configuration Validation Failed" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "設定の検証に失敗" } }
-      }
-    },
-    "Configure the output key in the field above." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "上のフィールドで出力キーを設定してください。" } }
-      }
-    },
-    "Conflicting Keys" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "競合するキー" } }
-      }
-    },
-    "Conflicting mapping detected" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "競合するマッピングを検出" } }
-      }
-    },
-    "Conflicting Processes Found" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "競合するプロセスを検出" } }
-      }
-    },
-    "Continue" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "続ける" } }
-      }
-    },
-    "Copies found at:" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "コピーの場所:" } }
-      }
-    },
-    "Create personalized key mappings" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "カスタムキーマッピングを作成" } }
-      }
-    },
-    "Current Hold Action" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "現在のホールドアクション" } }
-      }
-    },
-    "Current Tap Dance Actions" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "現在のタップダンスアクション" } }
-      }
-    },
-    "Custom" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "カスタム" } }
-      }
-    },
-    "Custom Rules" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "カスタムルール" } }
-      }
-    },
-    "Customize Home Row Mods" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ホームロウモッドをカスタマイズ" } }
-      }
-    },
-    "Customize..." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "カスタマイズ..." } }
-      }
-    },
-    "Delay:" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "遅延:" } }
-      }
-    },
-    "Description" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "説明" } }
-      }
-    },
-    "Detected Issues:" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "検出された問題:" } }
-      }
-    },
-    "Detecting processes..." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "プロセスを検出中..." } }
-      }
-    },
-    "Detection timeout - restart may be required" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "検出タイムアウト - 再起動が必要な場合があります" } }
-      }
-    },
-    "Diagnostics & Repair" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "診断と修復" } }
-      }
-    },
-    "Double Tap" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ダブルタップ" } }
-      }
-    },
-    "Duration" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "継続時間" } }
-      }
-    },
-    "Edit your configuration to add key remapping rules." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "設定を編集してキーリマッピングルールを追加してください。" } }
-      }
-    },
-    "Emergency Recovery" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "緊急回復" } }
-      }
-    },
-    "Emergency Stop" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "緊急停止" } }
-      }
-    },
-    "Emergency Stop Activated" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "緊急停止が作動" } }
-      }
-    },
-    "Emergency stop sequence used:" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "緊急停止シーケンス:" } }
-      }
-    },
-    "Enable the simulator feature flag to use the virtual keyboard simulator." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "仮想キーボードシミュレータを使用するにはシミュレータ機能フラグを有効にしてください。" } }
-      }
-    },
-    "Enable the toggle for both KeyPath and kanata" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "KeyPathとkanata両方のトグルを有効にする" } }
-      }
-    },
-    "Enhanced diagnostics are now available" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "拡張診断が利用可能になりました" } }
-      }
-    },
-    "Enter Custom Key" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "カスタムキーを入力" } }
-      }
-    },
-    "Enter Web URL" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "WebURLを入力" } }
-      }
-    },
-    "esc" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "esc" } }
-      }
-    },
-    "Event Timeline" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "イベントタイムライン" } }
-      }
-    },
-    "Events" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "イベント" } }
-      }
-    },
-    "Experiment: Testing visual input capture" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "実験: 視覚入力キャプチャのテスト" } }
-      }
-    },
-    "External Conflicts" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "外部の競合" } }
-      }
-    },
-    "Extra copies can cause stale approvals. Remove extras to keep permissions healthy." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "余分なコピーは古い承認の原因になります。許可を正常に保つため余分を削除してください。" } }
-      }
-    },
-    "Failed" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "失敗" } }
-      }
-    },
-    "Fast taps always register as tap" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "素早いタップは常にタップとして登録" } }
-      }
-    },
-    "Fewer Options" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "オプションを減らす" } }
-      }
-    },
-    "Final Layer" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "最終レイヤー" } }
-      }
-    },
-    "fn" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "fn" } }
-      }
-    },
-    "For the smoothest setup, move KeyPath to /Applications and relaunch." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "スムーズなセットアップのため、KeyPathを/Applicationsに移動して再起動してください。" } }
-      }
-    },
-    "Full Disk Access Granted!" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "フルディスクアクセスが許可されました!" } }
-      }
-    },
-    "Full Disk Access requires KeyPath to restart" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "フルディスクアクセスにはKeyPathの再起動が必要です" } }
-      }
-    },
-    "Gates the simulator UI, overlay mapping via simulator, and virtual key actions." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "シミュレータUI、オーバーレイマッピング、仮想キーアクションを制御します。" } }
-      }
-    },
-    "Go to General → Login Items & Extensions" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "一般 → ログイン項目と機能拡張に移動" } }
-      }
-    },
-    "Got it" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "了解" } }
-      }
-    },
-    "Grant permissions to enable keyboard remapping" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "キーボードリマッピングを有効にするため許可を付与" } }
-      }
-    },
-    "Helper Health" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ヘルパーの状態" } }
-      }
-    },
-    "Helpful Tools:" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "便利なツール:" } }
-      }
-    },
-    "Here's how to fix this:" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "修正方法:" } }
-      }
-    },
-    "Hold" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ホールド" } }
-      }
-    },
-    "HOLD" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ホールド" } }
-      }
-    },
-    "Hold ⇧ Shift while navigating to select text" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "⇧ Shiftを押しながらナビゲートしてテキストを選択" } }
-      }
-    },
-    "Hold Behavior:" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ホールド動作:" } }
-      }
-    },
-    "Hold delay" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ホールド遅延" } }
-      }
-    },
-    "Hold timeout" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ホールドタイムアウト" } }
-      }
-    },
-    "Hold triggers when you press another key" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "別のキーを押すとホールドが発動" } }
-      }
-    },
-    "Hold, Double Tap, etc." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ホールド、ダブルタップなど" } }
-      }
-    },
-    "How to add Login Items:" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ログイン項目の追加方法:" } }
-      }
-    },
-    "How to Clean Up:" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "クリーンアップ方法:" } }
-      }
-    },
-    "How to grant permission:" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "許可の付与方法:" } }
-      }
-    },
-    "If the keyboard becomes unresponsive, press:" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "キーボードが反応しなくなった場合は押してください:" } }
-      }
-    },
-    "Important: Use physical key positions, not after any remapping" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "重要: リマッピング後ではなく物理キー位置を使用" } }
-      }
-    },
-    "Include KeyPath mappings" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "KeyPathマッピングを含める" } }
-      }
-    },
-    "Include punctuation" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "句読点を含める" } }
-      }
-    },
-    "Input" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "入力" } }
-      }
-    },
-    "Input Capture Experiment" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "入力キャプチャ実験" } }
-      }
-    },
-    "Input Key" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "入力キー" } }
-      }
-    },
-    "Input Monitoring Permission Help" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "入力監視許可のヘルプ" } }
-      }
-    },
-    "Installer" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "インストーラ" } }
-      }
-    },
-    "kanata" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "kanata" } }
-      }
-    },
-    "Kanata Binary" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Kanataバイナリ" } }
-      }
-    },
-    "Kanata can't detect both hold duration and tap count on the same key. Which behavior do you want to keep?" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Kanataは同じキーでホールド時間とタップ回数の両方を検出できません。どちらの動作を維持しますか?" } }
-      }
-    },
-    "Kanata is running smoothly" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Kanataは正常に動作中" } }
-      }
-    },
-    "Kanata log" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Kanataログ" } }
-      }
-    },
-    "Kanata refused to load the generated config. KeyPath left the previous configuration in place until you fix the issues below." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Kanataが生成された設定の読み込みを拒否しました。下記の問題を修正するまで以前の設定が維持されます。" } }
-      }
-    },
-    "Kanata Service" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Kanataサービス" } }
-      }
-    },
-    "Kanata syntax:" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Kanata構文:" } }
-      }
-    },
-    "Kanata will immediately stop all remapping" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Kanataはすべてのリマッピングを即座に停止します" } }
-      }
-    },
-    "Karabiner Driver" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Karabinerドライバ" } }
-      }
-    },
-    "Keep Hold" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ホールドを維持" } }
-      }
-    },
-    "Keep Tap Dance" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "タップダンスを維持" } }
-      }
-    },
-    "Keyboard Overlay" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "キーボードオーバーレイ" } }
-      }
-    },
-    "Keyboard Remapping" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "キーボードリマッピング" } }
-      }
-    },
-    "Keyboard remapping has been safely stopped" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "キーボードリマッピングは安全に停止されました" } }
-      }
-    },
-    "KeyPath" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "KeyPath" } }
-      }
-    },
-    "KeyPath log" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "KeyPathログ" } }
-      }
-    },
-    "KeyPath Managed Processes" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "KeyPath管理プロセス" } }
-      }
-    },
-    "KeyPath will now start the keyboard remapping service." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "KeyPathがキーボードリマッピングサービスを開始します。" } }
-      }
-    },
-    "KeyPath.app" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "KeyPath.app" } }
-      }
-    },
-    "Keys labeled by physical position (QWERTY). Works with any keyboard layout." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "物理位置（QWERTY）でラベル付け。どのキーボードレイアウトでも動作します。" } }
-      }
-    },
-    "Keys that trigger early tap:" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "早期タップをトリガーするキー:" } }
-      }
-    },
-    "L →" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "L →" } }
-      }
-    },
-    "LAYER" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "レイヤー" } }
-      }
-    },
-    "Layer Changes" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "レイヤー変更" } }
-      }
-    },
-    "Left hand" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "左手" } }
-      }
-    },
-    "Left Hand" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "左手" } }
-      }
-    },
-    "Left hand only" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "左手のみ" } }
-      }
-    },
-    "Loading configuration..." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "設定を読み込み中..." } }
-      }
-    },
-    "Loading..." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "読み込み中..." } }
-      }
-    },
-    "Logs" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ログ" } }
-      }
-    },
-    "Mac (CAGS: Cmd on index)" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Mac (CAGS: 人差し指にCmd)" } }
-      }
-    },
-    "Monitoring Kanata stderr for critical errors. Only severe issues are shown here." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Kanataのstderrを監視中。重大な問題のみ表示されます。" } }
-      }
-    },
-    "Move left" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "左に移動" } }
-      }
-    },
-    "Move right" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "右に移動" } }
-      }
-    },
-    "ms" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ms" } }
-      }
-    },
-    "Multiple KeyPath.app copies detected. Remove extras to avoid stale approvals." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "複数のKeyPath.appコピーが検出されました。古い承認を避けるため余分を削除してください。" } }
-      }
-    },
-    "Navigate to Privacy & Security → Accessibility" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "プライバシーとセキュリティ → アクセシビリティに移動" } }
-      }
-    },
-    "Navigate to Privacy & Security → Input Monitoring" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "プライバシーとセキュリティ → 入力監視に移動" } }
-      }
-    },
-    "Navigate to: /Library/Application Support/org.pqrs/Karabiner-Elements/" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "次の場所に移動: /Library/Application Support/org.pqrs/Karabiner-Elements/" } }
-      }
-    },
-    "No active key mappings" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "有効なキーマッピングなし" } }
-      }
-    },
-    "No Custom Rules Yet" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "カスタムルールはまだありません" } }
-      }
-    },
-    "No errors detected" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "エラーは検出されませんでした" } }
-      }
-    },
-    "No processes detected" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "プロセスは検出されませんでした" } }
-      }
-    },
-    "No rules yet" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ルールはまだありません" } }
-      }
-    },
-    "No Virtual Keys Defined" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "仮想キーは定義されていません" } }
-      }
-    },
-    "Not Installed" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "未インストール" } }
-      }
-    },
-    "On Hold" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ホールド時" } }
-      }
-    },
-    "Operators" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "演算子" } }
-      }
-    },
-    "Optional" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "任意" } }
-      }
-    },
-    "Output" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "出力" } }
-      }
-    },
-    "Output Key" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "出力キー" } }
-      }
-    },
-    "Output Keys" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "出力キー" } }
-      }
-    },
-    "Output Type" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "出力タイプ" } }
-      }
-    },
-    "Per-key tap offsets (ms)" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "キーごとのタップオフセット (ms)" } }
-      }
-    },
-    "Permission Details" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "許可の詳細" } }
-      }
-    },
-    "Permissions" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "許可" } }
-      }
-    },
-    "Physical keys only (pause mappings)" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "物理キーのみ（マッピングを一時停止）" } }
-      }
-    },
-    "Physical Position" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "物理位置" } }
-      }
-    },
-    "Please complete these steps:" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "以下の手順を完了してください:" } }
-      }
-    },
-    "Please use the command line installer:" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "コマンドラインインストーラを使用してください:" } }
-      }
-    },
-    "Positive values extend the tap window for that key; leave blank/0 for default." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "正の値でそのキーのタップウィンドウを延長。デフォルトは空白/0。" } }
-      }
-    },
-    "Positive values extend the tap window per key; leave 0 for default." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "正の値でキーごとのタップウィンドウを延長。デフォルトは0。" } }
-      }
-    },
-    "Press a key..." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "キーを押してください..." } }
-      }
-    },
-    "Press keys, drag apps, or drop files" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "キーを押す、アプリをドラッグ、またはファイルをドロップ" } }
-      }
-    },
-    "Press these 3 keys simultaneously:" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "この3つのキーを同時に押してください:" } }
-      }
-    },
-    "Privileged Helper" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "特権ヘルパー" } }
-      }
-    },
-    "Privileged Helper Ready" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "特権ヘルパー準備完了" } }
-      }
-    },
-    "Process Details" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "プロセス詳細" } }
-      }
-    },
-    "Quick tap" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "クイックタップ" } }
-      }
-    },
-    "Quick tap term" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "クイックタップ時間" } }
-      }
-    },
-    "Ready to Start KeyPath" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "KeyPathを開始する準備ができました" } }
-      }
-    },
-    "Recent Helper Logs" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "最近のヘルパーログ" } }
-      }
-    },
-    "Record keyboard shortcuts and create custom key mappings" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "キーボードショートカットを記録してカスタムキーマッピングを作成" } }
-      }
-    },
-    "Recording Behavior" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "記録動作" } }
-      }
-    },
-    "Restart KeyPath to re-enable remapping" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "リマッピングを再有効化するためKeyPathを再起動" } }
-      }
-    },
-    "Restart Required" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "再起動が必要" } }
-      }
-    },
-    "Restart your Mac or log out/log in for changes to take effect" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "変更を有効にするにはMacを再起動またはログアウト/ログインしてください" } }
-      }
-    },
-    "Right hand" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "右手" } }
-      }
-    },
-    "Right Hand" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "右手" } }
-      }
-    },
-    "Right hand only" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "右手のみ" } }
-      }
-    },
-    "Rule Conflict" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ルールの競合" } }
-      }
-    },
-    "Save" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "保存" } }
-      }
-    },
-    "Select keys:" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "キーを選択:" } }
-      }
-    },
-    "Separate timeouts:" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "個別のタイムアウト:" } }
-      }
-    },
-    "Sequences - Keys one after another" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "シーケンス - キーを順番に" } }
-      }
-    },
-    "Simulator Disabled" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "シミュレータ無効" } }
-      }
-    },
-    "Space or comma separated. Press these keys to trigger tap instead of hold." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "スペースまたはカンマ区切り。ホールドの代わりにタップをトリガーするキー。" } }
-      }
-    },
-    "Standard" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "標準" } }
-      }
-    },
-    "Start KeyPath" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "KeyPathを開始" } }
-      }
-    },
-    "Start the service on the Status tab, then return to manage rules." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ステータスタブでサービスを開始してから、ルール管理に戻ってください。" } }
-      }
-    },
-    "Success" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "成功" } }
-      }
-    },
-    "sudo ./install-system.sh install" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "sudo ./install-system.sh install" } }
-      }
-    },
-    "Switch to Hold" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ホールドに切り替え" } }
-      }
-    },
-    "Switch to Tap" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "タップに切り替え" } }
-      }
-    },
-    "System" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "システム" } }
-      }
-    },
-    "System Actions" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "システムアクション" } }
-      }
-    },
-    "System Issues Detected" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "システムの問題を検出" } }
-      }
-    },
-    "System Operations Available" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "システム操作が利用可能" } }
-      }
-    },
-    "System Status" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "システムステータス" } }
-      }
-    },
-    "Tap" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "タップ" } }
-      }
-    },
-    "TAP" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "タップ" } }
-      }
-    },
-    "Tap Dance" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "タップダンス" } }
-      }
-    },
-    "Tap for letter, hold for modifier" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "タップで文字、ホールドでモディファイア" } }
-      }
-    },
-    "Tap keys for letters, hold for modifiers" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "タップで文字、ホールドでモディファイア" } }
-      }
-    },
-    "Tap window" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "タップウィンドウ" } }
-      }
-    },
-    "Tap window: time before tap becomes hold. Hold delay: time before hold activates." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "タップウィンドウ: タップがホールドになるまでの時間。ホールド遅延: ホールドが有効になるまでの時間。" } }
-      }
-    },
-    "Tapping term" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "タップ時間" } }
-      }
-    },
-    "TCC Database Check Results:" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "TCCデータベースチェック結果:" } }
-      }
-    },
-    "TCP Communication" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "TCP通信" } }
-      }
-    },
-    "The disabled rule can be re-enabled later" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "無効化されたルールは後で再有効化できます" } }
-      }
-    },
-    "These rules stay separate from presets so you can manage them independently." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "これらのルールはプリセットとは別に管理できます。" } }
-      }
-    },
-    "This action cannot be undone." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "この操作は元に戻せません。" } }
-      }
-    },
-    "This installer is not yet implemented." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "このインストーラはまだ実装されていません。" } }
-      }
-    },
-    "This removes the rule from Custom Rules but leaves preset collections untouched." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "これはカスタムルールからルールを削除しますが、プリセットコレクションには影響しません。" } }
-      }
-    },
-    "This will install Kanata and set up the LaunchDaemon service." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "これによりKanataがインストールされ、LaunchDaemonサービスが設定されます。" } }
-      }
-    },
-    "This will remove all custom rules and restore the keyboard to its default mappings." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "これによりすべてのカスタムルールが削除され、キーボードがデフォルトのマッピングに復元されます。" } }
-      }
-    },
-    "This will remove all services, helpers, and the app. Your configuration file will be preserved." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "これによりすべてのサービス、ヘルパー、アプリが削除されます。設定ファイルは保持されます。" } }
-      }
-    },
-    "Time to register taps" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "タップ登録時間" } }
-      }
-    },
-    "Timing" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "タイミング" } }
-      }
-    },
-    "Timing (ms)" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "タイミング (ms)" } }
-      }
-    },
-    "Tip: Entries with warning icons are from old or moved installations" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ヒント: 警告アイコンのある項目は古いまたは移動されたインストールからのものです" } }
-      }
-    },
-    "Tip: You can also manually quit and reopen KeyPath" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ヒント: KeyPathを手動で終了して再度開くこともできます" } }
-      }
-    },
-    "To verify kanata's permission, please grant Full Disk Access to KeyPath." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "kanataの許可を確認するには、KeyPathにフルディスクアクセスを付与してください。" } }
-      }
-    },
-    "Toggle KeyPath to ON under Background Items, then return here." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "バックグラウンド項目でKeyPathをONに切り替えてから、ここに戻ってください。" } }
-      }
-    },
-    "Transform your keyboard into a numpad" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "キーボードをテンキーに変換" } }
-      }
-    },
-    "Turn on Kanata to manage rules." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ルールを管理するにはKanataをオンにしてください。" } }
-      }
-    },
-    "Typing Sounds" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "タイピング音" } }
-      }
-    },
-    "Uninstall" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "アンインストール" } }
-      }
-    },
-    "Uninstall Complete" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "アンインストール完了" } }
-      }
-    },
-    "Uninstall KeyPath" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "KeyPathをアンインストール" } }
-      }
-    },
-    "Uninstall KeyPath?" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "KeyPathをアンインストールしますか?" } }
-      }
-    },
-    "Unknown key name" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "不明なキー名" } }
-      }
-    },
-    "Use when service is wedged and won't respond" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "サービスがフリーズして応答しない場合に使用" } }
-      }
-    },
-    "View Details" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "詳細を表示" } }
-      }
-    },
-    "Vim" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Vim" } }
-      }
-    },
-    "Virtual Keyboard" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "仮想キーボード" } }
-      }
-    },
-    "Virtual Keys" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "仮想キー" } }
-      }
-    },
-    "Virtual keys defined in your config can be triggered via deep links" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "設定で定義された仮想キーはディープリンクでトリガーできます" } }
-      }
-    },
-    "VS" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "VS" } }
-      }
-    },
-    "Waiting for System Settings..." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "システム設定を待機中..." } }
-      }
-    },
-    "Warnings" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "警告" } }
-      }
-    },
-    "What is Full Disk Access?" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "フルディスクアクセスとは?" } }
-      }
-    },
-    "What to do if permissions are missing:" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "許可が不足している場合の対処法:" } }
-      }
-    },
-    "What's New in KeyPath" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "KeyPathの新機能" } }
-      }
-    },
-    "Which keys?" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "どのキー?" } }
-      }
-    },
-    "Windows/Linux (GACS)" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Windows/Linux (GACS)" } }
-      }
-    },
-    "XPC Communication" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "XPC通信" } }
-      }
-    },
-    "You already have this key mapped. Choose which mapping to keep." : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "このキーは既にマッピングされています。どちらのマッピングを維持するか選択してください。" } }
-      }
-    },
-    "You may need to unlock with your password" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "パスワードでロック解除が必要な場合があります" } }
-      }
-    },
-    "Accessibility" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "アクセシビリティ" } }
-      }
-    },
-    "Input Monitoring" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "入力監視" } }
-      }
-    },
-    "Full Disk Access" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "フルディスクアクセス" } }
-      }
-    },
-    "Open System Settings" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "システム設定を開く" } }
-      }
-    },
-    "Check Permission Status" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "許可ステータスを確認" } }
-      }
-    },
-    "Close" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "閉じる" } }
-      }
-    },
-    "Refresh" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "更新" } }
-      }
-    },
-    "Delete" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "削除" } }
-      }
-    },
-    "Edit" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "編集" } }
-      }
-    },
-    "Create Your First Rule" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "最初のルールを作成" } }
-      }
-    },
-    "Add Rule" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ルールを追加" } }
-      }
-    },
-    "Settings" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "設定" } }
-      }
-    },
-    "Status" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ステータス" } }
-      }
-    },
-    "Rules" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ルール" } }
-      }
-    },
-    "Open" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "開く" } }
-      }
-    },
-    "Reset Overlay Size" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "オーバーレイサイズをリセット" } }
-      }
-    },
-    "Replace with New" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "新しいものに置換" } }
-      }
-    },
-    "Keep Existing" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "既存を維持" } }
-      }
-    },
-    "Later" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "後で" } }
-      }
-    },
-    "Restart Now" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "今すぐ再起動" } }
-      }
-    },
-    "Reveal Copies" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "コピーを表示" } }
-      }
-    },
-    "Clear All" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "すべてクリア" } }
-      }
-    },
-    "Run" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "実行" } }
-      }
-    },
-    "Add Step" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ステップを追加" } }
-      }
-    },
-    "Copy File Paths" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ファイルパスをコピー" } }
-      }
-    },
-    "Open Karabiner Folder" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Karabinerフォルダを開く" } }
-      }
-    },
-    "Help" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ヘルプ" } }
-      }
-    },
-    "Done" : {
-      "localizations" : {
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "完了" } }
+  "sourceLanguage": "en",
+  "version": "1.0",
+  "strings": {
+    " - Emergency stop detection": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " - 緊急停止の検出"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " - Emergency stop detection"
+          }
+        }
+      }
+    },
+    " - Emergency stop detection and system monitoring": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " - 緊急停止の検出とシステム監視"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " - Emergency stop detection and system monitoring"
+          }
+        }
+      }
+    },
+    " - Karabiner services in Login Items for startup": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " - ログイン項目でのKarabinerサービスの起動設定"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " - Karabiner services in Login Items for startup"
+          }
+        }
+      }
+    },
+    " - KeyPath's bundled & Developer ID signed version": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " - KeyPath同梱のDeveloper ID署名済みバージョン"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " - KeyPath's bundled & Developer ID signed version"
+          }
+        }
+      }
+    },
+    " - Keyboard monitoring and remapping engine": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " - キーボード監視とリマッピングエンジン"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " - Keyboard monitoring and remapping engine"
+          }
+        }
+      }
+    },
+    " - Main application captures keyboard input": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " - メインアプリがキーボード入力をキャプチャ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " - Main application captures keyboard input"
+          }
+        }
+      }
+    },
+    " - Main application needs permission": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " - メインアプリに許可が必要"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " - Main application needs permission"
+          }
+        }
+      }
+    },
+    " - Remapping engine processes keyboard events": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " - リマッピングエンジンがキーボードイベントを処理"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " - Remapping engine processes keyboard events"
+          }
+        }
+      }
+    },
+    " - System service configuration & management": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " - システムサービスの設定と管理"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " - System service configuration & management"
+          }
+        }
+      }
+    },
+    " - Virtual keyboard driver for input capture": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " - 入力キャプチャ用仮想キーボードドライバ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " - Virtual keyboard driver for input capture"
+          }
+        }
+      }
+    },
+    "(Press all three keys at the same time)": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "（3つのキーを同時に押してください）"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "(Press all three keys at the same time)"
+          }
+        }
+      }
+    },
+    "+": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+"
+          }
+        }
+      }
+    },
+    "...": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "..."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "..."
+          }
+        }
+      }
+    },
+    "1.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1."
+          }
+        }
+      }
+    },
+    "1. Open System Settings → Privacy & Security": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1. システム設定 → プライバシーとセキュリティを開く"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1. Open System Settings → Privacy & Security"
+          }
+        }
+      }
+    },
+    "2.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2."
+          }
+        }
+      }
+    },
+    "2. Navigate to Input Monitoring": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2. 入力監視に移動"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2. Navigate to Input Monitoring"
+          }
+        }
+      }
+    },
+    "3.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3."
+          }
+        }
+      }
+    },
+    "3. Add both KeyPath.app and /Library/KeyPath/bin/kanata": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3. KeyPath.appと/Library/KeyPath/bin/kanataの両方を追加"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3. Add both KeyPath.app and /Library/KeyPath/bin/kanata"
+          }
+        }
+      }
+    },
+    "4.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4."
+          }
+        }
+      }
+    },
+    "4. Navigate to Accessibility": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4. アクセシビリティに移動"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4. Navigate to Accessibility"
+          }
+        }
+      }
+    },
+    "5.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5."
+          }
+        }
+      }
+    },
+    "5. Add both KeyPath.app and /Library/KeyPath/bin/kanata": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5. KeyPath.appと/Library/KeyPath/bin/kanataの両方を追加"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5. Add both KeyPath.app and /Library/KeyPath/bin/kanata"
+          }
+        }
+      }
+    },
+    "6.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "6."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "6."
+          }
+        }
+      }
+    },
+    "6. You may need to restart KeyPath after granting permissions": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "6. 許可を付与後、KeyPathの再起動が必要な場合があります"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "6. You may need to restart KeyPath after granting permissions"
+          }
+        }
+      }
+    },
+    "7.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "7."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "7."
+          }
+        }
+      }
+    },
+    "= Arrow keys": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "= 矢印キー"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "= Arrow keys"
+          }
+        }
+      }
+    },
+    "About Full Disk Access": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フルディスクアクセスについて"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About Full Disk Access"
+          }
+        }
+      }
+    },
+    "Accessibility": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクセシビリティ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accessibility"
+          }
+        }
+      }
+    },
+    "Accessibility Permission Help": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクセシビリティ許可のヘルプ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accessibility Permission Help"
+          }
+        }
+      }
+    },
+    "Action Required:": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "操作が必要:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Action Required:"
+          }
+        }
+      }
+    },
+    "Activate hold on other key": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "他のキーを押したときにホールドを有効化"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activate hold on other key"
+          }
+        }
+      }
+    },
+    "Activate via Leader → w, then press the action key": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leader → wで有効化し、アクションキーを押す"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activate via Leader → w, then press the action key"
+          }
+        }
+      }
+    },
+    "Add": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追加"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add"
+          }
+        }
+      }
+    },
+    "Add App": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリを追加"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add App"
+          }
+        }
+      }
+    },
+    "Add Rule": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ルールを追加"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Rule"
+          }
+        }
+      }
+    },
+    "Add Step": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ステップを追加"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Step"
+          }
+        }
+      }
+    },
+    "Add Triple Tap, etc.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トリプルタップなどを追加"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Triple Tap, etc."
+          }
+        }
+      }
+    },
+    "Add URL": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URLを追加"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add URL"
+          }
+        }
+      }
+    },
+    "Add `defvirtualkeys` or `deffakekeys` blocks to your config to define triggerable macros.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定に`defvirtualkeys`または`deffakekeys`ブロックを追加してトリガー可能なマクロを定義してください。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add `defvirtualkeys` or `deffakekeys` blocks to your config to define triggerable macros."
+          }
+        }
+      }
+    },
+    "Add these two applications (drag & drop or use + button):": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "以下の2つのアプリを追加（ドラッグ＆ドロップまたは+ボタン）:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add these two applications (drag & drop or use + button):"
+          }
+        }
+      }
+    },
+    "All KeyPath.app copies outside /Applications will be moved to the Trash.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "/Applications以外のKeyPath.appコピーはすべてゴミ箱に移動されます。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All KeyPath.app copies outside /Applications will be moved to the Trash."
+          }
+        }
+      }
+    },
+    "All built-in collections are active.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべての組み込みコレクションが有効です。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All built-in collections are active."
+          }
+        }
+      }
+    },
+    "Applying changes...": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "変更を適用中..."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applying changes..."
+          }
+        }
+      }
+    },
+    "Background Services": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バックグラウンドサービス"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Background Services"
+          }
+        }
+      }
+    },
+    "Background Services Setup Help": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バックグラウンドサービス設定のヘルプ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Background Services Setup Help"
+          }
+        }
+      }
+    },
+    "Becomes": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "変換後"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Becomes"
+          }
+        }
+      }
+    },
+    "Benefits": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メリット"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Benefits"
+          }
+        }
+      }
+    },
+    "Both hands": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "両手"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Both hands"
+          }
+        }
+      }
+    },
+    "Both rules want to control the same keys. Choose which rule to keep enabled.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "両方のルールが同じキーを制御しようとしています。どちらを有効にするか選択してください。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Both rules want to control the same keys. Choose which rule to keep enabled."
+          }
+        }
+      }
+    },
+    "Browse available presets": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "利用可能なプリセットを閲覧"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Browse available presets"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キャンセル"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        }
+      }
+    },
+    "Capture Mode": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キャプチャモード"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capture Mode"
+          }
+        }
+      }
+    },
+    "Check Permission Status": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "許可ステータスを確認"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check Permission Status"
+          }
+        }
+      }
+    },
+    "Checking": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "確認中"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking"
+          }
+        }
+      }
+    },
+    "Choose One": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1つ選択"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose One"
+          }
+        }
+      }
+    },
+    "Clear": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クリア"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear"
+          }
+        }
+      }
+    },
+    "Clear All": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべてクリア"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear All"
+          }
+        }
+      }
+    },
+    "Click 'Check Permission Status' to verify": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「許可ステータスを確認」をクリックして確認"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click 'Check Permission Status' to verify"
+          }
+        }
+      }
+    },
+    "Click 'Open System Settings' below": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下の「システム設定を開く」をクリック"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click 'Open System Settings' below"
+          }
+        }
+      }
+    },
+    "Click keys above, then Run to simulate": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上のキーをクリックし、実行でシミュレート"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click keys above, then Run to simulate"
+          }
+        }
+      }
+    },
+    "Click keys to queue events": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キーをクリックしてイベントをキューに追加"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click keys to queue events"
+          }
+        }
+      }
+    },
+    "Click to record": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クリックして記録"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to record"
+          }
+        }
+      }
+    },
+    "Click to tap • Long-press to hold • Type to add keys": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クリックでタップ • 長押しでホールド • 入力でキー追加"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to tap • Long-press to hold • Type to add keys"
+          }
+        }
+      }
+    },
+    "Close": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "閉じる"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close"
+          }
+        }
+      }
+    },
+    "Combos - Keys together": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コンボ - 同時押し"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Combos - Keys together"
+          }
+        }
+      }
+    },
+    "Complete Setup": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セットアップを完了"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Complete Setup"
+          }
+        }
+      }
+    },
+    "Completely Optional": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完全に任意"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Completely Optional"
+          }
+        }
+      }
+    },
+    "Configuration Validation Failed": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定の検証に失敗"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configuration Validation Failed"
+          }
+        }
+      }
+    },
+    "Configure the output key in the field above.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上のフィールドで出力キーを設定してください。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configure the output key in the field above."
+          }
+        }
+      }
+    },
+    "Conflicting Keys": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "競合するキー"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conflicting Keys"
+          }
+        }
+      }
+    },
+    "Conflicting Processes Found": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "競合するプロセスを検出"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conflicting Processes Found"
+          }
+        }
+      }
+    },
+    "Conflicting mapping detected": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "競合するマッピングを検出"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conflicting mapping detected"
+          }
+        }
+      }
+    },
+    "Continue": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "続ける"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue"
+          }
+        }
+      }
+    },
+    "Copies found at:": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コピーの場所:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copies found at:"
+          }
+        }
+      }
+    },
+    "Copy File Paths": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ファイルパスをコピー"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy File Paths"
+          }
+        }
+      }
+    },
+    "Create Your First Rule": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最初のルールを作成"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create Your First Rule"
+          }
+        }
+      }
+    },
+    "Create personalized key mappings": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カスタムキーマッピングを作成"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create personalized key mappings"
+          }
+        }
+      }
+    },
+    "Current Hold Action": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在のホールドアクション"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current Hold Action"
+          }
+        }
+      }
+    },
+    "Current Tap Dance Actions": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在のタップダンスアクション"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current Tap Dance Actions"
+          }
+        }
+      }
+    },
+    "Custom": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カスタム"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom"
+          }
+        }
+      }
+    },
+    "Custom Rules": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カスタムルール"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom Rules"
+          }
+        }
+      }
+    },
+    "Customize Home Row Mods": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホームロウモッドをカスタマイズ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Customize Home Row Mods"
+          }
+        }
+      }
+    },
+    "Customize...": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カスタマイズ..."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Customize..."
+          }
+        }
+      }
+    },
+    "Delay:": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "遅延:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delay:"
+          }
+        }
+      }
+    },
+    "Delete": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "削除"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete"
+          }
+        }
+      }
+    },
+    "Description": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "説明"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Description"
+          }
+        }
+      }
+    },
+    "Detected Issues:": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "検出された問題:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detected Issues:"
+          }
+        }
+      }
+    },
+    "Detecting processes...": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロセスを検出中..."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detecting processes..."
+          }
+        }
+      }
+    },
+    "Detection timeout - restart may be required": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "検出タイムアウト - 再起動が必要な場合があります"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detection timeout - restart may be required"
+          }
+        }
+      }
+    },
+    "Diagnostics & Repair": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "診断と修復"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diagnostics & Repair"
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完了"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
+          }
+        }
+      }
+    },
+    "Double Tap": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ダブルタップ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Double Tap"
+          }
+        }
+      }
+    },
+    "Duration": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "継続時間"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duration"
+          }
+        }
+      }
+    },
+    "Edit": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "編集"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit"
+          }
+        }
+      }
+    },
+    "Edit your configuration to add key remapping rules.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定を編集してキーリマッピングルールを追加してください。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit your configuration to add key remapping rules."
+          }
+        }
+      }
+    },
+    "Emergency Recovery": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "緊急回復"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emergency Recovery"
+          }
+        }
+      }
+    },
+    "Emergency Stop": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "緊急停止"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emergency Stop"
+          }
+        }
+      }
+    },
+    "Emergency Stop Activated": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "緊急停止が作動"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emergency Stop Activated"
+          }
+        }
+      }
+    },
+    "Emergency stop sequence used:": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "緊急停止シーケンス:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emergency stop sequence used:"
+          }
+        }
+      }
+    },
+    "Enable the simulator feature flag to use the virtual keyboard simulator.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仮想キーボードシミュレータを使用するにはシミュレータ機能フラグを有効にしてください。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable the simulator feature flag to use the virtual keyboard simulator."
+          }
+        }
+      }
+    },
+    "Enable the toggle for both KeyPath and kanata": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPathとkanata両方のトグルを有効にする"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable the toggle for both KeyPath and kanata"
+          }
+        }
+      }
+    },
+    "Enhanced diagnostics are now available": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拡張診断が利用可能になりました"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enhanced diagnostics are now available"
+          }
+        }
+      }
+    },
+    "Enter Custom Key": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カスタムキーを入力"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter Custom Key"
+          }
+        }
+      }
+    },
+    "Enter Web URL": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WebURLを入力"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter Web URL"
+          }
+        }
+      }
+    },
+    "Event Timeline": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "イベントタイムライン"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Event Timeline"
+          }
+        }
+      }
+    },
+    "Events": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "イベント"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Events"
+          }
+        }
+      }
+    },
+    "Experiment: Testing visual input capture": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "実験: 視覚入力キャプチャのテスト"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Experiment: Testing visual input capture"
+          }
+        }
+      }
+    },
+    "External Conflicts": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "外部の競合"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "External Conflicts"
+          }
+        }
+      }
+    },
+    "Extra copies can cause stale approvals. Remove extras to keep permissions healthy.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "余分なコピーは古い承認の原因になります。許可を正常に保つため余分を削除してください。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Extra copies can cause stale approvals. Remove extras to keep permissions healthy."
+          }
+        }
+      }
+    },
+    "Failed": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "失敗"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed"
+          }
+        }
+      }
+    },
+    "Fast taps always register as tap": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "素早いタップは常にタップとして登録"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fast taps always register as tap"
+          }
+        }
+      }
+    },
+    "Fewer Options": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オプションを減らす"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fewer Options"
+          }
+        }
+      }
+    },
+    "Final Layer": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最終レイヤー"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Final Layer"
+          }
+        }
+      }
+    },
+    "For the smoothest setup, move KeyPath to /Applications and relaunch.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スムーズなセットアップのため、KeyPathを/Applicationsに移動して再起動してください。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For the smoothest setup, move KeyPath to /Applications and relaunch."
+          }
+        }
+      }
+    },
+    "Full Disk Access": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フルディスクアクセス"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Full Disk Access"
+          }
+        }
+      }
+    },
+    "Full Disk Access Granted!": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フルディスクアクセスが許可されました!"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Full Disk Access Granted!"
+          }
+        }
+      }
+    },
+    "Full Disk Access requires KeyPath to restart": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フルディスクアクセスにはKeyPathの再起動が必要です"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Full Disk Access requires KeyPath to restart"
+          }
+        }
+      }
+    },
+    "Gates the simulator UI, overlay mapping via simulator, and virtual key actions.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "シミュレータUI、オーバーレイマッピング、仮想キーアクションを制御します。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gates the simulator UI, overlay mapping via simulator, and virtual key actions."
+          }
+        }
+      }
+    },
+    "Go to General → Login Items & Extensions": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一般 → ログイン項目と機能拡張に移動"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Go to General → Login Items & Extensions"
+          }
+        }
+      }
+    },
+    "Got it": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "了解"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Got it"
+          }
+        }
+      }
+    },
+    "Grant permissions to enable keyboard remapping": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キーボードリマッピングを有効にするため許可を付与"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grant permissions to enable keyboard remapping"
+          }
+        }
+      }
+    },
+    "HOLD": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホールド"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HOLD"
+          }
+        }
+      }
+    },
+    "Help": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ヘルプ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Help"
+          }
+        }
+      }
+    },
+    "Helper Health": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ヘルパーの状態"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Helper Health"
+          }
+        }
+      }
+    },
+    "Helpful Tools:": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "便利なツール:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Helpful Tools:"
+          }
+        }
+      }
+    },
+    "Here's how to fix this:": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "修正方法:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Here's how to fix this:"
+          }
+        }
+      }
+    },
+    "Hold": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホールド"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold"
+          }
+        }
+      }
+    },
+    "Hold Behavior:": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホールド動作:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold Behavior:"
+          }
+        }
+      }
+    },
+    "Hold delay": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホールド遅延"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold delay"
+          }
+        }
+      }
+    },
+    "Hold timeout": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホールドタイムアウト"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold timeout"
+          }
+        }
+      }
+    },
+    "Hold triggers when you press another key": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "別のキーを押すとホールドが発動"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold triggers when you press another key"
+          }
+        }
+      }
+    },
+    "Hold ⇧ Shift while navigating to select text": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⇧ Shiftを押しながらナビゲートしてテキストを選択"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold ⇧ Shift while navigating to select text"
+          }
+        }
+      }
+    },
+    "Hold, Double Tap, etc.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホールド、ダブルタップなど"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold, Double Tap, etc."
+          }
+        }
+      }
+    },
+    "How to Clean Up:": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クリーンアップ方法:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How to Clean Up:"
+          }
+        }
+      }
+    },
+    "How to add Login Items:": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ログイン項目の追加方法:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How to add Login Items:"
+          }
+        }
+      }
+    },
+    "How to grant permission:": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "許可の付与方法:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How to grant permission:"
+          }
+        }
+      }
+    },
+    "If the keyboard becomes unresponsive, press:": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キーボードが反応しなくなった場合は押してください:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If the keyboard becomes unresponsive, press:"
+          }
+        }
+      }
+    },
+    "Important: Use physical key positions, not after any remapping": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重要: リマッピング後ではなく物理キー位置を使用"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Important: Use physical key positions, not after any remapping"
+          }
+        }
+      }
+    },
+    "Include KeyPath mappings": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPathマッピングを含める"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Include KeyPath mappings"
+          }
+        }
+      }
+    },
+    "Include punctuation": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "句読点を含める"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Include punctuation"
+          }
+        }
+      }
+    },
+    "Input": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入力"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Input"
+          }
+        }
+      }
+    },
+    "Input Capture Experiment": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入力キャプチャ実験"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Input Capture Experiment"
+          }
+        }
+      }
+    },
+    "Input Key": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入力キー"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Input Key"
+          }
+        }
+      }
+    },
+    "Input Monitoring": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入力監視"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Input Monitoring"
+          }
+        }
+      }
+    },
+    "Input Monitoring Permission Help": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入力監視許可のヘルプ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Input Monitoring Permission Help"
+          }
+        }
+      }
+    },
+    "Installer": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インストーラ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installer"
+          }
+        }
+      }
+    },
+    "Kanata Binary": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kanataバイナリ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kanata Binary"
+          }
+        }
+      }
+    },
+    "Kanata Service": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kanataサービス"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kanata Service"
+          }
+        }
+      }
+    },
+    "Kanata can't detect both hold duration and tap count on the same key. Which behavior do you want to keep?": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kanataは同じキーでホールド時間とタップ回数の両方を検出できません。どちらの動作を維持しますか?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kanata can't detect both hold duration and tap count on the same key. Which behavior do you want to keep?"
+          }
+        }
+      }
+    },
+    "Kanata is running smoothly": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kanataは正常に動作中"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kanata is running smoothly"
+          }
+        }
+      }
+    },
+    "Kanata log": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kanataログ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kanata log"
+          }
+        }
+      }
+    },
+    "Kanata refused to load the generated config. KeyPath left the previous configuration in place until you fix the issues below.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kanataが生成された設定の読み込みを拒否しました。下記の問題を修正するまで以前の設定が維持されます。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kanata refused to load the generated config. KeyPath left the previous configuration in place until you fix the issues below."
+          }
+        }
+      }
+    },
+    "Kanata syntax:": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kanata構文:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kanata syntax:"
+          }
+        }
+      }
+    },
+    "Kanata will immediately stop all remapping": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kanataはすべてのリマッピングを即座に停止します"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kanata will immediately stop all remapping"
+          }
+        }
+      }
+    },
+    "Karabiner Driver": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Karabinerドライバ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Karabiner Driver"
+          }
+        }
+      }
+    },
+    "Keep Existing": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "既存を維持"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Existing"
+          }
+        }
+      }
+    },
+    "Keep Hold": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホールドを維持"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Hold"
+          }
+        }
+      }
+    },
+    "Keep Tap Dance": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タップダンスを維持"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Tap Dance"
+          }
+        }
+      }
+    },
+    "KeyPath": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPath"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPath"
+          }
+        }
+      }
+    },
+    "KeyPath Managed Processes": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPath管理プロセス"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPath Managed Processes"
+          }
+        }
+      }
+    },
+    "KeyPath log": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPathログ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPath log"
+          }
+        }
+      }
+    },
+    "KeyPath will now start the keyboard remapping service.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPathがキーボードリマッピングサービスを開始します。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPath will now start the keyboard remapping service."
+          }
+        }
+      }
+    },
+    "KeyPath.app": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPath.app"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPath.app"
+          }
+        }
+      }
+    },
+    "Keyboard Overlay": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キーボードオーバーレイ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keyboard Overlay"
+          }
+        }
+      }
+    },
+    "Keyboard Remapping": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キーボードリマッピング"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keyboard Remapping"
+          }
+        }
+      }
+    },
+    "Keyboard remapping has been safely stopped": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キーボードリマッピングは安全に停止されました"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keyboard remapping has been safely stopped"
+          }
+        }
+      }
+    },
+    "Keys labeled by physical position (QWERTY). Works with any keyboard layout.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "物理位置（QWERTY）でラベル付け。どのキーボードレイアウトでも動作します。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keys labeled by physical position (QWERTY). Works with any keyboard layout."
+          }
+        }
+      }
+    },
+    "Keys that trigger early tap:": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "早期タップをトリガーするキー:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keys that trigger early tap:"
+          }
+        }
+      }
+    },
+    "L →": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L →"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L →"
+          }
+        }
+      }
+    },
+    "LAYER": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "レイヤー"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LAYER"
+          }
+        }
+      }
+    },
+    "Later": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "後で"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Later"
+          }
+        }
+      }
+    },
+    "Layer Changes": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "レイヤー変更"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Layer Changes"
+          }
+        }
+      }
+    },
+    "Left Hand": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "左手"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Left Hand"
+          }
+        }
+      }
+    },
+    "Left hand": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "左手"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Left hand"
+          }
+        }
+      }
+    },
+    "Left hand only": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "左手のみ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Left hand only"
+          }
+        }
+      }
+    },
+    "Loading configuration...": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定を読み込み中..."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading configuration..."
+          }
+        }
+      }
+    },
+    "Loading...": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "読み込み中..."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading..."
+          }
+        }
+      }
+    },
+    "Logs": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ログ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Logs"
+          }
+        }
+      }
+    },
+    "Mac (CAGS: Cmd on index)": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac (CAGS: 人差し指にCmd)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac (CAGS: Cmd on index)"
+          }
+        }
+      }
+    },
+    "Monitoring Kanata stderr for critical errors. Only severe issues are shown here.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kanataのstderrを監視中。重大な問題のみ表示されます。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monitoring Kanata stderr for critical errors. Only severe issues are shown here."
+          }
+        }
+      }
+    },
+    "Move left": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "左に移動"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move left"
+          }
+        }
+      }
+    },
+    "Move right": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "右に移動"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move right"
+          }
+        }
+      }
+    },
+    "Multiple KeyPath.app copies detected. Remove extras to avoid stale approvals.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複数のKeyPath.appコピーが検出されました。古い承認を避けるため余分を削除してください。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Multiple KeyPath.app copies detected. Remove extras to avoid stale approvals."
+          }
+        }
+      }
+    },
+    "Navigate to Privacy & Security → Accessibility": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プライバシーとセキュリティ → アクセシビリティに移動"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Navigate to Privacy & Security → Accessibility"
+          }
+        }
+      }
+    },
+    "Navigate to Privacy & Security → Input Monitoring": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プライバシーとセキュリティ → 入力監視に移動"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Navigate to Privacy & Security → Input Monitoring"
+          }
+        }
+      }
+    },
+    "Navigate to: /Library/Application Support/org.pqrs/Karabiner-Elements/": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次の場所に移動: /Library/Application Support/org.pqrs/Karabiner-Elements/"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Navigate to: /Library/Application Support/org.pqrs/Karabiner-Elements/"
+          }
+        }
+      }
+    },
+    "No Custom Rules Yet": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カスタムルールはまだありません"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Custom Rules Yet"
+          }
+        }
+      }
+    },
+    "No Virtual Keys Defined": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仮想キーは定義されていません"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Virtual Keys Defined"
+          }
+        }
+      }
+    },
+    "No active key mappings": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有効なキーマッピングなし"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No active key mappings"
+          }
+        }
+      }
+    },
+    "No errors detected": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "エラーは検出されませんでした"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No errors detected"
+          }
+        }
+      }
+    },
+    "No processes detected": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロセスは検出されませんでした"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No processes detected"
+          }
+        }
+      }
+    },
+    "No rules yet": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ルールはまだありません"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No rules yet"
+          }
+        }
+      }
+    },
+    "Not Installed": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未インストール"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not Installed"
+          }
+        }
+      }
+    },
+    "On Hold": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホールド時"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On Hold"
+          }
+        }
+      }
+    },
+    "Open": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "開く"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open"
+          }
+        }
+      }
+    },
+    "Open Install Wizard…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Install Wizard…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インストールウィザードを開く…"
+          }
+        }
+      }
+    },
+    "Open Karabiner Folder": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Karabinerフォルダを開く"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Karabiner Folder"
+          }
+        }
+      }
+    },
+    "Open System Settings": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "システム設定を開く"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open System Settings"
+          }
+        }
+      }
+    },
+    "Operators": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "演算子"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Operators"
+          }
+        }
+      }
+    },
+    "Optional": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "任意"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optional"
+          }
+        }
+      }
+    },
+    "Output": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出力"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Output"
+          }
+        }
+      }
+    },
+    "Output Key": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出力キー"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Output Key"
+          }
+        }
+      }
+    },
+    "Output Keys": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出力キー"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Output Keys"
+          }
+        }
+      }
+    },
+    "Output Type": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出力タイプ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Output Type"
+          }
+        }
+      }
+    },
+    "Per-key tap offsets (ms)": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キーごとのタップオフセット (ms)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Per-key tap offsets (ms)"
+          }
+        }
+      }
+    },
+    "Permission Details": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "許可の詳細"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permission Details"
+          }
+        }
+      }
+    },
+    "Permissions": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "許可"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permissions"
+          }
+        }
+      }
+    },
+    "Physical Position": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "物理位置"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Physical Position"
+          }
+        }
+      }
+    },
+    "Physical keys only (pause mappings)": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "物理キーのみ（マッピングを一時停止）"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Physical keys only (pause mappings)"
+          }
+        }
+      }
+    },
+    "Please complete these steps:": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "以下の手順を完了してください:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Please complete these steps:"
+          }
+        }
+      }
+    },
+    "Please use the command line installer:": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コマンドラインインストーラを使用してください:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Please use the command line installer:"
+          }
+        }
+      }
+    },
+    "Positive values extend the tap window for that key; leave blank/0 for default.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正の値でそのキーのタップウィンドウを延長。デフォルトは空白/0。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Positive values extend the tap window for that key; leave blank/0 for default."
+          }
+        }
+      }
+    },
+    "Positive values extend the tap window per key; leave 0 for default.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正の値でキーごとのタップウィンドウを延長。デフォルトは0。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Positive values extend the tap window per key; leave 0 for default."
+          }
+        }
+      }
+    },
+    "Press a key...": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キーを押してください..."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press a key..."
+          }
+        }
+      }
+    },
+    "Press keys, drag apps, or drop files": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キーを押す、アプリをドラッグ、またはファイルをドロップ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press keys, drag apps, or drop files"
+          }
+        }
+      }
+    },
+    "Press these 3 keys simultaneously:": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この3つのキーを同時に押してください:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press these 3 keys simultaneously:"
+          }
+        }
+      }
+    },
+    "Privileged Helper": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "特権ヘルパー"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privileged Helper"
+          }
+        }
+      }
+    },
+    "Privileged Helper Ready": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "特権ヘルパー準備完了"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privileged Helper Ready"
+          }
+        }
+      }
+    },
+    "Process Details": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロセス詳細"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Process Details"
+          }
+        }
+      }
+    },
+    "Quick tap": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クイックタップ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quick tap"
+          }
+        }
+      }
+    },
+    "Quick tap term": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クイックタップ時間"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quick tap term"
+          }
+        }
+      }
+    },
+    "Quit KeyPath": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quit KeyPath"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPathを終了"
+          }
+        }
+      }
+    },
+    "Ready to Start KeyPath": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPathを開始する準備ができました"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ready to Start KeyPath"
+          }
+        }
+      }
+    },
+    "Recent Helper Logs": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最近のヘルパーログ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recent Helper Logs"
+          }
+        }
+      }
+    },
+    "Record keyboard shortcuts and create custom key mappings": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キーボードショートカットを記録してカスタムキーマッピングを作成"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record keyboard shortcuts and create custom key mappings"
+          }
+        }
+      }
+    },
+    "Recording Behavior": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "記録動作"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording Behavior"
+          }
+        }
+      }
+    },
+    "Refresh": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh"
+          }
+        }
+      }
+    },
+    "Replace with New": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新しいものに置換"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replace with New"
+          }
+        }
+      }
+    },
+    "Reset Overlay Size": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オーバーレイサイズをリセット"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset Overlay Size"
+          }
+        }
+      }
+    },
+    "Restart KeyPath to re-enable remapping": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リマッピングを再有効化するためKeyPathを再起動"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restart KeyPath to re-enable remapping"
+          }
+        }
+      }
+    },
+    "Restart Now": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今すぐ再起動"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restart Now"
+          }
+        }
+      }
+    },
+    "Restart Required": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再起動が必要"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restart Required"
+          }
+        }
+      }
+    },
+    "Restart your Mac or log out/log in for changes to take effect": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "変更を有効にするにはMacを再起動またはログアウト/ログインしてください"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restart your Mac or log out/log in for changes to take effect"
+          }
+        }
+      }
+    },
+    "Reveal Copies": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コピーを表示"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reveal Copies"
+          }
+        }
+      }
+    },
+    "Right Hand": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "右手"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Right Hand"
+          }
+        }
+      }
+    },
+    "Right hand": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "右手"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Right hand"
+          }
+        }
+      }
+    },
+    "Right hand only": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "右手のみ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Right hand only"
+          }
+        }
+      }
+    },
+    "Rule Conflict": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ルールの競合"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rule Conflict"
+          }
+        }
+      }
+    },
+    "Rules": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ルール"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rules"
+          }
+        }
+      }
+    },
+    "Run": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "実行"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run"
+          }
+        }
+      }
+    },
+    "Save": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save"
+          }
+        }
+      }
+    },
+    "Select keys:": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キーを選択:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select keys:"
+          }
+        }
+      }
+    },
+    "Separate timeouts:": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "個別のタイムアウト:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Separate timeouts:"
+          }
+        }
+      }
+    },
+    "Sequences - Keys one after another": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "シーケンス - キーを順番に"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sequences - Keys one after another"
+          }
+        }
+      }
+    },
+    "Settings": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings"
+          }
+        }
+      }
+    },
+    "Show KeyPath": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show KeyPath"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPathを表示"
+          }
+        }
+      }
+    },
+    "Simulator Disabled": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "シミュレータ無効"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulator Disabled"
+          }
+        }
+      }
+    },
+    "Space or comma separated. Press these keys to trigger tap instead of hold.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スペースまたはカンマ区切り。ホールドの代わりにタップをトリガーするキー。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Space or comma separated. Press these keys to trigger tap instead of hold."
+          }
+        }
+      }
+    },
+    "Standard": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "標準"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard"
+          }
+        }
+      }
+    },
+    "Start KeyPath": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPathを開始"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start KeyPath"
+          }
+        }
+      }
+    },
+    "Start the service on the Status tab, then return to manage rules.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ステータスタブでサービスを開始してから、ルール管理に戻ってください。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start the service on the Status tab, then return to manage rules."
+          }
+        }
+      }
+    },
+    "Status": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ステータス"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status"
+          }
+        }
+      }
+    },
+    "Success": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "成功"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Success"
+          }
+        }
+      }
+    },
+    "Switch to Hold": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホールドに切り替え"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch to Hold"
+          }
+        }
+      }
+    },
+    "Switch to Tap": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タップに切り替え"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch to Tap"
+          }
+        }
+      }
+    },
+    "System": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "システム"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System"
+          }
+        }
+      }
+    },
+    "System Actions": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "システムアクション"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System Actions"
+          }
+        }
+      }
+    },
+    "System Issues Detected": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "システムの問題を検出"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System Issues Detected"
+          }
+        }
+      }
+    },
+    "System Operations Available": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "システム操作が利用可能"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System Operations Available"
+          }
+        }
+      }
+    },
+    "System Status": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "システムステータス"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System Status"
+          }
+        }
+      }
+    },
+    "TAP": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タップ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TAP"
+          }
+        }
+      }
+    },
+    "TCC Database Check Results:": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TCCデータベースチェック結果:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TCC Database Check Results:"
+          }
+        }
+      }
+    },
+    "TCP Communication": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TCP通信"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TCP Communication"
+          }
+        }
+      }
+    },
+    "Tap": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タップ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap"
+          }
+        }
+      }
+    },
+    "Tap Dance": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タップダンス"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap Dance"
+          }
+        }
+      }
+    },
+    "Tap for letter, hold for modifier": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タップで文字、ホールドでモディファイア"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap for letter, hold for modifier"
+          }
+        }
+      }
+    },
+    "Tap keys for letters, hold for modifiers": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タップで文字、ホールドでモディファイア"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap keys for letters, hold for modifiers"
+          }
+        }
+      }
+    },
+    "Tap window": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タップウィンドウ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap window"
+          }
+        }
+      }
+    },
+    "Tap window: time before tap becomes hold. Hold delay: time before hold activates.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タップウィンドウ: タップがホールドになるまでの時間。ホールド遅延: ホールドが有効になるまでの時間。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap window: time before tap becomes hold. Hold delay: time before hold activates."
+          }
+        }
+      }
+    },
+    "Tapping term": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タップ時間"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tapping term"
+          }
+        }
+      }
+    },
+    "The disabled rule can be re-enabled later": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無効化されたルールは後で再有効化できます"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The disabled rule can be re-enabled later"
+          }
+        }
+      }
+    },
+    "These rules stay separate from presets so you can manage them independently.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "これらのルールはプリセットとは別に管理できます。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These rules stay separate from presets so you can manage them independently."
+          }
+        }
+      }
+    },
+    "This action cannot be undone.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この操作は元に戻せません。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This action cannot be undone."
+          }
+        }
+      }
+    },
+    "This installer is not yet implemented.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このインストーラはまだ実装されていません。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This installer is not yet implemented."
+          }
+        }
+      }
+    },
+    "This removes the rule from Custom Rules but leaves preset collections untouched.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "これはカスタムルールからルールを削除しますが、プリセットコレクションには影響しません。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This removes the rule from Custom Rules but leaves preset collections untouched."
+          }
+        }
+      }
+    },
+    "This will install Kanata and set up the LaunchDaemon service.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "これによりKanataがインストールされ、LaunchDaemonサービスが設定されます。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This will install Kanata and set up the LaunchDaemon service."
+          }
+        }
+      }
+    },
+    "This will remove all custom rules and restore the keyboard to its default mappings.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "これによりすべてのカスタムルールが削除され、キーボードがデフォルトのマッピングに復元されます。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This will remove all custom rules and restore the keyboard to its default mappings."
+          }
+        }
+      }
+    },
+    "This will remove all services, helpers, and the app. Your configuration file will be preserved.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "これによりすべてのサービス、ヘルパー、アプリが削除されます。設定ファイルは保持されます。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This will remove all services, helpers, and the app. Your configuration file will be preserved."
+          }
+        }
+      }
+    },
+    "Time to register taps": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タップ登録時間"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time to register taps"
+          }
+        }
+      }
+    },
+    "Timing": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タイミング"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Timing"
+          }
+        }
+      }
+    },
+    "Timing (ms)": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タイミング (ms)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Timing (ms)"
+          }
+        }
+      }
+    },
+    "Tip: Entries with warning icons are from old or moved installations": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ヒント: 警告アイコンのある項目は古いまたは移動されたインストールからのものです"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tip: Entries with warning icons are from old or moved installations"
+          }
+        }
+      }
+    },
+    "Tip: You can also manually quit and reopen KeyPath": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ヒント: KeyPathを手動で終了して再度開くこともできます"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tip: You can also manually quit and reopen KeyPath"
+          }
+        }
+      }
+    },
+    "To verify kanata's permission, please grant Full Disk Access to KeyPath.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "kanataの許可を確認するには、KeyPathにフルディスクアクセスを付与してください。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To verify kanata's permission, please grant Full Disk Access to KeyPath."
+          }
+        }
+      }
+    },
+    "Toggle KeyPath to ON under Background Items, then return here.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バックグラウンド項目でKeyPathをONに切り替えてから、ここに戻ってください。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toggle KeyPath to ON under Background Items, then return here."
+          }
+        }
+      }
+    },
+    "Transform your keyboard into a numpad": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キーボードをテンキーに変換"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transform your keyboard into a numpad"
+          }
+        }
+      }
+    },
+    "Turn on Kanata to manage rules.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ルールを管理するにはKanataをオンにしてください。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn on Kanata to manage rules."
+          }
+        }
+      }
+    },
+    "Typing Sounds": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タイピング音"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Typing Sounds"
+          }
+        }
+      }
+    },
+    "Uninstall": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アンインストール"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uninstall"
+          }
+        }
+      }
+    },
+    "Uninstall Complete": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アンインストール完了"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uninstall Complete"
+          }
+        }
+      }
+    },
+    "Uninstall KeyPath": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPathをアンインストール"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uninstall KeyPath"
+          }
+        }
+      }
+    },
+    "Uninstall KeyPath?": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPathをアンインストールしますか?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uninstall KeyPath?"
+          }
+        }
+      }
+    },
+    "Uninstall KeyPath…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uninstall KeyPath…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPathをアンインストール…"
+          }
+        }
+      }
+    },
+    "Unknown key name": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不明なキー名"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown key name"
+          }
+        }
+      }
+    },
+    "Use when service is wedged and won't respond": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サービスがフリーズして応答しない場合に使用"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use when service is wedged and won't respond"
+          }
+        }
+      }
+    },
+    "VS": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VS"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VS"
+          }
+        }
+      }
+    },
+    "View Details": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "詳細を表示"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View Details"
+          }
+        }
+      }
+    },
+    "Vim": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vim"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vim"
+          }
+        }
+      }
+    },
+    "Virtual Keyboard": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仮想キーボード"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Virtual Keyboard"
+          }
+        }
+      }
+    },
+    "Virtual Keys": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仮想キー"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Virtual Keys"
+          }
+        }
+      }
+    },
+    "Virtual keys defined in your config can be triggered via deep links": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定で定義された仮想キーはディープリンクでトリガーできます"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Virtual keys defined in your config can be triggered via deep links"
+          }
+        }
+      }
+    },
+    "Waiting for System Settings...": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "システム設定を待機中..."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for System Settings..."
+          }
+        }
+      }
+    },
+    "Warnings": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "警告"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warnings"
+          }
+        }
+      }
+    },
+    "What is Full Disk Access?": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フルディスクアクセスとは?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What is Full Disk Access?"
+          }
+        }
+      }
+    },
+    "What to do if permissions are missing:": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "許可が不足している場合の対処法:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What to do if permissions are missing:"
+          }
+        }
+      }
+    },
+    "What's New in KeyPath": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPathの新機能"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What's New in KeyPath"
+          }
+        }
+      }
+    },
+    "Which keys?": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "どのキー?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Which keys?"
+          }
+        }
+      }
+    },
+    "Windows/Linux (GACS)": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Windows/Linux (GACS)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Windows/Linux (GACS)"
+          }
+        }
+      }
+    },
+    "XPC Communication": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "XPC通信"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "XPC Communication"
+          }
+        }
+      }
+    },
+    "You already have this key mapped. Choose which mapping to keep.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このキーは既にマッピングされています。どちらのマッピングを維持するか選択してください。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You already have this key mapped. Choose which mapping to keep."
+          }
+        }
+      }
+    },
+    "You may need to unlock with your password": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パスワードでロック解除が必要な場合があります"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You may need to unlock with your password"
+          }
+        }
+      }
+    },
+    "base": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ベース"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "base"
+          }
+        }
+      }
+    },
+    "esc": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "esc"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "esc"
+          }
+        }
+      }
+    },
+    "fn": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "fn"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "fn"
+          }
+        }
+      }
+    },
+    "kanata": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "kanata"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "kanata"
+          }
+        }
+      }
+    },
+    "ms": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ms"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ms"
+          }
+        }
+      }
+    },
+    "sudo ./install-system.sh install": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sudo ./install-system.sh install"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sudo ./install-system.sh install"
+          }
+        }
+      }
+    },
+    "• Karabiner-Elements Non-Privileged Agents.app": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "• Karabiner-Elements Non-Privileged Agents.app"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "• Karabiner-Elements Non-Privileged Agents.app"
+          }
+        }
+      }
+    },
+    "• Karabiner-Elements Privileged Daemons.app": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "• Karabiner-Elements Privileged Daemons.app"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "• Karabiner-Elements Privileged Daemons.app"
+          }
+        }
+      }
+    },
+    "← H": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "← H"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "← H"
+          }
+        }
+      }
+    },
+    "→": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "→"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "→"
+          }
+        }
+      }
+    },
+    "⌘ ⇧ ⌥ ⌃ + any key": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⌘ ⇧ ⌥ ⌃ + 任意のキー"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⌘ ⇧ ⌥ ⌃ + any key"
+          }
+        }
+      }
+    },
+    "⚠️ Multiple Installations": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⚠️ 複数のインストール"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⚠️ Multiple Installations"
+          }
+        }
       }
     }
   }

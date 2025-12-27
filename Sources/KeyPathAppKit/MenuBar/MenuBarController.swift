@@ -1,4 +1,5 @@
 import AppKit
+import Foundation
 
 @MainActor
 final class MenuBarController: NSObject {
@@ -52,7 +53,7 @@ final class MenuBarController: NSObject {
         menu.removeAllItems()
 
         let showItem = NSMenuItem(
-            title: "Show KeyPath",
+            title: NSLocalizedString("Show KeyPath", comment: "Menu item to show main window"),
             action: #selector(handleShowKeyPath),
             keyEquivalent: ""
         )
@@ -60,7 +61,7 @@ final class MenuBarController: NSObject {
         menu.addItem(showItem)
 
         let wizardItem = NSMenuItem(
-            title: "Open Install Wizard…",
+            title: NSLocalizedString("Open Install Wizard…", comment: "Menu item to open installation wizard"),
             action: #selector(handleShowWizard),
             keyEquivalent: ""
         )
@@ -70,7 +71,7 @@ final class MenuBarController: NSObject {
         menu.addItem(.separator())
 
         let uninstallItem = NSMenuItem(
-            title: "Uninstall KeyPath…",
+            title: NSLocalizedString("Uninstall KeyPath…", comment: "Menu item to uninstall the app"),
             action: #selector(handleUninstall),
             keyEquivalent: ""
         )
@@ -78,7 +79,7 @@ final class MenuBarController: NSObject {
         menu.addItem(uninstallItem)
 
         let quitItem = NSMenuItem(
-            title: "Quit KeyPath",
+            title: NSLocalizedString("Quit KeyPath", comment: "Menu item to quit the app"),
             action: #selector(handleQuit),
             keyEquivalent: ""
         )
