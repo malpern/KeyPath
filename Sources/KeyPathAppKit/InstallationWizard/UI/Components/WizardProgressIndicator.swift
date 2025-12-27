@@ -52,7 +52,7 @@ struct WizardProgressIndicator: View {
                 Spacer()
 
                 if !isIndeterminate {
-                    Text("\(Int(progress * 100))%")
+                    Text(String(localized: "\(Int(progress * 100))%"))
                         .font(.system(size: 13, design: .monospaced))
                         .foregroundColor(.secondary)
                 }

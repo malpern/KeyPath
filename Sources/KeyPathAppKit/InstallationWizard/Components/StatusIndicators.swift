@@ -265,7 +265,7 @@ struct WizardProgressView: View {
 
                 Spacer()
 
-                Text("\(Int(progress * 100))%")
+                Text(String(localized: "\(Int(progress * 100))%"))
                     .font(WizardDesign.Typography.caption)
                     .fontWeight(.medium)
                     .foregroundColor(WizardDesign.Colors.secondaryText)

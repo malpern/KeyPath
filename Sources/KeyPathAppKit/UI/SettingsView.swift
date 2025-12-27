@@ -755,7 +755,7 @@ struct StatusSettingsTabView: View {
                                 let enabledCollections = kanataManager.ruleCollections.filter(\.isEnabled).count
                                 let enabledCustomRules = kanataManager.customRules.filter(\.isEnabled).count
                                 let activeCount = enabledCollections + enabledCustomRules
-                                Text("\(activeCount) active rule\(activeCount == 1 ? "" : "s")")
+                                Text(activeRulesText(count: activeCount))
                                     .font(.body)
                                     .foregroundColor(.secondary)
                             }
@@ -1026,6 +1026,14 @@ struct StatusSettingsTabView: View {
             systemContext: systemContext,
             tcpConfigured: tcpConfigured,
             hasFullDiskAccess: hasFullDiskAccess
+        )
+    }
+
+    /// Returns localized "X active rule(s)" text with proper pluralization
+    private func activeRulesText(count: Int) -> String {
+        String(
+            localized: "\(count) active rules",
+            comment: "Count of active keyboard rules"
         )
     }
 }

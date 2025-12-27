@@ -513,7 +513,7 @@ struct ProcessRow: View {
                     .foregroundColor(.primary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Text("\(processDescription) (PID: \(pid))")
+                Text(String(localized: "\(processDescription) (PID: \(pid))"))
                     .font(.custom("Courier New", size: 12))
                     .foregroundColor(.secondary)
             }

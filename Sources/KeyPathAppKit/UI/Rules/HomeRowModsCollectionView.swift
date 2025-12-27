@@ -190,7 +190,7 @@ struct HomeRowModsCollectionView: View {
                             updateConfig()
                         }
                     ), in: 0 ... 80, step: 5)
-                    Text("\(config.timing.quickTapTermMs) ms")
+                    Text(String(localized: "\(config.timing.quickTapTermMs) ms"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .frame(width: 60, alignment: .trailing)

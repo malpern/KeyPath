@@ -220,7 +220,7 @@ struct CleanupAndRepairView: View {
 
             // Stats footer
             HStack {
-                Text("\(errorMonitor.recentErrors.count) errors logged (last 100)")
+                Text(errorsLoggedText(count: errorMonitor.recentErrors.count))
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
                 Spacer()
@@ -382,5 +382,13 @@ struct CleanupAndRepairView: View {
                 helperHealth = state
             }
         }
+    }
+
+    /// Returns localized "X error(s) logged" text with proper pluralization
+    private func errorsLoggedText(count: Int) -> String {
+        String(
+            localized: "\(count) errors logged (last 100)",
+            comment: "Error count in diagnostics view"
+        )
     }
 }

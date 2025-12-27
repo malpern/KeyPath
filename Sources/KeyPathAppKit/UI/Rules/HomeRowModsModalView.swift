@@ -171,7 +171,7 @@ struct HomeRowModsModalView: View {
                                 get: { Double(localConfig.timing.quickTapTermMs) },
                                 set: { localConfig.timing.quickTapTermMs = Int($0) }
                             ), in: 0 ... 80, step: 5)
-                            Text("\(localConfig.timing.quickTapTermMs) ms")
+                            Text(String(localized: "\(localConfig.timing.quickTapTermMs) ms"))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                                 .frame(width: 60, alignment: .trailing)

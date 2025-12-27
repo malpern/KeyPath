@@ -84,7 +84,7 @@ private struct AvailableRuleCollectionCard: View {
                             HStack(spacing: 4) {
                                 // For leader-based rules, show "Leader + input" instead of just "input"
                                 if let activator = collection.momentaryActivator {
-                                    Text("\(formatLeaderKey(activator.input)) + \(mapping.input)")
+                                    Text(String(localized: "\(formatLeaderKey(activator.input)) + \(mapping.input)"))
                                         .font(.caption.monospaced())
                                 } else {
                                     Text(mapping.input)
