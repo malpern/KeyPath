@@ -86,6 +86,9 @@ struct RulesTabView: View {
     /// Track pending toggle states for immediate UI feedback
     @State private var pendingToggles: [UUID: Bool] = [:]
     @State private var homeRowModsEditState: HomeRowModsEditState?
+    /// Launcher welcome dialog state
+    @State private var showLauncherWelcome = false
+    @State private var pendingLauncherConfig: LauncherGridConfig?
     private let catalog = RuleCollectionCatalog()
 
     // Show all catalog collections, merging with existing state
@@ -135,7 +138,7 @@ struct RulesTabView: View {
                 collection.id == RuleCollectionIdentifier.windowSnapping ||
                 collection.id == RuleCollectionIdentifier.macFunctionKeys
         )
-        let needsCollection = style == .singleKeyPicker || style == .homeRowMods || style == .tapHoldPicker || style == .layerPresetPicker || isSpecializedTable
+        let needsCollection = style == .singleKeyPicker || style == .homeRowMods || style == .tapHoldPicker || style == .layerPresetPicker || style == .launcherGrid || isSpecializedTable
 
         ExpandableCollectionRow(
             collectionId: collection.id.uuidString,
@@ -152,13 +155,24 @@ struct RulesTabView: View {
                 if !isOn {
                     pendingSelections.removeValue(forKey: collection.id)
                 }
-                Task { await kanataManager.toggleRuleCollection(collection.id, enabled: isOn) }
+                // Check if this is launcher and needs welcome dialog
+                if collection.id == RuleCollectionIdentifier.launcher,
+                   isOn,
+                   let config = collection.configuration.launcherGridConfig,
+                   !config.hasSeenWelcome {
+                    // Show welcome dialog instead of toggling directly
+                    pendingLauncherConfig = config
+                    showLauncherWelcome = true
+                } else {
+                    Task { await kanataManager.toggleRuleCollection(collection.id, enabled: isOn) }
+                }
             },
             onEditMapping: nil,
             onDeleteMapping: nil,
             description: dynamicCollectionDescription(for: collection),
             layerActivator: collection.momentaryActivator,
             leaderKeyDisplay: currentLeaderKeyDisplay,
+            activationHint: collection.activationHint,
             displayStyle: style,
             collection: needsCollection ? collection : nil,
             onSelectOutput: style == .singleKeyPicker ? { output in
@@ -188,6 +202,9 @@ struct RulesTabView: View {
             } : nil,
             onSelectFunctionKeyMode: collection.id == RuleCollectionIdentifier.macFunctionKeys ? { mode in
                 Task { await kanataManager.updateFunctionKeyMode(collection.id, mode: mode) }
+            } : nil,
+            onLauncherConfigChanged: collection.id == RuleCollectionIdentifier.launcher ? { config in
+                Task { await kanataManager.updateLauncherConfig(collection.id, config: config) }
             } : nil,
             scrollID: "collection-\(collection.id.uuidString)",
             scrollProxy: scrollProxy
@@ -351,6 +368,29 @@ struct RulesTabView: View {
                     }
                 )
                 .interactiveDismissDisabled()
+            }
+        }
+        .sheet(isPresented: $showLauncherWelcome) {
+            if var config = pendingLauncherConfig {
+                LauncherWelcomeDialog(
+                    config: Binding(
+                        get: { config },
+                        set: { config = $0 }
+                    ),
+                    onComplete: { finalConfig, _ in
+                        var updatedConfig = finalConfig
+                        updatedConfig.hasSeenWelcome = true
+                        Task {
+                            // Create launcher collection with updated config and add it
+                            var launcherCollection = catalog.defaultCollections()
+                                .first { $0.id == RuleCollectionIdentifier.launcher }!
+                            launcherCollection.configuration = .launcherGrid(updatedConfig)
+                            launcherCollection.isEnabled = true
+                            await kanataManager.addRuleCollection(launcherCollection)
+                        }
+                        showLauncherWelcome = false
+                    }
+                )
             }
         }
         .alert("Reset Configuration?", isPresented: $showingResetConfirmation) {
@@ -554,6 +594,8 @@ private struct ExpandableCollectionRow: View {
     var layerActivator: MomentaryActivator?
     /// Current leader key display name for layer-based collections
     var leaderKeyDisplay: String = "␣ Space"
+    /// Optional activation hint from collection (overrides default formatting)
+    var activationHint: String?
     var defaultExpanded: Bool = false
     var displayStyle: RuleCollectionDisplayStyle = .list
     /// For singleKeyPicker style: the full collection with presets
@@ -575,6 +617,8 @@ private struct ExpandableCollectionRow: View {
     var onSelectWindowConvention: ((WindowKeyConvention) -> Void)?
     /// For functionKeys: callback to change mode (media keys vs function keys)
     var onSelectFunctionKeyMode: ((FunctionKeyMode) -> Void)?
+    /// For launcherGrid: callback to update launcher config
+    var onLauncherConfigChanged: ((LauncherGridConfig) -> Void)?
     /// Unique ID for scroll-to behavior
     var scrollID: String?
     /// Scroll proxy for auto-scrolling when expanded
@@ -695,7 +739,13 @@ private struct ExpandableCollectionRow: View {
                             .foregroundColor(.secondary)
                     }
 
-                    if layerActivator != nil {
+                    if let hint = activationHint {
+                        // Use collection's custom activation hint (e.g., "Hold Hyper key")
+                        Label(hint, systemImage: "hand.point.up.left")
+                            .font(.caption)
+                            .foregroundColor(.accentColor)
+                    } else if layerActivator != nil {
+                        // Fall back to leader key display for leader-based collections
                         Label("Hold \(leaderKeyDisplay)", systemImage: "hand.point.up.left")
                             .font(.caption)
                             .foregroundColor(.accentColor)
@@ -868,6 +918,24 @@ private struct ExpandableCollectionRow: View {
                     .padding(.top, 8)
                     .padding(.bottom, 12)
                     .padding(.horizontal, 16)
+                } else if displayStyle == .launcherGrid, let coll = collection {
+                    // Launcher grid for app/website shortcuts
+                    if let config = coll.configuration.launcherGridConfig {
+                        LauncherCollectionView(
+                            config: Binding(
+                                get: { config },
+                                set: { newConfig in
+                                    onLauncherConfigChanged?(newConfig)
+                                }
+                            ),
+                            onConfigChanged: { newConfig in
+                                onLauncherConfigChanged?(newConfig)
+                            }
+                        )
+                        .padding(.top, 8)
+                        .padding(.bottom, 12)
+                        .padding(.horizontal, 16)
+                    }
                 } else if displayStyle == .table {
                     // Check for specialized collection views
                     if collection?.id == RuleCollectionIdentifier.numpadLayer {

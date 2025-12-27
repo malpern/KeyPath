@@ -134,6 +134,13 @@ struct WizardFullDiskAccessPage: View {
         .onDisappear {
             stopAutoDetection()
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            // Re-check FDA when app becomes active (user may have granted it in System Settings)
+            if !hasFullDiskAccess {
+                AppLogger.shared.log("🔐 [Wizard] App became active - re-checking FDA status")
+                checkFullDiskAccess()
+            }
+        }
         .sheet(isPresented: $showingDetails) {
             FullDiskAccessDetailsSheet()
         }

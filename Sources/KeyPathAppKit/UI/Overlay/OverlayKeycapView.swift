@@ -33,12 +33,24 @@ struct OverlayKeycapView: View {
     var onKeyClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
     /// GMK colorway for keycap styling
     var colorway: GMKColorway = .default
+    /// Layout total width for rainbow gradient calculation (default 15 for standard keyboards)
+    var layoutTotalWidth: CGFloat = 15.0
     /// Whether to hide alpha labels (used when floating labels handle animation)
     var useFloatingLabels: Bool = false
+    /// Whether to show scooped/dished home row keys (Kinesis style)
+    var showScoopedHomeRow: Bool = false
 
     /// Size thresholds for typography adaptation
     private var isSmallSize: Bool { scale < 0.8 }
     private var isLargeSize: Bool { scale >= 1.5 }
+
+    /// Home row keyCodes (A, S, D, F, J, K, L, ;)
+    private static let homeRowKeyCodes: Set<UInt16> = [0, 1, 2, 3, 38, 40, 37, 41]
+
+    /// Whether this key is a home row key
+    private var isHomeRowKey: Bool {
+        Self.homeRowKeyCodes.contains(key.keyCode)
+    }
 
     /// The effective label to display (hold label > layer mapping > keymap/physical)
     private var effectiveLabel: String {
@@ -143,6 +155,8 @@ struct OverlayKeycapView: View {
                     RoundedRectangle(cornerRadius: cornerRadius)
                         .stroke(keyStroke, lineWidth: strokeWidth)
                 )
+
+            // Home row color accent for Kinesis (different keycap color)
 
             // Hover highlight outline (shows when clickable)
             if isClickable {
@@ -256,10 +270,41 @@ struct OverlayKeycapView: View {
     /// Accessibility label describing the key and its current mapping
     private var keycapAccessibilityLabel: String {
         let keyName = key.label.isEmpty ? "Key \(key.keyCode)" : key.label
+
+        // For dots legend style, describe the visual representation
+        if colorway.legendStyle == .dots {
+            let shape = isModifierKey ? "bar" : "dot"
+            let colorDescription = dotsColorAccessibilityDescription
+            if let info = layerKeyInfo, !info.displayLabel.isEmpty, info.displayLabel != keyName {
+                return "\(keyName), \(colorDescription) \(shape), mapped to \(info.displayLabel)"
+            }
+            return "\(keyName), \(colorDescription) \(shape)"
+        }
+
         if let info = layerKeyInfo, !info.displayLabel.isEmpty, info.displayLabel != keyName {
             return "\(keyName), mapped to \(info.displayLabel)"
         }
         return keyName
+    }
+
+    /// Human-readable color description for dots legend accessibility
+    private var dotsColorAccessibilityDescription: String {
+        guard let config = colorway.dotsConfig else { return "colored" }
+
+        switch config.colorMode {
+        case .monochrome:
+            return "monochrome"
+        case .rainbow:
+            // Map column position to color name
+            let totalColumns = Int(layoutTotalWidth)
+            guard totalColumns > 1 else { return "colored" }
+            let normalized = CGFloat(key.x) / CGFloat(totalColumns - 1)
+            let colorIndex = Int(normalized * CGFloat(DotsLegendConfig.rainbowPalette.count - 1))
+            let clampedIndex = max(0, min(colorIndex, DotsLegendConfig.rainbowPalette.count - 1))
+
+            let colorNames = ["red", "orange", "yellow", "green", "blue", "purple"]
+            return colorNames[clampedIndex]
+        }
     }
 
     // MARK: - App Icon Loading
@@ -311,8 +356,12 @@ struct OverlayKeycapView: View {
     /// Standard key content routing (used for .standard legend style)
     @ViewBuilder
     private var standardKeyContent: some View {
+        // Check for novelty override first (ESC, Enter with special icons)
+        if hasNoveltyKey {
+            noveltyKeyContent
+        }
         // Function keys always show F-label + icon (even when remapped)
-        if key.layoutRole == .functionKey {
+        else if key.layoutRole == .functionKey {
             functionKeyWithMappingContent
         }
         // URL mapping keys show favicon
@@ -402,8 +451,8 @@ struct OverlayKeycapView: View {
     private func dotColorForCurrentKey(config: DotsLegendConfig) -> Color {
         let fallbackColor = isModifierKey ? colorway.modLegendColor : colorway.alphaLegendColor
         // Use key's x position for column-based rainbow gradient
-        // Standard keyboard has ~15 columns (0-14)
-        return config.dotColor(forColumn: Int(key.x), totalColumns: 15, fallbackColor: fallbackColor)
+        // totalColumns derived from layout's actual width
+        return config.dotColor(forColumn: Int(key.x), totalColumns: Int(layoutTotalWidth), fallbackColor: fallbackColor)
     }
 
     // MARK: - Legend Style: Icon Mods
@@ -431,18 +480,67 @@ struct OverlayKeycapView: View {
     }
 
     /// Get the appropriate symbol for a modifier key
+    /// Uses standard Apple/Unicode keyboard symbols for clean icon-only modifiers
     private var modifierSymbolForKey: String {
-        switch key.label.lowercased() {
-        case "⇧", "shift": return "⇧"
-        case "⌃", "ctrl", "control": return "⌃"
-        case "⌥", "opt", "option", "alt": return "⌥"
-        case "⌘", "cmd", "command": return "⌘"
-        case "fn": return "🌐"
-        case "⇪", "caps", "capslock": return "⇪"
-        case "⌫", "delete", "backspace": return "⌫"
-        case "⏎", "↵", "return", "enter": return "↵"
+        let label = key.label.lowercased()
+        switch label {
+        // Modifier keys
+        case "⇧", "shift", "lshift", "rshift": return "⇧"
+        case "⌃", "ctrl", "control", "lctrl", "rctrl": return "⌃"
+        case "⌥", "opt", "option", "alt", "lalt", "ralt": return "⌥"
+        case "⌘", "cmd", "command", "lcmd", "rcmd", "meta", "lmeta", "rmeta": return "⌘"
+        case "fn", "function": return "🌐"
+        case "⇪", "caps", "capslock", "caps lock": return "⇪"
+
+        // Action keys
+        case "⌫", "delete", "backspace", "bksp", "bspc": return "⌫"
+        case "⌦", "del", "forward delete", "fwd del": return "⌦"
+        case "⏎", "↵", "↩", "return", "enter", "ret", "ent": return "↩"
         case "⇥", "tab": return "⇥"
+        case "⎋", "esc", "escape": return "⎋"
+        case "␣", " ", "space", "spc": return "␣"
+
+        // Navigation keys
+        case "home": return "↖"
+        case "end": return "↘"
+        case "pageup", "pgup", "page up": return "⇞"
+        case "pagedown", "pgdn", "page down", "page dn": return "⇟"
+
+        // Arrow keys (filled style for icon mods)
+        case "◀", "←", "left": return "◀"
+        case "▶", "→", "right": return "▶"
+        case "▲", "↑", "up": return "▲"
+        case "▼", "↓", "down": return "▼"
+
+        // Media/Function symbols
+        case "🔇", "mute": return "🔇"
+        case "🔉", "voldown", "vol-": return "🔉"
+        case "🔊", "volup", "vol+": return "🔊"
+        case "🔅", "bridn", "bri-": return "🔅"
+        case "🔆", "briup", "bri+": return "🔆"
+
         default: return key.label
+        }
+    }
+
+    // MARK: - Layout: Novelty Keys
+
+    /// Whether this key has a novelty override
+    private var hasNoveltyKey: Bool {
+        colorway.noveltyConfig.noveltyForKey(label: key.label) != nil
+    }
+
+    /// Returns novelty content for this key
+    @ViewBuilder
+    private var noveltyKeyContent: some View {
+        if let noveltyChar = colorway.noveltyConfig.noveltyForKey(label: key.label) {
+            let noveltyColor = colorway.noveltyConfig.useAccentColor
+                ? colorway.accentLegendColor
+                : foregroundColor
+            Text(noveltyChar)
+                .font(.system(size: 16 * scale, weight: .medium))
+                .foregroundStyle(noveltyColor)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -860,8 +958,7 @@ struct OverlayKeycapView: View {
 
     @ViewBuilder
     private var touchIdContent: some View {
-        // Layer indicator replaces Touch ID icon
-        // Shows current layer name or loading indicator
+        // Simple centered icon for inspector panel toggle
         if isLoadingLayerMap {
             // Subtle pulsing dot while loading layer mapping
             Circle()
@@ -870,39 +967,11 @@ struct OverlayKeycapView: View {
                 .modifier(PulseAnimation())
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            // Layer indicator - icon + label like function keys
-            let isBase = currentLayerName.lowercased() == "base"
-
-            if isBase {
-                // Base layer: sidebar icon with "base" label underneath (like F-keys)
-                VStack(spacing: 0) {
-                    Image(systemName: "sidebar.right")
-                        .font(.system(size: 8 * scale, weight: .regular))
-                        .foregroundStyle(foregroundColor)
-                    Spacer()
-                    Text("base")
-                        .font(.system(size: 5.4 * scale, weight: .regular))
-                        .foregroundStyle(foregroundColor.opacity(0.6))
-                }
-                .padding(.top, 4 * scale)
-                .padding(.bottom, 2 * scale)
+            // Large centered sidebar icon
+            Image(systemName: "sidebar.right")
+                .font(.system(size: 12 * scale, weight: .regular))
+                .foregroundStyle(foregroundColor)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                // Other layers: bottom-left aligned like ESC key
-                VStack {
-                    Spacer(minLength: 0)
-                    HStack {
-                        Text(currentLayerName.lowercased())
-                            .font(.system(size: 7 * scale, weight: .regular))
-                            .foregroundStyle(foregroundColor)
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.leading, 4 * scale)
-                    .padding(.trailing, 4 * scale)
-                    .padding(.bottom, 3 * scale)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
         }
     }
 
@@ -1055,6 +1124,9 @@ struct OverlayKeycapView: View {
             colorway.modBaseColor
         } else if isAccentKey {
             colorway.accentBaseColor
+        } else if showScoopedHomeRow && isHomeRowKey {
+            // Kinesis home row keys have a different color (darker/accent shade)
+            colorway.modBaseColor
         } else {
             colorway.alphaBaseColor
         }
@@ -1244,7 +1316,8 @@ struct OverlayKeycapView: View {
                 baseLabel: String(Character(UnicodeScalar(97 + col)!)),
                 isPressed: false,
                 scale: 1.5,
-                colorway: .dots
+                colorway: .dots,
+                layoutTotalWidth: 10
             )
             .frame(width: 45, height: 45)
         }
@@ -1263,7 +1336,8 @@ struct OverlayKeycapView: View {
                     baseLabel: String(col),
                     isPressed: false,
                     scale: 1.2,
-                    colorway: .dotsDark
+                    colorway: .dotsDark,
+                    layoutTotalWidth: 15
                 )
                 .frame(width: 38, height: 38)
             }
@@ -1275,7 +1349,8 @@ struct OverlayKeycapView: View {
                 baseLabel: "⌃",
                 isPressed: false,
                 scale: 1.2,
-                colorway: .dotsDark
+                colorway: .dotsDark,
+                layoutTotalWidth: 15
             )
             .frame(width: 55, height: 38)
 
@@ -1284,7 +1359,8 @@ struct OverlayKeycapView: View {
                 baseLabel: "⌥",
                 isPressed: false,
                 scale: 1.2,
-                colorway: .dotsDark
+                colorway: .dotsDark,
+                layoutTotalWidth: 15
             )
             .frame(width: 45, height: 38)
 
@@ -1293,7 +1369,8 @@ struct OverlayKeycapView: View {
                 baseLabel: "⌘",
                 isPressed: false,
                 scale: 1.2,
-                colorway: .dotsDark
+                colorway: .dotsDark,
+                layoutTotalWidth: 15
             )
             .frame(width: 50, height: 38)
 
@@ -1303,7 +1380,8 @@ struct OverlayKeycapView: View {
                 baseLabel: " ",
                 isPressed: false,
                 scale: 1.2,
-                colorway: .dotsDark
+                colorway: .dotsDark,
+                layoutTotalWidth: 15
             )
             .frame(width: 180, height: 38)
         }

@@ -416,6 +416,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             "🏷️ [Build] Version: \(info.version) | Build: \(info.build) | Git: \(info.git) | Date: \(info.date)"
         )
 
+        // Set smart default keyboard layout on first launch
+        setSmartKeyboardLayoutDefault()
+
         // Phase 2/3: TCP-only mode (no authentication needed)
         AppLogger.shared.debug("📡 [AppDelegate] TCP communication mode - no auth token needed")
 
@@ -662,6 +665,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 ActionDispatcher.shared.onError?("Invalid keypath:// URL: \(url.absoluteString)")
             }
         }
+    }
+
+    /// Sets a smart default keyboard layout on first launch based on detected keyboard type.
+    /// Only runs once - if user has already set a preference, this is a no-op.
+    private func setSmartKeyboardLayoutDefault() {
+        let key = "overlayLayoutId"
+
+        // Check if user has ever set a layout preference
+        if UserDefaults.standard.string(forKey: key) != nil {
+            AppLogger.shared.debug("⌨️ [AppDelegate] Keyboard layout already set by user, skipping auto-detect")
+            return
+        }
+
+        // First launch - detect keyboard type and set smart default
+        let recommendedLayout = KeyboardTypeDetector.recommendedLayoutId()
+        UserDefaults.standard.set(recommendedLayout, forKey: key)
+
+        let detectedType = KeyboardTypeDetector.detect()
+        AppLogger.shared.info("⌨️ [AppDelegate] First launch - detected keyboard type: \(detectedType.rawValue), setting default layout: \(recommendedLayout)")
     }
 
     func applicationShouldHandleReopen(_: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

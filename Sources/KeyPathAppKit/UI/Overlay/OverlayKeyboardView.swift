@@ -162,11 +162,10 @@ struct OverlayKeyboardView: View {
     }
 
     private func keyView(key: PhysicalKey, scale: CGFloat) -> some View {
-        // Prefer TCP physical keys; fall back to local pressed set if TCP data is unavailable
-        let hasTcp = !effectivePressedKeyCodes.isEmpty
-        let isPressed = hasTcp
-            ? effectivePressedKeyCodes.contains(key.keyCode)
-            : pressedKeyCodes.contains(key.keyCode)
+        // Use TCP KeyInput for physical key detection (no CGEvent fallback)
+        // TCP KeyInput shows the physical key pressed, not the remapped output
+        // Requires Kanata built from keypath-v1.10.0-base branch
+        let isPressed = effectivePressedKeyCodes.contains(key.keyCode)
 
         if key.keyCode == 57, isPressed || holdLabels[key.keyCode] != nil {
             AppLogger.shared.debug(
@@ -198,10 +197,14 @@ struct OverlayKeyboardView: View {
             holdLabel: holdLabels[key.keyCode],
             onKeyClick: onKeyClick,
             colorway: activeColorway,
+            // Pass layout width for rainbow gradient calculation
+            layoutTotalWidth: layout.totalWidth,
             // Hide keycap alpha labels when floating labels are rendered
             // (floating labels handle animation, keycaps just show backgrounds)
             // Disable floating labels for non-standard legend styles (dots, blank, etc.)
-            useFloatingLabels: !reduceMotion && activeColorway.legendStyle == .standard
+            useFloatingLabels: !reduceMotion && activeColorway.legendStyle == .standard,
+            // Kinesis keyboards have scooped/dished home row keys
+            showScoopedHomeRow: layout.id == "kinesis-360"
         )
         .frame(
             width: keyWidth(for: key, scale: scale),

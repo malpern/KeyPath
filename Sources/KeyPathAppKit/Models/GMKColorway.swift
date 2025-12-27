@@ -21,6 +21,30 @@ enum LegendStyle: String, Codable, CaseIterable, Identifiable, Equatable {
     }
 }
 
+/// Configuration for colorway-specific novelty keys
+/// These are special keys with unique icons/characters that differ from standard legends
+struct NoveltyConfig: Codable, Equatable {
+    /// Special character to show on ESC key (e.g., "♥" for Olivia, "侍" for Red Samurai)
+    let escNovelty: String?
+
+    /// Special character for Enter key novelty
+    let enterNovelty: String?
+
+    /// Use accent color for novelty keys (otherwise uses standard legend color)
+    let useAccentColor: Bool
+
+    static let none = NoveltyConfig(escNovelty: nil, enterNovelty: nil, useAccentColor: false)
+
+    /// Check if a key should display a novelty
+    func noveltyForKey(label: String) -> String? {
+        switch label.lowercased() {
+        case "esc", "escape", "⎋": return escNovelty
+        case "enter", "return", "↩", "↵", "⏎": return enterNovelty
+        default: return nil
+        }
+    }
+}
+
 /// Configuration for the Dots legend style
 struct DotsLegendConfig: Codable, Equatable {
     /// How dots are colored across the keyboard
@@ -87,6 +111,7 @@ struct GMKColorway: Identifiable, Codable, Equatable {
     // Legend style configuration
     let legendStyle: LegendStyle
     let dotsConfig: DotsLegendConfig?
+    let noveltyConfig: NoveltyConfig
 
     // MARK: - SwiftUI Colors
 
@@ -120,7 +145,8 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         accentLegend: "#e0edff",
         sourceURL: nil,
         legendStyle: .standard,
-        dotsConfig: nil
+        dotsConfig: nil,
+        noveltyConfig: .none
     )
 
     // MARK: - Top 10 GMK Colorways
@@ -136,6 +162,7 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         .botanical,
         .bento,
         .wob,
+        .wobIconMods,
         .hyperfuse,
         .godspeed,
         .dots,
@@ -164,7 +191,8 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         accentLegend: "#2B2B2B",
         sourceURL: "https://geekhack.org/index.php?topic=94386.0",
         legendStyle: .standard,
-        dotsConfig: nil
+        dotsConfig: nil,
+        noveltyConfig: NoveltyConfig(escNovelty: "♥", enterNovelty: nil, useAccentColor: true)
     )
 
     // MARK: - GMK Olivia (Light)
@@ -184,7 +212,8 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         accentLegend: "#E1DBD1",
         sourceURL: "https://geekhack.org/index.php?topic=94386.0",
         legendStyle: .standard,
-        dotsConfig: nil
+        dotsConfig: nil,
+        noveltyConfig: NoveltyConfig(escNovelty: "♥", enterNovelty: nil, useAccentColor: true)
     )
 
     // MARK: - GMK 8008
@@ -202,7 +231,8 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         accentLegend: "#3c4048", // Dark legend
         sourceURL: "https://geekhack.org/index.php?topic=100308.0",
         legendStyle: .standard,
-        dotsConfig: nil
+        dotsConfig: nil,
+        noveltyConfig: .none
     )
 
     // MARK: - GMK Laser
@@ -220,7 +250,8 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         accentLegend: "#1a1a2e",
         sourceURL: "https://mitormk.com/laser",
         legendStyle: .standard,
-        dotsConfig: nil
+        dotsConfig: nil,
+        noveltyConfig: NoveltyConfig(escNovelty: "☀", enterNovelty: nil, useAccentColor: true) // Outrun sun
     )
 
     // MARK: - GMK Red Samurai
@@ -240,7 +271,8 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         accentLegend: "#B9975B", // Gold
         sourceURL: "https://geekhack.org/index.php?topic=89970.0",
         legendStyle: .standard,
-        dotsConfig: nil
+        dotsConfig: nil,
+        noveltyConfig: NoveltyConfig(escNovelty: "侍", enterNovelty: nil, useAccentColor: false) // Samurai kanji
     )
 
     // MARK: - GMK Botanical
@@ -260,7 +292,8 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         accentLegend: "#3E5D58", // Forest green
         sourceURL: "https://geekhack.org/index.php?topic=102350.0",
         legendStyle: .standard,
-        dotsConfig: nil
+        dotsConfig: nil,
+        noveltyConfig: NoveltyConfig(escNovelty: "🌿", enterNovelty: nil, useAccentColor: false) // Leaf/plant
     )
 
     // MARK: - GMK Bento
@@ -280,7 +313,8 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         accentLegend: "#2A4D69",
         sourceURL: "https://geekhack.org/index.php?topic=97855.0",
         legendStyle: .standard,
-        dotsConfig: nil
+        dotsConfig: nil,
+        noveltyConfig: NoveltyConfig(escNovelty: "🍱", enterNovelty: nil, useAccentColor: true) // Bento box
     )
 
     // MARK: - GMK WoB (White on Black)
@@ -298,7 +332,28 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         accentLegend: "#ffffff",
         sourceURL: "https://www.gmk.net/shop/en/gmk-cyl-wob-white-on-black-keycaps/fptk5009",
         legendStyle: .standard,
-        dotsConfig: nil
+        dotsConfig: nil,
+        noveltyConfig: .none
+    )
+
+    // MARK: - GMK WoB Icon Mods
+
+    /// WoB with icon-only modifiers (symbols instead of text)
+    static let wobIconMods = GMKColorway(
+        id: "wob-icon",
+        name: "WoB Icons",
+        designer: "GMK",
+        year: 2015,
+        alphaBase: "#1a1a1a",
+        alphaLegend: "#ffffff",
+        modBase: "#1a1a1a",
+        modLegend: "#ffffff",
+        accentBase: "#1a1a1a",
+        accentLegend: "#ffffff",
+        sourceURL: "https://cannonkeys.com/products/gmk-wob-bow-icon-extension-kit",
+        legendStyle: .iconMods,
+        dotsConfig: nil,
+        noveltyConfig: .none
     )
 
     // MARK: - GMK Hyperfuse
@@ -318,7 +373,8 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         accentLegend: "#5D437E", // Purple
         sourceURL: "https://geekhack.org/index.php?topic=68198.0",
         legendStyle: .standard,
-        dotsConfig: nil
+        dotsConfig: nil,
+        noveltyConfig: .none
     )
 
     // MARK: - GMK Godspeed
@@ -336,7 +392,8 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         accentLegend: "#f5e6c8",
         sourceURL: "https://geekhack.org/index.php?topic=84090.0",
         legendStyle: .standard,
-        dotsConfig: nil
+        dotsConfig: nil,
+        noveltyConfig: NoveltyConfig(escNovelty: "🚀", enterNovelty: nil, useAccentColor: true) // Rocket for space theme
     )
 
     // MARK: - GMK Dots
@@ -360,7 +417,8 @@ struct GMKColorway: Identifiable, Codable, Equatable {
             colorMode: .rainbow,
             dotSize: 0.22,
             oblongWidthMultiplier: 3.0
-        )
+        ),
+        noveltyConfig: .none
     )
 
     /// GMK Dots Dark with rainbow colored dots
@@ -381,7 +439,8 @@ struct GMKColorway: Identifiable, Codable, Equatable {
             colorMode: .rainbow,
             dotSize: 0.22,
             oblongWidthMultiplier: 3.0
-        )
+        ),
+        noveltyConfig: .none
     )
 }
 

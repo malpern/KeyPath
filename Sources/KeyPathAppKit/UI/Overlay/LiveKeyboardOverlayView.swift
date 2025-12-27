@@ -26,7 +26,7 @@ struct LiveKeyboardOverlayView: View {
 
     @State private var escKeyLeftInset: CGFloat = 0
     @State private var keyboardWidth: CGFloat = 0
-    @State private var inspectorSection: InspectorSection = .keyboard
+    @State private var inspectorSection: InspectorSection = .launchers
     /// Shared state for tracking mouse interaction with keyboard (for refined click delay)
     @StateObject private var keyboardMouseState = KeyboardMouseState()
 
@@ -560,12 +560,15 @@ struct OverlayInspectorPanel: View {
                         keycapsContent
                     case .sounds:
                         soundsContent
+                    case .launchers:
+                        launchersContent
                     }
                 }
                 .padding(.horizontal, 12)
                 .padding(.bottom, 12)
             }
         }
+        .saturation(Double(1 - fadeAmount)) // Monochromatic when faded
         .opacity(Double(1 - fadeAmount * 0.5)) // Fade with keyboard
         .onChange(of: selectedKeymapId) { _, newValue in
             onKeymapChanged?(newValue, includePunctuation)
@@ -593,32 +596,6 @@ struct OverlayInspectorPanel: View {
             }
         }
 
-        Divider()
-            .padding(.vertical, 4)
-
-        // Include punctuation switch
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Include punctuation")
-                .font(.subheadline)
-                .foregroundStyle(.primary)
-
-            Toggle(isOn: Binding(
-                get: { includePunctuation },
-                set: { newValue in
-                    includePunctuationStore = KeymapPreferences.updatedIncludePunctuationStore(
-                        from: includePunctuationStore,
-                        keymapId: selectedKeymapId,
-                        includePunctuation: newValue
-                    )
-                }
-            )) {
-                EmptyView()
-            }
-            .toggleStyle(.switch)
-            .controlSize(.small)
-            .accessibilityIdentifier("overlay-include-punctuation-toggle")
-            .accessibilityLabel("Include punctuation and number row")
-        }
     }
 
     // MARK: - Physical Layout Content
@@ -655,6 +632,13 @@ struct OverlayInspectorPanel: View {
     @ViewBuilder
     private var soundsContent: some View {
         TypingSoundsSection(isDark: isDark)
+    }
+
+    // MARK: - Launchers Content
+
+    @ViewBuilder
+    private var launchersContent: some View {
+        OverlayLaunchersSection(isDark: isDark)
     }
 
     private var isDark: Bool {
@@ -891,9 +875,22 @@ private struct InspectorPanelToolbar: View {
     @State private var isHoveringLayout = false
     @State private var isHoveringKeycaps = false
     @State private var isHoveringSounds = false
+    @State private var isHoveringLaunchers = false
 
     var body: some View {
         HStack(spacing: 8) {
+            // Launchers first (leftmost)
+            toolbarButton(
+                systemImage: "bolt.fill",
+                isSelected: selectedSection == .launchers,
+                isHovering: isHoveringLaunchers,
+                onHover: { isHoveringLaunchers = $0 }
+            ) {
+                onSelectSection(.launchers)
+            }
+            .accessibilityIdentifier("inspector-tab-launchers")
+            .accessibilityLabel("App Launchers")
+
             toolbarButton(
                 systemImage: "keyboard",
                 isSelected: selectedSection == .keyboard,
@@ -954,7 +951,7 @@ private struct InspectorPanelToolbar: View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: buttonSize * 0.5, weight: .semibold))
-                .foregroundStyle((isSelected || isHovering) ? .primary : .secondary)
+                .foregroundStyle(isSelected ? Color.accentColor : (isHovering ? .primary : .secondary))
                 .frame(width: buttonSize, height: buttonSize)
         }
         .buttonStyle(PlainButtonStyle())
@@ -1001,6 +998,7 @@ enum InspectorSection {
     case layout
     case keycaps
     case sounds
+    case launchers
 }
 
 // MARK: - Preview

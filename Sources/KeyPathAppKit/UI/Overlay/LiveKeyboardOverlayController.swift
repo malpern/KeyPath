@@ -508,7 +508,15 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             }
         )
 
-        let hostingView = NSHostingView(rootView: contentView)
+        // Pass kanataViewModel as environment object for OverlayLaunchersSection
+        let wrappedContent: AnyView
+        if let kanataVM = kanataViewModel {
+            wrappedContent = AnyView(contentView.environmentObject(kanataVM))
+        } else {
+            wrappedContent = AnyView(contentView)
+        }
+
+        let hostingView = NSHostingView(rootView: wrappedContent)
         hostingView.setFrameSize(initialSize)
 
         // Borderless, resizable window

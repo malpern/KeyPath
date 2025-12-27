@@ -151,6 +151,7 @@ final class RuleCollectionsManager {
         ruleCollections = RuleCollectionDeduplicator.dedupe(storedCollections)
         customRules = storedCustomRules
         AppLogger.shared.log("📊 [RuleCollectionsManager] bootstrap: loaded \(customRules.count) custom rules from store")
+
         ensureDefaultCollectionsIfNeeded()
 
         // Restore keymap collection if a non-QWERTY layout was active

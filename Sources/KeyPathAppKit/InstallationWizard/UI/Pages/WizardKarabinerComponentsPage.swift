@@ -47,10 +47,9 @@ struct WizardKarabinerComponentsPage: View {
                     )
 
                     // Inline action status (immediately after hero for visual consistency)
-                    if actionStatus.isActive, let message = actionStatus.message {
-                        InlineStatusView(status: actionStatus, message: message)
-                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                    }
+                    // Always reserve space to prevent layout shifts
+                    InlineStatusView(status: actionStatus, message: actionStatus.message ?? " ")
+                        .opacity(actionStatus.isActive ? 1 : 0)
 
                     // Component details card below the subheading - horizontally centered
                     HStack {
@@ -125,10 +124,9 @@ struct WizardKarabinerComponentsPage: View {
                     )
 
                     // Inline action status (immediately after hero for visual consistency)
-                    if actionStatus.isActive, let message = actionStatus.message {
-                        InlineStatusView(status: actionStatus, message: message)
-                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                    }
+                    // Always reserve space to prevent layout shifts
+                    InlineStatusView(status: actionStatus, message: actionStatus.message ?? " ")
+                        .opacity(actionStatus.isActive ? 1 : 0)
 
                     Button("Fix") {
                         handleFixButtonTapped()

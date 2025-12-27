@@ -43,10 +43,11 @@ struct AvailableRulesView: View {
                         var updatedConfig = finalConfig
                         updatedConfig.hasSeenWelcome = true
                         Task {
-                            await kanataManager.updateLauncherConfig(
-                                RuleCollectionIdentifier.launcher,
-                                config: updatedConfig
-                            )
+                            // Create the collection with updated config and add it
+                            var launcherCollection = catalog.defaultCollections()
+                                .first { $0.id == RuleCollectionIdentifier.launcher }!
+                            launcherCollection.configuration = .launcherGrid(updatedConfig)
+                            await kanataManager.addRuleCollection(launcherCollection)
                         }
                         showLauncherWelcome = false
                     }

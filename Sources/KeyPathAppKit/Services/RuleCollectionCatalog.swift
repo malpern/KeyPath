@@ -6,6 +6,11 @@ struct RuleCollectionCatalog {
         builtInList
     }
 
+    /// Returns the launcher collection (managed separately via overlay drawer)
+    func launcherCollection() -> RuleCollection {
+        launcher
+    }
+
     func upgradedCollection(from existing: RuleCollection) -> RuleCollection {
         guard let updated = builtInCollections[existing.id] else { return existing }
         var merged = updated
@@ -22,7 +27,8 @@ struct RuleCollectionCatalog {
     // MARK: - Predefined collections
 
     private var builtInList: [RuleCollection] {
-        [macOSFunctionKeys, leaderKeyConfig, navigationArrows, missionControl, windowSnapping, capsLockRemap, backupCapsLock, escapeRemap, deleteRemap, homeRowMods, numpadLayer, symbolLayer, launcher]
+        // Note: launcher collection is excluded - it's managed via overlay drawer only
+        [macOSFunctionKeys, leaderKeyConfig, navigationArrows, missionControl, windowSnapping, capsLockRemap, backupCapsLock, escapeRemap, deleteRemap, homeRowMods, numpadLayer, symbolLayer]
     }
 
     private var builtInCollections: [UUID: RuleCollection] {

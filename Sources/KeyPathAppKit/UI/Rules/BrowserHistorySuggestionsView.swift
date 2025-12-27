@@ -110,10 +110,12 @@ struct BrowserHistorySuggestionsView: View {
                 Text("We'll scan your browser history to find your most-visited websites and suggest shortcuts for them.")
                     .multilineTextAlignment(.center)
                     .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text("This data stays on your Mac and is never transmitted anywhere.")
                     .multilineTextAlignment(.center)
                     .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 40)
 

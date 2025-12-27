@@ -11,7 +11,6 @@ struct GeneralSettingsTabView: View {
     @State private var settingsToastManager = WizardToastManager()
     @AppStorage("overlayLayoutId") private var selectedLayoutId: String = "macbook-us"
     @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
-    @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var keymapIncludePunctuationStore: String = "{}"
     @State private var showingKeymapInfo = false
 
     var body: some View {
@@ -176,11 +175,6 @@ struct GeneralSettingsTabView: View {
                             }
                         }
 
-                        Toggle("Include number row & punctuation", isOn: includePunctuationBinding)
-                            .toggleStyle(.switch)
-                            .accessibilityIdentifier("settings-overlay-include-punctuation-toggle")
-                            .accessibilityLabel("Include number row and punctuation in overlay")
-
                         Button("Reset Overlay Size") {
                             LiveKeyboardOverlayController.shared.resetWindowFrame()
                         }
@@ -242,23 +236,6 @@ struct GeneralSettingsTabView: View {
         LogicalKeymap.find(id: selectedKeymapId) ?? .qwertyUS
     }
 
-    private var includePunctuationBinding: Binding<Bool> {
-        Binding(
-            get: {
-                KeymapPreferences.includePunctuation(
-                    for: selectedKeymapId,
-                    store: keymapIncludePunctuationStore
-                )
-            },
-            set: { newValue in
-                keymapIncludePunctuationStore = KeymapPreferences.updatedIncludePunctuationStore(
-                    from: keymapIncludePunctuationStore,
-                    keymapId: selectedKeymapId,
-                    includePunctuation: newValue
-                )
-            }
-        )
-    }
 }
 
 private struct KeymapInfoPopover: View {

@@ -3,28 +3,67 @@ import SwiftUI
 
 /// Main view for the Quick Launcher collection configuration.
 ///
-/// Displays a grid of app/website shortcuts that can be customized.
+/// Displays a keyboard visualization with app/website icons on mapped keys,
+/// alongside a drawer with the list of mappings for editing.
 /// Supports activation mode switching (Hold Hyper vs Leader→L sequence).
 struct LauncherCollectionView: View {
     @Binding var config: LauncherGridConfig
     let onConfigChanged: (LauncherGridConfig) -> Void
 
+    @State private var selectedKey: String?
     @State private var showBrowserHistory = false
     @State private var editingMapping: LauncherMapping?
     @State private var showAddMapping = false
+    @State private var preselectedKey: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 0) {
             // Activation mode picker
             activationModeSection
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
 
             Divider()
 
-            // Mappings grid
-            mappingsSection
+            // Main content: Keyboard + Drawer
+            HStack(alignment: .top, spacing: 0) {
+                // Keyboard visualization
+                VStack(spacing: 8) {
+                    LauncherKeyboardView(
+                        config: $config,
+                        selectedKey: selectedKey,
+                        onKeyClicked: handleKeyClicked
+                    )
+                    .padding(16)
 
-            // Action buttons
-            actionButtonsSection
+                    // Instructions
+                    Text("Click any key to configure")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.bottom, 12)
+                }
+                .frame(maxWidth: .infinity)
+                .background(Color(NSColor.windowBackgroundColor).opacity(0.5))
+
+                Divider()
+
+                // Drawer with mappings list
+                LauncherDrawerView(
+                    config: $config,
+                    selectedKey: $selectedKey,
+                    onAddMapping: { showAddMapping = true },
+                    onEditMapping: { mapping in
+                        editingMapping = mapping
+                    },
+                    onDeleteMapping: { id in
+                        deleteMapping(id: id)
+                    }
+                )
+                .frame(width: 280)
+                .onChange(of: config) { _, newValue in
+                    onConfigChanged(newValue)
+                }
+            }
         }
         .sheet(isPresented: $showBrowserHistory) {
             BrowserHistorySuggestionsView { selectedSites in
@@ -46,14 +85,18 @@ struct LauncherCollectionView: View {
         }
         .sheet(isPresented: $showAddMapping) {
             LauncherMappingEditor(
-                mapping: nil,
+                mapping: preselectedKey.map { key in
+                    LauncherMapping(key: key, target: .app(name: "", bundleId: nil))
+                },
                 existingKeys: Set(config.mappings.map(\.key)),
                 onSave: { newMapping in
                     addMapping(newMapping)
                     showAddMapping = false
+                    preselectedKey = nil
                 },
                 onCancel: {
                     showAddMapping = false
+                    preselectedKey = nil
                 }
             )
         }
@@ -63,8 +106,20 @@ struct LauncherCollectionView: View {
 
     private var activationModeSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Activation")
-                .font(.headline)
+            HStack {
+                Text("Activation")
+                    .font(.headline)
+
+                Spacer()
+
+                Button(action: { showBrowserHistory = true }) {
+                    Label("Suggest from History", systemImage: "clock.arrow.circlepath")
+                        .font(.caption)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .accessibilityIdentifier("launcher-suggest-button")
+            }
 
             Picker("Activation Mode", selection: Binding(
                 get: { config.activationMode },
@@ -94,109 +149,19 @@ struct LauncherCollectionView: View {
         }
     }
 
-    // MARK: - Mappings Section
-
-    private var mappingsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Shortcuts")
-                    .font(.headline)
-                Spacer()
-                Text("\(config.mappings.filter(\.isEnabled).count) active")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-
-            // Apps section
-            if !appMappings.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Apps")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 140))], spacing: 8) {
-                        ForEach(appMappings) { mapping in
-                            LauncherMappingRowView(
-                                mapping: mapping,
-                                showToggle: true,
-                                onToggle: { toggleMapping(mapping) },
-                                onEdit: { editingMapping = mapping },
-                                onDelete: { deleteMapping(mapping) }
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Websites section
-            if !websiteMappings.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Websites")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 140))], spacing: 8) {
-                        ForEach(websiteMappings) { mapping in
-                            LauncherMappingRowView(
-                                mapping: mapping,
-                                showToggle: true,
-                                onToggle: { toggleMapping(mapping) },
-                                onEdit: { editingMapping = mapping },
-                                onDelete: { deleteMapping(mapping) }
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private var appMappings: [LauncherMapping] {
-        config.mappings.filter(\.target.isApp)
-    }
-
-    private var websiteMappings: [LauncherMapping] {
-        config.mappings.filter { !$0.target.isApp }
-    }
-
-    // MARK: - Action Buttons
-
-    private var actionButtonsSection: some View {
-        HStack(spacing: 12) {
-            Button(action: { showAddMapping = true }) {
-                Label("Add Shortcut", systemImage: "plus")
-            }
-            .accessibilityIdentifier("launcher-add-button")
-
-            Button(action: { showBrowserHistory = true }) {
-                Label("Suggest from History", systemImage: "clock.arrow.circlepath")
-            }
-            .accessibilityIdentifier("launcher-suggest-button")
-
-            Spacer()
-
-            Menu {
-                Button("Reset to Defaults") {
-                    resetToDefaults()
-                }
-                Button("Clear All", role: .destructive) {
-                    clearAll()
-                }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-            }
-            .menuStyle(.borderlessButton)
-            .accessibilityIdentifier("launcher-menu-button")
-        }
-        .padding(.top, 8)
-    }
-
     // MARK: - Actions
 
-    private func toggleMapping(_ mapping: LauncherMapping) {
-        guard let index = config.mappings.firstIndex(where: { $0.id == mapping.id }) else { return }
-        config.mappings[index].isEnabled.toggle()
-        onConfigChanged(config)
+    private func handleKeyClicked(_ key: String) {
+        // Check if key is already mapped
+        if let existingMapping = config.mappings.first(where: { $0.key.lowercased() == key.lowercased() }) {
+            // Key is mapped - select it and open edit dialog
+            selectedKey = key
+            editingMapping = existingMapping
+        } else {
+            // Key is unmapped - open add dialog with key pre-selected
+            preselectedKey = key
+            showAddMapping = true
+        }
     }
 
     private func updateMapping(_ mapping: LauncherMapping) {
@@ -208,11 +173,18 @@ struct LauncherCollectionView: View {
     private func addMapping(_ mapping: LauncherMapping) {
         config.mappings.append(mapping)
         onConfigChanged(config)
+        // Select the newly added key
+        selectedKey = mapping.key
     }
 
-    private func deleteMapping(_ mapping: LauncherMapping) {
-        config.mappings.removeAll { $0.id == mapping.id }
+    private func deleteMapping(id: UUID) {
+        config.mappings.removeAll { $0.id == id }
         onConfigChanged(config)
+        // Clear selection if deleted key was selected
+        if let selected = selectedKey,
+           config.mappings.first(where: { $0.key.lowercased() == selected.lowercased() }) == nil {
+            selectedKey = nil
+        }
     }
 
     private func addSuggestedSites(_ sites: [BrowserHistoryScanner.VisitedSite]) {
@@ -228,16 +200,6 @@ struct LauncherCollectionView: View {
             )
             config.mappings.append(mapping)
         }
-        onConfigChanged(config)
-    }
-
-    private func resetToDefaults() {
-        config = LauncherGridConfig.defaultConfig
-        onConfigChanged(config)
-    }
-
-    private func clearAll() {
-        config.mappings.removeAll()
         onConfigChanged(config)
     }
 }
@@ -414,4 +376,14 @@ private struct LauncherMappingEditor: View {
         )
         onSave(result)
     }
+}
+
+// MARK: - Preview
+
+#Preview("Launcher Collection View") {
+    LauncherCollectionView(
+        config: .constant(LauncherGridConfig.defaultConfig),
+        onConfigChanged: { _ in }
+    )
+    .frame(width: 900, height: 400)
 }
