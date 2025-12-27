@@ -111,6 +111,13 @@ final class RuleCollectionsCoordinator {
         notifyStateChanged()
     }
 
+    /// Update launcher grid configuration
+    func updateLauncherConfig(id: UUID, config: LauncherGridConfig) async {
+        await ruleCollectionsManager.updateLauncherConfig(id: id, config: config)
+        applyMappings(ruleCollectionsManager.enabledMappings())
+        notifyStateChanged()
+    }
+
     /// Update the leader key for all collections that use momentary activation
     func updateLeaderKey(_ newKey: String) async {
         await ruleCollectionsManager.updateLeaderKey(newKey)

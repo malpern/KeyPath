@@ -762,7 +762,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     private func easeInOutProgress(_ t: CGFloat) -> CGFloat {
         // Attempt 7: Exact cubic bezier matching CAMediaTimingFunction.easeInEaseOut
         // Control points: P0=(0,0), P1=(0.42,0), P2=(0.58,1), P3=(1,1)
-        return evaluateCubicBezierY(t: t, p1y: 0.0, p2y: 1.0, p1x: 0.42, p2x: 0.58)
+        evaluateCubicBezierY(t: t, p1y: 0.0, p2y: 1.0, p1x: 0.42, p2x: 0.58)
     }
 
     /// Evaluate cubic bezier curve Y value for a given X (time) value

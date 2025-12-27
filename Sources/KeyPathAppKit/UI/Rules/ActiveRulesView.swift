@@ -38,6 +38,9 @@ struct ActiveRulesView: View {
                             collection: collection,
                             onToggle: { isOn in
                                 Task { await kanataManager.toggleRuleCollection(collection.id, enabled: isOn) }
+                            },
+                            onLauncherConfigChanged: { newConfig in
+                                Task { await kanataManager.updateLauncherConfig(collection.id, config: newConfig) }
                             }
                         )
                         .padding(.horizontal, 12)
@@ -72,7 +75,10 @@ struct ActiveRulesView: View {
 private struct RuleCollectionRow: View {
     let collection: RuleCollection
     let onToggle: (Bool) -> Void
+    var onLauncherConfigChanged: ((LauncherGridConfig) -> Void)?
     @State private var isExpanded = false
+    @State private var showLauncherWelcome = false
+    @State private var pendingLauncherConfig: LauncherGridConfig?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -100,7 +106,9 @@ private struct RuleCollectionRow: View {
                     "",
                     isOn: Binding(
                         get: { collection.isEnabled },
-                        set: { onToggle($0) }
+                        set: { newValue in
+                            handleToggle(newValue)
+                        }
                     )
                 )
                 .labelsHidden()
@@ -119,46 +127,8 @@ private struct RuleCollectionRow: View {
             }
 
             if isExpanded {
-                if collection.displayStyle == .table {
-                    MappingTableView(collection: collection, prettyKeyName: prettyKeyName)
-                        .padding(.top, 4)
-                } else {
-                    VStack(alignment: .leading, spacing: 6) {
-                        ForEach(collection.mappings.prefix(8)) { mapping in
-                            HStack(spacing: 8) {
-                                Text(mappingDescription(for: mapping))
-                                    .font(.callout.monospaced().weight(.medium))
-                                    .foregroundColor(.primary)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color(NSColor.controlBackgroundColor))
-                                    .cornerRadius(6)
-
-                                Image(systemName: "arrow.right")
-                                    .font(.callout)
-                                    .foregroundColor(.secondary)
-
-                                Text(mapping.output)
-                                    .font(.callout.monospaced().weight(.medium))
-                                    .foregroundColor(.primary)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color(NSColor.controlBackgroundColor))
-                                    .cornerRadius(6)
-                            }
-                            .padding(.vertical, 2)
-                        }
-
-                        if collection.mappings.count > 8 {
-                            Text("+\(collection.mappings.count - 8) more…")
-                                .font(.callout)
-                                .foregroundColor(.secondary)
-                                .padding(.top, 4)
-                        }
-                    }
-                    .padding(.leading, collection.icon == nil ? 0 : 4)
+                expandedContent
                     .padding(.top, 4)
-                }
             }
         }
         .padding(12)
@@ -166,6 +136,39 @@ private struct RuleCollectionRow: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color(nsColor: NSColor.windowBackgroundColor))
         )
+        .sheet(isPresented: $showLauncherWelcome) {
+            if var config = pendingLauncherConfig {
+                LauncherWelcomeDialog(
+                    config: Binding(
+                        get: { config },
+                        set: { config = $0 }
+                    ),
+                    onComplete: { finalConfig, _ in
+                        var updatedConfig = finalConfig
+                        updatedConfig.hasSeenWelcome = true
+                        onLauncherConfigChanged?(updatedConfig)
+                        onToggle(true)
+                        showLauncherWelcome = false
+                    }
+                )
+            }
+        }
+    }
+
+    /// Handle toggle, showing welcome dialog for launcher if needed
+    private func handleToggle(_ newValue: Bool) {
+        // Check if this is the launcher collection and needs welcome
+        if collection.id == RuleCollectionIdentifier.launcher,
+           newValue,
+           let config = collection.configuration.launcherGridConfig,
+           !config.hasSeenWelcome
+        {
+            // Show welcome dialog instead of toggling directly
+            pendingLauncherConfig = config
+            showLauncherWelcome = true
+        } else {
+            onToggle(newValue)
+        }
     }
 }
 
@@ -191,6 +194,68 @@ private extension RuleCollectionRow {
             return "Hold \(prettyKeyName(activator.input)) for \(activator.targetLayer.displayName)"
         }
         return nil
+    }
+
+    @ViewBuilder
+    var expandedContent: some View {
+        switch collection.displayStyle {
+        case .table:
+            MappingTableView(collection: collection, prettyKeyName: prettyKeyName)
+        case .launcherGrid:
+            if let config = collection.configuration.launcherGridConfig {
+                LauncherCollectionView(
+                    config: Binding(
+                        get: { config },
+                        set: { _ in
+                            // Config changes are handled via onConfigChanged callback
+                        }
+                    ),
+                    onConfigChanged: { _ in
+                        // TODO: Wire up to KanataViewModel to persist changes
+                    }
+                )
+            }
+        default:
+            defaultMappingsList
+        }
+    }
+
+    @ViewBuilder
+    private var defaultMappingsList: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(collection.mappings.prefix(8)) { mapping in
+                HStack(spacing: 8) {
+                    Text(mappingDescription(for: mapping))
+                        .font(.callout.monospaced().weight(.medium))
+                        .foregroundColor(.primary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(NSColor.controlBackgroundColor))
+                        .cornerRadius(6)
+
+                    Image(systemName: "arrow.right")
+                        .font(.callout)
+                        .foregroundColor(.secondary)
+
+                    Text(mapping.output)
+                        .font(.callout.monospaced().weight(.medium))
+                        .foregroundColor(.primary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(NSColor.controlBackgroundColor))
+                        .cornerRadius(6)
+                }
+                .padding(.vertical, 2)
+            }
+
+            if collection.mappings.count > 8 {
+                Text("+\(collection.mappings.count - 8) more…")
+                    .font(.callout)
+                    .foregroundColor(.secondary)
+                    .padding(.top, 4)
+            }
+        }
+        .padding(.leading, collection.icon == nil ? 0 : 4)
     }
 
     func mappingDescription(for mapping: KeyMapping) -> String {

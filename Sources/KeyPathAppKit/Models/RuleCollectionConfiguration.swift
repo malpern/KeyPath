@@ -37,6 +37,9 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
     /// Layer preset picker: choose from predefined layer configurations
     case layerPresetPicker(LayerPresetPickerConfig)
 
+    /// Launcher grid: quick app/website launching via keyboard shortcuts
+    case launcherGrid(LauncherGridConfig)
+
     // MARK: - Convenience Accessors
 
     /// The display style enum value (for compatibility with existing UI code)
@@ -48,6 +51,7 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         case .homeRowMods: .homeRowMods
         case .tapHoldPicker: .tapHoldPicker
         case .layerPresetPicker: .layerPresetPicker
+        case .launcherGrid: .launcherGrid
         }
     }
 
@@ -72,6 +76,12 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
     /// Extract layer preset picker config if this is a `.layerPresetPicker` case
     public var layerPresetPickerConfig: LayerPresetPickerConfig? {
         if case let .layerPresetPicker(config) = self { return config }
+        return nil
+    }
+
+    /// Extract launcher grid config if this is a `.launcherGrid` case
+    public var launcherGridConfig: LauncherGridConfig? {
+        if case let .launcherGrid(config) = self { return config }
         return nil
     }
 
@@ -120,6 +130,13 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         }
     }
 
+    /// Update the launcher grid config
+    public mutating func updateLauncherGridConfig(_ newConfig: LauncherGridConfig) {
+        if case .launcherGrid = self {
+            self = .launcherGrid(newConfig)
+        }
+    }
+
     // MARK: - Codable
 
     private enum CodingKeys: String, CodingKey {
@@ -133,6 +150,7 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         case homeRowMods
         case tapHoldPicker
         case layerPresetPicker
+        case launcherGrid
     }
 
     public init(from decoder: Decoder) throws {
@@ -156,6 +174,9 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         case .layerPresetPicker:
             let config = try LayerPresetPickerConfig(from: decoder)
             self = .layerPresetPicker(config)
+        case .launcherGrid:
+            let config = try LauncherGridConfig(from: decoder)
+            self = .launcherGrid(config)
         }
     }
 
@@ -178,6 +199,9 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
             try config.encode(to: encoder)
         case let .layerPresetPicker(config):
             try container.encode(ConfigType.layerPresetPicker, forKey: .type)
+            try config.encode(to: encoder)
+        case let .launcherGrid(config):
+            try container.encode(ConfigType.launcherGrid, forKey: .type)
             try config.encode(to: encoder)
         }
     }
@@ -277,5 +301,128 @@ public struct LayerPresetPickerConfig: Codable, Equatable, Sendable {
     /// Get mappings from the selected preset, or empty if none selected
     public var selectedMappings: [KeyMapping] {
         selectedPreset?.mappings ?? []
+    }
+}
+
+// MARK: - Launcher Grid Configuration
+
+/// Activation mode for the launcher layer
+public enum LauncherActivationMode: String, Codable, Equatable, Sendable {
+    /// Hold Hyper key to activate launcher layer
+    case holdHyper
+    /// Leader → L sequence to activate launcher layer
+    case leaderSequence
+}
+
+/// Target for a launcher mapping - either an app or a URL
+public enum LauncherTarget: Codable, Equatable, Sendable {
+    case app(name: String, bundleId: String?)
+    case url(String)
+
+    /// Display name for the target
+    public var displayName: String {
+        switch self {
+        case let .app(name, _):
+            name
+        case let .url(urlString):
+            urlString
+        }
+    }
+
+    /// Whether this target is an app (vs URL)
+    public var isApp: Bool {
+        if case .app = self { return true }
+        return false
+    }
+
+    /// Generate the Kanata output string for this target
+    public var kanataOutput: String {
+        switch self {
+        case let .app(name, _):
+            "(push-msg \"launch:\(name.lowercased())\")"
+        case let .url(urlString):
+            "(push-msg \"open:\(urlString)\")"
+        }
+    }
+}
+
+/// A single mapping in the launcher grid
+public struct LauncherMapping: Codable, Equatable, Sendable, Identifiable {
+    public let id: UUID
+    public var key: String
+    public var target: LauncherTarget
+    public var isEnabled: Bool
+
+    public init(
+        id: UUID = UUID(),
+        key: String,
+        target: LauncherTarget,
+        isEnabled: Bool = true
+    ) {
+        self.id = id
+        self.key = key
+        self.target = target
+        self.isEnabled = isEnabled
+    }
+}
+
+/// Configuration for the launcher grid display style
+public struct LauncherGridConfig: Codable, Equatable, Sendable {
+    public var activationMode: LauncherActivationMode
+    public var mappings: [LauncherMapping]
+    /// Whether the user has seen the welcome dialog
+    public var hasSeenWelcome: Bool
+
+    public init(
+        activationMode: LauncherActivationMode = .holdHyper,
+        mappings: [LauncherMapping] = LauncherGridConfig.defaultMappings,
+        hasSeenWelcome: Bool = false
+    ) {
+        self.activationMode = activationMode
+        self.mappings = mappings
+        self.hasSeenWelcome = hasSeenWelcome
+    }
+
+    /// Default configuration with preset app and website mappings
+    public static var defaultConfig: LauncherGridConfig {
+        LauncherGridConfig(activationMode: .holdHyper, mappings: defaultMappings, hasSeenWelcome: false)
+    }
+
+    /// Default app and website mappings
+    public static var defaultMappings: [LauncherMapping] {
+        // Apps (letters)
+        let appMappings: [LauncherMapping] = [
+            LauncherMapping(key: "s", target: .app(name: "Safari", bundleId: "com.apple.Safari")),
+            LauncherMapping(key: "t", target: .app(name: "Terminal", bundleId: "com.apple.Terminal")),
+            LauncherMapping(key: "f", target: .app(name: "Finder", bundleId: "com.apple.finder")),
+            LauncherMapping(key: "m", target: .app(name: "Messages", bundleId: "com.apple.MobileSMS")),
+            LauncherMapping(key: "e", target: .app(name: "Mail", bundleId: "com.apple.mail")),
+            LauncherMapping(key: "c", target: .app(name: "Calendar", bundleId: "com.apple.iCal")),
+            LauncherMapping(key: "n", target: .app(name: "Notes", bundleId: "com.apple.Notes")),
+            LauncherMapping(key: "u", target: .app(name: "Music", bundleId: "com.apple.Music")),
+            LauncherMapping(key: "p", target: .app(name: "Photos", bundleId: "com.apple.Photos")),
+            LauncherMapping(key: "a", target: .app(name: "App Store", bundleId: "com.apple.AppStore")),
+            LauncherMapping(key: "v", target: .app(name: "VS Code", bundleId: "com.microsoft.VSCode")),
+            LauncherMapping(key: "o", target: .app(name: "Obsidian", bundleId: "md.obsidian")),
+            LauncherMapping(key: "d", target: .app(name: "Discord", bundleId: "com.hnc.Discord")),
+            LauncherMapping(key: "k", target: .app(name: "Slack", bundleId: "com.tinyspeck.slackmacgap")),
+            LauncherMapping(key: "z", target: .app(name: "Zoom", bundleId: "us.zoom.xos"))
+        ]
+
+        // Websites (numbers)
+        let websiteMappings: [LauncherMapping] = [
+            LauncherMapping(key: "1", target: .url("github.com")),
+            LauncherMapping(key: "2", target: .url("google.com")),
+            LauncherMapping(key: "3", target: .url("youtube.com")),
+            LauncherMapping(key: "4", target: .url("x.com")),
+            LauncherMapping(key: "5", target: .url("reddit.com")),
+            LauncherMapping(key: "6", target: .url("chatgpt.com")),
+            LauncherMapping(key: "7", target: .url("claude.ai")),
+            LauncherMapping(key: "8", target: .url("stackoverflow.com")),
+            LauncherMapping(key: "9", target: .url("linkedin.com")),
+            LauncherMapping(key: "0", target: .url("notion.so"))
+        ]
+
+        return appMappings + websiteMappings
     }
 }

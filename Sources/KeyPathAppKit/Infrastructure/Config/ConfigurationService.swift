@@ -240,6 +240,8 @@ public struct KanataConfiguration: Sendable {
                 generateTapHoldPickerMappings(from: collection)
             case .layerPresetPicker:
                 generateLayerPresetMappings(from: collection)
+            case let .launcherGrid(config):
+                generateLauncherGridMappings(from: config)
             case .list, .table, .singleKeyPicker:
                 collection.mappings
             }
@@ -316,6 +318,8 @@ public struct KanataConfiguration: Sendable {
                 generateTapHoldPickerMappings(from: collection)
             case .layerPresetPicker:
                 generateLayerPresetMappings(from: collection)
+            case let .launcherGrid(config):
+                generateLauncherGridMappings(from: config)
             case .list, .table, .singleKeyPicker:
                 collection.mappings
             }
@@ -703,6 +707,18 @@ public struct KanataConfiguration: Sendable {
         }
 
         return config.selectedMappings.isEmpty ? (config.presets.first?.mappings ?? []) : config.selectedMappings
+    }
+
+    /// Generate key mappings from launcher grid configuration
+    private static func generateLauncherGridMappings(from config: LauncherGridConfig) -> [KeyMapping] {
+        config.mappings
+            .filter(\.isEnabled)
+            .map { mapping in
+                KeyMapping(
+                    input: mapping.key,
+                    output: mapping.target.kanataOutput
+                )
+            }
     }
 
     private static func convertSingleKeyToForkFormat(_ key: String) -> String {

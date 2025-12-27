@@ -174,6 +174,9 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
                     presets: presets,
                     selectedPresetId: selectedPresetId
                 ))
+            case .launcherGrid:
+                // LauncherGrid is a new type, no legacy format to migrate
+                configuration = .launcherGrid(LauncherGridConfig.defaultConfig)
             }
         }
     }
@@ -327,6 +330,7 @@ public enum RuleCollectionIdentifier {
     public static let numpadLayer = UUID(uuidString: "D5E7F9A1-3B4C-6D8E-0F2A-4B6C8D0E2F4A")!
     public static let symbolLayer = UUID(uuidString: "E6F8A0B2-4C5D-7E9F-1A3B-5C7D9E1F3A5B")!
     public static let windowSnapping = UUID(uuidString: "F7A9B1C3-5D6E-8F0A-2B4C-6D8E0F2A4B6C")!
+    public static let launcher = UUID(uuidString: "A8B9C0D1-2E3F-4A5B-6C7D-8E9F0A1B2C3D")!
 }
 
 public enum RuleCollectionLayer: Codable, Equatable, Sendable, Hashable {
@@ -421,6 +425,8 @@ public enum RuleCollectionDisplayStyle: String, Codable, Sendable {
     case tapHoldPicker
     /// Layer preset picker: choose from predefined layer configurations (e.g., Symbol Layer presets)
     case layerPresetPicker
+    /// Launcher grid: quick app/website launching via keyboard shortcuts
+    case launcherGrid
 }
 
 /// A preset option for single-key picker collections

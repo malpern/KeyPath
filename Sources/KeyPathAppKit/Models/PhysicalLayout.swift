@@ -84,7 +84,7 @@ struct PhysicalLayout: Identifiable {
         corne,
         sofle,
         ferrisSweep,
-        cornix,
+        cornix
     ]
 
     /// Find a layout by its identifier
@@ -342,7 +342,7 @@ struct PhysicalLayout: Identifiable {
         let functionKeys: [(UInt16, String)] = [
             (122, "F1"), (120, "F2"), (99, "F3"), (118, "F4"),
             (96, "F5"), (97, "F6"), (98, "F7"), (100, "F8"),
-            (101, "F9"), (109, "F10"), (103, "F11"), (111, "F12"),
+            (101, "F9"), (109, "F10"), (103, "F11"), (111, "F12")
         ]
         for (keyCode, label) in functionKeys {
             keys.append(PhysicalKey(
@@ -378,7 +378,7 @@ struct PhysicalLayout: Identifiable {
             (25, "9", standardKeyWidth), (29, "0", standardKeyWidth),
             (27, "-", standardKeyWidth), (24, "^", standardKeyWidth), // ^ instead of = on JIS
             (93, "¥", yenWidth), // Yen key (JIS specific)
-            (51, "⌫", deleteWidthJIS),
+            (51, "⌫", deleteWidthJIS)
         ]
         currentX = 0.0
         for (keyCode, label, width) in numberRowJIS {
@@ -405,7 +405,7 @@ struct PhysicalLayout: Identifiable {
         let topRowJIS: [(UInt16, String)] = [
             (12, "q"), (13, "w"), (14, "e"), (15, "r"), (17, "t"),
             (16, "y"), (32, "u"), (34, "i"), (31, "o"), (35, "p"),
-            (33, "@"), (30, "["),
+            (33, "@"), (30, "[")
         ]
         for (keyCode, label) in topRowJIS {
             keys.append(PhysicalKey(
@@ -430,7 +430,7 @@ struct PhysicalLayout: Identifiable {
             (37, "l", standardKeyWidth), (41, ";", standardKeyWidth),
             (39, ":", standardKeyWidth), // : instead of ' on JIS
             (42, "]", standardKeyWidth), // ] is here on JIS
-            (36, "↩", enterWidth),
+            (36, "↩", enterWidth)
         ]
         currentX = 0.0
         for (keyCode, label, width) in middleRowJIS {
@@ -455,7 +455,7 @@ struct PhysicalLayout: Identifiable {
             (46, "m", standardKeyWidth), (43, ",", standardKeyWidth),
             (47, ".", standardKeyWidth), (44, "/", standardKeyWidth),
             (94, "_", underscoreWidth), // Underscore/Ro key (JIS specific)
-            (60, "⇧", rightShiftWidthJIS),
+            (60, "⇧", rightShiftWidthJIS)
         ]
         currentX = 0.0
         for (keyCode, label, width) in bottomRowJIS {
@@ -497,7 +497,7 @@ struct PhysicalLayout: Identifiable {
             (49, " ", spacebarWidthJIS),
             (104, "かな", kanaWidth), // Kana key (JIS specific)
             (54, "⌘", cmdWidth),
-            (61, "⌥", optWidth),
+            (61, "⌥", optWidth)
         ]
         currentX = 0.0
         for (keyCode, label, width) in modifierRowJIS {

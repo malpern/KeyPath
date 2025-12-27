@@ -365,7 +365,7 @@ extension RuleConflictInfo.Source {
                     ConflictMapping(input: "h", output: "left"),
                     ConflictMapping(input: "j", output: "down"),
                     ConflictMapping(input: "k", output: "up"),
-                    ConflictMapping(input: "l", output: "right"),
+                    ConflictMapping(input: "l", output: "right")
                 ]
             )
 
@@ -377,7 +377,7 @@ extension RuleConflictInfo.Source {
                     ConflictMapping(input: "h", output: "d"),
                     ConflictMapping(input: "j", output: "n"),
                     ConflictMapping(input: "k", output: "e"),
-                    ConflictMapping(input: "l", output: "i"),
+                    ConflictMapping(input: "l", output: "i")
                 ]
             )
 

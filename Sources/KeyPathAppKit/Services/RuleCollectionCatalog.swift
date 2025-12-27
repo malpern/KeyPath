@@ -16,7 +16,7 @@ struct RuleCollectionCatalog {
     // MARK: - Predefined collections
 
     private var builtInList: [RuleCollection] {
-        [macOSFunctionKeys, leaderKeyConfig, navigationArrows, missionControl, windowSnapping, capsLockRemap, backupCapsLock, escapeRemap, deleteRemap, homeRowMods, numpadLayer, symbolLayer]
+        [macOSFunctionKeys, leaderKeyConfig, navigationArrows, missionControl, windowSnapping, capsLockRemap, backupCapsLock, escapeRemap, deleteRemap, homeRowMods, numpadLayer, symbolLayer, launcher]
     }
 
     private var builtInCollections: [UUID: RuleCollection] {
@@ -709,5 +709,29 @@ struct RuleCollectionCatalog {
                 ]
             )
         ]
+    }
+
+    // MARK: - Launcher
+
+    private var launcher: RuleCollection {
+        RuleCollection(
+            id: RuleCollectionIdentifier.launcher,
+            name: "Quick Launcher",
+            summary: "Hold Hyper to quickly launch apps and websites with keyboard shortcuts.",
+            category: .productivity,
+            mappings: [], // Mappings are derived from the launcherGrid configuration
+            isEnabled: false,
+            isSystemDefault: false,
+            icon: "rocket",
+            tags: ["launcher", "apps", "websites", "productivity"],
+            targetLayer: .custom("launcher"),
+            momentaryActivator: MomentaryActivator(
+                input: "hyper",
+                targetLayer: .custom("launcher"),
+                sourceLayer: .base
+            ),
+            activationHint: "Hold Hyper key",
+            configuration: .launcherGrid(LauncherGridConfig.defaultConfig)
+        )
     }
 }

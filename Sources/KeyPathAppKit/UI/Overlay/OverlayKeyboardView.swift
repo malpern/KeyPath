@@ -144,8 +144,7 @@ struct OverlayKeyboardView: View {
     /// Calculates frame directly from layout instead of using GeometryReader
     private func targetFrameFor(_ label: String, scale: CGFloat) -> CGRect {
         if let keyCode = labelToKeyCode[label],
-           let key = layout.keys.first(where: { $0.keyCode == keyCode })
-        {
+           let key = layout.keys.first(where: { $0.keyCode == keyCode }) {
             let width = keyWidth(for: key, scale: scale)
             let height = keyHeight(for: key, scale: scale)
             let centerX = keyPositionX(for: key, scale: scale)

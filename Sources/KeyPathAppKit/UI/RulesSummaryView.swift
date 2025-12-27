@@ -1713,8 +1713,7 @@ private struct OutputKeyboardWithAnimatedSymbols: View {
     /// Get the target frame for a symbol - either its mapped key position or the parking area
     private func targetFrameFor(_ symbol: String) -> CGRect {
         if let targetKey = symbolTargets[symbol],
-           let frame = keycapFrames[targetKey]
-        {
+           let frame = keycapFrames[targetKey] {
             return frame
         }
         return parkingFrame
@@ -3339,8 +3338,7 @@ private struct AppLaunchChip: View {
 
         // Get app name from bundle
         if let bundle = Bundle(url: url),
-           let name = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String
-        {
+           let name = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String {
             appName = name
         } else {
             // Use filename without extension

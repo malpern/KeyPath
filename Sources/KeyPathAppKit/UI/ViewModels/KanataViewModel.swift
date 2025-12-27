@@ -270,6 +270,10 @@ class KanataViewModel: ObservableObject {
         await manager.updateHomeRowModsConfig(collectionId: collectionId, config: config)
     }
 
+    func updateLauncherConfig(_ collectionId: UUID, config: LauncherGridConfig) async {
+        await manager.updateLauncherConfig(collectionId: collectionId, config: config)
+    }
+
     /// Update the leader key for all collections that use momentary activation
     func updateLeaderKey(_ newKey: String) async {
         await manager.updateLeaderKey(newKey)

@@ -120,7 +120,8 @@ final class RuleCollectionsManager {
         if storedCustomRules.isEmpty,
            let customIndex = storedCollections.firstIndex(where: {
                $0.id == RuleCollectionIdentifier.customMappings
-           }) {
+           })
+        {
             let legacy = storedCollections.remove(at: customIndex)
             storedCustomRules = legacy.mappings.map { mapping in
                 CustomRule(
@@ -419,7 +420,8 @@ final class RuleCollectionsManager {
 
         // Update the mapping based on selected output (skip for Leader Key which has no mappings)
         if let config = ruleCollections[index].configuration.singleKeyPickerConfig,
-           config.inputKey != "leader" {
+           config.inputKey != "leader"
+        {
             let description = config.presetOptions.first { $0.output == output }?.label ?? "Custom"
             ruleCollections[index].mappings = [KeyMapping(input: config.inputKey, output: output, description: description)]
         }
@@ -579,6 +581,30 @@ final class RuleCollectionsManager {
         await regenerateConfigFromCollections()
     }
 
+    /// Update launcher grid configuration
+    func updateLauncherConfig(id: UUID, config: LauncherGridConfig) async {
+        guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
+            // Try to find in catalog and add it
+            let catalog = RuleCollectionCatalog()
+            if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
+                catalogCollection.configuration.updateLauncherGridConfig(config)
+                catalogCollection.isEnabled = true
+                ruleCollections.append(catalogCollection)
+                dedupeRuleCollectionsInPlace()
+                refreshLayerIndicatorState()
+                await regenerateConfigFromCollections()
+            }
+            return
+        }
+
+        ruleCollections[index].configuration.updateLauncherGridConfig(config)
+        ruleCollections[index].isEnabled = true
+
+        dedupeRuleCollectionsInPlace()
+        refreshLayerIndicatorState()
+        await regenerateConfigFromCollections()
+    }
+
     /// Update the leader key for all collections that use momentary activation
     func updateLeaderKey(_ newKey: String) async {
         AppLogger.shared.log("🔑 [RuleCollections] Updating leader key to '\(newKey)'")
@@ -608,7 +634,8 @@ final class RuleCollectionsManager {
         AppLogger.shared.log("💾 [CustomRules] saveCustomRule called: id=\(rule.id), input='\(rule.input)', output='\(rule.output)'")
 
         if rule.isEnabled,
-           let conflict = conflictInfo(for: rule) {
+           let conflict = conflictInfo(for: rule)
+        {
             // Show conflict resolution dialog
             let context = RuleConflictContext(
                 newRule: .customRule(rule),
@@ -670,7 +697,8 @@ final class RuleCollectionsManager {
         guard let existing = customRules.first(where: { $0.id == id }) else { return }
 
         if isEnabled,
-           let conflict = conflictInfo(for: existing) {
+           let conflict = conflictInfo(for: existing)
+        {
             // Show conflict resolution dialog
             let context = RuleConflictContext(
                 newRule: .customRule(existing),
@@ -936,7 +964,8 @@ final class RuleCollectionsManager {
             // Extract user-friendly error message
             let userMessage = if let keyPathError = error as? KeyPathError,
                                  case let .configuration(configError) = keyPathError,
-                                 case let .validationFailed(errors) = configError {
+                                 case let .validationFailed(errors) = configError
+            {
                 "Configuration validation failed:\n\n" + errors.joined(separator: "\n")
             } else {
                 "Failed to save configuration: \(error.localizedDescription)"
@@ -977,7 +1006,8 @@ final class RuleCollectionsManager {
             }
 
             if let act1 = candidateActivator,
-               let act2 = normalizedActivator(for: other) {
+               let act2 = normalizedActivator(for: other)
+            {
                 if act1 == act2 {
                     // Identical momentary activators are treated as redundant, not conflicts
                     continue
