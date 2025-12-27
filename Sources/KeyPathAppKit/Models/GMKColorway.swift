@@ -1,5 +1,70 @@
 import SwiftUI
 
+// MARK: - Legend Style System
+
+/// How legends are rendered on keycaps
+enum LegendStyle: String, Codable, CaseIterable, Identifiable, Equatable {
+    case standard // Normal letters/symbols
+    case dots // Colored circles instead of text
+    case iconMods // Symbols on modifiers (⇧ instead of "shift")
+    case blank // No legends at all
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .standard: "Standard"
+        case .dots: "Dots"
+        case .iconMods: "Icon Mods"
+        case .blank: "Blank"
+        }
+    }
+}
+
+/// Configuration for the Dots legend style
+struct DotsLegendConfig: Codable, Equatable {
+    /// How dots are colored across the keyboard
+    enum ColorMode: String, Codable, Equatable {
+        case monochrome // Single color (uses legend color from colorway)
+        case rainbow // Gradient by column (red→purple)
+    }
+
+    let colorMode: ColorMode
+    let dotSize: CGFloat // Relative to key size (0.18 = 18% of key width)
+    let oblongWidthMultiplier: CGFloat // For modifier "bars" (2.5 = 2.5x wider than tall)
+
+    static let `default` = DotsLegendConfig(
+        colorMode: .monochrome,
+        dotSize: 0.18,
+        oblongWidthMultiplier: 2.5
+    )
+
+    /// Rainbow colors by column position - GMK standard color codes
+    /// Sources: MatrixZJ Color Codes database
+    static let rainbowPalette: [String] = [
+        "#dd1126", // RO2 - Red
+        "#ee6900", // V2 - Orange
+        "#ebd400", // GE1 - Yellow
+        "#689b34", // AE - Green
+        "#0084c2", // N5 - Blue
+        "#5D437E", // DY - Purple
+    ]
+
+    /// Get dot color for a given column position
+    func dotColor(forColumn column: Int, totalColumns: Int, fallbackColor: Color) -> Color {
+        switch colorMode {
+        case .monochrome:
+            return fallbackColor
+        case .rainbow:
+            guard totalColumns > 0 else { return fallbackColor }
+            let normalized = CGFloat(column) / CGFloat(totalColumns - 1)
+            let index = Int(normalized * CGFloat(Self.rainbowPalette.count - 1))
+            let clampedIndex = max(0, min(index, Self.rainbowPalette.count - 1))
+            return Color(hex: Self.rainbowPalette[clampedIndex])
+        }
+    }
+}
+
 /// A GMK keycap colorway definition with hex colors for each key type.
 /// Colors sourced from MatrixZJ database and official Geekhack IC threads.
 struct GMKColorway: Identifiable, Codable, Equatable {
@@ -18,6 +83,10 @@ struct GMKColorway: Identifiable, Codable, Equatable {
 
     // Attribution
     let sourceURL: String?
+
+    // Legend style configuration
+    let legendStyle: LegendStyle
+    let dotsConfig: DotsLegendConfig?
 
     // MARK: - SwiftUI Colors
 
@@ -49,7 +118,9 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         modLegend: "#e0edff",
         accentBase: "#141414",
         accentLegend: "#e0edff",
-        sourceURL: nil
+        sourceURL: nil,
+        legendStyle: .standard,
+        dotsConfig: nil
     )
 
     // MARK: - Top 10 GMK Colorways
@@ -67,7 +138,8 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         .wob,
         .hyperfuse,
         .godspeed,
-        .dots
+        .dots,
+        .dotsDark,
     ]
 
     /// Find a colorway by ID
@@ -90,7 +162,9 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         modLegend: "#F1BEB0",
         accentBase: "#F1BEB0",
         accentLegend: "#2B2B2B",
-        sourceURL: "https://geekhack.org/index.php?topic=94386.0"
+        sourceURL: "https://geekhack.org/index.php?topic=94386.0",
+        legendStyle: .standard,
+        dotsConfig: nil
     )
 
     // MARK: - GMK Olivia (Light)
@@ -108,7 +182,9 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         modLegend: "#F1BEB0",
         accentBase: "#F1BEB0",
         accentLegend: "#E1DBD1",
-        sourceURL: "https://geekhack.org/index.php?topic=94386.0"
+        sourceURL: "https://geekhack.org/index.php?topic=94386.0",
+        legendStyle: .standard,
+        dotsConfig: nil
     )
 
     // MARK: - GMK 8008
@@ -124,7 +200,9 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         modLegend: "#f5a4b8", // Pink legend
         accentBase: "#f5a4b8", // Pink accent
         accentLegend: "#3c4048", // Dark legend
-        sourceURL: "https://geekhack.org/index.php?topic=100308.0"
+        sourceURL: "https://geekhack.org/index.php?topic=100308.0",
+        legendStyle: .standard,
+        dotsConfig: nil
     )
 
     // MARK: - GMK Laser
@@ -140,7 +218,9 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         modLegend: "#05d9e8", // Cyan
         accentBase: "#ff2a6d", // Magenta accent
         accentLegend: "#1a1a2e",
-        sourceURL: "https://mitormk.com/laser"
+        sourceURL: "https://mitormk.com/laser",
+        legendStyle: .standard,
+        dotsConfig: nil
     )
 
     // MARK: - GMK Red Samurai
@@ -158,7 +238,9 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         modLegend: "#B9975B", // Pantone 465 C (Gold)
         accentBase: "#651D32", // Burgundy accent
         accentLegend: "#B9975B", // Gold
-        sourceURL: "https://geekhack.org/index.php?topic=89970.0"
+        sourceURL: "https://geekhack.org/index.php?topic=89970.0",
+        legendStyle: .standard,
+        dotsConfig: nil
     )
 
     // MARK: - GMK Botanical
@@ -176,7 +258,9 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         modLegend: "#92ACA0", // Pantone 5575 C (Sage Green)
         accentBase: "#92ACA0", // Sage green accent
         accentLegend: "#3E5D58", // Forest green
-        sourceURL: "https://geekhack.org/index.php?topic=102350.0"
+        sourceURL: "https://geekhack.org/index.php?topic=102350.0",
+        legendStyle: .standard,
+        dotsConfig: nil
     )
 
     // MARK: - GMK Bento
@@ -194,7 +278,9 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         modLegend: "#EEE2D0", // Warm Cream
         accentBase: "#E87F7F", // Salmon/Coral
         accentLegend: "#2A4D69",
-        sourceURL: "https://geekhack.org/index.php?topic=97855.0"
+        sourceURL: "https://geekhack.org/index.php?topic=97855.0",
+        legendStyle: .standard,
+        dotsConfig: nil
     )
 
     // MARK: - GMK WoB (White on Black)
@@ -210,7 +296,9 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         modLegend: "#ffffff",
         accentBase: "#1a1a1a",
         accentLegend: "#ffffff",
-        sourceURL: "https://www.gmk.net/shop/en/gmk-cyl-wob-white-on-black-keycaps/fptk5009"
+        sourceURL: "https://www.gmk.net/shop/en/gmk-cyl-wob-white-on-black-keycaps/fptk5009",
+        legendStyle: .standard,
+        dotsConfig: nil
     )
 
     // MARK: - GMK Hyperfuse
@@ -228,7 +316,9 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         modLegend: "#00A4A9", // GMK TU2 (Teal)
         accentBase: "#00A4A9", // Teal accent
         accentLegend: "#5D437E", // Purple
-        sourceURL: "https://geekhack.org/index.php?topic=68198.0"
+        sourceURL: "https://geekhack.org/index.php?topic=68198.0",
+        legendStyle: .standard,
+        dotsConfig: nil
     )
 
     // MARK: - GMK Godspeed
@@ -244,23 +334,54 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         modLegend: "#e8873a", // Orange
         accentBase: "#3a6ea5", // Blue accent
         accentLegend: "#f5e6c8",
-        sourceURL: "https://geekhack.org/index.php?topic=84090.0"
+        sourceURL: "https://geekhack.org/index.php?topic=84090.0",
+        legendStyle: .standard,
+        dotsConfig: nil
     )
 
     // MARK: - GMK Dots
 
+    /// GMK Dots Light with rainbow colored dots (the iconic variant)
+    /// Base color: GMK WS1 (warm off-white/cream) - authentic GMK plastic color
     static let dots = GMKColorway(
         id: "dots",
-        name: "Dots",
+        name: "Dots Rainbow",
         designer: "Biip",
         year: 2019,
-        alphaBase: "#f5f5f5", // Light cream
-        alphaLegend: "#1a1a1a", // Black dots
-        modBase: "#f5f5f5",
+        alphaBase: "#f0ebe1", // GMK WS1-ish warm cream (not stark white)
+        alphaLegend: "#1a1a1a", // Fallback for monochrome mode
+        modBase: "#f0ebe1",
         modLegend: "#1a1a1a",
         accentBase: "#ff6b6b", // Coral accent
-        accentLegend: "#f5f5f5",
-        sourceURL: "https://geekhack.org/index.php?topic=100890.0"
+        accentLegend: "#f0ebe1",
+        sourceURL: "https://geekhack.org/index.php?topic=100890.0",
+        legendStyle: .dots,
+        dotsConfig: DotsLegendConfig(
+            colorMode: .rainbow,
+            dotSize: 0.22,
+            oblongWidthMultiplier: 3.0
+        )
+    )
+
+    /// GMK Dots Dark with rainbow colored dots
+    static let dotsDark = GMKColorway(
+        id: "dots-dark",
+        name: "Dots Dark",
+        designer: "Biip",
+        year: 2019,
+        alphaBase: "#2b2b2b", // Dark gray
+        alphaLegend: "#f5f5f5", // Fallback for monochrome mode
+        modBase: "#2b2b2b",
+        modLegend: "#f5f5f5",
+        accentBase: "#ff6b6b",
+        accentLegend: "#2b2b2b",
+        sourceURL: "https://geekhack.org/index.php?topic=100890.0",
+        legendStyle: .dots,
+        dotsConfig: DotsLegendConfig(
+            colorMode: .rainbow,
+            dotSize: 0.22,
+            oblongWidthMultiplier: 3.0
+        )
     )
 }
 

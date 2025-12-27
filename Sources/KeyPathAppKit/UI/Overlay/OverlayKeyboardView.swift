@@ -102,7 +102,8 @@ struct OverlayKeyboardView: View {
                 // Labels are ALWAYS visible when in current keymap (like the working symbol animation).
                 // The enableAnimation flag controls whether position changes animate.
                 // Note: frames are calculated directly from layout, no GeometryReader needed.
-                if !reduceMotion {
+                // Skip floating labels for non-standard legend styles (dots show circles, not letters)
+                if !reduceMotion && activeColorway.legendStyle == .standard {
                     ForEach(Self.allLabels, id: \.self) { label in
                         FloatingKeymapLabel(
                             label: label,
@@ -199,7 +200,8 @@ struct OverlayKeyboardView: View {
             colorway: activeColorway,
             // Hide keycap alpha labels when floating labels are rendered
             // (floating labels handle animation, keycaps just show backgrounds)
-            useFloatingLabels: !reduceMotion
+            // Disable floating labels for non-standard legend styles (dots, blank, etc.)
+            useFloatingLabels: !reduceMotion && activeColorway.legendStyle == .standard
         )
         .frame(
             width: keyWidth(for: key, scale: scale),
@@ -438,6 +440,22 @@ private struct FloatingKeymapLabel: View {
     @State private var rotation: Angle = .zero
     @State private var scaleEffect: CGFloat = 1.0
     @State private var wasVisible: Bool = false
+    @State private var previousNormalizedX: CGFloat?
+    @State private var previousNormalizedY: CGFloat?
+
+    /// Normalized position (position / scale) - stays constant during resize, changes during layout change
+    private var normalizedX: CGFloat { scale > 0 ? targetFrame.midX / scale : 0 }
+    private var normalizedY: CGFloat { scale > 0 ? targetFrame.midY / scale : 0 }
+
+    /// Detect if this is a layout change (not just resize)
+    private func isLayoutChange() -> Bool {
+        guard let prevX = previousNormalizedX, let prevY = previousNormalizedY else {
+            return false // First render
+        }
+        // Use small threshold to handle floating point precision
+        let threshold: CGFloat = 0.1
+        return abs(normalizedX - prevX) > threshold || abs(normalizedY - prevY) > threshold
+    }
 
     var body: some View {
         labelContent
@@ -446,10 +464,16 @@ private struct FloatingKeymapLabel: View {
             .rotationEffect(rotation)
             .opacity(isVisible ? 1.0 : 0.0)
             .position(x: targetFrame.midX, y: targetFrame.midY)
-            .animation(positionAnimation, value: targetFrame)
+            // Only animate position during layout changes, not resize
+            .animation(isLayoutChange() ? positionAnimation : nil, value: targetFrame)
             .animation(positionAnimation, value: isVisible)
             .onChange(of: targetFrame) { _, _ in
-                if isVisible, enableAnimation {
+                let layoutChanged = isLayoutChange()
+                // Update tracked position
+                previousNormalizedX = normalizedX
+                previousNormalizedY = normalizedY
+                // Only wobble on layout changes, not resize
+                if isVisible, enableAnimation, layoutChanged {
                     triggerWobble()
                 }
             }
@@ -458,6 +482,10 @@ private struct FloatingKeymapLabel: View {
                     triggerWobble()
                 }
                 wasVisible = newVisible
+            }
+            .onAppear {
+                previousNormalizedX = normalizedX
+                previousNormalizedY = normalizedY
             }
     }
 

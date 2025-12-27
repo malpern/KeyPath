@@ -86,6 +86,7 @@ struct BrowserHistorySuggestionsView: View {
                     .foregroundColor(.secondary)
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("browser-history-close-button")
             .accessibilityLabel("Close")
         }
         .padding()

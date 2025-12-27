@@ -116,8 +116,9 @@ struct LauncherCollectionView: View {
 
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 140))], spacing: 8) {
                         ForEach(appMappings) { mapping in
-                            LauncherMappingRow(
+                            LauncherMappingRowView(
                                 mapping: mapping,
+                                showToggle: true,
                                 onToggle: { toggleMapping(mapping) },
                                 onEdit: { editingMapping = mapping },
                                 onDelete: { deleteMapping(mapping) }
@@ -136,8 +137,9 @@ struct LauncherCollectionView: View {
 
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 140))], spacing: 8) {
                         ForEach(websiteMappings) { mapping in
-                            LauncherMappingRow(
+                            LauncherMappingRowView(
                                 mapping: mapping,
+                                showToggle: true,
                                 onToggle: { toggleMapping(mapping) },
                                 onEdit: { editingMapping = mapping },
                                 onDelete: { deleteMapping(mapping) }
@@ -216,7 +218,7 @@ struct LauncherCollectionView: View {
     private func addSuggestedSites(_ sites: [BrowserHistoryScanner.VisitedSite]) {
         // Find available number keys
         let usedKeys = Set(config.mappings.map(\.key))
-        let availableKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"].filter { !usedKeys.contains($0) }
+        let availableKeys = LauncherGridConfig.availableNumberKeys.filter { !usedKeys.contains($0) }
 
         for (site, key) in zip(sites, availableKeys) {
             let mapping = LauncherMapping(
@@ -237,88 +239,6 @@ struct LauncherCollectionView: View {
     private func clearAll() {
         config.mappings.removeAll()
         onConfigChanged(config)
-    }
-}
-
-// MARK: - Mapping Row
-
-private struct LauncherMappingRow: View {
-    let mapping: LauncherMapping
-    let onToggle: () -> Void
-    let onEdit: () -> Void
-    let onDelete: () -> Void
-
-    @State private var icon: NSImage?
-
-    var body: some View {
-        HStack(spacing: 8) {
-            // Icon
-            Group {
-                if let icon {
-                    Image(nsImage: icon)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 20, height: 20)
-                } else {
-                    Image(systemName: mapping.target.isApp ? "app" : "globe")
-                        .frame(width: 20, height: 20)
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            // Key badge
-            Text(mapping.key.uppercased())
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                .padding(.horizontal, 5)
-                .padding(.vertical, 2)
-                .background(
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.accentColor.opacity(mapping.isEnabled ? 0.2 : 0.1))
-                )
-                .foregroundColor(mapping.isEnabled ? .accentColor : .secondary)
-
-            // Target name
-            Text(mapping.target.displayName)
-                .font(.system(size: 12))
-                .lineLimit(1)
-                .foregroundColor(mapping.isEnabled ? .primary : .secondary)
-
-            Spacer()
-
-            // Toggle
-            Toggle("", isOn: Binding(
-                get: { mapping.isEnabled },
-                set: { _ in onToggle() }
-            ))
-            .labelsHidden()
-            .toggleStyle(.switch)
-            .controlSize(.mini)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(Color(NSColor.controlBackgroundColor))
-        )
-        .contextMenu {
-            Button("Edit") { onEdit() }
-            Divider()
-            Button("Delete", role: .destructive) { onDelete() }
-        }
-        .accessibilityIdentifier("launcher-mapping-row-\(mapping.key)")
-        .accessibilityLabel("\(mapping.target.displayName), key \(mapping.key)")
-        .task {
-            await loadIcon()
-        }
-    }
-
-    private func loadIcon() async {
-        switch mapping.target {
-        case .app:
-            icon = AppIconResolver.icon(for: mapping.target)
-        case let .url(urlString):
-            icon = await FaviconLoader.shared.favicon(for: urlString)
-        }
     }
 }
 

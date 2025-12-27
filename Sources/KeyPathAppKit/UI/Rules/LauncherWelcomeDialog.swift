@@ -45,6 +45,17 @@ struct LauncherWelcomeDialog: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(width: 520, height: 560)
+        .overlay(alignment: .topTrailing) {
+            Button(action: { dismiss() }) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title2)
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+            .padding(16)
+            .accessibilityIdentifier("launcher-welcome-close-button")
+            .accessibilityLabel("Close")
+        }
     }
 
     // MARK: - Welcome Step
@@ -55,7 +66,7 @@ struct LauncherWelcomeDialog: View {
 
             // Icon and title
             VStack(spacing: 16) {
-                Image(systemName: "rocket.fill")
+                Image(systemName: "arrow.up.forward.app.fill")
                     .font(.system(size: 56))
                     .foregroundStyle(
                         LinearGradient(
@@ -174,7 +185,7 @@ struct LauncherWelcomeDialog: View {
 
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 140))], spacing: 8) {
                             ForEach(appMappings) { mapping in
-                                PreviewMappingRow(mapping: mapping)
+                                LauncherMappingRowView(mapping: mapping)
                             }
                         }
                     }
@@ -187,7 +198,7 @@ struct LauncherWelcomeDialog: View {
 
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 140))], spacing: 8) {
                             ForEach(websiteMappings) { mapping in
-                                PreviewMappingRow(mapping: mapping)
+                                LauncherMappingRowView(mapping: mapping)
                             }
                         }
                     }
@@ -284,7 +295,7 @@ struct LauncherWelcomeDialog: View {
         BrowserHistorySuggestionsView { selectedSites in
             // Add selected sites to config
             let usedKeys = Set(config.mappings.map(\.key))
-            let availableKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
+            let availableKeys = LauncherGridConfig.availableNumberKeys
                 .filter { !usedKeys.contains($0) }
 
             for (site, key) in zip(selectedSites, availableKeys) {
@@ -305,66 +316,5 @@ struct LauncherWelcomeDialog: View {
     private func complete(action: WelcomeAction) {
         onComplete(config, action)
         dismiss()
-    }
-}
-
-// MARK: - Preview Mapping Row
-
-private struct PreviewMappingRow: View {
-    let mapping: LauncherMapping
-    @State private var icon: NSImage?
-
-    var body: some View {
-        HStack(spacing: 8) {
-            // Icon
-            Group {
-                if let icon {
-                    Image(nsImage: icon)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 20, height: 20)
-                } else {
-                    Image(systemName: mapping.target.isApp ? "app" : "globe")
-                        .frame(width: 20, height: 20)
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            // Key badge
-            Text(mapping.key.uppercased())
-                .font(.system(size: 11, weight: .bold, design: .monospaced))
-                .padding(.horizontal, 5)
-                .padding(.vertical, 2)
-                .background(
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.accentColor.opacity(0.2))
-                )
-                .foregroundColor(.accentColor)
-
-            // Name
-            Text(mapping.target.displayName)
-                .font(.system(size: 12))
-                .lineLimit(1)
-
-            Spacer()
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(Color(NSColor.controlBackgroundColor))
-        )
-        .task {
-            await loadIcon()
-        }
-    }
-
-    private func loadIcon() async {
-        switch mapping.target {
-        case .app:
-            icon = AppIconResolver.icon(for: mapping.target)
-        case let .url(urlString):
-            icon = await FaviconLoader.shared.favicon(for: urlString)
-        }
     }
 }

@@ -293,6 +293,24 @@ struct OverlayKeycapView: View {
 
     @ViewBuilder
     private var keyContent: some View {
+        // Check legend style first - dots overrides normal content for most keys
+        switch colorway.legendStyle {
+        case .dots:
+            dotsLegendContent
+        case .blank:
+            // No legend at all
+            EmptyView()
+        case .iconMods:
+            // Icon mods: use symbols for modifiers, standard for others
+            iconModsContent
+        case .standard:
+            standardKeyContent
+        }
+    }
+
+    /// Standard key content routing (used for .standard legend style)
+    @ViewBuilder
+    private var standardKeyContent: some View {
         // Function keys always show F-label + icon (even when remapped)
         if key.layoutRole == .functionKey {
             functionKeyWithMappingContent
@@ -325,6 +343,106 @@ struct OverlayKeycapView: View {
             case .escKey:
                 escKeyContent
             }
+        }
+    }
+
+    // MARK: - Legend Style: Dots
+
+    /// Renders a colored dot/circle instead of text legend (GMK Dots style)
+    @ViewBuilder
+    private var dotsLegendContent: some View {
+        let config = colorway.dotsConfig ?? .default
+
+        // Special keys keep their standard content
+        if key.layoutRole == .functionKey {
+            functionKeyWithMappingContent
+        } else if key.layoutRole == .touchId {
+            touchIdContent
+        } else if key.layoutRole == .arrow {
+            // Arrows show small dots
+            dotShape(config: config, isModifier: false, sizeMultiplier: 0.7)
+        } else if isModifierKey || key.layoutRole == .bottomAligned || key.layoutRole == .narrowModifier {
+            // Modifiers get oblongs (horizontal bars)
+            oblongShape(config: config)
+        } else if key.layoutRole == .escKey {
+            // ESC gets a small dot
+            dotShape(config: config, isModifier: false, sizeMultiplier: 0.8)
+        } else {
+            // Alpha keys get circles
+            dotShape(config: config, isModifier: false, sizeMultiplier: 1.0)
+        }
+    }
+
+    /// Circular dot for alpha keys
+    @ViewBuilder
+    private func dotShape(config: DotsLegendConfig, isModifier: Bool, sizeMultiplier: CGFloat) -> some View {
+        let baseSize: CGFloat = 36 * scale * config.dotSize * sizeMultiplier
+        let color = dotColorForCurrentKey(config: config)
+
+        Circle()
+            .fill(color)
+            .frame(width: baseSize, height: baseSize)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Oblong/bar shape for modifier keys
+    @ViewBuilder
+    private func oblongShape(config: DotsLegendConfig) -> some View {
+        let height: CGFloat = 4 * scale
+        let width: CGFloat = height * config.oblongWidthMultiplier
+        let color = dotColorForCurrentKey(config: config)
+
+        RoundedRectangle(cornerRadius: height / 2)
+            .fill(color)
+            .frame(width: width, height: height)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Calculate dot color based on key position and config
+    private func dotColorForCurrentKey(config: DotsLegendConfig) -> Color {
+        let fallbackColor = isModifierKey ? colorway.modLegendColor : colorway.alphaLegendColor
+        // Use key's x position for column-based rainbow gradient
+        // Standard keyboard has ~15 columns (0-14)
+        return config.dotColor(forColumn: Int(key.x), totalColumns: 15, fallbackColor: fallbackColor)
+    }
+
+    // MARK: - Legend Style: Icon Mods
+
+    /// Icon mods style: symbols for modifiers, standard content for others
+    @ViewBuilder
+    private var iconModsContent: some View {
+        // Modifiers use symbols only (no text labels)
+        if key.layoutRole == .bottomAligned || key.layoutRole == .narrowModifier {
+            modifierSymbolOnlyContent
+        } else {
+            // Non-modifiers use standard content
+            standardKeyContent
+        }
+    }
+
+    /// Modifier with symbol only (no text) for icon mods style
+    @ViewBuilder
+    private var modifierSymbolOnlyContent: some View {
+        let symbol = modifierSymbolForKey
+        Text(symbol)
+            .font(.system(size: 14 * scale, weight: .light))
+            .foregroundStyle(foregroundColor)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Get the appropriate symbol for a modifier key
+    private var modifierSymbolForKey: String {
+        switch key.label.lowercased() {
+        case "⇧", "shift": return "⇧"
+        case "⌃", "ctrl", "control": return "⌃"
+        case "⌥", "opt", "option", "alt": return "⌥"
+        case "⌘", "cmd", "command": return "⌘"
+        case "fn": return "🌐"
+        case "⇪", "caps", "capslock": return "⇪"
+        case "⌫", "delete", "backspace": return "⌫"
+        case "⏎", "↵", "return", "enter": return "↵"
+        case "⇥", "tab": return "⇥"
+        default: return key.label
         }
     }
 
@@ -386,12 +504,51 @@ struct OverlayKeycapView: View {
 
     // MARK: - Layout: Centered (letters, symbols, spacebar)
 
+    /// Whether this key has a special label that should always be rendered in the keycap
+    /// (not handled by floating labels). Includes navigation keys, system keys, etc.
+    private var hasSpecialLabel: Bool {
+        let specialLabels: Set<String> = [
+            "Home", "End", "PgUp", "PgDn", "Del", "␣", "Lyr", "Fn", "Mod",
+            "↩", "⌫", "⇥", "⇪", "esc", "⎋",
+            // Arrow symbols (both solid and outline variants)
+            "◀", "▶", "▲", "▼", "←", "→", "↑", "↓",
+            // JIS-specific keys (not in standard keymaps)
+            "¥", "英数", "かな", "_", "^", ":", "@", "fn"
+        ]
+        return specialLabels.contains(effectiveLabel) || specialLabels.contains(key.label)
+    }
+
+    /// Word labels for navigation/system keys (like ESC style)
+    private var navigationWordLabel: String? {
+        switch key.label {
+        case "Home": return "home"
+        case "End": return "end"
+        case "PgUp": return "page up"
+        case "PgDn": return "page dn"
+        case "Lyr": return "layer"
+        case "Fn": return nil // Fn uses globe icon
+        case "Mod": return "mod"
+        case "␣": return "space"
+        case "⌫": return "bksp" // Backspace key (short form to fit)
+        case "↩": return "return"
+        default: return nil
+        }
+    }
+
+    /// SF Symbol for special keys (Delete uses icon)
+    private var navigationSFSymbol: String? {
+        switch key.label {
+        case "Del": return "delete.forward"
+        default: return nil
+        }
+    }
+
     @ViewBuilder
     private var centeredContent: some View {
-        // When floating labels are enabled, they handle ALL standard key content
+        // When floating labels are enabled, they handle standard alpha/numeric content
         // (letters, numbers, punctuation with shift symbols).
-        // Keycaps only show special layer-mapped content (nav arrows, etc.)
-        if useFloatingLabels {
+        // Special keys (Home, PgUp, Del, Space, etc.) always render their own labels.
+        if useFloatingLabels, !hasSpecialLabel {
             if let navSymbol = navOverlaySymbol {
                 // Layer mapping shows arrow - display arrow only, floating label shows base letter
                 navOverlayArrowOnly(arrow: navSymbol)
@@ -400,18 +557,51 @@ struct OverlayKeycapView: View {
                 Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         } else {
-            // Reduce motion mode: render everything in keycap
-            if let navSymbol = navOverlaySymbol {
+            // Special key rendering - use key.label for physical key identity
+            if let sfSymbol = navigationSFSymbol {
+                // SF Symbol icon (Delete)
+                Image(systemName: sfSymbol)
+                    .font(.system(size: 10 * scale, weight: .regular))
+                    .foregroundStyle(foregroundColor)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let wordLabel = navigationWordLabel {
+                // Small word label like ESC (bottom-left aligned)
+                navigationWordContent(wordLabel)
+            } else if key.label == "Fn" {
+                // Fn key uses globe icon like MacBook
+                fnKeyContent
+            } else if let navSymbol = navOverlaySymbol {
+                // Vim nav overlay
                 navOverlayContent(arrow: navSymbol, letter: baseLabel)
             } else if let shiftSymbol = metadata.shiftSymbol {
                 dualSymbolContent(main: effectiveLabel, shift: shiftSymbol)
             } else {
-                Text(effectiveLabel.uppercased())
+                // For special keys, prefer key.label if effectiveLabel is empty
+                let displayText = effectiveLabel.isEmpty ? key.label : effectiveLabel
+                Text(displayText.uppercased())
                     .font(.system(size: 12 * scale, weight: .medium))
                     .foregroundStyle(foregroundColor)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+    }
+
+    /// Navigation word label content (small bottom-left aligned like ESC)
+    @ViewBuilder
+    private func navigationWordContent(_ label: String) -> some View {
+        VStack {
+            Spacer(minLength: 0)
+            HStack {
+                Text(label)
+                    .font(.system(size: 7 * scale, weight: .regular))
+                    .foregroundStyle(foregroundColor)
+                Spacer(minLength: 0)
+            }
+            .padding(.leading, 4 * scale)
+            .padding(.trailing, 4 * scale)
+            .padding(.bottom, 3 * scale)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder
@@ -1040,6 +1230,83 @@ struct OverlayKeycapView: View {
             isDarkMode: true
         )
         .frame(width: 50, height: 50)
+    }
+    .padding()
+    .background(Color.black)
+}
+
+#Preview("GMK Dots Rainbow") {
+    HStack(spacing: 4) {
+        // Alpha keys with rainbow dots at different column positions
+        ForEach(0 ..< 10, id: \.self) { col in
+            OverlayKeycapView(
+                key: PhysicalKey(keyCode: UInt16(col), label: String(Character(UnicodeScalar(97 + col)!)), x: CGFloat(col), y: 1),
+                baseLabel: String(Character(UnicodeScalar(97 + col)!)),
+                isPressed: false,
+                scale: 1.5,
+                colorway: .dots
+            )
+            .frame(width: 45, height: 45)
+        }
+    }
+    .padding()
+    .background(Color.black)
+}
+
+#Preview("GMK Dots Dark Rainbow") {
+    VStack(spacing: 4) {
+        // Top row with rainbow alphas
+        HStack(spacing: 4) {
+            ForEach(0 ..< 10, id: \.self) { col in
+                OverlayKeycapView(
+                    key: PhysicalKey(keyCode: UInt16(col), label: String(col), x: CGFloat(col), y: 0),
+                    baseLabel: String(col),
+                    isPressed: false,
+                    scale: 1.2,
+                    colorway: .dotsDark
+                )
+                .frame(width: 38, height: 38)
+            }
+        }
+        // Bottom row with modifiers (oblongs)
+        HStack(spacing: 4) {
+            OverlayKeycapView(
+                key: PhysicalKey(keyCode: 59, label: "⌃", x: 0, y: 3, width: 1.5),
+                baseLabel: "⌃",
+                isPressed: false,
+                scale: 1.2,
+                colorway: .dotsDark
+            )
+            .frame(width: 55, height: 38)
+
+            OverlayKeycapView(
+                key: PhysicalKey(keyCode: 58, label: "⌥", x: 2, y: 3, width: 1.2),
+                baseLabel: "⌥",
+                isPressed: false,
+                scale: 1.2,
+                colorway: .dotsDark
+            )
+            .frame(width: 45, height: 38)
+
+            OverlayKeycapView(
+                key: PhysicalKey(keyCode: 55, label: "⌘", x: 4, y: 3, width: 1.3),
+                baseLabel: "⌘",
+                isPressed: false,
+                scale: 1.2,
+                colorway: .dotsDark
+            )
+            .frame(width: 50, height: 38)
+
+            // Spacebar
+            OverlayKeycapView(
+                key: PhysicalKey(keyCode: 49, label: " ", x: 6, y: 3, width: 5.0),
+                baseLabel: " ",
+                isPressed: false,
+                scale: 1.2,
+                colorway: .dotsDark
+            )
+            .frame(width: 180, height: 38)
+        }
     }
     .padding()
     .background(Color.black)

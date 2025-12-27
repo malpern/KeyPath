@@ -205,12 +205,12 @@ private extension RuleCollectionRow {
                 LauncherCollectionView(
                     config: Binding(
                         get: { config },
-                        set: { _ in
-                            // Config changes are handled via onConfigChanged callback
+                        set: { newConfig in
+                            onLauncherConfigChanged?(newConfig)
                         }
                     ),
-                    onConfigChanged: { _ in
-                        // TODO: Wire up to KanataViewModel to persist changes
+                    onConfigChanged: { newConfig in
+                        onLauncherConfigChanged?(newConfig)
                     }
                 )
             }

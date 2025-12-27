@@ -10,6 +10,12 @@ struct RuleCollectionCatalog {
         guard let updated = builtInCollections[existing.id] else { return existing }
         var merged = updated
         merged.isEnabled = existing.isEnabled
+        // Preserve user's configuration for configurable collections
+        // (e.g., launcher mappings, home row mods settings, etc.)
+        // Only if the configuration type matches - otherwise use catalog default
+        if existing.configuration.displayStyle == updated.configuration.displayStyle {
+            merged.configuration = existing.configuration
+        }
         return merged
     }
 
@@ -722,7 +728,7 @@ struct RuleCollectionCatalog {
             mappings: [], // Mappings are derived from the launcherGrid configuration
             isEnabled: false,
             isSystemDefault: false,
-            icon: "rocket",
+            icon: "arrow.up.forward.app",
             tags: ["launcher", "apps", "websites", "productivity"],
             targetLayer: .custom("launcher"),
             momentaryActivator: MomentaryActivator(

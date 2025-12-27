@@ -5,6 +5,8 @@ import SwiftUI
 struct AvailableRulesView: View {
     @EnvironmentObject var kanataManager: KanataViewModel
     private let catalog = RuleCollectionCatalog()
+    @State private var showLauncherWelcome = false
+    @State private var pendingLauncherConfig: LauncherGridConfig?
 
     private var availableCollections: [RuleCollection] {
         let existing = Set(kanataManager.ruleCollections.map(\.id))
@@ -16,7 +18,7 @@ struct AvailableRulesView: View {
             LazyVStack(spacing: 16) {
                 ForEach(availableCollections) { collection in
                     AvailableRuleCollectionCard(collection: collection) {
-                        Task { await kanataManager.addRuleCollection(collection) }
+                        activateCollection(collection)
                     }
                 }
 
@@ -29,6 +31,39 @@ struct AvailableRulesView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 20)
+        }
+        .sheet(isPresented: $showLauncherWelcome) {
+            if var config = pendingLauncherConfig {
+                LauncherWelcomeDialog(
+                    config: Binding(
+                        get: { config },
+                        set: { config = $0 }
+                    ),
+                    onComplete: { finalConfig, _ in
+                        var updatedConfig = finalConfig
+                        updatedConfig.hasSeenWelcome = true
+                        Task {
+                            await kanataManager.updateLauncherConfig(
+                                RuleCollectionIdentifier.launcher,
+                                config: updatedConfig
+                            )
+                        }
+                        showLauncherWelcome = false
+                    }
+                )
+            }
+        }
+    }
+
+    private func activateCollection(_ collection: RuleCollection) {
+        // For launcher collection, show welcome dialog first
+        if collection.id == RuleCollectionIdentifier.launcher,
+           let config = collection.configuration.launcherGridConfig,
+           !config.hasSeenWelcome {
+            pendingLauncherConfig = config
+            showLauncherWelcome = true
+        } else {
+            Task { await kanataManager.addRuleCollection(collection) }
         }
     }
 }

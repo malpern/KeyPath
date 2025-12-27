@@ -332,12 +332,11 @@ struct PhysicalLayout: Identifiable {
             width: arrowKeyWidth, height: arrowKeyHeight
         ))
 
+        // Use auto-computed dimensions from actual key positions
         return PhysicalLayout(
             id: "macbook-us",
             name: "MacBook US",
-            keys: keys,
-            totalWidth: targetRightEdge,
-            totalHeight: rowSpacing * 5 + standardKeyHeight
+            keys: keys
         )
     }()
 
@@ -568,11 +567,15 @@ struct PhysicalLayout: Identifiable {
             width: arrowKeyWidth, height: arrowKeyHeight
         ))
 
+        // JIS is wider than US due to extra keys (¥, 英数, かな, _)
+        // Calculate actual width from key positions
+        let actualWidth = keys.map { $0.x + $0.width }.max() ?? targetRightEdge
+
         return PhysicalLayout(
             id: "macbook-jis",
             name: "MacBook JIS",
             keys: keys,
-            totalWidth: targetRightEdge,
+            totalWidth: actualWidth,
             totalHeight: rowSpacing * 5 + standardKeyHeight
         )
     }()

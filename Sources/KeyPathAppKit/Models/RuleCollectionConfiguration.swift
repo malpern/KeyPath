@@ -388,6 +388,9 @@ public struct LauncherGridConfig: Codable, Equatable, Sendable {
         LauncherGridConfig(activationMode: .holdHyper, mappings: defaultMappings, hasSeenWelcome: false)
     }
 
+    /// Available number keys for website shortcuts (used when adding from browser history)
+    public static let availableNumberKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
+
     /// Default app and website mappings
     public static var defaultMappings: [LauncherMapping] {
         // Apps (letters)
