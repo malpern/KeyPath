@@ -472,6 +472,10 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
     /// Prompt the user to resolve a rule conflict via the UI
     @MainActor
     private func promptForConflictResolution(_ context: RuleConflictContext) async -> RuleConflictChoice? {
+        // Cancel any pending resolution to avoid continuation leak
+        conflictResolutionContinuation?.resume(returning: nil)
+        conflictResolutionContinuation = nil
+
         pendingRuleConflict = context
         notifyStateChanged()
 

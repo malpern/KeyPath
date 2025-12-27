@@ -20,15 +20,15 @@ struct RuleConflictSourceSnapshot: Sendable {
     /// Create a snapshot from a RuleConflictInfo.Source
     @MainActor
     init(from source: RuleConflictInfo.Source) {
-        self.name = source.name
-        self.icon = source.icon
-        self.summary = source.summary
+        name = source.name
+        icon = source.icon
+        summary = source.summary
         // Copy all mappings for later filtering
         switch source {
         case let .collection(collection):
-            self.mappings = collection.mappings.map { ($0.input, $0.output) }
+            mappings = collection.mappings.map { ($0.input, $0.output) }
         case let .customRule(rule):
-            self.mappings = [(rule.input, rule.output)]
+            mappings = [(rule.input, rule.output)]
         }
     }
 }
@@ -349,8 +349,8 @@ extension RuleConflictInfo.Source {
         switch self {
         case let .collection(collection):
             return collection.mappings
-                .filter { conflictSet.contains(KanataKeyConverter.convertToKanataKey($0.fromKey)) }
-                .map { (input: $0.fromKey, output: $0.toKey) }
+                .filter { conflictSet.contains(KanataKeyConverter.convertToKanataKey($0.input)) }
+                .map { (input: $0.input, output: $0.output) }
         case let .customRule(rule):
             let normalizedInput = KanataKeyConverter.convertToKanataKey(rule.input)
             if conflictSet.contains(normalizedInput) {
@@ -364,44 +364,44 @@ extension RuleConflictInfo.Source {
 // MARK: - Preview
 
 #if DEBUG
-struct RuleConflictResolutionDialog_Previews: PreviewProvider {
-    static var previews: some View {
-        // Create sample snapshots for preview
-        let vimSnapshot = RuleConflictSourceSnapshot(
-            name: "Vim Navigation",
-            icon: "keyboard",
-            summary: "HJKL as arrow keys",
-            mappings: [
-                (input: "h", output: "left"),
-                (input: "j", output: "down"),
-                (input: "k", output: "up"),
-                (input: "l", output: "right"),
-            ]
-        )
+    struct RuleConflictResolutionDialog_Previews: PreviewProvider {
+        static var previews: some View {
+            // Create sample snapshots for preview
+            let vimSnapshot = RuleConflictSourceSnapshot(
+                name: "Vim Navigation",
+                icon: "keyboard",
+                summary: "HJKL as arrow keys",
+                mappings: [
+                    (input: "h", output: "left"),
+                    (input: "j", output: "down"),
+                    (input: "k", output: "up"),
+                    (input: "l", output: "right"),
+                ]
+            )
 
-        let colemakSnapshot = RuleConflictSourceSnapshot(
-            name: "Colemak Layout",
-            icon: "keyboard.badge.ellipsis",
-            summary: "Alternative keyboard layout",
-            mappings: [
-                (input: "h", output: "d"),
-                (input: "j", output: "n"),
-                (input: "k", output: "e"),
-                (input: "l", output: "i"),
-            ]
-        )
+            let colemakSnapshot = RuleConflictSourceSnapshot(
+                name: "Colemak Layout",
+                icon: "keyboard.badge.ellipsis",
+                summary: "Alternative keyboard layout",
+                mappings: [
+                    (input: "h", output: "d"),
+                    (input: "j", output: "n"),
+                    (input: "k", output: "e"),
+                    (input: "l", output: "i"),
+                ]
+            )
 
-        let context = RuleConflictContext(
-            newRule: vimSnapshot,
-            existingRule: colemakSnapshot,
-            conflictingKeys: ["h", "j", "k", "l"]
-        )
+            let context = RuleConflictContext(
+                newRule: vimSnapshot,
+                existingRule: colemakSnapshot,
+                conflictingKeys: ["h", "j", "k", "l"]
+            )
 
-        RuleConflictResolutionDialog(
-            context: context,
-            onChoice: { _ in },
-            onCancel: {}
-        )
+            RuleConflictResolutionDialog(
+                context: context,
+                onChoice: { _ in },
+                onCancel: {}
+            )
+        }
     }
-}
 #endif

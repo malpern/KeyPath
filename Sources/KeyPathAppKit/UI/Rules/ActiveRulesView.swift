@@ -57,6 +57,7 @@ struct ActiveRulesView: View {
                             kanataManager.resolveRuleConflict(with: nil)
                         }
                     )
+                    .interactiveDismissDisabled()
                 }
             }
         }

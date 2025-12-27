@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "KeyPath",
+    defaultLocalization: "en",
     platforms: [
         .macOS(.v26)
     ],
