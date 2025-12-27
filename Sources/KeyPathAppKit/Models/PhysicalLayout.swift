@@ -10,6 +10,8 @@ struct PhysicalKey: Identifiable, Hashable {
     let width: Double // 1.0 = standard key
     let height: Double
     let rotation: Double // Rotation in degrees (for ergonomic keyboards)
+    let rotationPivotX: Double? // Rotation pivot X (for QMK rotation)
+    let rotationPivotY: Double? // Rotation pivot Y (for QMK rotation)
 
     init(
         id: UUID = UUID(),
@@ -19,7 +21,9 @@ struct PhysicalKey: Identifiable, Hashable {
         y: Double,
         width: Double = 1.0,
         height: Double = 1.0,
-        rotation: Double = 0.0
+        rotation: Double = 0.0,
+        rotationPivotX: Double? = nil,
+        rotationPivotY: Double? = nil
     ) {
         self.id = id
         self.keyCode = keyCode
@@ -29,6 +33,35 @@ struct PhysicalKey: Identifiable, Hashable {
         self.width = width
         self.height = height
         self.rotation = rotation
+        self.rotationPivotX = rotationPivotX
+        self.rotationPivotY = rotationPivotY
+    }
+
+    /// Computed visual position after applying rotation transform
+    /// For keys with rotation, the x/y in QMK format are pre-rotation coordinates
+    /// that need to be rotated around the pivot point (rx, ry)
+    var visualX: Double {
+        guard rotation != 0, let rx = rotationPivotX, let ry = rotationPivotY else {
+            return x
+        }
+        // Translate to pivot origin, rotate, translate back
+        let relX = x + width / 2 - rx // Use key center
+        let relY = y + height / 2 - ry
+        let radians = rotation * .pi / 180
+        let rotatedX = relX * cos(radians) - relY * sin(radians)
+        return rotatedX + rx - width / 2
+    }
+
+    var visualY: Double {
+        guard rotation != 0, let rx = rotationPivotX, let ry = rotationPivotY else {
+            return y
+        }
+        // Translate to pivot origin, rotate, translate back
+        let relX = x + width / 2 - rx // Use key center
+        let relY = y + height / 2 - ry
+        let radians = rotation * .pi / 180
+        let rotatedY = relX * sin(radians) + relY * cos(radians)
+        return rotatedY + ry - height / 2
     }
 }
 
@@ -55,12 +88,12 @@ struct PhysicalLayout: Identifiable {
         self.name = name
         self.keys = keys
 
-        // Compute dimensions from key positions
+        // Compute dimensions from key positions (using visual positions for rotated keys)
         var maxX = 0.0
         var maxY = 0.0
         for key in keys {
-            let keyRight = key.x + key.width
-            let keyBottom = key.y + key.height
+            let keyRight = key.visualX + key.width
+            let keyBottom = key.visualY + key.height
             maxX = max(maxX, keyRight)
             maxY = max(maxY, keyBottom)
         }

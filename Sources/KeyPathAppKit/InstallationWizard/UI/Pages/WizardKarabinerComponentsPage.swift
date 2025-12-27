@@ -144,8 +144,7 @@ struct WizardKarabinerComponentsPage: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .frame(maxWidth: .infinity)
-        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
         .wizardDetailPage()
         .onChange(of: hasKarabinerIssues) { _, hasIssues in
@@ -164,11 +163,12 @@ struct WizardKarabinerComponentsPage: View {
             }
         }
         .onAppear {
-            // If we arrive here already healthy, avoid showing a stuck spinner.
+            // If we arrive here already healthy, just ensure no stuck spinner.
+            // Don't show success status - the green hero icon is sufficient feedback.
             if !hasKarabinerIssues {
-                AppLogger.shared.log("ℹ️ [Wizard] Karabiner page onAppear with hasKarabinerIssues=false; showing ready state")
+                AppLogger.shared.log("ℹ️ [Wizard] Karabiner page onAppear with hasKarabinerIssues=false; clearing any loading state")
                 isCombinedFixLoading = false
-                actionStatus = .success(message: "Karabiner driver ready")
+                actionStatus = .idle // Don't show success message on initial load
                 lastKarabinerHealthy = true
             } else {
                 AppLogger.shared.log(

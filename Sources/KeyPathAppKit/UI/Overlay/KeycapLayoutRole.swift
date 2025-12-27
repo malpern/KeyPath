@@ -164,8 +164,8 @@ extension PhysicalKey {
 
     /// Whether this is a right-side key (for alignment purposes)
     var isRightSideKey: Bool {
-        // Right-side keys based on x position (past center of keyboard)
-        x > 7
+        // Right-side keys based on visual x position (past center of keyboard)
+        visualX > 7
     }
 }
 

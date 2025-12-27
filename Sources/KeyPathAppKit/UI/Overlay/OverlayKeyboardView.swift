@@ -205,6 +205,7 @@ struct OverlayKeyboardView: View {
             width: keyWidth(for: key, scale: scale),
             height: keyHeight(for: key, scale: scale)
         )
+        .rotationEffect(.degrees(key.rotation))
         .position(
             x: keyPositionX(for: key, scale: scale),
             y: keyPositionY(for: key, scale: scale)
@@ -228,13 +229,15 @@ struct OverlayKeyboardView: View {
     }
 
     private func keyPositionX(for key: PhysicalKey, scale: CGFloat) -> CGFloat {
-        let baseX = key.x * (keyUnitSize + keyGap) * scale
+        // Use visualX which applies rotation transform for ergonomic keyboards
+        let baseX = key.visualX * (keyUnitSize + keyGap) * scale
         let halfWidth = keyWidth(for: key, scale: scale) / 2
         return baseX + halfWidth + keyGap * scale
     }
 
     private func keyPositionY(for key: PhysicalKey, scale: CGFloat) -> CGFloat {
-        let baseY = key.y * (keyUnitSize + keyGap) * scale
+        // Use visualY which applies rotation transform for ergonomic keyboards
+        let baseY = key.visualY * (keyUnitSize + keyGap) * scale
         let halfHeight = keyHeight(for: key, scale: scale) / 2
         return baseY + halfHeight + keyGap * scale
     }

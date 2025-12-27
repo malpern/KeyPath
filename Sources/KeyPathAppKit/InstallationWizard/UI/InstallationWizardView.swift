@@ -102,8 +102,7 @@ struct InstallationWizardView: View {
                 // Always show page content - no preflight view
                 pageContent()
                     .id(navigationCoordinator.currentPage) // Force view recreation on page change
-                    .frame(maxWidth: .infinity)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .overlay {
                         // Don't show overlay during validation - summary page has its own gear
                         if asyncOperationManager.hasRunningOperations, !isValidating {
@@ -112,12 +111,7 @@ struct InstallationWizardView: View {
                         }
                     }
             }
-            .frame(
-                width: (navigationCoordinator.currentPage == .summary)
-                    ? WizardDesign.Layout.pageWidth * CGFloat(0.5) // Match list width; only height changes
-                    : WizardDesign.Layout.pageWidth,
-                height: nil
-            )
+            .frame(width: WizardDesign.Layout.pageWidth)
             .frame(maxHeight: (navigationCoordinator.currentPage == .summary) ? 720 : .infinity) // Grow up to cap, then scroll
             .fixedSize(horizontal: true, vertical: false) // Allow vertical growth; keep width fixed
             .animation(.easeInOut(duration: 0.25), value: isValidating)

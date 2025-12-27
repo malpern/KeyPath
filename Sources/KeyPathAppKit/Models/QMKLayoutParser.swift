@@ -77,7 +77,9 @@ enum QMKLayoutParser {
                     y: qmkKey.y,
                     width: qmkKey.w ?? 1.0,
                     height: qmkKey.h ?? 1.0,
-                    rotation: qmkKey.r ?? 0.0
+                    rotation: qmkKey.r ?? 0.0,
+                    rotationPivotX: qmkKey.rx,
+                    rotationPivotY: qmkKey.ry
                 )
                 keys.append(key)
             }
