@@ -49,6 +49,9 @@ struct KanataUIState: Sendable {
     let validationError: ConfigValidationError?
     let saveStatus: SaveStatus
 
+    // Rule conflict resolution
+    let pendingRuleConflict: RuleConflictContext?
+
     /// Empty state for initialization fallback
     static let empty = KanataUIState(
         lastError: nil,
@@ -61,7 +64,8 @@ struct KanataUIState: Sendable {
         lastProcessExitCode: nil,
         lastConfigUpdate: Date(),
         validationError: nil,
-        saveStatus: .idle
+        saveStatus: .idle,
+        pendingRuleConflict: nil
     )
 }
 

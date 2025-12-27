@@ -339,6 +339,19 @@ struct RulesTabView: View {
                 _ = Task { await kanataManager.saveCustomRule(updatedRule) }
             }
         }
+        .sheet(isPresented: $kanataManager.showRuleConflictDialog) {
+            if let context = kanataManager.pendingRuleConflict {
+                RuleConflictResolutionDialog(
+                    context: context,
+                    onChoice: { choice in
+                        kanataManager.resolveRuleConflict(with: choice)
+                    },
+                    onCancel: {
+                        kanataManager.resolveRuleConflict(with: nil)
+                    }
+                )
+            }
+        }
         .alert("Reset Configuration?", isPresented: $showingResetConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Open Backups Folder") {

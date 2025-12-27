@@ -75,6 +75,10 @@ final class RuleCollectionsManager {
     /// Callback for reporting warnings (non-blocking)
     var onWarning: ((String) -> Void)?
 
+    /// Callback for interactive conflict resolution
+    /// Returns the user's choice, or nil if cancelled
+    var onConflictResolution: ((RuleConflictContext) async -> RuleConflictChoice?)?
+
     /// Callback to suppress file watcher before internal saves (prevents double-reload beep)
     var onBeforeSave: (() -> Void)?
 
@@ -283,13 +287,30 @@ final class RuleCollectionsManager {
         if var candidate, isEnabled {
             candidate.isEnabled = true
             if let conflict = conflictInfo(for: candidate) {
-                onWarning?(
-                    "⚠️ \(candidate.name) conflicts with \(conflict.displayName) on key: \(conflict.keys.joined(separator: ", ")). Last enabled rule wins."
+                // Show conflict resolution dialog
+                let context = RuleConflictContext(
+                    newRule: .collection(candidate),
+                    existingRule: conflict.source,
+                    conflictingKeys: conflict.keys
                 )
+
                 AppLogger.shared.log(
                     "⚠️ [RuleCollections] Conflict enabling \(candidate.name) vs \(conflict.displayName) on \(conflict.keys)"
                 )
-                // Continue anyway - just a warning
+
+                guard let choice = await onConflictResolution?(context) else {
+                    // User cancelled - don't enable
+                    return
+                }
+
+                switch choice {
+                case .keepNew:
+                    // Disable the conflicting rule, then proceed with enabling this one
+                    await disableConflicting(conflict.source)
+                case .keepExisting:
+                    // User chose to keep the existing rule - don't enable the new one
+                    return
+                }
             }
         }
 
@@ -331,14 +352,31 @@ final class RuleCollectionsManager {
 
     /// Add or update a rule collection
     func addCollection(_ collection: RuleCollection) async {
-        if let conflict = conflictInfo(for: collection) {
-            onWarning?(
-                "⚠️ \(collection.name) conflicts with \(conflict.displayName) on key: \(conflict.keys.joined(separator: ", ")). Last enabled rule wins."
+        if collection.isEnabled, let conflict = conflictInfo(for: collection) {
+            // Show conflict resolution dialog
+            let context = RuleConflictContext(
+                newRule: .collection(collection),
+                existingRule: conflict.source,
+                conflictingKeys: conflict.keys
             )
+
             AppLogger.shared.log(
                 "⚠️ [RuleCollections] Conflict adding \(collection.name) vs \(conflict.displayName) on \(conflict.keys)"
             )
-            // Continue anyway - just a warning
+
+            guard let choice = await onConflictResolution?(context) else {
+                // User cancelled - don't add
+                return
+            }
+
+            switch choice {
+            case .keepNew:
+                // Disable the conflicting rule, then proceed with adding this one
+                await disableConflicting(conflict.source)
+            case .keepExisting:
+                // User chose to keep the existing rule - don't add the new one
+                return
+            }
         }
 
         if let index = ruleCollections.firstIndex(where: { $0.id == collection.id }) {
@@ -571,13 +609,30 @@ final class RuleCollectionsManager {
 
         if rule.isEnabled,
            let conflict = conflictInfo(for: rule) {
-            onWarning?(
-                "⚠️ \(rule.displayTitle) conflicts with \(conflict.displayName) on key: \(conflict.keys.joined(separator: ", ")). Last enabled rule wins."
+            // Show conflict resolution dialog
+            let context = RuleConflictContext(
+                newRule: .customRule(rule),
+                existingRule: conflict.source,
+                conflictingKeys: conflict.keys
             )
+
             AppLogger.shared.log(
                 "⚠️ [CustomRules] Conflict saving \(rule.displayTitle) vs \(conflict.displayName) on \(conflict.keys)"
             )
-            // Continue anyway - just a warning
+
+            guard let choice = await onConflictResolution?(context) else {
+                // User cancelled - don't save
+                return false
+            }
+
+            switch choice {
+            case .keepNew:
+                // Disable the conflicting rule, then proceed with saving this one
+                await disableConflicting(conflict.source)
+            case .keepExisting:
+                // User chose to keep the existing rule - don't save the new one
+                return false
+            }
         }
 
         // Track state before change for potential rollback
@@ -616,13 +671,30 @@ final class RuleCollectionsManager {
 
         if isEnabled,
            let conflict = conflictInfo(for: existing) {
-            onWarning?(
-                "⚠️ \(existing.displayTitle) conflicts with \(conflict.displayName) on key: \(conflict.keys.joined(separator: ", ")). Last enabled rule wins."
+            // Show conflict resolution dialog
+            let context = RuleConflictContext(
+                newRule: .customRule(existing),
+                existingRule: conflict.source,
+                conflictingKeys: conflict.keys
             )
+
             AppLogger.shared.log(
                 "⚠️ [CustomRules] Conflict enabling \(existing.displayTitle) vs \(conflict.displayName) on \(conflict.keys)"
             )
-            // Continue anyway - just a warning
+
+            guard let choice = await onConflictResolution?(context) else {
+                // User cancelled - don't enable
+                return
+            }
+
+            switch choice {
+            case .keepNew:
+                // Disable the conflicting rule, then proceed with enabling this one
+                await disableConflicting(conflict.source)
+            case .keepExisting:
+                // User chose to keep the existing rule - don't enable the new one
+                return
+            }
         }
 
         if let index = customRules.firstIndex(where: { $0.id == id }) {
@@ -951,5 +1023,17 @@ final class RuleCollectionsManager {
             }
         }
         return nil
+    }
+
+    // MARK: - Conflict Resolution
+
+    /// Disable a conflicting rule source (collection or custom rule)
+    private func disableConflicting(_ source: RuleConflictInfo.Source) async {
+        switch source {
+        case let .collection(collection):
+            await toggleCollection(id: collection.id, isEnabled: false)
+        case let .customRule(rule):
+            await toggleCustomRule(id: rule.id, isEnabled: false)
+        }
     }
 }

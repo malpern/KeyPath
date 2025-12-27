@@ -50,6 +50,10 @@ class KanataViewModel: ObservableObject {
     @Published var toastType: ToastType = .success
     private var toastTask: Task<Void, Never>?
 
+    // Rule conflict resolution
+    @Published var showRuleConflictDialog = false
+    @Published var pendingRuleConflict: RuleConflictContext?
+
     enum ToastType {
         case success
         case error
@@ -120,6 +124,16 @@ class KanataViewModel: ObservableObject {
             showToast(warning, type: .warning, duration: duration)
         } else {
             lastWarning = state.lastWarning
+        }
+
+        // Handle rule conflict resolution dialog
+        if let conflict = state.pendingRuleConflict {
+            pendingRuleConflict = conflict
+            showRuleConflictDialog = true
+        } else if pendingRuleConflict != nil {
+            // Conflict was resolved, close dialog
+            pendingRuleConflict = nil
+            showRuleConflictDialog = false
         }
 
         // Map validation error to alert properties
@@ -360,6 +374,14 @@ class KanataViewModel: ObservableObject {
 
     func currentServiceState() async -> KanataService.ServiceState {
         await manager.currentServiceState()
+    }
+
+    // MARK: - Rule Conflict Resolution
+
+    /// Called when user makes a choice in the conflict resolution dialog
+    func resolveRuleConflict(with choice: RuleConflictChoice?) {
+        showRuleConflictDialog = false
+        manager.resolveConflict(with: choice)
     }
 }
 

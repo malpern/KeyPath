@@ -46,6 +46,19 @@ struct ActiveRulesView: View {
                 .padding(.vertical, 8)
             }
             .settingsBackground()
+            .sheet(isPresented: $kanataManager.showRuleConflictDialog) {
+                if let context = kanataManager.pendingRuleConflict {
+                    RuleConflictResolutionDialog(
+                        context: context,
+                        onChoice: { choice in
+                            kanataManager.resolveRuleConflict(with: choice)
+                        },
+                        onCancel: {
+                            kanataManager.resolveRuleConflict(with: nil)
+                        }
+                    )
+                }
+            }
         }
     }
 

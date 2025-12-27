@@ -109,6 +109,10 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
     var keyMappings: [KeyMapping] = []
     var currentLayerName: String = RuleCollectionLayer.base.displayName
 
+    // Conflict resolution state
+    var pendingRuleConflict: RuleConflictContext?
+    private var conflictResolutionContinuation: CheckedContinuation<RuleConflictChoice?, Never>?
+
     // Rule collections are now managed by RuleCollectionsCoordinator
     var ruleCollections: [RuleCollection] {
         get { ruleCollectionsCoordinator.ruleCollections }
@@ -201,7 +205,10 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
             // Validation & Save Status
             validationError: validationError,
-            saveStatus: saveStatus
+            saveStatus: saveStatus,
+
+            // Rule conflict resolution
+            pendingRuleConflict: pendingRuleConflict
         )
     }
 
@@ -442,6 +449,9 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
                 self?.lastWarning = nil
             }
         }
+        ruleCollectionsManager.onConflictResolution = { [weak self] context in
+            await self?.promptForConflictResolution(context)
+        }
         ruleCollectionsManager.onActionURI = { actionURI in
             ActionDispatcher.shared.dispatch(actionURI)
         }
@@ -455,6 +465,27 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         Task { await ruleCollectionsManager.bootstrap() }
         ruleCollectionsManager.startEventMonitoring(port: PreferencesService.shared.tcpServerPort)
         AppLogger.shared.log("🏗️ [RuntimeCoordinator] init() completed")
+    }
+
+    // MARK: - Conflict Resolution
+
+    /// Prompt the user to resolve a rule conflict via the UI
+    @MainActor
+    private func promptForConflictResolution(_ context: RuleConflictContext) async -> RuleConflictChoice? {
+        pendingRuleConflict = context
+        notifyStateChanged()
+
+        return await withCheckedContinuation { continuation in
+            conflictResolutionContinuation = continuation
+        }
+    }
+
+    /// Called by ViewModel when user makes a choice in the conflict resolution dialog
+    func resolveConflict(with choice: RuleConflictChoice?) {
+        pendingRuleConflict = nil
+        conflictResolutionContinuation?.resume(returning: choice)
+        conflictResolutionContinuation = nil
+        notifyStateChanged()
     }
 
     // MARK: - Rule Collections (delegates to RuleCollectionsCoordinator)
