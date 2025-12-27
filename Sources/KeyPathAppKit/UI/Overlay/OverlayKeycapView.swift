@@ -386,31 +386,31 @@ struct OverlayKeycapView: View {
 
     // MARK: - Layout: Centered (letters, symbols, spacebar)
 
-    /// Whether this key is a simple alpha key (single letter that floating labels handle)
-    private var isSimpleAlphaKey: Bool {
-        let label = effectiveLabel.uppercased()
-        // Single character A-Z or 0-9
-        guard label.count == 1 else { return false }
-        guard let char = label.first else { return false }
-        return char.isLetter || char.isNumber
-    }
-
     @ViewBuilder
     private var centeredContent: some View {
-        // Hide label if floating labels are handling it (during keymap animation)
-        if useFloatingLabels, isSimpleAlphaKey {
-            Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let navSymbol = navOverlaySymbol {
-            navOverlayContent(arrow: navSymbol, letter: baseLabel)
-        } else if let shiftSymbol = metadata.shiftSymbol {
-            // Dual content: shift symbol above, main below
-            dualSymbolContent(main: effectiveLabel, shift: shiftSymbol)
+        // When floating labels are enabled, they handle ALL standard key content
+        // (letters, numbers, punctuation with shift symbols).
+        // Keycaps only show special layer-mapped content (nav arrows, etc.)
+        if useFloatingLabels {
+            if let navSymbol = navOverlaySymbol {
+                // Layer mapping shows arrow - display arrow only, floating label shows base letter
+                navOverlayArrowOnly(arrow: navSymbol)
+            } else {
+                // Standard key - floating labels handle everything
+                Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         } else {
-            // Single centered content
-            Text(effectiveLabel.uppercased())
-                .font(.system(size: 12 * scale, weight: .medium))
-                .foregroundStyle(foregroundColor)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Reduce motion mode: render everything in keycap
+            if let navSymbol = navOverlaySymbol {
+                navOverlayContent(arrow: navSymbol, letter: baseLabel)
+            } else if let shiftSymbol = metadata.shiftSymbol {
+                dualSymbolContent(main: effectiveLabel, shift: shiftSymbol)
+            } else {
+                Text(effectiveLabel.uppercased())
+                    .font(.system(size: 12 * scale, weight: .medium))
+                    .foregroundStyle(foregroundColor)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
     }
 
@@ -462,6 +462,16 @@ struct OverlayKeycapView: View {
         }
         .padding(.top, 4 * scale)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Arrow-only version for when floating labels handle the base letter
+    @ViewBuilder
+    private func navOverlayArrowOnly(arrow: String) -> some View {
+        Text(arrow)
+            .font(.system(size: 14 * scale, weight: .semibold))
+            .foregroundStyle(Color.white.opacity(isPressed ? 1.0 : 0.9))
+            .shadow(color: Color.black.opacity(0.25), radius: 1.5 * scale, y: 1 * scale)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func dualSymbolSpacing(for label: String) -> CGFloat {
@@ -622,7 +632,8 @@ struct OverlayKeycapView: View {
             // Standard function key layout: SF symbol on top, F-key label below
             let sfSymbol: String? = {
                 if let info = layerKeyInfo,
-                   let outputSymbol = LabelMetadata.sfSymbol(forOutputLabel: info.displayLabel) {
+                   let outputSymbol = LabelMetadata.sfSymbol(forOutputLabel: info.displayLabel)
+                {
                     return outputSymbol
                 }
                 // Fall back to physical key code

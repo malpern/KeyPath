@@ -144,7 +144,8 @@ struct OverlayKeyboardView: View {
     /// Calculates frame directly from layout instead of using GeometryReader
     private func targetFrameFor(_ label: String, scale: CGFloat) -> CGRect {
         if let keyCode = labelToKeyCode[label],
-           let key = layout.keys.first(where: { $0.keyCode == keyCode }) {
+           let key = layout.keys.first(where: { $0.keyCode == keyCode })
+        {
             let width = keyWidth(for: key, scale: scale)
             let height = keyHeight(for: key, scale: scale)
             let centerX = keyPositionX(for: key, scale: scale)
@@ -377,6 +378,7 @@ struct OverlayKeyboardView: View {
 
 /// A label that floats above the keyboard and animates to its target keycap.
 /// Each label has randomized spring parameters for a playful shuffling effect.
+/// Renders both main symbol and shift symbol (if any) as a unit that animates together.
 private struct FloatingKeymapLabel: View {
     let label: String
     let targetFrame: CGRect
@@ -403,14 +405,40 @@ private struct FloatingKeymapLabel: View {
         enableAnimation ? .spring(response: springResponse, dampingFraction: dampingFraction) : nil
     }
 
+    /// Shift symbol for this key (e.g., "1" -> "!", ";" -> ":")
+    private var shiftSymbol: String? {
+        LabelMetadata.forLabel(label).shiftSymbol
+    }
+
+    /// Optical adjustments for shift symbol
+    private var shiftAdjustments: OpticalAdjustments {
+        guard let shift = shiftSymbol else { return .default }
+        return OpticalAdjustments.forLabel(shift)
+    }
+
+    /// Optical adjustments for main label
+    private var mainAdjustments: OpticalAdjustments {
+        OpticalAdjustments.forLabel(label)
+    }
+
+    /// Spacing between shift and main symbols
+    private var dualSymbolSpacing: CGFloat {
+        switch label {
+        case ",", ".": -0.5 * scale // Tighter for < > symbols
+        case ";", "'", "/": 0
+        default: 2 * scale
+        }
+    }
+
+    /// Whether to hide shift symbol at small sizes
+    private var isSmallSize: Bool { scale < 0.8 }
+
     @State private var rotation: Angle = .zero
     @State private var scaleEffect: CGFloat = 1.0
     @State private var wasVisible: Bool = false
 
     var body: some View {
-        Text(label)
-            .font(.system(size: 12 * scale, weight: .medium))
-            .foregroundStyle(colorway.alphaLegendColor)
+        labelContent
             .frame(width: targetFrame.width, height: targetFrame.height)
             .scaleEffect(scaleEffect)
             .rotationEffect(rotation)
@@ -429,6 +457,34 @@ private struct FloatingKeymapLabel: View {
                 }
                 wasVisible = newVisible
             }
+    }
+
+    @ViewBuilder
+    private var labelContent: some View {
+        if let shift = shiftSymbol {
+            // Dual symbol layout: shift on top, main on bottom
+            VStack(spacing: dualSymbolSpacing) {
+                Text(shift)
+                    .font(.system(
+                        size: 9 * scale * shiftAdjustments.fontScale,
+                        weight: shiftAdjustments.fontWeight ?? .light
+                    ))
+                    .foregroundStyle(colorway.alphaLegendColor.opacity(isSmallSize ? 0 : 0.6))
+
+                Text(label.uppercased())
+                    .font(.system(
+                        size: 12 * scale * mainAdjustments.fontScale,
+                        weight: mainAdjustments.fontWeight ?? .medium
+                    ))
+                    .offset(y: mainAdjustments.verticalOffset * scale)
+                    .foregroundStyle(colorway.alphaLegendColor)
+            }
+        } else {
+            // Single symbol (letters)
+            Text(label.uppercased())
+                .font(.system(size: 12 * scale, weight: .medium))
+                .foregroundStyle(colorway.alphaLegendColor)
+        }
     }
 
     private func triggerWobble() {

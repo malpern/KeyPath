@@ -72,6 +72,7 @@ struct PhysicalLayout: Identifiable {
     // swiftformat:disable:next redundantSelf
     static let all: [PhysicalLayout] = [
         macBookUS,
+        macBookJIS,
         kinesisAdvantage360,
         ansi40Percent,
         ansi60Percent,
@@ -83,7 +84,7 @@ struct PhysicalLayout: Identifiable {
         corne,
         sofle,
         ferrisSweep,
-        cornix
+        cornix,
     ]
 
     /// Find a layout by its identifier
@@ -301,6 +302,242 @@ struct PhysicalLayout: Identifiable {
         return PhysicalLayout(
             id: "macbook-us",
             name: "MacBook US",
+            keys: keys,
+            totalWidth: targetRightEdge,
+            totalHeight: rowSpacing * 5 + standardKeyHeight
+        )
+    }()
+
+    // MARK: - MacBook JIS (Japanese)
+
+    /// MacBook JIS (Japanese Industrial Standard) keyboard layout
+    /// Key differences from US: shorter spacebar, L-shaped enter, extra keys for Japanese input
+    static let macBookJIS: PhysicalLayout = {
+        var keys: [PhysicalKey] = []
+        var currentX = 0.0
+        let keySpacing = 0.08
+        let rowSpacing = 1.1
+        let standardKeyWidth = 1.0
+        let standardKeyHeight = 1.0
+
+        // Target right edge (same as US for consistency)
+        let targetRightEdge = 13 * (standardKeyWidth + keySpacing) + 1.5
+
+        // Row 0: ESC + Function Keys + Touch ID (same as US)
+        let escWidth = 1.5
+        let touchIdWidth = standardKeyWidth
+        let functionRowAvailable = targetRightEdge - escWidth - keySpacing - touchIdWidth - keySpacing
+        let functionKeyWidth = (functionRowAvailable - 11 * keySpacing) / 12
+
+        keys.append(PhysicalKey(
+            keyCode: 53,
+            label: "esc",
+            x: 0.0,
+            y: 0.0,
+            width: escWidth,
+            height: standardKeyHeight
+        ))
+        currentX = escWidth + keySpacing
+
+        let functionKeys: [(UInt16, String)] = [
+            (122, "F1"), (120, "F2"), (99, "F3"), (118, "F4"),
+            (96, "F5"), (97, "F6"), (98, "F7"), (100, "F8"),
+            (101, "F9"), (109, "F10"), (103, "F11"), (111, "F12"),
+        ]
+        for (keyCode, label) in functionKeys {
+            keys.append(PhysicalKey(
+                keyCode: keyCode,
+                label: label,
+                x: currentX,
+                y: 0.0,
+                width: functionKeyWidth,
+                height: standardKeyHeight
+            ))
+            currentX += functionKeyWidth + keySpacing
+        }
+
+        keys.append(PhysicalKey(
+            keyCode: 0xFFFF,
+            label: "🔒",
+            x: currentX,
+            y: 0.0,
+            width: touchIdWidth,
+            height: standardKeyHeight
+        ))
+
+        // Row 1: Number Row - JIS adds ¥ key, narrower delete
+        // Layout: ` 1 2 3 4 5 6 7 8 9 0 - ^ ¥ ⌫
+        let deleteWidthJIS = 1.0 // Narrower than US (was 1.5)
+        let yenWidth = standardKeyWidth
+        let numberRowJIS: [(UInt16, String, Double)] = [
+            (50, "`", standardKeyWidth),
+            (18, "1", standardKeyWidth), (19, "2", standardKeyWidth),
+            (20, "3", standardKeyWidth), (21, "4", standardKeyWidth),
+            (23, "5", standardKeyWidth), (22, "6", standardKeyWidth),
+            (26, "7", standardKeyWidth), (28, "8", standardKeyWidth),
+            (25, "9", standardKeyWidth), (29, "0", standardKeyWidth),
+            (27, "-", standardKeyWidth), (24, "^", standardKeyWidth), // ^ instead of = on JIS
+            (93, "¥", yenWidth), // Yen key (JIS specific)
+            (51, "⌫", deleteWidthJIS),
+        ]
+        currentX = 0.0
+        for (keyCode, label, width) in numberRowJIS {
+            keys.append(PhysicalKey(
+                keyCode: keyCode, label: label, x: currentX,
+                y: rowSpacing, width: width, height: standardKeyHeight
+            ))
+            currentX += width + keySpacing
+        }
+
+        // Row 2: QWERTY row - JIS has narrower keys to fit, [ ] @ on this row
+        let tabWidth = 1.5
+        // Calculate remaining width after tab
+        let qwertyAvailable = targetRightEdge - tabWidth - keySpacing
+        // 13 keys after tab: q w e r t y u i o p @ [ (no backslash - it's on home row)
+        let qwertyKeyWidth = (qwertyAvailable - 11 * keySpacing) / 12
+
+        keys.append(PhysicalKey(
+            keyCode: 48, label: "⇥", x: 0.0,
+            y: rowSpacing * 2, width: tabWidth, height: standardKeyHeight
+        ))
+        currentX = tabWidth + keySpacing
+
+        let topRowJIS: [(UInt16, String)] = [
+            (12, "q"), (13, "w"), (14, "e"), (15, "r"), (17, "t"),
+            (16, "y"), (32, "u"), (34, "i"), (31, "o"), (35, "p"),
+            (33, "@"), (30, "["),
+        ]
+        for (keyCode, label) in topRowJIS {
+            keys.append(PhysicalKey(
+                keyCode: keyCode, label: label, x: currentX,
+                y: rowSpacing * 2, width: qwertyKeyWidth, height: standardKeyHeight
+            ))
+            currentX += qwertyKeyWidth + keySpacing
+        }
+
+        // Row 3: Home row with L-shaped Enter
+        // JIS Enter is tall (spans rows 2-3) and positioned at right edge
+        let capsWidth = 1.8
+        // Enter key dimensions for L-shape (we'll use a tall single key approximation)
+        let enterWidth = targetRightEdge - (capsWidth + keySpacing + 11 * (standardKeyWidth + keySpacing))
+
+        let middleRowJIS: [(UInt16, String, Double)] = [
+            (57, "⇪", capsWidth),
+            (0, "a", standardKeyWidth), (1, "s", standardKeyWidth),
+            (2, "d", standardKeyWidth), (3, "f", standardKeyWidth),
+            (5, "g", standardKeyWidth), (4, "h", standardKeyWidth),
+            (38, "j", standardKeyWidth), (40, "k", standardKeyWidth),
+            (37, "l", standardKeyWidth), (41, ";", standardKeyWidth),
+            (39, ":", standardKeyWidth), // : instead of ' on JIS
+            (42, "]", standardKeyWidth), // ] is here on JIS
+            (36, "↩", enterWidth),
+        ]
+        currentX = 0.0
+        for (keyCode, label, width) in middleRowJIS {
+            keys.append(PhysicalKey(
+                keyCode: keyCode, label: label, x: currentX,
+                y: rowSpacing * 3, width: width, height: standardKeyHeight
+            ))
+            currentX += width + keySpacing
+        }
+
+        // Row 4: Bottom row - shorter right shift, adds _ (ro) key
+        let leftShiftWidth = 2.35
+        let rightShiftWidthJIS = 1.5 // Shorter than US
+        let underscoreWidth = standardKeyWidth
+
+        // Calculate key widths to fit
+        let bottomRowJIS: [(UInt16, String, Double)] = [
+            (56, "⇧", leftShiftWidth),
+            (6, "z", standardKeyWidth), (7, "x", standardKeyWidth),
+            (8, "c", standardKeyWidth), (9, "v", standardKeyWidth),
+            (11, "b", standardKeyWidth), (45, "n", standardKeyWidth),
+            (46, "m", standardKeyWidth), (43, ",", standardKeyWidth),
+            (47, ".", standardKeyWidth), (44, "/", standardKeyWidth),
+            (94, "_", underscoreWidth), // Underscore/Ro key (JIS specific)
+            (60, "⇧", rightShiftWidthJIS),
+        ]
+        currentX = 0.0
+        for (keyCode, label, width) in bottomRowJIS {
+            keys.append(PhysicalKey(
+                keyCode: keyCode, label: label, x: currentX,
+                y: rowSpacing * 4, width: width, height: standardKeyHeight
+            ))
+            currentX += width + keySpacing
+        }
+
+        // Row 5: Modifier row - JIS has 英数 (Eisuu) and かな (Kana) keys, shorter spacebar
+        let row5Top = rowSpacing * 5
+        let fnWidth = standardKeyWidth
+        let ctrlWidth = standardKeyWidth
+        let optWidth = standardKeyWidth
+        let cmdWidth = 1.2
+        let eisuWidth = 1.0 // 英数 key
+        let kanaWidth = 1.0 // かな key
+
+        // Arrow cluster (same as US)
+        let arrowKeyHeight = 0.45
+        let arrowKeyGap = 0.1
+        let arrowKeyWidth = 0.9
+        let arrowKeySpacing = 0.04
+        let arrowRightMargin = 0.15
+        let arrowClusterWidth = 3 * arrowKeyWidth + 2 * arrowKeySpacing + arrowRightMargin
+
+        // Calculate spacebar: JIS spacebar is shorter due to 英数 and かな keys
+        let leftModsWidth = fnWidth + keySpacing + ctrlWidth + keySpacing + optWidth + keySpacing + cmdWidth + keySpacing + eisuWidth + keySpacing
+        let rightModsWidth = kanaWidth + keySpacing + cmdWidth + keySpacing + optWidth + keySpacing
+        let spacebarWidthJIS = targetRightEdge - leftModsWidth - rightModsWidth - arrowClusterWidth
+
+        let modifierRowJIS: [(UInt16, String, Double)] = [
+            (63, "fn", fnWidth),
+            (59, "⌃", ctrlWidth),
+            (58, "⌥", optWidth),
+            (55, "⌘", cmdWidth),
+            (102, "英数", eisuWidth), // Eisuu key (JIS specific)
+            (49, " ", spacebarWidthJIS),
+            (104, "かな", kanaWidth), // Kana key (JIS specific)
+            (54, "⌘", cmdWidth),
+            (61, "⌥", optWidth),
+        ]
+        currentX = 0.0
+        for (keyCode, label, width) in modifierRowJIS {
+            keys.append(PhysicalKey(
+                keyCode: keyCode, label: label, x: currentX,
+                y: row5Top, width: width, height: standardKeyHeight
+            ))
+            currentX += width + keySpacing
+        }
+
+        // Arrow cluster (same positioning logic as US)
+        let arrowXStart = currentX
+
+        keys.append(PhysicalKey(
+            keyCode: 126, label: "▲",
+            x: arrowXStart + arrowKeyWidth + arrowKeySpacing,
+            y: row5Top,
+            width: arrowKeyWidth, height: arrowKeyHeight
+        ))
+
+        let lowerArrowY = row5Top + arrowKeyHeight + arrowKeyGap
+        keys.append(PhysicalKey(
+            keyCode: 123, label: "◀",
+            x: arrowXStart, y: lowerArrowY,
+            width: arrowKeyWidth, height: arrowKeyHeight
+        ))
+        keys.append(PhysicalKey(
+            keyCode: 125, label: "▼",
+            x: arrowXStart + arrowKeyWidth + arrowKeySpacing, y: lowerArrowY,
+            width: arrowKeyWidth, height: arrowKeyHeight
+        ))
+        keys.append(PhysicalKey(
+            keyCode: 124, label: "▶",
+            x: arrowXStart + 2 * (arrowKeyWidth + arrowKeySpacing), y: lowerArrowY,
+            width: arrowKeyWidth, height: arrowKeyHeight
+        ))
+
+        return PhysicalLayout(
+            id: "macbook-jis",
+            name: "MacBook JIS",
             keys: keys,
             totalWidth: targetRightEdge,
             totalHeight: rowSpacing * 5 + standardKeyHeight
