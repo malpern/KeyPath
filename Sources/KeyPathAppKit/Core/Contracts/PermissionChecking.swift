@@ -74,8 +74,7 @@ extension PermissionChecking {
     ///
     /// - Returns: `true` if all permissions are granted, `false` otherwise.
     func hasAllPermissions(_ types: [SystemPermissionType], for subject: PermissionSubject) async
-        -> Bool
-    {
+        -> Bool {
         let permissions = await checkPermissions(types, for: subject)
         return permissions.hasAllGranted
     }
@@ -236,15 +235,13 @@ struct SystemPermissionSnapshot: Sendable {
     var blockingIssue: String? {
         // Check KeyPath first (needed for UI)
         if let accessibility = keyPathPermissions.status(for: .accessibility),
-           accessibility.isBlocking
-        {
+           accessibility.isBlocking {
             return
                 "KeyPath needs Accessibility permission - enable in System Settings > \(SystemPermissionType.accessibility.systemSettingsPath)"
         }
 
         if let inputMonitoring = keyPathPermissions.status(for: .inputMonitoring),
-           inputMonitoring.isBlocking
-        {
+           inputMonitoring.isBlocking {
             return
                 "KeyPath needs Input Monitoring permission - enable in System Settings > \(SystemPermissionType.inputMonitoring.systemSettingsPath)"
         }

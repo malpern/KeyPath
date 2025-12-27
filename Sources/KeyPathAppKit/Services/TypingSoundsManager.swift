@@ -113,8 +113,7 @@ final class TypingSoundsManager: ObservableObject {
     private init() {
         // Restore saved preferences
         if let savedProfileId = UserDefaults.standard.string(forKey: "typingSoundProfileId"),
-           let profile = SoundProfile.all.first(where: { $0.id == savedProfileId })
-        {
+           let profile = SoundProfile.all.first(where: { $0.id == savedProfileId }) {
             selectedProfile = profile
             if profile.id != SoundProfile.off.id {
                 preloadSounds(for: profile)
@@ -156,8 +155,7 @@ final class TypingSoundsManager: ObservableObject {
         // Load and play a quick sample
         Task {
             if let keydownURL = soundURL(for: profile, isKeydown: true),
-               let player = try? AVAudioPlayer(contentsOf: keydownURL)
-            {
+               let player = try? AVAudioPlayer(contentsOf: keydownURL) {
                 player.volume = volume
                 player.play()
 
@@ -165,8 +163,7 @@ final class TypingSoundsManager: ObservableObject {
                 try? await Task.sleep(for: .milliseconds(80))
 
                 if let keyupURL = soundURL(for: profile, isKeydown: false),
-                   let keyupPlayer = try? AVAudioPlayer(contentsOf: keyupURL)
-                {
+                   let keyupPlayer = try? AVAudioPlayer(contentsOf: keyupURL) {
                     keyupPlayer.volume = volume * 0.7
                     keyupPlayer.play()
                 }

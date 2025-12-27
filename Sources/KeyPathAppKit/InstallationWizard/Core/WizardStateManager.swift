@@ -26,8 +26,7 @@ class WizardStateManager: ObservableObject {
     }
 
     func detectCurrentState(progressCallback _: @escaping @Sendable (Double) -> Void = { _ in }) async
-        -> SystemStateResult
-    {
+        -> SystemStateResult {
         if let manager = kanataManager {
             AppLogger.shared.log("🎯 [WizardStateManager] Using RuntimeCoordinator.inspectSystemContext()")
             let context = await manager.inspectSystemContext()

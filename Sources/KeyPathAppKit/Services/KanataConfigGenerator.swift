@@ -36,8 +36,7 @@ public class KanataConfigGenerator {
 
         // Try to load from the project directory
         if let projectRoot = getProjectRoot(),
-           let content = try? String(contentsOfFile: "\(projectRoot)/\(configPath)", encoding: .utf8)
-        {
+           let content = try? String(contentsOfFile: "\(projectRoot)/\(configPath)", encoding: .utf8) {
             AppLogger.shared.log("✅ [ConfigGenerator] Loaded Kanata config guide from project")
             return content
         }

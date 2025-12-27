@@ -419,8 +419,7 @@ struct WizardCommunicationPage: View {
 
         Task {
             if let nextPage = await navigationCoordinator.getNextPage(for: systemState, issues: issues),
-               nextPage != navigationCoordinator.currentPage
-            {
+               nextPage != navigationCoordinator.currentPage {
                 navigationCoordinator.navigateToPage(nextPage)
             } else {
                 navigationCoordinator.navigateToPage(.summary)

@@ -121,8 +121,7 @@ private struct KeyboardIllustrationCard: View {
         )
 
         if let url = imageURL,
-           let image = NSImage(contentsOf: url)
-        {
+           let image = NSImage(contentsOf: url) {
             Image(nsImage: image)
                 .resizable()
                 .interpolation(.high)

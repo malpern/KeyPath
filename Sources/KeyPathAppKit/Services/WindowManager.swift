@@ -441,8 +441,7 @@ public final class WindowManager {
             // Check if window center is within this screen's frame
             // Account for coordinate system differences
             if screenFrame.contains(windowCenter) ||
-                isWindowOnScreen(frame: frame, screen: screen)
-            {
+                isWindowOnScreen(frame: frame, screen: screen) {
                 return screen
             }
         }

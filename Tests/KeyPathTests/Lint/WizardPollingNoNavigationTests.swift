@@ -55,8 +55,7 @@ final class WizardPollingNoNavigationTests: XCTestCase {
             for (lineNum, line) in lines.enumerated() {
                 // Detect start of polling block
                 if pollingPatterns.contains(where: { line.contains($0) }),
-                   line.contains("{") || line.contains("Task {")
-                {
+                   line.contains("{") || line.contains("Task {") {
                     inPollingBlock = true
                     braceDepth = 0
                 }

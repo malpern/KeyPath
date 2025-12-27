@@ -182,8 +182,7 @@ struct LauncherCollectionView: View {
         onConfigChanged(config)
         // Clear selection if deleted key was selected
         if let selected = selectedKey,
-           config.mappings.first(where: { $0.key.lowercased() == selected.lowercased() }) == nil
-        {
+           config.mappings.first(where: { $0.key.lowercased() == selected.lowercased() }) == nil {
             selectedKey = nil
         }
     }

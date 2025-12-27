@@ -233,7 +233,7 @@ final class LauncherStore: ObservableObject {
             QuickLaunchMapping(key: "s", targetType: .app, targetName: "Safari"),
             QuickLaunchMapping(key: "t", targetType: .app, targetName: "Terminal"),
             QuickLaunchMapping(key: "f", targetType: .app, targetName: "Finder"),
-            QuickLaunchMapping(key: "g", targetType: .website, targetName: "github.com"),
+            QuickLaunchMapping(key: "g", targetType: .website, targetName: "github.com")
         ]
     }
 
@@ -243,7 +243,7 @@ final class LauncherStore: ObservableObject {
             "/Applications/\(appName).app",
             "/System/Applications/\(appName).app",
             "/System/Applications/Utilities/\(appName).app",
-            "/Applications/Utilities/\(appName).app",
+            "/Applications/Utilities/\(appName).app"
         ]
 
         for path in paths {

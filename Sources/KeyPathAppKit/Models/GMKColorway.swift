@@ -71,7 +71,7 @@ struct DotsLegendConfig: Codable, Equatable {
         "#ebd400", // GE1 - Yellow
         "#689b34", // AE - Green
         "#0084c2", // N5 - Blue
-        "#5D437E", // DY - Purple
+        "#5D437E" // DY - Purple
     ]
 
     /// Get dot color for a given column position
@@ -166,7 +166,7 @@ struct GMKColorway: Identifiable, Codable, Equatable {
         .hyperfuse,
         .godspeed,
         .dots,
-        .dotsDark,
+        .dotsDark
     ]
 
     /// Find a colorway by ID
