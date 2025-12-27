@@ -204,7 +204,8 @@ final class HelperMaintenance: ObservableObject {
     }
 
     private func removeLegacyHelperArtifacts(useAppleScriptFallback: Bool) async
-        -> LegacyCleanupResult {
+        -> LegacyCleanupResult
+    {
         if let override = testHooks?.removeLegacyHelperArtifacts {
             return await override(useAppleScriptFallback)
         }

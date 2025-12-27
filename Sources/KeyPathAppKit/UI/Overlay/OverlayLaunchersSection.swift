@@ -156,7 +156,7 @@ struct QuickLaunchMapping: Identifiable, Codable, Equatable {
     var id: UUID
     var key: String
     var targetType: TargetType
-    var targetName: String  // App name or URL
+    var targetName: String // App name or URL
     var isEnabled: Bool
 
     enum TargetType: String, Codable {
@@ -196,7 +196,7 @@ final class LauncherStore: ObservableObject {
     }
 
     init() {
-        self.mappings = Self.loadMappings()
+        mappings = Self.loadMappings()
     }
 
     private static func loadMappings() -> [QuickLaunchMapping] {
@@ -513,7 +513,7 @@ private struct EditLauncherSheet: View {
 
     private var validationError: String? {
         if key.isEmpty { return "Enter a key" }
-        if key != mapping.key && existingKeys.contains(key) {
+        if key != mapping.key, existingKeys.contains(key) {
             return "Key '\(key.uppercased())' already used"
         }
         if targetName.isEmpty {

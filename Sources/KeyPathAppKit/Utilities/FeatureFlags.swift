@@ -45,16 +45,6 @@ final class FeatureFlags {
     func deactivateStartupMode() {
         stateQueue.sync { _startupModeActive = false }
     }
-
-    // MARK: - Auto Trigger (currently in-process only)
-
-    private var _autoTriggerEnabled: Bool = false
-
-    var autoTriggerEnabled: Bool { stateQueue.sync { _autoTriggerEnabled } }
-
-    func setAutoTriggerEnabled(_ enabled: Bool) {
-        stateQueue.sync { _autoTriggerEnabled = enabled }
-    }
 }
 
 // FeatureFlags manages its own synchronization.
@@ -65,13 +55,15 @@ extension FeatureFlags: @unchecked Sendable {}
 
 extension FeatureFlags {
     private static let captureListenOnlyKey = "CAPTURE_LISTEN_ONLY_ENABLED"
-    private static let tcpProtocolV2Key = "TCP_PROTOCOL_V2_ENABLED"
-    private static let useAutomaticPermissionPromptsKey = "USE_AUTOMATIC_PERMISSION_PROMPTS"
+    private static let useSMAppServiceForDaemonKey = "USE_SMAPPSERVICE_FOR_DAEMON"
+    private static let simulatorAndVirtualKeysEnabledKey = "SIMULATOR_AND_VIRTUAL_KEYS_ENABLED"
     private static let useJustInTimePermissionRequestsKey = "USE_JIT_PERMISSION_REQUESTS"
     private static let allowOptionalWizardKey = "ALLOW_OPTIONAL_WIZARD"
-    private static let useUnifiedWizardRouterKey = "USE_UNIFIED_WIZARD_ROUTER"
-    private static let simulatorAndVirtualKeysEnabledKey = "SIMULATOR_AND_VIRTUAL_KEYS_ENABLED"
 
+    // MARK: - Active Feature Flags
+
+    /// CGEvent tap listen-only mode (default ON)
+    /// When enabled, KeyPath only listens to key events without modifying them.
     static var captureListenOnlyEnabled: Bool {
         if UserDefaults.standard.object(forKey: captureListenOnlyKey) == nil {
             return true // default ON
@@ -83,61 +75,39 @@ extension FeatureFlags {
         UserDefaults.standard.set(enabled, forKey: captureListenOnlyKey)
     }
 
-    // MARK: - Protocol flags
-
-    static var tcpProtocolV2Enabled: Bool {
-        if UserDefaults.standard.object(forKey: tcpProtocolV2Key) == nil {
-            return true // default ON (canary-friendly)
-        }
-        return UserDefaults.standard.bool(forKey: tcpProtocolV2Key)
-    }
-
-    static func setTcpProtocolV2Enabled(_ enabled: Bool) {
-        UserDefaults.standard.set(enabled, forKey: tcpProtocolV2Key)
-    }
-
-    // MARK: - SMAppService Daemon Management
-
-    private static let useSMAppServiceForDaemonKey = "USE_SMAPPSERVICE_FOR_DAEMON"
-
-    /// Whether to use SMAppService for Kanata daemon management (default: true)
-    /// When enabled, uses SMAppService instead of launchctl for daemon registration
+    /// Whether to use SMAppService for Kanata daemon management (default ON)
+    /// When enabled, uses SMAppService instead of launchctl for daemon registration.
     static var useSMAppServiceForDaemon: Bool {
-        let userDefaultsValue = UserDefaults.standard.object(forKey: useSMAppServiceForDaemonKey)
-        let defaultValue = true // default ON (use SMAppService)
-
-        if userDefaultsValue == nil {
-            // Logging removed to avoid import dependency - can be added back if needed
-            return defaultValue
+        if UserDefaults.standard.object(forKey: useSMAppServiceForDaemonKey) == nil {
+            return true // default ON
         }
-
-        let boolValue = UserDefaults.standard.bool(forKey: useSMAppServiceForDaemonKey)
-        // Logging removed to avoid import dependency - can be added back if needed
-        return boolValue
+        return UserDefaults.standard.bool(forKey: useSMAppServiceForDaemonKey)
     }
 
     static func setUseSMAppServiceForDaemon(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: useSMAppServiceForDaemonKey)
     }
 
-    // MARK: - Permission UX flags
-
-    /// Phase 1: Automatic system prompts for KeyPath.app (default ON)
-    static var useAutomaticPermissionPrompts: Bool {
-        if UserDefaults.standard.object(forKey: useAutomaticPermissionPromptsKey) == nil {
-            return true // default ON
+    /// Enable simulator for layer mapping and virtual key actions (default ON)
+    /// Required for overlay to show correct remapped key labels.
+    static var simulatorAndVirtualKeysEnabled: Bool {
+        if UserDefaults.standard.object(forKey: simulatorAndVirtualKeysEnabledKey) == nil {
+            return true // default ON - needed for correct overlay labels
         }
-        return UserDefaults.standard.bool(forKey: useAutomaticPermissionPromptsKey)
+        return UserDefaults.standard.bool(forKey: simulatorAndVirtualKeysEnabledKey)
     }
 
-    static func setUseAutomaticPermissionPrompts(_ enabled: Bool) {
-        UserDefaults.standard.set(enabled, forKey: useAutomaticPermissionPromptsKey)
+    static func setSimulatorAndVirtualKeysEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: simulatorAndVirtualKeysEnabledKey)
     }
 
-    /// Phase 2: Just-in-time permission requests (default OFF)
+    // MARK: - Future Implementation (not yet built)
+
+    /// Phase 2: Just-in-time permission requests (NOT YET IMPLEMENTED)
+    /// Will allow requesting permissions only when needed rather than upfront.
     static var useJustInTimePermissionRequests: Bool {
         if UserDefaults.standard.object(forKey: useJustInTimePermissionRequestsKey) == nil {
-            return false // default OFF
+            return false // default OFF - not implemented
         }
         return UserDefaults.standard.bool(forKey: useJustInTimePermissionRequestsKey)
     }
@@ -146,44 +116,16 @@ extension FeatureFlags {
         UserDefaults.standard.set(enabled, forKey: useJustInTimePermissionRequestsKey)
     }
 
-    /// Phase 3: Optional wizard (non-blocking) (default OFF)
+    /// Phase 3: Optional wizard - non-blocking setup (NOT YET IMPLEMENTED)
+    /// Will allow skipping the wizard and configuring later.
     static var allowOptionalWizard: Bool {
         if UserDefaults.standard.object(forKey: allowOptionalWizardKey) == nil {
-            return false // default OFF
+            return false // default OFF - not implemented
         }
         return UserDefaults.standard.bool(forKey: allowOptionalWizardKey)
     }
 
     static func setAllowOptionalWizard(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: allowOptionalWizardKey)
-    }
-
-    // MARK: - Wizard routing
-
-    /// Enable the unified, pure-function wizard router/state-machine path.
-    /// Default ON to match test expectations; can be flipped off for emergency rollback.
-    static var useUnifiedWizardRouter: Bool {
-        if UserDefaults.standard.object(forKey: useUnifiedWizardRouterKey) == nil {
-            return true // default ON
-        }
-        return UserDefaults.standard.bool(forKey: useUnifiedWizardRouterKey)
-    }
-
-    static func setUseUnifiedWizardRouter(_ enabled: Bool) {
-        UserDefaults.standard.set(enabled, forKey: useUnifiedWizardRouterKey)
-    }
-
-    // MARK: - Simulator + Virtual Keys
-
-    /// Gate simulator UI/logic and virtual key actions (default OFF)
-    static var simulatorAndVirtualKeysEnabled: Bool {
-        if UserDefaults.standard.object(forKey: simulatorAndVirtualKeysEnabledKey) == nil {
-            return false // default OFF
-        }
-        return UserDefaults.standard.bool(forKey: simulatorAndVirtualKeysEnabledKey)
-    }
-
-    static func setSimulatorAndVirtualKeysEnabled(_ enabled: Bool) {
-        UserDefaults.standard.set(enabled, forKey: simulatorAndVirtualKeysEnabledKey)
     }
 }

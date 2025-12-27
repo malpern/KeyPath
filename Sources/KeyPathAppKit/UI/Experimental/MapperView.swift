@@ -137,7 +137,8 @@ struct MapperView: View {
         .onReceive(NotificationCenter.default.publisher(for: .mapperPresetValues)) { notification in
             // Handle preset updates when window is already open
             if let input = notification.userInfo?["input"] as? String,
-               let output = notification.userInfo?["output"] as? String {
+               let output = notification.userInfo?["output"] as? String
+            {
                 let layer = notification.userInfo?["layer"] as? String
                 let inputKeyCode = notification.userInfo?["inputKeyCode"] as? UInt16
                 let appIdentifier = notification.userInfo?["appIdentifier"] as? String
@@ -157,7 +158,8 @@ struct MapperView: View {
         .onReceive(NotificationCenter.default.publisher(for: .kanataLayerChanged)) { notification in
             // Update layer when it changes (if not opened from overlay with specific layer)
             if let layerName = notification.userInfo?["layerName"] as? String,
-               viewModel.originalInputKey == nil { // Only auto-update if not opened from overlay
+               viewModel.originalInputKey == nil
+            { // Only auto-update if not opened from overlay
                 viewModel.setLayer(layerName)
             }
         }

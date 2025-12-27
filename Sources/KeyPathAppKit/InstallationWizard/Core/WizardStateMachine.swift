@@ -144,21 +144,12 @@ class WizardStateMachine: ObservableObject {
             timestamp: state.timestamp
         )
         let adapted = SystemContextAdapter.adapt(context)
-        let target: WizardPage = if FeatureFlags.useUnifiedWizardRouter {
-            WizardRouter.route(
-                state: adapted.state,
-                issues: adapted.issues,
-                helperInstalled: state.helper.isInstalled,
-                helperNeedsApproval: HelperManager.shared.helperNeedsLoginItemsApproval()
-            )
-        } else {
-            WizardRouter.route(
-                state: adapted.state,
-                issues: adapted.issues,
-                helperInstalled: state.helper.isInstalled,
-                helperNeedsApproval: HelperManager.shared.helperNeedsLoginItemsApproval()
-            )
-        }
+        let target = WizardRouter.route(
+            state: adapted.state,
+            issues: adapted.issues,
+            helperInstalled: state.helper.isInstalled,
+            helperNeedsApproval: HelperManager.shared.helperNeedsLoginItemsApproval()
+        )
 
         // If the router says stay, remain on the current page; otherwise move to target.
         return target == current ? current : target

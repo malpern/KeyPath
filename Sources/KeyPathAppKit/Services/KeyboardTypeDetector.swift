@@ -6,7 +6,6 @@ import KeyPathCore
 /// Detects the physical keyboard type (ANSI, ISO, JIS) from IOKit.
 /// Used to set smart defaults for the overlay keyboard layout on first launch.
 enum KeyboardTypeDetector {
-
     /// Physical keyboard type as reported by macOS
     enum KeyboardType: String {
         case ansi = "ANSI"
@@ -54,7 +53,7 @@ enum KeyboardTypeDetector {
             if let typeValue = IOHIDDeviceGetProperty(device, "KeyboardType" as CFString) as? Int {
                 let type = keyboardTypeFromIOKit(typeValue)
 
-                if isApple && type != .unknown {
+                if isApple, type != .unknown {
                     appleKeyboardType = type
                     break // Found Apple keyboard with valid type, use it
                 } else if type != .unknown {
@@ -77,14 +76,14 @@ enum KeyboardTypeDetector {
         // - JIS types: 8, 9, 44, 45
         switch type {
         case 4, 5, 40, 41:
-            return .ansi
+            .ansi
         case 6, 7, 42, 43:
-            return .iso
+            .iso
         case 8, 9, 44, 45:
-            return .jis
+            .jis
         default:
             // Type 0-3 are generic/unknown, others are less common
-            return type > 0 ? .ansi : .unknown // Default to ANSI for unknown positive types
+            type > 0 ? .ansi : .unknown // Default to ANSI for unknown positive types
         }
     }
 
@@ -92,12 +91,12 @@ enum KeyboardTypeDetector {
     static func recommendedLayoutId() -> String {
         switch detect() {
         case .jis:
-            return "macbook-jis"
+            "macbook-jis"
         case .iso:
             // We don't have a specific ISO layout yet, use US as fallback
-            return "macbook-us"
+            "macbook-us"
         case .ansi, .unknown:
-            return "macbook-us"
+            "macbook-us"
         }
     }
 }

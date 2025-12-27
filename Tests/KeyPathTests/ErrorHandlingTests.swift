@@ -446,7 +446,8 @@ final class ErrorHandlingTests: XCTestCase {
 
             // Multi-character sequences should be wrapped in parentheses (unless it's a known key)
             if input.count > 1,
-               !["caps", "space", "return", "escape", "delete", "tab"].contains(input.lowercased()) {
+               !["caps", "space", "return", "escape", "delete", "tab"].contains(input.lowercased())
+            {
                 // Should either be a converted key name or wrapped sequence
                 XCTAssertTrue(
                     sequence.hasPrefix("(") || sequence.count <= 4,

@@ -270,7 +270,8 @@ struct WizardInputMonitoringPage: View {
 
         Task {
             if let nextPage = await navigationCoordinator.getNextPage(for: systemState, issues: allIssues),
-               nextPage != navigationCoordinator.currentPage {
+               nextPage != navigationCoordinator.currentPage
+            {
                 navigationCoordinator.navigateToPage(nextPage)
             } else {
                 navigationCoordinator.navigateToPage(.summary)
@@ -329,55 +330,37 @@ struct WizardInputMonitoringPage: View {
         AppLogger.shared.log(
             "🔧 [WizardInputMonitoringPage] Fix button clicked - permission flow starting")
 
-        if FeatureFlags.useAutomaticPermissionPrompts {
-            // Use automatic prompt via IOHIDRequestAccess()
-            let alreadyGranted = PermissionRequestService.shared.requestInputMonitoringPermission(
-                ignoreCooldown: true)
-            if alreadyGranted {
-                Task { await onRefresh() }
-                return
+        // Use automatic prompt via IOHIDRequestAccess()
+        let alreadyGranted = PermissionRequestService.shared.requestInputMonitoringPermission(
+            ignoreCooldown: true)
+        if alreadyGranted {
+            Task { await onRefresh() }
+            return
+        }
+
+        // Poll for grant (KeyPath + Kanata) using Oracle snapshot
+        startPermissionPolling(for: .inputMonitoring)
+
+        // Fallback: if still not granted shortly after, open System Settings panel
+        Task { @MainActor in
+            for _ in 0 ..< 6 { // ~1.5s at 250ms
+                _ = await WizardSleep.ms(250)
+                let snapshot = await PermissionOracle.shared.currentSnapshot()
+                let granted =
+                    snapshot.keyPath.inputMonitoring.isReady && snapshot.kanata.inputMonitoring.isReady
+                if granted { return }
             }
-
-            // Poll for grant (KeyPath + Kanata) using Oracle snapshot
-            startPermissionPolling(for: .inputMonitoring)
-
-            // Fallback: if still not granted shortly after, open System Settings panel
-            Task { @MainActor in
-                for _ in 0 ..< 6 { // ~1.5s at 250ms
-                    _ = await WizardSleep.ms(250)
-                    let snapshot = await PermissionOracle.shared.currentSnapshot()
-                    let granted =
-                        snapshot.keyPath.inputMonitoring.isReady && snapshot.kanata.inputMonitoring.isReady
-                    if granted { return }
-                }
-                AppLogger.shared.info(
-                    "ℹ️ [WizardInputMonitoringPage] Opening System Settings (fallback) for Input Monitoring")
-                openInputMonitoringPreferencesPanel()
-            }
-        } else {
-            // Fallback: manual System Settings flow
-            let instructions = """
-            KeyPath will now close so you can grant permissions:
-
-            1. Add KeyPath and kanata to Input Monitoring (use the '+' button)
-            2. Make sure both checkboxes are enabled
-            3. Restart KeyPath when you're done
-
-            KeyPath will automatically restart the keyboard service to pick up your new permissions.
-            """
-
-            PermissionGrantCoordinator.shared.initiatePermissionGrant(
-                for: .inputMonitoring,
-                instructions: instructions,
-                onComplete: { onDismiss?() }
-            )
+            AppLogger.shared.info(
+                "ℹ️ [WizardInputMonitoringPage] Opening System Settings (fallback) for Input Monitoring")
+            openInputMonitoringPreferencesPanel()
         }
     }
 }
 
 private func openInputMonitoringPreferencesPanel() {
     if let url = URL(
-        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
+    {
         let ok = NSWorkspace.shared.open(url)
         if !ok {
             // Fallback: open System Settings app if deep-link fails

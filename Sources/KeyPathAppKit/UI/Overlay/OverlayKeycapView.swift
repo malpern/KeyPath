@@ -424,7 +424,7 @@ struct OverlayKeycapView: View {
 
     /// Circular dot for alpha keys
     @ViewBuilder
-    private func dotShape(config: DotsLegendConfig, isModifier: Bool, sizeMultiplier: CGFloat) -> some View {
+    private func dotShape(config: DotsLegendConfig, isModifier _: Bool, sizeMultiplier: CGFloat) -> some View {
         let baseSize: CGFloat = 36 * scale * config.dotSize * sizeMultiplier
         let color = dotColorForCurrentKey(config: config)
 
@@ -491,7 +491,6 @@ struct OverlayKeycapView: View {
         case "⌘", "cmd", "command", "lcmd", "rcmd", "meta", "lmeta", "rmeta": return "⌘"
         case "fn", "function": return "🌐"
         case "⇪", "caps", "capslock", "caps lock": return "⇪"
-
         // Action keys
         case "⌫", "delete", "backspace", "bksp", "bspc": return "⌫"
         case "⌦", "del", "forward delete", "fwd del": return "⌦"
@@ -499,26 +498,22 @@ struct OverlayKeycapView: View {
         case "⇥", "tab": return "⇥"
         case "⎋", "esc", "escape": return "⎋"
         case "␣", " ", "space", "spc": return "␣"
-
         // Navigation keys
         case "home": return "↖"
         case "end": return "↘"
         case "pageup", "pgup", "page up": return "⇞"
         case "pagedown", "pgdn", "page down", "page dn": return "⇟"
-
         // Arrow keys (filled style for icon mods)
         case "◀", "←", "left": return "◀"
         case "▶", "→", "right": return "▶"
         case "▲", "↑", "up": return "▲"
         case "▼", "↓", "down": return "▼"
-
         // Media/Function symbols
         case "🔇", "mute": return "🔇"
         case "🔉", "voldown", "vol-": return "🔉"
         case "🔊", "volup", "vol+": return "🔊"
         case "🔅", "bridn", "bri-": return "🔅"
         case "🔆", "briup", "bri+": return "🔆"
-
         default: return key.label
         }
     }
@@ -619,25 +614,25 @@ struct OverlayKeycapView: View {
     /// Word labels for navigation/system keys (like ESC style)
     private var navigationWordLabel: String? {
         switch key.label {
-        case "Home": return "home"
-        case "End": return "end"
-        case "PgUp": return "page up"
-        case "PgDn": return "page dn"
-        case "Lyr": return "layer"
-        case "Fn": return nil // Fn uses globe icon
-        case "Mod": return "mod"
-        case "␣": return "space"
-        case "⌫": return "bksp" // Backspace key (short form to fit)
-        case "↩": return "return"
-        default: return nil
+        case "Home": "home"
+        case "End": "end"
+        case "PgUp": "page up"
+        case "PgDn": "page dn"
+        case "Lyr": "layer"
+        case "Fn": nil // Fn uses globe icon
+        case "Mod": "mod"
+        case "␣": "space"
+        case "⌫": "bksp" // Backspace key (short form to fit)
+        case "↩": "return"
+        default: nil
         }
     }
 
     /// SF Symbol for special keys (Delete uses icon)
     private var navigationSFSymbol: String? {
         switch key.label {
-        case "Del": return "delete.forward"
-        default: return nil
+        case "Del": "delete.forward"
+        default: nil
         }
     }
 
@@ -920,7 +915,8 @@ struct OverlayKeycapView: View {
             // Standard function key layout: SF symbol on top, F-key label below
             let sfSymbol: String? = {
                 if let info = layerKeyInfo,
-                   let outputSymbol = LabelMetadata.sfSymbol(forOutputLabel: info.displayLabel) {
+                   let outputSymbol = LabelMetadata.sfSymbol(forOutputLabel: info.displayLabel)
+                {
                     return outputSymbol
                 }
                 // Fall back to physical key code
@@ -1124,7 +1120,7 @@ struct OverlayKeycapView: View {
             colorway.modBaseColor
         } else if isAccentKey {
             colorway.accentBaseColor
-        } else if showScoopedHomeRow && isHomeRowKey {
+        } else if showScoopedHomeRow, isHomeRowKey {
             // Kinesis home row keys have a different color (darker/accent shade)
             colorway.modBaseColor
         } else {

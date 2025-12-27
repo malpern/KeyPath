@@ -60,7 +60,8 @@ struct AvailableRulesView: View {
         // For launcher collection, show welcome dialog first
         if collection.id == RuleCollectionIdentifier.launcher,
            let config = collection.configuration.launcherGridConfig,
-           !config.hasSeenWelcome {
+           !config.hasSeenWelcome
+        {
             pendingLauncherConfig = config
             showLauncherWelcome = true
         } else {

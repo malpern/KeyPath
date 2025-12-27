@@ -38,9 +38,9 @@ struct NoveltyConfig: Codable, Equatable {
     /// Check if a key should display a novelty
     func noveltyForKey(label: String) -> String? {
         switch label.lowercased() {
-        case "esc", "escape", "⎋": return escNovelty
-        case "enter", "return", "↩", "↵", "⏎": return enterNovelty
-        default: return nil
+        case "esc", "escape", "⎋": escNovelty
+        case "enter", "return", "↩", "↵", "⏎": enterNovelty
+        default: nil
         }
     }
 }

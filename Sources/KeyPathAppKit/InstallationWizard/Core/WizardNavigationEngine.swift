@@ -29,22 +29,12 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
         let helperNeedsApproval = HelperManager.shared.helperNeedsLoginItemsApproval()
         let helperInstalled = await HelperManager.shared.isHelperInstalled()
 
-        let corePage: WizardPage = if FeatureFlags.useUnifiedWizardRouter {
-            WizardRouter.route(
-                state: state,
-                issues: issues,
-                helperInstalled: helperInstalled,
-                helperNeedsApproval: helperNeedsApproval
-            )
-        } else {
-            // Fallback: legacy inline logic (kept for quick rollback)
-            legacyDetermineCurrentPage(
-                state: state,
-                issues: issues,
-                helperInstalled: helperInstalled,
-                helperNeedsApproval: helperNeedsApproval
-            )
-        }
+        let corePage = WizardRouter.route(
+            state: state,
+            issues: issues,
+            helperInstalled: helperInstalled,
+            helperNeedsApproval: helperNeedsApproval
+        )
 
         // Preserve single-show Full Disk Access behavior here.
         if corePage == .summary, !hasShownFullDiskAccessPage, state != .active {
@@ -84,7 +74,8 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
         // If the target page is ahead of us in the flow and different from current, jump to it
         if let targetIndex = pageOrder.firstIndex(of: targetPage),
            targetIndex > currentIndex,
-           targetPage != current {
+           targetPage != current
+        {
             return targetPage
         }
 
@@ -156,103 +147,6 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
         case .summary:
             return false // Final state
         }
-    }
-
-    // MARK: - Legacy routing fallback (kept for feature-flag rollback)
-
-    private func legacyDetermineCurrentPage(
-        state: WizardSystemState,
-        issues: [WizardIssue],
-        helperInstalled: Bool,
-        helperNeedsApproval: Bool
-    ) -> WizardPage {
-        // Conflicts
-        if issues.contains(where: { $0.category == .conflicts }) { return .conflicts }
-
-        // Helper gating
-        if helperNeedsApproval { return .helper }
-        if !helperInstalled { return .helper }
-
-        // Permissions (blocking only). Warnings/infos are advisory and should not force navigation.
-        let hasInputMonitoring = issues.contains {
-            guard $0.severity == .critical || $0.severity == .error else { return false }
-            if case let .permission(permissionType) = $0.identifier {
-                return permissionType == .keyPathInputMonitoring || permissionType == .kanataInputMonitoring
-            }
-            return false
-        }
-        if hasInputMonitoring { return .inputMonitoring }
-
-        let hasAccessibility = issues.contains {
-            guard $0.severity == .critical || $0.severity == .error else { return false }
-            if case let .permission(permissionType) = $0.identifier {
-                return permissionType == .keyPathAccessibility || permissionType == .kanataAccessibility
-            }
-            return false
-        }
-        if hasAccessibility { return .accessibility }
-
-        // Communication
-        let hasCommunication = issues.contains {
-            if $0.category == .installation {
-                switch $0.identifier {
-                case .component(.communicationServerConfiguration),
-                     .component(.communicationServerNotResponding),
-                     .component(.tcpServerConfiguration),
-                     .component(.tcpServerNotResponding):
-                    return true
-                default:
-                    return false
-                }
-            }
-            return false
-        }
-        if hasCommunication { return .communication }
-
-        // Karabiner components
-        let hasKarabinerIssues = issues.contains {
-            if $0.category == .installation {
-                switch $0.identifier {
-                case .component(.karabinerDriver),
-                     .component(.karabinerDaemon),
-                     .component(.vhidDeviceManager),
-                     .component(.vhidDeviceActivation),
-                     .component(.vhidDeviceRunning),
-                     .component(.launchDaemonServices),
-                     .component(.vhidDaemonMisconfigured),
-                     .component(.vhidDriverVersionMismatch):
-                    return true
-                default:
-                    return false
-                }
-            }
-            return $0.category == .daemon || $0.category == .backgroundServices
-        }
-        if hasKarabinerIssues { return .karabinerComponents }
-
-        // Kanata components
-        let hasKanataIssues = issues.contains {
-            if $0.category == .installation {
-                switch $0.identifier {
-                case .component(.kanataBinaryMissing), .component(.kanataService):
-                    return true
-                default:
-                    return false
-                }
-            }
-            return false
-        }
-        if hasKanataIssues { return .kanataComponents }
-
-        // Service readiness
-        switch state {
-        case .serviceNotRunning, .ready, .daemonNotRunning:
-            return .service
-        default:
-            break
-        }
-
-        return .summary
     }
 
     // MARK: - Navigation Helpers

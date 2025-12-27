@@ -239,7 +239,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         // Restore overlay if it was auto-hidden recently and user hasn't manually shown it
         if let hiddenAt = autoHiddenTimestamp,
            Date().timeIntervalSince(hiddenAt) < restoreWindowDuration,
-           !isVisible {
+           !isVisible
+        {
             isVisible = true
         }
     }
@@ -509,11 +510,10 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         )
 
         // Pass kanataViewModel as environment object for OverlayLaunchersSection
-        let wrappedContent: AnyView
-        if let kanataVM = kanataViewModel {
-            wrappedContent = AnyView(contentView.environmentObject(kanataVM))
+        let wrappedContent = if let kanataVM = kanataViewModel {
+            AnyView(contentView.environmentObject(kanataVM))
         } else {
-            wrappedContent = AnyView(contentView)
+            AnyView(contentView)
         }
 
         let hostingView = NSHostingView(rootView: wrappedContent)

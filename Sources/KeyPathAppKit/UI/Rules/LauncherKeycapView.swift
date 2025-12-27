@@ -124,33 +124,33 @@ struct LauncherKeycapView: View {
     private var backgroundColor: Color {
         if isCapsLockKey {
             // Caps lock is always "pressed" in launcher view
-            return .accentColor
+            .accentColor
         } else if mapping != nil {
             // Mapped key: accent color
-            return isSelected ? .accentColor : .accentColor.opacity(0.85)
+            isSelected ? .accentColor : .accentColor.opacity(0.85)
         } else {
             // Unmapped key: dimmed
-            return Color(NSColor.controlBackgroundColor).opacity(0.5)
+            Color(NSColor.controlBackgroundColor).opacity(0.5)
         }
     }
 
     private var strokeColor: Color {
         if isSelected {
-            return .white
+            .white
         } else if mapping != nil {
-            return .white.opacity(0.2)
+            .white.opacity(0.2)
         } else {
-            return Color.secondary.opacity(0.2)
+            Color.secondary.opacity(0.2)
         }
     }
 
     private var accessibilityLabel: String {
         if isCapsLockKey {
-            return "Hyper key (Caps Lock)"
+            "Hyper key (Caps Lock)"
         } else if let mapping {
-            return "\(mapping.key.uppercased()): \(mapping.target.displayName)"
+            "\(mapping.key.uppercased()): \(mapping.target.displayName)"
         } else {
-            return "\(key.label.uppercased()): Unmapped"
+            "\(key.label.uppercased()): Unmapped"
         }
     }
 

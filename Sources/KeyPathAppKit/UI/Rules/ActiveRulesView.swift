@@ -161,7 +161,8 @@ private struct RuleCollectionRow: View {
         if collection.id == RuleCollectionIdentifier.launcher,
            newValue,
            let config = collection.configuration.launcherGridConfig,
-           !config.hasSeenWelcome {
+           !config.hasSeenWelcome
+        {
             // Show welcome dialog instead of toggling directly
             pendingLauncherConfig = config
             showLauncherWelcome = true

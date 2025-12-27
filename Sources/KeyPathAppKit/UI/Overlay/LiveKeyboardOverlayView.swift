@@ -29,6 +29,8 @@ struct LiveKeyboardOverlayView: View {
     @State private var inspectorSection: InspectorSection = .launchers
     /// Shared state for tracking mouse interaction with keyboard (for refined click delay)
     @StateObject private var keyboardMouseState = KeyboardMouseState()
+    /// Japanese input mode detector for showing mode indicator
+    @ObservedObject private var inputSourceDetector = InputSourceDetector.shared
 
     /// The currently selected physical keyboard layout
     private var activeLayout: PhysicalLayout {
@@ -83,6 +85,7 @@ struct LiveKeyboardOverlayView: View {
                     inspectorWidth: inspectorTotalWidth,
                     reduceTransparency: reduceTransparency,
                     isInspectorOpen: uiState.isInspectorOpen,
+                    inputModeIndicator: inputSourceDetector.modeIndicator,
                     onClose: { onClose?() },
                     onToggleInspector: { onToggleInspector?() }
                 )
@@ -214,6 +217,10 @@ struct LiveKeyboardOverlayView: View {
         }
         .onAppear {
             uiState.keyboardAspectRatio = keyboardAspectRatio
+            inputSourceDetector.startMonitoring()
+        }
+        .onDisappear {
+            inputSourceDetector.stopMonitoring()
         }
         .background(
             glassBackground(cornerRadius: cornerRadius, fadeAmount: fadeAmount)
@@ -294,6 +301,8 @@ private struct OverlayDragHeader: View {
     let inspectorWidth: CGFloat
     let reduceTransparency: Bool
     let isInspectorOpen: Bool
+    /// Japanese input mode indicator (あ/ア/A) - nil when not in Japanese mode
+    let inputModeIndicator: String?
     let onClose: () -> Void
     let onToggleInspector: () -> Void
 
@@ -313,6 +322,23 @@ private struct OverlayDragHeader: View {
 
             // Controls expand right from keyboard edge, but stop before inspector
             HStack(spacing: 6) {
+                // Japanese input mode indicator (あ/ア/A)
+                if let indicator = inputModeIndicator {
+                    let modeName = switch indicator {
+                    case "あ": "Hiragana"
+                    case "ア": "Katakana"
+                    case "A": "Alphanumeric"
+                    default: "Japanese"
+                    }
+                    Text(indicator)
+                        .font(.system(size: buttonSize * 0.5, weight: .medium))
+                        .foregroundStyle(headerIconColor)
+                        .frame(width: buttonSize, height: buttonSize)
+                        .help("Japanese Input Mode: \(modeName)")
+                        .accessibilityIdentifier("overlay-input-mode-indicator")
+                        .accessibilityLabel("Japanese input mode: \(modeName)")
+                }
+
                 // Toggle inspector/drawer button - always visible
                 Button {
                     AppLogger.shared.log("🔘 [Header] Toggle drawer button clicked - isInspectorOpen=\(isInspectorOpen)")
@@ -595,7 +621,6 @@ struct OverlayInspectorPanel: View {
                 }
             }
         }
-
     }
 
     // MARK: - Physical Layout Content

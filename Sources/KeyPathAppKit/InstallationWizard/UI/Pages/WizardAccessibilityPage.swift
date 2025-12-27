@@ -292,72 +292,54 @@ struct WizardAccessibilityPage: View {
     private func openAccessibilityPermissionGrant() {
         AppLogger.shared.log("🔐 [WizardAccessibilityPage] Accessibility permission flow starting")
 
-        if FeatureFlags.useAutomaticPermissionPrompts {
-            let alreadyGranted = PermissionRequestService.shared.requestAccessibilityPermission(
-                ignoreCooldown: true)
-            if alreadyGranted {
-                Task { await onRefresh() }
-                return
-            }
-            // Poll for grant (KeyPath + Kanata) using Oracle snapshot
-            permissionPollingTask?.cancel()
-            permissionPollingTask = Task { [onRefresh] in
-                var attempts = 0
-                let maxAttempts = 30
-                var lastKeyPathGranted: Bool?
-                var lastKanataGranted: Bool?
-                while attempts < maxAttempts {
-                    _ = await WizardSleep.ms(1000)
-                    attempts += 1
-                    let snapshot = await PermissionOracle.shared.currentSnapshot()
-                    let kpGranted = snapshot.keyPath.accessibility.isReady
-                    let kaGranted = snapshot.kanata.accessibility.isReady
-
-                    // Incremental refresh: update UI when either flips, not only when both are ready
-                    if lastKeyPathGranted != kpGranted || lastKanataGranted != kaGranted {
-                        AppLogger.shared.log(
-                            "🔁 [WizardAccessibilityPage] Detected permission change (AX) - KeyPath: \(kpGranted), Kanata: \(kaGranted). Refreshing UI."
-                        )
-                        lastKeyPathGranted = kpGranted
-                        lastKanataGranted = kaGranted
-                        await onRefresh()
-                    }
-
-                    if kpGranted, kaGranted {
-                        // Both ready – stop polling
-                        return
-                    }
-                    if Task.isCancelled { return }
-                }
-            }
-            // Fallback: if not granted shortly, open Accessibility settings so the user can toggle
-            Task { @MainActor in
-                _ = await WizardSleep.ms(1500) // 1.5s
+        let alreadyGranted = PermissionRequestService.shared.requestAccessibilityPermission(
+            ignoreCooldown: true)
+        if alreadyGranted {
+            Task { await onRefresh() }
+            return
+        }
+        // Poll for grant (KeyPath + Kanata) using Oracle snapshot
+        permissionPollingTask?.cancel()
+        permissionPollingTask = Task { [onRefresh] in
+            var attempts = 0
+            let maxAttempts = 30
+            var lastKeyPathGranted: Bool?
+            var lastKanataGranted: Bool?
+            while attempts < maxAttempts {
+                _ = await WizardSleep.ms(1000)
+                attempts += 1
                 let snapshot = await PermissionOracle.shared.currentSnapshot()
-                let granted =
-                    snapshot.keyPath.accessibility.isReady && snapshot.kanata.accessibility.isReady
-                if !granted {
-                    AppLogger.shared.info(
-                        "ℹ️ [WizardAccessibilityPage] Opening System Settings (fallback) for Accessibility")
-                    openAccessibilitySettings()
+                let kpGranted = snapshot.keyPath.accessibility.isReady
+                let kaGranted = snapshot.kanata.accessibility.isReady
+
+                // Incremental refresh: update UI when either flips, not only when both are ready
+                if lastKeyPathGranted != kpGranted || lastKanataGranted != kaGranted {
+                    AppLogger.shared.log(
+                        "🔁 [WizardAccessibilityPage] Detected permission change (AX) - KeyPath: \(kpGranted), Kanata: \(kaGranted). Refreshing UI."
+                    )
+                    lastKeyPathGranted = kpGranted
+                    lastKanataGranted = kaGranted
+                    await onRefresh()
                 }
+
+                if kpGranted, kaGranted {
+                    // Both ready – stop polling
+                    return
+                }
+                if Task.isCancelled { return }
             }
-        } else {
-            let instructions = """
-            KeyPath will now close so you can grant permissions:
-
-            1. Add KeyPath and kanata to Accessibility (use the '+' button)
-            2. Make sure both checkboxes are enabled
-            3. Restart KeyPath when you're done
-
-            KeyPath will automatically restart the keyboard service to pick up your new permissions.
-            """
-
-            PermissionGrantCoordinator.shared.initiatePermissionGrant(
-                for: .accessibility,
-                instructions: instructions,
-                onComplete: { onDismiss?() }
-            )
+        }
+        // Fallback: if not granted shortly, open Accessibility settings so the user can toggle
+        Task { @MainActor in
+            _ = await WizardSleep.ms(1500) // 1.5s
+            let snapshot = await PermissionOracle.shared.currentSnapshot()
+            let granted =
+                snapshot.keyPath.accessibility.isReady && snapshot.kanata.accessibility.isReady
+            if !granted {
+                AppLogger.shared.info(
+                    "ℹ️ [WizardAccessibilityPage] Opening System Settings (fallback) for Accessibility")
+                openAccessibilitySettings()
+            }
         }
     }
 
@@ -367,7 +349,8 @@ struct WizardAccessibilityPage: View {
 
         // Fallback: Open System Settings > Privacy & Security > Accessibility
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+        {
             let ok = NSWorkspace.shared.open(url)
             if !ok {
                 // Fallback: open System Settings app if deep-link fails
@@ -384,7 +367,8 @@ struct WizardAccessibilityPage: View {
 
         Task {
             if let nextPage = await navigationCoordinator.getNextPage(for: systemState, issues: allIssues),
-               nextPage != navigationCoordinator.currentPage {
+               nextPage != navigationCoordinator.currentPage
+            {
                 navigationCoordinator.navigateToPage(nextPage)
             } else {
                 navigationCoordinator.navigateToPage(.summary)

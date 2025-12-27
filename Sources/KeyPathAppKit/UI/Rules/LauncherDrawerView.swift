@@ -82,7 +82,7 @@ struct LauncherDrawerView: View {
     // MARK: - Section Header
 
     @ViewBuilder
-    private func sectionHeader(_ title: String, count: Int) -> some View {
+    private func sectionHeader(_ title: String, count _: Int) -> some View {
         HStack {
             Text(title)
                 .font(.subheadline.weight(.medium))
@@ -252,11 +252,11 @@ private struct DrawerMappingRow: View {
 
     private var backgroundColor: Color {
         if isSelected {
-            return Color.accentColor.opacity(0.15)
+            Color.accentColor.opacity(0.15)
         } else if isHovering {
-            return Color.primary.opacity(0.05)
+            Color.primary.opacity(0.05)
         } else {
-            return Color.clear
+            Color.clear
         }
     }
 

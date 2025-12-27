@@ -40,16 +40,6 @@ public final class FeatureFlags {
     public func deactivateStartupMode() {
         stateQueue.sync { _startupModeActive = false }
     }
-
-    // MARK: - Auto Trigger (currently in-process only)
-
-    private var _autoTriggerEnabled: Bool = false
-
-    public var autoTriggerEnabled: Bool { stateQueue.sync { _autoTriggerEnabled } }
-
-    public func setAutoTriggerEnabled(_ enabled: Bool) {
-        stateQueue.sync { _autoTriggerEnabled = enabled }
-    }
 }
 
 // FeatureFlags manages its own synchronization.
