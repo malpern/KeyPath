@@ -153,6 +153,7 @@ final class RuleCollectionsManager {
         AppLogger.shared.log("📊 [RuleCollectionsManager] bootstrap: loaded \(customRules.count) custom rules from store")
 
         ensureDefaultCollectionsIfNeeded()
+        runMigrations()
 
         // Restore keymap collection if a non-QWERTY layout was active
         if activeKeymapId != LogicalKeymap.defaultId {
@@ -394,6 +395,11 @@ final class RuleCollectionsManager {
 
         refreshLayerIndicatorState()
         await regenerateConfigFromCollections()
+
+        // Pre-cache icons for collections with app launches (e.g., Vim nav layer)
+        if isEnabled, let collection = ruleCollections.first(where: { $0.id == id }) {
+            await warmLayerIconCache(for: collection)
+        }
     }
 
     /// Add or update a rule collection
@@ -637,6 +643,8 @@ final class RuleCollectionsManager {
                 dedupeRuleCollectionsInPlace()
                 refreshLayerIndicatorState()
                 await regenerateConfigFromCollections()
+                // Cache warm new launcher icons
+                await warmLauncherIconCache(for: config)
             }
             return
         }
@@ -647,6 +655,24 @@ final class RuleCollectionsManager {
         dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
         await regenerateConfigFromCollections()
+
+        // Cache warm new launcher icons
+        await warmLauncherIconCache(for: config)
+    }
+
+    /// Pre-cache icons for launcher mappings (called when config changes)
+    private func warmLauncherIconCache(for config: LauncherGridConfig) async {
+        let enabledMappings = config.mappings.filter(\.isEnabled)
+        AppLogger.shared.debug("🖼️ [RuleCollections] Warming cache for \(enabledMappings.count) launcher mappings")
+
+        for mapping in enabledMappings {
+            await IconResolverService.shared.preloadIcon(for: mapping.target)
+        }
+    }
+
+    /// Pre-cache icons for layer-based app launches (e.g., Vim nav mode apps)
+    private func warmLayerIconCache(for collection: RuleCollection) async {
+        await IconResolverService.shared.preloadLayerIcons(from: [collection])
     }
 
     /// Update the leader key for all collections that use momentary activation
@@ -921,6 +947,27 @@ final class RuleCollectionsManager {
             ruleCollections = RuleCollectionCatalog().defaultCollections()
         }
         refreshLayerIndicatorState()
+    }
+
+    // MARK: - Migrations
+
+    private enum MigrationKey {
+        static let launcherEnabledByDefault = "RuleCollections.Migration.LauncherEnabledByDefault"
+    }
+
+    /// Run one-time migrations for collection state changes
+    private func runMigrations() {
+        // Migration: Enable Quick Launcher by default (added in 1.1)
+        // This runs once for existing users who had launcher disabled by old default
+        if !UserDefaults.standard.bool(forKey: MigrationKey.launcherEnabledByDefault) {
+            if let index = ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
+                if !ruleCollections[index].isEnabled {
+                    ruleCollections[index].isEnabled = true
+                    AppLogger.shared.log("♻️ [RuleCollections] Migration: Enabled Quick Launcher by default")
+                }
+            }
+            UserDefaults.standard.set(true, forKey: MigrationKey.launcherEnabledByDefault)
+        }
     }
 
     private func dedupeRuleCollectionsInPlace() {
