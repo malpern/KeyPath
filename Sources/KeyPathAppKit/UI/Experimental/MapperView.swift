@@ -42,6 +42,10 @@ struct MapperView: View {
     /// Inspector panel visibility
     @State private var isInspectorOpen = false
 
+    /// New layer creation sheet
+    @State private var showingNewLayerSheet = false
+    @State private var newLayerName = ""
+
     var body: some View {
         HStack(spacing: 0) {
             // Main content area
@@ -71,9 +75,15 @@ struct MapperView: View {
 
                 // Bottom bar: layer indicator (left), reset button (right)
                 HStack {
-                    Text(viewModel.currentLayer.lowercased() == "base" ? "Base Layer" : viewModel.currentLayer.lowercased())
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    LayerSwitcherButton(
+                        currentLayer: viewModel.currentLayer,
+                        onSelectLayer: { layer in
+                            viewModel.setLayer(layer)
+                        },
+                        onCreateLayer: {
+                            showingNewLayerSheet = true
+                        }
+                    )
                     Spacer()
                 }
             }
@@ -202,6 +212,21 @@ struct MapperView: View {
                 }
             )
         }
+        .sheet(isPresented: $showingNewLayerSheet) {
+            NewLayerSheet(
+                layerName: $newLayerName,
+                existingLayers: viewModel.getAvailableLayers(),
+                onSubmit: { name in
+                    viewModel.createLayer(name)
+                    newLayerName = ""
+                    showingNewLayerSheet = false
+                },
+                onCancel: {
+                    newLayerName = ""
+                    showingNewLayerSheet = false
+                }
+            )
+        }
     }
 }
 
@@ -221,6 +246,12 @@ private struct MapperInspectorPanel: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                // App Condition Section (precondition - rule only applies when app is active)
+                appConditionSection
+
+                Divider()
+                    .padding(.vertical, 4)
+
                 // Output Type Options
                 outputTypeSection
 
@@ -245,6 +276,125 @@ private struct MapperInspectorPanel: View {
                 .stroke(Color(white: isDark ? 0.3 : 0.75), lineWidth: 1)
         )
         .clipShape(LeftRoundedRectangle(radius: 10))
+    }
+
+    // MARK: - App Condition Section
+
+    @State private var showingAppConditionMenu = false
+
+    private var appConditionSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Only When App Active")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+
+            // Current selection or "Any App" button
+            if let condition = viewModel.selectedAppCondition {
+                // Show selected app with clear button
+                HStack(spacing: 10) {
+                    Image(nsImage: condition.icon)
+                        .resizable()
+                        .frame(width: 24, height: 24)
+                        .clipShape(RoundedRectangle(cornerRadius: 5))
+
+                    Text(condition.displayName)
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+
+                    Spacer()
+
+                    Button {
+                        viewModel.clearAppCondition()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Clear app condition")
+                    .accessibilityIdentifier("mapper-clear-app-condition")
+                    .accessibilityLabel("Clear app condition")
+                }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.accentColor.opacity(0.15))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
+                )
+            } else {
+                // Show "Any App" picker button
+                Menu {
+                    // Any App option (default)
+                    Button {
+                        viewModel.clearAppCondition()
+                    } label: {
+                        Label("Any App", systemImage: "app.dashed")
+                    }
+
+                    Divider()
+
+                    // Running apps
+                    let runningApps = viewModel.getRunningApps()
+                    if !runningApps.isEmpty {
+                        ForEach(runningApps) { app in
+                            Button {
+                                viewModel.selectedAppCondition = app
+                            } label: {
+                                Label {
+                                    Text(app.displayName)
+                                } icon: {
+                                    Image(nsImage: app.icon)
+                                }
+                            }
+                        }
+
+                        Divider()
+                    }
+
+                    // Browse for any app
+                    Button {
+                        viewModel.pickAppCondition()
+                    } label: {
+                        Label("Browse...", systemImage: "folder")
+                    }
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "app.dashed")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 24, height: 24)
+
+                        Text("Any App")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+
+                        Spacer()
+
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.secondary.opacity(0.1))
+                    )
+                }
+                .menuStyle(.borderlessButton)
+                .accessibilityIdentifier("mapper-app-condition-picker")
+                .accessibilityLabel("Select app condition")
+            }
+
+            Text("Rule only applies when this app is frontmost")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
     }
 
     // MARK: - Output Type Section
@@ -813,26 +963,26 @@ private struct AdvancedBehaviorContent: View {
     // MARK: - Hold Behavior Picker
 
     private var holdBehaviorPicker: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 10) {
             ForEach(MapperViewModel.HoldBehaviorType.allCases, id: \.self) { behaviorType in
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     Button {
                         viewModel.holdBehavior = behaviorType
                     } label: {
                         Image(systemName: viewModel.holdBehavior == behaviorType ? "checkmark.circle.fill" : "circle")
-                            .font(.caption)
+                            .font(.body)
                             .foregroundColor(viewModel.holdBehavior == behaviorType ? .accentColor : .secondary)
                     }
                     .buttonStyle(.plain)
 
-                    VStack(alignment: .leading, spacing: 1) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text(behaviorType.rawValue)
-                            .font(.caption)
+                            .font(.subheadline)
                             .foregroundColor(.primary)
 
                         if viewModel.holdBehavior == behaviorType {
                             Text(behaviorType.description)
-                                .font(.caption2)
+                                .font(.caption)
                                 .foregroundColor(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
@@ -845,9 +995,9 @@ private struct AdvancedBehaviorContent: View {
                 if behaviorType == .customKeys, viewModel.holdBehavior == .customKeys {
                     TextField("e.g., a s d f", text: $viewModel.customTapKeysText)
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 140)
-                        .font(.caption)
-                        .padding(.leading, 20)
+                        .frame(width: 160)
+                        .font(.subheadline)
+                        .padding(.leading, 26)
                         .accessibilityIdentifier("mapper-custom-tap-keys-field")
                         .accessibilityLabel("Custom tap keys")
                 }
@@ -1096,6 +1246,159 @@ private struct MapperKeycapPair: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
+        }
+    }
+}
+
+// MARK: - Layer Switcher Button
+
+/// Button that shows current layer and opens a menu to switch layers
+struct LayerSwitcherButton: View {
+    let currentLayer: String
+    let onSelectLayer: (String) -> Void
+    let onCreateLayer: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var isHovered = false
+
+    private var displayName: String {
+        currentLayer.lowercased() == "base" ? "Base Layer" : currentLayer.capitalized
+    }
+
+    private var isDark: Bool { colorScheme == .dark }
+
+    var body: some View {
+        Menu {
+            // Available layers
+            ForEach(["base", "nav"], id: \.self) { layer in
+                Button {
+                    onSelectLayer(layer)
+                } label: {
+                    HStack {
+                        Text(layer.lowercased() == "base" ? "Base Layer" : layer.capitalized)
+                        Spacer()
+                        if currentLayer.lowercased() == layer.lowercased() {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+            }
+
+            Divider()
+
+            // Create new layer
+            Button {
+                onCreateLayer()
+            } label: {
+                Label("New Layer...", systemImage: "plus")
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "square.3.layers.3d")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+
+                Text(displayName)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(isHovered ? Color.secondary.opacity(0.15) : Color.clear)
+            )
+        }
+        .menuStyle(.borderlessButton)
+        .onHover { isHovered = $0 }
+        .accessibilityIdentifier("mapper-layer-switcher")
+        .accessibilityLabel("Current layer: \(displayName). Click to change layer.")
+    }
+}
+
+// MARK: - New Layer Sheet
+
+/// Sheet for creating a new layer
+struct NewLayerSheet: View {
+    @Binding var layerName: String
+    let existingLayers: [String]
+    let onSubmit: (String) -> Void
+    let onCancel: () -> Void
+
+    @FocusState private var isNameFocused: Bool
+
+    private var isValidName: Bool {
+        let sanitized = layerName.lowercased()
+            .replacingOccurrences(of: " ", with: "_")
+            .filter { $0.isLetter || $0.isNumber || $0 == "_" }
+
+        return !sanitized.isEmpty && !existingLayers.contains { $0.lowercased() == sanitized }
+    }
+
+    private var validationMessage: String? {
+        guard !layerName.isEmpty else { return nil }
+
+        let sanitized = layerName.lowercased()
+            .replacingOccurrences(of: " ", with: "_")
+            .filter { $0.isLetter || $0.isNumber || $0 == "_" }
+
+        if sanitized.isEmpty {
+            return "Name must contain letters or numbers"
+        }
+
+        if existingLayers.contains(where: { $0.lowercased() == sanitized }) {
+            return "A layer with this name already exists"
+        }
+
+        return nil
+    }
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Create New Layer")
+                .font(.headline)
+
+            VStack(alignment: .leading, spacing: 8) {
+                TextField("Layer name", text: $layerName)
+                    .textFieldStyle(.roundedBorder)
+                    .focused($isNameFocused)
+                    .onSubmit {
+                        if isValidName {
+                            onSubmit(layerName)
+                        }
+                    }
+                    .accessibilityIdentifier("new-layer-name-field")
+
+                if let message = validationMessage {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
+
+            HStack(spacing: 12) {
+                Button("Cancel") {
+                    onCancel()
+                }
+                .keyboardShortcut(.cancelAction)
+                .accessibilityIdentifier("new-layer-cancel-button")
+
+                Button("Create") {
+                    onSubmit(layerName)
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(!isValidName)
+                .accessibilityIdentifier("new-layer-create-button")
+            }
+        }
+        .padding(24)
+        .frame(width: 300)
+        .onAppear {
+            isNameFocused = true
         }
     }
 }

@@ -87,14 +87,20 @@ struct LauncherKeycapView: View {
     @ViewBuilder
     private func mappedKeyContent(iconSize: CGFloat, labelSize: CGFloat) -> some View {
         ZStack(alignment: .topLeading) {
-            // Centered icon
+            // Centered icon - wrapped in browser tab for websites
             if let icon {
-                Image(nsImage: icon)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: iconSize, height: iconSize)
-                    .clipShape(RoundedRectangle(cornerRadius: iconCornerRadius))
-                    .shadow(color: .black.opacity(0.2), radius: 2, y: 1)
+                if mapping?.target.isApp == true {
+                    // App: show icon directly
+                    Image(nsImage: icon)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: iconSize, height: iconSize)
+                        .clipShape(RoundedRectangle(cornerRadius: iconCornerRadius))
+                        .shadow(color: .black.opacity(0.2), radius: 2, y: 1)
+                } else {
+                    // Website: wrap in browser tab container
+                    browserTabContainer(icon: icon, size: iconSize)
+                }
             } else {
                 // Fallback placeholder
                 Image(systemName: mapping?.target.isApp == true ? "app.fill" : "globe")
@@ -109,6 +115,51 @@ struct LauncherKeycapView: View {
                 .padding(4)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Browser tab style container for website favicons
+    @ViewBuilder
+    private func browserTabContainer(icon: NSImage, size: CGFloat) -> some View {
+        let tabBarHeight = size * 0.18
+        let faviconSize = size * 0.6
+        let containerWidth = size
+        let containerHeight = size * 1.1
+        let tabCornerRadius: CGFloat = 4
+
+        ZStack(alignment: .top) {
+            // Main container background
+            RoundedRectangle(cornerRadius: tabCornerRadius)
+                .fill(Color.white.opacity(0.15))
+                .frame(width: containerWidth, height: containerHeight)
+
+            VStack(spacing: 0) {
+                // Tab bar at top
+                HStack(spacing: 0) {
+                    // Active tab (rounded top corners only)
+                    UnevenRoundedRectangle(
+                        topLeadingRadius: tabCornerRadius,
+                        bottomLeadingRadius: 0,
+                        bottomTrailingRadius: 0,
+                        topTrailingRadius: tabCornerRadius
+                    )
+                    .fill(Color.white.opacity(0.25))
+                    .frame(width: containerWidth * 0.6, height: tabBarHeight)
+
+                    Spacer()
+                }
+                .frame(width: containerWidth)
+
+                // Favicon centered in content area
+                Image(nsImage: icon)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: faviconSize, height: faviconSize)
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                    .padding(.top, (containerHeight - tabBarHeight - faviconSize) / 2)
+            }
+        }
+        .frame(width: containerWidth, height: containerHeight)
+        .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
     }
 
     @ViewBuilder

@@ -27,6 +27,8 @@ struct OverlayKeycapView: View {
     var layerKeyInfo: LayerKeyInfo?
     /// Whether this key is emphasized (highlighted with accent color for layer hints)
     var isEmphasized: Bool = false
+    /// Whether this key has an active one-shot modifier (temporary highlight)
+    var isOneShot: Bool = false
     /// Hold label to display when tap-hold key is in hold state
     var holdLabel: String?
     /// Callback when key is clicked (not dragged)
@@ -1381,6 +1383,9 @@ struct OverlayKeycapView: View {
     private var backgroundColor: Color {
         if isPressed {
             Color.accentColor
+        } else if isOneShot {
+            // One-shot modifier active: cyan/teal glow to indicate waiting for next key
+            Color(red: 0.2, green: 0.7, blue: 0.8)
         } else if isEmphasized {
             Color.orange
         }

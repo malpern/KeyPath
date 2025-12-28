@@ -114,14 +114,8 @@ struct WizardKanataComponentsPage: View {
                 if !(kanataRelatedIssues.isEmpty && componentStatus(for: "Kanata Binary") == .completed) {
                     ScrollView {
                         VStack(spacing: WizardDesign.Spacing.elementGap) {
-                            // Static components that should be present
-                            InstallationItemView(
-                                title: "Kanata Binary",
-                                description: "Core keyboard remapping engine executable",
-                                status: componentStatus(for: "Kanata Binary")
-                            )
-
                             // Dynamic issues from installation category that are Kanata-specific
+                            // (these have detailed descriptions and Fix buttons)
                             ForEach(kanataRelatedIssues, id: \.id) { issue in
                                 InstallationItemView(
                                     title: getComponentTitle(for: issue),

@@ -18,6 +18,17 @@ struct AppLaunchInfo: Equatable {
     }
 }
 
+// MARK: - App Condition Info
+
+/// Info about a selected app for precondition (rule only applies when this app is frontmost)
+struct AppConditionInfo: Equatable, Identifiable {
+    let bundleIdentifier: String
+    let displayName: String
+    let icon: NSImage
+
+    var id: String { bundleIdentifier }
+}
+
 // MARK: - System Action Info
 
 /// Info about a selected system action or media key
@@ -124,6 +135,9 @@ class MapperViewModel: ObservableObject {
     /// Key code of the captured input (for overlay-style rendering)
     @Published var inputKeyCode: UInt16?
 
+    /// Selected app precondition - rule only applies when this app is frontmost
+    @Published var selectedAppCondition: AppConditionInfo?
+
     // Advanced behavior state
     @Published var showAdvanced = false
     @Published var holdAction: String = ""
@@ -208,6 +222,13 @@ class MapperViewModel: ObservableObject {
     func setLayer(_ layer: String) {
         currentLayer = layer
         AppLogger.shared.log("🗂️ [MapperViewModel] Layer set to: \(layer)")
+
+        // Post notification for other views to update
+        NotificationCenter.default.post(
+            name: .kanataLayerChanged,
+            object: nil,
+            userInfo: ["layer": layer]
+        )
     }
 
     /// Apply preset values from overlay click
@@ -952,6 +973,7 @@ class MapperViewModel: ObservableObject {
         selectedApp = nil
         selectedSystemAction = nil
         selectedURL = nil
+        selectedAppCondition = nil
         statusMessage = nil
     }
 
@@ -1128,6 +1150,136 @@ class MapperViewModel: ObservableObject {
         } else {
             AppLogger.shared.log("📱 [MapperViewModel] Waiting for input to be recorded (inputSequence=\(inputSequence?.displayString ?? "nil"), manager=\(kanataManager != nil ? "set" : "nil"))")
         }
+    }
+
+    // MARK: - App Condition (Precondition)
+
+    /// Get list of currently running apps for the condition picker
+    func getRunningApps() -> [AppConditionInfo] {
+        let workspace = NSWorkspace.shared
+        let runningApps = workspace.runningApplications
+
+        return runningApps.compactMap { app -> AppConditionInfo? in
+            // Only include regular apps (not background agents, daemons, etc.)
+            guard app.activationPolicy == .regular,
+                  let bundleId = app.bundleIdentifier,
+                  let name = app.localizedName else {
+                return nil
+            }
+
+            // Get app icon
+            let icon = app.icon ?? NSWorkspace.shared.icon(forFileType: "app")
+            icon.size = NSSize(width: 24, height: 24)
+
+            return AppConditionInfo(
+                bundleIdentifier: bundleId,
+                displayName: name,
+                icon: icon
+            )
+        }
+        .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+    }
+
+    /// Open file picker to select an app for the condition (precondition)
+    func pickAppCondition() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.application]
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.message = "Select an application for this rule's condition"
+        panel.prompt = "Select"
+
+        panel.begin { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+
+            Task { @MainActor in
+                self?.handleSelectedAppCondition(at: url)
+            }
+        }
+    }
+
+    /// Process the selected app condition
+    private func handleSelectedAppCondition(at url: URL) {
+        let appName = url.deletingPathExtension().lastPathComponent
+        let bundle = Bundle(url: url)
+        guard let bundleId = bundle?.bundleIdentifier else {
+            AppLogger.shared.warn("⚠️ [MapperViewModel] Selected app has no bundle identifier: \(url)")
+            return
+        }
+
+        let icon = NSWorkspace.shared.icon(forFile: url.path)
+        icon.size = NSSize(width: 24, height: 24)
+
+        let conditionInfo = AppConditionInfo(
+            bundleIdentifier: bundleId,
+            displayName: appName,
+            icon: icon
+        )
+
+        selectedAppCondition = conditionInfo
+        AppLogger.shared.log("🎯 [MapperViewModel] Selected app condition: \(appName) (\(bundleId))")
+    }
+
+    /// Clear the app condition
+    func clearAppCondition() {
+        selectedAppCondition = nil
+        AppLogger.shared.log("🎯 [MapperViewModel] Cleared app condition")
+    }
+
+    // MARK: - Layer Management
+
+    /// System layers that cannot be deleted
+    private static let systemLayers: Set<String> = ["base", "nav", "navigation"]
+
+    /// Get list of available layers (system + custom)
+    func getAvailableLayers() -> [String] {
+        // Start with system layers
+        var layers = ["base", "nav"]
+
+        // Add any custom layers from stored rules
+        // For now, just return system layers - custom layer discovery would require
+        // scanning the config or maintaining a layer registry
+        // TODO: Integrate with RuntimeCoordinator to get actual layers from Kanata
+
+        return layers.sorted()
+    }
+
+    /// Check if a layer is a system layer (cannot be deleted)
+    func isSystemLayer(_ layer: String) -> Bool {
+        Self.systemLayers.contains(layer.lowercased())
+    }
+
+    /// Create a new layer
+    func createLayer(_ name: String) {
+        guard !name.isEmpty else { return }
+        let sanitizedName = name.lowercased()
+            .replacingOccurrences(of: " ", with: "_")
+            .filter { $0.isLetter || $0.isNumber || $0 == "_" }
+
+        guard !sanitizedName.isEmpty else { return }
+
+        AppLogger.shared.log("📚 [MapperViewModel] Created new layer: \(sanitizedName)")
+
+        // Switch to the new layer
+        setLayer(sanitizedName)
+    }
+
+    /// Delete a layer (only non-system layers)
+    func deleteLayer(_ layer: String) {
+        guard !isSystemLayer(layer) else {
+            AppLogger.shared.warn("⚠️ [MapperViewModel] Cannot delete system layer: \(layer)")
+            return
+        }
+
+        // If we're on this layer, switch to base
+        if currentLayer.lowercased() == layer.lowercased() {
+            setLayer("base")
+        }
+
+        // TODO: Delete rules associated with this layer
+        AppLogger.shared.log("🗑️ [MapperViewModel] Deleted layer: \(layer)")
     }
 
     /// Save a mapping that launches an app

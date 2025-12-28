@@ -86,6 +86,7 @@ struct LiveKeyboardOverlayView: View {
                     reduceTransparency: reduceTransparency,
                     isInspectorOpen: uiState.isInspectorOpen,
                     inputModeIndicator: inputSourceDetector.modeIndicator,
+                    currentLayerName: viewModel.currentLayerName,
                     onClose: { onClose?() },
                     onToggleInspector: { onToggleInspector?() }
                 )
@@ -148,9 +149,10 @@ struct LiveKeyboardOverlayView: View {
                             layerKeyMap: viewModel.layerKeyMap,
                             effectivePressedKeyCodes: viewModel.effectivePressedKeyCodes,
                             emphasizedKeyCodes: viewModel.emphasizedKeyCodes,
+                            oneShotKeyCodes: viewModel.oneShotHighlightedKeyCodes,
                             holdLabels: viewModel.holdLabels,
                             onKeyClick: onKeyClick,
-                            isLauncherMode: viewModel.isLauncherModeActive,
+                            isLauncherMode: viewModel.isLauncherModeActive || (uiState.isInspectorOpen && inspectorSection == .launchers),
                             launcherMappings: viewModel.launcherMappings
                         )
                         .environmentObject(viewModel)
@@ -217,6 +219,18 @@ struct LiveKeyboardOverlayView: View {
                 if uiState.desiredContentWidth != totalWidth {
                     uiState.desiredContentWidth = totalWidth
                 }
+            }
+        }
+        .onChange(of: inspectorSection) { _, newSection in
+            // Load launcher mappings when viewing launchers section
+            if newSection == .launchers {
+                viewModel.loadLauncherMappings()
+            }
+        }
+        .onChange(of: uiState.isInspectorOpen) { _, isOpen in
+            // Load launcher mappings when opening inspector to launchers section
+            if isOpen, inspectorSection == .launchers {
+                viewModel.loadLauncherMappings()
             }
         }
         .onAppear {
@@ -307,12 +321,18 @@ private struct OverlayDragHeader: View {
     let isInspectorOpen: Bool
     /// Japanese input mode indicator (あ/ア/A) - nil when not in Japanese mode
     let inputModeIndicator: String?
+    /// Current layer name from Kanata
+    let currentLayerName: String
     let onClose: () -> Void
     let onToggleInspector: () -> Void
 
     @State private var isDragging = false
     @State private var initialFrame: NSRect = .zero
     @State private var initialMouseLocation: NSPoint = .zero
+
+    private var layerDisplayName: String {
+        currentLayerName.lowercased() == "base" ? "Base" : currentLayerName.capitalized
+    }
 
     var body: some View {
         let buttonSize = max(10, height * 0.9)
@@ -325,25 +345,25 @@ private struct OverlayDragHeader: View {
                 .frame(width: controlsStartX)
 
             // Controls expand right from keyboard edge, but stop before inspector
+            // Order: Close X, Drawer, [spacer], Japanese input (if active), Layer indicator
+            let indicatorCornerRadius: CGFloat = 4
+
             HStack(spacing: 6) {
-                // Japanese input mode indicator (あ/ア/A)
-                if let indicator = inputModeIndicator {
-                    let modeName = switch indicator {
-                    case "あ": "Hiragana"
-                    case "ア": "Katakana"
-                    case "A": "Alphanumeric"
-                    default: "Japanese"
-                    }
-                    Text(indicator)
-                        .font(.system(size: buttonSize * 0.5, weight: .medium))
+                // 1. Close button (leftmost)
+                Button {
+                    onClose()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: buttonSize * 0.45, weight: .semibold))
                         .foregroundStyle(headerIconColor)
                         .frame(width: buttonSize, height: buttonSize)
-                        .help("Japanese Input Mode: \(modeName)")
-                        .accessibilityIdentifier("overlay-input-mode-indicator")
-                        .accessibilityLabel("Japanese input mode: \(modeName)")
                 }
+                .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
+                .help("Close Overlay")
+                .accessibilityIdentifier("overlay-close-button")
+                .accessibilityLabel("Close keyboard overlay")
 
-                // Toggle inspector/drawer button - always visible
+                // 2. Toggle inspector/drawer button
                 Button {
                     AppLogger.shared.log("🔘 [Header] Toggle drawer button clicked - isInspectorOpen=\(isInspectorOpen)")
                     onToggleInspector()
@@ -358,24 +378,61 @@ private struct OverlayDragHeader: View {
                 .accessibilityIdentifier("overlay-drawer-toggle")
                 .accessibilityLabel(isInspectorOpen ? "Close settings drawer" : "Open settings drawer")
 
-                Button {
-                    onClose()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: buttonSize * 0.45, weight: .semibold))
+                Spacer()
+
+                // 3. Japanese input mode indicator (if active) - right side
+                if let indicator = inputModeIndicator {
+                    let modeName = switch indicator {
+                    case "あ": "Hiragana"
+                    case "ア": "Katakana"
+                    case "A": "Alphanumeric"
+                    default: "Japanese"
+                    }
+                    Text(indicator)
+                        .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(headerIconColor)
-                        .frame(width: buttonSize, height: buttonSize)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(
+                            RoundedRectangle(cornerRadius: indicatorCornerRadius)
+                                .fill(Color.white.opacity(isDark ? 0.1 : 0.15))
+                        )
+                        .help("Japanese Input Mode: \(modeName)")
+                        .accessibilityIdentifier("overlay-input-mode-indicator")
+                        .accessibilityLabel("Japanese input mode: \(modeName)")
                 }
-                .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
-                .help("Close Overlay")
-                .accessibilityIdentifier("overlay-close-button")
-                .accessibilityLabel("Close keyboard overlay")
+
+                // 4. Layer indicator (rightmost) - only show if not in base layer
+                if currentLayerName.lowercased() != "base" {
+                    HStack(spacing: 4) {
+                        Image(systemName: "square.3.layers.3d")
+                            .font(.system(size: 9, weight: .medium))
+                        Text(layerDisplayName)
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    }
+                    .foregroundStyle(headerIconColor)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(
+                        RoundedRectangle(cornerRadius: indicatorCornerRadius)
+                            .fill(Color.white.opacity(isDark ? 0.1 : 0.15))
+                    )
+                    .help("Current layer: \(layerDisplayName)")
+                    .accessibilityIdentifier("overlay-layer-indicator")
+                    .accessibilityLabel("Current layer: \(layerDisplayName)")
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .top).combined(with: .opacity),
+                        removal: .move(edge: .top).combined(with: .opacity)
+                    ))
+                }
             }
             .frame(maxWidth: maxControlsWidth, alignment: .leading)
             .padding(.trailing, 6)
+            .animation(.easeOut(duration: 0.12), value: currentLayerName)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: height)
+        .clipped()
         .contentShape(Rectangle())
         .gesture(
             DragGesture(minimumDistance: 1, coordinateSpace: .global)

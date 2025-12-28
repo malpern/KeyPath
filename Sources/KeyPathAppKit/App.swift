@@ -72,6 +72,12 @@ public struct KeyPathApp: App {
             // Initialize Sparkle update service
             UpdateService.shared.initialize()
             AppLogger.shared.info("🔄 [App] Sparkle update service initialized")
+
+            // Fetch Kanata version for About panel
+            await BuildInfo.fetchKanataVersion()
+
+            // Start global hotkey monitoring (Option+Command+K to show/hide)
+            GlobalHotkeyService.shared.startMonitoring()
         }
     }
 
@@ -89,7 +95,11 @@ public struct KeyPathApp: App {
             CommandGroup(replacing: .appInfo) {
                 Button("About KeyPath") {
                     let info = BuildInfo.current()
-                    let details = "Build \(info.build) • \(info.git) • \(info.date)"
+                    var detailLines = ["Build \(info.build) • \(info.git) • \(info.date)"]
+                    if let kanataVersion = info.kanataVersion {
+                        detailLines.append("Kanata \(kanataVersion)")
+                    }
+                    let details = detailLines.joined(separator: "\n")
                     NSApplication.shared.orderFrontStandardAboutPanel(
                         options: [
                             NSApplication.AboutPanelOptionKey.credits: NSAttributedString(
@@ -190,6 +200,16 @@ public struct KeyPathApp: App {
                     }
                 )
                 .keyboardShortcut("y", modifiers: .command)
+
+                Button(
+                    action: {
+                        RecentKeypressesWindowController.shared.toggle()
+                    },
+                    label: {
+                        Label("Recent Keypresses", systemImage: "list.bullet.rectangle")
+                    }
+                )
+                .keyboardShortcut("p", modifiers: [.command, .shift])
 
                 Button("Input Capture Experiment") {
                     InputCaptureExperimentWindowController.shared.showWindow()

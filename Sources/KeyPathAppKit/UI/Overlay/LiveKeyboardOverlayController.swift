@@ -138,10 +138,19 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     }
 
     /// Restore overlay state from previous session
+    /// Only restores if system status is healthy (Kanata running)
     func restoreState() {
         let defaults = UserDefaults.standard
-        if defaults.bool(forKey: DefaultsKey.isVisible) {
-            isVisible = true
+        guard defaults.bool(forKey: DefaultsKey.isVisible) else { return }
+
+        // Only restore if system is healthy
+        Task { @MainActor in
+            let health = await ServiceHealthChecker.shared.checkKanataServiceHealth()
+            if health.isRunning {
+                isVisible = true
+            } else {
+                AppLogger.shared.log("⚠️ [OverlayController] Skipping overlay restore - Kanata not running")
+            }
         }
     }
 
@@ -165,8 +174,24 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     }
 
     /// Toggle overlay visibility
+    /// If trying to show and system status is not healthy, launches the wizard instead
     func toggle() {
-        isVisible = !isVisible
+        if isVisible {
+            // Hiding is always allowed
+            isVisible = false
+        } else {
+            // Showing requires system to be healthy
+            Task { @MainActor in
+                let health = await ServiceHealthChecker.shared.checkKanataServiceHealth()
+                if health.isRunning {
+                    isVisible = true
+                } else {
+                    // System not ready - launch wizard instead
+                    AppLogger.shared.log("⚠️ [OverlayController] Cannot show overlay - Kanata not running, launching wizard")
+                    NotificationCenter.default.post(name: NSNotification.Name("ShowWizard"), object: nil)
+                }
+            }
+        }
     }
 
     /// Reset the overlay window to its default size and position

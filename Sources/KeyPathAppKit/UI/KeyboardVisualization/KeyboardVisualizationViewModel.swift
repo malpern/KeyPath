@@ -81,6 +81,34 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Whether the Keycap Colorway collection is enabled
     @Published var isKeycapColorwayEnabled: Bool = false
 
+    // MARK: - One-Shot Modifier State
+
+    /// Active one-shot modifiers (modifier key names like "lsft", "lctl")
+    /// Cleared on next key press after activation
+    @Published var activeOneShotModifiers: Set<String> = []
+
+    /// One-shot modifier key codes for visual highlighting
+    /// Maps modifier name to keyCode (e.g., "lsft" -> 56)
+    private static let oneShotModifierKeyCodes: [String: UInt16] = [
+        "lsft": 56, "rsft": 60,
+        "lctl": 59, "rctl": 62,
+        "lalt": 58, "ralt": 61,
+        "lmet": 55, "rmet": 54,
+        "lcmd": 55, "rcmd": 54,
+        "lopt": 58, "ropt": 61
+    ]
+
+    /// Get key codes for currently active one-shot modifiers
+    var oneShotHighlightedKeyCodes: Set<UInt16> {
+        var codes = Set<UInt16>()
+        for modifier in activeOneShotModifiers {
+            if let code = Self.oneShotModifierKeyCodes[modifier.lowercased()] {
+                codes.insert(code)
+            }
+        }
+        return codes
+    }
+
     /// Tracks keys currently undergoing async hold-label resolution to avoid duplicate simulator runs
     private var resolvingHoldLabels: Set<UInt16> = []
     /// Short-lived cache of resolved hold labels to avoid repeated simulator runs (keyCode -> (label, timestamp))
@@ -139,6 +167,8 @@ class KeyboardVisualizationViewModel: ObservableObject {
     private var messagePushObserver: Any?
     /// Rule collections changed notification observer (for feature toggle updates)
     private var ruleCollectionsObserver: Any?
+    /// One-shot activated notification observer
+    private var oneShotObserver: Any?
 
     // MARK: - Key Emphasis
 
@@ -204,6 +234,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
         setupTapActivatedObserver() // Listen for tap-hold tap triggers
         setupMessagePushObserver() // Listen for icon/emphasis push messages
         setupRuleCollectionsObserver() // Listen for collection toggle changes
+        setupOneShotObserver() // Listen for one-shot modifier activations
         startIdleMonitor()
         rebuildLayerMapping() // Build initial layer mapping
         loadFeatureCollectionStates() // Load optional feature collection states
@@ -606,19 +637,15 @@ class KeyboardVisualizationViewModel: ObservableObject {
                 )
 
                 // Augment mapping with push-msg actions from custom rules and rule collections
-                // Skip augmentation on base layer - base should show normal key labels
-                if currentLayerName.lowercased() != "base" {
-                    let customRules = await CustomRulesStore.shared.loadRules()
-                    let ruleCollections = await RuleCollectionStore.shared.loadCollections()
-                    AppLogger.shared.info("🗺️ [KeyboardViz] Augmenting with \(customRules.count) custom rules and \(ruleCollections.count) collections")
-                    mapping = augmentWithPushMsgActions(
-                        mapping: mapping,
-                        customRules: customRules,
-                        ruleCollections: ruleCollections
-                    )
-                } else {
-                    AppLogger.shared.debug("🗺️ [KeyboardViz] Skipping push-msg augmentation on base layer")
-                }
+                // Include base layer so app/system/URL icons display for remapped keys
+                let customRules = await CustomRulesStore.shared.loadRules()
+                let ruleCollections = await RuleCollectionStore.shared.loadCollections()
+                AppLogger.shared.info("🗺️ [KeyboardViz] Augmenting '\(currentLayerName)' with \(customRules.count) custom rules and \(ruleCollections.count) collections")
+                mapping = augmentWithPushMsgActions(
+                    mapping: mapping,
+                    customRules: customRules,
+                    ruleCollections: ruleCollections
+                )
 
                 // Update on main actor
                 await MainActor.run {
@@ -893,6 +920,41 @@ class KeyboardVisualizationViewModel: ObservableObject {
         AppLogger.shared.debug("⌨️ [KeyboardViz] Rule collections observer registered")
     }
 
+    /// Set up observer for one-shot modifier activations
+    private func setupOneShotObserver() {
+        oneShotObserver = NotificationCenter.default.addObserver(
+            forName: .kanataOneShotActivated,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self else { return }
+            guard let modifiers = notification.userInfo?["modifiers"] as? String else { return }
+
+            Task { @MainActor in
+                self.handleOneShotActivated(modifiers: modifiers)
+            }
+        }
+        AppLogger.shared.debug("⌨️ [KeyboardViz] One-shot observer registered")
+    }
+
+    /// Handle one-shot modifier activation
+    /// Adds modifier to active set - will be cleared on next key press
+    private func handleOneShotActivated(modifiers: String) {
+        // Parse comma-separated modifiers (e.g., "lsft" or "lsft,lctl")
+        let mods = modifiers.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
+        for mod in mods {
+            activeOneShotModifiers.insert(mod)
+        }
+        AppLogger.shared.info("⚡ [KeyboardViz] One-shot activated: \(modifiers) → active: \(activeOneShotModifiers)")
+    }
+
+    /// Clear one-shot modifiers (called after next key press)
+    private func clearOneShotModifiers() {
+        guard !activeOneShotModifiers.isEmpty else { return }
+        AppLogger.shared.info("⚡ [KeyboardViz] Clearing one-shot modifiers: \(activeOneShotModifiers)")
+        activeOneShotModifiers.removeAll()
+    }
+
     /// Handle a MessagePush event from Kanata (icon/emphasis commands)
     /// Format: "icon:arrow-left", "emphasis:h,j,k,l", "emphasis:clear"
     private func handleMessagePush(_ message: String) {
@@ -1091,6 +1153,17 @@ class KeyboardVisualizationViewModel: ObservableObject {
         }
 
         noteInteraction()
+
+        // Clear one-shot modifiers on key press (not on release)
+        // One-shot modifiers apply to the next key press and are consumed
+        if action == "press", !activeOneShotModifiers.isEmpty {
+            // Don't clear if this is the one-shot key itself being pressed
+            // (one-shot activates on press, we want to clear on the NEXT key)
+            let isOneShotKey = Self.oneShotModifierKeyCodes.values.contains(keyCode)
+            if !isOneShotKey {
+                clearOneShotModifiers()
+            }
+        }
 
         // Check if this key is a tap-hold source key (e.g., capslock)
         // Use both dynamic map (from TapActivated events) and static fallback

@@ -229,6 +229,16 @@ public struct KanataConfiguration: Sendable {
         var activatorBlocks: [CollectionBlock] = []
         var seenActivators: Set<String> = []
 
+        // Detect layers that should be activated when "hyper" is triggered.
+        // These are collections with momentaryActivator.input == "hyper" (like Quick Launcher).
+        // Since "hyper" isn't a physical key, we integrate these layers into the hyper hold action
+        // of collections like Caps Lock Remap that output hyper on hold.
+        let hyperLinkedLayers = collections
+            .filter(\.isEnabled)
+            .compactMap(\.momentaryActivator)
+            .filter { $0.input.lowercased() == "hyper" }
+            .map(\.targetLayer.kanataName)
+
         // Precompute mapped keys for non-base layers to avoid blocking keys mapped by other collections.
         var layerMappedKeys: [RuleCollectionLayer: Set<String>] = [:]
 
@@ -265,6 +275,13 @@ public struct KanataConfiguration: Sendable {
 
         for collection in collections {
             guard collection.isEnabled, let activator = collection.momentaryActivator else { continue }
+
+            // Skip "hyper" activators - they're integrated into the hyper hold action
+            // (handled by KanataBehaviorRenderer.hyperLinkedLayers set above)
+            if activator.input.lowercased() == "hyper" {
+                continue
+            }
+
             let tapKey = KanataKeyConverter.convertToKanataKey(activator.input)
             let aliasName = aliasSafeName(layer: activator.targetLayer, key: tapKey)
             if !seenActivators.contains(aliasName) {
@@ -355,7 +372,8 @@ public struct KanataConfiguration: Sendable {
                 let layerOutput: String
                 if mapping.behavior != nil {
                     // Advanced behavior (tap-hold, tap-dance) - use renderer
-                    let rendered = KanataBehaviorRenderer.render(mapping)
+                    // Pass hyperLinkedLayers so "hyper" hold action includes linked layer activations
+                    let rendered = KanataBehaviorRenderer.render(mapping, hyperLinkedLayers: hyperLinkedLayers)
                     // Create alias for complex behaviors to keep deflayer clean
                     let aliasName = behaviorAliasName(for: mapping, layer: collection.targetLayer)
                     aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: rendered))
@@ -418,17 +436,56 @@ public struct KanataConfiguration: Sendable {
     }
 
     private static func deduplicateBlocks(_ blocks: [CollectionBlock]) -> [CollectionBlock] {
-        var seenSources: Set<String> = []
-        return blocks.map { block in
-            let uniqueEntries = block.entries.filter { entry in
-                if seenSources.contains(entry.sourceKey) {
-                    return false
+        // Merge entries with the same source key instead of just keeping the first one.
+        // This ensures layer-specific mappings (like launcher in launcher layer) aren't lost
+        // when another collection (like Vim) also uses the same keys in a different layer.
+        var mergedEntries: [String: LayerEntry] = [:]
+        var entriesByBlock: [[String]] = [] // Track which keys belong to which block
+        var keyOrder: [String] = [] // Preserve insertion order
+
+        for block in blocks {
+            var blockKeys: [String] = []
+            for entry in block.entries {
+                if let existing = mergedEntries[entry.sourceKey] {
+                    // Merge layer outputs from this entry into the existing one
+                    var combinedLayerOutputs = existing.layerOutputs
+                    for (layer, output) in entry.layerOutputs {
+                        combinedLayerOutputs[layer] = output
+                    }
+                    // Keep the base output from the first entry (earlier collection takes precedence)
+                    mergedEntries[entry.sourceKey] = LayerEntry(
+                        sourceKey: existing.sourceKey,
+                        baseOutput: existing.baseOutput,
+                        layerOutputs: combinedLayerOutputs
+                    )
+                } else {
+                    // New key - add it
+                    mergedEntries[entry.sourceKey] = entry
+                    keyOrder.append(entry.sourceKey)
                 }
-                seenSources.insert(entry.sourceKey)
-                return true
+                blockKeys.append(entry.sourceKey)
             }
-            return CollectionBlock(metadata: block.metadata, entries: uniqueEntries)
+            entriesByBlock.append(blockKeys)
         }
+
+        // Rebuild blocks with merged entries, keeping original block structure
+        var result: [CollectionBlock] = []
+        var usedKeys: Set<String> = []
+
+        for (index, block) in blocks.enumerated() {
+            let blockKeySet = Set(entriesByBlock[index])
+            var uniqueEntries: [LayerEntry] = []
+            for key in keyOrder {
+                guard blockKeySet.contains(key), !usedKeys.contains(key) else { continue }
+                if let entry = mergedEntries[key] {
+                    uniqueEntries.append(entry)
+                    usedKeys.insert(key)
+                }
+            }
+            result.append(CollectionBlock(metadata: block.metadata, entries: uniqueEntries))
+        }
+
+        return result
     }
 
     /// Formats collection blocks into keyboard-shaped, padded rows for readability.

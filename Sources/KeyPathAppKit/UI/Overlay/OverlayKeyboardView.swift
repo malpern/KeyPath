@@ -28,6 +28,8 @@ struct OverlayKeyboardView: View {
     var effectivePressedKeyCodes: Set<UInt16> = []
     /// Key codes to emphasize (highlight with accent color for layer hints)
     var emphasizedKeyCodes: Set<UInt16> = []
+    /// Key codes with active one-shot modifiers (show temporary modifier badge)
+    var oneShotKeyCodes: Set<UInt16> = []
     /// Hold labels for tap-hold keys in hold state: keyCode -> display label
     var holdLabels: [UInt16: String] = [:]
     /// Callback when a key is clicked (not dragged) - for opening Mapper
@@ -215,6 +217,7 @@ struct OverlayKeyboardView: View {
             isLoadingLayerMap: isLoadingLayerMap,
             layerKeyInfo: layerKeyMap[key.keyCode],
             isEmphasized: emphasizedKeyCodes.contains(key.keyCode),
+            isOneShot: oneShotKeyCodes.contains(key.keyCode),
             holdLabel: holdLabels[key.keyCode],
             onKeyClick: onKeyClick,
             colorway: activeColorway,
