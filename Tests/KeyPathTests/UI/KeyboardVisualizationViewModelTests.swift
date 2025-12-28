@@ -143,6 +143,24 @@ final class KeyboardVisualizationViewModelTests: XCTestCase {
         XCTAssertNil(result)
     }
 
+    func testExtractUrlIdentifier() {
+        let output = #"(push-msg "open:github.com")"#
+        let result = KeyboardVisualizationViewModel.extractUrlIdentifier(from: output)
+        XCTAssertEqual(result, "github.com")
+    }
+
+    func testExtractUrlIdentifierWithHttps() {
+        let output = #"(push-msg "open:https://example.com/path")"#
+        let result = KeyboardVisualizationViewModel.extractUrlIdentifier(from: output)
+        XCTAssertEqual(result, "https://example.com/path")
+    }
+
+    func testExtractUrlIdentifierReturnsNilForNonOpen() {
+        let output = #"(push-msg "launch:Safari")"#
+        let result = KeyboardVisualizationViewModel.extractUrlIdentifier(from: output)
+        XCTAssertNil(result)
+    }
+
     // MARK: - Key Emphasis Tests
 
     func testEmphasizedKeyCodesOnNavLayer() async {

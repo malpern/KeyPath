@@ -112,11 +112,16 @@ struct OverlayKeyboardView: View {
                 // Skip floating labels for non-standard legend styles (dots show circles, not letters)
                 if !reduceMotion, activeColorway.legendStyle == .standard {
                     ForEach(Self.allLabels, id: \.self) { label in
+                        // In launcher mode, hide floating labels for keys that have launcher mappings
+                        // (the launcher icon replaces the letter, shown small in top-left corner)
+                        let hasLauncherMapping = launcherMappings[label.lowercased()] != nil
+                        let hiddenForLauncher = isLauncherMode && hasLauncherMapping
+
                         FloatingKeymapLabel(
                             label: label,
                             targetFrame: targetFrameFor(label, scale: scale),
-                            // Visible when label exists in current keymap
-                            isVisible: labelToKeyCode[label] != nil,
+                            // Visible when label exists in current keymap AND not hidden for launcher
+                            isVisible: labelToKeyCode[label] != nil && !hiddenForLauncher,
                             scale: scale,
                             colorway: activeColorway,
                             // Enable animation after initial render (prevents animation on drawer open)

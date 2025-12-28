@@ -207,6 +207,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
         startIdleMonitor()
         rebuildLayerMapping() // Build initial layer mapping
         loadFeatureCollectionStates() // Load optional feature collection states
+        preloadAllIcons() // Pre-cache launcher and layer icons
     }
 
     /// Load enabled states for optional feature collections (Typing Sounds, Keycap Colorway)
@@ -215,6 +216,21 @@ class KeyboardVisualizationViewModel: ObservableObject {
             let collections = await RuleCollectionStore.shared.loadCollections()
             isTypingSoundsEnabled = collections.first { $0.id == RuleCollectionIdentifier.typingSounds }?.isEnabled ?? false
             isKeycapColorwayEnabled = collections.first { $0.id == RuleCollectionIdentifier.keycapColorway }?.isEnabled ?? false
+        }
+    }
+
+    /// Pre-load all icons for launcher mode and layer-based app launches
+    /// Call on startup to ensure icons are cached before user enters launcher mode
+    private func preloadAllIcons() {
+        Task {
+            // Load collections once for both preload methods
+            let collections = await RuleCollectionStore.shared.loadCollections()
+
+            // Preload launcher grid icons (app icons and favicons)
+            await IconResolverService.shared.preloadLauncherIcons()
+
+            // Preload layer-based app/URL icons (Vim leader, etc.)
+            await IconResolverService.shared.preloadLayerIcons(from: collections)
         }
     }
 
@@ -499,7 +515,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
     }
 
     /// Load launcher mappings from the Quick Launcher rule collection
-    private func loadLauncherMappings() {
+    func loadLauncherMappings() {
         Task { @MainActor in
             let collections = await RuleCollectionStore.shared.loadCollections()
 
@@ -651,6 +667,13 @@ class KeyboardVisualizationViewModel: ObservableObject {
         options: []
     )
 
+    /// Cached regex for extracting URL identifiers
+    /// Pattern: (push-msg "open:domain.com")
+    private nonisolated(unsafe) static let pushMsgOpenRegex = try! NSRegularExpression(
+        pattern: #"\(push-msg\s+\"open:([^\"]+)\"\)"#,
+        options: []
+    )
+
     /// Extract LayerKeyInfo from a push-msg output string
     /// Handles: launch:, system:, and generic push-msg patterns
     nonisolated static func extractPushMsgInfo(from output: String, description: String?) -> LayerKeyInfo? {
@@ -704,6 +727,21 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// - Returns: The app identifier if this is a launch action, nil otherwise
     nonisolated static func extractAppLaunchIdentifier(from output: String) -> String? {
         guard let match = pushMsgLaunchRegex.firstMatch(
+            in: output,
+            range: NSRange(output.startIndex..., in: output)
+        ),
+            let range = Range(match.range(at: 1), in: output)
+        else {
+            return nil
+        }
+        return String(output[range])
+    }
+
+    /// Extract URL from a push-msg open output string
+    /// - Parameter output: The kanata output string (e.g., "(push-msg \"open:github.com\")")
+    /// - Returns: The URL string if this is an open action, nil otherwise
+    nonisolated static func extractUrlIdentifier(from output: String) -> String? {
+        guard let match = pushMsgOpenRegex.firstMatch(
             in: output,
             range: NSRange(output.startIndex..., in: output)
         ),
@@ -808,7 +846,9 @@ class KeyboardVisualizationViewModel: ObservableObject {
             guard let self else { return }
             Task { @MainActor in
                 self.loadFeatureCollectionStates()
-                AppLogger.shared.debug("⌨️ [KeyboardViz] Reloaded feature collection states after change")
+                // Re-preload icons when collections change (cache warming for new mappings)
+                self.preloadAllIcons()
+                AppLogger.shared.debug("⌨️ [KeyboardViz] Reloaded feature collection states and icons after change")
             }
         }
         AppLogger.shared.debug("⌨️ [KeyboardViz] Rule collections observer registered")

@@ -127,6 +127,9 @@ struct OverlayKeycapView: View {
     /// Cached favicon for URL actions
     @State private var faviconImage: NSImage?
 
+    /// Opacity for icon crossfade animation (0 = hidden, 1 = visible)
+    @State private var iconOpacity: CGFloat = 0
+
     /// Shared state for tracking mouse interaction with keyboard (for refined click delay)
     @EnvironmentObject private var keyboardMouseState: KeyboardMouseState
 
@@ -253,6 +256,10 @@ struct OverlayKeycapView: View {
         .onAppear {
             loadAppIconIfNeeded()
             loadFaviconIfNeeded()
+            // If icon loaded synchronously from cache, show immediately (no animation)
+            if appIcon != nil || faviconImage != nil {
+                iconOpacity = 1
+            }
         }
         .onChange(of: layerKeyInfo?.appLaunchIdentifier) { _, newValue in
             if newValue != nil {
@@ -271,11 +278,35 @@ struct OverlayKeycapView: View {
         .onChange(of: launcherMapping?.id) { _, newValue in
             // Reload icons when launcher mapping changes
             if newValue != nil {
+                // Reset opacity for new mapping (will animate when icon loads)
+                iconOpacity = 0
                 loadAppIconIfNeeded()
                 loadFaviconIfNeeded()
             } else {
                 appIcon = nil
                 faviconImage = nil
+                iconOpacity = 0
+            }
+        }
+        // Crossfade animation when icon loads asynchronously (not from cache)
+        .onChange(of: appIcon) { _, newIcon in
+            if newIcon != nil, iconOpacity == 0 {
+                // Icon loaded asynchronously - animate to visible
+                withAnimation(.easeIn(duration: 0.15)) {
+                    iconOpacity = 1
+                }
+            } else if newIcon == nil {
+                iconOpacity = 0
+            }
+        }
+        .onChange(of: faviconImage) { _, newFavicon in
+            if newFavicon != nil, iconOpacity == 0 {
+                // Favicon loaded asynchronously - animate to visible
+                withAnimation(.easeIn(duration: 0.15)) {
+                    iconOpacity = 1
+                }
+            } else if newFavicon == nil {
+                iconOpacity = 0
             }
         }
         // Accessibility: Make each key discoverable and clickable by automation
@@ -450,7 +481,7 @@ struct OverlayKeycapView: View {
         if let mapping = launcherMapping {
             // Mapped key: app icon centered, key letter in top-left
             ZStack(alignment: .topLeading) {
-                // Centered icon (app or favicon)
+                // Centered icon (app or favicon) with crossfade
                 if let icon = launcherAppIcon {
                     Image(nsImage: icon)
                         .resizable()
@@ -459,12 +490,16 @@ struct OverlayKeycapView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 4 * scale))
                         .shadow(color: .black.opacity(0.2), radius: 2 * scale, y: 1 * scale)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    // Fallback placeholder while loading
+                        .opacity(iconOpacity)
+                }
+
+                // Fallback placeholder (visible while icon loads, fades out as icon fades in)
+                if launcherAppIcon == nil || iconOpacity < 1 {
                     Image(systemName: mapping.target.isApp ? "app.fill" : "globe")
                         .font(.system(size: 12 * scale))
                         .foregroundStyle(foregroundColor.opacity(0.6))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .opacity(1 - iconOpacity)
                 }
 
                 // Key letter in top-left corner

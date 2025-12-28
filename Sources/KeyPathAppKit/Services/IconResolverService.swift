@@ -152,6 +152,97 @@ final class IconResolverService {
         }
     }
 
+    // MARK: - Pre-loading
+
+    /// Pre-load app icons and favicons for all launcher mappings
+    /// Call this on app startup to ensure icons are cached before user enters launcher mode
+    func preloadLauncherIcons() async {
+        let collections = await RuleCollectionStore.shared.loadCollections()
+
+        guard let launcher = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
+              let config = launcher.configuration.launcherGridConfig
+        else {
+            AppLogger.shared.debug("🖼️ [IconResolver] No launcher collection found for preloading")
+            return
+        }
+
+        let enabledMappings = config.mappings.filter(\.isEnabled)
+        AppLogger.shared.log("🖼️ [IconResolver] Preloading \(enabledMappings.count) launcher icons...")
+
+        for mapping in enabledMappings {
+            switch mapping.target {
+            case let .app(name, bundleId):
+                // Pre-load app icon (use bundleId if available, else name)
+                let identifier = bundleId ?? name
+                _ = resolveAppIcon(for: identifier)
+
+            case let .url(urlString):
+                // Pre-load favicon
+                _ = await resolveFavicon(for: urlString)
+            }
+        }
+
+        AppLogger.shared.log("🖼️ [IconResolver] Launcher icon preload complete")
+    }
+
+    /// Pre-load icons for all layer-based app launches and URLs
+    /// Call this on app startup to ensure layer icons are cached
+    func preloadLayerIcons(from collections: [RuleCollection]) async {
+        var appCount = 0
+        var urlCount = 0
+
+        for collection in collections where collection.isEnabled {
+            for mapping in collection.mappings {
+                let output = mapping.output.lowercased()
+
+                // Check for app launch: (push-msg "launch:AppName")
+                if output.contains("launch:") {
+                    if let appName = extractAppName(from: mapping.output) {
+                        _ = resolveAppIcon(for: appName)
+                        appCount += 1
+                    }
+                }
+
+                // Check for URL open: (push-msg "open:domain.com")
+                if output.contains("open:") {
+                    if let url = extractUrl(from: mapping.output) {
+                        _ = await resolveFavicon(for: url)
+                        urlCount += 1
+                    }
+                }
+            }
+        }
+
+        if appCount > 0 || urlCount > 0 {
+            AppLogger.shared.log("🖼️ [IconResolver] Layer icon preload complete: \(appCount) apps, \(urlCount) URLs")
+        }
+    }
+
+    /// Pre-load a single icon (for cache warming on collection change)
+    func preloadIcon(for target: LauncherTarget) async {
+        switch target {
+        case let .app(name, bundleId):
+            let identifier = bundleId ?? name
+            _ = resolveAppIcon(for: identifier)
+        case let .url(urlString):
+            _ = await resolveFavicon(for: urlString)
+        }
+    }
+
+    // MARK: - Helper Methods
+
+    /// Extract app name from push-msg output: (push-msg "launch:AppName")
+    /// Delegates to KeyboardVisualizationViewModel's cached regex implementation
+    private func extractAppName(from output: String) -> String? {
+        KeyboardVisualizationViewModel.extractAppLaunchIdentifier(from: output)
+    }
+
+    /// Extract URL from push-msg output: (push-msg "open:domain.com")
+    /// Delegates to KeyboardVisualizationViewModel's cached regex implementation
+    private func extractUrl(from output: String) -> String? {
+        KeyboardVisualizationViewModel.extractUrlIdentifier(from: output)
+    }
+
     // MARK: - Cache Management
 
     /// Clear all cached app icons
