@@ -167,9 +167,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let overlayItem = NSMenuItem(
             title: "Show Keyboard Overlay",
             action: #selector(handleShowOverlay),
-            keyEquivalent: "y"
+            keyEquivalent: "k"
         )
-        overlayItem.keyEquivalentModifierMask = [.option, .command]
+        overlayItem.keyEquivalentModifierMask = [.command]
         overlayItem.target = self
         overlayItem.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: nil)
         menu.addItem(overlayItem)

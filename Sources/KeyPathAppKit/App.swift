@@ -148,7 +148,6 @@ public struct KeyPathApp: App {
                         Label("Simulator…", systemImage: "keyboard")
                     }
                 )
-                .keyboardShortcut("k", modifiers: .command)
 
                 Button(
                     action: {
@@ -199,7 +198,7 @@ public struct KeyPathApp: App {
                         Label("Live Keyboard Overlay", systemImage: "keyboard.badge.eye")
                     }
                 )
-                .keyboardShortcut("y", modifiers: .command)
+                .keyboardShortcut("k", modifiers: .command)
 
                 Button(
                     action: {
