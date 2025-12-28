@@ -420,7 +420,7 @@ private struct FloatingKeymapLabel: View {
     let scale: CGFloat
     let colorway: GMKColorway
     var enableAnimation: Bool = false
-    var animateVisibility: Bool = true  // Set false for instant show/hide (e.g., launcher mode)
+    var animateVisibility: Bool = true // Set false for instant show/hide (e.g., launcher mode)
 
     // Randomized animation parameters (seeded by label for consistency)
     private var springResponse: Double {

@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Main view for the Quick Launcher collection configuration.
 ///
@@ -217,11 +218,17 @@ private struct LauncherMappingEditor: View {
     @State private var appName: String
     @State private var bundleId: String
     @State private var url: String
+    @State private var folderPath: String
+    @State private var folderName: String
+    @State private var scriptPath: String
+    @State private var scriptName: String
     @State private var isEnabled: Bool
 
     enum TargetType: String, CaseIterable {
         case app = "App"
         case website = "Website"
+        case folder = "Folder"
+        case script = "Script"
     }
 
     init(
@@ -244,11 +251,37 @@ private struct LauncherMappingEditor: View {
                 _appName = State(initialValue: name)
                 _bundleId = State(initialValue: bundleId ?? "")
                 _url = State(initialValue: "")
+                _folderPath = State(initialValue: "")
+                _folderName = State(initialValue: "")
+                _scriptPath = State(initialValue: "")
+                _scriptName = State(initialValue: "")
             case let .url(urlString):
                 _targetType = State(initialValue: .website)
                 _appName = State(initialValue: "")
                 _bundleId = State(initialValue: "")
                 _url = State(initialValue: urlString)
+                _folderPath = State(initialValue: "")
+                _folderName = State(initialValue: "")
+                _scriptPath = State(initialValue: "")
+                _scriptName = State(initialValue: "")
+            case let .folder(path, name):
+                _targetType = State(initialValue: .folder)
+                _appName = State(initialValue: "")
+                _bundleId = State(initialValue: "")
+                _url = State(initialValue: "")
+                _folderPath = State(initialValue: path)
+                _folderName = State(initialValue: name ?? "")
+                _scriptPath = State(initialValue: "")
+                _scriptName = State(initialValue: "")
+            case let .script(path, name):
+                _targetType = State(initialValue: .script)
+                _appName = State(initialValue: "")
+                _bundleId = State(initialValue: "")
+                _url = State(initialValue: "")
+                _folderPath = State(initialValue: "")
+                _folderName = State(initialValue: "")
+                _scriptPath = State(initialValue: path)
+                _scriptName = State(initialValue: name ?? "")
             }
         } else {
             _key = State(initialValue: "")
@@ -256,6 +289,10 @@ private struct LauncherMappingEditor: View {
             _appName = State(initialValue: "")
             _bundleId = State(initialValue: "")
             _url = State(initialValue: "")
+            _folderPath = State(initialValue: "")
+            _folderName = State(initialValue: "")
+            _scriptPath = State(initialValue: "")
+            _scriptName = State(initialValue: "")
             _isEnabled = State(initialValue: true)
         }
     }
@@ -287,7 +324,8 @@ private struct LauncherMappingEditor: View {
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("launcher-editor-type-picker")
 
-                if targetType == .app {
+                switch targetType {
+                case .app:
                     TextField("App Name", text: $appName)
                         .textFieldStyle(.roundedBorder)
                         .accessibilityIdentifier("launcher-editor-app-name-field")
@@ -295,10 +333,72 @@ private struct LauncherMappingEditor: View {
                         .textFieldStyle(.roundedBorder)
                         .font(.system(size: 11, design: .monospaced))
                         .accessibilityIdentifier("launcher-editor-bundle-id-field")
-                } else {
+                case .website:
                     TextField("URL (e.g., github.com)", text: $url)
                         .textFieldStyle(.roundedBorder)
                         .accessibilityIdentifier("launcher-editor-url-field")
+                case .folder:
+                    HStack {
+                        TextField("Folder Path", text: $folderPath)
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("launcher-editor-folder-path-field")
+                        Button("Browse...") {
+                            browseForFolder()
+                        }
+                        .accessibilityIdentifier("launcher-editor-folder-browse-button")
+                    }
+
+                    // Folder path validation warning
+                    if let warning = folderPathWarning {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                            Text(warning)
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                        }
+                    }
+
+                    TextField("Display Name (optional)", text: $folderName)
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("launcher-editor-folder-name-field")
+                case .script:
+                    HStack {
+                        TextField("Script Path", text: $scriptPath)
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("launcher-editor-script-path-field")
+                        Button("Browse...") {
+                            browseForScript()
+                        }
+                        .accessibilityIdentifier("launcher-editor-script-browse-button")
+                    }
+
+                    // Script path validation warning
+                    if let warning = scriptPathWarning {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                            Text(warning)
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                        }
+                    }
+
+                    TextField("Display Name (optional)", text: $scriptName)
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("launcher-editor-script-name-field")
+
+                    // Script security warning
+                    if !ScriptSecurityService.shared.isScriptExecutionEnabled {
+                        HStack(spacing: 6) {
+                            Image(systemName: "lock.shield.fill")
+                                .foregroundColor(.secondary)
+                            Text("Script execution is disabled in Settings")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.top, 4)
+                    }
                 }
 
                 Toggle("Enabled", isOn: $isEnabled)
@@ -355,6 +455,54 @@ private struct LauncherMappingEditor: View {
             if url.isEmpty {
                 return "URL is required"
             }
+        case .folder:
+            if folderPath.isEmpty {
+                return "Folder path is required"
+            }
+        case .script:
+            if scriptPath.isEmpty {
+                return "Script path is required"
+            }
+        }
+
+        return nil
+    }
+
+    /// Warning for folder path (not a blocking error, just informational)
+    private var folderPathWarning: String? {
+        guard !folderPath.isEmpty else { return nil }
+
+        let expandedPath = (folderPath as NSString).expandingTildeInPath
+        var isDirectory: ObjCBool = false
+
+        if !FileManager.default.fileExists(atPath: expandedPath, isDirectory: &isDirectory) {
+            return "Folder not found at this path"
+        }
+
+        if !isDirectory.boolValue {
+            return "Path points to a file, not a folder"
+        }
+
+        return nil
+    }
+
+    /// Warning for script path (not a blocking error, just informational)
+    private var scriptPathWarning: String? {
+        guard !scriptPath.isEmpty else { return nil }
+
+        let expandedPath = (scriptPath as NSString).expandingTildeInPath
+
+        if !FileManager.default.fileExists(atPath: expandedPath) {
+            return "Script not found at this path"
+        }
+
+        // Check if it's a recognized script type or executable
+        let securityService = ScriptSecurityService.shared
+        let isScript = securityService.isRecognizedScript(expandedPath)
+        let isExecutable = FileManager.default.isExecutableFile(atPath: expandedPath)
+
+        if !isScript, !isExecutable {
+            return "File may not be executable"
         }
 
         return nil
@@ -366,6 +514,10 @@ private struct LauncherMappingEditor: View {
             .app(name: appName, bundleId: bundleId.isEmpty ? nil : bundleId)
         case .website:
             .url(url)
+        case .folder:
+            .folder(path: folderPath, name: folderName.isEmpty ? nil : folderName)
+        case .script:
+            .script(path: scriptPath, name: scriptName.isEmpty ? nil : scriptName)
         }
 
         let result = LauncherMapping(
@@ -375,6 +527,89 @@ private struct LauncherMappingEditor: View {
             isEnabled: isEnabled
         )
         onSave(result)
+    }
+
+    // MARK: - Browse Methods
+
+    private func browseForFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.message = "Select a folder to open"
+        panel.prompt = "Select"
+
+        if panel.runModal() == .OK, let url = panel.url {
+            // Use ~ shorthand for home directory
+            let path = url.path
+            if path.hasPrefix(NSHomeDirectory()) {
+                folderPath = path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
+            } else {
+                folderPath = path
+            }
+            // Auto-set name from folder name if not already set
+            if folderName.isEmpty {
+                folderName = url.lastPathComponent
+            }
+        }
+    }
+
+    private func browseForScript() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.message = "Select a script file"
+        panel.prompt = "Select"
+
+        // Build comprehensive list of script types
+        var allowedTypes: [UTType] = [
+            .shellScript, // .sh files
+            .unixExecutable // Binary executables
+        ]
+
+        // Add AppleScript types (both .applescript and .scpt)
+        if let appleScriptType = UTType(filenameExtension: "applescript") {
+            allowedTypes.append(appleScriptType)
+        }
+        if let scptType = UTType(filenameExtension: "scpt") {
+            allowedTypes.append(scptType)
+        }
+
+        // Add common scripting languages
+        if let pythonType = UTType(filenameExtension: "py") {
+            allowedTypes.append(pythonType)
+        }
+        if let rubyType = UTType(filenameExtension: "rb") {
+            allowedTypes.append(rubyType)
+        }
+        if let perlType = UTType(filenameExtension: "pl") {
+            allowedTypes.append(perlType)
+        }
+
+        // Add zsh and bash explicitly (beyond .shellScript)
+        if let zshType = UTType(filenameExtension: "zsh") {
+            allowedTypes.append(zshType)
+        }
+        if let bashType = UTType(filenameExtension: "bash") {
+            allowedTypes.append(bashType)
+        }
+
+        panel.allowedContentTypes = allowedTypes
+
+        if panel.runModal() == .OK, let url = panel.url {
+            // Use ~ shorthand for home directory
+            let path = url.path
+            if path.hasPrefix(NSHomeDirectory()) {
+                scriptPath = path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
+            } else {
+                scriptPath = path
+            }
+            // Auto-set name from script name if not already set
+            if scriptName.isEmpty {
+                scriptName = url.deletingPathExtension().lastPathComponent
+            }
+        }
     }
 }
 

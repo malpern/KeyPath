@@ -346,6 +346,185 @@ struct ActionDispatcherRoutingTests {
     }
 }
 
+// MARK: - Folder and Script Action Tests
+
+@Suite("ActionDispatcher Folder Actions")
+struct ActionDispatcherFolderTests {
+    @Test("Parses folder URI")
+    func parsesFolderURI() {
+        let uri = KeyPathActionURI(string: "keypath://folder/Users/test/Downloads")
+
+        #expect(uri != nil)
+        #expect(uri?.action == "folder")
+        #expect(uri?.pathComponents == ["Users", "test", "Downloads"])
+    }
+
+    @Test("Parses shorthand folder syntax")
+    func parsesShorthandFolder() {
+        let uri = KeyPathActionURI(string: "folder:~/Downloads")
+
+        #expect(uri != nil)
+        #expect(uri?.action == "folder")
+        #expect(uri?.target == "~/Downloads")
+    }
+
+    @Test("Returns missingTarget for folder without path")
+    @MainActor
+    func returnsMissingTargetForFolderWithoutPath() {
+        let uri = KeyPathActionURI(string: "keypath://folder")!
+        let result = ActionDispatcher.shared.dispatch(uri)
+
+        if case let .missingTarget(action) = result {
+            #expect(action == "folder")
+        } else {
+            Issue.record("Expected missingTarget result")
+        }
+    }
+
+    @Test("Returns failed for nonexistent folder")
+    @MainActor
+    func returnsFailedForNonexistentFolder() {
+        let uri = KeyPathActionURI(string: "keypath://folder/nonexistent/path/12345")!
+        let result = ActionDispatcher.shared.dispatch(uri)
+
+        if case let .failed(action, _) = result {
+            #expect(action == "folder")
+        } else {
+            Issue.record("Expected failed result for nonexistent folder")
+        }
+    }
+
+    @Test("Successfully opens existing folder with absolute path")
+    @MainActor
+    func opensExistingFolder() {
+        // Use the home directory which should always exist
+        // The path is joined from components, so we need the full path
+        let homePath = NSHomeDirectory()
+        let uri = KeyPathActionURI(string: "folder:\(homePath)")!
+        let result = ActionDispatcher.shared.dispatch(uri)
+
+        #expect(result == .success)
+    }
+}
+
+@Suite("ActionDispatcher Script Actions")
+struct ActionDispatcherScriptTests {
+    @Test("Parses script URI")
+    func parsesScriptURI() {
+        let uri = KeyPathActionURI(string: "keypath://script/Users/test/Scripts/backup.sh")
+
+        #expect(uri != nil)
+        #expect(uri?.action == "script")
+        #expect(uri?.pathComponents == ["Users", "test", "Scripts", "backup.sh"])
+    }
+
+    @Test("Parses shorthand script syntax")
+    func parsesShorthandScript() {
+        let uri = KeyPathActionURI(string: "script:~/Scripts/backup.sh")
+
+        #expect(uri != nil)
+        #expect(uri?.action == "script")
+        #expect(uri?.target == "~/Scripts/backup.sh")
+    }
+
+    @Test("Returns missingTarget for script without path")
+    @MainActor
+    func returnsMissingTargetForScriptWithoutPath() {
+        let uri = KeyPathActionURI(string: "keypath://script")!
+        let result = ActionDispatcher.shared.dispatch(uri)
+
+        if case let .missingTarget(action) = result {
+            #expect(action == "script")
+        } else {
+            Issue.record("Expected missingTarget result")
+        }
+    }
+
+    @Test("Returns failed when script execution disabled")
+    @MainActor
+    func returnsFailedWhenDisabled() async {
+        // Ensure script execution is disabled
+        ScriptSecurityService.shared.isScriptExecutionEnabled = false
+
+        let uri = KeyPathActionURI(string: "keypath://script/some/script.sh")!
+        let result = ActionDispatcher.shared.dispatch(uri)
+
+        if case let .failed(action, _) = result {
+            #expect(action == "script")
+        } else {
+            Issue.record("Expected failed result when scripts disabled")
+        }
+    }
+
+    @Test("Returns failed for nonexistent script")
+    @MainActor
+    func returnsFailedForNonexistentScript() async {
+        // Enable script execution
+        ScriptSecurityService.shared.isScriptExecutionEnabled = true
+        ScriptSecurityService.shared.bypassFirstRunDialog = true
+        defer {
+            ScriptSecurityService.shared.isScriptExecutionEnabled = false
+            ScriptSecurityService.shared.bypassFirstRunDialog = false
+        }
+
+        let uri = KeyPathActionURI(string: "keypath://script/nonexistent/path/script.sh")!
+        let result = ActionDispatcher.shared.dispatch(uri)
+
+        if case let .failed(action, _) = result {
+            #expect(action == "script")
+        } else {
+            Issue.record("Expected failed result for nonexistent script")
+        }
+    }
+
+    @Test("Calls confirmation callback when needed")
+    @MainActor
+    func callsConfirmationCallback() async {
+        // Enable script execution but require confirmation
+        ScriptSecurityService.shared.isScriptExecutionEnabled = true
+        ScriptSecurityService.shared.bypassFirstRunDialog = false
+        defer {
+            ScriptSecurityService.shared.isScriptExecutionEnabled = false
+            ActionDispatcher.shared.onScriptConfirmationNeeded = nil
+        }
+
+        var confirmationRequested = false
+        var requestedPath: String?
+
+        ActionDispatcher.shared.onScriptConfirmationNeeded = { path, _, _ in
+            confirmationRequested = true
+            requestedPath = path
+        }
+
+        // Use /bin/bash which is always an executable that exists
+        let uri = KeyPathActionURI(string: "script:/bin/bash")!
+        _ = ActionDispatcher.shared.dispatch(uri)
+
+        #expect(confirmationRequested == true)
+        #expect(requestedPath == "/bin/bash")
+    }
+
+    @Test("Calls disabled callback when scripts disabled")
+    @MainActor
+    func callsDisabledCallback() async {
+        ScriptSecurityService.shared.isScriptExecutionEnabled = false
+        defer {
+            ActionDispatcher.shared.onScriptExecutionDisabled = nil
+        }
+
+        var disabledCallbackCalled = false
+
+        ActionDispatcher.shared.onScriptExecutionDisabled = { _ in
+            disabledCallbackCalled = true
+        }
+
+        let uri = KeyPathActionURI(string: "keypath://script/some/script.sh")!
+        _ = ActionDispatcher.shared.dispatch(uri)
+
+        #expect(disabledCallbackCalled == true)
+    }
+}
+
 // MARK: - ActionDispatchResult Equality
 
 extension ActionDispatchResult: Equatable {

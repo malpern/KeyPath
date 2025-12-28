@@ -1163,7 +1163,8 @@ class MapperViewModel: ObservableObject {
             // Only include regular apps (not background agents, daemons, etc.)
             guard app.activationPolicy == .regular,
                   let bundleId = app.bundleIdentifier,
-                  let name = app.localizedName else {
+                  let name = app.localizedName
+            else {
                 return nil
             }
 

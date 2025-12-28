@@ -227,6 +227,8 @@ struct OverlayKeycapView: View {
         .animation(.spring(response: 0.15, dampingFraction: 0.6), value: isPressed)
         .animation(.easeOut(duration: 0.3), value: fadeAmount)
         .animation(.easeInOut(duration: 0.15), value: isClickable)
+        // Instant transition when launcher mode toggles (no animation delay)
+        .animation(nil, value: isLauncherMode)
         // Hover detection with dwell time (must be before contentShape for hit testing)
         .contentShape(Rectangle())
         .onHover { hovering in
@@ -492,21 +494,20 @@ struct OverlayKeycapView: View {
                 // Centered icon (app or favicon)
                 // 18pt size, nudged right to avoid overlapping key label
                 if let icon = launcherAppIcon {
-                    if mapping.target.isApp {
-                        // App: show icon directly
+                    ZStack(alignment: .bottomTrailing) {
                         Image(nsImage: icon)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .frame(width: 18 * scale, height: 18 * scale)
                             .clipShape(RoundedRectangle(cornerRadius: 4 * scale))
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .offset(x: 2 * scale)
-                    } else {
-                        // Website: wrap in browser tab container
-                        launcherBrowserTabContainer(icon: icon, size: 18 * scale)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .offset(x: 2 * scale)
+
+                        // Link badge for websites
+                        if !mapping.target.isApp {
+                            launcherLinkBadge(size: 6 * scale)
+                        }
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .offset(x: 2 * scale)
                 } else {
                     // Fallback placeholder while icon loads
                     Image(systemName: mapping.target.isApp ? "app.fill" : "globe")
@@ -534,49 +535,19 @@ struct OverlayKeycapView: View {
         }
     }
 
-    /// Browser tab style container for website favicons in launcher mode
+    /// Small link badge for website icons in launcher mode
     @ViewBuilder
-    private func launcherBrowserTabContainer(icon: NSImage, size: CGFloat) -> some View {
-        let tabBarHeight = size * 0.18
-        let faviconSize = size * 0.6
-        let containerWidth = size
-        let containerHeight = size * 1.1
-        let tabCornerRadius: CGFloat = 3 * scale
-
-        ZStack(alignment: .top) {
-            // Main container background
-            RoundedRectangle(cornerRadius: tabCornerRadius)
-                .fill(Color.white.opacity(0.15))
-                .frame(width: containerWidth, height: containerHeight)
-
-            VStack(spacing: 0) {
-                // Tab bar at top
-                HStack(spacing: 0) {
-                    // Active tab (rounded top corners only)
-                    UnevenRoundedRectangle(
-                        topLeadingRadius: tabCornerRadius,
-                        bottomLeadingRadius: 0,
-                        bottomTrailingRadius: 0,
-                        topTrailingRadius: tabCornerRadius
-                    )
-                    .fill(Color.white.opacity(0.25))
-                    .frame(width: containerWidth * 0.6, height: tabBarHeight)
-
-                    Spacer()
-                }
-                .frame(width: containerWidth)
-
-                // Favicon centered in content area
-                Image(nsImage: icon)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: faviconSize, height: faviconSize)
-                    .clipShape(RoundedRectangle(cornerRadius: 2 * scale))
-                    .padding(.top, (containerHeight - tabBarHeight - faviconSize) / 2)
-            }
-        }
-        .frame(width: containerWidth, height: containerHeight)
-        .shadow(color: .black.opacity(0.2), radius: 1 * scale, y: 0.5 * scale)
+    private func launcherLinkBadge(size: CGFloat) -> some View {
+        Image(systemName: "link")
+            .font(.system(size: size * 0.65, weight: .bold))
+            .foregroundColor(.white)
+            .frame(width: size, height: size)
+            .background(
+                Circle()
+                    .fill(Color.blue)
+                    .shadow(color: .black.opacity(0.3), radius: 0.5 * scale, y: 0.25 * scale)
+            )
+            .offset(x: size * 0.15, y: size * 0.15)
     }
 
     /// App icon for launcher mapping (cached in appIcon or faviconImage state)

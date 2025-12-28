@@ -170,16 +170,7 @@ final class IconResolverService {
         AppLogger.shared.log("🖼️ [IconResolver] Preloading \(enabledMappings.count) launcher icons...")
 
         for mapping in enabledMappings {
-            switch mapping.target {
-            case let .app(name, bundleId):
-                // Pre-load app icon (use bundleId if available, else name)
-                let identifier = bundleId ?? name
-                _ = resolveAppIcon(for: identifier)
-
-            case let .url(urlString):
-                // Pre-load favicon
-                _ = await resolveFavicon(for: urlString)
-            }
+            await preloadIcon(for: mapping.target)
         }
 
         AppLogger.shared.log("🖼️ [IconResolver] Launcher icon preload complete")
@@ -226,6 +217,12 @@ final class IconResolverService {
             _ = resolveAppIcon(for: identifier)
         case let .url(urlString):
             _ = await resolveFavicon(for: urlString)
+        case let .folder(path, _):
+            // Folder icons are resolved synchronously by NSWorkspace
+            _ = AppIconResolver.folderIcon(for: path)
+        case let .script(path, _):
+            // Script icons are resolved synchronously by NSWorkspace
+            _ = AppIconResolver.scriptIcon(for: path)
         }
     }
 

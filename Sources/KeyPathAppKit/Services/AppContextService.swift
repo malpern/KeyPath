@@ -66,7 +66,7 @@ public final class AppContextService: ObservableObject {
 
         // Initialize TCP client
         let port = tcpPort ?? PreferencesService.shared.tcpServerPort
-        self.tcpClient = KanataTCPClient(port: port)
+        tcpClient = KanataTCPClient(port: port)
 
         // Load mappings from store
         await reloadMappings()
@@ -152,11 +152,10 @@ public final class AppContextService: ObservableObject {
         currentBundleIdentifier = bundleIdentifier
 
         // Look up virtual key for this app
-        let newVK: String?
-        if let bundleId = bundleIdentifier {
-            newVK = bundleToVKMapping[bundleId]
+        let newVK: String? = if let bundleId = bundleIdentifier {
+            bundleToVKMapping[bundleId]
         } else {
-            newVK = nil
+            nil
         }
 
         // Skip if no change
@@ -215,20 +214,20 @@ public final class AppContextService: ObservableObject {
 // MARK: - Test Support
 
 #if DEBUG
-    extension AppContextService {
+    public extension AppContextService {
         /// For testing: directly set the bundle to VK mapping
-        public func setMappings(_ mappings: [String: String]) {
-            self.bundleToVKMapping = mappings
+        func setMappings(_ mappings: [String: String]) {
+            bundleToVKMapping = mappings
         }
 
         /// For testing: simulate an app activation
-        public func simulateAppActivation(bundleIdentifier: String?) async {
+        func simulateAppActivation(bundleIdentifier: String?) async {
             await handleAppActivation(bundleIdentifier: bundleIdentifier)
         }
 
         /// For testing: set TCP port after initialization
-        public func setTCPPort(_ port: Int) {
-            self.tcpClient = KanataTCPClient(port: port)
+        func setTCPPort(_ port: Int) {
+            tcpClient = KanataTCPClient(port: port)
         }
     }
 #endif

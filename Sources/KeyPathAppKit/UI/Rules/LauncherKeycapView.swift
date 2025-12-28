@@ -87,23 +87,24 @@ struct LauncherKeycapView: View {
     @ViewBuilder
     private func mappedKeyContent(iconSize: CGFloat, labelSize: CGFloat) -> some View {
         ZStack(alignment: .topLeading) {
-            // Centered icon - wrapped in browser tab for websites
+            // Centered icon
             if let icon {
-                if mapping?.target.isApp == true {
-                    // App: show icon directly
+                ZStack(alignment: .bottomTrailing) {
                     Image(nsImage: icon)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(width: iconSize, height: iconSize)
                         .clipShape(RoundedRectangle(cornerRadius: iconCornerRadius))
                         .shadow(color: .black.opacity(0.2), radius: 2, y: 1)
-                } else {
-                    // Website: wrap in browser tab container
-                    browserTabContainer(icon: icon, size: iconSize)
+
+                    // Link badge for websites only
+                    if mapping?.target.isURL == true {
+                        linkBadge(size: iconSize * 0.35)
+                    }
                 }
             } else {
                 // Fallback placeholder
-                Image(systemName: mapping?.target.isApp == true ? "app.fill" : "globe")
+                Image(systemName: fallbackIconName)
                     .font(.system(size: iconSize * 0.6))
                     .foregroundColor(.white.opacity(0.7))
             }
@@ -117,49 +118,19 @@ struct LauncherKeycapView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    /// Browser tab style container for website favicons
+    /// Small link badge for website icons
     @ViewBuilder
-    private func browserTabContainer(icon: NSImage, size: CGFloat) -> some View {
-        let tabBarHeight = size * 0.18
-        let faviconSize = size * 0.6
-        let containerWidth = size
-        let containerHeight = size * 1.1
-        let tabCornerRadius: CGFloat = 4
-
-        ZStack(alignment: .top) {
-            // Main container background
-            RoundedRectangle(cornerRadius: tabCornerRadius)
-                .fill(Color.white.opacity(0.15))
-                .frame(width: containerWidth, height: containerHeight)
-
-            VStack(spacing: 0) {
-                // Tab bar at top
-                HStack(spacing: 0) {
-                    // Active tab (rounded top corners only)
-                    UnevenRoundedRectangle(
-                        topLeadingRadius: tabCornerRadius,
-                        bottomLeadingRadius: 0,
-                        bottomTrailingRadius: 0,
-                        topTrailingRadius: tabCornerRadius
-                    )
-                    .fill(Color.white.opacity(0.25))
-                    .frame(width: containerWidth * 0.6, height: tabBarHeight)
-
-                    Spacer()
-                }
-                .frame(width: containerWidth)
-
-                // Favicon centered in content area
-                Image(nsImage: icon)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: faviconSize, height: faviconSize)
-                    .clipShape(RoundedRectangle(cornerRadius: 3))
-                    .padding(.top, (containerHeight - tabBarHeight - faviconSize) / 2)
-            }
-        }
-        .frame(width: containerWidth, height: containerHeight)
-        .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
+    private func linkBadge(size: CGFloat) -> some View {
+        Image(systemName: "link")
+            .font(.system(size: size * 0.65, weight: .bold))
+            .foregroundColor(.white)
+            .frame(width: size, height: size)
+            .background(
+                Circle()
+                    .fill(Color.blue)
+                    .shadow(color: .black.opacity(0.3), radius: 1, y: 0.5)
+            )
+            .offset(x: size * 0.15, y: size * 0.15)
     }
 
     @ViewBuilder
@@ -214,10 +185,21 @@ struct LauncherKeycapView: View {
         }
 
         switch mapping.target {
-        case .app:
+        case .app, .folder, .script:
             icon = AppIconResolver.icon(for: mapping.target)
         case let .url(urlString):
             icon = await FaviconLoader.shared.favicon(for: urlString)
+        }
+    }
+
+    /// Fallback SF Symbol name based on target type
+    private var fallbackIconName: String {
+        guard let target = mapping?.target else { return "questionmark" }
+        switch target {
+        case .app: return "app.fill"
+        case .url: return "globe"
+        case .folder: return "folder.fill"
+        case .script: return "terminal.fill"
         }
     }
 }

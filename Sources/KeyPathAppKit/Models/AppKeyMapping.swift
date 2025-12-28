@@ -157,8 +157,8 @@ public struct AppKeymap: Codable, Identifiable, Sendable, Equatable {
         displayName: String,
         overrides: [AppKeyOverride] = []
     ) {
-        self.id = UUID()
-        self.mapping = AppKeyMapping(
+        id = UUID()
+        mapping = AppKeyMapping(
             bundleIdentifier: bundleIdentifier,
             displayName: displayName
         )

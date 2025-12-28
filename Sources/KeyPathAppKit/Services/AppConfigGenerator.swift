@@ -29,7 +29,7 @@ import KeyPathCore
 ///                () k)
 /// )
 /// ```
-public struct AppConfigGenerator {
+public enum AppConfigGenerator {
     // MARK: - File Paths
 
     /// The output file for app-specific config
@@ -200,7 +200,7 @@ public struct AppConfigGenerator {
         inputKey: String,
         overrides: [(keymap: AppKeymap, override: AppKeyOverride)]
     ) -> String {
-        var parts: [String] = ["(switch"]
+        var parts = ["(switch"]
 
         // Add each app-specific case
         for (keymap, override) in overrides {
@@ -286,19 +286,19 @@ public struct AppConfigGenerator {
 
 // MARK: - Convenience Extensions
 
-extension AppConfigGenerator {
+public extension AppConfigGenerator {
     /// Check if the app config file exists
-    public static var configFileExists: Bool {
+    static var configFileExists: Bool {
         FileManager.default.fileExists(atPath: appConfigPath)
     }
 
     /// Read the current app config file content
-    public static func readCurrentConfig() -> String? {
+    static func readCurrentConfig() -> String? {
         try? String(contentsOfFile: appConfigPath, encoding: .utf8)
     }
 
     /// Delete the app config file
-    public static func deleteConfig() throws {
+    static func deleteConfig() throws {
         let path = appConfigPath
         if FileManager.default.fileExists(atPath: path) {
             try FileManager.default.removeItem(atPath: path)

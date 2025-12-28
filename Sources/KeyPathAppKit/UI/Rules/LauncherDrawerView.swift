@@ -22,7 +22,21 @@ struct LauncherDrawerView: View {
     /// Website mappings (sorted by key)
     private var websiteMappings: [LauncherMapping] {
         config.mappings
-            .filter { !$0.target.isApp }
+            .filter(\.target.isURL)
+            .sorted { $0.key < $1.key }
+    }
+
+    /// Folder mappings (sorted by key)
+    private var folderMappings: [LauncherMapping] {
+        config.mappings
+            .filter(\.target.isFolder)
+            .sorted { $0.key < $1.key }
+    }
+
+    /// Script mappings (sorted by key)
+    private var scriptMappings: [LauncherMapping] {
+        config.mappings
+            .filter(\.target.isScript)
             .sorted { $0.key < $1.key }
     }
 
@@ -61,6 +75,18 @@ struct LauncherDrawerView: View {
                     if !websiteMappings.isEmpty {
                         sectionHeader("Websites", count: websiteMappings.count)
                         mappingsList(websiteMappings)
+                    }
+
+                    // Folders section
+                    if !folderMappings.isEmpty {
+                        sectionHeader("Folders", count: folderMappings.count)
+                        mappingsList(folderMappings)
+                    }
+
+                    // Scripts section
+                    if !scriptMappings.isEmpty {
+                        sectionHeader("Scripts", count: scriptMappings.count)
+                        mappingsList(scriptMappings)
                     }
 
                     // Empty state
@@ -189,7 +215,7 @@ private struct DrawerMappingRow: View {
                         .frame(width: 24, height: 24)
                         .clipShape(RoundedRectangle(cornerRadius: 5))
                 } else {
-                    Image(systemName: mapping.target.isApp ? "app.fill" : "globe")
+                    Image(systemName: fallbackIconName)
                         .frame(width: 24, height: 24)
                         .foregroundColor(.secondary)
                 }
@@ -266,6 +292,18 @@ private struct DrawerMappingRow: View {
             icon = AppIconResolver.icon(for: mapping.target)
         case let .url(urlString):
             icon = await FaviconLoader.shared.favicon(for: urlString)
+        case .folder, .script:
+            icon = AppIconResolver.icon(for: mapping.target)
+        }
+    }
+
+    /// Fallback SF Symbol name based on target type
+    private var fallbackIconName: String {
+        switch mapping.target {
+        case .app: "app.fill"
+        case .url: "globe"
+        case .folder: "folder.fill"
+        case .script: "terminal.fill"
         }
     }
 }

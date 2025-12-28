@@ -72,8 +72,7 @@ final class RecentKeypressesService: ObservableObject {
 
             if let userInfo = notification.userInfo,
                let key = userInfo["key"] as? String,
-               let action = userInfo["action"] as? String
-            {
+               let action = userInfo["action"] as? String {
                 addEvent(key: key, action: action)
             }
         }
@@ -88,8 +87,7 @@ final class RecentKeypressesService: ObservableObject {
             guard let self else { return }
 
             if let userInfo = notification.userInfo,
-               let layerName = userInfo["layerName"] as? String
-            {
+               let layerName = userInfo["layerName"] as? String {
                 currentLayer = layerName
             }
         }

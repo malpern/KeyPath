@@ -314,10 +314,12 @@ public enum LauncherActivationMode: String, Codable, Equatable, Sendable {
     case leaderSequence
 }
 
-/// Target for a launcher mapping - either an app or a URL
+/// Target for a launcher mapping - app, URL, folder, or script
 public enum LauncherTarget: Codable, Equatable, Sendable {
     case app(name: String, bundleId: String?)
     case url(String)
+    case folder(path: String, name: String?)
+    case script(path: String, name: String?)
 
     /// Display name for the target
     public var displayName: String {
@@ -326,12 +328,34 @@ public enum LauncherTarget: Codable, Equatable, Sendable {
             name
         case let .url(urlString):
             urlString
+        case let .folder(path, name):
+            name ?? URL(fileURLWithPath: path).lastPathComponent
+        case let .script(path, name):
+            name ?? URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
         }
     }
 
-    /// Whether this target is an app (vs URL)
+    /// Whether this target is an app
     public var isApp: Bool {
         if case .app = self { return true }
+        return false
+    }
+
+    /// Whether this target is a URL
+    public var isURL: Bool {
+        if case .url = self { return true }
+        return false
+    }
+
+    /// Whether this target is a folder
+    public var isFolder: Bool {
+        if case .folder = self { return true }
+        return false
+    }
+
+    /// Whether this target is a script
+    public var isScript: Bool {
+        if case .script = self { return true }
         return false
     }
 
@@ -342,6 +366,10 @@ public enum LauncherTarget: Codable, Equatable, Sendable {
             "(push-msg \"launch:\(name.lowercased())\")"
         case let .url(urlString):
             "(push-msg \"open:\(urlString)\")"
+        case let .folder(path, _):
+            "(push-msg \"folder:\(path)\")"
+        case let .script(path, _):
+            "(push-msg \"script:\(path)\")"
         }
     }
 }
@@ -426,6 +454,14 @@ public struct LauncherGridConfig: Codable, Equatable, Sendable {
             LauncherMapping(key: "0", target: .url("notion.so"))
         ]
 
-        return appMappings + websiteMappings
+        // Folders (function keys)
+        let folderMappings: [LauncherMapping] = [
+            LauncherMapping(key: "f5", target: .folder(path: "~/Downloads", name: "Downloads")),
+            LauncherMapping(key: "f6", target: .folder(path: "~/Documents", name: "Documents")),
+            LauncherMapping(key: "f7", target: .folder(path: "~/Desktop", name: "Desktop")),
+            LauncherMapping(key: "f8", target: .folder(path: "~", name: "Home"))
+        ]
+
+        return appMappings + websiteMappings + folderMappings
     }
 }

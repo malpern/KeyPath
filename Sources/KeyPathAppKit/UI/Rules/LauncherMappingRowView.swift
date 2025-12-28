@@ -23,7 +23,7 @@ struct LauncherMappingRowView: View {
                         .aspectRatio(contentMode: .fit)
                         .frame(width: 20, height: 20)
                 } else {
-                    Image(systemName: mapping.target.isApp ? "app" : "globe")
+                    Image(systemName: fallbackIconName)
                         .frame(width: 20, height: 20)
                         .foregroundColor(.secondary)
                 }
@@ -88,10 +88,20 @@ struct LauncherMappingRowView: View {
 
     private func loadIcon() async {
         switch mapping.target {
-        case .app:
+        case .app, .folder, .script:
             icon = AppIconResolver.icon(for: mapping.target)
         case let .url(urlString):
             icon = await FaviconLoader.shared.favicon(for: urlString)
+        }
+    }
+
+    /// Fallback SF Symbol name based on target type
+    private var fallbackIconName: String {
+        switch mapping.target {
+        case .app: "app"
+        case .url: "globe"
+        case .folder: "folder"
+        case .script: "terminal"
         }
     }
 }

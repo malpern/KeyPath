@@ -278,4 +278,159 @@ final class RuleCollectionConfigurationTests: XCTestCase {
 
         XCTAssertTrue(config.selectedMappings.isEmpty)
     }
+
+    // MARK: - LauncherTarget Tests
+
+    func testLauncherTargetAppDisplayName() {
+        let target = LauncherTarget.app(name: "Safari", bundleId: "com.apple.Safari")
+        XCTAssertEqual(target.displayName, "Safari")
+        XCTAssertTrue(target.isApp)
+        XCTAssertFalse(target.isURL)
+        XCTAssertFalse(target.isFolder)
+        XCTAssertFalse(target.isScript)
+    }
+
+    func testLauncherTargetURLDisplayName() {
+        let target = LauncherTarget.url("github.com")
+        XCTAssertEqual(target.displayName, "github.com")
+        XCTAssertFalse(target.isApp)
+        XCTAssertTrue(target.isURL)
+        XCTAssertFalse(target.isFolder)
+        XCTAssertFalse(target.isScript)
+    }
+
+    func testLauncherTargetFolderDisplayName() {
+        // With custom name
+        let targetWithName = LauncherTarget.folder(path: "~/Downloads", name: "Downloads")
+        XCTAssertEqual(targetWithName.displayName, "Downloads")
+        XCTAssertFalse(targetWithName.isApp)
+        XCTAssertFalse(targetWithName.isURL)
+        XCTAssertTrue(targetWithName.isFolder)
+        XCTAssertFalse(targetWithName.isScript)
+
+        // Without custom name - should derive from path
+        let targetNoName = LauncherTarget.folder(path: "~/Documents", name: nil)
+        XCTAssertEqual(targetNoName.displayName, "Documents")
+    }
+
+    func testLauncherTargetScriptDisplayName() {
+        // With custom name
+        let targetWithName = LauncherTarget.script(path: "~/Scripts/backup.sh", name: "Backup")
+        XCTAssertEqual(targetWithName.displayName, "Backup")
+        XCTAssertFalse(targetWithName.isApp)
+        XCTAssertFalse(targetWithName.isURL)
+        XCTAssertFalse(targetWithName.isFolder)
+        XCTAssertTrue(targetWithName.isScript)
+
+        // Without custom name - should derive from path (without extension)
+        let targetNoName = LauncherTarget.script(path: "~/Scripts/backup.sh", name: nil)
+        XCTAssertEqual(targetNoName.displayName, "backup")
+    }
+
+    func testLauncherTargetKanataOutputForApp() {
+        let target = LauncherTarget.app(name: "Safari", bundleId: nil)
+        XCTAssertEqual(target.kanataOutput, "(push-msg \"launch:safari\")")
+    }
+
+    func testLauncherTargetKanataOutputForURL() {
+        let target = LauncherTarget.url("github.com")
+        XCTAssertEqual(target.kanataOutput, "(push-msg \"open:github.com\")")
+    }
+
+    func testLauncherTargetKanataOutputForFolder() {
+        let target = LauncherTarget.folder(path: "~/Downloads", name: nil)
+        XCTAssertEqual(target.kanataOutput, "(push-msg \"folder:~/Downloads\")")
+    }
+
+    func testLauncherTargetKanataOutputForScript() {
+        let target = LauncherTarget.script(path: "~/Scripts/backup.sh", name: nil)
+        XCTAssertEqual(target.kanataOutput, "(push-msg \"script:~/Scripts/backup.sh\")")
+    }
+
+    func testLauncherTargetEncodingAndDecodingFolder() throws {
+        let original = LauncherTarget.folder(path: "~/Documents", name: "My Docs")
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(LauncherTarget.self, from: data)
+
+        XCTAssertEqual(original, decoded)
+        if case let .folder(path, name) = decoded {
+            XCTAssertEqual(path, "~/Documents")
+            XCTAssertEqual(name, "My Docs")
+        } else {
+            XCTFail("Expected folder target")
+        }
+    }
+
+    func testLauncherTargetEncodingAndDecodingScript() throws {
+        let original = LauncherTarget.script(path: "~/Scripts/test.sh", name: "Test Script")
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(LauncherTarget.self, from: data)
+
+        XCTAssertEqual(original, decoded)
+        if case let .script(path, name) = decoded {
+            XCTAssertEqual(path, "~/Scripts/test.sh")
+            XCTAssertEqual(name, "Test Script")
+        } else {
+            XCTFail("Expected script target")
+        }
+    }
+
+    func testLauncherMappingWithFolderTarget() {
+        let mapping = LauncherMapping(
+            key: "f5",
+            target: .folder(path: "~/Downloads", name: "Downloads"),
+            isEnabled: true
+        )
+
+        XCTAssertEqual(mapping.key, "f5")
+        XCTAssertTrue(mapping.target.isFolder)
+        XCTAssertTrue(mapping.isEnabled)
+    }
+
+    func testLauncherMappingWithScriptTarget() {
+        let mapping = LauncherMapping(
+            key: "f9",
+            target: .script(path: "~/Scripts/backup.sh", name: "Backup"),
+            isEnabled: true
+        )
+
+        XCTAssertEqual(mapping.key, "f9")
+        XCTAssertTrue(mapping.target.isScript)
+        XCTAssertTrue(mapping.isEnabled)
+    }
+
+    func testLauncherGridConfigDefaultMappingsIncludeFolders() {
+        let config = LauncherGridConfig.defaultConfig
+        let folderMappings = config.mappings.filter(\.target.isFolder)
+
+        // Should have default folder mappings (F5-F8)
+        XCTAssertFalse(folderMappings.isEmpty, "Default config should include folder mappings")
+
+        // Check specific defaults
+        let downloadMapping = folderMappings.first { $0.key == "f5" }
+        XCTAssertNotNil(downloadMapping)
+        if case let .folder(path, name) = downloadMapping?.target {
+            XCTAssertEqual(path, "~/Downloads")
+            XCTAssertEqual(name, "Downloads")
+        }
+    }
+
+    // MARK: - LauncherGridConfig Codable Tests
+
+    func testLauncherGridConfigEncodingWithFoldersAndScripts() throws {
+        var config = LauncherGridConfig(activationMode: .holdHyper, mappings: [], hasSeenWelcome: true)
+        config.mappings = [
+            LauncherMapping(key: "a", target: .app(name: "Safari", bundleId: nil)),
+            LauncherMapping(key: "1", target: .url("github.com")),
+            LauncherMapping(key: "f5", target: .folder(path: "~/Downloads", name: "Downloads")),
+            LauncherMapping(key: "f9", target: .script(path: "~/test.sh", name: "Test"))
+        ]
+
+        let data = try JSONEncoder().encode(config)
+        let decoded = try JSONDecoder().decode(LauncherGridConfig.self, from: data)
+
+        XCTAssertEqual(decoded.mappings.count, 4)
+        XCTAssertTrue(decoded.mappings[2].target.isFolder)
+        XCTAssertTrue(decoded.mappings[3].target.isScript)
+    }
 }

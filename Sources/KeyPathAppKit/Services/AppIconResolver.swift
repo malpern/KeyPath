@@ -1,14 +1,29 @@
 import AppKit
+import UniformTypeIdentifiers
 
-/// Resolves app icons from bundle identifiers or app names.
+/// Resolves icons for launcher targets: apps, folders, and scripts.
 ///
 /// Uses `NSWorkspace` to locate apps and retrieve their icons.
-/// Falls back to generic app icon if app cannot be found.
+/// Falls back to generic icons if targets cannot be found.
 enum AppIconResolver {
-    /// Get icon for an app by name or bundle ID
+    /// Get icon for any launcher target type
     static func icon(for target: LauncherTarget) -> NSImage? {
-        guard case let .app(name, bundleId) = target else { return nil }
+        switch target {
+        case let .app(name, bundleId):
+            appIcon(name: name, bundleId: bundleId)
+        case .url:
+            urlIcon()
+        case let .folder(path, _):
+            folderIcon(for: path)
+        case let .script(path, _):
+            scriptIcon(for: path)
+        }
+    }
 
+    // MARK: - App Icons
+
+    /// Get icon for an app by name or bundle ID
+    private static func appIcon(name: String, bundleId: String?) -> NSImage? {
         // Try bundle ID first (most reliable)
         if let bundleId,
            let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
@@ -58,6 +73,86 @@ enum AppIconResolver {
     static func icon(forAppName name: String) -> NSImage? {
         icon(for: .app(name: name, bundleId: nil))
     }
+
+    // MARK: - URL Icons
+
+    /// Get generic URL/web icon
+    private static func urlIcon() -> NSImage? {
+        // Return Safari icon as default browser icon, or generic globe
+        if let safariURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Safari") {
+            return NSWorkspace.shared.icon(forFile: safariURL.path)
+        }
+        // Fallback to system globe icon
+        return NSImage(systemSymbolName: "globe", accessibilityDescription: "Website")
+    }
+
+    // MARK: - Folder Icons
+
+    /// Get icon for a folder path
+    static func folderIcon(for path: String) -> NSImage? {
+        let expandedPath = (path as NSString).expandingTildeInPath
+
+        // If folder exists, get its actual icon (may have custom icon)
+        if FileManager.default.fileExists(atPath: expandedPath) {
+            return NSWorkspace.shared.icon(forFile: expandedPath)
+        }
+
+        // Fallback to generic folder icon
+        return genericFolderIcon()
+    }
+
+    /// Get generic folder icon
+    static func genericFolderIcon() -> NSImage {
+        // UTType.folder is always available
+        NSWorkspace.shared.icon(for: .folder)
+    }
+
+    // MARK: - Script Icons
+
+    /// Get icon for a script file based on its type
+    static func scriptIcon(for path: String) -> NSImage? {
+        let expandedPath = (path as NSString).expandingTildeInPath
+        let ext = URL(fileURLWithPath: expandedPath).pathExtension.lowercased()
+
+        // If file exists, get its actual icon
+        if FileManager.default.fileExists(atPath: expandedPath) {
+            return NSWorkspace.shared.icon(forFile: expandedPath)
+        }
+
+        // Return icon based on script type
+        return scriptIconByType(extension: ext)
+    }
+
+    /// Get icon for a script by its extension
+    private static func scriptIconByType(extension ext: String) -> NSImage? {
+        switch ext {
+        case "applescript", "scpt":
+            // AppleScript icon - try Script Editor app first
+            if let scriptEditorURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.ScriptEditor2") {
+                return NSWorkspace.shared.icon(forFile: scriptEditorURL.path)
+            }
+            // Fallback to UTType icon
+            if let appleScriptType = UTType(filenameExtension: "scpt") {
+                return NSWorkspace.shared.icon(for: appleScriptType)
+            }
+            return nil
+
+        case "sh", "bash", "zsh":
+            // Shell script icon
+            return NSWorkspace.shared.icon(for: .shellScript)
+
+        default:
+            // Generic executable icon
+            return NSWorkspace.shared.icon(for: .unixExecutable)
+        }
+    }
+
+    /// Get generic script icon
+    static func genericScriptIcon() -> NSImage {
+        NSWorkspace.shared.icon(for: .shellScript)
+    }
+
+    // MARK: - Name Variations
 
     /// Common name variations for apps
     private static func nameVariations(for name: String) -> [String] {

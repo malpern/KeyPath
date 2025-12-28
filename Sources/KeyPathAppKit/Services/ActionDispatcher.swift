@@ -25,6 +25,8 @@ public enum ActionDispatchResult: Sendable {
 /// - `keypath://fakekey/{name}/{action}` - Trigger Kanata virtual key (tap/press/release/toggle)
 /// - `keypath://system/{action}` - Trigger macOS system actions (mission-control, spotlight, dictation, dnd, launchpad, siri)
 /// - `keypath://window/{action}` - Window management (left, right, maximize, center, top-left, top-right, bottom-left, bottom-right, next-display, previous-display, undo)
+/// - `keypath://folder/{path}` - Open a folder in Finder
+/// - `keypath://script/{path}` - Execute a script (requires security approval)
 @MainActor
 public final class ActionDispatcher {
     // MARK: - Singleton
@@ -41,6 +43,14 @@ public final class ActionDispatcher {
 
     /// Called when a rule-related action is received
     public var onRuleAction: ((String, [String]) -> Void)?
+
+    /// Called when script execution needs user confirmation
+    /// Parameters: script path, confirm callback, cancel callback
+    public var onScriptConfirmationNeeded: ((String, @escaping () -> Void, @escaping () -> Void) -> Void)?
+
+    /// Called when script execution is disabled and user tries to run a script
+    /// Parameter: callback to open settings
+    public var onScriptExecutionDisabled: ((@escaping () -> Void) -> Void)?
 
     // MARK: - Initialization
 
@@ -70,6 +80,10 @@ public final class ActionDispatcher {
             return handleSystem(uri)
         case "window":
             return handleWindow(uri)
+        case "folder":
+            return handleFolder(uri)
+        case "script":
+            return handleScript(uri)
         default:
             let message = "Unknown action type: \(uri.action)"
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
@@ -465,6 +479,300 @@ public final class ActionDispatcher {
             return .failed("window", NSError(domain: "ActionDispatcher", code: 5, userInfo: [
                 NSLocalizedDescriptionKey: message
             ]))
+        }
+    }
+
+    /// Open a folder in Finder
+    /// Format: keypath://folder/{path}
+    private func handleFolder(_ uri: KeyPathActionURI) -> ActionDispatchResult {
+        // Reconstruct path from path components (handles paths with slashes)
+        let pathString = uri.pathComponents.joined(separator: "/")
+
+        guard !pathString.isEmpty else {
+            let message = "folder action requires path: keypath://folder/{path}"
+            AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
+            onError?(message)
+            return .missingTarget("folder")
+        }
+
+        // Expand tilde and decode URL encoding
+        let decodedPath = pathString.removingPercentEncoding ?? pathString
+        let expandedPath = (decodedPath as NSString).expandingTildeInPath
+
+        AppLogger.shared.log("📁 [ActionDispatcher] Opening folder: \(expandedPath)")
+
+        // Check if path exists
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: expandedPath, isDirectory: &isDirectory) else {
+            let message = "Folder not found: \(expandedPath)"
+            AppLogger.shared.log("❌ [ActionDispatcher] \(message)")
+            onError?(message)
+            return .failed("folder", NSError(domain: "ActionDispatcher", code: 6, userInfo: [
+                NSLocalizedDescriptionKey: message
+            ]))
+        }
+
+        // Verify it's a directory
+        guard isDirectory.boolValue else {
+            let message = "Path is not a folder: \(expandedPath)"
+            AppLogger.shared.log("❌ [ActionDispatcher] \(message)")
+            onError?(message)
+            return .failed("folder", NSError(domain: "ActionDispatcher", code: 7, userInfo: [
+                NSLocalizedDescriptionKey: message
+            ]))
+        }
+
+        // Open in Finder
+        let url = URL(fileURLWithPath: expandedPath)
+        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: expandedPath)
+        AppLogger.shared.log("✅ [ActionDispatcher] Opened folder: \(url.path)")
+
+        return .success
+    }
+
+    /// Execute a script file
+    /// Format: keypath://script/{path}
+    private func handleScript(_ uri: KeyPathActionURI) -> ActionDispatchResult {
+        // Reconstruct path from path components
+        let pathString = uri.pathComponents.joined(separator: "/")
+
+        guard !pathString.isEmpty else {
+            let message = "script action requires path: keypath://script/{path}"
+            AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
+            onError?(message)
+            return .missingTarget("script")
+        }
+
+        // Expand tilde and decode URL encoding
+        let decodedPath = pathString.removingPercentEncoding ?? pathString
+        let expandedPath = (decodedPath as NSString).expandingTildeInPath
+
+        AppLogger.shared.log("📜 [ActionDispatcher] Script execution requested: \(expandedPath)")
+
+        // Check security
+        let securityService = ScriptSecurityService.shared
+        let checkResult = securityService.checkExecution(at: expandedPath)
+
+        switch checkResult {
+        case .disabled:
+            AppLogger.shared.log("🔐 [ActionDispatcher] Script execution is disabled")
+            if let handler = onScriptExecutionDisabled {
+                handler {
+                    // Callback to open settings - the UI will handle this
+                    AppLogger.shared.log("🔐 [ActionDispatcher] User requested to open settings")
+                }
+            } else {
+                onError?("Script execution is disabled. Enable it in Settings to run scripts.")
+            }
+            return .failed("script", NSError(domain: "ActionDispatcher", code: 8, userInfo: [
+                NSLocalizedDescriptionKey: "Script execution is disabled"
+            ]))
+
+        case let .fileNotFound(path):
+            let message = "Script not found: \(path)"
+            AppLogger.shared.log("❌ [ActionDispatcher] \(message)")
+            onError?(message)
+            return .failed("script", NSError(domain: "ActionDispatcher", code: 9, userInfo: [
+                NSLocalizedDescriptionKey: message
+            ]))
+
+        case let .notExecutable(path):
+            let message = "Script is not executable: \(path)"
+            AppLogger.shared.log("❌ [ActionDispatcher] \(message)")
+            onError?(message)
+            return .failed("script", NSError(domain: "ActionDispatcher", code: 10, userInfo: [
+                NSLocalizedDescriptionKey: message
+            ]))
+
+        case let .needsConfirmation(path):
+            AppLogger.shared.log("🔐 [ActionDispatcher] Script needs user confirmation")
+            if let handler = onScriptConfirmationNeeded {
+                handler(path, { [weak self] in
+                    // User confirmed - execute the script
+                    self?.executeScript(at: path)
+                }, {
+                    // User cancelled
+                    AppLogger.shared.log("🔐 [ActionDispatcher] User cancelled script execution")
+                })
+            } else {
+                // No UI handler registered, cannot show dialog
+                onError?("Script execution requires confirmation but no UI is available")
+            }
+            return .success // Return success as we're showing the dialog
+
+        case .allowed:
+            // Execute directly
+            executeScript(at: expandedPath)
+            return .success
+        }
+    }
+
+    /// Execute a script at the given path
+    private func executeScript(at path: String) {
+        let securityService = ScriptSecurityService.shared
+        // Check script type on main actor before entering task
+        let isAppleScriptFile = securityService.isAppleScript(path)
+        let isInterpretedScript = securityService.isInterpretedScript(path)
+
+        Task { [weak self] in
+            do {
+                if isAppleScriptFile {
+                    // Execute AppleScript
+                    try await self?.executeAppleScript(at: path)
+                } else if isInterpretedScript {
+                    // Execute interpreted script (Python, Ruby, Perl, Lua)
+                    try await self?.executeInterpretedScript(at: path)
+                } else {
+                    // Execute shell script or executable
+                    try await self?.executeShellScript(at: path)
+                }
+
+                securityService.logExecution(path: path, success: true, error: nil)
+                AppLogger.shared.log("✅ [ActionDispatcher] Script executed successfully: \(path)")
+            } catch {
+                securityService.logExecution(path: path, success: false, error: error.localizedDescription)
+                AppLogger.shared.log("❌ [ActionDispatcher] Script failed: \(path) - \(error)")
+                self?.onError?("Script execution failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    /// Execute an AppleScript file
+    private func executeAppleScript(at path: String) async throws {
+        let url = URL(fileURLWithPath: path)
+
+        // Try compiled script first (.scpt)
+        if path.hasSuffix(".scpt") {
+            var errorInfo: NSDictionary?
+            if let script = NSAppleScript(contentsOf: url, error: &errorInfo) {
+                var executeError: NSDictionary?
+                script.executeAndReturnError(&executeError)
+                if let error = executeError {
+                    throw NSError(domain: "AppleScript", code: 1, userInfo: [
+                        NSLocalizedDescriptionKey: error["NSAppleScriptErrorMessage"] as? String ?? "AppleScript execution failed"
+                    ])
+                }
+                return
+            }
+            if let error = errorInfo {
+                throw NSError(domain: "AppleScript", code: 2, userInfo: [
+                    NSLocalizedDescriptionKey: error["NSAppleScriptErrorMessage"] as? String ?? "Failed to load AppleScript"
+                ])
+            }
+        }
+
+        // Text-based AppleScript (.applescript)
+        let scriptSource = try String(contentsOfFile: path, encoding: .utf8)
+        var errorInfo: NSDictionary?
+        if let script = NSAppleScript(source: scriptSource) {
+            script.executeAndReturnError(&errorInfo)
+            if let error = errorInfo {
+                throw NSError(domain: "AppleScript", code: 3, userInfo: [
+                    NSLocalizedDescriptionKey: error["NSAppleScriptErrorMessage"] as? String ?? "AppleScript execution failed"
+                ])
+            }
+        } else {
+            throw NSError(domain: "AppleScript", code: 4, userInfo: [
+                NSLocalizedDescriptionKey: "Failed to create AppleScript from source"
+            ])
+        }
+    }
+
+    /// Execute a shell script or executable
+    private func executeShellScript(at path: String) async throws {
+        let process = Process()
+
+        // Determine how to run based on extension
+        let ext = URL(fileURLWithPath: path).pathExtension.lowercased()
+
+        switch ext {
+        case "sh", "bash":
+            process.executableURL = URL(fileURLWithPath: "/bin/bash")
+            process.arguments = [path]
+        case "zsh":
+            process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+            process.arguments = [path]
+        default:
+            // Try to execute directly (must be executable)
+            process.executableURL = URL(fileURLWithPath: path)
+        }
+
+        let outputPipe = Pipe()
+        let errorPipe = Pipe()
+        process.standardOutput = outputPipe
+        process.standardError = errorPipe
+
+        try process.run()
+        process.waitUntilExit()
+
+        if process.terminationStatus != 0 {
+            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+            let errorString = String(data: errorData, encoding: .utf8) ?? "Unknown error"
+            throw NSError(domain: "ShellScript", code: Int(process.terminationStatus), userInfo: [
+                NSLocalizedDescriptionKey: "Script exited with code \(process.terminationStatus): \(errorString)"
+            ])
+        }
+    }
+
+    /// Execute an interpreted script (Python, Ruby, Perl, Lua)
+    private func executeInterpretedScript(at path: String) async throws {
+        let process = Process()
+        let ext = URL(fileURLWithPath: path).pathExtension.lowercased()
+
+        // Determine interpreter based on extension
+        switch ext {
+        case "py":
+            // Try python3 first, fall back to python
+            if FileManager.default.fileExists(atPath: "/usr/bin/python3") {
+                process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+            } else if FileManager.default.fileExists(atPath: "/usr/local/bin/python3") {
+                process.executableURL = URL(fileURLWithPath: "/usr/local/bin/python3")
+            } else {
+                process.executableURL = URL(fileURLWithPath: "/usr/bin/python")
+            }
+            process.arguments = [path]
+
+        case "rb":
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/ruby")
+            process.arguments = [path]
+
+        case "pl":
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/perl")
+            process.arguments = [path]
+
+        case "lua":
+            // Lua is typically installed via Homebrew
+            if FileManager.default.fileExists(atPath: "/usr/local/bin/lua") {
+                process.executableURL = URL(fileURLWithPath: "/usr/local/bin/lua")
+            } else if FileManager.default.fileExists(atPath: "/opt/homebrew/bin/lua") {
+                process.executableURL = URL(fileURLWithPath: "/opt/homebrew/bin/lua")
+            } else {
+                throw NSError(domain: "InterpretedScript", code: 1, userInfo: [
+                    NSLocalizedDescriptionKey: "Lua interpreter not found"
+                ])
+            }
+            process.arguments = [path]
+
+        default:
+            throw NSError(domain: "InterpretedScript", code: 2, userInfo: [
+                NSLocalizedDescriptionKey: "Unknown script type: .\(ext)"
+            ])
+        }
+
+        let outputPipe = Pipe()
+        let errorPipe = Pipe()
+        process.standardOutput = outputPipe
+        process.standardError = errorPipe
+
+        try process.run()
+        process.waitUntilExit()
+
+        if process.terminationStatus != 0 {
+            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+            let errorString = String(data: errorData, encoding: .utf8) ?? "Unknown error"
+            throw NSError(domain: "InterpretedScript", code: Int(process.terminationStatus), userInfo: [
+                NSLocalizedDescriptionKey: "Script exited with code \(process.terminationStatus): \(errorString)"
+            ])
         }
     }
 
