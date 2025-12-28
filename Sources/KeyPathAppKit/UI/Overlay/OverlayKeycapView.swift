@@ -40,6 +40,18 @@ struct OverlayKeycapView: View {
     /// Whether to show scooped/dished home row keys (Kinesis style)
     var showScoopedHomeRow: Bool = false
 
+    // MARK: - Launcher Mode
+
+    /// Whether launcher mode is active (shows app icons on mapped keys)
+    var isLauncherMode: Bool = false
+    /// Launcher mapping for this key (nil = no mapping)
+    var launcherMapping: LauncherMapping?
+
+    /// Whether this key has a launcher mapping
+    private var hasLauncherMapping: Bool {
+        launcherMapping != nil
+    }
+
     /// Size thresholds for typography adaptation
     private var isSmallSize: Bool { scale < 0.8 }
     private var isLargeSize: Bool { scale >= 1.5 }
@@ -256,6 +268,16 @@ struct OverlayKeycapView: View {
                 faviconImage = nil
             }
         }
+        .onChange(of: launcherMapping?.id) { _, newValue in
+            // Reload icons when launcher mapping changes
+            if newValue != nil {
+                loadAppIconIfNeeded()
+                loadFaviconIfNeeded()
+            } else {
+                appIcon = nil
+                faviconImage = nil
+            }
+        }
         // Accessibility: Make each key discoverable and clickable by automation
         .accessibilityElement(children: .ignore)
         .accessibilityIdentifier(keycapAccessibilityId)
@@ -311,27 +333,42 @@ struct OverlayKeycapView: View {
 
     /// Load app icon for launch action if needed (via IconResolverService)
     private func loadAppIconIfNeeded() {
-        guard let appIdentifier = layerKeyInfo?.appLaunchIdentifier else {
-            appIcon = nil
+        // Check layer-based app launch first
+        if let appIdentifier = layerKeyInfo?.appLaunchIdentifier {
+            appIcon = IconResolverService.shared.resolveAppIcon(for: appIdentifier)
             return
         }
 
-        // Delegate to IconResolverService (handles caching internally)
-        appIcon = IconResolverService.shared.resolveAppIcon(for: appIdentifier)
+        // Check launcher mapping for app target
+        if let mapping = launcherMapping, case let .app(name, bundleId) = mapping.target {
+            appIcon = AppIconResolver.icon(for: .app(name: name, bundleId: bundleId))
+            return
+        }
+
+        appIcon = nil
     }
 
     // MARK: - Favicon Loading
 
     /// Load favicon for URL action if needed (via IconResolverService)
     private func loadFaviconIfNeeded() {
-        guard let url = layerKeyInfo?.urlIdentifier else {
-            faviconImage = nil
+        // Check layer-based URL first
+        if let url = layerKeyInfo?.urlIdentifier {
+            Task { @MainActor in
+                faviconImage = await IconResolverService.shared.resolveFavicon(for: url)
+            }
             return
         }
 
-        Task { @MainActor in
-            faviconImage = await IconResolverService.shared.resolveFavicon(for: url)
+        // Check launcher mapping for URL target
+        if let mapping = launcherMapping, case let .url(urlString) = mapping.target {
+            Task { @MainActor in
+                faviconImage = await IconResolverService.shared.resolveFavicon(for: urlString)
+            }
+            return
         }
+
+        faviconImage = nil
     }
 
     // MARK: - Content Routing by Layout Role
@@ -356,8 +393,12 @@ struct OverlayKeycapView: View {
     /// Standard key content routing (used for .standard legend style)
     @ViewBuilder
     private var standardKeyContent: some View {
+        // Launcher mode: show app icons on mapped keys with special styling
+        if isLauncherMode, !isModifierKey {
+            launcherModeContent
+        }
         // Check for novelty override first (ESC, Enter with special icons)
-        if hasNoveltyKey {
+        else if hasNoveltyKey {
             noveltyKeyContent
         }
         // Function keys always show F-label + icon (even when remapped)
@@ -393,6 +434,51 @@ struct OverlayKeycapView: View {
                 escKeyContent
             }
         }
+    }
+
+    // MARK: - Launcher Mode Content
+
+    /// Content for launcher mode: app icon centered, key letter in top-left corner
+    @ViewBuilder
+    private var launcherModeContent: some View {
+        if let mapping = launcherMapping {
+            // Mapped key: app icon centered, key letter in top-left
+            ZStack(alignment: .topLeading) {
+                // Centered icon (app or favicon)
+                if let icon = launcherAppIcon {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 20 * scale, height: 20 * scale)
+                        .clipShape(RoundedRectangle(cornerRadius: 4 * scale))
+                        .shadow(color: .black.opacity(0.2), radius: 2 * scale, y: 1 * scale)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    // Fallback placeholder while loading
+                    Image(systemName: mapping.target.isApp ? "app.fill" : "globe")
+                        .font(.system(size: 12 * scale))
+                        .foregroundStyle(foregroundColor.opacity(0.6))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+
+                // Key letter in top-left corner
+                Text(baseLabel.uppercased())
+                    .font(.system(size: 8 * scale, weight: .medium, design: .rounded))
+                    .foregroundStyle(Color.white.opacity(0.7))
+                    .padding(3 * scale)
+            }
+        } else {
+            // Unmapped key in launcher mode: dimmed letter
+            Text(baseLabel.uppercased())
+                .font(.system(size: 10 * scale, weight: .medium))
+                .foregroundStyle(foregroundColor.opacity(0.3))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    /// App icon for launcher mapping (cached in appIcon or faviconImage state)
+    private var launcherAppIcon: NSImage? {
+        appIcon ?? faviconImage
     }
 
     // MARK: - Legend Style: Dots
@@ -1115,6 +1201,10 @@ struct OverlayKeycapView: View {
             Color.accentColor
         } else if isEmphasized {
             Color.orange
+        }
+        // Launcher mode: blue/teal background for mapped keys
+        else if isLauncherMode, hasLauncherMapping {
+            Color(red: 0.15, green: 0.35, blue: 0.45)
         } else if isModifierKey {
             colorway.modBaseColor
         } else if isAccentKey {

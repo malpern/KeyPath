@@ -147,7 +147,9 @@ struct LiveKeyboardOverlayView: View {
                             effectivePressedKeyCodes: viewModel.effectivePressedKeyCodes,
                             emphasizedKeyCodes: viewModel.emphasizedKeyCodes,
                             holdLabels: viewModel.holdLabels,
-                            onKeyClick: onKeyClick
+                            onKeyClick: onKeyClick,
+                            isLauncherMode: viewModel.isLauncherModeActive,
+                            launcherMappings: viewModel.launcherMappings
                         )
                         .environmentObject(viewModel)
                         .environmentObject(keyboardMouseState)

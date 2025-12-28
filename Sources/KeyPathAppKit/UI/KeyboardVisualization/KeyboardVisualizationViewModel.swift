@@ -58,6 +58,18 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Keys emphasized via push-msg emphasis command
     /// Example: (push-msg "emphasis:h,j,k,l") sets HJKL as emphasized
     @Published var customEmphasisKeyCodes: Set<UInt16> = []
+
+    // MARK: - Launcher Mode State
+
+    /// Launcher mappings for overlay display (key -> LauncherMapping)
+    /// Loaded when entering launcher layer
+    @Published var launcherMappings: [String: LauncherMapping] = [:]
+
+    /// Whether the overlay is in launcher mode (should show app icons on keys)
+    var isLauncherModeActive: Bool {
+        currentLayerName.lowercased() == "launcher"
+    }
+
     /// Tracks keys currently undergoing async hold-label resolution to avoid duplicate simulator runs
     private var resolvingHoldLabels: Set<UInt16> = []
     /// Short-lived cache of resolved hold labels to avoid repeated simulator runs (keyCode -> (label, timestamp))
@@ -441,10 +453,44 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
     /// Update the current layer and rebuild key mapping
     func updateLayer(_ layerName: String) {
+        let wasLauncherMode = isLauncherModeActive
         currentLayerName = layerName
+
+        // Load/clear launcher mappings when entering/exiting launcher mode
+        let isNowLauncherMode = isLauncherModeActive
+        if isNowLauncherMode, !wasLauncherMode {
+            loadLauncherMappings()
+        } else if !isNowLauncherMode, wasLauncherMode {
+            launcherMappings.removeAll()
+        }
+
         // Reset idle timer on any layer change (including returning to base)
         noteInteraction()
         rebuildLayerMapping()
+    }
+
+    /// Load launcher mappings from the Quick Launcher rule collection
+    private func loadLauncherMappings() {
+        Task { @MainActor in
+            let collections = await RuleCollectionStore.shared.loadCollections()
+
+            // Find the launcher collection and extract its mappings
+            guard let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
+                  let config = launcherCollection.configuration.launcherGridConfig
+            else {
+                AppLogger.shared.debug("🚀 [KeyboardViz] No launcher config found")
+                return
+            }
+
+            // Build key -> mapping dictionary (lowercase key names)
+            launcherMappings = Dictionary(
+                uniqueKeysWithValues: config.mappings
+                    .filter(\.isEnabled)
+                    .map { ($0.key.lowercased(), $0) }
+            )
+
+            AppLogger.shared.info("🚀 [KeyboardViz] Loaded \(launcherMappings.count) launcher mappings")
+        }
     }
 
     /// Rebuild the key mapping for the current layer

@@ -33,6 +33,13 @@ struct OverlayKeyboardView: View {
     /// Callback when a key is clicked (not dragged) - for opening Mapper
     var onKeyClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
 
+    // MARK: - Launcher Mode
+
+    /// Whether launcher mode is active (shows app icons on mapped keys)
+    var isLauncherMode: Bool = false
+    /// Launcher mappings: key name -> LauncherMapping
+    var launcherMappings: [String: LauncherMapping] = [:]
+
     /// Track caps lock state from system
     @State private var isCapsLockOn: Bool = NSEvent.modifierFlags.contains(.capsLock)
 
@@ -181,6 +188,9 @@ struct OverlayKeyboardView: View {
             includeExtraKeys: includeKeymapPunctuation
         )
 
+        // Look up launcher mapping for this key (lowercase key name)
+        let launcherMapping = launcherMappings[baseLabel.lowercased()]
+
         return OverlayKeycapView(
             key: key,
             baseLabel: baseLabel,
@@ -204,7 +214,10 @@ struct OverlayKeyboardView: View {
             // Disable floating labels for non-standard legend styles (dots, blank, etc.)
             useFloatingLabels: !reduceMotion && activeColorway.legendStyle == .standard,
             // Kinesis keyboards have scooped/dished home row keys
-            showScoopedHomeRow: layout.id == "kinesis-360"
+            showScoopedHomeRow: layout.id == "kinesis-360",
+            // Launcher mode state
+            isLauncherMode: isLauncherMode,
+            launcherMapping: launcherMapping
         )
         .frame(
             width: keyWidth(for: key, scale: scale),
