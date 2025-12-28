@@ -528,14 +528,53 @@ class KeyboardVisualizationViewModel: ObservableObject {
             }
 
             // Build key -> mapping dictionary (lowercase key names)
+            // Filter out apps that aren't installed on this system
+            let enabledMappings = config.mappings.filter { mapping in
+                guard mapping.isEnabled else { return false }
+
+                // URLs are always included (browser handles them)
+                if case .url = mapping.target { return true }
+
+                // Apps: check if installed
+                if case let .app(name, bundleId) = mapping.target {
+                    let isInstalled = Self.isAppInstalled(name: name, bundleId: bundleId)
+                    if !isInstalled {
+                        AppLogger.shared.debug("🚀 [KeyboardViz] Skipping \(name) - not installed")
+                    }
+                    return isInstalled
+                }
+
+                return true
+            }
+
             launcherMappings = Dictionary(
-                uniqueKeysWithValues: config.mappings
-                    .filter(\.isEnabled)
-                    .map { ($0.key.lowercased(), $0) }
+                uniqueKeysWithValues: enabledMappings.map { ($0.key.lowercased(), $0) }
             )
 
-            AppLogger.shared.info("🚀 [KeyboardViz] Loaded \(launcherMappings.count) launcher mappings")
+            AppLogger.shared.info("🚀 [KeyboardViz] Loaded \(launcherMappings.count) launcher mappings (filtered for installed apps)")
         }
+    }
+
+    /// Check if an app is installed on the system
+    private static func isAppInstalled(name: String, bundleId: String?) -> Bool {
+        // Try bundle ID first (most reliable)
+        if let bundleId, NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) != nil {
+            return true
+        }
+
+        // Fall back to app name in /Applications
+        let directPath = "/Applications/\(name).app"
+        if FileManager.default.fileExists(atPath: directPath) {
+            return true
+        }
+
+        // Try capitalized name
+        let capitalizedPath = "/Applications/\(name.capitalized).app"
+        if FileManager.default.fileExists(atPath: capitalizedPath) {
+            return true
+        }
+
+        return false
     }
 
     /// Rebuild the key mapping for the current layer

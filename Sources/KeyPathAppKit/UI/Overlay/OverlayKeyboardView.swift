@@ -112,20 +112,19 @@ struct OverlayKeyboardView: View {
                 // Skip floating labels for non-standard legend styles (dots show circles, not letters)
                 if !reduceMotion, activeColorway.legendStyle == .standard {
                     ForEach(Self.allLabels, id: \.self) { label in
-                        // In launcher mode, hide floating labels for keys that have launcher mappings
-                        // (the launcher icon replaces the letter, shown small in top-left corner)
-                        let hasLauncherMapping = launcherMappings[label.lowercased()] != nil
-                        let hiddenForLauncher = isLauncherMode && hasLauncherMapping
-
+                        // In launcher mode, hide ALL floating labels for a clean look
+                        // (mapped keys show icon + small letter, unmapped keys are blank)
                         FloatingKeymapLabel(
                             label: label,
                             targetFrame: targetFrameFor(label, scale: scale),
-                            // Visible when label exists in current keymap AND not hidden for launcher
-                            isVisible: labelToKeyCode[label] != nil && !hiddenForLauncher,
+                            // Visible when label exists in current keymap AND not in launcher mode
+                            isVisible: labelToKeyCode[label] != nil && !isLauncherMode,
                             scale: scale,
                             colorway: activeColorway,
                             // Enable animation after initial render (prevents animation on drawer open)
-                            enableAnimation: initialRenderComplete
+                            enableAnimation: initialRenderComplete,
+                            // Instant visibility for all layer transitions (no fade in or out)
+                            animateVisibility: false
                         )
                     }
                 }
@@ -411,6 +410,7 @@ private struct FloatingKeymapLabel: View {
     let scale: CGFloat
     let colorway: GMKColorway
     var enableAnimation: Bool = false
+    var animateVisibility: Bool = true  // Set false for instant show/hide (e.g., launcher mode)
 
     // Randomized animation parameters (seeded by label for consistency)
     private var springResponse: Double {
@@ -487,7 +487,8 @@ private struct FloatingKeymapLabel: View {
             .position(x: targetFrame.midX, y: targetFrame.midY)
             // Only animate position during layout changes, not resize
             .animation(isLayoutChange() ? positionAnimation : nil, value: targetFrame)
-            .animation(positionAnimation, value: isVisible)
+            // Animate visibility changes unless disabled (e.g., launcher mode toggle)
+            .animation(animateVisibility ? positionAnimation : nil, value: isVisible)
             .onChange(of: targetFrame) { _, _ in
                 let layoutChanged = isLayoutChange()
                 // Update tracked position

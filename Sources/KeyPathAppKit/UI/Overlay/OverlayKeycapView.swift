@@ -127,9 +127,6 @@ struct OverlayKeycapView: View {
     /// Cached favicon for URL actions
     @State private var faviconImage: NSImage?
 
-    /// Opacity for icon crossfade animation (0 = hidden, 1 = visible)
-    @State private var iconOpacity: CGFloat = 0
-
     /// Shared state for tracking mouse interaction with keyboard (for refined click delay)
     @EnvironmentObject private var keyboardMouseState: KeyboardMouseState
 
@@ -256,10 +253,6 @@ struct OverlayKeycapView: View {
         .onAppear {
             loadAppIconIfNeeded()
             loadFaviconIfNeeded()
-            // If icon loaded synchronously from cache, show immediately (no animation)
-            if appIcon != nil || faviconImage != nil {
-                iconOpacity = 1
-            }
         }
         .onChange(of: layerKeyInfo?.appLaunchIdentifier) { _, newValue in
             if newValue != nil {
@@ -278,35 +271,11 @@ struct OverlayKeycapView: View {
         .onChange(of: launcherMapping?.id) { _, newValue in
             // Reload icons when launcher mapping changes
             if newValue != nil {
-                // Reset opacity for new mapping (will animate when icon loads)
-                iconOpacity = 0
                 loadAppIconIfNeeded()
                 loadFaviconIfNeeded()
             } else {
                 appIcon = nil
                 faviconImage = nil
-                iconOpacity = 0
-            }
-        }
-        // Crossfade animation when icon loads asynchronously (not from cache)
-        .onChange(of: appIcon) { _, newIcon in
-            if newIcon != nil, iconOpacity == 0 {
-                // Icon loaded asynchronously - animate to visible
-                withAnimation(.easeIn(duration: 0.15)) {
-                    iconOpacity = 1
-                }
-            } else if newIcon == nil {
-                iconOpacity = 0
-            }
-        }
-        .onChange(of: faviconImage) { _, newFavicon in
-            if newFavicon != nil, iconOpacity == 0 {
-                // Favicon loaded asynchronously - animate to visible
-                withAnimation(.easeIn(duration: 0.15)) {
-                    iconOpacity = 1
-                }
-            } else if newFavicon == nil {
-                iconOpacity = 0
             }
         }
         // Accessibility: Make each key discoverable and clickable by automation
@@ -430,8 +399,8 @@ struct OverlayKeycapView: View {
     /// Standard key content routing (used for .standard legend style)
     @ViewBuilder
     private var standardKeyContent: some View {
-        // Launcher mode: show app icons on mapped keys with special styling
-        if isLauncherMode, !isModifierKey {
+        // Launcher mode: ALL keys use launcher styling (icons for mapped, labels for unmapped)
+        if isLauncherMode {
             launcherModeContent
         }
         // Check for novelty override first (ESC, Enter with special icons)
@@ -475,45 +444,56 @@ struct OverlayKeycapView: View {
 
     // MARK: - Launcher Mode Content
 
+    /// Label to display in launcher mode (hold label like ✦ takes priority over base label)
+    /// For Caps Lock (keyCode 57), always show ✦ in launcher mode since it's the hyper activator
+    private var launcherKeyLabel: String {
+        // Caps Lock is the hyper activator - always show ✦ in launcher mode
+        if key.keyCode == 57 {
+            return "✦"
+        }
+        return holdLabel ?? baseLabel
+    }
+
     /// Content for launcher mode: app icon centered, key letter in top-left corner
     @ViewBuilder
     private var launcherModeContent: some View {
         if let mapping = launcherMapping {
             // Mapped key: app icon centered, key letter in top-left
             ZStack(alignment: .topLeading) {
-                // Centered icon (app or favicon) with crossfade
+                // Centered icon (app or favicon)
+                // 18pt size, nudged right to avoid overlapping key label
                 if let icon = launcherAppIcon {
                     Image(nsImage: icon)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 20 * scale, height: 20 * scale)
+                        .frame(width: 18 * scale, height: 18 * scale)
                         .clipShape(RoundedRectangle(cornerRadius: 4 * scale))
-                        .shadow(color: .black.opacity(0.2), radius: 2 * scale, y: 1 * scale)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .opacity(iconOpacity)
-                }
-
-                // Fallback placeholder (visible while icon loads, fades out as icon fades in)
-                if launcherAppIcon == nil || iconOpacity < 1 {
+                        .offset(x: 2 * scale)
+                } else {
+                    // Fallback placeholder while icon loads
                     Image(systemName: mapping.target.isApp ? "app.fill" : "globe")
                         .font(.system(size: 12 * scale))
                         .foregroundStyle(foregroundColor.opacity(0.6))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .opacity(1 - iconOpacity)
+                        .offset(x: 2 * scale)
                 }
 
-                // Key letter in top-left corner
-                Text(baseLabel.uppercased())
+                // Key letter in top-left corner (or hold label like ✦)
+                Text(launcherKeyLabel.uppercased())
                     .font(.system(size: 8 * scale, weight: .medium, design: .rounded))
                     .foregroundStyle(Color.white.opacity(0.7))
                     .padding(3 * scale)
             }
         } else {
-            // Unmapped key in launcher mode: dimmed letter
-            Text(baseLabel.uppercased())
-                .font(.system(size: 10 * scale, weight: .medium))
-                .foregroundStyle(foregroundColor.opacity(0.3))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Unmapped key in launcher mode: small label in top-left (or hold label like ✦)
+            ZStack(alignment: .topLeading) {
+                Text(launcherKeyLabel.uppercased())
+                    .font(.system(size: 8 * scale, weight: .medium, design: .rounded))
+                    .foregroundStyle(Color.white.opacity(0.5))
+                    .padding(3 * scale)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
 
@@ -1246,6 +1226,10 @@ struct OverlayKeycapView: View {
         // Launcher mode: blue/teal background for mapped keys
         else if isLauncherMode, hasLauncherMapping {
             Color(red: 0.15, green: 0.35, blue: 0.45)
+        }
+        // Launcher mode: dark gray for ALL unmapped keys including modifiers/fn (RGB 56, 56, 57 - 10% lighter)
+        else if isLauncherMode {
+            Color(red: 56 / 255, green: 56 / 255, blue: 57 / 255)
         } else if isModifierKey {
             colorway.modBaseColor
         } else if isAccentKey {
