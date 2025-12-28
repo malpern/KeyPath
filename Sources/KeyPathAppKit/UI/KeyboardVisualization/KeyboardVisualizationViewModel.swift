@@ -61,13 +61,16 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
     // MARK: - Launcher Mode State
 
+    /// Layer name that triggers launcher mode display
+    private static let launcherLayerName = "launcher"
+
     /// Launcher mappings for overlay display (key -> LauncherMapping)
     /// Loaded when entering launcher layer
     @Published var launcherMappings: [String: LauncherMapping] = [:]
 
     /// Whether the overlay is in launcher mode (should show app icons on keys)
     var isLauncherModeActive: Bool {
-        currentLayerName.lowercased() == "launcher"
+        currentLayerName.lowercased() == Self.launcherLayerName
     }
 
     /// Tracks keys currently undergoing async hold-label resolution to avoid duplicate simulator runs

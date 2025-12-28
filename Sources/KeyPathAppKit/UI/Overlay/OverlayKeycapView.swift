@@ -293,6 +293,12 @@ struct OverlayKeycapView: View {
     private var keycapAccessibilityLabel: String {
         let keyName = key.label.isEmpty ? "Key \(key.keyCode)" : key.label
 
+        // Launcher mode: describe the app/URL this key launches
+        if isLauncherMode, let mapping = launcherMapping {
+            let targetType = mapping.target.isApp ? "app" : "website"
+            return "\(keyName), launches \(targetType) \(mapping.target.displayName)"
+        }
+
         // For dots legend style, describe the visual representation
         if colorway.legendStyle == .dots {
             let shape = isModifierKey ? "bar" : "dot"

@@ -371,4 +371,53 @@ final class KeyboardVisualizationViewModelTests: XCTestCase {
 
         XCTAssertTrue(viewModel.tcpPressedKeyCodes.contains(11), "Key 'b' should be pressed")
     }
+
+    // MARK: - Launcher Mode Detection Tests
+
+    func testIsLauncherModeActiveWhenLayerIsLauncher() {
+        let viewModel = KeyboardVisualizationViewModel()
+        viewModel.updateLayer("launcher")
+
+        XCTAssertTrue(viewModel.isLauncherModeActive, "Launcher mode should be active when layer is 'launcher'")
+    }
+
+    func testIsLauncherModeActiveIsCaseInsensitive() {
+        let viewModel = KeyboardVisualizationViewModel()
+        viewModel.updateLayer("Launcher")
+
+        XCTAssertTrue(viewModel.isLauncherModeActive, "Launcher mode detection should be case insensitive")
+    }
+
+    func testIsLauncherModeInactiveForBaseLayer() {
+        let viewModel = KeyboardVisualizationViewModel()
+        viewModel.updateLayer("base")
+
+        XCTAssertFalse(viewModel.isLauncherModeActive, "Launcher mode should be inactive for 'base' layer")
+    }
+
+    func testIsLauncherModeInactiveForNavLayer() {
+        let viewModel = KeyboardVisualizationViewModel()
+        viewModel.updateLayer("nav")
+
+        XCTAssertFalse(viewModel.isLauncherModeActive, "Launcher mode should be inactive for 'nav' layer")
+    }
+
+    func testLauncherMappingsEmptyByDefault() {
+        let viewModel = KeyboardVisualizationViewModel()
+
+        XCTAssertTrue(viewModel.launcherMappings.isEmpty, "Launcher mappings should be empty by default")
+    }
+
+    func testLauncherMappingsClearedWhenExitingLauncherMode() async {
+        let viewModel = KeyboardVisualizationViewModel()
+
+        // Enter launcher mode (which triggers async loading)
+        viewModel.updateLayer("launcher")
+        try? await Task.sleep(for: .milliseconds(100))
+
+        // Exit launcher mode
+        viewModel.updateLayer("base")
+
+        XCTAssertTrue(viewModel.launcherMappings.isEmpty, "Launcher mappings should be cleared when exiting launcher mode")
+    }
 }
