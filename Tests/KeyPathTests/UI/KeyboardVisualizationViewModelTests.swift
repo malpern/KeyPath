@@ -208,4 +208,167 @@ final class KeyboardVisualizationViewModelTests: XCTestCase {
         XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("rightctrl"), 102)
         XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("rctl"), 102)
     }
+
+    // MARK: - Tap-Hold Output Suppression Tests
+
+    func testCapslockSuppressesEscFromLightingUp() async {
+        let viewModel = KeyboardVisualizationViewModel()
+
+        // Press capslock (tap-hold source key)
+        viewModel.simulateTcpKeyInput(key: "caps", action: "press")
+        await Task.yield()
+
+        // Capslock should be in tcpPressedKeyCodes
+        XCTAssertTrue(
+            viewModel.tcpPressedKeyCodes.contains(57),
+            "Capslock (57) should be pressed"
+        )
+
+        // Now simulate ESC KeyInput (tap output of capslock)
+        viewModel.simulateTcpKeyInput(key: "esc", action: "press")
+        await Task.yield()
+
+        // ESC should NOT be in tcpPressedKeyCodes (suppressed)
+        XCTAssertFalse(
+            viewModel.tcpPressedKeyCodes.contains(53),
+            "ESC (53) should be suppressed while capslock is pressed"
+        )
+
+        // Capslock should still be pressed
+        XCTAssertTrue(
+            viewModel.tcpPressedKeyCodes.contains(57),
+            "Capslock should still be pressed"
+        )
+    }
+
+    func testEscWorksNormallyWhenCapslockNotPressed() async {
+        let viewModel = KeyboardVisualizationViewModel()
+
+        // Press ESC directly (no capslock active)
+        viewModel.simulateTcpKeyInput(key: "esc", action: "press")
+        await Task.yield()
+
+        // ESC should be in tcpPressedKeyCodes
+        XCTAssertTrue(
+            viewModel.tcpPressedKeyCodes.contains(53),
+            "ESC (53) should light up when pressed directly"
+        )
+    }
+
+    func testEscWorksAfterCapslockReleased() async {
+        let viewModel = KeyboardVisualizationViewModel()
+
+        // Press and release capslock
+        viewModel.simulateTcpKeyInput(key: "caps", action: "press")
+        await Task.yield()
+        viewModel.simulateTcpKeyInput(key: "caps", action: "release")
+        await Task.yield()
+
+        // Now press ESC - should work normally
+        viewModel.simulateTcpKeyInput(key: "esc", action: "press")
+        await Task.yield()
+
+        // ESC should be in tcpPressedKeyCodes
+        XCTAssertTrue(
+            viewModel.tcpPressedKeyCodes.contains(53),
+            "ESC (53) should light up after capslock is released"
+        )
+    }
+
+    func testEffectivePressedKeyCodesShowsCapslockNotEsc() async {
+        let viewModel = KeyboardVisualizationViewModel()
+
+        // Press capslock
+        viewModel.simulateTcpKeyInput(key: "caps", action: "press")
+        await Task.yield()
+
+        // Simulate ESC (suppressed)
+        viewModel.simulateTcpKeyInput(key: "esc", action: "press")
+        await Task.yield()
+
+        // effectivePressedKeyCodes should contain capslock but not ESC
+        let effective = viewModel.effectivePressedKeyCodes
+        XCTAssertTrue(effective.contains(57), "Capslock should be in effectivePressedKeyCodes")
+        XCTAssertFalse(effective.contains(53), "ESC should NOT be in effectivePressedKeyCodes")
+    }
+
+    // MARK: - TapActivated Dynamic Mapping Tests
+
+    func testTapActivatedPopulatesDynamicMap() async {
+        let viewModel = KeyboardVisualizationViewModel()
+
+        // Simulate TapActivated event (caps -> esc)
+        viewModel.simulateTapActivated(key: "caps", action: "esc")
+        await Task.yield()
+
+        // Now press caps and then esc
+        viewModel.simulateTcpKeyInput(key: "caps", action: "press")
+        await Task.yield()
+
+        viewModel.simulateTcpKeyInput(key: "esc", action: "press")
+        await Task.yield()
+
+        // ESC should be suppressed because dynamic map now knows caps -> esc
+        XCTAssertTrue(
+            viewModel.tcpPressedKeyCodes.contains(57),
+            "Capslock (57) should be pressed"
+        )
+        XCTAssertFalse(
+            viewModel.tcpPressedKeyCodes.contains(53),
+            "ESC (53) should be suppressed via dynamic map"
+        )
+    }
+
+    func testTapActivatedWithDifferentKey() async {
+        let viewModel = KeyboardVisualizationViewModel()
+
+        // Simulate TapActivated event (space -> enter)
+        viewModel.simulateTapActivated(key: "space", action: "enter")
+        await Task.yield()
+
+        // Press space, then enter
+        viewModel.simulateTcpKeyInput(key: "space", action: "press")
+        await Task.yield()
+
+        viewModel.simulateTcpKeyInput(key: "enter", action: "press")
+        await Task.yield()
+
+        // Enter (36) should be suppressed because dynamic map now knows space -> enter
+        XCTAssertTrue(
+            viewModel.tcpPressedKeyCodes.contains(49),
+            "Space (49) should be pressed"
+        )
+        XCTAssertFalse(
+            viewModel.tcpPressedKeyCodes.contains(36),
+            "Enter (36) should be suppressed via dynamic map"
+        )
+    }
+
+    func testTapActivatedWithEmptyActionDoesNotCrash() async {
+        let viewModel = KeyboardVisualizationViewModel()
+
+        // Simulate TapActivated with empty action (should not crash)
+        viewModel.simulateTapActivated(key: "caps", action: "")
+        await Task.yield()
+
+        // Verify viewModel is still functional
+        viewModel.simulateTcpKeyInput(key: "a", action: "press")
+        await Task.yield()
+
+        XCTAssertTrue(viewModel.tcpPressedKeyCodes.contains(0), "Key 'a' should be pressed")
+    }
+
+    func testTapActivatedWithUnknownKeyDoesNotCrash() async {
+        let viewModel = KeyboardVisualizationViewModel()
+
+        // Simulate TapActivated with unknown key (should not crash)
+        viewModel.simulateTapActivated(key: "unknown-key", action: "esc")
+        await Task.yield()
+
+        // Verify viewModel is still functional
+        viewModel.simulateTcpKeyInput(key: "b", action: "press")
+        await Task.yield()
+
+        XCTAssertTrue(viewModel.tcpPressedKeyCodes.contains(11), "Key 'b' should be pressed")
+    }
 }

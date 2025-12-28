@@ -132,6 +132,45 @@ class MapperViewModel: ObservableObject {
     @Published var isRecordingHold = false
     @Published var isRecordingDoubleTap = false
 
+    // Hold behavior type
+    enum HoldBehaviorType: String, CaseIterable {
+        case basic = "Basic"
+        case triggerEarly = "Trigger early"
+        case quickTap = "Quick tap"
+        case customKeys = "Custom keys"
+
+        var description: String {
+            switch self {
+            case .basic:
+                "Hold activates after timeout"
+            case .triggerEarly:
+                "Hold activates when another key is pressed (home-row mods)"
+            case .quickTap:
+                "Fast taps always register as tap"
+            case .customKeys:
+                "Only specific keys trigger early tap"
+            }
+        }
+    }
+
+    @Published var holdBehavior: HoldBehaviorType = .basic
+    @Published var customTapKeysText: String = ""
+
+    // Tap-dance steps (Triple Tap, Quad Tap, etc.)
+    @Published var tapDanceSteps: [(label: String, action: String, isRecording: Bool)] = []
+    static let tapDanceLabels = ["Triple Tap", "Quad Tap", "Quint Tap", "Sext Tap", "Sept Tap"]
+
+    // Separate timing
+    @Published var showTimingAdvanced = false
+    @Published var tapTimeout: Int = 200
+    @Published var holdTimeout: Int = 200
+
+    // Conflict detection
+    @Published var showConflictDialog = false
+    enum ConflictType { case holdVsTapDance }
+    @Published var pendingConflictType: ConflictType?
+    @Published var pendingConflictField: String = "" // "hold" or "tapDance-N"
+
     private var inputSequence: KeySequence?
     private var outputSequence: KeySequence?
     private var keyboardCapture: KeyboardCapture?
@@ -341,6 +380,14 @@ class MapperViewModel: ObservableObject {
     }
 
     func toggleHoldRecording() {
+        // Check for conflict: if tap-dance is set, show conflict dialog
+        if checkHoldConflict() {
+            pendingConflictType = .holdVsTapDance
+            pendingConflictField = "hold"
+            showConflictDialog = true
+            return
+        }
+
         if isRecordingHold {
             isRecordingHold = false
         } else {
@@ -355,6 +402,14 @@ class MapperViewModel: ObservableObject {
     }
 
     func toggleDoubleTapRecording() {
+        // Check for conflict: if hold is set, show conflict dialog
+        if !holdAction.isEmpty {
+            pendingConflictType = .holdVsTapDance
+            pendingConflictField = "doubleTap"
+            showConflictDialog = true
+            return
+        }
+
         if isRecordingDoubleTap {
             isRecordingDoubleTap = false
         } else {
@@ -368,14 +423,112 @@ class MapperViewModel: ObservableObject {
         }
     }
 
-    /// Simple single-key capture for hold/double-tap actions
+    // MARK: - Tap-Dance Steps (Triple, Quad, etc.)
+
+    /// Add next tap-dance step (Triple Tap, Quad Tap, etc.)
+    func addTapDanceStep() {
+        let index = tapDanceSteps.count
+        guard index < Self.tapDanceLabels.count else { return }
+        let label = Self.tapDanceLabels[index]
+        tapDanceSteps.append((label: label, action: "", isRecording: false))
+    }
+
+    /// Remove tap-dance step at index
+    func removeTapDanceStep(at index: Int) {
+        guard index >= 0, index < tapDanceSteps.count else { return }
+        tapDanceSteps.remove(at: index)
+    }
+
+    /// Toggle recording for tap-dance step at index
+    func toggleTapDanceRecording(at index: Int) {
+        guard index >= 0, index < tapDanceSteps.count else { return }
+
+        // Check for conflict: if hold is set, show conflict dialog
+        if !holdAction.isEmpty {
+            pendingConflictType = .holdVsTapDance
+            pendingConflictField = "tapDance-\(index)"
+            showConflictDialog = true
+            return
+        }
+
+        if tapDanceSteps[index].isRecording {
+            tapDanceSteps[index].isRecording = false
+        } else {
+            // Stop any other recording
+            stopRecording()
+            tapDanceSteps[index].isRecording = true
+            startSimpleKeyCapture { [weak self] keyName in
+                guard let self, index < tapDanceSteps.count else { return }
+                tapDanceSteps[index].action = keyName
+                tapDanceSteps[index].isRecording = false
+            }
+        }
+    }
+
+    /// Clear tap-dance step action at index
+    func clearTapDanceStep(at index: Int) {
+        guard index >= 0, index < tapDanceSteps.count else { return }
+        tapDanceSteps[index].action = ""
+    }
+
+    // MARK: - Conflict Resolution
+
+    /// Resolve conflict by keeping hold (clears all tap-dance actions)
+    func resolveConflictKeepHold() {
+        doubleTapAction = ""
+        for i in tapDanceSteps.indices {
+            tapDanceSteps[i].action = ""
+        }
+        showConflictDialog = false
+
+        // If user was trying to record hold, start that recording now
+        let field = pendingConflictField
+        pendingConflictType = nil
+        pendingConflictField = ""
+
+        if field == "hold" {
+            // Now safe to record hold
+            stopRecording()
+            isRecordingHold = true
+            startSimpleKeyCapture { [weak self] keyName in
+                self?.holdAction = keyName
+                self?.isRecordingHold = false
+            }
+        }
+    }
+
+    /// Resolve conflict by keeping tap-dance (clears hold action)
+    func resolveConflictKeepTapDance() {
+        holdAction = ""
+        holdBehavior = .basic
+        customTapKeysText = ""
+        showConflictDialog = false
+
+        // Now start recording in the originally attempted field
+        let field = pendingConflictField
+        pendingConflictType = nil
+        pendingConflictField = ""
+
+        if field == "doubleTap" {
+            toggleDoubleTapRecording()
+        } else if field.hasPrefix("tapDance-"), let index = Int(field.replacingOccurrences(of: "tapDance-", with: "")) {
+            toggleTapDanceRecording(at: index)
+        }
+    }
+
+    /// Check if hold action has conflict with existing tap-dance
+    func checkHoldConflict() -> Bool {
+        let hasTapDance = !doubleTapAction.isEmpty || tapDanceSteps.contains { !$0.action.isEmpty }
+        return hasTapDance
+    }
+
+    /// Simple single-key capture for hold/double-tap/tap-dance actions
     private func startSimpleKeyCapture(onCapture: @escaping (String) -> Void) {
         var monitor: Any?
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             // Escape cancels recording
             if event.keyCode == 53 {
-                self?.isRecordingHold = false
-                self?.isRecordingDoubleTap = false
+                self?.stopAllRecording()
                 if let m = monitor { NSEvent.removeMonitor(m) }
                 return nil
             }
@@ -388,11 +541,21 @@ class MapperViewModel: ObservableObject {
 
         // Timeout after 10 seconds
         DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
-            if self?.isRecordingHold == true || self?.isRecordingDoubleTap == true {
-                self?.isRecordingHold = false
-                self?.isRecordingDoubleTap = false
+            guard let self else { return }
+            let isAnyRecording = isRecordingHold || isRecordingDoubleTap || tapDanceSteps.contains { $0.isRecording }
+            if isAnyRecording {
+                stopAllRecording()
                 if let m = monitor { NSEvent.removeMonitor(m) }
             }
+        }
+    }
+
+    /// Stop all recording states
+    private func stopAllRecording() {
+        isRecordingHold = false
+        isRecordingDoubleTap = false
+        for i in tapDanceSteps.indices {
+            tapDanceSteps[i].isRecording = false
         }
     }
 

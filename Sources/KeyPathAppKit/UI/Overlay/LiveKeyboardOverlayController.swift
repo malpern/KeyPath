@@ -1071,6 +1071,8 @@ extension Notification.Name {
     static let kanataKeyInput = Notification.Name("KeyPath.KanataKeyInput")
     /// Posted when a tap-hold key transitions to hold state (userInfo["key"] = String, ["action"] = String)
     static let kanataHoldActivated = Notification.Name("KeyPath.KanataHoldActivated")
+    /// Posted when a tap-hold key triggers its tap action (userInfo["key"] = String, ["action"] = String)
+    static let kanataTapActivated = Notification.Name("KeyPath.KanataTapActivated")
     /// Posted when a generic push-msg is received (userInfo["message"] = String) - e.g., "icon:arrow-left", "emphasis:h,j,k,l"
     static let kanataMessagePush = Notification.Name("KeyPath.KanataMessagePush")
 }

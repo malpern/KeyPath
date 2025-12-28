@@ -191,6 +191,17 @@ struct MapperView: View {
                 onCancel: { viewModel.showingURLDialog = false }
             )
         }
+        .sheet(isPresented: $viewModel.showConflictDialog) {
+            MapperConflictDialog(
+                onKeepHold: { viewModel.resolveConflictKeepHold() },
+                onKeepTapDance: { viewModel.resolveConflictKeepTapDance() },
+                onCancel: {
+                    viewModel.showConflictDialog = false
+                    viewModel.pendingConflictType = nil
+                    viewModel.pendingConflictField = ""
+                }
+            )
+        }
     }
 }
 
@@ -589,34 +600,45 @@ private struct AdvancedBehaviorContent: View {
     @ObservedObject var viewModel: MapperViewModel
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 16) {
             // On Hold row
-            HStack(spacing: 16) {
-                Text("On Hold")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .frame(width: 70, alignment: .trailing)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 16) {
+                    Text("On Hold")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .frame(width: 70, alignment: .trailing)
 
-                MiniActionKeycap(
-                    label: viewModel.holdAction.isEmpty ? "" : formatKeyForDisplay(viewModel.holdAction),
-                    isRecording: viewModel.isRecordingHold,
-                    onTap: { viewModel.toggleHoldRecording() }
-                )
+                    MiniActionKeycap(
+                        label: viewModel.holdAction.isEmpty ? "" : formatKeyForDisplay(viewModel.holdAction),
+                        isRecording: viewModel.isRecordingHold,
+                        onTap: { viewModel.toggleHoldRecording() }
+                    )
 
-                if !viewModel.holdAction.isEmpty {
-                    Button {
-                        viewModel.holdAction = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary.opacity(0.6))
+                    if !viewModel.holdAction.isEmpty {
+                        Button {
+                            viewModel.holdAction = ""
+                            viewModel.holdBehavior = .basic
+                            viewModel.customTapKeysText = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary.opacity(0.6))
+                        }
+                        .buttonStyle(.plain)
+                        .help("Clear hold action")
+                        .accessibilityIdentifier("mapper-clear-hold-button")
+                        .accessibilityLabel("Clear hold action")
                     }
-                    .buttonStyle(.plain)
-                    .help("Clear hold action")
-                    .accessibilityIdentifier("mapper-clear-hold-button")
-                    .accessibilityLabel("Clear hold action")
+
+                    Spacer()
                 }
 
-                Spacer()
+                // Hold behavior options (shown when hold action is set)
+                if !viewModel.holdAction.isEmpty {
+                    holdBehaviorPicker
+                        .padding(.leading, 86) // Align with keycap
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
             }
 
             // Double Tap row
@@ -648,6 +670,71 @@ private struct AdvancedBehaviorContent: View {
                 Spacer()
             }
 
+            // Triple+ Tap rows (dynamically added)
+            ForEach(Array(viewModel.tapDanceSteps.enumerated()), id: \.offset) { index, step in
+                HStack(spacing: 16) {
+                    Text(step.label)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .frame(width: 70, alignment: .trailing)
+
+                    MiniActionKeycap(
+                        label: step.action.isEmpty ? "" : formatKeyForDisplay(step.action),
+                        isRecording: step.isRecording,
+                        onTap: { viewModel.toggleTapDanceRecording(at: index) }
+                    )
+
+                    if !step.action.isEmpty {
+                        Button {
+                            viewModel.clearTapDanceStep(at: index)
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary.opacity(0.6))
+                        }
+                        .buttonStyle(.plain)
+                        .help("Clear \(step.label.lowercased()) action")
+                    }
+
+                    // Remove button for this step
+                    Button {
+                        viewModel.removeTapDanceStep(at: index)
+                    } label: {
+                        Image(systemName: "minus.circle.fill")
+                            .foregroundColor(.secondary.opacity(0.6))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Remove \(step.label.lowercased())")
+
+                    Spacer()
+                }
+            }
+
+            // "+ Triple Tap" link (only if we can add more)
+            if viewModel.tapDanceSteps.count < MapperViewModel.tapDanceLabels.count {
+                HStack(spacing: 16) {
+                    Text("")
+                        .frame(width: 70)
+
+                    Button {
+                        viewModel.addTapDanceStep()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "plus.circle")
+                                .font(.caption)
+                            Text(nextTapDanceLabel)
+                                .font(.subheadline)
+                        }
+                        .foregroundColor(.accentColor)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Add \(nextTapDanceLabel.lowercased())")
+                    .accessibilityIdentifier("mapper-add-tap-dance-button")
+                    .accessibilityLabel("Add \(nextTapDanceLabel.lowercased())")
+
+                    Spacer()
+                }
+            }
+
             // Timing row
             HStack(spacing: 16) {
                 Text("Timing")
@@ -655,20 +742,125 @@ private struct AdvancedBehaviorContent: View {
                     .foregroundColor(.secondary)
                     .frame(width: 70, alignment: .trailing)
 
-                HStack(spacing: 8) {
-                    TextField("", value: $viewModel.tappingTerm, format: .number)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 60)
+                if viewModel.showTimingAdvanced {
+                    // Separate timing fields
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 8) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Tap")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                TextField("", value: $viewModel.tapTimeout, format: .number)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 50)
+                            }
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Hold")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                TextField("", value: $viewModel.holdTimeout, format: .number)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 50)
+                            }
+                            Text("ms")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                } else {
+                    // Single timing value
+                    HStack(spacing: 8) {
+                        TextField("", value: $viewModel.tappingTerm, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 60)
 
-                    Text("ms")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        Text("ms")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
                 }
+
+                // Gear icon to toggle advanced timing
+                Button {
+                    viewModel.showTimingAdvanced.toggle()
+                    if viewModel.showTimingAdvanced {
+                        // Initialize separate values from single
+                        viewModel.tapTimeout = viewModel.tappingTerm
+                        viewModel.holdTimeout = viewModel.tappingTerm
+                    } else {
+                        // Sync single value from tap timeout
+                        viewModel.tappingTerm = viewModel.tapTimeout
+                    }
+                } label: {
+                    Image(systemName: "gearshape")
+                        .font(.subheadline)
+                        .foregroundColor(viewModel.showTimingAdvanced ? .accentColor : .secondary)
+                }
+                .buttonStyle(.plain)
+                .help(viewModel.showTimingAdvanced ? "Use single timing" : "Separate tap/hold timing")
+                .accessibilityIdentifier("mapper-timing-advanced-button")
+                .accessibilityLabel("Toggle advanced timing")
 
                 Spacer()
             }
         }
         .padding(.leading, 8)
+        .animation(.easeInOut(duration: 0.2), value: viewModel.holdAction.isEmpty)
+        .animation(.easeInOut(duration: 0.2), value: viewModel.tapDanceSteps.count)
+        .animation(.easeInOut(duration: 0.2), value: viewModel.showTimingAdvanced)
+    }
+
+    // MARK: - Hold Behavior Picker
+
+    private var holdBehaviorPicker: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(MapperViewModel.HoldBehaviorType.allCases, id: \.self) { behaviorType in
+                HStack(spacing: 8) {
+                    Button {
+                        viewModel.holdBehavior = behaviorType
+                    } label: {
+                        Image(systemName: viewModel.holdBehavior == behaviorType ? "checkmark.circle.fill" : "circle")
+                            .font(.caption)
+                            .foregroundColor(viewModel.holdBehavior == behaviorType ? .accentColor : .secondary)
+                    }
+                    .buttonStyle(.plain)
+
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(behaviorType.rawValue)
+                            .font(.caption)
+                            .foregroundColor(.primary)
+
+                        if viewModel.holdBehavior == behaviorType {
+                            Text(behaviorType.description)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+                .accessibilityIdentifier("mapper-hold-behavior-\(behaviorType.rawValue.lowercased().replacingOccurrences(of: " ", with: "-"))")
+                .accessibilityLabel(behaviorType.rawValue)
+
+                // Custom keys input (shown when Custom keys is selected)
+                if behaviorType == .customKeys, viewModel.holdBehavior == .customKeys {
+                    TextField("e.g., a s d f", text: $viewModel.customTapKeysText)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 140)
+                        .font(.caption)
+                        .padding(.leading, 20)
+                        .accessibilityIdentifier("mapper-custom-tap-keys-field")
+                        .accessibilityLabel("Custom tap keys")
+                }
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private var nextTapDanceLabel: String {
+        let index = viewModel.tapDanceSteps.count
+        guard index < MapperViewModel.tapDanceLabels.count else { return "More Taps" }
+        return MapperViewModel.tapDanceLabels[index]
     }
 
     private func formatKeyForDisplay(_ key: String) -> String {
@@ -686,6 +878,50 @@ private struct AdvancedBehaviorContent: View {
             "left": "←", "right": "→", "up": "↑", "down": "↓"
         ]
         return displayMap[key.lowercased()] ?? key.uppercased()
+    }
+}
+
+// MARK: - Mapper Conflict Dialog
+
+private struct MapperConflictDialog: View {
+    let onKeepHold: () -> Void
+    let onKeepTapDance: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.largeTitle)
+                .foregroundColor(.orange)
+
+            Text("Behavior Conflict")
+                .font(.headline)
+
+            Text("Kanata cannot detect both hold and tap-count on the same key. You must choose one behavior.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 12) {
+                Button("Keep Hold") {
+                    onKeepHold()
+                }
+                .buttonStyle(.bordered)
+
+                Button("Keep Tap-Dance") {
+                    onKeepTapDance()
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button("Cancel") {
+                    onCancel()
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding(20)
+        .frame(width: 320)
     }
 }
 

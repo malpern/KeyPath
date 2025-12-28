@@ -66,10 +66,44 @@ class KeyboardVisualizationViewModel: ObservableObject {
     private let holdLabelCacheTTL: TimeInterval = 5
     /// Pending delayed clears for hold-active keys to tolerate tap-hold-press jitter
     private var holdClearWorkItems: [UInt16: DispatchWorkItem] = [:]
+
+    // MARK: - Tap-Hold Output Suppression
+
+    /// Dynamically tracks tap-hold source keys to their tap output keys.
+    /// Populated when TapActivated events are received from Kanata.
+    /// Example: capslock (57) -> esc (53) when TapActivated says key=caps, action=esc
+    private var dynamicTapHoldOutputMap: [UInt16: Set<UInt16>] = [:]
+
+    /// Fallback static map for common tap-hold patterns (used when TapActivated not available).
+    /// Will be phased out once TapActivated is fully deployed.
+    private static let fallbackTapHoldOutputMap: [UInt16: Set<UInt16>] = [
+        57: [53] // capslock -> esc (common tap-hold: caps = tap:esc, hold:hyper)
+    ]
+
+    /// Source keys that are currently pressed (for output suppression).
+    /// While a source key is in this set, its mapped output keys won't be added to tcpPressedKeyCodes.
+    private var activeTapHoldSources: Set<UInt16> = []
+
+    /// All output keyCodes that should be suppressed (computed from active sources)
+    private var suppressedOutputKeyCodes: Set<UInt16> {
+        activeTapHoldSources.reduce(into: Set<UInt16>()) { result, source in
+            // Try dynamic map first (from TapActivated events)
+            if let outputs = dynamicTapHoldOutputMap[source] {
+                result.formUnion(outputs)
+            }
+            // Fall back to static map
+            if let outputs = Self.fallbackTapHoldOutputMap[source] {
+                result.formUnion(outputs)
+            }
+        }
+    }
+
     /// Key input notification observer
     private var keyInputObserver: Any?
     /// Hold activated notification observer
     private var holdActivatedObserver: Any?
+    /// Tap activated notification observer
+    private var tapActivatedObserver: Any?
     /// Push message notification observer (for icon/emphasis messages)
     private var messagePushObserver: Any?
 
@@ -134,6 +168,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
         setupEventTap()
         setupKeyInputObserver() // Listen for TCP-based physical key events
         setupHoldActivatedObserver() // Listen for tap-hold state transitions
+        setupTapActivatedObserver() // Listen for tap-hold tap triggers
         setupMessagePushObserver() // Listen for icon/emphasis push messages
         startIdleMonitor()
         rebuildLayerMapping() // Build initial layer mapping
@@ -147,6 +182,8 @@ class KeyboardVisualizationViewModel: ObservableObject {
         tcpPressedKeyCodes.removeAll()
         holdLabels.removeAll()
         holdLabelCache.removeAll()
+        activeTapHoldSources.removeAll()
+        dynamicTapHoldOutputMap.removeAll()
 
         if let source = runLoopSource {
             CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, .commonModes)
@@ -166,6 +203,11 @@ class KeyboardVisualizationViewModel: ObservableObject {
         if let observer = holdActivatedObserver {
             NotificationCenter.default.removeObserver(observer)
             holdActivatedObserver = nil
+        }
+
+        if let observer = tapActivatedObserver {
+            NotificationCenter.default.removeObserver(observer)
+            tapActivatedObserver = nil
         }
 
         if let observer = messagePushObserver {
@@ -628,6 +670,25 @@ class KeyboardVisualizationViewModel: ObservableObject {
         AppLogger.shared.debug("⌨️ [KeyboardViz] Hold activated observer registered")
     }
 
+    /// Set up observer for Kanata TCP TapActivated events (tap-hold triggers tap action)
+    private func setupTapActivatedObserver() {
+        tapActivatedObserver = NotificationCenter.default.addObserver(
+            forName: .kanataTapActivated,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self else { return }
+            guard let key = notification.userInfo?["key"] as? String,
+                  let action = notification.userInfo?["action"] as? String
+            else { return }
+
+            Task { @MainActor in
+                self.handleTapActivated(key: key, action: action)
+            }
+        }
+        AppLogger.shared.debug("⌨️ [KeyboardViz] Tap activated observer registered")
+    }
+
     /// Set up observer for Kanata TCP MessagePush events (icon/emphasis messages)
     private func setupMessagePushObserver() {
         messagePushObserver = NotificationCenter.default.addObserver(
@@ -750,6 +811,34 @@ class KeyboardVisualizationViewModel: ObservableObject {
         }
     }
 
+    /// Handle a TapActivated event from Kanata
+    /// Populates the dynamic tap-hold output map for suppression
+    private func handleTapActivated(key: String, action: String) {
+        guard let sourceKeyCode = Self.kanataNameToKeyCode(key) else {
+            AppLogger.shared.debug("👆 [KeyboardViz] Unknown kanata key name for tap: \(key)")
+            return
+        }
+
+        // The action string contains the tap output key (e.g., "esc" for caps→esc)
+        // We need to map the source key to its output for suppression
+        if !action.isEmpty {
+            if let outputKeyCode = Self.kanataNameToKeyCode(action) {
+                // Add to dynamic map
+                if dynamicTapHoldOutputMap[sourceKeyCode] == nil {
+                    dynamicTapHoldOutputMap[sourceKeyCode] = []
+                }
+                dynamicTapHoldOutputMap[sourceKeyCode]?.insert(outputKeyCode)
+                AppLogger.shared.info(
+                    "👆 [KeyboardViz] Tap activated: \(key) -> \(action) (mapped \(sourceKeyCode) -> \(outputKeyCode))"
+                )
+            } else {
+                AppLogger.shared.debug("👆 [KeyboardViz] Unknown output key name: \(action)")
+            }
+        } else {
+            AppLogger.shared.debug("👆 [KeyboardViz] Tap activated with empty action: \(key)")
+        }
+    }
+
     /// Convert a Kanata action string to a display label
     /// e.g., "lctl+lmet+lalt+lsft" → "✦" (Hyper)
     nonisolated static func actionToDisplayLabel(_ action: String) -> String {
@@ -805,8 +894,28 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
         noteInteraction()
 
+        // Check if this key is a tap-hold source key (e.g., capslock)
+        // Use both dynamic map (from TapActivated events) and static fallback
+        let isTapHoldSource = dynamicTapHoldOutputMap[keyCode] != nil
+            || Self.fallbackTapHoldOutputMap[keyCode] != nil
+
+        // Check if this key should be suppressed (it's an output of an active tap-hold source)
+        let shouldSuppress = suppressedOutputKeyCodes.contains(keyCode)
+
         switch action {
         case "press", "repeat":
+            // Track tap-hold source keys
+            if isTapHoldSource {
+                activeTapHoldSources.insert(keyCode)
+                AppLogger.shared.debug("⌨️ [KeyboardViz] Tap-hold source activated: \(key) (\(keyCode))")
+            }
+
+            // Suppress output keys of active tap-hold sources (e.g., don't light up ESC when caps is pressed)
+            if shouldSuppress {
+                AppLogger.shared.debug("⌨️ [KeyboardViz] Suppressing output key: \(key) (\(keyCode)) - source key is active")
+                return
+            }
+
             cancelKeyFadeOut(keyCode) // Cancel any ongoing fade-out
             tcpPressedKeyCodes.insert(keyCode)
             // If a hold is already active for this key, keep it active and cancel any pending clear.
@@ -821,6 +930,18 @@ class KeyboardVisualizationViewModel: ObservableObject {
             }
             AppLogger.shared.debug("⌨️ [KeyboardViz] TCP KeyPress: \(key) -> keyCode \(keyCode)")
         case "release":
+            // Clear tap-hold source tracking
+            if isTapHoldSource {
+                activeTapHoldSources.remove(keyCode)
+                AppLogger.shared.debug("⌨️ [KeyboardViz] Tap-hold source deactivated: \(key) (\(keyCode))")
+            }
+
+            // If this was a suppressed key, just ignore the release too
+            if shouldSuppress {
+                AppLogger.shared.debug("⌨️ [KeyboardViz] Suppressing output key release: \(key) (\(keyCode))")
+                return
+            }
+
             tcpPressedKeyCodes.remove(keyCode)
             startKeyFadeOut(keyCode) // Start fade-out animation
             // Defer clearing hold state briefly to tolerate tap-hold-press sequences that emit rapid releases.
@@ -854,6 +975,11 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Simulate a HoldActivated TCP event (used by unit tests).
     func simulateHoldActivated(key: String, action: String) {
         handleHoldActivated(key: key, action: action)
+    }
+
+    /// Simulate a TapActivated TCP event (used by unit tests).
+    func simulateTapActivated(key: String, action: String) {
+        handleTapActivated(key: key, action: action)
     }
 
     /// Simulate a TCP KeyInput event (used by unit tests).

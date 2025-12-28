@@ -254,6 +254,17 @@ public struct KanataHoldActivation: Sendable {
     public let timestamp: UInt64
 }
 
+/// Tap activation info from Kanata TCP TapActivated events
+/// Sent when a tap-hold key triggers its tap action
+public struct KanataTapActivation: Sendable {
+    /// Physical key name (e.g., "caps")
+    public let key: String
+    /// Tap action output (e.g., "esc")
+    public let action: String
+    /// Timestamp in milliseconds since Kanata start
+    public let timestamp: UInt64
+}
+
 /// Monitors Kanata's TCP server for events.
 /// Handles `LayerChange`, `CurrentLayerName`, `MessagePush`, and `KeyInput` messages.
 actor KanataEventListener {
@@ -265,7 +276,8 @@ actor KanataEventListener {
     private var unknownMessageHandler: (@Sendable (String) async -> Void)?
     private var keyInputHandler: (@Sendable (String, KanataKeyAction) async -> Void)?
     private var holdActivatedHandler: (@Sendable (KanataHoldActivation) async -> Void)?
-    /// Capabilities advertised by Kanata in HelloOk (e.g., "hold_activated").
+    private var tapActivatedHandler: (@Sendable (KanataTapActivation) async -> Void)?
+    /// Capabilities advertised by Kanata in HelloOk (e.g., "hold_activated", "tap_activated").
     private var capabilities: Set<String> = []
     private let listenerQueue = DispatchQueue(label: "com.keypath.event-listener")
 
@@ -277,13 +289,15 @@ actor KanataEventListener {
     ///   - onUnknownMessage: Called for non-keypath:// messages (for debugging/errors)
     ///   - onKeyInput: Called when a physical key is pressed/released (from Kanata's KeyInput events)
     ///   - onHoldActivated: Called when a tap-hold key transitions to hold state
+    ///   - onTapActivated: Called when a tap-hold key triggers its tap action
     func start(
         port: Int,
         onLayerChange: @escaping @Sendable (String) async -> Void,
         onActionURI: (@Sendable (KeyPathActionURI) async -> Void)? = nil,
         onUnknownMessage: (@Sendable (String) async -> Void)? = nil,
         onKeyInput: (@Sendable (String, KanataKeyAction) async -> Void)? = nil,
-        onHoldActivated: (@Sendable (KanataHoldActivation) async -> Void)? = nil
+        onHoldActivated: (@Sendable (KanataHoldActivation) async -> Void)? = nil,
+        onTapActivated: (@Sendable (KanataTapActivation) async -> Void)? = nil
     ) async {
         if self.port == port, listenTask != nil { return }
         await stop()
@@ -294,6 +308,7 @@ actor KanataEventListener {
         unknownMessageHandler = onUnknownMessage
         keyInputHandler = onKeyInput
         holdActivatedHandler = onHoldActivated
+        tapActivatedHandler = onTapActivated
         AppLogger.shared.log("🌐 [EventListener] Starting event listener on port \(port)")
         listenTask = Task(priority: .background) { [weak self] in
             guard let self else { return }
@@ -313,6 +328,7 @@ actor KanataEventListener {
         unknownMessageHandler = nil
         keyInputHandler = nil
         holdActivatedHandler = nil
+        tapActivatedHandler = nil
     }
 
     private func listenLoop() async {
@@ -545,6 +561,25 @@ actor KanataEventListener {
                 }
             } else {
                 AppLogger.shared.debug("🔒 [EventListener] HoldActivated ignored (capability not advertised)")
+            }
+            return
+        }
+
+        // Handle TapActivated events (tap-hold key triggered its tap action)
+        // Format from Kanata: {"TapActivated":{"key":"caps","action":"esc","t":12345}}
+        if let tapActivated = json["TapActivated"] as? [String: Any],
+           let key = tapActivated["key"] as? String,
+           let action = tapActivated["action"] as? String,
+           let timestamp = tapActivated["t"] as? UInt64 {
+            // Respect capability advertisement when available; still process for backward compat
+            if capabilities.isEmpty || capabilities.contains("tap_activated") {
+                AppLogger.shared.log("👆 [EventListener] TapActivated: \(key) -> \(action)")
+                let activation = KanataTapActivation(key: key, action: action, timestamp: timestamp)
+                if let handler = tapActivatedHandler {
+                    await handler(activation)
+                }
+            } else {
+                AppLogger.shared.debug("👆 [EventListener] TapActivated ignored (capability not advertised)")
             }
             return
         }

@@ -227,6 +227,17 @@ final class RuleCollectionsManager {
                             userInfo: ["key": activation.key, "action": activation.action]
                         )
                     }
+                },
+                onTapActivated: { activation in
+                    // Post notification when tap-hold key triggers its tap action
+                    // Used by KeyboardVisualizationViewModel for suppressing output keys
+                    await MainActor.run {
+                        NotificationCenter.default.post(
+                            name: .kanataTapActivated,
+                            object: nil,
+                            userInfo: ["key": activation.key, "action": activation.action]
+                        )
+                    }
                 }
             )
         }
