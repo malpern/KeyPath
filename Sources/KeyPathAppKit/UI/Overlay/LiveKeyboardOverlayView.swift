@@ -101,7 +101,9 @@ struct LiveKeyboardOverlayView: View {
                             selectedSection: inspectorSection,
                             onSelectSection: { inspectorSection = $0 },
                             fadeAmount: fadeAmount,
-                            onKeymapChanged: onKeymapChanged
+                            onKeymapChanged: onKeymapChanged,
+                            isKeycapsEnabled: viewModel.isKeycapColorwayEnabled,
+                            isSoundsEnabled: viewModel.isTypingSoundsEnabled
                         )
                         .frame(width: inspectorWidth, alignment: .leading)
                         .frame(width: inspectorTotalWidth, alignment: .leading)
@@ -556,6 +558,10 @@ struct OverlayInspectorPanel: View {
     let fadeAmount: CGFloat
     /// Callback when keymap selection changes (keymapId, includePunctuation)
     var onKeymapChanged: ((String, Bool) -> Void)?
+    /// Whether keycaps colorway feature is enabled
+    var isKeycapsEnabled: Bool = false
+    /// Whether typing sounds feature is enabled
+    var isSoundsEnabled: Bool = false
 
     @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
     @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var includePunctuationStore: String = "{}"
@@ -572,7 +578,9 @@ struct OverlayInspectorPanel: View {
             InspectorPanelToolbar(
                 isDark: isDark,
                 selectedSection: selectedSection,
-                onSelectSection: onSelectSection
+                onSelectSection: onSelectSection,
+                isKeycapsEnabled: isKeycapsEnabled,
+                isSoundsEnabled: isSoundsEnabled
             )
             .padding(.top, 6)
 
@@ -897,6 +905,8 @@ private struct InspectorPanelToolbar: View {
     let isDark: Bool
     let selectedSection: InspectorSection
     let onSelectSection: (InspectorSection) -> Void
+    let isKeycapsEnabled: Bool
+    let isSoundsEnabled: Bool
     private let buttonSize: CGFloat = 32
     @State private var isHoveringKeyboard = false
     @State private var isHoveringLayout = false
@@ -940,27 +950,33 @@ private struct InspectorPanelToolbar: View {
             .accessibilityIdentifier("inspector-tab-layout")
             .accessibilityLabel("Physical Layout")
 
-            toolbarButton(
-                systemImage: "swatchpalette.fill",
-                isSelected: selectedSection == .keycaps,
-                isHovering: isHoveringKeycaps,
-                onHover: { isHoveringKeycaps = $0 }
-            ) {
-                onSelectSection(.keycaps)
+            // Only show keycaps tab when Keycap Colorway collection is enabled
+            if isKeycapsEnabled {
+                toolbarButton(
+                    systemImage: "swatchpalette.fill",
+                    isSelected: selectedSection == .keycaps,
+                    isHovering: isHoveringKeycaps,
+                    onHover: { isHoveringKeycaps = $0 }
+                ) {
+                    onSelectSection(.keycaps)
+                }
+                .accessibilityIdentifier("inspector-tab-keycaps")
+                .accessibilityLabel("Keycap Style")
             }
-            .accessibilityIdentifier("inspector-tab-keycaps")
-            .accessibilityLabel("Keycap Style")
 
-            toolbarButton(
-                systemImage: "speaker.wave.2.fill",
-                isSelected: selectedSection == .sounds,
-                isHovering: isHoveringSounds,
-                onHover: { isHoveringSounds = $0 }
-            ) {
-                onSelectSection(.sounds)
+            // Only show sounds tab when Typing Sounds collection is enabled
+            if isSoundsEnabled {
+                toolbarButton(
+                    systemImage: "speaker.wave.2.fill",
+                    isSelected: selectedSection == .sounds,
+                    isHovering: isHoveringSounds,
+                    onHover: { isHoveringSounds = $0 }
+                ) {
+                    onSelectSection(.sounds)
+                }
+                .accessibilityIdentifier("inspector-tab-sounds")
+                .accessibilityLabel("Typing Sounds")
             }
-            .accessibilityIdentifier("inspector-tab-sounds")
-            .accessibilityLabel("Typing Sounds")
         }
         .controlSize(.regular)
         .padding(.horizontal, 14)

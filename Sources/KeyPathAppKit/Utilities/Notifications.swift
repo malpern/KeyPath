@@ -35,6 +35,9 @@ extension Notification.Name {
     // Kanata service health
     static let kanataCrashLoopDetected = Notification.Name("KeyPath.Kanata.CrashLoopDetected")
 
+    // Rule collections
+    static let ruleCollectionsChanged = Notification.Name("KeyPath.RuleCollections.Changed")
+
     // Uninstall flow
     static let keyPathUninstallCompleted = Notification.Name("KeyPath.Uninstall.Completed")
 

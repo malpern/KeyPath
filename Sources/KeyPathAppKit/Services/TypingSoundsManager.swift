@@ -95,9 +95,20 @@ final class TypingSoundsManager: ObservableObject {
         }
     }
 
-    /// Whether sounds are enabled
+    /// Whether the Typing Sounds collection is enabled
+    @Published var isCollectionEnabled: Bool = false
+
+    /// Whether sounds are enabled (collection must be enabled and profile not "off")
     var isEnabled: Bool {
-        selectedProfile.id != SoundProfile.off.id
+        isCollectionEnabled && selectedProfile.id != SoundProfile.off.id
+    }
+
+    /// Load the collection enabled state from RuleCollectionStore
+    func loadCollectionState() {
+        Task { @MainActor in
+            let collections = await RuleCollectionStore.shared.loadCollections()
+            isCollectionEnabled = collections.first { $0.id == RuleCollectionIdentifier.typingSounds }?.isEnabled ?? false
+        }
     }
 
     /// Audio players for keydown sounds
@@ -110,6 +121,9 @@ final class TypingSoundsManager: ObservableObject {
     /// Number of concurrent players per sound type
     private let playerPoolSize = 8
 
+    /// Observer for rule collection changes
+    private var ruleCollectionsObserver: Any?
+
     private init() {
         // Restore saved preferences
         if let savedProfileId = UserDefaults.standard.string(forKey: "typingSoundProfileId"),
@@ -120,6 +134,23 @@ final class TypingSoundsManager: ObservableObject {
             }
         }
         volume = UserDefaults.standard.object(forKey: "typingSoundVolume") as? Float ?? 0.7
+        loadCollectionState()
+        setupRuleCollectionsObserver()
+    }
+
+    /// Set up observer for rule collections changed notification (for real-time enable/disable)
+    private func setupRuleCollectionsObserver() {
+        ruleCollectionsObserver = NotificationCenter.default.addObserver(
+            forName: .ruleCollectionsChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in
+                self.loadCollectionState()
+                AppLogger.shared.debug("🔊 [TypingSounds] Reloaded collection state after change")
+            }
+        }
     }
 
     // MARK: - Sound Playback

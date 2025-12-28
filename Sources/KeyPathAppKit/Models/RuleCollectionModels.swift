@@ -331,6 +331,8 @@ public enum RuleCollectionIdentifier {
     public static let symbolLayer = UUID(uuidString: "E6F8A0B2-4C5D-7E9F-1A3B-5C7D9E1F3A5B")!
     public static let windowSnapping = UUID(uuidString: "F7A9B1C3-5D6E-8F0A-2B4C-6D8E0F2A4B6C")!
     public static let launcher = UUID(uuidString: "A8B9C0D1-2E3F-4A5B-6C7D-8E9F0A1B2C3D")!
+    public static let typingSounds = UUID(uuidString: "B9C0D1E2-3F4A-5B6C-7D8E-9F0A1B2C3D4E")!
+    public static let keycapColorway = UUID(uuidString: "C0D1E2F3-4A5B-6C7D-8E9F-0A1B2C3D4E5F")!
 }
 
 public enum RuleCollectionLayer: Codable, Equatable, Sendable, Hashable {

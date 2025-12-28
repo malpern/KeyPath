@@ -73,6 +73,14 @@ class KeyboardVisualizationViewModel: ObservableObject {
         currentLayerName.lowercased() == Self.launcherLayerName
     }
 
+    // MARK: - Optional Feature Collections
+
+    /// Whether the Typing Sounds collection is enabled
+    @Published var isTypingSoundsEnabled: Bool = false
+
+    /// Whether the Keycap Colorway collection is enabled
+    @Published var isKeycapColorwayEnabled: Bool = false
+
     /// Tracks keys currently undergoing async hold-label resolution to avoid duplicate simulator runs
     private var resolvingHoldLabels: Set<UInt16> = []
     /// Short-lived cache of resolved hold labels to avoid repeated simulator runs (keyCode -> (label, timestamp))
@@ -129,6 +137,8 @@ class KeyboardVisualizationViewModel: ObservableObject {
     private var tapActivatedObserver: Any?
     /// Push message notification observer (for icon/emphasis messages)
     private var messagePushObserver: Any?
+    /// Rule collections changed notification observer (for feature toggle updates)
+    private var ruleCollectionsObserver: Any?
 
     // MARK: - Key Emphasis
 
@@ -193,8 +203,19 @@ class KeyboardVisualizationViewModel: ObservableObject {
         setupHoldActivatedObserver() // Listen for tap-hold state transitions
         setupTapActivatedObserver() // Listen for tap-hold tap triggers
         setupMessagePushObserver() // Listen for icon/emphasis push messages
+        setupRuleCollectionsObserver() // Listen for collection toggle changes
         startIdleMonitor()
         rebuildLayerMapping() // Build initial layer mapping
+        loadFeatureCollectionStates() // Load optional feature collection states
+    }
+
+    /// Load enabled states for optional feature collections (Typing Sounds, Keycap Colorway)
+    func loadFeatureCollectionStates() {
+        Task { @MainActor in
+            let collections = await RuleCollectionStore.shared.loadCollections()
+            isTypingSoundsEnabled = collections.first { $0.id == RuleCollectionIdentifier.typingSounds }?.isEnabled ?? false
+            isKeycapColorwayEnabled = collections.first { $0.id == RuleCollectionIdentifier.keycapColorway }?.isEnabled ?? false
+        }
     }
 
     func stopCapturing() {
@@ -239,6 +260,11 @@ class KeyboardVisualizationViewModel: ObservableObject {
         if let observer = messagePushObserver {
             NotificationCenter.default.removeObserver(observer)
             messagePushObserver = nil
+        }
+
+        if let observer = ruleCollectionsObserver {
+            NotificationCenter.default.removeObserver(observer)
+            ruleCollectionsObserver = nil
         }
 
         idleMonitorTask?.cancel()
@@ -770,6 +796,22 @@ class KeyboardVisualizationViewModel: ObservableObject {
             }
         }
         AppLogger.shared.debug("⌨️ [KeyboardViz] Message push observer registered")
+    }
+
+    /// Set up observer for rule collections changed notification (for real-time feature toggle updates)
+    private func setupRuleCollectionsObserver() {
+        ruleCollectionsObserver = NotificationCenter.default.addObserver(
+            forName: .ruleCollectionsChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in
+                self.loadFeatureCollectionStates()
+                AppLogger.shared.debug("⌨️ [KeyboardViz] Reloaded feature collection states after change")
+            }
+        }
+        AppLogger.shared.debug("⌨️ [KeyboardViz] Rule collections observer registered")
     }
 
     /// Handle a MessagePush event from Kanata (icon/emphasis commands)

@@ -27,8 +27,23 @@ struct RuleCollectionCatalog {
     // MARK: - Predefined collections
 
     private var builtInList: [RuleCollection] {
-        // Note: launcher collection is excluded - it's managed via overlay drawer only
-        [macOSFunctionKeys, leaderKeyConfig, navigationArrows, missionControl, windowSnapping, capsLockRemap, backupCapsLock, escapeRemap, deleteRemap, homeRowMods, numpadLayer, symbolLayer]
+        [
+            macOSFunctionKeys,
+            leaderKeyConfig,
+            navigationArrows,
+            missionControl,
+            windowSnapping,
+            capsLockRemap,
+            backupCapsLock,
+            escapeRemap,
+            deleteRemap,
+            homeRowMods,
+            numpadLayer,
+            symbolLayer,
+            launcher,
+            typingSounds,
+            keycapColorway
+        ]
     }
 
     private var builtInCollections: [UUID: RuleCollection] {
@@ -732,8 +747,8 @@ struct RuleCollectionCatalog {
             summary: "Hold Hyper to quickly launch apps and websites with keyboard shortcuts.",
             category: .productivity,
             mappings: [], // Mappings are derived from the launcherGrid configuration
-            isEnabled: false,
-            isSystemDefault: false,
+            isEnabled: true,
+            isSystemDefault: true,
             icon: "arrow.up.forward.app",
             tags: ["launcher", "apps", "websites", "productivity"],
             targetLayer: .custom("launcher"),
@@ -744,6 +759,40 @@ struct RuleCollectionCatalog {
             ),
             activationHint: "Hold Hyper key",
             configuration: .launcherGrid(LauncherGridConfig.defaultConfig)
+        )
+    }
+
+    // MARK: - Typing Sounds
+
+    private var typingSounds: RuleCollection {
+        RuleCollection(
+            id: RuleCollectionIdentifier.typingSounds,
+            name: "Typing Sounds",
+            summary: "Play satisfying mechanical keyboard sounds as you type.",
+            category: .system,
+            mappings: [],
+            isEnabled: false,
+            isSystemDefault: false,
+            icon: "speaker.wave.2",
+            tags: ["sounds", "audio", "typing", "mechanical"],
+            configuration: .list
+        )
+    }
+
+    // MARK: - Keycap Colorway
+
+    private var keycapColorway: RuleCollection {
+        RuleCollection(
+            id: RuleCollectionIdentifier.keycapColorway,
+            name: "Keycap Colorway",
+            summary: "Customize the keyboard overlay with GMK-inspired color themes.",
+            category: .system,
+            mappings: [],
+            isEnabled: false,
+            isSystemDefault: false,
+            icon: "paintpalette",
+            tags: ["colors", "theme", "keycaps", "gmk", "customization"],
+            configuration: .list
         )
     }
 }
