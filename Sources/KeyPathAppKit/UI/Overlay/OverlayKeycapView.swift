@@ -52,6 +52,29 @@ struct OverlayKeycapView: View {
         launcherMapping != nil
     }
 
+    // MARK: - Layer Mode (Vim/Nav)
+
+    /// Whether we're in a non-base layer (e.g., nav, vim) but not launcher mode
+    private var isLayerMode: Bool {
+        !isLauncherMode && currentLayerName.lowercased() != "base" && currentLayerName.lowercased() != "Base"
+    }
+
+    /// Whether this key has a meaningful layer mapping (not transparent/identity)
+    private var hasLayerMapping: Bool {
+        guard let info = layerKeyInfo else { return false }
+        // Has a mapping if it's not transparent and has actual content
+        if info.isTransparent { return false }
+        if info.isLayerSwitch { return true }
+        if info.appLaunchIdentifier != nil { return true }
+        if info.systemActionIdentifier != nil { return true }
+        if info.urlIdentifier != nil { return true }
+        // Check if output differs from input (not identity mapping)
+        if let outputKey = info.outputKey {
+            return outputKey.lowercased() != inputKeyName
+        }
+        return !info.displayLabel.isEmpty && info.displayLabel.lowercased() != inputKeyName
+    }
+
     /// Size thresholds for typography adaptation
     private var isSmallSize: Bool { scale < 0.8 }
     private var isLargeSize: Bool { scale >= 1.5 }
@@ -403,6 +426,10 @@ struct OverlayKeycapView: View {
         if isLauncherMode {
             launcherModeContent
         }
+        // Layer mode (Vim/Nav): ALL keys use layer styling (action in center, label in top-left)
+        else if isLayerMode {
+            layerModeContent
+        }
         // Check for novelty override first (ESC, Enter with special icons)
         else if hasNoveltyKey {
             noveltyKeyContent
@@ -463,13 +490,21 @@ struct OverlayKeycapView: View {
                 // Centered icon (app or favicon)
                 // 18pt size, nudged right to avoid overlapping key label
                 if let icon = launcherAppIcon {
-                    Image(nsImage: icon)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 18 * scale, height: 18 * scale)
-                        .clipShape(RoundedRectangle(cornerRadius: 4 * scale))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .offset(x: 2 * scale)
+                    if mapping.target.isApp {
+                        // App: show icon directly
+                        Image(nsImage: icon)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 18 * scale, height: 18 * scale)
+                            .clipShape(RoundedRectangle(cornerRadius: 4 * scale))
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .offset(x: 2 * scale)
+                    } else {
+                        // Website: wrap in browser tab container
+                        launcherBrowserTabContainer(icon: icon, size: 18 * scale)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .offset(x: 2 * scale)
+                    }
                 } else {
                     // Fallback placeholder while icon loads
                     Image(systemName: mapping.target.isApp ? "app.fill" : "globe")
@@ -497,9 +532,135 @@ struct OverlayKeycapView: View {
         }
     }
 
+    /// Browser tab style container for website favicons in launcher mode
+    @ViewBuilder
+    private func launcherBrowserTabContainer(icon: NSImage, size: CGFloat) -> some View {
+        let tabBarHeight = size * 0.18
+        let faviconSize = size * 0.6
+        let containerWidth = size
+        let containerHeight = size * 1.1
+        let tabCornerRadius: CGFloat = 3 * scale
+
+        ZStack(alignment: .top) {
+            // Main container background
+            RoundedRectangle(cornerRadius: tabCornerRadius)
+                .fill(Color.white.opacity(0.15))
+                .frame(width: containerWidth, height: containerHeight)
+
+            VStack(spacing: 0) {
+                // Tab bar at top
+                HStack(spacing: 0) {
+                    // Active tab (rounded top corners only)
+                    UnevenRoundedRectangle(
+                        topLeadingRadius: tabCornerRadius,
+                        bottomLeadingRadius: 0,
+                        bottomTrailingRadius: 0,
+                        topTrailingRadius: tabCornerRadius
+                    )
+                    .fill(Color.white.opacity(0.25))
+                    .frame(width: containerWidth * 0.6, height: tabBarHeight)
+
+                    Spacer()
+                }
+                .frame(width: containerWidth)
+
+                // Favicon centered in content area
+                Image(nsImage: icon)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: faviconSize, height: faviconSize)
+                    .clipShape(RoundedRectangle(cornerRadius: 2 * scale))
+                    .padding(.top, (containerHeight - tabBarHeight - faviconSize) / 2)
+            }
+        }
+        .frame(width: containerWidth, height: containerHeight)
+        .shadow(color: .black.opacity(0.2), radius: 1 * scale, y: 0.5 * scale)
+    }
+
     /// App icon for launcher mapping (cached in appIcon or faviconImage state)
     private var launcherAppIcon: NSImage? {
         appIcon ?? faviconImage
+    }
+
+    // MARK: - Layer Mode Content (Vim/Nav)
+
+    /// Label to display in layer mode (hold label like ✦ takes priority, then base label)
+    private var layerKeyLabel: String {
+        // Caps Lock is the hyper activator - always show ✦ in layer mode
+        if key.keyCode == 57 {
+            return "✦"
+        }
+        return holdLabel ?? baseLabel
+    }
+
+    /// Content for layer mode: action icon/symbol centered, key letter in top-left corner
+    @ViewBuilder
+    private var layerModeContent: some View {
+        if hasLayerMapping {
+            // Mapped key: action in center, key letter in top-left
+            ZStack(alignment: .topLeading) {
+                // Centered action content
+                layerActionContent
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                // Key letter in top-left corner
+                Text(layerKeyLabel.uppercased())
+                    .font(.system(size: 8 * scale, weight: .medium, design: .rounded))
+                    .foregroundStyle(Color.white.opacity(0.7))
+                    .padding(3 * scale)
+            }
+        } else {
+            // Unmapped key in layer mode: small label in top-left
+            ZStack(alignment: .topLeading) {
+                Text(layerKeyLabel.uppercased())
+                    .font(.system(size: 8 * scale, weight: .medium, design: .rounded))
+                    .foregroundStyle(Color.white.opacity(0.5))
+                    .padding(3 * scale)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+    }
+
+    /// The action content to display in center for layer mode (arrows, icons, etc.)
+    @ViewBuilder
+    private var layerActionContent: some View {
+        // Check for app icon first
+        if let icon = appIcon {
+            Image(nsImage: icon)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 18 * scale, height: 18 * scale)
+                .clipShape(RoundedRectangle(cornerRadius: 4 * scale))
+        }
+        // Check for favicon (URL mapping)
+        else if let favicon = faviconImage {
+            Image(nsImage: favicon)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 18 * scale, height: 18 * scale)
+                .clipShape(RoundedRectangle(cornerRadius: 4 * scale))
+        }
+        // Check for system action SF Symbol
+        else if let iconName = systemActionIcon {
+            Image(systemName: iconName)
+                .font(.system(size: 14 * scale, weight: .medium))
+                .foregroundStyle(Color.white.opacity(0.9))
+        }
+        // Check for navigation arrows (Vim style)
+        else if let info = layerKeyInfo {
+            let arrowLabels: Set<String> = ["←", "→", "↑", "↓"]
+            if arrowLabels.contains(info.displayLabel) {
+                // Large centered arrow
+                Text(info.displayLabel)
+                    .font(.system(size: 16 * scale, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.9))
+            } else if !info.displayLabel.isEmpty {
+                // Other mapped action - show the label
+                Text(info.displayLabel.uppercased())
+                    .font(.system(size: 10 * scale, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(0.9))
+            }
+        }
     }
 
     // MARK: - Legend Style: Dots
@@ -1229,6 +1390,14 @@ struct OverlayKeycapView: View {
         }
         // Launcher mode: dark gray for ALL unmapped keys including modifiers/fn (RGB 56, 56, 57 - 10% lighter)
         else if isLauncherMode {
+            Color(red: 56 / 255, green: 56 / 255, blue: 57 / 255)
+        }
+        // Layer mode (Vim/Nav): orange background for mapped keys
+        else if isLayerMode, hasLayerMapping {
+            Color(red: 0.85, green: 0.45, blue: 0.15)
+        }
+        // Layer mode: dark gray for unmapped keys (same as launcher)
+        else if isLayerMode {
             Color(red: 56 / 255, green: 56 / 255, blue: 57 / 255)
         } else if isModifierKey {
             colorway.modBaseColor

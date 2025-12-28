@@ -40,6 +40,13 @@ struct OverlayKeyboardView: View {
     /// Launcher mappings: key name -> LauncherMapping
     var launcherMappings: [String: LauncherMapping] = [:]
 
+    // MARK: - Layer Mode (Vim/Nav)
+
+    /// Whether we're in a non-base layer (e.g., nav, vim) but not launcher mode
+    private var isLayerMode: Bool {
+        !isLauncherMode && currentLayerName.lowercased() != "base"
+    }
+
     /// Track caps lock state from system
     @State private var isCapsLockOn: Bool = NSEvent.modifierFlags.contains(.capsLock)
 
@@ -112,13 +119,13 @@ struct OverlayKeyboardView: View {
                 // Skip floating labels for non-standard legend styles (dots show circles, not letters)
                 if !reduceMotion, activeColorway.legendStyle == .standard {
                     ForEach(Self.allLabels, id: \.self) { label in
-                        // In launcher mode, hide ALL floating labels for a clean look
-                        // (mapped keys show icon + small letter, unmapped keys are blank)
+                        // In launcher mode or layer mode, hide ALL floating labels for a clean look
+                        // (mapped keys show icon + small letter, unmapped keys show small label)
                         FloatingKeymapLabel(
                             label: label,
                             targetFrame: targetFrameFor(label, scale: scale),
-                            // Visible when label exists in current keymap AND not in launcher mode
-                            isVisible: labelToKeyCode[label] != nil && !isLauncherMode,
+                            // Visible when label exists in current keymap AND not in launcher/layer mode
+                            isVisible: labelToKeyCode[label] != nil && !isLauncherMode && !isLayerMode,
                             scale: scale,
                             colorway: activeColorway,
                             // Enable animation after initial render (prevents animation on drawer open)
