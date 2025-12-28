@@ -74,6 +74,14 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Example: capslock (57) -> esc (53) when TapActivated says key=caps, action=esc
     private var dynamicTapHoldOutputMap: [UInt16: Set<UInt16>] = [:]
 
+    /// Output keyCodes that should be temporarily suppressed due to recent tap activation.
+    /// Populated when TapActivated fires (since the source key may already be released).
+    /// Auto-cleared after a brief delay.
+    private var recentTapOutputs: Set<UInt16> = []
+
+    /// Pending tasks to clear tap outputs from temporary suppression
+    private var tapOutputClearTasks: [UInt16: Task<Void, Never>] = [:]
+
     /// Fallback static map for common tap-hold patterns (used when TapActivated not available).
     /// Will be phased out once TapActivated is fully deployed.
     private static let fallbackTapHoldOutputMap: [UInt16: Set<UInt16>] = [
@@ -184,6 +192,9 @@ class KeyboardVisualizationViewModel: ObservableObject {
         holdLabelCache.removeAll()
         activeTapHoldSources.removeAll()
         dynamicTapHoldOutputMap.removeAll()
+        recentTapOutputs.removeAll()
+        tapOutputClearTasks.values.forEach { $0.cancel() }
+        tapOutputClearTasks.removeAll()
 
         if let source = runLoopSource {
             CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, .commonModes)
@@ -316,14 +327,20 @@ class KeyboardVisualizationViewModel: ObservableObject {
         let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
 
         Task { @MainActor in
+            // Check if this output key should be suppressed (tap-hold source still active)
+            let shouldSuppressCGEvent = suppressedOutputKeyCodes.contains(keyCode)
+
             switch type {
             case .keyDown:
-                cancelKeyFadeOut(keyCode) // Cancel any ongoing fade-out
+                // Suppress tap-hold output keys (e.g., don't play sound for esc when caps tap emits it)
+                if shouldSuppressCGEvent { return }
+                cancelKeyFadeOut(keyCode)
                 pressedKeyCodes.insert(keyCode)
                 TypingSoundsManager.shared.playKeydown()
                 AppLogger.shared.debug("⌨️ [KeyboardViz] KeyDown: \(keyCode)")
 
             case .keyUp:
+                if shouldSuppressCGEvent { return }
                 pressedKeyCodes.remove(keyCode)
                 startKeyFadeOut(keyCode) // Start fade-out animation
                 TypingSoundsManager.shared.playKeyup()
@@ -823,14 +840,25 @@ class KeyboardVisualizationViewModel: ObservableObject {
         // We need to map the source key to its output for suppression
         if !action.isEmpty {
             if let outputKeyCode = Self.kanataNameToKeyCode(action) {
-                // Add to dynamic map
+                // Add to dynamic map for future suppression while source is held
                 if dynamicTapHoldOutputMap[sourceKeyCode] == nil {
                     dynamicTapHoldOutputMap[sourceKeyCode] = []
                 }
                 dynamicTapHoldOutputMap[sourceKeyCode]?.insert(outputKeyCode)
-                AppLogger.shared.info(
-                    "👆 [KeyboardViz] Tap activated: \(key) -> \(action) (mapped \(sourceKeyCode) -> \(outputKeyCode))"
-                )
+
+                // Temporarily suppress this output key - TapActivated fires AFTER the source
+                // key is released, so we suppress the output for a brief window.
+                recentTapOutputs.insert(outputKeyCode)
+
+                // Clear suppression after brief delay
+                tapOutputClearTasks[outputKeyCode]?.cancel()
+                tapOutputClearTasks[outputKeyCode] = Task { @MainActor [weak self] in
+                    try? await Task.sleep(for: .milliseconds(150))
+                    self?.recentTapOutputs.remove(outputKeyCode)
+                    self?.tapOutputClearTasks.removeValue(forKey: outputKeyCode)
+                }
+
+                AppLogger.shared.debug("👆 [KeyboardViz] Tap activated: \(key) -> \(action)")
             } else {
                 AppLogger.shared.debug("👆 [KeyboardViz] Unknown output key name: \(action)")
             }
@@ -899,8 +927,9 @@ class KeyboardVisualizationViewModel: ObservableObject {
         let isTapHoldSource = dynamicTapHoldOutputMap[keyCode] != nil
             || Self.fallbackTapHoldOutputMap[keyCode] != nil
 
-        // Check if this key should be suppressed (it's an output of an active tap-hold source)
+        // Check if this key should be suppressed (output of active tap-hold source)
         let shouldSuppress = suppressedOutputKeyCodes.contains(keyCode)
+            || recentTapOutputs.contains(keyCode)
 
         switch action {
         case "press", "repeat":
@@ -912,10 +941,9 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
             // Suppress output keys of active tap-hold sources (e.g., don't light up ESC when caps is pressed)
             if shouldSuppress {
-                AppLogger.shared.debug("⌨️ [KeyboardViz] Suppressing output key: \(key) (\(keyCode)) - source key is active")
+                AppLogger.shared.debug("⌨️ [KeyboardViz] Suppressing output key: \(key) (\(keyCode))")
                 return
             }
-
             cancelKeyFadeOut(keyCode) // Cancel any ongoing fade-out
             tcpPressedKeyCodes.insert(keyCode)
             // If a hold is already active for this key, keep it active and cancel any pending clear.
@@ -930,10 +958,15 @@ class KeyboardVisualizationViewModel: ObservableObject {
             }
             AppLogger.shared.debug("⌨️ [KeyboardViz] TCP KeyPress: \(key) -> keyCode \(keyCode)")
         case "release":
-            // Clear tap-hold source tracking
+            // Keep tap-hold source active briefly after release to catch the output keystroke.
+            // The output (e.g., esc from caps tap) arrives AFTER the source key is released,
+            // so we delay removing from activeTapHoldSources to ensure suppression works.
             if isTapHoldSource {
-                activeTapHoldSources.remove(keyCode)
-                AppLogger.shared.debug("⌨️ [KeyboardViz] Tap-hold source deactivated: \(key) (\(keyCode))")
+                let keyCodeToRemove = keyCode
+                Task { @MainActor [weak self] in
+                    try? await Task.sleep(for: .milliseconds(200))
+                    self?.activeTapHoldSources.remove(keyCodeToRemove)
+                }
             }
 
             // If this was a suppressed key, just ignore the release too
