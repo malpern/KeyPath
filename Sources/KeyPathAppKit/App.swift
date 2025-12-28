@@ -600,11 +600,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             bringToFrontHandler: { [weak self] in
                 self?.showKeyPathFromStatusItem()
             },
-            showWizardHandler: {
-                NotificationCenter.default.post(name: NSNotification.Name("ShowWizard"), object: nil)
+            showWizardHandler: { targetPage in
+                NotificationCenter.default.post(
+                    name: NSNotification.Name("ShowWizard"),
+                    object: nil,
+                    userInfo: targetPage.map { ["targetPage": $0] }
+                )
             },
-            uninstallHandler: {
-                NotificationCenter.default.post(name: NSNotification.Name("ShowUninstall"), object: nil)
+            openSettingsHandler: {
+                NotificationCenter.default.post(name: .openSettingsGeneral, object: nil)
+            },
+            openSettingsRulesHandler: {
+                NotificationCenter.default.post(name: .openSettingsRules, object: nil)
             },
             quitHandler: {
                 // Close all windows first to avoid beep from modal blocking
@@ -614,6 +621,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 NSApplication.shared.terminate(nil)
             }
         )
+
+        // Configure with state observation after initialization
+        if let rulesManager = kanataManager?.rulesManager {
+            menuBarController?.configure(
+                appStateController: MainAppStateController.shared,
+                ruleCollectionsManager: rulesManager
+            )
+        }
+
         AppLogger.shared.debug("☰ [MenuBar] Status item initialized")
     }
 
