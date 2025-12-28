@@ -106,7 +106,8 @@ public struct KeyPathActionURI: Sendable, Equatable {
         // Parse query items
         var items: [String: String] = [:]
         if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-           let queryItems = components.queryItems {
+           let queryItems = components.queryItems
+        {
             for item in queryItems {
                 items[item.name] = item.value ?? ""
             }
@@ -265,6 +266,41 @@ public struct KanataTapActivation: Sendable {
     public let timestamp: UInt64
 }
 
+/// One-shot activation info from Kanata TCP OneShotActivated events
+/// Sent when a one-shot modifier key is activated
+public struct KanataOneShotActivation: Sendable {
+    /// Physical key name (e.g., "lsft")
+    public let key: String
+    /// Modifier(s) being applied (e.g., "lsft" or "lctl+lsft")
+    public let modifiers: String
+    /// Timestamp in milliseconds since Kanata start
+    public let timestamp: UInt64
+}
+
+/// Chord resolution info from Kanata TCP ChordResolved events
+/// Sent when a chord (multi-key combo) resolves to an action
+public struct KanataChordResolution: Sendable {
+    /// Chord keys pressed (e.g., "s+d")
+    public let keys: String
+    /// Resolved action description
+    public let action: String
+    /// Timestamp in milliseconds since Kanata start
+    public let timestamp: UInt64
+}
+
+/// Tap-dance resolution info from Kanata TCP TapDanceResolved events
+/// Sent when a tap-dance resolves to a specific action
+public struct KanataTapDanceResolution: Sendable {
+    /// Physical key name (e.g., "q")
+    public let key: String
+    /// Number of taps detected
+    public let tapCount: UInt8
+    /// Resolved action description
+    public let action: String
+    /// Timestamp in milliseconds since Kanata start
+    public let timestamp: UInt64
+}
+
 /// Monitors Kanata's TCP server for events.
 /// Handles `LayerChange`, `CurrentLayerName`, `MessagePush`, and `KeyInput` messages.
 actor KanataEventListener {
@@ -277,6 +313,9 @@ actor KanataEventListener {
     private var keyInputHandler: (@Sendable (String, KanataKeyAction) async -> Void)?
     private var holdActivatedHandler: (@Sendable (KanataHoldActivation) async -> Void)?
     private var tapActivatedHandler: (@Sendable (KanataTapActivation) async -> Void)?
+    private var oneShotActivatedHandler: (@Sendable (KanataOneShotActivation) async -> Void)?
+    private var chordResolvedHandler: (@Sendable (KanataChordResolution) async -> Void)?
+    private var tapDanceResolvedHandler: (@Sendable (KanataTapDanceResolution) async -> Void)?
     /// Capabilities advertised by Kanata in HelloOk (e.g., "hold_activated", "tap_activated").
     private var capabilities: Set<String> = []
     private let listenerQueue = DispatchQueue(label: "com.keypath.event-listener")
@@ -290,6 +329,9 @@ actor KanataEventListener {
     ///   - onKeyInput: Called when a physical key is pressed/released (from Kanata's KeyInput events)
     ///   - onHoldActivated: Called when a tap-hold key transitions to hold state
     ///   - onTapActivated: Called when a tap-hold key triggers its tap action
+    ///   - onOneShotActivated: Called when a one-shot modifier key is activated
+    ///   - onChordResolved: Called when a chord (multi-key combo) resolves
+    ///   - onTapDanceResolved: Called when a tap-dance resolves to an action
     func start(
         port: Int,
         onLayerChange: @escaping @Sendable (String) async -> Void,
@@ -297,7 +339,10 @@ actor KanataEventListener {
         onUnknownMessage: (@Sendable (String) async -> Void)? = nil,
         onKeyInput: (@Sendable (String, KanataKeyAction) async -> Void)? = nil,
         onHoldActivated: (@Sendable (KanataHoldActivation) async -> Void)? = nil,
-        onTapActivated: (@Sendable (KanataTapActivation) async -> Void)? = nil
+        onTapActivated: (@Sendable (KanataTapActivation) async -> Void)? = nil,
+        onOneShotActivated: (@Sendable (KanataOneShotActivation) async -> Void)? = nil,
+        onChordResolved: (@Sendable (KanataChordResolution) async -> Void)? = nil,
+        onTapDanceResolved: (@Sendable (KanataTapDanceResolution) async -> Void)? = nil
     ) async {
         if self.port == port, listenTask != nil { return }
         await stop()
@@ -309,6 +354,9 @@ actor KanataEventListener {
         keyInputHandler = onKeyInput
         holdActivatedHandler = onHoldActivated
         tapActivatedHandler = onTapActivated
+        oneShotActivatedHandler = onOneShotActivated
+        chordResolvedHandler = onChordResolved
+        tapDanceResolvedHandler = onTapDanceResolved
         AppLogger.shared.log("🌐 [EventListener] Starting event listener on port \(port)")
         listenTask = Task(priority: .background) { [weak self] in
             guard let self else { return }
@@ -329,6 +377,9 @@ actor KanataEventListener {
         keyInputHandler = nil
         holdActivatedHandler = nil
         tapActivatedHandler = nil
+        oneShotActivatedHandler = nil
+        chordResolvedHandler = nil
+        tapDanceResolvedHandler = nil
     }
 
     private func listenLoop() async {
@@ -486,7 +537,8 @@ actor KanataEventListener {
 
         // Handle CurrentLayerName events (response to polling)
         if let current = json["CurrentLayerName"] as? [String: Any],
-           let name = current["name"] as? String {
+           let name = current["name"] as? String
+        {
             AppLogger.shared.debug("🌐 [EventListener] Current layer -> \(name)")
             if let handler = layerHandler {
                 await handler(name)
@@ -497,7 +549,8 @@ actor KanataEventListener {
         // Handle MessagePush events (keypath:// URIs via push-msg)
         // Format from Kanata: {"MessagePush":{"message":["keypath://launch/obsidian"]}}
         if let push = json["MessagePush"] as? [String: Any],
-           let messages = push["message"] as? [Any] {
+           let messages = push["message"] as? [Any]
+        {
             AppLogger.shared.log("🌐 [EventListener] MessagePush received: \(messages)")
 
             for item in messages {
@@ -526,7 +579,8 @@ actor KanataEventListener {
         // Format from Kanata: {"KeyInput":{"key":"h","action":"press","t":12345}}
         if let keyInput = json["KeyInput"] as? [String: Any],
            let key = keyInput["key"] as? String,
-           let actionStr = keyInput["action"] as? String {
+           let actionStr = keyInput["action"] as? String
+        {
             if let action = KanataKeyAction(rawValue: actionStr) {
                 AppLogger.shared.info("⌨️ [EventListener] KeyInput: \(key) \(action)")
                 if let handler = keyInputHandler {
@@ -551,7 +605,8 @@ actor KanataEventListener {
         if let holdActivated = json["HoldActivated"] as? [String: Any],
            let key = holdActivated["key"] as? String,
            let action = holdActivated["action"] as? String,
-           let timestamp = holdActivated["t"] as? UInt64 {
+           let timestamp = holdActivated["t"] as? UInt64
+        {
             // Respect capability advertisement when available; still process for backward compat
             if capabilities.isEmpty || capabilities.contains("hold_activated") {
                 AppLogger.shared.log("🔒 [EventListener] HoldActivated: \(key) -> \(action)")
@@ -570,7 +625,8 @@ actor KanataEventListener {
         if let tapActivated = json["TapActivated"] as? [String: Any],
            let key = tapActivated["key"] as? String,
            let action = tapActivated["action"] as? String,
-           let timestamp = tapActivated["t"] as? UInt64 {
+           let timestamp = tapActivated["t"] as? UInt64
+        {
             // Respect capability advertisement when available; still process for backward compat
             if capabilities.isEmpty || capabilities.contains("tap_activated") {
                 AppLogger.shared.log("👆 [EventListener] TapActivated: \(key) -> \(action)")
@@ -580,6 +636,69 @@ actor KanataEventListener {
                 }
             } else {
                 AppLogger.shared.debug("👆 [EventListener] TapActivated ignored (capability not advertised)")
+            }
+            return
+        }
+
+        // Handle OneShotActivated events (one-shot modifier key activated)
+        // Format from Kanata: {"OneShotActivated":{"key":"lsft","modifiers":"lsft","t":12345}}
+        if let oneShotActivated = json["OneShotActivated"] as? [String: Any],
+           let key = oneShotActivated["key"] as? String,
+           let modifiers = oneShotActivated["modifiers"] as? String,
+           let timestamp = oneShotActivated["t"] as? UInt64
+        {
+            if capabilities.isEmpty || capabilities.contains("oneshot_activated") {
+                AppLogger.shared.log("⚡ [EventListener] OneShotActivated: \(key) -> \(modifiers)")
+                let activation = KanataOneShotActivation(key: key, modifiers: modifiers, timestamp: timestamp)
+                if let handler = oneShotActivatedHandler {
+                    await handler(activation)
+                }
+            } else {
+                AppLogger.shared.debug("⚡ [EventListener] OneShotActivated ignored (capability not advertised)")
+            }
+            return
+        }
+
+        // Handle ChordResolved events (chord multi-key combo resolved)
+        // Format from Kanata: {"ChordResolved":{"keys":"s+d","action":"esc","t":12345}}
+        if let chordResolved = json["ChordResolved"] as? [String: Any],
+           let keys = chordResolved["keys"] as? String,
+           let action = chordResolved["action"] as? String,
+           let timestamp = chordResolved["t"] as? UInt64
+        {
+            if capabilities.isEmpty || capabilities.contains("chord_resolved") {
+                AppLogger.shared.log("🎹 [EventListener] ChordResolved: \(keys) -> \(action)")
+                let resolution = KanataChordResolution(keys: keys, action: action, timestamp: timestamp)
+                if let handler = chordResolvedHandler {
+                    await handler(resolution)
+                }
+            } else {
+                AppLogger.shared.debug("🎹 [EventListener] ChordResolved ignored (capability not advertised)")
+            }
+            return
+        }
+
+        // Handle TapDanceResolved events (tap-dance resolved to action)
+        // Format from Kanata: {"TapDanceResolved":{"key":"q","tap_count":2,"action":"alt+tab","t":12345}}
+        if let tapDanceResolved = json["TapDanceResolved"] as? [String: Any],
+           let key = tapDanceResolved["key"] as? String,
+           let tapCount = tapDanceResolved["tap_count"] as? UInt8,
+           let action = tapDanceResolved["action"] as? String,
+           let timestamp = tapDanceResolved["t"] as? UInt64
+        {
+            if capabilities.isEmpty || capabilities.contains("tap_dance_resolved") {
+                AppLogger.shared.log("💃 [EventListener] TapDanceResolved: \(key) x\(tapCount) -> \(action)")
+                let resolution = KanataTapDanceResolution(
+                    key: key,
+                    tapCount: tapCount,
+                    action: action,
+                    timestamp: timestamp
+                )
+                if let handler = tapDanceResolvedHandler {
+                    await handler(resolution)
+                }
+            } else {
+                AppLogger.shared.debug("💃 [EventListener] TapDanceResolved ignored (capability not advertised)")
             }
             return
         }
