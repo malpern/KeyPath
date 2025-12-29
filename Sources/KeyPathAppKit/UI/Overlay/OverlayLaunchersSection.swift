@@ -12,23 +12,25 @@ struct OverlayLaunchersSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header
-            Text("Launcher")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
-                .padding(.bottom, 12)
+            // Scrollable content (header, hint, and mappings list)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    // Header
+                    Text("Launcher")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .padding(.bottom, 12)
 
-            // Activation hint
-            activationHint
-                .padding(.bottom, 12)
+                    // Activation hint
+                    activationHint
+                        .padding(.bottom, 12)
 
-            // Scrollable mappings list
-            if store.mappings.isEmpty {
-                emptyState
-                Spacer(minLength: 0)
-            } else {
-                ScrollView {
-                    mappingsList
+                    // Mappings list or empty state
+                    if store.mappings.isEmpty {
+                        emptyState
+                    } else {
+                        mappingsList
+                    }
                 }
             }
 
@@ -294,16 +296,6 @@ private struct LauncherMappingRow: View {
                 }
             }
 
-            // Key badge
-            Text(mapping.key.uppercased())
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                .foregroundStyle(.white)
-                .frame(width: 18, height: 18)
-                .background(
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color.accentColor)
-                )
-
             // Name
             Text(mapping.displayName)
                 .font(.system(size: 11))
@@ -334,6 +326,16 @@ private struct LauncherMappingRow: View {
                     .labelsHidden()
                     .controlSize(.small)
             }
+
+            // Key badge (far right)
+            Text(mapping.key.uppercased())
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .foregroundStyle(.white)
+                .frame(width: 18, height: 18)
+                .background(
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.accentColor)
+                )
         }
         .opacity(rowOpacity)
         .padding(.horizontal, 6)
