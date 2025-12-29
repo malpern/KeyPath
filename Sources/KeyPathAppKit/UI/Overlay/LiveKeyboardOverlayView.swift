@@ -28,7 +28,7 @@ struct LiveKeyboardOverlayView: View {
 
     @State private var escKeyLeftInset: CGFloat = 0
     @State private var keyboardWidth: CGFloat = 0
-    @State private var inspectorSection: InspectorSection = .launchers
+    @State private var inspectorSection: InspectorSection = .mapper
     /// Shared state for tracking mouse interaction with keyboard (for refined click delay)
     @StateObject private var keyboardMouseState = KeyboardMouseState()
     /// Japanese input mode detector for showing mode indicator
@@ -770,6 +770,8 @@ struct OverlayInspectorPanel: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     switch selectedSection {
+                    case .mapper:
+                        mapperContent
                     case .keyboard:
                         keymapsContent
                     case .layout:
@@ -813,6 +815,13 @@ struct OverlayInspectorPanel: View {
                 }
             }
         }
+    }
+
+    // MARK: - Mapper Content
+
+    @ViewBuilder
+    private var mapperContent: some View {
+        OverlayMapperSection(isDark: isDark)
     }
 
     // MARK: - Physical Layout Content
@@ -1090,6 +1099,7 @@ private struct InspectorPanelToolbar: View {
     let isKeycapsEnabled: Bool
     let isSoundsEnabled: Bool
     private let buttonSize: CGFloat = 32
+    @State private var isHoveringMapper = false
     @State private var isHoveringKeyboard = false
     @State private var isHoveringLayout = false
     @State private var isHoveringKeycaps = false
@@ -1098,7 +1108,19 @@ private struct InspectorPanelToolbar: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            // Launchers first (leftmost)
+            // Mapper first (leftmost)
+            toolbarButton(
+                systemImage: "arrow.right.arrow.left",
+                isSelected: selectedSection == .mapper,
+                isHovering: isHoveringMapper,
+                onHover: { isHoveringMapper = $0 }
+            ) {
+                onSelectSection(.mapper)
+            }
+            .accessibilityIdentifier("inspector-tab-mapper")
+            .accessibilityLabel("Key Mapper")
+
+            // Launchers
             toolbarButton(
                 systemImage: "bolt.fill",
                 isSelected: selectedSection == .launchers,
@@ -1219,6 +1241,7 @@ private struct GlassEffectModifier: ViewModifier {
 }
 
 enum InspectorSection {
+    case mapper
     case keyboard
     case layout
     case keycaps
