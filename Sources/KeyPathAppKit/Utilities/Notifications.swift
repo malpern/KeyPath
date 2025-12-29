@@ -9,6 +9,7 @@ extension Notification.Name {
     static let kp_startupRevalidate = Notification.Name("KeyPath.Startup.Revalidate")
 
     // Wizard events
+    static let showWizard = Notification.Name("ShowWizard")
     static let wizardClosed = Notification.Name("KeyPath.Wizard.Closed")
 
     // Settings navigation

@@ -1,7 +1,167 @@
 @testable import KeyPathAppKit
+import KeyPathCore
 import XCTest
 
 final class RuleCollectionDeduplicatorTests: XCTestCase {
+    // MARK: - Conflict Detection Tests
+
+    func testDetectsConflictWhenTwoCollectionsMapSameKey() {
+        let collection1 = RuleCollection(
+            name: "Vim Nav",
+            summary: "Nav",
+            category: .navigation,
+            mappings: [KeyMapping(input: "h", output: "left")],
+            targetLayer: .navigation
+        )
+
+        let collection2 = RuleCollection(
+            name: "Arrow Keys",
+            summary: "Arrows",
+            category: .navigation,
+            mappings: [KeyMapping(input: "h", output: "home")],
+            targetLayer: .navigation
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection1, collection2])
+
+        XCTAssertEqual(conflicts.count, 1)
+        XCTAssertEqual(conflicts.first?.inputKey, "h")
+        XCTAssertEqual(conflicts.first?.conflictingCollections, ["Vim Nav", "Arrow Keys"])
+    }
+
+    func testNoConflictWhenSameKeyDifferentLayers() {
+        let collection1 = RuleCollection(
+            name: "Nav Vim",
+            summary: "Nav",
+            category: .navigation,
+            mappings: [KeyMapping(input: "h", output: "left")],
+            targetLayer: .navigation
+        )
+
+        let collection2 = RuleCollection(
+            name: "Base Vim",
+            summary: "Base",
+            category: .productivity,
+            mappings: [KeyMapping(input: "h", output: "backspace")],
+            targetLayer: .base
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection1, collection2])
+
+        XCTAssertTrue(conflicts.isEmpty)
+    }
+
+    func testNoConflictWhenNoOverlappingKeys() {
+        let collection1 = RuleCollection(
+            name: "Vim Nav",
+            summary: "Nav",
+            category: .navigation,
+            mappings: [KeyMapping(input: "h", output: "left")],
+            targetLayer: .navigation
+        )
+
+        let collection2 = RuleCollection(
+            name: "Delete Keys",
+            summary: "Del",
+            category: .navigation,
+            mappings: [KeyMapping(input: "d", output: "del")],
+            targetLayer: .navigation
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection1, collection2])
+
+        XCTAssertTrue(conflicts.isEmpty)
+    }
+
+    func testDisabledCollectionsIgnoredInConflictDetection() {
+        let enabled = RuleCollection(
+            name: "Vim Nav",
+            summary: "Nav",
+            category: .navigation,
+            mappings: [KeyMapping(input: "h", output: "left")],
+            isEnabled: true,
+            targetLayer: .navigation
+        )
+
+        var disabled = RuleCollection(
+            name: "Disabled",
+            summary: "Disabled",
+            category: .navigation,
+            mappings: [KeyMapping(input: "h", output: "home")],
+            isEnabled: false,
+            targetLayer: .navigation
+        )
+        disabled.isEnabled = false
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [enabled, disabled])
+
+        XCTAssertTrue(conflicts.isEmpty)
+    }
+
+    func testDetectsMultipleConflicts() {
+        let collection1 = RuleCollection(
+            name: "Vim",
+            summary: "Vim",
+            category: .navigation,
+            mappings: [
+                KeyMapping(input: "h", output: "left"),
+                KeyMapping(input: "j", output: "down")
+            ],
+            targetLayer: .navigation
+        )
+
+        let collection2 = RuleCollection(
+            name: "Arrows",
+            summary: "Arrows",
+            category: .navigation,
+            mappings: [
+                KeyMapping(input: "h", output: "home"),
+                KeyMapping(input: "j", output: "pgdn")
+            ],
+            targetLayer: .navigation
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection1, collection2])
+
+        XCTAssertEqual(conflicts.count, 2)
+        let conflictKeys = conflicts.map(\.inputKey).sorted()
+        XCTAssertEqual(conflictKeys, ["h", "j"])
+    }
+
+    // MARK: - Deduplication Tests
+
+    func testDisabledCollectionDoesNotClaimKeysInDedupe() {
+        // A disabled collection should NOT claim keys, so an enabled collection
+        // with the same key should keep its mapping
+        var disabled = RuleCollection(
+            name: "Disabled",
+            summary: "Disabled",
+            category: .navigation,
+            mappings: [KeyMapping(input: "h", output: "home")],
+            isEnabled: false,
+            targetLayer: .navigation
+        )
+        disabled.isEnabled = false
+
+        let enabled = RuleCollection(
+            name: "Enabled",
+            summary: "Enabled",
+            category: .navigation,
+            mappings: [KeyMapping(input: "h", output: "left")],
+            isEnabled: true,
+            targetLayer: .navigation
+        )
+
+        // Disabled comes first - should NOT claim the key
+        let deduped = RuleCollectionDeduplicator.dedupe([disabled, enabled])
+
+        // Disabled collection unchanged
+        XCTAssertEqual(deduped[0].mappings.count, 1)
+        // Enabled collection should KEEP its mapping (not be filtered out)
+        XCTAssertEqual(deduped[1].mappings.count, 1)
+        XCTAssertEqual(deduped[1].mappings.first?.output, "left")
+    }
+
     func testKeepsFirstMomentaryActivator() {
         let first = RuleCollection(
             name: "Vim Nav",

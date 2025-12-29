@@ -1,11 +1,22 @@
 import AppKit
 import Combine
+import KeyPathCore
+import KeyPathWizardCore
 import SwiftUI
+
+// MARK: - Health Indicator State
+
+/// State for the system health indicator shown in the overlay header
+enum HealthIndicatorState: Equatable {
+    case checking
+    case healthy
+    case unhealthy(issueCount: Int)
+    case dismissed
+}
 
 /// Controls the floating live keyboard overlay window.
 /// Creates an always-on-top borderless window that shows the live keyboard state.
 /// Uses CGEvent tap for reliable key detection (same as "See Keymap" feature).
-import KeyPathCore
 
 @MainActor
 final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
@@ -24,6 +35,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     private var resizeStartFrame: NSRect = .zero
     private var inspectorDebugLastLog: CFTimeInterval = 0
     private var cancellables = Set<AnyCancellable>()
+    private var isObservingHealth = false
+    private var healthDismissTask: Task<Void, Never>?
 
     /// Timestamp when overlay was auto-hidden for settings (for restore on close)
     private var autoHiddenTimestamp: Date?
@@ -154,6 +167,105 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         }
     }
 
+    // MARK: - Startup Flow
+
+    /// Show overlay for app startup with 30% larger size, centered at bottom with margin.
+    /// Also starts health state observation to show validation progress.
+    func showForStartup() {
+        // Start health observation first so indicator shows immediately
+        uiState.healthIndicatorState = .checking
+        observeHealthState()
+
+        // Create window if needed
+        if window == nil {
+            createWindow()
+        }
+
+        // Calculate 30% larger size using layout constants
+        let defaultHeight: CGFloat = 220
+        let startupScale: CGFloat = 1.3
+        let startupHeight: CGFloat = defaultHeight * startupScale
+        let verticalChrome = OverlayLayoutMetrics.verticalChrome
+        let horizontalChrome = OverlayLayoutMetrics.keyboardPadding
+            + OverlayLayoutMetrics.keyboardTrailingPadding
+            + OverlayLayoutMetrics.outerHorizontalPadding * 2
+        let keyboardHeight = startupHeight - verticalChrome
+        let keyboardWidth = keyboardHeight * baseKeyboardAspectRatio
+        let startupWidth = keyboardWidth + horizontalChrome
+        let bottomMargin: CGFloat = 40
+
+        // Position: centered horizontally, bottom of screen with margin
+        guard let screen = NSScreen.main else {
+            // Fallback to regular show if no screen
+            showWindow()
+            return
+        }
+
+        let screenFrame = screen.visibleFrame
+        let x = screenFrame.midX - (startupWidth / 2)
+        let y = screenFrame.minY + bottomMargin
+
+        let startupFrame = NSRect(x: x, y: y, width: startupWidth, height: startupHeight)
+        window?.setFrame(startupFrame, display: true)
+
+        viewModel.startCapturing()
+        viewModel.noteInteraction()
+        window?.orderFront(nil)
+
+        AppLogger.shared.log("🚀 [OverlayController] Showing overlay for startup - size: \(Int(startupWidth))x\(Int(startupHeight)), position: centered bottom")
+    }
+
+    /// Observe MainAppStateController for health state changes
+    private func observeHealthState() {
+        guard !isObservingHealth else { return }
+        isObservingHealth = true
+
+        Publishers.CombineLatest(
+            MainAppStateController.shared.$validationState,
+            MainAppStateController.shared.$issues
+        )
+        .receive(on: DispatchQueue.main)
+        .sink { [weak self] state, issues in
+            self?.updateHealthIndicator(state: state, issues: issues)
+        }
+        .store(in: &cancellables)
+    }
+
+    /// Update health indicator based on validation state
+    private func updateHealthIndicator(state: MainAppStateController.ValidationState?, issues: [WizardIssue]) {
+        // Cancel any pending dismiss task when state changes
+        healthDismissTask?.cancel()
+        healthDismissTask = nil
+
+        switch state {
+        case nil, .checking:
+            uiState.healthIndicatorState = .checking
+        case .success where issues.isEmpty:
+            uiState.healthIndicatorState = .healthy
+            // Auto-dismiss after 1.5s
+            healthDismissTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                guard !Task.isCancelled else { return }
+                // Only dismiss if still healthy (state might have changed)
+                if case .healthy = uiState.healthIndicatorState {
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        uiState.healthIndicatorState = .dismissed
+                    }
+                }
+            }
+        default:
+            uiState.healthIndicatorState = .unhealthy(issueCount: issues.count)
+        }
+    }
+
+    /// Handle tap on health indicator - launches wizard and dismisses indicator
+    func handleHealthIndicatorTap() {
+        NotificationCenter.default.post(name: .showWizard, object: nil)
+        withAnimation {
+            uiState.healthIndicatorState = .dismissed
+        }
+    }
+
     /// Configure the KanataViewModel reference for opening Mapper from overlay clicks
     func configure(kanataViewModel: KanataViewModel, ruleCollectionsManager: RuleCollectionsManager? = nil) {
         self.kanataViewModel = kanataViewModel
@@ -188,7 +300,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
                 } else {
                     // System not ready - launch wizard instead
                     AppLogger.shared.log("⚠️ [OverlayController] Cannot show overlay - Kanata not running, launching wizard")
-                    NotificationCenter.default.post(name: NSNotification.Name("ShowWizard"), object: nil)
+                    NotificationCenter.default.post(name: .showWizard, object: nil)
                 }
             }
         }
@@ -530,6 +642,9 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             },
             onKeymapChanged: { [weak self] keymapId, includePunctuation in
                 self?.handleKeymapChanged(keymapId: keymapId, includePunctuation: includePunctuation)
+            },
+            onHealthIndicatorTap: { [weak self] in
+                self?.handleHealthIndicatorTap()
             }
         )
 
@@ -1019,6 +1134,9 @@ final class LiveKeyboardOverlayUIState: ObservableObject {
     @Published var desiredContentHeight: CGFloat = 0
     @Published var desiredContentWidth: CGFloat = 0
     @Published var keyboardAspectRatio: CGFloat = PhysicalLayout.macBookUS.totalWidth / PhysicalLayout.macBookUS.totalHeight
+
+    // Health indicator state for startup validation display
+    @Published var healthIndicatorState: HealthIndicatorState = .dismissed
 }
 
 enum InspectorPanelLayout {

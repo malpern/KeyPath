@@ -16,6 +16,8 @@ struct LiveKeyboardOverlayView: View {
     var onToggleInspector: (() -> Void)?
     /// Callback when keymap selection changes (keymapId, includePunctuation)
     var onKeymapChanged: ((String, Bool) -> Void)?
+    /// Callback when health indicator is tapped (to launch wizard)
+    var onHealthIndicatorTap: (() -> Void)?
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -87,8 +89,10 @@ struct LiveKeyboardOverlayView: View {
                     isInspectorOpen: uiState.isInspectorOpen,
                     inputModeIndicator: inputSourceDetector.modeIndicator,
                     currentLayerName: viewModel.currentLayerName,
+                    healthIndicatorState: uiState.healthIndicatorState,
                     onClose: { onClose?() },
-                    onToggleInspector: { onToggleInspector?() }
+                    onToggleInspector: { onToggleInspector?() },
+                    onHealthTap: { onHealthIndicatorTap?() }
                 )
                 .frame(maxWidth: .infinity)
 
@@ -323,8 +327,12 @@ private struct OverlayDragHeader: View {
     let inputModeIndicator: String?
     /// Current layer name from Kanata
     let currentLayerName: String
+    /// Current system health indicator state
+    let healthIndicatorState: HealthIndicatorState
     let onClose: () -> Void
     let onToggleInspector: () -> Void
+    /// Callback when health indicator is tapped (to launch wizard)
+    let onHealthTap: () -> Void
 
     @State private var isDragging = false
     @State private var initialFrame: NSRect = .zero
@@ -332,6 +340,11 @@ private struct OverlayDragHeader: View {
 
     private var layerDisplayName: String {
         currentLayerName.lowercased() == "base" ? "Base" : currentLayerName.capitalized
+    }
+
+    /// Whether to show the layer/Japanese input indicators (hidden until health is good)
+    private var shouldShowStatusIndicators: Bool {
+        healthIndicatorState == .dismissed
     }
 
     var body: some View {
@@ -345,7 +358,7 @@ private struct OverlayDragHeader: View {
                 .frame(width: controlsStartX)
 
             // Controls expand right from keyboard edge, but stop before inspector
-            // Order: Close X, Drawer, [spacer], Japanese input (if active), Layer indicator
+            // Order: Close X, Drawer, [spacer], Health indicator OR (Japanese input, Layer indicator)
             let indicatorCornerRadius: CGFloat = 4
 
             HStack(spacing: 6) {
@@ -380,8 +393,18 @@ private struct OverlayDragHeader: View {
 
                 Spacer()
 
-                // 3. Japanese input mode indicator (if active) - right side
-                if let indicator = inputModeIndicator {
+                // 3. Health indicator (highest priority - shows instead of layer/Japanese indicators)
+                if healthIndicatorState != .dismissed {
+                    SystemHealthIndicatorView(
+                        state: healthIndicatorState,
+                        isDark: isDark,
+                        indicatorCornerRadius: indicatorCornerRadius,
+                        onTap: onHealthTap
+                    )
+                }
+
+                // 4. Japanese input mode indicator (if active) - only show when health is good
+                if shouldShowStatusIndicators, let indicator = inputModeIndicator {
                     let modeName = switch indicator {
                     case "あ": "Hiragana"
                     case "ア": "Katakana"
@@ -402,8 +425,8 @@ private struct OverlayDragHeader: View {
                         .accessibilityLabel("Japanese input mode: \(modeName)")
                 }
 
-                // 4. Layer indicator (rightmost) - only show if not in base layer
-                if currentLayerName.lowercased() != "base" {
+                // 5. Layer indicator - only show when health is good and not in base layer
+                if shouldShowStatusIndicators, currentLayerName.lowercased() != "base" {
                     HStack(spacing: 4) {
                         Image(systemName: "square.3.layers.3d")
                             .font(.system(size: 9, weight: .medium))
@@ -429,6 +452,7 @@ private struct OverlayDragHeader: View {
             .frame(maxWidth: maxControlsWidth, alignment: .leading)
             .padding(.trailing, 6)
             .animation(.easeOut(duration: 0.12), value: currentLayerName)
+            .animation(.spring(response: 0.4, dampingFraction: 0.7), value: healthIndicatorState)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: height)
@@ -480,6 +504,98 @@ private struct OverlayDragHeader: View {
         NSApplication.shared.windows.first {
             $0.styleMask.contains(.borderless) && $0.level == .floating
         }
+    }
+}
+
+// MARK: - System Health Indicator View
+
+/// Displays system health status in the overlay header.
+/// Shows spinner during checking, green check when healthy, orange warning when unhealthy.
+private struct SystemHealthIndicatorView: View {
+    let state: HealthIndicatorState
+    let isDark: Bool
+    let indicatorCornerRadius: CGFloat
+    let onTap: () -> Void
+
+    private var headerIconColor: Color {
+        Color.white.opacity(isDark ? 0.7 : 0.6)
+    }
+
+    var body: some View {
+        Group {
+            switch state {
+            case .checking:
+                // Spinner while health is being calculated
+                HStack(spacing: 4) {
+                    ProgressView()
+                        .scaleEffect(0.5)
+                        .frame(width: 12, height: 12)
+                    Text("Checking...")
+                        .font(.system(size: 9, weight: .medium))
+                }
+                .foregroundStyle(headerIconColor)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(
+                    RoundedRectangle(cornerRadius: indicatorCornerRadius)
+                        .fill(Color.white.opacity(isDark ? 0.1 : 0.15))
+                )
+
+            case .healthy:
+                // Green checkmark - briefly visible before fading
+                HStack(spacing: 4) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.green)
+                    Text("Ready")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(headerIconColor)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(
+                    RoundedRectangle(cornerRadius: indicatorCornerRadius)
+                        .fill(Color.green.opacity(0.15))
+                )
+                .transition(.opacity.combined(with: .scale))
+
+            case let .unhealthy(issueCount):
+                // Orange warning - larger and more prominent, clickable to launch wizard
+                Button(action: onTap) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.orange)
+                        Text(issueCount == 1 ? "1 Issue" : "\(issueCount) Issues")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(.orange)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(
+                        RoundedRectangle(cornerRadius: indicatorCornerRadius + 2)
+                            .fill(Color.orange.opacity(0.2))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: indicatorCornerRadius + 2)
+                            .stroke(Color.orange.opacity(0.4), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+                .help("Click to fix system issues")
+                .accessibilityIdentifier("overlay-health-indicator-error")
+                .accessibilityLabel("System has \(issueCount) issue\(issueCount == 1 ? "" : "s"). Click to fix.")
+                .scaleEffect(1.2) // Make error state more prominent
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.8).combined(with: .opacity),
+                    removal: .opacity
+                ))
+
+            case .dismissed:
+                EmptyView()
+            }
+        }
+        .accessibilityIdentifier("overlay-health-indicator")
     }
 }
 

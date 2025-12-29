@@ -1029,9 +1029,20 @@ public final class ConfigurationService: FileConfigurationProviding {
         customRules: [CustomRule] = []
     ) async throws {
         // Custom rules come first so they take priority over preset collections
-        let combinedCollections = RuleCollectionDeduplicator.dedupe(
-            customRules.asRuleCollections() + ruleCollections
-        )
+        let allCollections = customRules.asRuleCollections() + ruleCollections
+
+        // DETECT CONFLICTS BEFORE DEDUPLICATION
+        // This catches cases where multiple collections map the same key
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: allCollections)
+        if !conflicts.isEmpty {
+            AppLogger.shared.log(
+                "⚠️ [ConfigService] Mapping conflicts detected: \(conflicts.map(\.description).joined(separator: "; "))"
+            )
+            throw KeyPathError.configuration(.mappingConflicts(conflicts: conflicts))
+        }
+        AppLogger.shared.debug("✅ [ConfigService] No mapping conflicts detected")
+
+        let combinedCollections = RuleCollectionDeduplicator.dedupe(allCollections)
         let mappings = combinedCollections.enabledMappings()
         let configContent = KanataConfiguration.generateFromCollections(combinedCollections)
 

@@ -227,8 +227,9 @@ struct OverlayKeycapView: View {
         .animation(.spring(response: 0.15, dampingFraction: 0.6), value: isPressed)
         .animation(.easeOut(duration: 0.3), value: fadeAmount)
         .animation(.easeInOut(duration: 0.15), value: isClickable)
-        // Instant transition when launcher mode toggles (no animation delay)
+        // Instant transition when launcher mode or layer changes (no animation delay)
         .animation(nil, value: isLauncherMode)
+        .animation(nil, value: currentLayerName)
         // Hover detection with dwell time (must be before contentShape for hit testing)
         .contentShape(Rectangle())
         .onHover { hovering in

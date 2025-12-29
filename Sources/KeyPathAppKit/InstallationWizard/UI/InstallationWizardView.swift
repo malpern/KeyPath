@@ -115,6 +115,8 @@ struct InstallationWizardView: View {
             .frame(maxHeight: (navigationCoordinator.currentPage == .summary) ? 720 : .infinity) // Grow up to cap, then scroll
             .fixedSize(horizontal: true, vertical: false) // Allow vertical growth; keep width fixed
             .animation(.easeInOut(duration: 0.25), value: isValidating)
+            // Prevent vertical position animation during page transitions
+            .animation(nil, value: navigationCoordinator.currentPage)
             // Remove animation on frame changes to prevent window movement
             .background(WizardDesign.Colors.wizardBackground) // Simple solid background, no visual effect
         }
@@ -143,6 +145,8 @@ struct InstallationWizardView: View {
                     .environmentObject(navigationCoordinator)
                     .padding(.top, 8 + 4) // Extra padding from edge
                     .padding(.trailing, 8 + 4) // Extra padding from edge
+                    // Prevent close button from animating during page transitions
+                    .animation(nil, value: navigationCoordinator.currentPage)
             }
         }
         .onAppear {
@@ -368,8 +372,8 @@ struct InstallationWizardView: View {
                 )
             }
         }
+        // Use opacity-only transition to prevent vertical movement
         .transition(.opacity)
-        .animation(.easeInOut(duration: 0.3), value: navigationCoordinator.currentPage)
     }
 
     @ViewBuilder

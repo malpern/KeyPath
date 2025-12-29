@@ -383,14 +383,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         AppLogger.shared.debug(
             "🔍 [AppDelegate] applicationDidBecomeActive called (initialShown=\(initialMainWindowShown))")
 
-        // One-shot first activation: unconditionally show window on first activation
+        // One-shot first activation: show overlay + mapper instead of main window
         if !initialMainWindowShown {
             // Log diagnostic state at first activation for future debugging
             let appActive = NSApp.isActive
             let appHidden = NSApp.isHidden
-            let windowOcclusion = mainWindowController?.window?.occlusionState ?? []
             AppLogger.shared.debug(
-                "🔍 [AppDelegate] First activation diagnostics: isActive=\(appActive), isHidden=\(appHidden), windowOcclusion=\(windowOcclusion.rawValue)"
+                "🔍 [AppDelegate] First activation diagnostics: isActive=\(appActive), isHidden=\(appHidden)"
             )
 
             // Check if app was hidden and unhide if needed
@@ -399,23 +398,34 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 AppLogger.shared.debug("🪟 [AppDelegate] App was hidden, unhiding")
             }
 
-            // Unconditionally show and focus the main window on first activation
-            mainWindowController?.show(focus: true)
+            // Show overlay and mapper instead of main window on first activation
+            // The overlay is shown via showForStartup() in applicationDidFinishLaunching
+            // Mapper is shown centered on screen
+            if let vm = viewModel {
+                MapperWindowController.shared.showWindow(viewModel: vm)
+                MapperWindowController.shared.centerWindow()
+                AppLogger.shared.debug("🪟 [AppDelegate] First activation - showing mapper centered")
+            }
+
             initialMainWindowShown = true
-            AppLogger.shared.debug("🪟 [AppDelegate] First activation - main window shown and focused")
+            AppLogger.shared.debug("🪟 [AppDelegate] First activation - overlay + mapper shown (main window hidden)")
+
             if pendingReopenShow {
                 AppLogger.shared.debug(
                     "🪟 [AppDelegate] Applying pending reopen show after first activation")
                 pendingReopenShow = false
+                // Show main window only when explicitly requested via dock click etc.
                 mainWindowController?.show(focus: true)
             }
         } else {
-            // Subsequent activations: only show if window not visible
-            if mainWindowController?.isWindowVisible != true {
+            // Subsequent activations: show main window if no other windows visible
+            let hasVisibleAppWindows = NSApp.windows.contains { $0.isVisible && !$0.styleMask.contains(.borderless) }
+            if !hasVisibleAppWindows {
+                // No visible app windows - show main window
                 mainWindowController?.show(focus: true)
-                AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - showing hidden window")
+                AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - showing main window (no visible windows)")
             } else {
-                AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - window already visible")
+                AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - app windows already visible")
             }
         }
     }
@@ -496,8 +506,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             AppLogger.shared.debug(
                 "🪟 [AppDelegate] Main window controller created (deferring show until activation)")
 
-            // Restore live keyboard overlay state from previous session
-            LiveKeyboardOverlayController.shared.restoreState()
+            // Show overlay with startup sizing (30% larger, centered bottom)
+            // This also starts health state observation for the health indicator
+            LiveKeyboardOverlayController.shared.showForStartup()
 
             // Configure overlay controller with viewModel for Mapper integration and keymap changes
             LiveKeyboardOverlayController.shared.configure(

@@ -1,16 +1,54 @@
 import Foundation
+import KeyPathCore
 
 enum RuleCollectionDeduplicator {
+    // MARK: - Conflict Detection
+
+    /// Detects mapping conflicts BEFORE deduplication.
+    /// Returns conflicts where multiple collections map the same key in the same layer.
+    /// Call this before `dedupe()` to catch conflicts that would otherwise be silently resolved.
+    static func detectConflicts(in collections: [RuleCollection]) -> [KeyPathError.MappingConflictInfo] {
+        // Track which collections claim each (input, layer) pair
+        var claimedKeys: [InputKey: [String]] = [:]
+
+        for collection in collections where collection.isEnabled {
+            for mapping in collection.mappings {
+                let normalizedInput = KanataKeyConverter.convertToKanataKey(mapping.input)
+                let inputKey = InputKey(input: normalizedInput, layer: collection.targetLayer)
+
+                claimedKeys[inputKey, default: []].append(collection.name)
+            }
+        }
+
+        // Find keys claimed by more than one collection
+        var conflicts: [KeyPathError.MappingConflictInfo] = []
+        for (inputKey, collectionNames) in claimedKeys where collectionNames.count > 1 {
+            conflicts.append(KeyPathError.MappingConflictInfo(
+                inputKey: inputKey.input,
+                layer: inputKey.layer.displayName,
+                conflictingCollections: collectionNames
+            ))
+        }
+
+        return conflicts.sorted { $0.inputKey < $1.inputKey }
+    }
+
     /// Deduplicates collections by removing duplicate input keys.
     /// - First collection to claim an input key (per layer) wins
     /// - Custom rules come before preset collections, so they take priority
     static func dedupe(_ collections: [RuleCollection]) -> [RuleCollection] {
         var seenActivators: Set<ActivatorKey> = []
-        // Track seen input keys per layer across ALL collections
+        // Track seen input keys per layer across ALL enabled collections
         var seenInputKeys: Set<InputKey> = []
 
         return collections.map { collection in
             var deduped = collection
+
+            // Skip disabled collections for deduplication purposes
+            // They don't claim keys and don't need their mappings filtered
+            guard collection.isEnabled else {
+                return deduped
+            }
 
             // Dedupe activators (existing logic)
             if let activator = collection.momentaryActivator {

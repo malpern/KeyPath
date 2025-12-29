@@ -105,6 +105,11 @@ class MapperWindowController {
 
         self.window = window
     }
+
+    /// Center the mapper window on screen (overrides saved position)
+    func centerWindow() {
+        window?.center()
+    }
 }
 
 // MARK: - URL Input Dialog

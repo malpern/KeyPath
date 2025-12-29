@@ -43,6 +43,26 @@ public enum KeyPathError: Error, LocalizedError {
         case backupNotFound
         case corruptedFormat(details: String)
         case repairFailed(reason: String)
+        /// Multiple rule collections map the same key in the same layer
+        case mappingConflicts(conflicts: [MappingConflictInfo])
+    }
+
+    /// Describes a conflict where multiple collections map the same key
+    public struct MappingConflictInfo: Equatable, Sendable {
+        public let inputKey: String
+        public let layer: String
+        public let conflictingCollections: [String]
+
+        public init(inputKey: String, layer: String, conflictingCollections: [String]) {
+            self.inputKey = inputKey
+            self.layer = layer
+            self.conflictingCollections = conflictingCollections
+        }
+
+        public var description: String {
+            let collections = conflictingCollections.joined(separator: "\" and \"")
+            return "Key '\(inputKey)' is mapped in both \"\(collections)\" (layer: \(layer))"
+        }
     }
 
     // MARK: - Process/Lifecycle Errors
@@ -265,6 +285,8 @@ public enum KeyPathError: Error, LocalizedError {
             "Configuration file is corrupted: \(details)"
         case let .repairFailed(reason):
             "Failed to repair configuration: \(reason)"
+        case let .mappingConflicts(conflicts):
+            "Mapping conflicts detected: \(conflicts.map(\.description).joined(separator: "; "))"
         }
     }
 
