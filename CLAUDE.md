@@ -129,6 +129,11 @@ swift build                    # Development
 ./Scripts/build-and-sign.sh    # Release (signed + notarized)
 ```
 
+### Quick Deploy Shortcut
+When the user says **"dd"**, immediately:
+1. Run `SKIP_NOTARIZE=1 ./Scripts/build.sh` to build, sign, and deploy to `/Applications`
+2. Respond with **"Eye eye Captain!"**
+
 ### Poltergeist (Auto-Deploy)
 ```bash
 poltergeist start    # Watch + auto-deploy on save (~2s)

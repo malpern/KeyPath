@@ -13,7 +13,7 @@ struct OverlayLaunchersSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
-            Text("Quick Launch")
+            Text("Launcher")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.primary)
                 .padding(.bottom, 12)

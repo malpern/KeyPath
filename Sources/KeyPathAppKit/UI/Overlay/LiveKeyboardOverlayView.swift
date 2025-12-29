@@ -89,6 +89,7 @@ struct LiveKeyboardOverlayView: View {
                     isInspectorOpen: uiState.isInspectorOpen,
                     inputModeIndicator: inputSourceDetector.modeIndicator,
                     currentLayerName: viewModel.currentLayerName,
+                    isLauncherMode: viewModel.isLauncherModeActive || (uiState.isInspectorOpen && inspectorSection == .launchers),
                     healthIndicatorState: uiState.healthIndicatorState,
                     onClose: { onClose?() },
                     onToggleInspector: { onToggleInspector?() },
@@ -327,6 +328,8 @@ private struct OverlayDragHeader: View {
     let inputModeIndicator: String?
     /// Current layer name from Kanata
     let currentLayerName: String
+    /// Whether launcher mode is active (drawer open with Quick Launch selected)
+    let isLauncherMode: Bool
     /// Current system health indicator state
     let healthIndicatorState: HealthIndicatorState
     let onClose: () -> Void
@@ -339,7 +342,13 @@ private struct OverlayDragHeader: View {
     @State private var initialMouseLocation: NSPoint = .zero
 
     private var layerDisplayName: String {
-        currentLayerName.lowercased() == "base" ? "Base" : currentLayerName.capitalized
+        if isLauncherMode { return "Launcher" }
+        return currentLayerName.lowercased() == "base" ? "Base" : currentLayerName.capitalized
+    }
+
+    /// Whether we're in a non-base layer (including launcher mode)
+    private var isNonBaseLayer: Bool {
+        isLauncherMode || currentLayerName.lowercased() != "base"
     }
 
     /// Whether to show the layer/Japanese input indicators (hidden until health is good)
@@ -425,8 +434,8 @@ private struct OverlayDragHeader: View {
                         .accessibilityLabel("Japanese input mode: \(modeName)")
                 }
 
-                // 5. Layer indicator - only show when health is good and not in base layer
-                if shouldShowStatusIndicators, currentLayerName.lowercased() != "base" {
+                // 5. Layer indicator - only show when health is good and not in base layer (or in launcher mode)
+                if shouldShowStatusIndicators, isNonBaseLayer {
                     HStack(spacing: 4) {
                         Image(systemName: "square.3.layers.3d")
                             .font(.system(size: 9, weight: .medium))

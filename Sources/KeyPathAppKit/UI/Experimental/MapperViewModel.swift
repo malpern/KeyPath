@@ -112,8 +112,8 @@ struct SystemActionInfo: Equatable, Identifiable {
 
 @MainActor
 class MapperViewModel: ObservableObject {
-    @Published var inputLabel: String = "a"
-    @Published var outputLabel: String = "a"
+    @Published var inputLabel: String = "A"
+    @Published var outputLabel: String = "A"
     @Published var isRecordingInput = false
     @Published var isRecordingOutput = false
     @Published var isSaving = false
@@ -133,7 +133,8 @@ class MapperViewModel: ObservableObject {
     /// Text input for URL dialog
     @Published var urlInputText = ""
     /// Key code of the captured input (for overlay-style rendering)
-    @Published var inputKeyCode: UInt16?
+    /// Default to 0 (A key) so the default state shows the A key selected
+    @Published var inputKeyCode: UInt16? = 0
 
     /// Selected app precondition - rule only applies when this app is frontmost
     @Published var selectedAppCondition: AppConditionInfo?
@@ -877,8 +878,8 @@ class MapperViewModel: ObservableObject {
 
         // If we stopped without capturing anything, restore previous state
         if inputSequence == nil {
-            inputLabel = "a"
-            inputKeyCode = nil
+            inputLabel = "A"
+            inputKeyCode = 0 // Default to A key
         }
 
         // For output: restore saved state if nothing was captured during this recording session
@@ -890,8 +891,8 @@ class MapperViewModel: ObservableObject {
                 selectedApp = savedSelectedApp
                 selectedSystemAction = savedSelectedSystemAction
             } else {
-                // No saved state, default to "a"
-                outputLabel = "a"
+                // No saved state, default to "A"
+                outputLabel = "A"
             }
         }
 
@@ -965,11 +966,11 @@ class MapperViewModel: ObservableObject {
     }
 
     private func reset() {
-        inputLabel = "a"
-        outputLabel = "a"
+        inputLabel = "A"
+        outputLabel = "A"
         inputSequence = nil
         outputSequence = nil
-        inputKeyCode = nil
+        inputKeyCode = 0 // Default to A key
         selectedApp = nil
         selectedSystemAction = nil
         selectedURL = nil
