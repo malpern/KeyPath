@@ -147,7 +147,8 @@ struct MapperView: View {
         .onReceive(NotificationCenter.default.publisher(for: .mapperPresetValues)) { notification in
             // Handle preset updates when window is already open
             if let input = notification.userInfo?["input"] as? String,
-               let output = notification.userInfo?["output"] as? String {
+               let output = notification.userInfo?["output"] as? String
+            {
                 let layer = notification.userInfo?["layer"] as? String
                 let inputKeyCode = notification.userInfo?["inputKeyCode"] as? UInt16
                 let appIdentifier = notification.userInfo?["appIdentifier"] as? String
@@ -167,7 +168,8 @@ struct MapperView: View {
         .onReceive(NotificationCenter.default.publisher(for: .kanataLayerChanged)) { notification in
             // Update layer when it changes (if not opened from overlay with specific layer)
             if let layerName = notification.userInfo?["layerName"] as? String,
-               viewModel.originalInputKey == nil { // Only auto-update if not opened from overlay
+               viewModel.originalInputKey == nil
+            { // Only auto-update if not opened from overlay
                 viewModel.setLayer(layerName)
             }
         }
@@ -1126,6 +1128,10 @@ struct MapperKeycapPair: View {
     let onInputTap: () -> Void
     let onOutputTap: () -> Void
 
+    /// When true, remove outer centering/margins so the pair can sit flush to a leading edge.
+    /// Used by the overlay drawer, where the input keycap should align to the drawer edge.
+    var compactNoSidePadding: Bool = false
+
     /// Horizontal margin on each side
     private let horizontalMargin: CGFloat = 16
 
@@ -1162,13 +1168,19 @@ struct MapperKeycapPair: View {
                     horizontalLayout(maxWidth: maxKeycapWidthHorizontal)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(
+                maxWidth: .infinity,
+                maxHeight: .infinity,
+                alignment: compactNoSidePadding ? .leading : .center
+            )
         }
     }
 
     private func horizontalLayout(maxWidth: CGFloat) -> some View {
         HStack(spacing: 16) {
-            Spacer(minLength: 0)
+            if !compactNoSidePadding {
+                Spacer(minLength: 0)
+            }
 
             // Input keycap - uses overlay-style rendering
             VStack(spacing: 8) {
@@ -1204,7 +1216,9 @@ struct MapperKeycapPair: View {
                     .foregroundColor(.secondary)
             }
 
-            Spacer(minLength: 0)
+            if !compactNoSidePadding {
+                Spacer(minLength: 0)
+            }
         }
     }
 
