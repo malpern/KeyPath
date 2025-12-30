@@ -1,0 +1,6 @@
+.build*
+.build-ci*
+External/
+Sources/
+Tests/
+Scripts/
