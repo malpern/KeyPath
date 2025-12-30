@@ -14,10 +14,15 @@ content_class: content-full kanata-landing
           <span class="kanata-landing-badge">For Kanata users on macOS</span>
         </div>
 
-        <h1 class="kanata-landing-title">Tap. Remap. Done.</h1>
+        <h1 class="kanata-landing-title">KeyPath</h1>
 
         <p class="kanata-landing-subtitle">
-          KeyPath is the macOS layer for Kanata: permissions, LaunchDaemon reliability, and fast diagnosis — while preserving your existing <code>.kbd</code>.
+          Tap. Remap. Done.
+        </p>
+
+        <p>
+          Simple keyboard remapping on macOS: guided setup, a reliable background service, and quick fixes when something breaks.
+          Already using Kanata? Drop in your existing <code>.kbd</code> and keep working.
         </p>
 
         <div class="kanata-landing-actions">
