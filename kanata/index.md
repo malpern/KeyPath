@@ -12,33 +12,29 @@ content_class: content-full kanata-landing
       <div>
         <div class="kanata-landing-kicker">
           <span class="kanata-landing-badge">For Kanata users on macOS</span>
-          <span>Keep your config. Lose the glue.</span>
         </div>
 
-        <h1 class="kanata-landing-title">KeyPath makes Kanata feel native on macOS.</h1>
+        <h1 class="kanata-landing-title">Tap. Remap. Done.</h1>
 
         <p class="kanata-landing-subtitle">
-          If you already love Kanata, KeyPath is the missing macOS layer: reliable service management,
-          guided permissions, driver setup, and fast diagnosis — while preserving your existing <code>.kbd</code>.
+          KeyPath is the macOS layer for Kanata: permissions, LaunchDaemon reliability, and fast diagnosis — while preserving your existing <code>.kbd</code>.
         </p>
 
         <div class="kanata-landing-actions">
           <a class="button button-orange" href="{{ '/migration/kanata-users' | relative_url }}">Migration guide</a>
-          <a class="button button-secondary" href="{{ '/getting-started/installation' | relative_url }}">Install KeyPath</a>
-          <a class="button button-secondary" href="{{ site.github_url }}/releases">Download releases</a>
+          <a class="button button-secondary" href="{{ site.github_url }}/releases">Download</a>
         </div>
 
         <p class="kanata-landing-fineprint mb-0" style="margin-top: 14px;">
-          BYOC-friendly: KeyPath does <strong>not</strong> parse or “import” your config into a UI. It runs it.
-          Your file stays yours.
+          BYOC-friendly. KeyPath runs your config; it doesn’t parse or “import” it into a UI.
         </p>
       </div>
 
       <div class="kanata-landing-hero-visual">
         <img
           class="kanata-landing-hero-image"
-          src="{{ '/images/kanata-landing-hero.png' | relative_url }}"
-          alt="KeyPath branding"
+          src="{{ '/images/keypath-app-icon.png' | relative_url }}"
+          alt="KeyPath"
           loading="lazy"
         />
       </div>
@@ -46,20 +42,13 @@ content_class: content-full kanata-landing
   </section>
 
   <section class="kanata-landing-section">
-    <h2>What you get (without giving up Kanata)</h2>
-    <div class="kanata-landing-grid-3">
-      <div class="kanata-landing-card">
-        <h3>Reliable service management</h3>
-        <p>LaunchDaemon setup, restarts, and health checks — without you babysitting <code>launchctl</code>.</p>
-      </div>
-      <div class="kanata-landing-card">
-        <h3>Permissions, handled</h3>
-        <p>Guided wizard for Input Monitoring & Accessibility, plus clear “Fix” actions when something breaks.</p>
-      </div>
-      <div class="kanata-landing-card">
-        <h3>Conflict detection & recovery</h3>
-        <p>Detects common macOS remapper conflicts and helps you get back to a known-good state fast.</p>
-      </div>
+    <div class="kanata-landing-simple">
+      <h2 class="mt-0">Why KeyPath?</h2>
+      <ul class="kanata-landing-bullets">
+        <li><strong>Permissions, handled.</strong> Guided setup for Input Monitoring & Accessibility.</li>
+        <li><strong>Reliable service.</strong> LaunchDaemon install + restart + health checks.</li>
+        <li><strong>Keep Kanata.</strong> Your <code>.kbd</code> stays yours (BYOC).</li>
+      </ul>
     </div>
   </section>
 
@@ -97,68 +86,11 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
   </section>
 
   <section class="kanata-landing-section">
-    <h2>Built for how Kanata power-users actually work</h2>
-    <div class="kanata-landing-grid-3">
-      <div class="kanata-landing-card">
-        <h3>Bring Your Own Config</h3>
-        <p>
-          Keep your layers, aliases, macros, and includes. KeyPath preserves your file and avoids risky parsing/import.
-        </p>
-      </div>
-      <div class="kanata-landing-card">
-        <h3>Hot reload & diagnostics</h3>
-        <p>
-          TCP-enabled validation and health checks so you can iterate quickly without losing trust in the system.
-        </p>
-      </div>
-      <div class="kanata-landing-card">
-        <h3>Safety features</h3>
-        <p>
-          Emergency stop, clear system state inspection, and recovery paths when macOS permissions drift.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  <section class="kanata-landing-section">
-    <h2>Suggested visuals (placeholders)</h2>
-    <div class="kanata-landing-grid-2">
-      <div class="media-placeholder">
-        <div>
-          <strong>Screenshot:</strong> Setup Wizard “Fix Issues” screen<br />
-          <span class="kanata-landing-fineprint">Shows permission + service repair flow.</span>
-        </div>
-      </div>
-      <div class="media-placeholder">
-        <div>
-          <strong>Screenshot:</strong> System health / status view<br />
-          <span class="kanata-landing-fineprint">Communicates “Kanata is running, TCP ok, conflicts: none”.</span>
-        </div>
-      </div>
-      <div class="media-placeholder">
-        <div>
-          <strong>GIF/Video:</strong> Edit config → hot reload → remap works<br />
-          <span class="kanata-landing-fineprint">Shows fast iteration loop for BYOC users.</span>
-        </div>
-      </div>
-      <div class="media-placeholder">
-        <div>
-          <strong>Screenshot:</strong> Live overlay / layer indicator (if enabled)<br />
-          <span class="kanata-landing-fineprint">Optional “nice UI” that doesn’t require abandoning your config.</span>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="kanata-landing-section">
     <div class="kanata-landing-card">
       <h2 class="mt-0">Ready?</h2>
-      <p>
-        Start with the migration guide, or install KeyPath and let the wizard do the macOS setup.
-      </p>
+      <p>Start with the migration guide.</p>
       <div class="kanata-landing-actions">
         <a class="button button-orange" href="{{ '/migration/kanata-users' | relative_url }}">Read migration guide</a>
-        <a class="button button-primary" href="{{ '/getting-started/installation' | relative_url }}">Install KeyPath</a>
         <a class="button button-secondary" href="{{ site.github_url }}/issues">Ask a question</a>
       </div>
     </div>
