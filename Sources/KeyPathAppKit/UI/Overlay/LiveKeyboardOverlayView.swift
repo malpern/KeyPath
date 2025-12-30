@@ -36,6 +36,10 @@ struct LiveKeyboardOverlayView: View {
     /// Japanese input mode detector for showing mode indicator
     @ObservedObject private var inputSourceDetector = InputSourceDetector.shared
 
+    /// Launcher welcome dialog state (shown on first click of launcher tab in drawer)
+    @AppStorage("hasSeenLauncherDrawerWelcome") private var hasSeenLauncherDrawerWelcome = false
+    @State private var pendingLauncherConfig: LauncherGridConfig?
+
     /// The currently selected physical keyboard layout
     private var activeLayout: PhysicalLayout {
         PhysicalLayout.find(id: selectedLayoutId) ?? .macBookUS
@@ -59,7 +63,7 @@ struct LiveKeyboardOverlayView: View {
         let fadeAmount: CGFloat = viewModel.fadeAmount
         let headerHeight = OverlayLayoutMetrics.headerHeight
         let keyboardPadding = OverlayLayoutMetrics.keyboardPadding
-        let keyboardTrailingPadding = OverlayLayoutMetrics.keyboardTrailingPadding
+        let baseKeyboardTrailingPadding = OverlayLayoutMetrics.keyboardTrailingPadding
         let headerBottomSpacing = OverlayLayoutMetrics.headerBottomSpacing
         let outerHorizontalPadding = OverlayLayoutMetrics.outerHorizontalPadding
         let headerContentLeadingPadding = keyboardPadding + escKeyLeftInset
@@ -69,8 +73,11 @@ struct LiveKeyboardOverlayView: View {
         let trailingOuterPadding = inspectorVisible ? 0 : outerHorizontalPadding
         let keyboardAspectRatio = activeLayout.totalWidth / activeLayout.totalHeight
         let inspectorSeamWidth = OverlayLayoutMetrics.inspectorSeamWidth
-        let inspectorChrome = inspectorVisible ? inspectorWidth + inspectorSeamWidth : 0
-        let inspectorTotalWidth = inspectorWidth + inspectorSeamWidth
+        let inspectorLeadingGap = inspectorVisible ? baseKeyboardTrailingPadding : 0
+        let keyboardTrailingPadding = inspectorVisible ? 0 : baseKeyboardTrailingPadding
+        let inspectorPanelWidth = inspectorWidth + inspectorSeamWidth
+        let inspectorTotalWidth = inspectorPanelWidth + inspectorLeadingGap
+        let inspectorChrome = inspectorVisible ? inspectorTotalWidth : 0
         let verticalChrome = OverlayLayoutMetrics.verticalChrome
         let shouldFreezeKeyboard = uiState.isInspectorAnimating
         let fixedKeyboardWidth: CGFloat? = keyboardWidth > 0 ? keyboardWidth : nil
@@ -103,13 +110,13 @@ struct LiveKeyboardOverlayView: View {
                     // 1. Inspector FIRST = renders at the back
                     if inspectorVisible {
                         let reveal = max(0, min(1, inspectorReveal))
-                        let slideOffset = -(1 - reveal) * inspectorTotalWidth
+                        let slideOffset = -(1 - reveal) * inspectorPanelWidth
                         let inspectorOpacity: CGFloat = 1
                         let inspectorContent = makeInspectorContent(
                             fadeAmount: fadeAmount,
-                            inspectorWidth: inspectorWidth,
                             inspectorTotalWidth: inspectorTotalWidth,
                             inspectorReveal: reveal,
+                            inspectorLeadingGap: inspectorLeadingGap,
                             healthIndicatorState: uiState.healthIndicatorState,
                             onHealthTap: { onHealthIndicatorTap?() }
                         )
@@ -118,6 +125,7 @@ struct LiveKeyboardOverlayView: View {
                             content: inspectorContent,
                             reveal: reveal,
                             totalWidth: inspectorTotalWidth,
+                            leadingGap: inspectorLeadingGap,
                             slideOffset: slideOffset,
                             opacity: inspectorOpacity,
                             debugEnabled: inspectorDebugEnabled
@@ -230,6 +238,7 @@ struct LiveKeyboardOverlayView: View {
             // Load launcher mappings when viewing launchers section
             if newSection == .launchers {
                 viewModel.loadLauncherMappings()
+                checkLauncherWelcome()
             }
         }
         .onChange(of: uiState.isInspectorOpen) { _, isOpen in
@@ -270,6 +279,67 @@ struct LiveKeyboardOverlayView: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("keyboard-overlay")
         .accessibilityLabel("KeyPath keyboard overlay")
+    }
+
+    /// Check if launcher welcome dialog should be shown
+    private func checkLauncherWelcome() {
+        guard !hasSeenLauncherDrawerWelcome else { return }
+
+        Task {
+            // Load the launcher config to pass to welcome dialog
+            let collections = await RuleCollectionStore.shared.loadCollections()
+            if let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
+               let config = launcherCollection.configuration.launcherGridConfig
+            {
+                await MainActor.run {
+                    pendingLauncherConfig = config
+                    showLauncherWelcomeWindow()
+                }
+            }
+        }
+    }
+
+    /// Show the launcher welcome dialog as an independent centered window
+    private func showLauncherWelcomeWindow() {
+        guard let config = pendingLauncherConfig else { return }
+
+        LauncherWelcomeWindowController.show(
+            config: Binding(
+                get: { [self] in pendingLauncherConfig ?? config },
+                set: { [self] in pendingLauncherConfig = $0 }
+            ),
+            onComplete: { [self] finalConfig, _ in
+                handleLauncherWelcomeComplete(finalConfig)
+            },
+            onDismiss: { [self] in
+                // User closed without completing - still mark as seen
+                hasSeenLauncherDrawerWelcome = true
+                pendingLauncherConfig = nil
+            }
+        )
+    }
+
+    /// Handle launcher welcome dialog completion
+    private func handleLauncherWelcomeComplete(_ finalConfig: LauncherGridConfig) {
+        var updatedConfig = finalConfig
+        updatedConfig.hasSeenWelcome = true
+        hasSeenLauncherDrawerWelcome = true
+
+        // Save the updated config
+        Task {
+            let collections = await RuleCollectionStore.shared.loadCollections()
+            if var launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }) {
+                launcherCollection.configuration = .launcherGrid(updatedConfig)
+                // Update the collections array and save
+                var allCollections = collections
+                if let index = allCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
+                    allCollections[index] = launcherCollection
+                    try? await RuleCollectionStore.shared.saveCollections(allCollections)
+                }
+            }
+        }
+
+        pendingLauncherConfig = nil
     }
 }
 
@@ -317,9 +387,9 @@ extension LiveKeyboardOverlayView {
 
     private func makeInspectorContent(
         fadeAmount: CGFloat,
-        inspectorWidth: CGFloat,
         inspectorTotalWidth: CGFloat,
         inspectorReveal: CGFloat,
+        inspectorLeadingGap: CGFloat,
         healthIndicatorState: HealthIndicatorState,
         onHealthTap: @escaping () -> Void
     ) -> AnyView {
@@ -332,14 +402,14 @@ extension LiveKeyboardOverlayView {
                 kanataViewModel: kanataViewModel,
                 inspectorReveal: inspectorReveal,
                 inspectorTotalWidth: inspectorTotalWidth,
+                inspectorLeadingGap: inspectorLeadingGap,
                 healthIndicatorState: healthIndicatorState,
                 onHealthTap: onHealthTap,
                 onKeymapChanged: onKeymapChanged,
                 isKeycapsEnabled: viewModel.isKeycapColorwayEnabled,
                 isSoundsEnabled: viewModel.isTypingSoundsEnabled
             )
-            .frame(width: inspectorWidth, alignment: .leading)
-            .frame(width: inspectorTotalWidth, alignment: .leading)
+            .frame(width: inspectorTotalWidth, alignment: .trailing)
         )
     }
 }
@@ -435,61 +505,10 @@ private struct OverlayDragHeader: View {
 
                 Spacer()
 
-                // 3. Health indicator (highest priority - shows instead of layer/Japanese indicators)
-                if healthIndicatorState != .dismissed {
-                    SystemHealthIndicatorView(
-                        state: healthIndicatorState,
-                        isDark: isDark,
-                        indicatorCornerRadius: indicatorCornerRadius,
-                        onTap: onHealthTap
-                    )
-                }
-
-                // 4. Japanese input mode indicator (if active) - only show when health is good
-                if shouldShowStatusIndicators, let indicator = inputModeIndicator {
-                    let modeName = switch indicator {
-                    case "あ": "Hiragana"
-                    case "ア": "Katakana"
-                    case "A": "Alphanumeric"
-                    default: "Japanese"
-                    }
-                    Text(indicator)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(headerIconColor)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(
-                            RoundedRectangle(cornerRadius: indicatorCornerRadius)
-                                .fill(Color.white.opacity(isDark ? 0.1 : 0.15))
-                        )
-                        .help("Japanese Input Mode: \(modeName)")
-                        .accessibilityIdentifier("overlay-input-mode-indicator")
-                        .accessibilityLabel("Japanese input mode: \(modeName)")
-                }
-
-                // 5. Layer indicator - only show when health is good and not in base layer (or in launcher mode)
-                if shouldShowStatusIndicators, isNonBaseLayer {
-                    HStack(spacing: 4) {
-                        Image(systemName: "square.3.layers.3d")
-                            .font(.system(size: 9, weight: .medium))
-                        Text(layerDisplayName)
-                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                    }
-                    .foregroundStyle(headerIconColor)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(
-                        RoundedRectangle(cornerRadius: indicatorCornerRadius)
-                            .fill(Color.white.opacity(isDark ? 0.1 : 0.15))
-                    )
-                    .help("Current layer: \(layerDisplayName)")
-                    .accessibilityIdentifier("overlay-layer-indicator")
-                    .accessibilityLabel("Current layer: \(layerDisplayName)")
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .top).combined(with: .opacity),
-                        removal: .move(edge: .top).combined(with: .opacity)
-                    ))
-                }
+                // 3. Status slot (fixed position):
+                // - Shows health indicator when not dismissed (including the "Ready" pill)
+                // - Otherwise shows Japanese input + layer pill in the same slot as "Ready"
+                statusSlot(indicatorCornerRadius: indicatorCornerRadius)
             }
             .frame(maxWidth: maxControlsWidth, alignment: .leading)
             .padding(.trailing, 6)
@@ -534,6 +553,80 @@ private struct OverlayDragHeader: View {
 
     private var headerIconColor: Color {
         Color.white.opacity(isDark ? 0.7 : 0.6)
+    }
+
+    @ViewBuilder
+    private func statusSlot(indicatorCornerRadius: CGFloat) -> some View {
+        ZStack(alignment: .trailing) {
+            if healthIndicatorState != .dismissed {
+                SystemHealthIndicatorView(
+                    state: healthIndicatorState,
+                    isDark: isDark,
+                    indicatorCornerRadius: indicatorCornerRadius,
+                    onTap: onHealthTap
+                )
+            } else {
+                HStack(spacing: 6) {
+                    if let inputModeIndicator {
+                        inputModePill(
+                            indicator: inputModeIndicator,
+                            indicatorCornerRadius: indicatorCornerRadius
+                        )
+                    }
+
+                    if isNonBaseLayer {
+                        layerPill(
+                            layerDisplayName: layerDisplayName,
+                            indicatorCornerRadius: indicatorCornerRadius
+                        )
+                    }
+                }
+                .transition(.opacity.combined(with: .scale))
+            }
+        }
+        // Keep the slot trailing-aligned so the layer pill occupies the same location as "Ready".
+        .frame(maxWidth: .infinity, alignment: .trailing)
+    }
+
+    private func inputModePill(indicator: String, indicatorCornerRadius: CGFloat) -> some View {
+        let modeName = switch indicator {
+        case "あ": "Hiragana"
+        case "ア": "Katakana"
+        case "A": "Alphanumeric"
+        default: "Japanese"
+        }
+
+        return Text(indicator)
+            .font(.system(size: 10, weight: .medium))
+            .foregroundStyle(headerIconColor)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(
+                RoundedRectangle(cornerRadius: indicatorCornerRadius)
+                    .fill(Color.white.opacity(isDark ? 0.1 : 0.15))
+            )
+            .help("Japanese Input Mode: \(modeName)")
+            .accessibilityIdentifier("overlay-input-mode-indicator")
+            .accessibilityLabel("Japanese input mode: \(modeName)")
+    }
+
+    private func layerPill(layerDisplayName: String, indicatorCornerRadius: CGFloat) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: "square.3.layers.3d")
+                .font(.system(size: 9, weight: .medium))
+            Text(layerDisplayName)
+                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+        }
+        .foregroundStyle(headerIconColor)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(
+            RoundedRectangle(cornerRadius: indicatorCornerRadius)
+                .fill(Color.white.opacity(isDark ? 0.1 : 0.15))
+        )
+        .help("Current layer: \(layerDisplayName)")
+        .accessibilityIdentifier("overlay-layer-indicator")
+        .accessibilityLabel("Current layer: \(layerDisplayName)")
     }
 
     private func moveWindow(deltaX: CGFloat, deltaY: CGFloat) {
@@ -685,6 +778,7 @@ private struct InspectorMaskedHost<Content: View>: NSViewRepresentable {
     var content: Content
     var reveal: CGFloat
     var totalWidth: CGFloat
+    var leadingGap: CGFloat
     var slideOffset: CGFloat
     var opacity: CGFloat
     var debugEnabled: Bool
@@ -698,6 +792,7 @@ private struct InspectorMaskedHost<Content: View>: NSViewRepresentable {
             content: content,
             reveal: reveal,
             totalWidth: totalWidth,
+            leadingGap: leadingGap,
             slideOffset: slideOffset,
             opacity: opacity,
             debugEnabled: debugEnabled
@@ -710,6 +805,7 @@ private final class InspectorMaskedHostingView<Content: View>: NSView {
     private let maskLayer = CALayer()
     private var reveal: CGFloat = 0
     private var totalWidth: CGFloat = 0
+    private var leadingGap: CGFloat = 0
     private var slideOffset: CGFloat = 0
     private var contentOpacity: CGFloat = 1
     private var debugEnabled: Bool = false
@@ -737,6 +833,7 @@ private final class InspectorMaskedHostingView<Content: View>: NSView {
         content: Content,
         reveal: CGFloat,
         totalWidth: CGFloat,
+        leadingGap: CGFloat,
         slideOffset: CGFloat,
         opacity: CGFloat,
         debugEnabled: Bool
@@ -744,6 +841,7 @@ private final class InspectorMaskedHostingView<Content: View>: NSView {
         hostingView.rootView = content
         self.reveal = reveal
         self.totalWidth = totalWidth
+        self.leadingGap = leadingGap
         self.slideOffset = slideOffset
         contentOpacity = opacity
         self.debugEnabled = debugEnabled
@@ -757,7 +855,9 @@ private final class InspectorMaskedHostingView<Content: View>: NSView {
         hostingView.alphaValue = contentOpacity
 
         let widthBasis = totalWidth > 0 ? totalWidth : bounds.width
-        let width = max(0, min(widthBasis, widthBasis * reveal))
+        let gap = max(0, min(leadingGap, widthBasis))
+        let panelWidth = max(0, widthBasis - gap)
+        let width = max(0, min(widthBasis, gap + panelWidth * reveal))
         maskLayer.frame = CGRect(x: 0, y: 0, width: width, height: bounds.height)
 
         guard debugEnabled else { return }
@@ -767,9 +867,10 @@ private final class InspectorMaskedHostingView<Content: View>: NSView {
         let revealStr = String(format: "%.3f", reveal)
         let slideStr = String(format: "%.1f", slideOffset)
         let widthStr = String(format: "%.1f", width)
+        let gapStr = String(format: "%.1f", gap)
         let opacityStr = String(format: "%.2f", contentOpacity)
         AppLogger.shared.log(
-            "🧱 [OverlayInspectorMask] bounds=\(bounds.size.debugDescription) reveal=\(revealStr) slide=\(slideStr) maskW=\(widthStr) opacity=\(opacityStr)"
+            "🧱 [OverlayInspectorMask] bounds=\(bounds.size.debugDescription) reveal=\(revealStr) slide=\(slideStr) gap=\(gapStr) maskW=\(widthStr) opacity=\(opacityStr)"
         )
     }
 }
@@ -784,6 +885,7 @@ struct OverlayInspectorPanel: View {
     let kanataViewModel: KanataViewModel?
     let inspectorReveal: CGFloat
     let inspectorTotalWidth: CGFloat
+    let inspectorLeadingGap: CGFloat
     let healthIndicatorState: HealthIndicatorState
     let onHealthTap: () -> Void
     /// Callback when keymap selection changes (keymapId, includePunctuation)
@@ -801,14 +903,17 @@ struct OverlayInspectorPanel: View {
     private var includePunctuation: Bool {
         KeymapPreferences.includePunctuation(for: selectedKeymapId, store: includePunctuationStore)
     }
-    
+
     private var visibleInspectorWidth: CGFloat {
-        let width = inspectorTotalWidth * inspectorReveal
+        let gap = max(0, min(inspectorLeadingGap, inspectorTotalWidth))
+        let panelWidth = max(0, inspectorTotalWidth - gap)
+        let width = gap + panelWidth * inspectorReveal
         return max(0, min(inspectorTotalWidth, width))
     }
 
     var body: some View {
-        VStack(spacing: 12) {
+        let showDrawerDebugOutline = false
+        VStack(spacing: 8) {
             // Toolbar with section tabs
             InspectorPanelToolbar(
                 isDark: isDark,
@@ -819,30 +924,39 @@ struct OverlayInspectorPanel: View {
                 isKeycapsEnabled: isKeycapsEnabled,
                 isSoundsEnabled: isSoundsEnabled
             )
-            .padding(.top, 6)
 
             // Content based on selected section
-            ScrollView {
-                let contentAlignment: HorizontalAlignment = selectedSection == .mapper ? .center : .leading
-                VStack(alignment: contentAlignment, spacing: 16) {
-                    switch selectedSection {
-                    case .mapper:
-                        mapperContent
-                    case .keyboard:
-                        keymapsContent
-                    case .layout:
-                        physicalLayoutContent
-                    case .keycaps:
-                        keycapsContent
-                    case .sounds:
-                        soundsContent
-                    case .launchers:
-                        launchersContent
+            if selectedSection == .launchers {
+                // Launchers section fills available space with button pinned to bottom
+                launchersContent
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 6)
+            } else if selectedSection == .mapper {
+                // Mapper section fills available space with layer button pinned to bottom
+                mapperContent
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 6)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        switch selectedSection {
+                        case .mapper:
+                            EmptyView() // Handled above
+                        case .keyboard:
+                            keymapsContent
+                        case .layout:
+                            physicalLayoutContent
+                        case .keycaps:
+                            keycapsContent
+                        case .sounds:
+                            soundsContent
+                        case .launchers:
+                            EmptyView() // Handled above
+                        }
                     }
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 6)
                 }
-                .padding(.leading, selectedSection == .mapper ? 0 : 12)
-                .padding(.trailing, selectedSection == .mapper ? 0 : 12)
-                .padding(.bottom, 12)
             }
         }
         .saturation(Double(1 - fadeAmount)) // Monochromatic when faded
@@ -852,6 +966,17 @@ struct OverlayInspectorPanel: View {
         }
         .onChange(of: includePunctuationStore) { _, _ in
             onKeymapChanged?(selectedKeymapId, includePunctuation)
+        }
+        .overlay(alignment: .leading) {
+            if showDrawerDebugOutline {
+                GeometryReader { proxy in
+                    let width = min(proxy.size.width, visibleInspectorWidth)
+                    Rectangle()
+                        .stroke(Color.red.opacity(0.9), lineWidth: 1)
+                        .frame(width: width, height: proxy.size.height, alignment: .leading)
+                }
+                .allowsHitTesting(false)
+            }
         }
     }
 
@@ -878,8 +1003,6 @@ struct OverlayInspectorPanel: View {
 
     @ViewBuilder
     private var mapperContent: some View {
-        let contentWidth = visibleInspectorWidth > 0 ? visibleInspectorWidth : inspectorTotalWidth
-
         if case .unhealthy = healthIndicatorState {
             OverlayMapperSection(
                 isDark: isDark,
@@ -887,8 +1010,7 @@ struct OverlayInspectorPanel: View {
                 healthIndicatorState: healthIndicatorState,
                 onHealthTap: onHealthTap
             )
-            .frame(width: contentWidth, alignment: .center)
-            .frame(maxWidth: .infinity, alignment: .trailing)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else if healthIndicatorState == .checking {
             OverlayMapperSection(
                 isDark: isDark,
@@ -896,8 +1018,7 @@ struct OverlayInspectorPanel: View {
                 healthIndicatorState: healthIndicatorState,
                 onHealthTap: onHealthTap
             )
-            .frame(width: contentWidth, alignment: .center)
-            .frame(maxWidth: .infinity, alignment: .trailing)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else if isMapperAvailable {
             OverlayMapperSection(
                 isDark: isDark,
@@ -905,8 +1026,7 @@ struct OverlayInspectorPanel: View {
                 healthIndicatorState: healthIndicatorState,
                 onHealthTap: onHealthTap
             )
-            .frame(width: contentWidth, alignment: .center)
-            .frame(maxWidth: .infinity, alignment: .trailing)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else {
             unavailableSection(
                 title: "Mapper Unavailable",
@@ -1232,6 +1352,7 @@ private struct InspectorPanelToolbar: View {
             .opacity(isMapperTabEnabled ? 1 : 0.45)
             .accessibilityIdentifier("inspector-tab-mapper")
             .accessibilityLabel("Key Mapper")
+            .help("Key Mapper")
 
             // Launchers
             toolbarButton(
@@ -1244,6 +1365,7 @@ private struct InspectorPanelToolbar: View {
             }
             .accessibilityIdentifier("inspector-tab-launchers")
             .accessibilityLabel("App Launchers")
+            .help("App Launcher")
 
             toolbarButton(
                 systemImage: "keyboard",
@@ -1255,6 +1377,7 @@ private struct InspectorPanelToolbar: View {
             }
             .accessibilityIdentifier("inspector-tab-keymap")
             .accessibilityLabel("Keymap")
+            .help("Keymap")
 
             toolbarButton(
                 systemImage: "square.grid.3x2",
@@ -1266,6 +1389,7 @@ private struct InspectorPanelToolbar: View {
             }
             .accessibilityIdentifier("inspector-tab-layout")
             .accessibilityLabel("Physical Layout")
+            .help("Physical Layout")
 
             // Only show keycaps tab when Keycap Colorway collection is enabled
             if isKeycapsEnabled {
@@ -1279,6 +1403,7 @@ private struct InspectorPanelToolbar: View {
                 }
                 .accessibilityIdentifier("inspector-tab-keycaps")
                 .accessibilityLabel("Keycap Style")
+                .help("Keycap Style")
             }
 
             // Only show sounds tab when Typing Sounds collection is enabled
@@ -1293,6 +1418,7 @@ private struct InspectorPanelToolbar: View {
                 }
                 .accessibilityIdentifier("inspector-tab-sounds")
                 .accessibilityLabel("Typing Sounds")
+                .help("Typing Sounds")
             }
         }
         .controlSize(.regular)
