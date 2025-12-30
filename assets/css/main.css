@@ -334,6 +334,171 @@ a:hover {
     padding-bottom: var(--spacing-3xl);
 }
 
+.content-wrapper.no-sidebar {
+    grid-template-columns: 1fr;
+}
+
+.content-full {
+    max-width: var(--max-width);
+}
+
+/* Kanata landing page (marketing-style) */
+.kanata-landing {
+    max-width: var(--max-width);
+}
+
+.kanata-landing-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 20px;
+    border: 1px solid var(--color-border);
+    background:
+        radial-gradient(800px 400px at 20% 0%, rgba(255, 149, 0, 0.30), transparent 60%),
+        radial-gradient(700px 360px at 80% 20%, rgba(0, 122, 255, 0.18), transparent 55%),
+        linear-gradient(180deg, var(--color-background-secondary), var(--color-background));
+    padding: clamp(24px, 4vw, 44px);
+    margin-bottom: var(--spacing-2xl);
+}
+
+.kanata-landing-hero-grid {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: clamp(20px, 3vw, 44px);
+    align-items: center;
+}
+
+.kanata-landing-kicker {
+    display: inline-flex;
+    gap: 10px;
+    align-items: center;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.kanata-landing-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--color-border-light);
+    background: rgba(255, 149, 0, 0.10);
+    color: var(--color-text);
+}
+
+.kanata-landing-title {
+    font-size: clamp(2.1rem, 4.4vw, 3.2rem);
+    line-height: 1.08;
+    margin-bottom: var(--spacing-md);
+}
+
+.kanata-landing-subtitle {
+    font-size: var(--font-size-lg);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-lg);
+}
+
+.kanata-landing-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+}
+
+.button-orange {
+    background: linear-gradient(180deg, #FFB44C, #FF9500);
+    color: #111;
+    border: 1px solid rgba(0, 0, 0, 0.10);
+}
+
+.button-orange:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+    filter: saturate(1.02);
+}
+
+.kanata-landing-hero-visual {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.kanata-landing-hero-image {
+    width: 100%;
+    height: auto;
+    border-radius: 16px;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--color-border);
+    background: var(--color-background);
+}
+
+.kanata-landing-section {
+    margin-top: var(--spacing-2xl);
+}
+
+.kanata-landing-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--spacing-lg);
+}
+
+.kanata-landing-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--spacing-lg);
+}
+
+.kanata-landing-card {
+    border-radius: 14px;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-background-secondary);
+    padding: var(--spacing-lg);
+}
+
+.kanata-landing-card h3 {
+    margin-top: 0;
+}
+
+.kanata-landing-code {
+    margin-top: var(--spacing-sm);
+}
+
+.media-placeholder {
+    border-radius: 14px;
+    border: 1px dashed var(--color-border);
+    background:
+        linear-gradient(180deg, rgba(255, 149, 0, 0.08), transparent 60%),
+        var(--color-background-secondary);
+    padding: var(--spacing-xl);
+    color: var(--color-text-tertiary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 180px;
+    text-align: center;
+}
+
+.kanata-landing-fineprint {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-tertiary);
+}
+
+@media (max-width: 1024px) {
+    .kanata-landing-hero-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .kanata-landing-grid-3 {
+        grid-template-columns: 1fr;
+    }
+
+    .kanata-landing-grid-2 {
+        grid-template-columns: 1fr;
+    }
+}
+
 .content h1:first-child {
     margin-top: 0;
 }

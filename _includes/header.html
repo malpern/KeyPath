@@ -12,7 +12,7 @@
             
             <div class="nav-links">
                 {% for item in site.navigation %}
-                <a href="{{ item.url | relative_url }}" class="nav-link {% if page.url == item.url %}active{% endif %}">
+                <a href="{{ item.url | relative_url }}" class="nav-link {% if page.url contains item.url %}active{% endif %}">
                     {{ item.title }}
                 </a>
                 {% endfor %}

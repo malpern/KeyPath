@@ -47,6 +47,9 @@
         <li class="nav-section">
             <div class="nav-section-title">Migration</div>
             <ul class="nav-section-items">
+                <li class="nav-item {% if page.url contains '/kanata' %}active{% endif %}">
+                    <a href="{{ '/kanata' | relative_url }}" class="nav-link">For Kanata Users</a>
+                </li>
                 <li class="nav-item {% if page.url contains '/migration/kanata-users' %}active{% endif %}">
                     <a href="{{ '/migration/kanata-users' | relative_url }}" class="nav-link">From Kanata</a>
                 </li>

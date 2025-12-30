@@ -24,14 +24,14 @@
             {% include hero.html %}
         {% endif %}
         
-        <div class="content-wrapper">
+        <div class="content-wrapper{% if page.hide_sidebar %} no-sidebar{% endif %}">
             {% unless page.hide_sidebar %}
             <aside class="sidebar">
                 {% include sidebar.html %}
             </aside>
             {% endunless %}
             
-            <article class="content">
+            <article class="content{% if page.content_class %} {{ page.content_class }}{% endif %}">
                 {{ content }}
             </article>
         </div>

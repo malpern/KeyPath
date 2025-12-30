@@ -58,8 +58,8 @@ navigation:
     url: /architecture
   - title: ADRs
     url: /adr
-  - title: Migration
-    url: /migration/kanata-users
+  - title: Kanata Users
+    url: /kanata
   - title: FAQ
     url: /faq
 
