@@ -45,8 +45,9 @@
     --spacing-3xl: 4rem;     /* 64px */
     
     /* Layout */
-    --max-width: 1200px;
-    --sidebar-width: 280px;
+    /* Slightly narrower overall measure for more "article" feel */
+    --max-width: 1120px;
+    --sidebar-width: 240px;
     --header-height: 64px;
     
     /* Shadows */
@@ -323,9 +324,12 @@ a:hover {
 }
 
 .nav-item.active .nav-link {
-    background-color: var(--color-primary);
-    color: white;
-    font-weight: 500;
+    /* Less "app chrome", more "docs" */
+    background-color: var(--color-background-secondary);
+    color: var(--color-text);
+    font-weight: 650;
+    border: 1px solid var(--color-border-light);
+    box-shadow: inset 3px 0 0 var(--color-primary);
 }
 
 /* Content */
