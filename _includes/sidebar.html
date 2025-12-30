@@ -12,10 +12,12 @@
         <li class="nav-section">
             <div class="nav-section-title">Kanata</div>
             <ul class="nav-section-items">
-                <li class="nav-item {% if page.url contains '/kanata' %}active{% endif %}">
+                {% assign is_kanata_overview = page.url == '/kanata/' or page.url == '/kanata' %}
+                <li class="nav-item {% if is_kanata_overview %}active{% endif %}">
                     <a href="{{ '/kanata' | relative_url }}" class="nav-link">Overview</a>
                 </li>
-                <li class="nav-item {% if page.url contains '/migration/kanata-users' %}active{% endif %}">
+                {% assign is_kanata_migration = page.url contains '/migration/kanata-users' %}
+                <li class="nav-item {% if is_kanata_migration %}active{% endif %}">
                     <a href="{{ '/migration/kanata-users' | relative_url }}" class="nav-link">Migration</a>
                 </li>
             </ul>
