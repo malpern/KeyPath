@@ -348,13 +348,19 @@ a:hover {
 }
 
 .kanata-landing-hero {
+    /* Full-bleed hero: eliminate container noise */
     position: relative;
     overflow: hidden;
-    border-radius: 20px;
-    border: 1px solid var(--color-border);
-    background: linear-gradient(180deg, var(--color-background-secondary), var(--color-background));
-    padding: clamp(24px, 4vw, 44px);
-    margin-bottom: var(--spacing-2xl);
+    border-radius: 0;
+    border: none;
+    background:
+        radial-gradient(900px 420px at 18% 0%, rgba(255, 149, 0, 0.24), transparent 60%),
+        radial-gradient(900px 520px at 78% 8%, rgba(255, 255, 255, 0.06), transparent 55%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 65%);
+
+    /* Counteract content-wrapper padding so hero touches page edges */
+    margin: calc(var(--spacing-2xl) * -1) calc(var(--spacing-lg) * -1) var(--spacing-2xl);
+    padding: clamp(28px, 4vw, 54px) var(--spacing-lg) var(--spacing-2xl);
 }
 
 .kanata-landing-hero-grid {
@@ -436,10 +442,11 @@ a:hover {
 }
 
 .kanata-landing-simple {
-    border-radius: 14px;
-    border: 1px solid var(--color-border);
-    background-color: var(--color-background-secondary);
-    padding: var(--spacing-lg);
+    /* Remove extra container chrome; use spacing instead */
+    border-radius: 0;
+    border: none;
+    background: transparent;
+    padding: 0;
 }
 
 .kanata-landing-bullets {
@@ -469,14 +476,22 @@ a:hover {
 }
 
 .kanata-landing-card {
-    border-radius: 14px;
-    border: 1px solid var(--color-border);
-    background-color: var(--color-background-secondary);
-    padding: var(--spacing-lg);
+    /* Reduce container noise: no background/border by default */
+    border-radius: 0;
+    border: none;
+    background: transparent;
+    padding: 0;
 }
 
 .kanata-landing-card h3 {
     margin-top: 0;
+}
+
+.kanata-landing-divider {
+    height: 1px;
+    background: var(--color-border-light);
+    opacity: 0.7;
+    margin: var(--spacing-2xl) 0;
 }
 
 .kanata-landing-code {

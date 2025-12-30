@@ -42,15 +42,15 @@ content_class: content-full kanata-landing
   </section>
 
   <section class="kanata-landing-section">
-    <div class="kanata-landing-simple">
-      <h2 class="mt-0">Why KeyPath?</h2>
-      <ul class="kanata-landing-bullets">
-        <li><strong>Permissions, handled.</strong> Guided setup for Input Monitoring & Accessibility.</li>
-        <li><strong>Reliable service.</strong> LaunchDaemon install + restart + health checks.</li>
-        <li><strong>Keep Kanata.</strong> Your <code>.kbd</code> stays yours (BYOC).</li>
-      </ul>
-    </div>
+    <h2 class="mt-0">Why KeyPath?</h2>
+    <ul class="kanata-landing-bullets">
+      <li><strong>Permissions, handled.</strong> Guided setup for Input Monitoring & Accessibility.</li>
+      <li><strong>Reliable service.</strong> LaunchDaemon install + restart + health checks.</li>
+      <li><strong>Keep Kanata.</strong> Your <code>.kbd</code> stays yours (BYOC).</li>
+    </ul>
   </section>
+
+  <div class="kanata-landing-divider" aria-hidden="true"></div>
 
   <section class="kanata-landing-section">
     <h2>Migration in ~3 minutes</h2>
@@ -85,14 +85,14 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
     </div>
   </section>
 
+  <div class="kanata-landing-divider" aria-hidden="true"></div>
+
   <section class="kanata-landing-section">
-    <div class="kanata-landing-card">
-      <h2 class="mt-0">Ready?</h2>
-      <p>Start with the migration guide.</p>
-      <div class="kanata-landing-actions">
-        <a class="button button-orange" href="{{ '/migration/kanata-users' | relative_url }}">Read migration guide</a>
-        <a class="button button-secondary" href="{{ site.github_url }}/issues">Ask a question</a>
-      </div>
+    <h2 class="mt-0">Ready?</h2>
+    <p>Start with the migration guide.</p>
+    <div class="kanata-landing-actions">
+      <a class="button button-orange" href="{{ '/migration/kanata-users' | relative_url }}">Read migration guide</a>
+      <a class="button button-secondary" href="{{ site.github_url }}/issues">Ask a question</a>
     </div>
   </section>
 </div>
