@@ -31,7 +31,8 @@
         
         <div class="content-wrapper{% if page.hide_sidebar %} no-sidebar{% endif %}">
             {% unless page.hide_sidebar %}
-            <aside class="sidebar">
+            <div class="sidebar-backdrop" data-sidebar-backdrop aria-hidden="true"></div>
+            <aside class="sidebar" id="sidebar" aria-label="Documentation navigation">
                 {% include sidebar.html %}
             </aside>
             {% endunless %}
