@@ -140,7 +140,7 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
 
         </div>
         <p class="kanata-landing-fineprint mb-0">
-          Full details (including limitations) are in the <a href="{{ '/migration/kanata-users' | relative_url }}">existing-config guide</a>.
+          Full details (including limitations) are in the <a href="{{ '/migration/kanata-users' | relative_url }}">existing config guide</a>.
         </p>
       </div>
     </div>
@@ -150,7 +150,7 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
 
   <section class="kanata-landing-section">
     <h2 class="mt-0">Ready?</h2>
-    <p>Start with the existing-config guide.</p>
+    <p>Start with the existing config guide.</p>
     <div class="kanata-landing-actions">
       <a class="button button-orange" href="{{ '/migration/kanata-users' | relative_url }}">Use existing config</a>
       <a class="button button-secondary" href="{{ site.github_url }}/issues">Ask a question</a>
