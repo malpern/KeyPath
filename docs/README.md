@@ -1,49 +1,63 @@
 # KeyPath Documentation Site
 
-Beautiful, Apple WWDC-inspired documentation website for KeyPath, built with Jekyll and hosted on GitHub Pages.
+This is the documentation website for KeyPath, built with Jekyll and hosted on GitHub Pages.
 
 ## Local Development
 
 ### Prerequisites
 
-- Ruby 3.0 or later
-- Bundler gem
+- Ruby 3.0+ (check with `ruby --version`)
+- Bundler (`gem install bundler`)
 
 ### Setup
 
-1. Install dependencies:
 ```bash
+# Install dependencies
 bundle install
-```
 
-2. Build and serve locally:
-```bash
+# Serve locally
 bundle exec jekyll serve
+
+# Open in browser
+open http://localhost:4000
 ```
 
-3. Open http://localhost:4000 in your browser
-
-### Build for Production
+### Build
 
 ```bash
+# Build static site
 bundle exec jekyll build
+
+# Output will be in _site/
 ```
 
-The site will be built to `_site/` directory.
+## Deployment
 
-## GitHub Pages Deployment
+### GitHub Pages
 
-This site is configured to work with GitHub Pages. To deploy:
+The site is automatically deployed to GitHub Pages when changes are pushed to the `main` branch (if configured) or the `gh-pages` branch.
 
-1. Push the `docs/` directory to your repository
-2. In GitHub repository settings, enable GitHub Pages
-3. Select source: "Deploy from a branch"
-4. Choose branch: `main` (or your default branch)
-5. Choose folder: `/docs`
+**Option 1: Deploy from `/docs` folder**
 
-The site will be available at `https://yourusername.github.io/KeyPath/` (or your custom domain).
+1. Ensure `_config.yml` has `baseurl: ""` (empty)
+2. Push changes to `main` branch
+3. GitHub Pages will serve from `/docs` folder
 
-## Project Structure
+**Option 2: Deploy from `gh-pages` branch**
+
+1. Build the site: `bundle exec jekyll build`
+2. Copy `_site/` contents to `gh-pages` branch
+3. Push to `gh-pages` branch
+
+### Custom Domain
+
+To use a custom domain:
+
+1. Add `CNAME` file with your domain
+2. Update `_config.yml` with your domain URL
+3. Configure DNS settings
+
+## Structure
 
 ```
 docs/
@@ -51,50 +65,44 @@ docs/
 ├── _layouts/            # Page layouts
 ├── _includes/           # Reusable components
 ├── assets/              # CSS, JS, images
-├── getting-started/     # Getting started guides
-├── guides/              # Detailed guides
+├── guides/              # Guide pages
+├── architecture/        # Architecture docs
 ├── migration/           # Migration guides
-├── architecture/        # Architecture documentation
 ├── adr/                 # Architecture Decision Records
 └── index.md             # Homepage
 ```
 
-## Customization
+## Adding Content
 
-### Colors
+### New Page
 
-Edit CSS variables in `assets/css/main.css`:
+1. Create a new `.md` file in appropriate directory
+2. Add front matter:
+   ```yaml
+   ---
+   layout: default
+   title: Page Title
+   description: Page description
+   ---
+   ```
+3. Add to sidebar navigation in `_includes/sidebar.html`
 
-```css
-:root {
-    --color-primary: #007AFF;
-    --color-background: #FFFFFF;
-    /* ... */
-}
-```
+### New Guide
 
-### Navigation
+1. Create file in `guides/` directory
+2. Add to sidebar navigation
+3. Link from relevant pages
 
-Edit `_config.yml`:
+## Styling
 
-```yaml
-navigation:
-  - title: Getting Started
-    url: /getting-started
-```
+The site uses a clean, modern design with:
 
-### Sidebar
+- SF Pro Display/Text fonts
+- Clean, minimal layout
+- Responsive design
+- Dark mode support
 
-Edit `_includes/sidebar.html` to customize the navigation tree.
-
-## Contributing
-
-When adding new documentation:
-
-1. Create markdown files in the appropriate directory
-2. Add front matter with `layout`, `title`, and `description`
-3. Update `_includes/sidebar.html` to add navigation links
-4. Test locally with `bundle exec jekyll serve`
+Styles are in `assets/css/main.css`. Follow existing patterns for consistency.
 
 ## License
 

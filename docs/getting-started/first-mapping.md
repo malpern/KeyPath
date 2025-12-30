@@ -1,108 +1,95 @@
 ---
 layout: default
 title: Your First Mapping
-description: Create your first keyboard remapping with KeyPath
+description: Step-by-step guide to creating your first keyboard remapping
 ---
 
 # Your First Mapping
 
-This guide walks you through creating your first keyboard remapping with KeyPath. In just a few clicks, you'll remap a key to do something different.
+This guide walks you through creating your first keyboard remapping with KeyPath.
 
 ## Step 1: Open KeyPath
 
-Launch KeyPath from your Applications folder. If this is your first time, complete the setup wizard first.
+After installation, open KeyPath from your Applications folder. The app will show the main interface with options to create new mappings.
 
-## Step 2: Record Input Key
+## Step 2: Create a New Mapping
 
-1. Click the **Record Input** button (or the microphone icon)
-2. Press the key you want to remap
-   - For example: **Caps Lock** (a common choice)
-   - Or: **Right Option** key
-   - Or: Any key combination like **Cmd+Space**
+Click the **"Create Mapping"** or **"+"** button to start a new remapping.
 
-You'll see the key appear in the input field. KeyPath shows exactly what it detected.
+## Step 3: Record Input Key
 
-## Step 3: Record Output Key
+1. Click the **"Record Input"** button
+2. Press the key you want to remap (e.g., `Caps Lock`)
+3. The key will appear in the input field
 
-1. Click the **Record Output** button
-2. Press what you want the key to do
-   - For example: **Escape** (turning Caps Lock into Esc is popular)
-   - Or: **Delete** 
-   - Or: A key combination like **Cmd+C**
+You can record:
+- **Single keys**: `a`, `caps`, `esc`
+- **Key combos**: `cmd+c`, `shift+tab`
+- **Sequences**: Press `a`, then `b`, then `c`
 
-Again, KeyPath shows what it detected in the output field.
+## Step 4: Record Output Key
 
-## Step 4: Save
+1. Click the **"Record Output"** button
+2. Press what you want the key to do (e.g., `Escape`)
+3. The output will appear in the output field
 
-Click the **Save** button. Your remapping is now active!
+You can output:
+- **Single keys**: `esc`, `ret` (Return)
+- **Key combos**: `cmd+c` (Copy)
+- **Text**: Type "hello world"
 
-Try pressing your input key — it should now trigger the output you specified.
+## Step 5: Save
+
+Click **"Save"** to activate your mapping. KeyPath will:
+
+1. Generate the Kanata configuration
+2. Write it to the config file
+3. Hot-reload via TCP
+4. Your mapping is now active!
 
 ## Example: Caps Lock to Escape
 
-A very common remapping is turning Caps Lock into Escape (popular with vim users):
+A common first mapping is remapping Caps Lock to Escape (useful for Vim users):
 
-1. **Input**: Press Caps Lock
-2. **Output**: Press Escape
+1. **Input**: Record `Caps Lock`
+2. **Output**: Record `Escape`
 3. **Save**
 
-Now Caps Lock acts as Escape throughout your system.
+Now pressing Caps Lock sends Escape instead.
 
-## Example: Right Option to Delete
+## Example: Command+Q to Command+W
 
-Another useful remapping:
+Prevent accidental app quitting:
 
-1. **Input**: Press Right Option
-2. **Output**: Press Delete
+1. **Input**: Record `Command+Q`
+2. **Output**: Record `Command+W` (close window instead)
 3. **Save**
 
-This gives you a Delete key in a convenient location.
+## Testing Your Mapping
 
-## Advanced: Key Sequences
+After saving:
 
-You can also remap sequences of keys:
-
-1. **Input**: Press A, then B, then C
-2. **Output**: Type "Hello World"
-3. **Save**
-
-Now typing "ABC" will output "Hello World".
-
-## Advanced: Key Combinations
-
-Remap key combinations:
-
-1. **Input**: Press Cmd+Space
-2. **Output**: Press Cmd+C
-3. **Save**
-
-Now Cmd+Space triggers Copy instead of Spotlight.
-
-## What's Next?
-
-- **[Tap-Hold & Tap-Dance](/guides/tap-hold)** - Make keys do different things when tapped vs held
-- **[Action URI System](/guides/action-uri)** - Trigger system actions via URL scheme
-- **[Window Management](/guides/window-management)** - Different keymaps for different apps
+1. Try pressing your input key
+2. Verify it produces the expected output
+3. Check the status indicator (green checkmark = working)
 
 ## Troubleshooting
 
-### The remapping isn't working
+### Mapping not working
 
-1. Check that KeyPath shows green checkmarks (service is running)
-2. Verify permissions are granted in System Settings
-3. Try clicking "Fix Issues" in KeyPath
-4. Check logs: `tail -f /var/log/com.keypath.kanata.stdout.log`
+1. **Check status** - Look for green checkmarks
+2. **Verify permissions** - Input Monitoring and Accessibility must be granted
+3. **Check logs** - `tail -f /var/log/com.keypath.kanata.stdout.log`
+4. **Use Fix button** - Click "Fix Issues" in the app
 
-### I want to undo a remapping
+### Key not recording
 
-1. Select the remapping in KeyPath's list
-2. Click Delete or Remove
-3. Save
+1. Ensure KeyPath has Input Monitoring permission
+2. Try a different key
+3. Check for conflicts with other remappers
 
-### I want to edit a remapping
+## Next Steps
 
-1. Select the remapping
-2. Modify the input or output
-3. Save
-
-Changes apply immediately — no restart needed!
+- **[Tap-Hold & Tap-Dance](/guides/tap-hold)** - Advanced key behaviors
+- **[Action URI System](/guides/action-uri)** - Trigger actions from Kanata
+- **[Window Management](/guides/window-management)** - App-specific keymaps
