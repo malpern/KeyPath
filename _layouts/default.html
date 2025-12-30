@@ -8,7 +8,11 @@
     <title>{% if page.title %}{{ page.title }} | {% endif %}{{ site.title }}</title>
     <meta name="description" content="{% if page.description %}{{ page.description }}{% else %}{{ site.description }}{% endif %}">
     
-    {% assign css_version = site.github.build_revision | default: site.time | date: '%s' %}
+    {% if site.github and site.github.build_revision %}
+        {% assign css_version = site.github.build_revision %}
+    {% else %}
+        {% assign css_version = site.time | date: '%s' %}
+    {% endif %}
     <link rel="stylesheet" href="{{ '/assets/css/main.css' | relative_url }}?v={{ css_version }}">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700&family=SF+Pro+Text:wght@400;500;600&display=swap">
     
