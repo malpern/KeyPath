@@ -52,25 +52,20 @@ content_class: content-full kanata-landing
       Everything you love about Kanata — with Mac ease-of-use and extra power built in.
     </p>
     <ul class="kanata-feature-list">
-      <li class="kanata-feature">
-        <span class="kanata-feature-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" class="kp-icon" fill="none">
-            <path d="M12 2l8 4v6c0 5-3.2 9.4-8 10-4.8-.6-8-5-8-10V6l8-4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-            <path d="M8.5 12.2l2.2 2.2 4.8-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </span>
-        <span><strong>Guided setup.</strong> Input Monitoring + Accessibility, step-by-step.</span>
-      </li>
-      <li class="kanata-feature">
+      <li class="kanata-feature kp-accent-blue">
         <span class="kanata-feature-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" class="kp-icon" fill="none">
             <path d="M7 7h6V4l4 4-4 4V9H7c-2.2 0-4 1.8-4 4 0 1 .4 1.9 1 2.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M17 17H11v3l-4-4 4-4v3h6c2.2 0 4-1.8 4-4 0-1-.4-1.9-1-2.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </span>
-        <span><strong>Always-on.</strong> Starts at boot and restarts if it crashes.</span>
+        <div class="kanata-feature-text">
+          <div class="kanata-feature-title">Always-on</div>
+          <div class="kanata-feature-body">Starts at boot and restarts if it crashes.</div>
+        </div>
       </li>
-      <li class="kanata-feature">
+
+      <li class="kanata-feature kp-accent-purple">
         <span class="kanata-feature-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" class="kp-icon" fill="none">
             <path d="M10 14a6 6 0 1 1 4 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
@@ -78,27 +73,39 @@ content_class: content-full kanata-landing
             <path d="M10 22l2-4 2 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </span>
-        <span><strong>App launcher.</strong> Open apps with a key, layer, or shortcut.</span>
+        <div class="kanata-feature-text">
+          <div class="kanata-feature-title">App launcher</div>
+          <div class="kanata-feature-body">Open apps with a key, layer, or shortcut.</div>
+        </div>
       </li>
-      <li class="kanata-feature">
+
+      <li class="kanata-feature kp-accent-green">
         <span class="kanata-feature-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" class="kp-icon" fill="none">
             <rect x="4" y="5" width="16" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"/>
             <path d="M12 5v14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
           </svg>
         </span>
-        <span><strong>Window tools.</strong> Snap, move, and resize with consistent shortcuts.</span>
+        <div class="kanata-feature-text">
+          <div class="kanata-feature-title">Window tools</div>
+          <div class="kanata-feature-body">Snap, move, and resize with consistent shortcuts.</div>
+        </div>
       </li>
-      <li class="kanata-feature">
+
+      <li class="kanata-feature kp-accent-orange">
         <span class="kanata-feature-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" class="kp-icon" fill="none">
             <rect x="3" y="7" width="18" height="11" rx="2.5" stroke="currentColor" stroke-width="1.8"/>
             <path d="M7 11h1M10 11h1M13 11h1M16 11h1M7 14h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
           </svg>
         </span>
-        <span><strong>Home-row mods.</strong> Tap-hold, layers, macros, and combos.</span>
+        <div class="kanata-feature-text">
+          <div class="kanata-feature-title">Home-row mods</div>
+          <div class="kanata-feature-body">Tap-hold, layers, macros, and combos.</div>
+        </div>
       </li>
-      <li class="kanata-feature">
+
+      <li class="kanata-feature kp-accent-slate">
         <span class="kanata-feature-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" class="kp-icon" fill="none">
             <path d="M8 4h6l2 2v14H8V4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
@@ -106,7 +113,23 @@ content_class: content-full kanata-landing
             <path d="M10 12h6M10 15h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
           </svg>
         </span>
-        <span><strong>Bring your config.</strong> Keep your existing Kanata <code>.kbd</code>.</span>
+        <div class="kanata-feature-text">
+          <div class="kanata-feature-title">Bring your config</div>
+          <div class="kanata-feature-body">Keep your existing Kanata <code>.kbd</code>.</div>
+        </div>
+      </li>
+
+      <li class="kanata-feature kp-accent-teal">
+        <span class="kanata-feature-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" class="kp-icon" fill="none">
+            <path d="M12 2l8 4v6c0 5-3.2 9.4-8 10-4.8-.6-8-5-8-10V6l8-4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M8.5 12.2l2.2 2.2 4.8-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <div class="kanata-feature-text">
+          <div class="kanata-feature-title">Guided setup</div>
+          <div class="kanata-feature-body">Input Monitoring + Accessibility, step-by-step.</div>
+        </div>
       </li>
     </ul>
   </section>
