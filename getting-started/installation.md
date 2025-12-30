@@ -118,4 +118,4 @@ This removes:
 
 ## Next Steps
 
-After installation, see [Your First Mapping](/getting-started/first-mapping) to create your first keyboard remapping.
+After installation, see [Your First Mapping]({{ '/getting-started/first-mapping' | relative_url }}) to create your first keyboard remapping.

@@ -90,6 +90,6 @@ After saving:
 
 ## Next Steps
 
-- **[Tap-Hold & Tap-Dance](/guides/tap-hold)** - Advanced key behaviors
-- **[Action URI System](/guides/action-uri)** - Trigger actions from Kanata
-- **[Window Management](/guides/window-management)** - App-specific keymaps
+- **[Tap-Hold & Tap-Dance]({{ '/guides/tap-hold' | relative_url }})** - Advanced key behaviors
+- **[Action URI System]({{ '/guides/action-uri' | relative_url }})** - Trigger actions from Kanata
+- **[Window Management]({{ '/guides/window-management' | relative_url }})** - App-specific keymaps

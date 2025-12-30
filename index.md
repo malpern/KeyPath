@@ -20,9 +20,9 @@ KeyPath is a complete macOS integration layer for Kanata that handles:
 
 ## Quick Start
 
-1. **[Install KeyPath](/getting-started/installation)** - Download and run the setup wizard
-2. **[Create your first mapping](/getting-started/first-mapping)** - Record input and output keys
-3. **[Explore advanced features](/guides)** - Tap-hold, tap-dance, action URIs, and more
+1. **[Install KeyPath]({{ '/getting-started/installation' | relative_url }})** - Download and run the setup wizard
+2. **[Create your first mapping]({{ '/getting-started/first-mapping' | relative_url }})** - Record input and output keys
+3. **[Explore advanced features]({{ '/guides' | relative_url }})** - Tap-hold, tap-dance, action URIs, and more
 
 ## Key Features
 
@@ -36,15 +36,15 @@ Different keyboard behaviors for different applications. Perfect for vim-style n
 Support for tap-hold, tap-dance, layers, macros, and all Kanata features.
 
 ### Bring Your Own Config
-Already using Kanata? Start here: **[KeyPath for Kanata users](/kanata)**.
+Already using Kanata? Start here: **[KeyPath for Kanata users]({{ '/kanata' | relative_url }})**.
 
 ## Documentation Sections
 
-- **[Getting Started](/getting-started)** - Installation and first steps
-- **[Guides](/guides)** - Detailed tutorials and how-tos
-- **[Architecture](/architecture)** - System design and patterns
-- **[Migration](/migration/kanata-users)** - Migrating from Kanata
-- **[FAQ](/faq)** - Common questions and troubleshooting
+- **[Getting Started]({{ '/getting-started' | relative_url }})** - Installation and first steps
+- **[Guides]({{ '/guides' | relative_url }})** - Detailed tutorials and how-tos
+- **[Architecture]({{ '/architecture' | relative_url }})** - System design and patterns
+- **[Migration]({{ '/migration/kanata-users' | relative_url }})** - Migrating from Kanata
+- **[FAQ]({{ '/faq' | relative_url }})** - Common questions and troubleshooting
 
 ## Requirements
 
@@ -62,5 +62,5 @@ Already using Kanata? Start here: **[KeyPath for Kanata users](/kanata)**.
 <div class="card">
     <h3 class="card-title">Ready to get started?</h3>
     <p>Follow our installation guide to set up KeyPath in minutes.</p>
-    <a href="/getting-started/installation" class="button button-primary">Install KeyPath</a>
+    <a href="{{ '/getting-started/installation' | relative_url }}" class="button button-primary">Install KeyPath</a>
 </div>

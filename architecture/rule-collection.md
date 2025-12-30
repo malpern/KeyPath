@@ -139,5 +139,5 @@ KeyPath handles dependencies automatically when enabling collections.
 
 ## Further Reading
 
-- [Architecture Overview](/architecture/overview)
-- [Configuration Management ADR](/adr/adr-025-config-management)
+- [Architecture Overview]({{ '/architecture/overview' | relative_url }})
+- [Configuration Management ADR]({{ '/adr/adr-025-config-management' | relative_url }})

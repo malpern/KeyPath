@@ -168,7 +168,7 @@ KeyPath uses test seams for testability:
 
 ## Further Reading
 
-- [ADR-015: InstallerEngine](/adr/adr-015-installer-engine)
-- [ADR-023: No Config Parsing](/adr/adr-023-no-config-parsing)
-- [ADR-025: Configuration Management](/adr/adr-025-config-management)
-- [ADR-027: App-Specific Keymaps](/adr/adr-027-app-specific-keymaps)
+- [ADR-015: InstallerEngine]({{ '/adr/adr-015-installer-engine' | relative_url }})
+- [ADR-023: No Config Parsing]({{ '/adr/adr-023-no-config-parsing' | relative_url }})
+- [ADR-025: Configuration Management]({{ '/adr/adr-025-config-management' | relative_url }})
+- [ADR-027: App-Specific Keymaps]({{ '/adr/adr-027-app-specific-keymaps' | relative_url }})

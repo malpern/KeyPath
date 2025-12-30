@@ -61,16 +61,16 @@ Your remapping is active immediately—no restart, no manual service management,
 
 ## Already Using Kanata?
 
-If you're already using Kanata on macOS, KeyPath can run your existing configuration with minimal changes. See the [Migration Guide](/migration/kanata-users) for details.
+If you're already using Kanata on macOS, KeyPath can run your existing configuration with minimal changes. See the [Migration Guide]({{ '/migration/kanata-users' | relative_url }}) for details.
 
 **Quick path:** Copy your config to `~/.config/keypath/keypath.kbd`, add `(include keypath-apps.kbd)` at the top, and run the setup wizard.
 
 ## Next Steps
 
-- **[Your First Mapping](/getting-started/first-mapping)** - Detailed walkthrough
-- **[Tap-Hold & Tap-Dance](/guides/tap-hold)** - Advanced key behaviors
-- **[Action URI System](/guides/action-uri)** - Trigger actions via URL scheme
-- **[Window Management](/guides/window-management)** - App-specific keymaps
+- **[Your First Mapping]({{ '/getting-started/first-mapping' | relative_url }})** - Detailed walkthrough
+- **[Tap-Hold & Tap-Dance]({{ '/guides/tap-hold' | relative_url }})** - Advanced key behaviors
+- **[Action URI System]({{ '/guides/action-uri' | relative_url }})** - Trigger actions via URL scheme
+- **[Window Management]({{ '/guides/window-management' | relative_url }})** - App-specific keymaps
 
 ## Troubleshooting
 
@@ -86,4 +86,4 @@ If you're already using Kanata on macOS, KeyPath can run your existing configura
 2. **Verify permissions** - Ensure permissions granted in System Settings
 3. **Use Fix Issues** - Click "Fix Issues" button in the app for automated fixes
 
-For more help, see the [FAQ](/faq) or [Debugging Guide](/guides/debugging).
+For more help, see the [FAQ]({{ '/faq' | relative_url }}) or [Debugging Guide]({{ '/guides/debugging' | relative_url }}).
