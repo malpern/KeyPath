@@ -426,8 +426,9 @@ a:hover {
     width: min(260px, 100%);
     height: auto;
     border-radius: 28px;
-    box-shadow: var(--shadow-md);
-    background: var(--color-background);
+    /* No background: hero image is transparent */
+    background: transparent;
+    filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.25));
 }
 
 .kanata-landing-section {

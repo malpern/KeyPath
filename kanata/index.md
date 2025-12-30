@@ -33,7 +33,7 @@ content_class: content-full kanata-landing
       <div class="kanata-landing-hero-visual">
         <img
           class="kanata-landing-hero-image"
-          src="{{ '/images/keypath-app-icon.png' | relative_url }}"
+          src="{{ '/images/keypath-hero-nobg.png' | relative_url }}"
           alt="KeyPath"
           loading="lazy"
         />
