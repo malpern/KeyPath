@@ -2,8 +2,8 @@
 
 title: KeyPath Documentation
 description: Complete guide to keyboard remapping on macOS with KeyPath
-baseurl: "" # Leave empty if using custom domain, or "/keypath" if using GitHub Pages with repo name
-url: "https://keypath.app" # Change to your actual domain or GitHub Pages URL
+baseurl: "/KeyPath" # GitHub Pages project site base path
+url: "https://malpern.github.io" # GitHub Pages domain
 
 # Jekyll Configuration
 markdown: kramdown
