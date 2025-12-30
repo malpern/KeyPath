@@ -51,7 +51,10 @@ content_class: content-full kanata-landing
     <ul class="kanata-landing-bullets">
       <li><strong>Permissions, handled.</strong> Guided setup for Input Monitoring & Accessibility.</li>
       <li><strong>Reliable service.</strong> LaunchDaemon install + restart + health checks.</li>
-      <li><strong>Keep Kanata.</strong> Your <code>.kbd</code> stays yours (BYOC).</li>
+      <li><strong>Launch apps instantly.</strong> Use built-in app launching so your keyboard can drive your workflow.</li>
+      <li><strong>Window management.</strong> Snap, move, and resize windows with consistent shortcuts.</li>
+      <li><strong>Home-row mods + layers.</strong> Tap-hold, layers, and power-user patterns without RSI-inducing chords.</li>
+      <li><strong>Keep Kanata (optional).</strong> Already have a <code>.kbd</code>? Drop it in and keep working (BYOC).</li>
     </ul>
   </section>
 
