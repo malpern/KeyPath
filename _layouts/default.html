@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <title>{% if page.title %}{{ page.title }} | {% endif %}{{ site.title }}</title>
+    <meta name="description" content="{% if page.description %}{{ page.description }}{% else %}{{ site.description }}{% endif %}">
+    
+    <link rel="stylesheet" href="{{ '/assets/css/main.css' | relative_url }}">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700&family=SF+Pro+Text:wght@400;500;600&display=swap">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ '/assets/images/favicon.png' | relative_url }}">
+    
+    {% seo %}
+</head>
+<body>
+    {% include header.html %}
+    
+    <main class="main-content">
+        {% if page.layout == 'home' %}
+            {% include hero.html %}
+        {% endif %}
+        
+        <div class="content-wrapper">
+            {% unless page.hide_sidebar %}
+            <aside class="sidebar">
+                {% include sidebar.html %}
+            </aside>
+            {% endunless %}
+            
+            <article class="content">
+                {{ content }}
+            </article>
+        </div>
+    </main>
+    
+    {% include footer.html %}
+    
+    <script src="{{ '/assets/js/main.js' | relative_url }}"></script>
+</body>
+</html>
