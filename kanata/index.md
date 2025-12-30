@@ -48,30 +48,65 @@ content_class: content-full kanata-landing
 
   <section class="kanata-landing-section">
     <h2 class="mt-0">Why KeyPath?</h2>
+    <p class="kanata-landing-fineprint mb-0">
+      Everything you love about Kanata — with Mac ease-of-use and extra power built in.
+    </p>
     <ul class="kanata-feature-list">
       <li class="kanata-feature">
-        <span class="kanata-feature-icon" aria-hidden="true">🛡️</span>
-        <span><strong>Permissions, handled.</strong> Guided setup.</span>
+        <span class="kanata-feature-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" class="kp-icon" fill="none">
+            <path d="M12 2l8 4v6c0 5-3.2 9.4-8 10-4.8-.6-8-5-8-10V6l8-4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M8.5 12.2l2.2 2.2 4.8-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span><strong>Guided setup.</strong> Input Monitoring + Accessibility, step-by-step.</span>
       </li>
       <li class="kanata-feature">
-        <span class="kanata-feature-icon" aria-hidden="true">🔁</span>
-        <span><strong>Reliable service.</strong> Stays running in the background.</span>
+        <span class="kanata-feature-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" class="kp-icon" fill="none">
+            <path d="M7 7h6V4l4 4-4 4V9H7c-2.2 0-4 1.8-4 4 0 1 .4 1.9 1 2.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M17 17H11v3l-4-4 4-4v3h6c2.2 0 4-1.8 4-4 0-1-.4-1.9-1-2.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span><strong>Always-on.</strong> Starts at boot and restarts if it crashes.</span>
       </li>
       <li class="kanata-feature">
-        <span class="kanata-feature-icon" aria-hidden="true">🚀</span>
-        <span><strong>App launching.</strong> Open what you need from the keyboard.</span>
+        <span class="kanata-feature-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" class="kp-icon" fill="none">
+            <path d="M10 14a6 6 0 1 1 4 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M12 2v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M10 22l2-4 2 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span><strong>App launcher.</strong> Open apps with a key, layer, or shortcut.</span>
       </li>
       <li class="kanata-feature">
-        <span class="kanata-feature-icon" aria-hidden="true">🪟</span>
-        <span><strong>Window management.</strong> Snap + move windows fast.</span>
+        <span class="kanata-feature-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" class="kp-icon" fill="none">
+            <rect x="4" y="5" width="16" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M12 5v14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span><strong>Window tools.</strong> Snap, move, and resize with consistent shortcuts.</span>
       </li>
       <li class="kanata-feature">
-        <span class="kanata-feature-icon" aria-hidden="true">⌨️</span>
-        <span><strong>Home-row mods + layers.</strong> Tap-hold, layers, combos.</span>
+        <span class="kanata-feature-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" class="kp-icon" fill="none">
+            <rect x="3" y="7" width="18" height="11" rx="2.5" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M7 11h1M10 11h1M13 11h1M16 11h1M7 14h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span><strong>Home-row mods.</strong> Tap-hold, layers, macros, and combos.</span>
       </li>
       <li class="kanata-feature">
-        <span class="kanata-feature-icon" aria-hidden="true">🧩</span>
-        <span><strong>Keep Kanata (optional).</strong> Bring your <code>.kbd</code>.</span>
+        <span class="kanata-feature-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" class="kp-icon" fill="none">
+            <path d="M8 4h6l2 2v14H8V4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M14 4v3h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M10 12h6M10 15h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span><strong>Bring your config.</strong> Keep your existing Kanata <code>.kbd</code>.</span>
       </li>
     </ul>
   </section>
@@ -79,7 +114,7 @@ content_class: content-full kanata-landing
   <div class="kanata-landing-divider" aria-hidden="true"></div>
 
   <section class="kanata-landing-section">
-    <h2>Migration in ~3 minutes</h2>
+    <h2>Use your existing Kanata config</h2>
     <div class="kanata-landing-grid-2">
       <div class="kanata-landing-card">
         <h3>1) Put your config where KeyPath expects it</h3>
@@ -105,7 +140,7 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
 
         </div>
         <p class="kanata-landing-fineprint mb-0">
-          Full details (including limitations) are in the <a href="{{ '/migration/kanata-users' | relative_url }}">migration guide</a>.
+          Full details (including limitations) are in the <a href="{{ '/migration/kanata-users' | relative_url }}">existing-config guide</a>.
         </p>
       </div>
     </div>
@@ -115,9 +150,9 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
 
   <section class="kanata-landing-section">
     <h2 class="mt-0">Ready?</h2>
-    <p>Start with the migration guide.</p>
+    <p>Start with the existing-config guide.</p>
     <div class="kanata-landing-actions">
-      <a class="button button-orange" href="{{ '/migration/kanata-users' | relative_url }}">Read migration guide</a>
+      <a class="button button-orange" href="{{ '/migration/kanata-users' | relative_url }}">Use existing config</a>
       <a class="button button-secondary" href="{{ site.github_url }}/issues">Ask a question</a>
     </div>
   </section>

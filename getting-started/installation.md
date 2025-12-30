@@ -2,6 +2,7 @@
 layout: default
 title: Installation
 description: Install KeyPath on macOS
+permalink: /getting-started/installation/
 ---
 
 # Installation

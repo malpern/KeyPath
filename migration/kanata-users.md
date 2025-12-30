@@ -2,6 +2,7 @@
 layout: default
 title: Migrating from Kanata
 description: Bring your existing Kanata configuration to KeyPath
+permalink: /migration/kanata-users/
 ---
 
 # Migrating from Kanata to KeyPath
