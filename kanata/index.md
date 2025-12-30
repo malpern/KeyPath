@@ -48,13 +48,31 @@ content_class: content-full kanata-landing
 
   <section class="kanata-landing-section">
     <h2 class="mt-0">Why KeyPath?</h2>
-    <ul class="kanata-landing-bullets">
-      <li><strong>Permissions, handled.</strong> Guided setup for Input Monitoring & Accessibility.</li>
-      <li><strong>Reliable service.</strong> LaunchDaemon install + restart + health checks.</li>
-      <li><strong>Launch apps instantly.</strong> Use built-in app launching so your keyboard can drive your workflow.</li>
-      <li><strong>Window management.</strong> Snap, move, and resize windows with consistent shortcuts.</li>
-      <li><strong>Home-row mods + layers.</strong> Tap-hold, layers, and power-user patterns without RSI-inducing chords.</li>
-      <li><strong>Keep Kanata (optional).</strong> Already have a <code>.kbd</code>? Drop it in and keep working (BYOC).</li>
+    <ul class="kanata-feature-list">
+      <li class="kanata-feature">
+        <span class="kanata-feature-icon" aria-hidden="true">🛡️</span>
+        <span><strong>Permissions, handled.</strong> Guided setup.</span>
+      </li>
+      <li class="kanata-feature">
+        <span class="kanata-feature-icon" aria-hidden="true">🔁</span>
+        <span><strong>Reliable service.</strong> Stays running in the background.</span>
+      </li>
+      <li class="kanata-feature">
+        <span class="kanata-feature-icon" aria-hidden="true">🚀</span>
+        <span><strong>App launching.</strong> Open what you need from the keyboard.</span>
+      </li>
+      <li class="kanata-feature">
+        <span class="kanata-feature-icon" aria-hidden="true">🪟</span>
+        <span><strong>Window management.</strong> Snap + move windows fast.</span>
+      </li>
+      <li class="kanata-feature">
+        <span class="kanata-feature-icon" aria-hidden="true">⌨️</span>
+        <span><strong>Home-row mods + layers.</strong> Tap-hold, layers, combos.</span>
+      </li>
+      <li class="kanata-feature">
+        <span class="kanata-feature-icon" aria-hidden="true">🧩</span>
+        <span><strong>Keep Kanata (optional).</strong> Bring your <code>.kbd</code>.</span>
+      </li>
     </ul>
   </section>
 
