@@ -348,6 +348,24 @@ struct InstallationWizardView: View {
                     onRefresh: { refreshState() },
                     kanataManager: kanataManager
                 )
+            case .kanataMigration:
+                WizardKanataMigrationPage(
+                    onComplete: {
+                        // After migration, refresh state and continue
+                        refreshState()
+                        // Navigate to next logical page based on state
+                        if currentIssues.contains(where: { $0.category == .installation && $0.identifier == .component(.kanataBinaryMissing) }) {
+                            navigationCoordinator.navigateToPage(.kanataComponents)
+                        } else {
+                            navigationCoordinator.navigateToPage(.summary)
+                        }
+                    },
+                    onSkip: {
+                        // Skip migration, continue to next step
+                        refreshState()
+                        navigationCoordinator.navigateToPage(.summary)
+                    }
+                )
             case .helper:
                 WizardHelperPage(
                     systemState: systemState,

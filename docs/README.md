@@ -1,28 +1,101 @@
-# KeyPath Documentation
+# KeyPath Documentation Site
 
-This directory contains all documentation for the KeyPath project.
+Beautiful, Apple WWDC-inspired documentation website for KeyPath, built with Jekyll and hosted on GitHub Pages.
 
-## Files
+## Local Development
 
-- **[DEBUGGING_KANATA.md](DEBUGGING_KANATA.md)** - Comprehensive debugging guide for Kanata integration issues
-- **[CONTEXT.md](CONTEXT.md)** - Project history and architectural evolution
-- **[KANATA_SETUP.md](KANATA_SETUP.md)** - Setup instructions for Kanata integration
-- **[KANATA_MACOS_SETUP_GUIDE.md](KANATA_MACOS_SETUP_GUIDE.md)** - macOS-specific setup guide
-- **[SAFETY_FEATURES.md](SAFETY_FEATURES.md)** - Safety and security considerations
+### Prerequisites
 
-## Quick Links
+- Ruby 3.0 or later
+- Bundler gem
 
-- **Troubleshooting**: Start with [DEBUGGING_KANATA.md](DEBUGGING_KANATA.md)
-- **Initial Setup**: See [KANATA_SETUP.md](KANATA_SETUP.md)
-- **Project History**: Read [CONTEXT.md](CONTEXT.md)
+### Setup
 
-## To-Do (current priorities)
+1. Install dependencies:
+```bash
+bundle install
+```
 
-- Route all Wizard auto-fix flows through `InstallerEngine` (remove direct subprocess/AppleScript paths).
-- Add façade parity/regression tests to ensure UI/CLI auto-fix paths stay on the façade.
-- Replace UI permission probes with async `PermissionOracle` checks (remove `Thread.sleep` polling).
-- (Done) Remove BundledRuntimeCoordinator AppleScript install path; façade handles bundled install.
-- Debug scripts updated to call `InstallerEngine` (legacy `LaunchDaemonInstaller` logic removed).
-- Removed `Scripts/archive/deprecated-tests` (deprecated integration/UI tests).
-- Refresh or delete stale lint artifacts (`swiftlint-report.txt`, `lint_issues.json`).
-- Add lint: block `SubprocessRunner`/`PrivilegedOperationsCoordinator` in `WizardAutoFixer.swift` (script: `Scripts/lint-no-subprocess-in-autofixer.sh`).
+2. Build and serve locally:
+```bash
+bundle exec jekyll serve
+```
+
+3. Open http://localhost:4000 in your browser
+
+### Build for Production
+
+```bash
+bundle exec jekyll build
+```
+
+The site will be built to `_site/` directory.
+
+## GitHub Pages Deployment
+
+This site is configured to work with GitHub Pages. To deploy:
+
+1. Push the `docs/` directory to your repository
+2. In GitHub repository settings, enable GitHub Pages
+3. Select source: "Deploy from a branch"
+4. Choose branch: `main` (or your default branch)
+5. Choose folder: `/docs`
+
+The site will be available at `https://yourusername.github.io/KeyPath/` (or your custom domain).
+
+## Project Structure
+
+```
+docs/
+├── _config.yml          # Jekyll configuration
+├── _layouts/            # Page layouts
+├── _includes/           # Reusable components
+├── assets/              # CSS, JS, images
+├── getting-started/     # Getting started guides
+├── guides/              # Detailed guides
+├── migration/           # Migration guides
+├── architecture/        # Architecture documentation
+├── adr/                 # Architecture Decision Records
+└── index.md             # Homepage
+```
+
+## Customization
+
+### Colors
+
+Edit CSS variables in `assets/css/main.css`:
+
+```css
+:root {
+    --color-primary: #007AFF;
+    --color-background: #FFFFFF;
+    /* ... */
+}
+```
+
+### Navigation
+
+Edit `_config.yml`:
+
+```yaml
+navigation:
+  - title: Getting Started
+    url: /getting-started
+```
+
+### Sidebar
+
+Edit `_includes/sidebar.html` to customize the navigation tree.
+
+## Contributing
+
+When adding new documentation:
+
+1. Create markdown files in the appropriate directory
+2. Add front matter with `layout`, `title`, and `description`
+3. Update `_includes/sidebar.html` to add navigation links
+4. Test locally with `bundle exec jekyll serve`
+
+## License
+
+Same as KeyPath project (MIT License).

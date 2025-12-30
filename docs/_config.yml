@@ -1,0 +1,76 @@
+# KeyPath Documentation Site Configuration
+# Apple WWDC-inspired design
+
+title: KeyPath Documentation
+description: Complete guide to keyboard remapping on macOS with KeyPath
+baseurl: "" # Leave empty if using custom domain, or "/keypath" if using GitHub Pages with repo name
+url: "https://keypath.app" # Change to your actual domain or GitHub Pages URL
+
+# Jekyll Configuration
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    block:
+      line_numbers: false
+
+# Plugins
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
+  - jekyll-seo-tag
+
+# Exclude files from processing
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor
+  - README.md
+  - archive/
+  - analysis/
+  - images/README.md
+
+# Collections
+collections:
+  guides:
+    output: true
+    permalink: /:collection/:name
+  architecture:
+    output: true
+    permalink: /:collection/:name
+  adr:
+    output: true
+    permalink: /:collection/:name
+
+# Site settings
+theme_color: "#007AFF"
+accent_color: "#007AFF"
+github_url: "https://github.com/malpern/KeyPath"
+
+# Navigation
+navigation:
+  - title: Getting Started
+    url: /getting-started
+  - title: Guides
+    url: /guides
+  - title: Architecture
+    url: /architecture
+  - title: ADRs
+    url: /adr
+  - title: Migration
+    url: /migration/kanata-users
+  - title: FAQ
+    url: /faq
+
+# Footer
+footer:
+  copyright: "© 2025 KeyPath"
+  links:
+    - title: GitHub
+      url: "https://github.com/malpern/KeyPath"
+    - title: Issues
+      url: "https://github.com/malpern/KeyPath/issues"
+    - title: License
+      url: "https://github.com/malpern/KeyPath/blob/main/LICENSE"

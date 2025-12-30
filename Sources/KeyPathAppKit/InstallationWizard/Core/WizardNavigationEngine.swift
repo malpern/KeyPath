@@ -8,10 +8,13 @@ import OSLog
 final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
     // Track if we've shown the FDA page
     private var hasShownFullDiskAccessPage = false
+    // Track if we've shown the Kanata migration page
+    private var hasShownKanataMigrationPage = false
 
     /// Reset navigation state for a fresh wizard run
     func resetNavigationState() {
         hasShownFullDiskAccessPage = false
+        hasShownKanataMigrationPage = false
     }
 
     // MARK: - Main Navigation Logic
@@ -35,6 +38,20 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
             helperInstalled: helperInstalled,
             helperNeedsApproval: helperNeedsApproval
         )
+
+        // Check for Kanata migration opportunity early (before FDA)
+        // Show migration page if:
+        // 1. We haven't shown it yet
+        // 2. Existing Kanata configs are detected
+        // 3. KeyPath config doesn't exist yet (user hasn't migrated)
+        if !hasShownKanataMigrationPage,
+           !WizardSystemPaths.userConfigExists,
+           !WizardSystemPaths.detectExistingKanataConfigs().isEmpty {
+            AppLogger.shared.log(
+                "🔍 [NavigationEngine] → .kanataMigration (existing Kanata configs detected)")
+            hasShownKanataMigrationPage = true
+            return .kanataMigration
+        }
 
         // Preserve single-show Full Disk Access behavior here.
         if corePage == .summary, !hasShownFullDiskAccessPage, state != .active {
@@ -141,6 +158,8 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
             return false // Can manage service state
         case .fullDiskAccess:
             return false // Optional, not blocking
+        case .kanataMigration:
+            return false // Optional, not blocking
         case .communication:
             return false // Optional, not blocking
         case .summary:
@@ -189,6 +208,8 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
             "Start Keyboard Service"
         case .fullDiskAccess:
             "Grant Full Disk Access"
+        case .kanataMigration:
+            "Continue Setup"
         case .summary:
             switch state {
             case .active:
@@ -230,6 +251,8 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
             return true // Can always manage service
         case .fullDiskAccess:
             return true // Can always try to grant FDA
+        case .kanataMigration:
+            return true // Can always skip or migrate
         case .summary:
             return true
         }

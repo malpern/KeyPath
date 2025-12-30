@@ -276,32 +276,21 @@ struct ContentView: View {
 
     private var contentWithSheets: some View {
         contentWithLayout
-            .sheet(isPresented: $showingInstallationWizard) {
-                InstallationWizardView(initialPage: wizardInitialPage)
-                    .customizeSheetWindow() // Remove border and fix dark mode
-                    .onAppear {
-                        AppLogger.shared.log("🔍 [ContentView] Installation wizard sheet is being presented")
-                        if let page = wizardInitialPage {
-                            AppLogger.shared.log(
-                                "🔍 [ContentView] Starting at \(page.displayName) page after permission grant")
+            // Wizard is now shown in its own window via WizardWindowController
+            .onChange(of: showingInstallationWizard) { _, showing in
+                if showing {
+                    WizardWindowController.shared.showWindow(
+                        initialPage: wizardInitialPage,
+                        kanataViewModel: kanataManager,
+                        onDismiss: { [weak kanataManager] in
+                            Task { @MainActor in
+                                await kanataManager?.updateStatus()
+                            }
                         }
-                        LiveKeyboardOverlayController.shared.autoHideOnceForSettings()
-                    }
-                    .onDisappear {
-                        // When wizard closes, call SimpleRuntimeCoordinator to handle the closure
-                        AppLogger.shared.log("🎭 [ContentView] ========== WIZARD CLOSED ==========")
-                        AppLogger.shared.log("🎭 [ContentView] Installation wizard sheet dismissed by user")
-                        // onWizardClosed removed - legacy status plumbing is gone
-
-                        Task {
-                            // Note: validation triggered via .kp_startupRevalidate notification
-                            // Do NOT trigger here to avoid duplicate validations
-                            await kanataManager.updateStatus()
-                        }
-
-                        LiveKeyboardOverlayController.shared.resetSettingsAutoHideGuard()
-                    }
-                    .environmentObject(kanataManager)
+                    )
+                    // Reset the flag since window is now open
+                    showingInstallationWizard = false
+                }
             }
             .sheet(isPresented: $showingSimpleMods) {
                 SimpleModsView(configPath: kanataManager.configPath)
@@ -451,12 +440,13 @@ struct ContentView: View {
                     message: "✅ KeyPath uninstalled\nYour config file was saved. You can quit now."
                 )
             }
-            .onChange(of: showingInstallationWizard) { _, showing in
-                // When wizard closes, try to start emergency monitoring if we now have permissions
-                if !showing {
+            // Note: Wizard close handling is now done in WizardWindowController.onDismiss
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { notification in
+                // Check if this is the wizard window closing
+                if let window = notification.object as? NSWindow, window.title == "KeyPath Setup" {
                     // Trigger fresh validation to sync System indicator with wizard state
                     Task { @MainActor in
-                        AppLogger.shared.log("🔄 [ContentView] Wizard closed - triggering revalidation")
+                        AppLogger.shared.log("🔄 [ContentView] Wizard window closed - triggering revalidation")
                         await stateController.revalidate()
 
                         // Refresh setup banner state after wizard closes

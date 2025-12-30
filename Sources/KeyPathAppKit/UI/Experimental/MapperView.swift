@@ -49,7 +49,7 @@ struct MapperView: View {
     var body: some View {
         HStack(spacing: 0) {
             // Main content area
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 // Keycaps for input and output
                 MapperKeycapPair(
                     inputLabel: viewModel.inputLabel,
@@ -63,17 +63,17 @@ struct MapperView: View {
                     onInputTap: { viewModel.toggleInputRecording() },
                     onOutputTap: { viewModel.toggleOutputRecording() }
                 )
+                .frame(height: 160)
 
                 // Advanced behavior content (shown when toggle in sidebar is ON)
                 if viewModel.showAdvanced {
                     AdvancedBehaviorContent(viewModel: viewModel)
-                        .padding(.top, 8)
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
 
-                Spacer(minLength: 8)
+                Spacer()
 
-                // Bottom bar: layer indicator (left), reset button (right)
+                // Bottom bar: layer indicator (left)
                 HStack {
                     LayerSwitcherButton(
                         currentLayer: viewModel.currentLayer,
@@ -88,8 +88,8 @@ struct MapperView: View {
                 }
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 12)
-            .frame(minWidth: 300, alignment: .top)
+            .padding(.vertical, 8)
+            .frame(minWidth: 300, maxHeight: .infinity)
             .toolbar {
                 ToolbarItem(placement: .automatic) {
                     ResetMappingButton(
@@ -746,7 +746,7 @@ private struct MiniActionKeycap: View {
 // MARK: - Advanced Behavior Content
 
 /// Content showing hold and double-tap options with mini keycaps (toggle is in sidebar).
-private struct AdvancedBehaviorContent: View {
+struct AdvancedBehaviorContent: View {
     @ObservedObject var viewModel: MapperViewModel
 
     var body: some View {
@@ -1114,7 +1114,7 @@ private struct LeftRoundedRectangle: Shape {
 
 /// Responsive container that shows input/output keycaps side-by-side when they fit,
 /// or stacked vertically when content is too wide.
-private struct MapperKeycapPair: View {
+struct MapperKeycapPair: View {
     let inputLabel: String
     let inputKeyCode: UInt16?
     let outputLabel: String

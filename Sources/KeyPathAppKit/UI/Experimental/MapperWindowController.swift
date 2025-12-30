@@ -82,16 +82,15 @@ class MapperWindowController {
         // - Arrow: ~25pt
         // - Output keycap (max): 150pt + label 20pt = 170pt
         // - Bottom bar: ~35pt
-        // - Padding: ~30pt
-        // Total: ~460pt for vertical layout with max-height keycaps
+        // Compact height - just enough for keycaps + layer bar
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: 460),
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 356),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
         window.title = "Mapper"
-        window.minSize = NSSize(width: 340, height: 300)
+        window.minSize = NSSize(width: 340, height: 200)
         window.contentView = NSHostingView(rootView: contentView)
         window.isReleasedWhenClosed = false
 

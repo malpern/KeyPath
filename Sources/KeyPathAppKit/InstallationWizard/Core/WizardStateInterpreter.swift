@@ -128,6 +128,8 @@ struct WizardStateInterpreter {
     /// Get issues relevant to a specific wizard page
     func getRelevantIssues(for page: WizardPage, in issues: [WizardIssue]) -> [WizardIssue] {
         switch page {
+        case .kanataMigration:
+            [] // Migration page doesn't use issues
         case .conflicts:
             getConflictIssues(in: issues)
         case .inputMonitoring:

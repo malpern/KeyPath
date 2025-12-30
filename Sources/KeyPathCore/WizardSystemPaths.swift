@@ -270,6 +270,72 @@ public enum WizardSystemPaths {
         FileManager.default.fileExists(atPath: systemConfigDirectory)
     }
 
+    // MARK: - Kanata Migration Detection
+
+    /// Common Kanata config file names to search for
+    public static var commonKanataConfigNames: [String] {
+        ["kanata.kbd", "config.kbd", "keypath.kbd"]
+    }
+
+    /// Common directories where users store Kanata configs
+    public static var commonKanataConfigDirectories: [String] {
+        [
+            "\(userHomeDirectory)/.config/kanata",
+            "\(userHomeDirectory)/.config/keypath",
+            userHomeDirectory,
+            systemConfigDirectory
+        ]
+    }
+
+    /// Detect existing Kanata config files in common locations
+    /// Returns array of (path, displayName) tuples for found configs
+    public static func detectExistingKanataConfigs() -> [(path: String, displayName: String)] {
+        var foundConfigs: [(path: String, displayName: String)] = []
+        let fileManager = FileManager.default
+
+        for directory in commonKanataConfigDirectories {
+            guard fileManager.fileExists(atPath: directory) else { continue }
+
+            for configName in commonKanataConfigNames {
+                let fullPath = "\(directory)/\(configName)"
+                if fileManager.fileExists(atPath: fullPath) {
+                    // Skip if it's already KeyPath's expected location
+                    if fullPath == userConfigPath {
+                        continue
+                    }
+                    let displayName = displayPath(for: fullPath)
+                    foundConfigs.append((path: fullPath, displayName: displayName))
+                }
+            }
+        }
+
+        // Also check for configs directly in home directory (e.g., ~/.kanata.kbd)
+        for configName in commonKanataConfigNames {
+            let homeConfigPath = "\(userHomeDirectory)/.\(configName)"
+            if fileManager.fileExists(atPath: homeConfigPath) {
+                let displayName = displayPath(for: homeConfigPath)
+                foundConfigs.append((path: homeConfigPath, displayName: displayName))
+            }
+        }
+
+        return foundConfigs
+    }
+
+    /// KeyPath's expected config directory (Application Support)
+    public static var keyPathConfigDirectory: String {
+        "\(userHomeDirectory)/Library/Application Support/KeyPath"
+    }
+
+    /// KeyPath's expected config path (Application Support)
+    public static var keyPathConfigPath: String {
+        "\(keyPathConfigDirectory)/keypath.kbd"
+    }
+
+    /// KeyPath's generated apps config file
+    public static var keyPathAppsConfigPath: String {
+        "\(keyPathConfigDirectory)/keypath-apps.kbd"
+    }
+
     /// Creates a display path for user interfaces (uses ~ for home directory)
     public static func displayPath(for fullPath: String) -> String {
         let homeDirectory = userHomeDirectory

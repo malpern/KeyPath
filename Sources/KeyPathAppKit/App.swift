@@ -418,14 +418,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 mainWindowController?.show(focus: true)
             }
         } else {
-            // Subsequent activations: show main window if no other windows visible
-            let hasVisibleAppWindows = NSApp.windows.contains { $0.isVisible && !$0.styleMask.contains(.borderless) }
-            if !hasVisibleAppWindows {
-                // No visible app windows - show main window
-                mainWindowController?.show(focus: true)
-                AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - showing main window (no visible windows)")
+            // Subsequent activations: show overlay if not visible
+            if !LiveKeyboardOverlayController.shared.isVisible {
+                LiveKeyboardOverlayController.shared.showForStartup()
+                AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - showing overlay")
             } else {
-                AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - app windows already visible")
+                AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - overlay already visible")
             }
         }
     }

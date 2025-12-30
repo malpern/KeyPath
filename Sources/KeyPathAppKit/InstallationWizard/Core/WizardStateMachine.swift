@@ -160,8 +160,10 @@ class WizardStateMachine: ObservableObject {
         switch current {
         case .summary:
             .summary // First page
+        case .kanataMigration:
+            .summary // Migration is early optional page
         case .helper:
-            .summary // Helper is first after summary
+            .kanataMigration // Helper is after migration
         case .fullDiskAccess:
             .helper
         case .conflicts:

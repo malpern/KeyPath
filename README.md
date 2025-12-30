@@ -132,6 +132,12 @@ When you first launch KeyPath, the **Installation Wizard** will guide you throug
 
 The wizard handles all technical setup automatically and provides one-click fixes for common issues.
 
+### Already Using Kanata?
+
+If you're already using Kanata on macOS, KeyPath can run your existing configuration with minimal changes. See the [Migration Guide](docs/migration/kanata-users.md) for details on bringing your own config (BYOC).
+
+**Quick path:** Copy your config to `~/Library/Application Support/KeyPath/keypath.kbd`, add `(include keypath-apps.kbd)` at the top, and run the setup wizard.
+
 ### Create Your First Mapping
 
 1. **Record Input**: Click the record button next to "Input Key"

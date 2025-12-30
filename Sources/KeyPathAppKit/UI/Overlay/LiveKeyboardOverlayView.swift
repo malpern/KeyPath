@@ -8,6 +8,8 @@ struct LiveKeyboardOverlayView: View {
     @ObservedObject var viewModel: KeyboardVisualizationViewModel
     @ObservedObject var uiState: LiveKeyboardOverlayUIState
     let inspectorWidth: CGFloat
+    let isMapperAvailable: Bool
+    let kanataViewModel: KanataViewModel?
     /// Callback when a key is clicked (not dragged) - for opening Mapper with preset values
     var onKeyClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
     /// Callback when the overlay close button is pressed
@@ -103,16 +105,14 @@ struct LiveKeyboardOverlayView: View {
                         let reveal = max(0, min(1, inspectorReveal))
                         let slideOffset = -(1 - reveal) * inspectorTotalWidth
                         let inspectorOpacity: CGFloat = 1
-                        let inspectorContent = OverlayInspectorPanel(
-                            selectedSection: inspectorSection,
-                            onSelectSection: { inspectorSection = $0 },
+                        let inspectorContent = makeInspectorContent(
                             fadeAmount: fadeAmount,
-                            onKeymapChanged: onKeymapChanged,
-                            isKeycapsEnabled: viewModel.isKeycapColorwayEnabled,
-                            isSoundsEnabled: viewModel.isTypingSoundsEnabled
+                            inspectorWidth: inspectorWidth,
+                            inspectorTotalWidth: inspectorTotalWidth,
+                            inspectorReveal: reveal,
+                            healthIndicatorState: uiState.healthIndicatorState,
+                            onHealthTap: { onHealthIndicatorTap?() }
                         )
-                        .frame(width: inspectorWidth, alignment: .leading)
-                        .frame(width: inspectorTotalWidth, alignment: .leading)
 
                         InspectorMaskedHost(
                             content: inspectorContent,
@@ -241,6 +241,9 @@ struct LiveKeyboardOverlayView: View {
         .onAppear {
             uiState.keyboardAspectRatio = keyboardAspectRatio
             inputSourceDetector.startMonitoring()
+            if !isMapperAvailable, inspectorSection == .mapper {
+                inspectorSection = .keyboard
+            }
         }
         .onDisappear {
             inputSourceDetector.stopMonitoring()
@@ -311,6 +314,34 @@ extension LiveKeyboardOverlayView {
                 .animation(reduceMotion ? nil : .easeOut(duration: 0.3), value: fadeAmount)
         }
     }
+
+    private func makeInspectorContent(
+        fadeAmount: CGFloat,
+        inspectorWidth: CGFloat,
+        inspectorTotalWidth: CGFloat,
+        inspectorReveal: CGFloat,
+        healthIndicatorState: HealthIndicatorState,
+        onHealthTap: @escaping () -> Void
+    ) -> AnyView {
+        AnyView(
+            OverlayInspectorPanel(
+                selectedSection: inspectorSection,
+                onSelectSection: { inspectorSection = $0 },
+                fadeAmount: fadeAmount,
+                isMapperAvailable: isMapperAvailable,
+                kanataViewModel: kanataViewModel,
+                inspectorReveal: inspectorReveal,
+                inspectorTotalWidth: inspectorTotalWidth,
+                healthIndicatorState: healthIndicatorState,
+                onHealthTap: onHealthTap,
+                onKeymapChanged: onKeymapChanged,
+                isKeycapsEnabled: viewModel.isKeycapColorwayEnabled,
+                isSoundsEnabled: viewModel.isTypingSoundsEnabled
+            )
+            .frame(width: inspectorWidth, alignment: .leading)
+            .frame(width: inspectorTotalWidth, alignment: .leading)
+        )
+    }
 }
 
 // MARK: - Overlay Drag Header + Inspector
@@ -373,6 +404,8 @@ private struct OverlayDragHeader: View {
             HStack(spacing: 6) {
                 // 1. Close button (leftmost)
                 Button {
+                    AppLogger.shared.log("🔘 [Header] Close button clicked")
+                    print("🔘 [Header] Close button clicked")
                     onClose()
                 } label: {
                     Image(systemName: "xmark")
@@ -467,8 +500,10 @@ private struct OverlayDragHeader: View {
         .frame(height: height)
         .clipped()
         .contentShape(Rectangle())
-        .gesture(
-            DragGesture(minimumDistance: 1, coordinateSpace: .global)
+        // Use simultaneousGesture so child buttons can still receive taps
+        // Increased minimumDistance to 5 to distinguish taps from drags
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 5, coordinateSpace: .global)
                 .onChanged { _ in
                     if !isDragging {
                         if let window = findOverlayWindow() {
@@ -569,32 +604,39 @@ private struct SystemHealthIndicatorView: View {
                 .transition(.opacity.combined(with: .scale))
 
             case let .unhealthy(issueCount):
-                // Orange warning - larger and more prominent, clickable to launch wizard
-                Button(action: onTap) {
+                // Orange warning - clickable to launch wizard
+                Button {
+                    AppLogger.shared.log("🔘 [Health] Issues button tapped - launching wizard")
+                    onTap()
+                } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.system(size: 10, weight: .semibold))
                             .foregroundColor(.orange)
                         Text(issueCount == 1 ? "1 Issue" : "\(issueCount) Issues")
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundColor(.orange)
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
                     .background(
-                        RoundedRectangle(cornerRadius: indicatorCornerRadius + 2)
+                        RoundedRectangle(cornerRadius: indicatorCornerRadius)
                             .fill(Color.orange.opacity(0.2))
                     )
                     .overlay(
-                        RoundedRectangle(cornerRadius: indicatorCornerRadius + 2)
+                        RoundedRectangle(cornerRadius: indicatorCornerRadius)
                             .stroke(Color.orange.opacity(0.4), lineWidth: 1)
                     )
                 }
                 .buttonStyle(.plain)
+                .contentShape(Rectangle())
+                .highPriorityGesture(TapGesture().onEnded {
+                    AppLogger.shared.log("🔘 [Health] Issues button tap gesture - launching wizard")
+                    onTap()
+                })
                 .help("Click to fix system issues")
                 .accessibilityIdentifier("overlay-health-indicator-error")
                 .accessibilityLabel("System has \(issueCount) issue\(issueCount == 1 ? "" : "s"). Click to fix.")
-                .scaleEffect(1.2) // Make error state more prominent
                 .transition(.asymmetric(
                     insertion: .scale(scale: 0.8).combined(with: .opacity),
                     removal: .opacity
@@ -738,6 +780,12 @@ struct OverlayInspectorPanel: View {
     let selectedSection: InspectorSection
     let onSelectSection: (InspectorSection) -> Void
     let fadeAmount: CGFloat
+    let isMapperAvailable: Bool
+    let kanataViewModel: KanataViewModel?
+    let inspectorReveal: CGFloat
+    let inspectorTotalWidth: CGFloat
+    let healthIndicatorState: HealthIndicatorState
+    let onHealthTap: () -> Void
     /// Callback when keymap selection changes (keymapId, includePunctuation)
     var onKeymapChanged: ((String, Bool) -> Void)?
     /// Whether keycaps colorway feature is enabled
@@ -753,6 +801,11 @@ struct OverlayInspectorPanel: View {
     private var includePunctuation: Bool {
         KeymapPreferences.includePunctuation(for: selectedKeymapId, store: includePunctuationStore)
     }
+    
+    private var visibleInspectorWidth: CGFloat {
+        let width = inspectorTotalWidth * inspectorReveal
+        return max(0, min(inspectorTotalWidth, width))
+    }
 
     var body: some View {
         VStack(spacing: 12) {
@@ -761,6 +814,8 @@ struct OverlayInspectorPanel: View {
                 isDark: isDark,
                 selectedSection: selectedSection,
                 onSelectSection: onSelectSection,
+                isMapperAvailable: isMapperAvailable,
+                healthIndicatorState: healthIndicatorState,
                 isKeycapsEnabled: isKeycapsEnabled,
                 isSoundsEnabled: isSoundsEnabled
             )
@@ -768,7 +823,8 @@ struct OverlayInspectorPanel: View {
 
             // Content based on selected section
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                let contentAlignment: HorizontalAlignment = selectedSection == .mapper ? .center : .leading
+                VStack(alignment: contentAlignment, spacing: 16) {
                     switch selectedSection {
                     case .mapper:
                         mapperContent
@@ -784,7 +840,8 @@ struct OverlayInspectorPanel: View {
                         launchersContent
                     }
                 }
-                .padding(.horizontal, 12)
+                .padding(.leading, selectedSection == .mapper ? 0 : 12)
+                .padding(.trailing, selectedSection == .mapper ? 0 : 12)
                 .padding(.bottom, 12)
             }
         }
@@ -821,7 +878,41 @@ struct OverlayInspectorPanel: View {
 
     @ViewBuilder
     private var mapperContent: some View {
-        OverlayMapperSection(isDark: isDark)
+        let contentWidth = visibleInspectorWidth > 0 ? visibleInspectorWidth : inspectorTotalWidth
+
+        if case .unhealthy = healthIndicatorState {
+            OverlayMapperSection(
+                isDark: isDark,
+                kanataViewModel: kanataViewModel,
+                healthIndicatorState: healthIndicatorState,
+                onHealthTap: onHealthTap
+            )
+            .frame(width: contentWidth, alignment: .center)
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        } else if healthIndicatorState == .checking {
+            OverlayMapperSection(
+                isDark: isDark,
+                kanataViewModel: kanataViewModel,
+                healthIndicatorState: healthIndicatorState,
+                onHealthTap: onHealthTap
+            )
+            .frame(width: contentWidth, alignment: .center)
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        } else if isMapperAvailable {
+            OverlayMapperSection(
+                isDark: isDark,
+                kanataViewModel: kanataViewModel,
+                healthIndicatorState: healthIndicatorState,
+                onHealthTap: onHealthTap
+            )
+            .frame(width: contentWidth, alignment: .center)
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        } else {
+            unavailableSection(
+                title: "Mapper Unavailable",
+                message: "Finish setup to enable quick remapping in the overlay."
+            )
+        }
     }
 
     // MARK: - Physical Layout Content
@@ -869,6 +960,24 @@ struct OverlayInspectorPanel: View {
 
     private var isDark: Bool {
         colorScheme == .dark
+    }
+
+    private func unavailableSection(title: String, message: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color(white: isDark ? 0.16 : 0.94))
+        )
     }
 }
 
@@ -1096,6 +1205,8 @@ private struct InspectorPanelToolbar: View {
     let isDark: Bool
     let selectedSection: InspectorSection
     let onSelectSection: (InspectorSection) -> Void
+    let isMapperAvailable: Bool
+    let healthIndicatorState: HealthIndicatorState
     let isKeycapsEnabled: Bool
     let isSoundsEnabled: Bool
     private let buttonSize: CGFloat = 32
@@ -1117,6 +1228,8 @@ private struct InspectorPanelToolbar: View {
             ) {
                 onSelectSection(.mapper)
             }
+            .disabled(!isMapperTabEnabled)
+            .opacity(isMapperTabEnabled ? 1 : 0.45)
             .accessibilityIdentifier("inspector-tab-mapper")
             .accessibilityLabel("Key Mapper")
 
@@ -1206,6 +1319,12 @@ private struct InspectorPanelToolbar: View {
         .accessibilityLabel("Toolbar button \(systemImage)")
         .onHover(perform: onHover)
     }
+
+    private var isMapperTabEnabled: Bool {
+        if healthIndicatorState == .checking { return true }
+        if case .unhealthy = healthIndicatorState { return true }
+        return isMapperAvailable
+    }
 }
 
 private struct GlassButtonStyleModifier: ViewModifier {
@@ -1259,7 +1378,9 @@ enum InspectorSection {
             return vm
         }(),
         uiState: LiveKeyboardOverlayUIState(),
-        inspectorWidth: 240
+        inspectorWidth: 240,
+        isMapperAvailable: false,
+        kanataViewModel: nil
     )
     .padding(40)
     .frame(width: 700, height: 350)
@@ -1270,7 +1391,9 @@ enum InspectorSection {
     LiveKeyboardOverlayView(
         viewModel: KeyboardVisualizationViewModel(),
         uiState: LiveKeyboardOverlayUIState(),
-        inspectorWidth: 240
+        inspectorWidth: 240,
+        isMapperAvailable: false,
+        kanataViewModel: nil
     )
     .padding(40)
     .frame(width: 700, height: 350)

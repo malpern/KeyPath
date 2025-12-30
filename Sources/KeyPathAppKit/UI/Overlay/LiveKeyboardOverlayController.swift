@@ -37,6 +37,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     private var cancellables = Set<AnyCancellable>()
     private var isObservingHealth = false
     private var healthDismissTask: Task<Void, Never>?
+    private weak var hostingView: NSHostingView<AnyView>?
 
     /// Timestamp when overlay was auto-hidden for settings (for restore on close)
     private var autoHiddenTimestamp: Date?
@@ -260,7 +261,19 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
     /// Handle tap on health indicator - launches wizard and dismisses indicator
     func handleHealthIndicatorTap() {
+        AppLogger.shared.log("🔘 [Controller] handleHealthIndicatorTap - bringing main window to front and opening wizard")
+
+        // Bring the main app window to front first (wizard is a sheet on ContentView)
+        NSApp.activate(ignoringOtherApps: true)
+
+        // Find the main window (not the floating overlay)
+        if let mainWindow = NSApp.windows.first(where: { !$0.styleMask.contains(.borderless) && $0.level == .normal }) {
+            mainWindow.makeKeyAndOrderFront(nil)
+        }
+
+        // Post notification to show wizard (handled by ContentView)
         NotificationCenter.default.post(name: .showWizard, object: nil)
+
         withAnimation {
             uiState.healthIndicatorState = .dismissed
         }
@@ -270,6 +283,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     func configure(kanataViewModel: KanataViewModel, ruleCollectionsManager: RuleCollectionsManager? = nil) {
         self.kanataViewModel = kanataViewModel
         self.ruleCollectionsManager = ruleCollectionsManager
+        refreshOverlayContent()
     }
 
     /// Show or hide the overlay window
@@ -627,36 +641,11 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         let defaultWidth = keyboardWidth + horizontalChrome
         let initialSize = savedFrame?.size ?? NSSize(width: defaultWidth, height: defaultHeight)
 
-        let contentView = LiveKeyboardOverlayView(
-            viewModel: viewModel,
-            uiState: uiState,
-            inspectorWidth: inspectorPanelWidth,
-            onKeyClick: { [weak self] key, layerInfo in
-                self?.handleKeyClick(key: key, layerInfo: layerInfo)
-            },
-            onClose: { [weak self] in
-                self?.isVisible = false
-            },
-            onToggleInspector: { [weak self] in
-                self?.toggleInspectorPanel()
-            },
-            onKeymapChanged: { [weak self] keymapId, includePunctuation in
-                self?.handleKeymapChanged(keymapId: keymapId, includePunctuation: includePunctuation)
-            },
-            onHealthIndicatorTap: { [weak self] in
-                self?.handleHealthIndicatorTap()
-            }
-        )
-
-        // Pass kanataViewModel as environment object for OverlayLaunchersSection
-        let wrappedContent = if let kanataVM = kanataViewModel {
-            AnyView(contentView.environmentObject(kanataVM))
-        } else {
-            AnyView(contentView)
-        }
+        let wrappedContent = buildRootView()
 
         let hostingView = NSHostingView(rootView: wrappedContent)
         hostingView.setFrameSize(initialSize)
+        self.hostingView = hostingView
 
         // Borderless, resizable window
         // In accessibility test mode, use titled window for automation tools like Peekaboo
@@ -712,6 +701,38 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         observeDesiredContentHeight()
         observeDesiredContentWidth()
         observeKeyboardAspectRatio()
+    }
+
+    private func buildRootView() -> AnyView {
+        let contentView = LiveKeyboardOverlayView(
+            viewModel: viewModel,
+            uiState: uiState,
+            inspectorWidth: inspectorPanelWidth,
+            isMapperAvailable: kanataViewModel != nil,
+            kanataViewModel: kanataViewModel,
+            onKeyClick: { [weak self] key, layerInfo in
+                self?.handleKeyClick(key: key, layerInfo: layerInfo)
+            },
+            onClose: { [weak self] in
+                self?.isVisible = false
+            },
+            onToggleInspector: { [weak self] in
+                self?.toggleInspectorPanel()
+            },
+            onKeymapChanged: { [weak self] keymapId, includePunctuation in
+                self?.handleKeymapChanged(keymapId: keymapId, includePunctuation: includePunctuation)
+            },
+            onHealthIndicatorTap: { [weak self] in
+                self?.handleHealthIndicatorTap()
+            }
+        )
+
+        return AnyView(contentView)
+    }
+
+    private func refreshOverlayContent() {
+        guard let hostingView else { return }
+        hostingView.rootView = buildRootView()
     }
 
     // MARK: - Inspector Panel

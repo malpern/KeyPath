@@ -140,8 +140,12 @@ struct OverlayKeyboardView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .preference(key: EscKeyLeftInsetPreferenceKey.self, value: escLeftInset)
+            // Disable all animations during launcher mode transitions
+            .animation(nil, value: isLauncherMode)
         }
         .aspectRatio(layout.totalWidth / layout.totalHeight, contentMode: .fit)
+        // Also disable at container level for any inherited animations
+        .animation(nil, value: isLauncherMode)
         .onChange(of: effectivePressedKeyCodes) { _, _ in
             // Update caps lock state when any key changes (captures toggle)
             isCapsLockOn = NSEvent.modifierFlags.contains(.capsLock)
@@ -510,7 +514,9 @@ private struct FloatingKeymapLabel: View {
                 }
             }
             .onChange(of: isVisible) { _, newVisible in
-                if newVisible, !wasVisible, enableAnimation {
+                // Only wobble if animations are enabled AND visibility should animate
+                // (skip wobble for instant transitions like launcher mode toggle)
+                if newVisible, !wasVisible, enableAnimation, animateVisibility {
                     triggerWobble()
                 }
                 wasVisible = newVisible
