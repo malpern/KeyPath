@@ -230,6 +230,73 @@ content_class: content-full kanata-landing
   <div class="kanata-landing-divider" aria-hidden="true"></div>
 
   <section class="kanata-landing-section">
+    <h2>Explore alternate keyboard layouts</h2>
+    <p class="kanata-landing-fineprint mb-0">
+      QWERTY was designed in 1873 to prevent typewriter jams — not for comfort or speed.
+      Modern layouts like Colemak put 74% of typing on the home row, compared to QWERTY's 32%.
+    </p>
+    <div class="layout-stat">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/></svg>
+      Switch layouts instantly — no firmware flashing required
+    </div>
+
+    <h3 style="margin-top: var(--spacing-xl);">Ergonomic layouts</h3>
+    <div class="layout-grid">
+      <div class="layout-card">
+        <div class="layout-card-name">Colemak</div>
+        <div class="layout-card-type">Popular</div>
+        <div class="layout-card-tooltip">Keeps many QWERTY shortcuts (Ctrl+Z/X/C/V) while dramatically improving home row usage.</div>
+      </div>
+      <div class="layout-card">
+        <div class="layout-card-name">Colemak-DH</div>
+        <div class="layout-card-type">Modern</div>
+        <div class="layout-card-tooltip">Moves D and H to reduce lateral finger stretches. The most popular Colemak variant.</div>
+      </div>
+      <div class="layout-card">
+        <div class="layout-card-name">Dvorak</div>
+        <div class="layout-card-type">Classic</div>
+        <div class="layout-card-tooltip">The original alternative layout from 1936. Emphasizes hand alternation and home row.</div>
+      </div>
+      <div class="layout-card">
+        <div class="layout-card-name">Workman</div>
+        <div class="layout-card-type">Ergonomic</div>
+        <div class="layout-card-tooltip">Optimized for comfortable inward finger rolls and reduced lateral movement.</div>
+      </div>
+      <div class="layout-card">
+        <div class="layout-card-name">Graphite</div>
+        <div class="layout-card-type">Newest</div>
+        <div class="layout-card-tooltip">65% home row usage with balanced hand distribution. One of the newest optimized layouts.</div>
+      </div>
+    </div>
+
+    <h3>International layouts</h3>
+    <div class="layout-grid">
+      <div class="layout-card">
+        <div class="layout-card-name">AZERTY</div>
+        <div class="layout-card-type">French</div>
+        <div class="layout-card-tooltip">Standard French layout used in France and Belgium. A and Q are swapped from QWERTY.</div>
+      </div>
+      <div class="layout-card">
+        <div class="layout-card-name">QWERTZ</div>
+        <div class="layout-card-type">German</div>
+        <div class="layout-card-tooltip">Standard German layout used in Central Europe. Y and Z are swapped from QWERTY.</div>
+      </div>
+    </div>
+
+    <div style="margin-top: var(--spacing-xl);">
+      <video class="layouts-video" autoplay loop muted playsinline>
+        <source src="{{ '/images/alt-layouts.mov' | relative_url }}" type="video/quicktime">
+        <source src="{{ '/images/alt-layouts.mov' | relative_url }}" type="video/mp4">
+      </video>
+      <p class="kanata-landing-fineprint" style="margin-top: var(--spacing-sm);">
+        Switch layouts in real time from the menu bar — experiment without touching firmware.
+      </p>
+    </div>
+  </section>
+
+  <div class="kanata-landing-divider" aria-hidden="true"></div>
+
+  <section class="kanata-landing-section">
     <h2>Use your existing Kanata config</h2>
     <div class="kanata-landing-grid-2">
       <div class="kanata-landing-card">

@@ -1362,3 +1362,101 @@ a.button:active {
     height: 22px;
     display: block;
 }
+
+
+/* Alternate layouts section */
+.layout-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.layout-card {
+    position: relative;
+    padding: var(--spacing-md);
+    border-radius: 12px;
+    border: 1px solid var(--color-border-light);
+    background: color-mix(in srgb, var(--color-background-secondary) 50%, transparent);
+    text-align: center;
+    cursor: default;
+    transition: all var(--transition-fast);
+}
+
+.layout-card:hover {
+    border-color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+    transform: translateY(-2px);
+}
+
+.layout-card-name {
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 4px;
+}
+
+.layout-card-type {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.layout-card-tooltip {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: 280px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--color-border);
+    background: var(--color-background);
+    box-shadow: var(--shadow-lg);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    text-align: left;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--transition-fast), visibility var(--transition-fast);
+    z-index: 100;
+    pointer-events: none;
+}
+
+.layout-card:hover .layout-card-tooltip {
+    opacity: 1;
+    visibility: visible;
+}
+
+.layout-card-tooltip::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: var(--color-background);
+}
+
+.layouts-video {
+    width: 100%;
+    max-width: 600px;
+    border-radius: 14px;
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-lg);
+}
+
+.layout-stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
+    font-size: var(--font-size-sm);
+    color: var(--color-text);
+    margin-top: var(--spacing-md);
+}
