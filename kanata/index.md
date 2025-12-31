@@ -320,7 +320,7 @@ content_class: content-full kanata-landing
 
   <section class="kanata-landing-section">
     <h2>Explore alternate keyboard layouts</h2>
-    <p class="kanata-landing-subtitle" style="margin-bottom: var(--spacing-lg);">Switch layouts instantly — no firmware flashing required</p>
+    <p class="kanata-landing-subtitle" style="margin-bottom: var(--spacing-lg);">Reduce finger strain and type more efficiently. Switch layouts instantly — no firmware flashing required.</p>
 
     <video class="layouts-video" autoplay loop muted playsinline>
       <source src="{{ '/images/alt-layouts.mp4' | relative_url }}" type="video/mp4">
