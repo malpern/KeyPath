@@ -264,3 +264,4 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
   </section>
 </div>
 
+<!-- rebuild trigger -->
