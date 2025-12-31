@@ -18,7 +18,7 @@
         { "row": 0, "col": 11, "x": 11, "y": 0, "keyCode": 27, "label": "-" },
         { "row": 0, "col": 12, "x": 12, "y": 0, "keyCode": 24, "label": "=" },
         { "row": 0, "col": 13, "x": 13, "y": 0, "w": 2, "keyCode": 51, "label": "⌫" },
-        { "row": 0, "col": 14, "x": 15, "y": 0, "keyCode": 115, "label": "Home" },
+        { "row": 0, "col": 14, "x": 15, "y": 0, "keyCode": 115, "label": "home" },
 
         { "row": 1, "col": 0, "x": 0, "y": 1, "w": 1.5, "keyCode": 48, "label": "⇥" },
         { "row": 1, "col": 1, "x": 1.5, "y": 1, "keyCode": 12, "label": "q" },
@@ -34,7 +34,7 @@
         { "row": 1, "col": 11, "x": 11.5, "y": 1, "keyCode": 33, "label": "[" },
         { "row": 1, "col": 12, "x": 12.5, "y": 1, "keyCode": 30, "label": "]" },
         { "row": 1, "col": 13, "x": 13.5, "y": 1, "w": 1.5, "keyCode": 42, "label": "\\" },
-        { "row": 1, "col": 14, "x": 15, "y": 1, "keyCode": 116, "label": "PgUp" },
+        { "row": 1, "col": 14, "x": 15, "y": 1, "keyCode": 116, "label": "pgup" },
 
         { "row": 2, "col": 0, "x": 0, "y": 2, "w": 1.75, "keyCode": 57, "label": "⇪" },
         { "row": 2, "col": 1, "x": 1.75, "y": 2, "keyCode": 0, "label": "a" },
@@ -49,7 +49,7 @@
         { "row": 2, "col": 10, "x": 10.75, "y": 2, "keyCode": 41, "label": ";" },
         { "row": 2, "col": 11, "x": 11.75, "y": 2, "keyCode": 39, "label": "'" },
         { "row": 2, "col": 12, "x": 12.75, "y": 2, "w": 2.25, "keyCode": 36, "label": "↩" },
-        { "row": 2, "col": 13, "x": 15, "y": 2, "keyCode": 121, "label": "PgDn" },
+        { "row": 2, "col": 13, "x": 15, "y": 2, "keyCode": 121, "label": "pgdn" },
 
         { "row": 3, "col": 0, "x": 0, "y": 3, "w": 2.25, "keyCode": 56, "label": "⇧" },
         { "row": 3, "col": 1, "x": 2.25, "y": 3, "keyCode": 6, "label": "z" },
@@ -63,19 +63,18 @@
         { "row": 3, "col": 9, "x": 10.25, "y": 3, "keyCode": 47, "label": "." },
         { "row": 3, "col": 10, "x": 11.25, "y": 3, "keyCode": 44, "label": "/" },
         { "row": 3, "col": 11, "x": 12.25, "y": 3, "w": 1.75, "keyCode": 60, "label": "⇧" },
-        { "row": 3, "col": 12, "x": 14, "y": 3, "keyCode": 126, "label": "▲" },
-        { "row": 3, "col": 13, "x": 15, "y": 3, "keyCode": 119, "label": "End" },
+        { "row": 3, "col": 12, "x": 14, "y": 3, "keyCode": 126, "label": "↑" },
+        { "row": 3, "col": 13, "x": 15, "y": 3, "keyCode": 119, "label": "end" },
 
         { "row": 4, "col": 0, "x": 0, "y": 4, "w": 1.25, "keyCode": 59, "label": "⌃" },
         { "row": 4, "col": 1, "x": 1.25, "y": 4, "w": 1.25, "keyCode": 58, "label": "⌥" },
         { "row": 4, "col": 2, "x": 2.5, "y": 4, "w": 1.25, "keyCode": 55, "label": "⌘" },
-        { "row": 4, "col": 3, "x": 3.75, "y": 4, "w": 6.25, "keyCode": 49, "label": "␣" },
+        { "row": 4, "col": 3, "x": 3.75, "y": 4, "w": 6.25, "keyCode": 49, "label": "" },
         { "row": 4, "col": 4, "x": 10, "y": 4, "w": 1.25, "keyCode": 55, "label": "⌘" },
         { "row": 4, "col": 5, "x": 11.25, "y": 4, "w": 1.25, "keyCode": 58, "label": "⌥" },
-        { "row": 4, "col": 6, "x": 12.5, "y": 4, "keyCode": 123, "label": "◀" },
-        { "row": 4, "col": 7, "x": 13.5, "y": 4, "keyCode": 125, "label": "▼" },
-        { "row": 4, "col": 8, "x": 14.5, "y": 4, "keyCode": 124, "label": "▶" },
-        { "row": 4, "col": 9, "x": 15.5, "y": 4, "w": 0.5, "keyCode": 65535, "label": "" }
+        { "row": 4, "col": 6, "x": 12.5, "y": 4, "keyCode": 123, "label": "←" },
+        { "row": 4, "col": 7, "x": 13.5, "y": 4, "keyCode": 125, "label": "↓" },
+        { "row": 4, "col": 8, "x": 14.5, "y": 4, "keyCode": 124, "label": "→" }
       ]
     }
   }
