@@ -469,9 +469,14 @@ body.sidebar-open .sidebar {
     margin-bottom: var(--spacing-lg);
 }
 
+.content pre {
+    position: relative;
+}
+
 .content pre code {
     font-size: 0.95rem;
     line-height: 1.6;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace;
 }
 
 .copy-button {
@@ -807,19 +812,25 @@ code {
 }
 
 pre {
+    position: relative;
     background-color: var(--color-background-secondary);
     border: 1px solid var(--color-border);
     border-radius: 8px;
     padding: var(--spacing-lg);
     overflow-x: auto;
     margin-bottom: var(--spacing-md);
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace;
+    font-size: var(--font-size-sm);
+    line-height: 1.6;
 }
 
 pre code {
     background: none;
     padding: 0;
     color: var(--color-text);
-    font-size: var(--font-size-sm);
+    font-size: inherit;
+    font-family: inherit;
+    line-height: inherit;
 }
 
 /* Buttons */
@@ -1030,8 +1041,13 @@ li {
     overflow-x: visible;
 }
 
+.highlight {
+    position: relative;
+}
+
 .highlight pre {
     margin: 0;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace;
 }
 
 /* Rouge syntax highlighting tokens */

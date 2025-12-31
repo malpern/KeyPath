@@ -29,22 +29,55 @@
     }
     
     // Copy code block button
-    document.querySelectorAll('pre code').forEach(block => {
+    // Handle both regular code blocks and Rouge-highlighted blocks (.highlight > pre > code)
+    document.querySelectorAll('pre code, .highlight pre code').forEach(block => {
         const pre = block.parentElement;
-        if (pre.querySelector('.copy-button')) return;
+        const container = pre.parentElement.classList.contains('highlight') ? pre.parentElement : pre;
+        
+        // Skip if button already exists
+        if (container.querySelector('.copy-button')) return;
         
         const button = document.createElement('button');
         button.className = 'copy-button';
         button.textContent = 'Copy';
-        button.addEventListener('click', async () => {
-            await navigator.clipboard.writeText(block.textContent);
-            button.textContent = 'Copied!';
-            setTimeout(() => {
-                button.textContent = 'Copy';
-            }, 2000);
+        button.setAttribute('aria-label', 'Copy code to clipboard');
+        button.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try {
+                await navigator.clipboard.writeText(block.textContent || block.innerText);
+                button.textContent = 'Copied!';
+                setTimeout(() => {
+                    button.textContent = 'Copy';
+                }, 2000);
+            } catch (err) {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = block.textContent || block.innerText;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    button.textContent = 'Copied!';
+                    setTimeout(() => {
+                        button.textContent = 'Copy';
+                    }, 2000);
+                } catch (fallbackErr) {
+                    button.textContent = 'Failed';
+                    setTimeout(() => {
+                        button.textContent = 'Copy';
+                    }, 2000);
+                }
+                document.body.removeChild(textArea);
+            }
         });
-        pre.style.position = 'relative';
-        pre.appendChild(button);
+        
+        // Ensure container has relative positioning
+        if (getComputedStyle(container).position === 'static') {
+            container.style.position = 'relative';
+        }
+        container.appendChild(button);
     });
 
 
