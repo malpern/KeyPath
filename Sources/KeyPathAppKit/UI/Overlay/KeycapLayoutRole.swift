@@ -144,8 +144,9 @@ extension PhysicalKey {
 
         // 2. Use physical properties for remaining keys
 
-        // Arrow keys: small height (<= 0.5)
-        if height <= 0.5 {
+        // Arrow keys: by keyCode (123=←, 124=→, 125=↓, 126=↑) or small height
+        let arrowKeyCodes: Set<UInt16> = [123, 124, 125, 126]
+        if arrowKeyCodes.contains(keyCode) || height <= 0.5 {
             return .arrow
         }
 
