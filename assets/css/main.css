@@ -577,6 +577,7 @@ body.sidebar-open .sidebar {
     color: var(--color-text);
 }
 
+.content .kanata-landing-title,
 .kanata-landing-title {
     font-size: clamp(5rem, 10.5vw, 7.8rem);
     line-height: 1.08;
