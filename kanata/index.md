@@ -301,15 +301,152 @@ content_class: content-full kanata-landing
     <h3 style="margin-top: var(--spacing-xl);">International support</h3>
     <p style="color: var(--color-text-secondary); line-height: 1.6;">
       <strong style="color: var(--color-text);">Logical layouts:</strong>
+      🇺🇸 QWERTY (US, UK, International) ·
       🇫🇷 AZERTY (France, Belgium) ·
       🇩🇪 QWERTZ (Germany, Austria, Switzerland) ·
-      🇺🇸 QWERTY (US, UK, International)
+      🇯🇵 JIS (Japan)
     </p>
     <p style="color: var(--color-text-secondary); line-height: 1.6;">
       <strong style="color: var(--color-text);">Physical keyboards:</strong>
-      ANSI 40% · ANSI 60% · ANSI 65% · ANSI 75% · ANSI TKL · ANSI Full-size ·
-      ISO layouts · Split keyboards (Corne, Sofle, Ferris Sweep, Kinesis 360)
+      🇺🇸 ANSI · 🇪🇺 ISO · 🇯🇵 JIS · 🇧🇷 ABNT2 · 🇰🇷 Korean
     </p>
+  </section>
+
+  <div class="kanata-landing-divider" aria-hidden="true"></div>
+
+  <section class="kanata-landing-section">
+    <h2>Works with your keyboard</h2>
+    <p class="kanata-landing-subtitle" style="margin-bottom: var(--spacing-sm);">Auto-detects your physical layout on first launch</p>
+    <p class="kanata-landing-fineprint mb-0">
+      KeyPath reads your keyboard's hardware type from macOS and picks the right layout automatically.
+      Or choose from 20+ supported keyboards — from compact 40% to full-size, split ergonomic to international.
+    </p>
+
+    <div class="keyboard-marquee" style="margin-top: var(--spacing-xl);">
+      <div class="keyboard-marquee-track">
+        <div class="keyboard-marquee-item" data-stat="The original compact layout">
+          <div class="keyboard-marquee-icon">⌨️</div>
+          <div class="keyboard-marquee-name">40%</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="Most popular compact size">
+          <div class="keyboard-marquee-icon">⌨️</div>
+          <div class="keyboard-marquee-name">60%</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="Arrows without the bulk">
+          <div class="keyboard-marquee-icon">⌨️</div>
+          <div class="keyboard-marquee-name">65%</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="Function row, no numpad">
+          <div class="keyboard-marquee-icon">⌨️</div>
+          <div class="keyboard-marquee-name">75%</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="The classic tenkeyless">
+          <div class="keyboard-marquee-icon">⌨️</div>
+          <div class="keyboard-marquee-name">TKL</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="All 104 keys">
+          <div class="keyboard-marquee-icon">⌨️</div>
+          <div class="keyboard-marquee-name">Full-size</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="Unix hacker's choice since 1996">
+          <div class="keyboard-marquee-icon">⌨️</div>
+          <div class="keyboard-marquee-name">HHKB</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="42 keys of pure efficiency">
+          <div class="keyboard-marquee-icon">🔀</div>
+          <div class="keyboard-marquee-name">Corne</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="Split with encoders">
+          <div class="keyboard-marquee-icon">🔀</div>
+          <div class="keyboard-marquee-name">Sofle</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="34 keys, no compromises">
+          <div class="keyboard-marquee-icon">🔀</div>
+          <div class="keyboard-marquee-name">Ferris Sweep</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="The ergo endgame">
+          <div class="keyboard-marquee-icon">🔀</div>
+          <div class="keyboard-marquee-name">Kinesis 360</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="Standard in Europe">
+          <div class="keyboard-marquee-icon">🇪🇺</div>
+          <div class="keyboard-marquee-name">ISO</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="かな and 英数 keys">
+          <div class="keyboard-marquee-icon">🇯🇵</div>
+          <div class="keyboard-marquee-name">JIS</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="Brazilian Portuguese">
+          <div class="keyboard-marquee-icon">🇧🇷</div>
+          <div class="keyboard-marquee-name">ABNT2</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="한/영 toggle built in">
+          <div class="keyboard-marquee-icon">🇰🇷</div>
+          <div class="keyboard-marquee-name">Korean</div>
+        </div>
+        <!-- Duplicate for seamless loop -->
+        <div class="keyboard-marquee-item" data-stat="The original compact layout">
+          <div class="keyboard-marquee-icon">⌨️</div>
+          <div class="keyboard-marquee-name">40%</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="Most popular compact size">
+          <div class="keyboard-marquee-icon">⌨️</div>
+          <div class="keyboard-marquee-name">60%</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="Arrows without the bulk">
+          <div class="keyboard-marquee-icon">⌨️</div>
+          <div class="keyboard-marquee-name">65%</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="Function row, no numpad">
+          <div class="keyboard-marquee-icon">⌨️</div>
+          <div class="keyboard-marquee-name">75%</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="The classic tenkeyless">
+          <div class="keyboard-marquee-icon">⌨️</div>
+          <div class="keyboard-marquee-name">TKL</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="All 104 keys">
+          <div class="keyboard-marquee-icon">⌨️</div>
+          <div class="keyboard-marquee-name">Full-size</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="Unix hacker's choice since 1996">
+          <div class="keyboard-marquee-icon">⌨️</div>
+          <div class="keyboard-marquee-name">HHKB</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="42 keys of pure efficiency">
+          <div class="keyboard-marquee-icon">🔀</div>
+          <div class="keyboard-marquee-name">Corne</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="Split with encoders">
+          <div class="keyboard-marquee-icon">🔀</div>
+          <div class="keyboard-marquee-name">Sofle</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="34 keys, no compromises">
+          <div class="keyboard-marquee-icon">🔀</div>
+          <div class="keyboard-marquee-name">Ferris Sweep</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="The ergo endgame">
+          <div class="keyboard-marquee-icon">🔀</div>
+          <div class="keyboard-marquee-name">Kinesis 360</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="Standard in Europe">
+          <div class="keyboard-marquee-icon">🇪🇺</div>
+          <div class="keyboard-marquee-name">ISO</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="かな and 英数 keys">
+          <div class="keyboard-marquee-icon">🇯🇵</div>
+          <div class="keyboard-marquee-name">JIS</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="Brazilian Portuguese">
+          <div class="keyboard-marquee-icon">🇧🇷</div>
+          <div class="keyboard-marquee-name">ABNT2</div>
+        </div>
+        <div class="keyboard-marquee-item" data-stat="한/영 toggle built in">
+          <div class="keyboard-marquee-icon">🇰🇷</div>
+          <div class="keyboard-marquee-name">Korean</div>
+        </div>
+      </div>
+    </div>
   </section>
 
   <div class="kanata-landing-divider" aria-hidden="true"></div>
