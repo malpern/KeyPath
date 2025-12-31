@@ -664,7 +664,7 @@ body.sidebar-open .sidebar {
     --kp-icon-color: var(--color-primary);
     display: flex;
     align-items: flex-start;
-    gap: 14px;
+    gap: 18px;
     margin: 0;
 }
 
@@ -677,19 +677,19 @@ body.sidebar-open .sidebar {
 .kanata-feature.kp-accent-slate { --kp-icon-color: #8E8E93; }
 
 .kanata-feature-icon {
-    width: 44px;
-    height: 44px;
+    width: 88px;
+    height: 88px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    flex: 0 0 44px;
-    margin-top: 2px;
+    flex: 0 0 88px;
+    margin-top: 4px;
     color: var(--kp-icon-color);
 }
 
 .kanata-feature-icon .kp-icon {
-    width: 24px;
-    height: 24px;
+    width: 48px;
+    height: 48px;
     display: block;
 }
 
