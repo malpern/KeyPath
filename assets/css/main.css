@@ -1220,3 +1220,46 @@ a.button:active {
     font-size: 0.9em;
     color: var(--color-text);
 }
+
+
+/* Kanata landing: app icon tiles for comparison */
+.kanata-app-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-border-light);
+    box-shadow: 0 8px 18px rgba(0,0,0,0.25);
+    overflow: hidden;
+}
+
+.kanata-app-icon .kanata-app-svg {
+    width: 24px;
+    height: 24px;
+}
+
+.kanata-app-icon.app-github {
+    background: radial-gradient(120% 120% at 20% 10%, rgba(255,255,255,0.10), transparent 55%),
+                linear-gradient(180deg, #1f2328, #0b0d0f);
+    color: #ffffff;
+}
+
+.kanata-app-icon.app-notion {
+    background: radial-gradient(120% 120% at 20% 10%, rgba(0,0,0,0.06), transparent 55%),
+                linear-gradient(180deg, #ffffff, #f0f0f0);
+    color: #111111;
+}
+
+.kanata-app-icon.app-slack {
+    background: radial-gradient(120% 120% at 20% 10%, rgba(255,255,255,0.12), transparent 55%),
+                linear-gradient(180deg, #4A154B, #2b0c2c);
+    color: #ffffff;
+}
+
+.kanata-app-icon.app-safari {
+    background: radial-gradient(120% 120% at 20% 10%, rgba(255,255,255,0.18), transparent 55%),
+                linear-gradient(180deg, #0A84FF, #0057D9);
+    color: #ffffff;
+}
