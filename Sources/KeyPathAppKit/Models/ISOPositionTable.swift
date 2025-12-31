@@ -31,7 +31,6 @@ enum ISOPositionTable {
         case (0, 10): (27, "-")
         case (0, 11): (24, "=")
         case (0, 12): (51, "⌫") // Backspace
-        
         // Row 1: Top row (same as ANSI)
         case (1, 0): (48, "⇥") // Tab
         case (1, 1): (12, "q")
@@ -47,7 +46,6 @@ enum ISOPositionTable {
         case (1, 11): (33, "[")
         case (1, 12): (30, "]")
         case (1, 13): (42, "\\")
-        
         // Row 2: Home row - ISO has L-shaped Enter
         case (2, 0): (57, "⇪") // Caps Lock
         case (2, 1): (0, "a")
@@ -66,7 +64,6 @@ enum ISOPositionTable {
         // We map both positions to Enter keycode (36) for compatibility with all ISO layouts
         case (2, 12): (36, "↩") // Enter (L-shaped, top part or full key depending on layout)
         case (2, 13): (36, "↩") // Enter (L-shaped, continuation - some layouts use this)
-        
         // Row 3: Bottom row - ISO has IntlBackslash between Shift and Z
         case (3, 0): (56, "⇧") // Left Shift (shorter than ANSI, typically 1.25u)
         case (3, 1): (10, "§") // IntlBackslash (ISO-specific key, § on UK, < on German, etc.)
@@ -84,7 +81,6 @@ enum ISOPositionTable {
         // ISO Enter continuation (L-shaped, bottom part)
         // This position is used when Enter spans both row 2 and row 3
         case (3, 13): (36, "↩") // Enter (L-shaped, bottom part - when Enter is split across rows)
-        
         // Row 4: Modifier row (same as ANSI)
         case (4, 0): (59, "⌃") // Left Control
         case (4, 1): (58, "⌥") // Left Option/Alt
@@ -93,7 +89,6 @@ enum ISOPositionTable {
         case (4, 4): (54, "⌘") // Right Command/Win
         case (4, 5): (61, "⌥") // Right Option/Alt
         case (4, 6): (102, "⌃") // Right Control
-        
         // Function row (same as ANSI)
         case (-1, 0), (5, 0): (122, "f1")
         case (-1, 1), (5, 1): (120, "f2")
@@ -107,27 +102,23 @@ enum ISOPositionTable {
         case (-1, 9), (5, 9): (109, "f10")
         case (-1, 10), (5, 10): (103, "f11")
         case (-1, 11), (5, 11): (111, "f12")
-        
         // Arrow keys (for 65% and larger layouts)
         case (3, 14): (126, "▲") // Up Arrow
         case (3, 15): (123, "◀") // Left Arrow
         case (3, 16): (125, "▼") // Down Arrow
         case (3, 17): (124, "▶") // Right Arrow
-        
         // Navigation keys
         case (3, 18): (115, "Home")
         case (3, 19): (116, "PgUp")
         case (3, 20): (119, "End")
         case (3, 21): (121, "PgDn")
-        
         // ESC key
         case (-1, -1), (0, -1): (53, "esc")
-        
         default:
             nil
         }
     }
-    
+
     /// Get key mapping with support for custom mappings
     static func keyMapping(row: Int, col: Int, customMappings: [((Int, Int), (UInt16, String))] = []) -> (keyCode: UInt16, label: String)? {
         // Check custom mappings first

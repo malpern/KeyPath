@@ -19,21 +19,21 @@ public final class KanataConfigMigrationService {
         public var errorDescription: String? {
             switch self {
             case let .sourceNotFound(path):
-                return "Source config file not found: \(path)"
+                "Source config file not found: \(path)"
             case let .destinationExists(path):
-                return "Destination already exists: \(path)"
+                "Destination already exists: \(path)"
             case let .copyFailed(path, error):
-                return "Failed to copy config from \(path): \(error.localizedDescription)"
+                "Failed to copy config from \(path): \(error.localizedDescription)"
             case let .symlinkFailed(path, error):
-                return "Failed to create symlink from \(path): \(error.localizedDescription)"
+                "Failed to create symlink from \(path): \(error.localizedDescription)"
             case let .readFailed(path, error):
-                return "Failed to read config from \(path): \(error.localizedDescription)"
+                "Failed to read config from \(path): \(error.localizedDescription)"
             case let .writeFailed(path, error):
-                return "Failed to write config to \(path): \(error.localizedDescription)"
+                "Failed to write config to \(path): \(error.localizedDescription)"
             case let .backupFailed(path, error):
-                return "Failed to create backup at \(path): \(error.localizedDescription)"
+                "Failed to create backup at \(path): \(error.localizedDescription)"
             case .includeAlreadyPresent:
-                return "Include line already present in config"
+                "Include line already present in config"
             }
         }
     }
@@ -172,11 +172,10 @@ public final class KanataConfigMigrationService {
         }
 
         // Prepend include if needed and requested
-        let finalContent: String
-        if prependInclude, !hasIncludeLine(configPath: sourcePath) {
-            finalContent = "\(includeLine)\n\n\(sourceContent)"
+        let finalContent: String = if prependInclude, !hasIncludeLine(configPath: sourcePath) {
+            "\(includeLine)\n\n\(sourceContent)"
         } else {
-            finalContent = sourceContent
+            sourceContent
         }
 
         // Write to destination

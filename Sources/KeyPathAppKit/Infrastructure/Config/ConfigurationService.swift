@@ -81,7 +81,7 @@ public struct KanataConfiguration: Sendable {
     /// Render defvar block with timing variables for reuse across the config.
     /// These variables allow users to globally adjust timing values.
     private static func renderDefvarBlock() -> String {
-        return """
+        """
         #|
         ================================================================================
         TIMING VARIABLES
@@ -118,7 +118,7 @@ public struct KanataConfiguration: Sendable {
         lines.append("")
         return lines.joined(separator: "\n")
     }
-    
+
     /// Format complex actions across multiple lines for better readability.
     /// Handles common patterns like multi actions and long tap-hold chains.
     private static func formatMultiLineAction(_ action: String) -> String {
@@ -126,41 +126,41 @@ public struct KanataConfiguration: Sendable {
         if action.contains("\n") {
             return action
         }
-        
+
         // Only format if action is long enough to benefit from multi-line
         guard action.count > 80 else {
             return action
         }
-        
+
         // Format multi actions with multiple components
-        if action.hasPrefix("(multi ") && action.count > 100 {
+        if action.hasPrefix("(multi "), action.count > 100 {
             return formatMultiAction(action)
         }
-        
+
         // Format long tap-hold actions that contain multi
-        if (action.contains("(tap-hold") || action.contains("(tap-hold-press") || action.contains("(tap-hold-release")) && action.contains("(multi ") {
+        if action.contains("(tap-hold") || action.contains("(tap-hold-press") || action.contains("(tap-hold-release"), action.contains("(multi ") {
             return formatTapHoldWithMulti(action)
         }
-        
+
         // Otherwise, return as-is to avoid breaking valid syntax
         return action
     }
-    
+
     /// Format a multi action across multiple lines.
     /// Only handles simple cases to avoid breaking valid syntax.
     private static func formatMultiAction(_ action: String) -> String {
         // Extract components from (multi comp1 comp2 comp3)
-        guard action.hasPrefix("(multi ") && action.hasSuffix(")") else {
+        guard action.hasPrefix("(multi "), action.hasSuffix(")") else {
             return action
         }
-        
+
         let inner = String(action.dropFirst(7).dropLast(1)) // Remove "(multi " and ")"
-        
+
         // Count top-level components (separated by spaces at depth 0)
         var parenDepth = 0
         var componentCount = 0
         var lastWasSpace = false
-        
+
         for char in inner {
             if char == "(" {
                 parenDepth += 1
@@ -168,7 +168,7 @@ public struct KanataConfiguration: Sendable {
             } else if char == ")" {
                 parenDepth -= 1
                 lastWasSpace = false
-            } else if char == " " && parenDepth == 0 {
+            } else if char == " ", parenDepth == 0 {
                 if !lastWasSpace {
                     componentCount += 1
                 }
@@ -177,17 +177,17 @@ public struct KanataConfiguration: Sendable {
                 lastWasSpace = false
             }
         }
-        
+
         // Only format if we have 3+ components (multi with 2+ items)
         guard componentCount >= 2 else {
             return action
         }
-        
+
         // Simple formatting: split on spaces at depth 0
         var result = "(multi\n"
         var currentComponent = ""
         parenDepth = 0
-        
+
         for char in inner {
             if char == "(" {
                 currentComponent.append(char)
@@ -195,7 +195,7 @@ public struct KanataConfiguration: Sendable {
             } else if char == ")" {
                 currentComponent.append(char)
                 parenDepth -= 1
-            } else if char == " " && parenDepth == 0 {
+            } else if char == " ", parenDepth == 0 {
                 // Space at top level - start new component
                 let trimmed = currentComponent.trimmingCharacters(in: .whitespaces)
                 if !trimmed.isEmpty {
@@ -206,38 +206,38 @@ public struct KanataConfiguration: Sendable {
                 currentComponent.append(char)
             }
         }
-        
+
         // Add final component
         let trimmed = currentComponent.trimmingCharacters(in: .whitespaces)
         if !trimmed.isEmpty {
             result += "    \(trimmed)\n"
         }
-        
+
         result += "  )"
         return result
     }
-    
+
     /// Format tap-hold actions that contain multi sub-actions.
     private static func formatTapHoldWithMulti(_ action: String) -> String {
         // Pattern: (tap-hold timeout timeout key (multi ...))
         // We want: (tap-hold timeout timeout key\n  (multi\n    ...))
-        
+
         // Find the (multi part
         guard let multiStart = action.range(of: "(multi ") else {
             return action
         }
-        
+
         let beforeMulti = String(action[..<multiStart.lowerBound]).trimmingCharacters(in: .whitespaces)
         let multiPart = String(action[multiStart.lowerBound...])
-        
+
         // Format the multi part
         let formattedMulti = formatMultiAction(multiPart)
-        
+
         // Combine with proper indentation
         if formattedMulti.contains("\n") {
             return "\(beforeMulti)\n  \(formattedMulti.replacingOccurrences(of: "\n", with: "\n  "))"
         }
-        
+
         return action
     }
 
@@ -324,7 +324,7 @@ public struct KanataConfiguration: Sendable {
         valueProvider: (LayerEntry) -> String
     ) -> String {
         var lines: [String] = []
-        
+
         // Add section header for base layer only (other layers are grouped)
         if name == "base" {
             lines.append(contentsOf: [
@@ -336,7 +336,7 @@ public struct KanataConfiguration: Sendable {
                 ""
             ])
         }
-        
+
         lines.append("(deflayer \(name)")
         if blocks.isEmpty {
             lines.append("  ;; No enabled collections")

@@ -7,7 +7,7 @@ struct KeyboardSelectionGridView: View {
     let isDark: Bool
     @State private var showImportSheet = false
     @State private var refreshTrigger = UUID() // Trigger refresh when custom layouts change
-    
+
     // Search state
     @State private var searchText = ""
     @FocusState private var isSearchFocused: Bool
@@ -15,7 +15,7 @@ struct KeyboardSelectionGridView: View {
     @State private var isSearching = false
     @State private var searchError: String?
     @State private var searchTask: Task<Void, Never>?
-    
+
     /// Grouped layouts by category (computed to reflect custom layout changes)
     private var groupedLayouts: [(category: LayoutCategory, layouts: [PhysicalLayout])] {
         PhysicalLayout.layoutsByCategory()
@@ -25,20 +25,20 @@ struct KeyboardSelectionGridView: View {
     private let columns = [
         GridItem(.flexible(), spacing: 12)
     ]
-    
+
     /// Initialize with automatically grouped layouts
     init(selectedLayoutId: Binding<String>, isDark: Bool) {
-        self._selectedLayoutId = selectedLayoutId
+        _selectedLayoutId = selectedLayoutId
         self.isDark = isDark
-        self._refreshTrigger = State(initialValue: UUID())
+        _refreshTrigger = State(initialValue: UUID())
     }
-    
+
     /// Initialize with a flat list of layouts (legacy, for previews)
     /// Note: This initializer is deprecated - use the main init instead
-    init(layouts: [PhysicalLayout], selectedLayoutId: Binding<String>, isDark: Bool) {
-        self._selectedLayoutId = selectedLayoutId
+    init(layouts _: [PhysicalLayout], selectedLayoutId: Binding<String>, isDark: Bool) {
+        _selectedLayoutId = selectedLayoutId
         self.isDark = isDark
-        self._refreshTrigger = State(initialValue: UUID())
+        _refreshTrigger = State(initialValue: UUID())
         // Note: groupedLayouts is now computed, so layouts parameter is ignored
         // This init exists only for preview compatibility
     }
@@ -47,7 +47,7 @@ struct KeyboardSelectionGridView: View {
         VStack(spacing: 0) {
             // Search bar at the top
             searchBar
-            
+
             // Content: search results or layout grid
             if !searchText.isEmpty {
                 searchResultsView
@@ -68,7 +68,7 @@ struct KeyboardSelectionGridView: View {
         .onChange(of: searchText) { _, newValue in
             // Cancel previous search task
             searchTask?.cancel()
-            
+
             // Debounce search
             searchTask = Task {
                 try? await Task.sleep(nanoseconds: 200_000_000) // 200ms
@@ -78,15 +78,15 @@ struct KeyboardSelectionGridView: View {
             }
         }
     }
-    
+
     // MARK: - Search Bar
-    
+
     private var searchBar: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(.secondary)
                 .font(.system(size: 11))
-            
+
             TextField("Search keyboards...", text: $searchText)
                 .textFieldStyle(.roundedBorder)
                 .controlSize(.small)
@@ -95,7 +95,7 @@ struct KeyboardSelectionGridView: View {
                 .accessibilityIdentifier("qmk-search-field")
                 .accessibilityLabel("Search keyboards")
                 .frame(maxWidth: .infinity) // Ensure TextField expands
-            
+
             if !searchText.isEmpty {
                 Button {
                     searchText = ""
@@ -112,9 +112,9 @@ struct KeyboardSelectionGridView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
     }
-    
+
     // MARK: - Search Results View
-    
+
     private var searchResultsView: some View {
         Group {
             if isSearching {
@@ -165,9 +165,9 @@ struct KeyboardSelectionGridView: View {
             }
         }
     }
-    
+
     // MARK: - Layout Grid View
-    
+
     private var layoutGridView: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20) {
@@ -189,13 +189,13 @@ struct KeyboardSelectionGridView: View {
             .padding(.vertical, 12)
         }
     }
-    
+
     // MARK: - Search Actions
-    
+
     private func performSearch(query: String) async {
         isSearching = true
         searchError = nil
-        
+
         do {
             let results = try await QMKKeyboardDatabase.shared.searchKeyboards(query)
             await MainActor.run {
@@ -210,29 +210,29 @@ struct KeyboardSelectionGridView: View {
             }
         }
     }
-    
+
     private func importKeyboard(_ keyboard: KeyboardMetadata) {
         Task {
             do {
                 // Fetch JSON data first
                 let (jsonData, response) = try await URLSession.shared.data(from: keyboard.infoJsonURL)
-                
+
                 guard let httpResponse = response as? HTTPURLResponse,
                       (200 ... 299).contains(httpResponse.statusCode)
                 else {
                     throw QMKImportError.networkError("Failed to fetch keyboard JSON")
                 }
-                
+
                 // Import using QMKImportService
                 let layout = try await QMKImportService.shared.importFromURL(
                     keyboard.infoJsonURL,
                     layoutVariant: nil,
                     keyMappingType: .ansi
                 )
-                
+
                 // Generate a user-friendly name
                 let layoutName = "\(keyboard.name)\(keyboard.manufacturer.map { " by \($0)" } ?? "")"
-                
+
                 // Save as custom layout
                 await QMKImportService.shared.saveCustomLayout(
                     layout: layout,
@@ -241,7 +241,7 @@ struct KeyboardSelectionGridView: View {
                     layoutJSON: jsonData,
                     layoutVariant: nil
                 )
-                
+
                 await MainActor.run {
                     // Select the imported layout
                     selectedLayoutId = layout.id
@@ -267,16 +267,16 @@ private struct LayoutCategorySection: View {
     let isDark: Bool
     @Binding var showImportSheet: Bool
     @Binding var refreshTrigger: UUID
-    
+
     private let columns = [
         GridItem(.flexible(), spacing: 12)
     ]
-    
+
     /// Whether to show section header (US Standard has no header)
     private var showHeader: Bool {
         category != .usStandard
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Section header (hidden for US Standard)
@@ -287,9 +287,9 @@ private struct LayoutCategorySection: View {
                         .foregroundStyle(.primary.opacity(0.7))
                         .textCase(.uppercase)
                         .tracking(0.8)
-                    
+
                     Spacer()
-                    
+
                     // Import button for Custom section
                     if category == .custom {
                         Button {
@@ -311,7 +311,7 @@ private struct LayoutCategorySection: View {
                 .padding(.trailing, 4)
                 .padding(.top, 8)
             }
-            
+
             // Layout cards in grid
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(layouts) { layout in
@@ -339,9 +339,9 @@ private struct LayoutCategorySection: View {
                         }
                     }
                 }
-                
+
                 // Import button card for Custom section (if no layouts yet)
-                if category == .custom && layouts.isEmpty {
+                if category == .custom, layouts.isEmpty {
                     ImportLayoutCard(isDark: isDark) {
                         showImportSheet = true
                     }
@@ -366,7 +366,7 @@ private struct KeyboardIllustrationCard: View {
 
     // Image size - fairly big as requested
     private let imageHeight: CGFloat = 120
-    
+
     init(
         layout: PhysicalLayout,
         isSelected: Bool,
@@ -402,7 +402,7 @@ private struct KeyboardIllustrationCard: View {
                             x: 0,
                             y: shadowY
                         )
-                    
+
                     // Selection ring overlay
                     if isSelected {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -455,7 +455,7 @@ private struct KeyboardIllustrationCard: View {
         .animation(.easeInOut(duration: 0.2), value: isSelected)
         .animation(.easeInOut(duration: 0.15), value: isHovering)
         .contextMenu {
-            if isCustom, let onDelete = onDelete {
+            if isCustom, let onDelete {
                 Button(role: .destructive) {
                     showDeleteConfirmation = true
                 } label: {
@@ -477,36 +477,36 @@ private struct KeyboardIllustrationCard: View {
             Text("Are you sure you want to delete \"\(layout.name)\"? This action cannot be undone.")
         }
     }
-    
+
     // MARK: - Computed Animation Properties
-    
+
     private var shadowColor: Color {
         if isSelected {
-            return Color.accentColor.opacity(0.4)
+            Color.accentColor.opacity(0.4)
         } else if isHovering {
-            return Color.black.opacity(0.15)
+            Color.black.opacity(0.15)
         } else {
-            return Color.black.opacity(0.08)
+            Color.black.opacity(0.08)
         }
     }
-    
+
     private var shadowRadius: CGFloat {
         if isSelected {
-            return 10
+            10
         } else if isHovering {
-            return 6
+            6
         } else {
-            return 4
+            4
         }
     }
-    
+
     private var shadowY: CGFloat {
         if isSelected {
-            return 5
+            5
         } else if isHovering {
-            return 3
+            3
         } else {
-            return 2
+            2
         }
     }
 
@@ -557,11 +557,11 @@ private struct KeyboardIllustrationCard: View {
 private struct ImportLayoutCard: View {
     let isDark: Bool
     let onImport: () -> Void
-    
+
     @State private var isHovering = false
-    
+
     private let imageHeight: CGFloat = 120
-    
+
     var body: some View {
         Button(action: onImport) {
             VStack(spacing: 8) {
@@ -574,7 +574,7 @@ private struct ImportLayoutCard: View {
                             x: 0,
                             y: shadowY
                         )
-                    
+
                     VStack(spacing: 8) {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 32))
@@ -598,19 +598,19 @@ private struct ImportLayoutCard: View {
             }
         }
     }
-    
+
     private var shadowColor: Color {
         isHovering ? Color.black.opacity(0.15) : Color.black.opacity(0.08)
     }
-    
+
     private var shadowRadius: CGFloat {
         isHovering ? 6 : 4
     }
-    
+
     private var shadowY: CGFloat {
         isHovering ? 3 : 2
     }
-    
+
     private var cardBackground: some ShapeStyle {
         AnyShapeStyle(
             Color.white.opacity(isDark ? (isHovering ? 0.12 : 0.06) : (isHovering ? 0.10 : 0.05))
@@ -631,7 +631,7 @@ private struct ImportLayoutCard: View {
 private struct SearchKeyboardRow: View {
     let keyboard: KeyboardMetadata
     let onSelect: () -> Void
-    
+
     private var accessibilityLabel: String {
         var parts: [String] = [keyboard.name, "keyboard"]
         if let manufacturer = keyboard.manufacturer {
@@ -642,7 +642,7 @@ private struct SearchKeyboardRow: View {
         }
         return parts.joined(separator: ", ")
     }
-    
+
     var body: some View {
         Button(action: onSelect) {
             HStack(alignment: .top, spacing: 12) {
@@ -651,16 +651,16 @@ private struct SearchKeyboardRow: View {
                         .font(.body)
                         .fontWeight(.medium)
                         .foregroundColor(.primary)
-                    
+
                     if let manufacturer = keyboard.manufacturer {
                         Text(manufacturer)
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                 }
-                
+
                 Spacer()
-                
+
                 // Tags
                 HStack(spacing: 4) {
                     ForEach(keyboard.tags.prefix(3), id: \.self) { tag in
@@ -683,7 +683,7 @@ private struct SearchKeyboardRow: View {
 private struct SearchTagBadge: View {
     let tag: String
     let keyboardId: String
-    
+
     var body: some View {
         Text(tag)
             .font(.caption2)
@@ -695,7 +695,7 @@ private struct SearchTagBadge: View {
             .accessibilityIdentifier("qmk-search-tag-\(tag)-\(keyboardId)")
             .accessibilityLabel("\(tag) keyboard")
     }
-    
+
     private var tagColor: Color {
         switch tag.lowercased() {
         case "split": .blue

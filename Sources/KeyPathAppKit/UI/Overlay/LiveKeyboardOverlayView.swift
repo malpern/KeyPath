@@ -40,13 +40,13 @@ struct LiveKeyboardOverlayView: View {
     /// We store the build date when welcome was last shown, so it shows again on new installs
     @AppStorage("launcherWelcomeSeenForBuild") private var launcherWelcomeSeenForBuild: String = ""
     @State private var pendingLauncherConfig: LauncherGridConfig?
-    
+
     /// Check if welcome should be shown for current build
     private var hasSeenLauncherWelcomeForCurrentBuild: Bool {
         let currentBuild = BuildInfo.current().date
         return launcherWelcomeSeenForBuild == currentBuild
     }
-    
+
     /// Mark welcome as seen for current build
     private func markLauncherWelcomeAsSeen() {
         launcherWelcomeSeenForBuild = BuildInfo.current().date
@@ -229,7 +229,7 @@ struct LiveKeyboardOverlayView: View {
         .onChange(of: selectedLayoutId) { _, _ in
             // Update ViewModel with new layout for correct layer mapping
             viewModel.setLayout(activeLayout)
-            
+
             uiState.keyboardAspectRatio = keyboardAspectRatio
             guard keyboardWidth > 0 else { return }
             let desiredHeight = verticalChrome + (keyboardWidth / keyboardAspectRatio)
@@ -304,8 +304,7 @@ struct LiveKeyboardOverlayView: View {
             // Load the launcher config to pass to welcome dialog
             let collections = await RuleCollectionStore.shared.loadCollections()
             if let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
-               let config = launcherCollection.configuration.launcherGridConfig
-            {
+               let config = launcherCollection.configuration.launcherGridConfig {
                 await MainActor.run {
                     pendingLauncherConfig = config
                     showLauncherWelcomeWindow()

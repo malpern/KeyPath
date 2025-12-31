@@ -4,27 +4,27 @@ import SwiftUI
 struct QMKImportSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var selectedLayoutId: String
-    var onImportComplete: (() -> Void)? = nil
-    
+    var onImportComplete: (() -> Void)?
+
     @State private var importMethod: ImportMethod = .url
     @State private var urlString: String = ""
     @State private var selectedFileURL: URL?
     @State private var selectedVariant: String?
     @State private var layoutName: String = ""
     @State private var keyMappingType: KeyMappingType = .ansi
-    
+
     @State private var availableVariants: [String] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var warningMessage: String?
     @State private var showFilePicker = false
     @State private var fetchedJSONData: Data? // Cache fetched JSON to avoid double fetch
-    
+
     enum ImportMethod {
         case url
         case file
     }
-    
+
     var body: some View {
         VStack(spacing: 20) {
             // Header
@@ -40,9 +40,9 @@ struct QMKImportSheet: View {
             }
             .padding(.horizontal)
             .padding(.top)
-            
+
             Divider()
-            
+
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     // Import method selection
@@ -51,7 +51,7 @@ struct QMKImportSheet: View {
                         Text("From File").tag(ImportMethod.file)
                     }
                     .pickerStyle(.segmented)
-                    
+
                     // URL input
                     if importMethod == .url {
                         VStack(alignment: .leading, spacing: 8) {
@@ -84,7 +84,7 @@ struct QMKImportSheet: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    
+
                     // File picker
                     if importMethod == .file {
                         VStack(alignment: .leading, spacing: 8) {
@@ -114,7 +114,7 @@ struct QMKImportSheet: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    
+
                     // Key mapping type
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Keyboard Type")
@@ -128,7 +128,7 @@ struct QMKImportSheet: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    
+
                     // Layout variant selection (shown after loading)
                     if !availableVariants.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
@@ -146,7 +146,7 @@ struct QMKImportSheet: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    
+
                     // Layout name
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Layout Name")
@@ -158,7 +158,7 @@ struct QMKImportSheet: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    
+
                     // Warning message (non-fatal)
                     if let warning = warningMessage {
                         HStack {
@@ -172,7 +172,7 @@ struct QMKImportSheet: View {
                         .background(Color.orange.opacity(0.1))
                         .cornerRadius(8)
                     }
-                    
+
                     // Error message
                     if let error = errorMessage {
                         HStack {
@@ -186,7 +186,7 @@ struct QMKImportSheet: View {
                         .background(Color.red.opacity(0.1))
                         .cornerRadius(8)
                     }
-                    
+
                     // Import button
                     Button {
                         Task {
@@ -216,7 +216,7 @@ struct QMKImportSheet: View {
             allowsMultipleSelection: false
         ) { result in
             switch result {
-            case .success(let urls):
+            case let .success(urls):
                 selectedFileURL = urls.first
                 // Auto-load variants if file is selected
                 if let fileURL = urls.first {
@@ -224,72 +224,73 @@ struct QMKImportSheet: View {
                         await loadVariants(from: fileURL)
                     }
                 }
-            case .failure(let error):
+            case let .failure(error):
                 errorMessage = "Failed to select file: \(error.localizedDescription)"
             }
         }
     }
-    
+
     private var canImport: Bool {
         if importMethod == .url {
-            return !urlString.isEmpty && URL(string: urlString) != nil && !layoutName.isEmpty
+            !urlString.isEmpty && URL(string: urlString) != nil && !layoutName.isEmpty
         } else {
-            return selectedFileURL != nil && !layoutName.isEmpty
+            selectedFileURL != nil && !layoutName.isEmpty
         }
     }
-    
+
     private func loadVariants(from fileURL: URL) async {
         do {
             let data = try Data(contentsOf: fileURL)
             fetchedJSONData = data // Cache the data
             availableVariants = try QMKImportService.shared.getAvailableVariants(from: data)
-            if !availableVariants.isEmpty && selectedVariant == nil {
+            if !availableVariants.isEmpty, selectedVariant == nil {
                 selectedVariant = availableVariants.first
             }
         } catch {
             errorMessage = "Failed to load layout variants: \(error.localizedDescription)"
         }
     }
-    
+
     private func importLayout() async {
         isLoading = true
         errorMessage = nil
         warningMessage = nil
-        
+
         do {
             let layout: PhysicalLayout
             let jsonData: Data
-            
+
             if importMethod == .url {
                 guard let url = URL(string: urlString) else {
                     throw QMKImportError.invalidURL("Invalid URL format")
                 }
-                
+
                 // Fetch JSON if not already cached
                 if let cached = fetchedJSONData {
                     jsonData = cached
                 } else {
                     let (data, response) = try await URLSession.shared.data(from: url)
-                    
+
                     guard let httpResponse = response as? HTTPURLResponse,
-                          (200...299).contains(httpResponse.statusCode) else {
+                          (200 ... 299).contains(httpResponse.statusCode)
+                    else {
                         throw QMKImportError.networkError("Failed to fetch JSON")
                     }
-                    
+
                     jsonData = data
                     fetchedJSONData = data // Cache for later use
                 }
-                
+
                 // Load variants if not already loaded
                 if availableVariants.isEmpty {
                     availableVariants = try QMKImportService.shared.getAvailableVariants(from: jsonData)
-                    if !availableVariants.isEmpty && selectedVariant == nil {
+                    if !availableVariants.isEmpty, selectedVariant == nil {
                         selectedVariant = availableVariants.first
                     }
                     isLoading = false
                     return // User needs to select variant
                 }
-                
+
                 // Use cached data to avoid second fetch
                 layout = try await QMKImportService.shared.importFromURL(
                     url,
@@ -300,7 +301,7 @@ struct QMKImportSheet: View {
                 guard let fileURL = selectedFileURL else {
                     throw QMKImportError.invalidURL("No file selected")
                 }
-                
+
                 // Load file if not already cached
                 if let cached = fetchedJSONData {
                     jsonData = cached
@@ -308,24 +309,24 @@ struct QMKImportSheet: View {
                     jsonData = try Data(contentsOf: fileURL)
                     fetchedJSONData = jsonData // Cache for later use
                 }
-                
+
                 // Load variants if not already loaded
                 if availableVariants.isEmpty {
                     availableVariants = try QMKImportService.shared.getAvailableVariants(from: jsonData)
-                    if !availableVariants.isEmpty && selectedVariant == nil {
+                    if !availableVariants.isEmpty, selectedVariant == nil {
                         selectedVariant = availableVariants.first
                     }
                     isLoading = false
                     return // User needs to select variant
                 }
-                
+
                 layout = try await QMKImportService.shared.importFromFile(
                     fileURL,
                     layoutVariant: selectedVariant,
                     keyMappingType: keyMappingType
                 )
             }
-            
+
             // Save the layout
             await QMKImportService.shared.saveCustomLayout(
                 layout: layout,
@@ -334,16 +335,16 @@ struct QMKImportSheet: View {
                 layoutJSON: jsonData,
                 layoutVariant: selectedVariant
             )
-            
+
             // Select the imported layout
             selectedLayoutId = layout.id
-            
+
             // Notify completion handler
             onImportComplete?()
-            
+
             // Dismiss sheet
             dismiss()
-            
+
         } catch {
             errorMessage = error.localizedDescription
             isLoading = false

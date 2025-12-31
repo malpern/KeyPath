@@ -156,7 +156,7 @@ struct OverlayLaunchersSection: View {
                         // Play the native macOS "poof" animation at the delete location
                         NSAnimationEffect.disappearingItemDefault.show(
                             centeredAt: screenPoint,
-                            size: .zero  // Use default size
+                            size: .zero // Use default size
                         )
                         // Then delete with a quick fade
                         withAnimation(.easeOut(duration: 0.1)) {

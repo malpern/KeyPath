@@ -126,8 +126,7 @@ public actor AnthropicConfigRepairService: ConfigRepairService {
         // Extract and log usage for cost tracking
         if let usage = jsonResponse["usage"] as? [String: Any],
            let inputTokens = usage["input_tokens"] as? Int,
-           let outputTokens = usage["output_tokens"] as? Int
-        {
+           let outputTokens = usage["output_tokens"] as? Int {
             await AICostTracker.shared.trackUsage(
                 inputTokens: inputTokens,
                 outputTokens: outputTokens,

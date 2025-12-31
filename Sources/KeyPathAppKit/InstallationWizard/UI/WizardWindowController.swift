@@ -33,22 +33,19 @@ final class WizardWindowController {
 
         let wizardView = InstallationWizardView(initialPage: initialPage)
 
-        let hostingView: NSHostingView<AnyView>
-        if let viewModel = kanataViewModel {
-            hostingView = NSHostingView(rootView:
+        let hostingView: NSHostingView<AnyView> = if let viewModel = kanataViewModel {
+            NSHostingView(rootView:
                 AnyView(
                     wizardView
                         .environmentObject(viewModel)
                         .frame(minWidth: 700, minHeight: 500)
-                )
-            )
+                ))
         } else {
-            hostingView = NSHostingView(rootView:
+            NSHostingView(rootView:
                 AnyView(
                     wizardView
                         .frame(minWidth: 700, minHeight: 500)
-                )
-            )
+                ))
         }
 
         let window = NSWindow(
@@ -112,7 +109,7 @@ private class WizardWindowDelegate: NSObject, NSWindowDelegate {
         self.controller = controller
     }
 
-    func windowWillClose(_ notification: Notification) {
+    func windowWillClose(_: Notification) {
         Task { @MainActor in
             controller?.handleWindowClosed()
         }

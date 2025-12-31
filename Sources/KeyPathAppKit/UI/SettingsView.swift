@@ -982,8 +982,7 @@ struct StatusSettingsTabView: View {
         // If services look “starting” (daemons loaded/healthy but kanata not yet running), retry once shortly.
         if !context.services.kanataRunning,
            context.components.launchDaemonServicesHealthy || context.services.karabinerDaemonRunning,
-           refreshRetryScheduled == false
-        {
+           refreshRetryScheduled == false {
             refreshRetryScheduled = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 Task {

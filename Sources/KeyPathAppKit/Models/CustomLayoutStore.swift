@@ -4,18 +4,19 @@ import KeyPathCore
 /// Storage model for custom imported keyboard layouts
 struct CustomLayoutStore: Codable {
     var layouts: [StoredLayout]
-    
+
     static let userDefaultsKey = "customKeyboardLayouts"
-    
+
     /// Load custom layouts from UserDefaults
     static func load() -> CustomLayoutStore {
         guard let data = UserDefaults.standard.data(forKey: userDefaultsKey),
-              let store = try? JSONDecoder().decode(CustomLayoutStore.self, from: data) else {
+              let store = try? JSONDecoder().decode(CustomLayoutStore.self, from: data)
+        else {
             return CustomLayoutStore(layouts: [])
         }
         return store
     }
-    
+
     /// Save custom layouts to UserDefaults
     func save() {
         guard let data = try? JSONEncoder().encode(self) else {
@@ -34,7 +35,7 @@ struct StoredLayout: Codable, Identifiable {
     let layoutJSON: Data // Raw QMK JSON for re-parsing
     let importDate: Date
     let layoutVariant: String? // Selected layout variant (e.g., "ansi", "iso")
-    
+
     init(id: String = UUID().uuidString,
          name: String,
          sourceURL: String? = nil,

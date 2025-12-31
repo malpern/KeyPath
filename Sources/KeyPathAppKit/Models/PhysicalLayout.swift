@@ -6,7 +6,7 @@ import Foundation
 enum LayoutPreferences {
     /// Key for storing the selected physical keyboard layout ID
     static let layoutIdKey = "overlayLayoutId"
-    
+
     /// Default layout ID when none is set
     static let defaultLayoutId = "macbook-us"
 }
@@ -19,9 +19,9 @@ enum LayoutCategory: String, CaseIterable, Identifiable {
     case international = "International"
     case ergonomic = "Ergonomic / Split"
     case custom = "Custom"
-    
+
     var id: String { rawValue }
-    
+
     var displayName: String { rawValue }
 }
 
@@ -127,7 +127,7 @@ struct PhysicalLayout: Identifiable {
     }
 
     // MARK: - Layout Registry
-    
+
     /// US Standard layouts (ANSI-based)
     static let usLayouts: [PhysicalLayout] = [
         macBookUS,
@@ -139,7 +139,7 @@ struct PhysicalLayout: Identifiable {
         ansi40Percent,
         hhkb
     ]
-    
+
     /// International layouts (ISO, JIS, ABNT2, Korean)
     static let internationalLayouts: [PhysicalLayout] = [
         macBookISO,
@@ -147,7 +147,7 @@ struct PhysicalLayout: Identifiable {
         macBookABNT2,
         macBookKorean
     ]
-    
+
     /// Ergonomic and split keyboards
     static let ergonomicLayouts: [PhysicalLayout] = [
         kinesisAdvantage360,
@@ -156,50 +156,48 @@ struct PhysicalLayout: Identifiable {
         ferrisSweep,
         cornix
     ]
-    
+
     // MARK: - Custom Layouts Cache
-    
+
     /// Cache for custom layouts to avoid blocking UI thread
     /// Thread-safe using a lock for concurrent access
     private static let cacheLock = NSLock()
-    nonisolated(unsafe) private static var _cachedCustomLayouts: [PhysicalLayout]?
-    nonisolated(unsafe) private static var _cacheTimestamp: Date?
+    private nonisolated(unsafe) static var _cachedCustomLayouts: [PhysicalLayout]?
+    private nonisolated(unsafe) static var _cacheTimestamp: Date?
     private static let cacheTTL: TimeInterval = 5.0 // 5 second cache TTL
-    
+
     /// Custom imported layouts (loaded from UserDefaults)
     /// Note: Uses caching to avoid blocking UI thread. Call `invalidateCustomLayoutCache()` after importing.
     static var customLayouts: [PhysicalLayout] {
         cacheLock.lock()
         defer { cacheLock.unlock() }
-        
+
         // Check cache freshness
         if let cached = _cachedCustomLayouts,
            let timestamp = _cacheTimestamp,
            Date().timeIntervalSince(timestamp) < cacheTTL {
             return cached
         }
-        
+
         // Load custom layouts synchronously from storage
         let store = CustomLayoutStore.load()
-        
+
         let layouts: [PhysicalLayout] = store.layouts.compactMap { storedLayout -> PhysicalLayout? in
             // Determine keycode mapping type from variant
-            let keyMappingType: KeyMappingType
-            if let variant = storedLayout.layoutVariant?.lowercased(), variant.contains("iso") {
-                keyMappingType = .iso
+            let keyMappingType: KeyMappingType = if let variant = storedLayout.layoutVariant?.lowercased(), variant.contains("iso") {
+                .iso
             } else {
-                keyMappingType = .ansi
+                .ansi
             }
-            
+
             // Choose keycode mapping function
-            let keyMapping: (Int, Int) -> (keyCode: UInt16, label: String)?
-            switch keyMappingType {
+            let keyMapping: (Int, Int) -> (keyCode: UInt16, label: String)? = switch keyMappingType {
             case .ansi:
-                keyMapping = ANSIPositionTable.keyMapping(row:col:)
+                ANSIPositionTable.keyMapping(row:col:)
             case .iso:
-                keyMapping = ISOPositionTable.keyMapping(row:col:)
+                ISOPositionTable.keyMapping(row:col:)
             }
-            
+
             // Re-parse the layout from stored JSON
             guard let layout = QMKLayoutParser.parse(
                 data: storedLayout.layoutJSON,
@@ -209,17 +207,17 @@ struct PhysicalLayout: Identifiable {
             ) else {
                 return nil
             }
-            
+
             return layout
         }
-        
+
         // Update cache
         _cachedCustomLayouts = layouts
         _cacheTimestamp = Date()
-        
+
         return layouts
     }
-    
+
     /// Invalidate the custom layouts cache (call after importing/deleting layouts)
     static func invalidateCustomLayoutCache() {
         cacheLock.lock()
@@ -227,13 +225,13 @@ struct PhysicalLayout: Identifiable {
         _cachedCustomLayouts = nil
         _cacheTimestamp = nil
     }
-    
+
     /// Registry of all known layouts (US first, then International, then Ergonomic, then Custom)
     // swiftformat:disable:next redundantSelf
     static var all: [PhysicalLayout] {
         usLayouts + internationalLayouts + ergonomicLayouts + customLayouts
     }
-    
+
     /// Get layouts grouped by category for UI display
     /// Order: US Standard (no header), Ergonomic, International, Custom
     static func layoutsByCategory() -> [(category: LayoutCategory, layouts: [PhysicalLayout])] {

@@ -26,7 +26,7 @@ struct LogicalKeymap: Identifiable {
     static let defaultId = "qwerty-us"
 
     // MARK: - Layout Registry
-    
+
     /// All available logical keymaps, grouped by category
     static let all: [LogicalKeymap] = [
         // Standard layouts

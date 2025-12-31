@@ -43,10 +43,10 @@ actor QMKKeyboardDatabase {
                 // Extract directory name from path (last component)
                 let directoryName = bundled.path.split(separator: "/").last.map(String.init) ?? bundled.path
                 let infoJsonURL = URL(string: "\(rawBaseURL)/\(bundled.path)/info.json")!
-                
+
                 // Use display_name from bundle if available, otherwise derive from info
                 let displayName = bundled.display_name ?? bundled.info.name
-                
+
                 return KeyboardMetadata(
                     id: directoryName,
                     name: displayName,
@@ -108,7 +108,7 @@ actor QMKKeyboardDatabase {
         // Limit to first 100 keyboards for initial load (can expand later)
         let maxKeyboards = min(keyboardDirs.count, 100)
         AppLogger.shared.info("📦 [QMKDatabase] Processing first \(maxKeyboards) of \(keyboardDirs.count) keyboards")
-        
+
         var keyboards: [KeyboardMetadata] = []
 
         // Process in batches to limit concurrent requests
@@ -129,7 +129,7 @@ actor QMKKeyboardDatabase {
                     }
                 }
             }
-            
+
             // Log progress
             AppLogger.shared.info("📊 [QMKDatabase] Progress: \(keyboards.count)/\(maxKeyboards) keyboards loaded")
         }
@@ -180,13 +180,12 @@ actor QMKKeyboardDatabase {
     func getKeyboardList() async throws -> [KeyboardMetadata] {
         // Always start with bundled keyboards (instant)
         var keyboards = loadBundledKeyboards()
-        let bundledIds = Set(keyboards.map { $0.id })
+        let bundledIds = Set(keyboards.map(\.id))
 
         // Check cache for additional keyboards
         if let cached = cachedKeyboardList,
            let timestamp = cacheTimestamp,
-           Date().timeIntervalSince(timestamp) < cacheTTL
-        {
+           Date().timeIntervalSince(timestamp) < cacheTTL {
             // Add network keyboards that aren't in bundle
             let additional = cached.filter { !bundledIds.contains($0.id) }
             keyboards.append(contentsOf: additional)
@@ -197,11 +196,11 @@ actor QMKKeyboardDatabase {
         // Refresh from network (adds to bundled list)
         AppLogger.shared.info("🔄 [QMKDatabase] Cache expired, refreshing from network...")
         let networkKeyboards = try await refreshKeyboardList()
-        
+
         // Combine: bundled + network (deduplicated by ID)
         let additionalNetwork = networkKeyboards.filter { !bundledIds.contains($0.id) }
         keyboards.append(contentsOf: additionalNetwork)
-        
+
         AppLogger.shared.info("✅ [QMKDatabase] Total: \(keyboards.count) keyboards (\(bundledIds.count) bundled + \(additionalNetwork.count) network)")
         return keyboards
     }
@@ -213,7 +212,7 @@ actor QMKKeyboardDatabase {
     func searchKeyboards(_ query: String) async throws -> [KeyboardMetadata] {
         AppLogger.shared.info("🔍 [QMKDatabase] searchKeyboards called with query: '\(query)'")
         let allKeyboards = try await getKeyboardList()
-        let bundledIds = Set(loadBundledKeyboards().map { $0.id })
+        let bundledIds = Set(loadBundledKeyboards().map(\.id))
         AppLogger.shared.info("📦 [QMKDatabase] Got \(allKeyboards.count) keyboards (\(bundledIds.count) bundled)")
 
         guard !query.isEmpty else {
@@ -231,7 +230,7 @@ actor QMKKeyboardDatabase {
                 keyboard.manufacturer?.lowercased().contains(lowerQuery) == true ||
                 keyboard.tags.contains { $0.lowercased().contains(lowerQuery) }
         }
-        
+
         // Prioritize bundled keyboards
         let bundledMatches = matching.filter { bundledIds.contains($0.id) }
         let otherMatches = matching.filter { !bundledIds.contains($0.id) }

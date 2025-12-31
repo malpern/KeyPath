@@ -159,7 +159,7 @@ struct WizardKanataMigrationPage: View {
                                     Text("Migration completed successfully")
                                         .font(.body)
                                         .fontWeight(.semibold)
-                                    if let backup = backup {
+                                    if let backup {
                                         Text("Backup created: \(WizardSystemPaths.displayPath(for: backup))")
                                             .font(.caption)
                                             .foregroundColor(.secondary)

@@ -571,7 +571,7 @@ struct OverlayKeycapView: View {
     private var layerModeContent: some View {
         // Arrow keys don't need top-left label (would just duplicate the arrow)
         let isArrowKey = key.layoutRole == .arrow
-        
+
         if hasLayerMapping {
             // Mapped key: action in center, key letter in top-left (except arrows)
             ZStack(alignment: .topLeading) {
