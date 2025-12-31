@@ -1752,6 +1752,15 @@ a.button:active {
     transform: translateX(-50%) translateY(-4px);
 }
 
+/* Complex tooltip with bullet list */
+.complex-tooltip::after {
+    content: "Kanata supports:\A\A› tap-hold\A› tap-dance\A› one-shot modifiers\A› sticky keys\A› macros & sequences\A› chords & layers";
+    white-space: pre-line;
+    text-align: left;
+    min-width: 200px;
+    line-height: 1.6;
+}
+
 /* Rules list */
 .rules-list {
     display: flex;

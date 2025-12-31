@@ -231,7 +231,7 @@ content_class: content-full kanata-landing
 
   <section class="kanata-landing-section">
     <h2>Build your own rules</h2>
-    <p class="kanata-landing-subtitle">Create <span class="term-tooltip" data-tooltip="A→B: Simple key swaps like CapsLock→Escape. One key becomes another.">simple</span> or <span class="term-tooltip" data-tooltip="Kanata supports: tap-hold (different actions for tap vs hold), tap-dance (different actions based on tap count), one-shot modifiers, sticky keys, macros, sequences, chords, layers, and more.">complex</span> mappings — or use pre-built rules</p>
+    <p class="kanata-landing-subtitle">Create <span class="term-tooltip" data-tooltip="A→B: Simple key swaps like CapsLock→Escape. One key becomes another.">simple</span> or <span class="term-tooltip complex-tooltip">complex</span> mappings — or use pre-built rules</p>
 
     <div class="rules-section">
       <div class="rules-content">
