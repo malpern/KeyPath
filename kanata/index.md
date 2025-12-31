@@ -1542,6 +1542,167 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
         <h3>Live Reload</h3>
         <p>Edit your config, see changes instantly. No restart required. Iterate at the speed of thought.</p>
       </div>
+
+      <!-- KeyPath-specific features -->
+
+      <!-- Launch Apps -->
+      <div class="geo-card" data-feature="launch-app" data-geo>
+        <svg viewBox="0 0 280 160">
+          <!-- Keyboard key -->
+          <rect class="geo-key" x="30" y="55" width="50" height="50" rx="8"/>
+          <text class="geo-key-label" x="55" y="80">O</text>
+          <!-- Arrow -->
+          <path class="geo-arrow" d="M90 80 L130 80 L125 75 M130 80 L125 85"/>
+          <!-- App grid -->
+          <g class="geo-app-icon" transform="translate(150, 55)">
+            <rect x="0" y="0" width="22" height="22" rx="5" fill="#007AFF"/>
+            <rect x="26" y="0" width="22" height="22" rx="5" fill="#34C759"/>
+            <rect x="52" y="0" width="22" height="22" rx="5" fill="#FF9500"/>
+            <rect x="0" y="26" width="22" height="22" rx="5" fill="#AF52DE"/>
+            <rect x="26" y="26" width="22" height="22" rx="5" fill="#FF3B30"/>
+            <rect x="52" y="26" width="22" height="22" rx="5" fill="#5856D6"/>
+          </g>
+        </svg>
+        <h3>Launch Apps</h3>
+        <p>Open any app with a keystroke. No dock, no Spotlight. Instant access to your tools.</p>
+      </div>
+
+      <!-- Open URLs -->
+      <div class="geo-card" data-feature="open-url" data-geo>
+        <svg viewBox="0 0 280 160">
+          <!-- Keyboard key -->
+          <rect class="geo-key" x="30" y="55" width="50" height="50" rx="8"/>
+          <text class="geo-key-label" x="55" y="80">G</text>
+          <!-- Arrow -->
+          <path class="geo-arrow" d="M90 80 L130 80 L125 75 M130 80 L125 85"/>
+          <!-- Globe/browser icon -->
+          <g class="geo-app-icon" transform="translate(165, 55)">
+            <circle cx="25" cy="25" r="24" fill="none" stroke="#0071E3" stroke-width="2.5"/>
+            <ellipse cx="25" cy="25" rx="10" ry="24" fill="none" stroke="#0071E3" stroke-width="2"/>
+            <line x1="1" y1="25" x2="49" y2="25" stroke="#0071E3" stroke-width="2"/>
+            <path d="M5 15 Q25 12 45 15" fill="none" stroke="#0071E3" stroke-width="1.5"/>
+            <path d="M5 35 Q25 38 45 35" fill="none" stroke="#0071E3" stroke-width="1.5"/>
+          </g>
+        </svg>
+        <h3>Open URLs</h3>
+        <p>Launch websites directly from your keyboard. GitHub, docs, dashboards—one key away.</p>
+      </div>
+
+      <!-- Window Snapping -->
+      <div class="geo-card" data-feature="window-snap" data-geo>
+        <svg viewBox="0 0 280 160">
+          <!-- Monitor outline -->
+          <rect x="40" y="25" width="200" height="110" rx="8" fill="none" stroke="#D2D2D7" stroke-width="2"/>
+          <!-- Window positions -->
+          <rect class="geo-window geo-window-left" x="45" y="30" width="95" height="100" rx="4" fill="#0071E3" opacity="0.15"/>
+          <rect class="geo-window geo-window-right" x="145" y="30" width="90" height="100" rx="4" fill="#0071E3" opacity="0"/>
+          <!-- Arrows showing movement -->
+          <g class="geo-snap-arrows">
+            <path d="M140 80 L100 80" stroke="#0071E3" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.6"/>
+            <path d="M100 80 L108 74 M100 80 L108 86" stroke="#0071E3" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.6"/>
+          </g>
+          <!-- Key hints -->
+          <text class="geo-key-label" x="92" y="85" font-size="16" fill="#0071E3">H</text>
+          <text class="geo-key-label" x="188" y="85" font-size="16" fill="#86868B">L</text>
+        </svg>
+        <h3>Window Snapping</h3>
+        <p>Snap windows to halves, quarters, or maximize. Tile your workspace without touching the mouse.</p>
+      </div>
+
+      <!-- Multi-Display -->
+      <div class="geo-card" data-feature="multi-display" data-geo>
+        <svg viewBox="0 0 280 160">
+          <!-- Left monitor -->
+          <rect x="20" y="40" width="100" height="70" rx="6" fill="none" stroke="#D2D2D7" stroke-width="2"/>
+          <rect x="60" y="110" width="20" height="8" fill="#D2D2D7"/>
+          <!-- Right monitor -->
+          <rect x="160" y="40" width="100" height="70" rx="6" fill="none" stroke="#D2D2D7" stroke-width="2"/>
+          <rect x="200" y="110" width="20" height="8" fill="#D2D2D7"/>
+          <!-- Window moving between displays -->
+          <rect class="geo-moving-window" x="35" y="50" width="40" height="30" rx="3" fill="#0071E3" opacity="0.8"/>
+          <!-- Arrow -->
+          <path class="geo-arrow" d="M125 75 L155 75 L150 70 M155 75 L150 80" stroke-width="2.5"/>
+          <!-- Key hint -->
+          <text class="geo-key-label" x="140" y="130" font-size="12" fill="#86868B">] next display</text>
+        </svg>
+        <h3>Multi-Display</h3>
+        <p>Move windows between monitors instantly. Navigate your multi-display setup from the keyboard.</p>
+      </div>
+
+      <!-- Spaces -->
+      <div class="geo-card" data-feature="spaces" data-geo>
+        <svg viewBox="0 0 280 160">
+          <!-- Space indicators -->
+          <g transform="translate(40, 60)">
+            <rect x="0" y="0" width="50" height="40" rx="4" fill="#E8E8ED" stroke="#D2D2D7" stroke-width="1"/>
+            <text class="geo-key-label" x="25" y="25" font-size="10" fill="#86868B">1</text>
+          </g>
+          <g transform="translate(60, 50)">
+            <rect x="0" y="0" width="50" height="40" rx="4" fill="#0071E3" stroke="#0077ED" stroke-width="2"/>
+            <text class="geo-key-label" x="25" y="25" font-size="10" fill="#FFF">2</text>
+          </g>
+          <g transform="translate(80, 60)">
+            <rect x="0" y="0" width="50" height="40" rx="4" fill="#E8E8ED" stroke="#D2D2D7" stroke-width="1"/>
+            <text class="geo-key-label" x="25" y="25" font-size="10" fill="#86868B">3</text>
+          </g>
+          <!-- Arrow showing window moving -->
+          <path class="geo-arrow" d="M160 70 L200 70 L195 65 M200 70 L195 75"/>
+          <!-- Window -->
+          <rect class="geo-space-window" x="210" y="50" width="40" height="30" rx="3" fill="#0071E3" opacity="0.8"/>
+          <!-- Key hint -->
+          <text class="geo-key-label" x="140" y="130" font-size="12" fill="#86868B">S → next Space</text>
+        </svg>
+        <h3>Spaces</h3>
+        <p>Move windows between macOS Spaces. Organize your virtual desktops without Mission Control.</p>
+      </div>
+
+      <!-- Notifications -->
+      <div class="geo-card" data-feature="notify" data-geo>
+        <svg viewBox="0 0 280 160">
+          <!-- Notification banner -->
+          <g class="geo-notification">
+            <rect x="60" y="35" width="160" height="60" rx="12" fill="#FFFFFF" stroke="#E8E8ED" stroke-width="1"/>
+            <!-- App icon -->
+            <rect x="75" y="50" width="30" height="30" rx="7" fill="#0071E3"/>
+            <text x="90" y="70" font-size="14" fill="#FFF" text-anchor="middle" dominant-baseline="central">⌨</text>
+            <!-- Text -->
+            <text x="115" y="58" font-size="11" font-weight="600" fill="#1D1D1F">Layer Changed</text>
+            <text x="115" y="75" font-size="10" fill="#86868B">Navigation mode active</text>
+          </g>
+          <!-- Bell icon hint -->
+          <g transform="translate(130, 105)">
+            <path d="M10 0 L10 3 M10 17 L10 20 M3 10 L0 10 M17 10 L20 10" stroke="#0071E3" stroke-width="1.5" stroke-linecap="round"/>
+            <circle cx="10" cy="10" r="6" fill="none" stroke="#0071E3" stroke-width="1.5"/>
+          </g>
+        </svg>
+        <h3>Notifications</h3>
+        <p>Get visual feedback for layer changes, actions, and events. Stay informed without breaking flow.</p>
+      </div>
+
+      <!-- Deep Linking -->
+      <div class="geo-card" data-feature="deep-link" data-geo>
+        <svg viewBox="0 0 280 160">
+          <!-- External app icons -->
+          <g class="geo-external-apps">
+            <!-- Raycast-style icon -->
+            <rect x="40" y="50" width="40" height="40" rx="8" fill="#FF6363"/>
+            <path d="M50 70 L70 70 M60 60 L60 80" stroke="#FFF" stroke-width="3" stroke-linecap="round"/>
+            <!-- Alfred-style icon -->
+            <rect x="95" y="50" width="40" height="40" rx="8" fill="#5C1F87"/>
+            <circle cx="115" cy="70" r="10" fill="#FFF"/>
+            <!-- Terminal -->
+            <rect x="150" y="50" width="40" height="40" rx="8" fill="#1D1D1F"/>
+            <text x="170" y="75" font-size="16" fill="#34C759" text-anchor="middle">$_</text>
+          </g>
+          <!-- Arrows pointing to KeyPath -->
+          <path class="geo-arrow" d="M60 95 L100 115 M115 95 L115 115 M170 95 L130 115"/>
+          <!-- KeyPath icon -->
+          <rect x="100" y="115" width="30" height="30" rx="6" fill="#0071E3"/>
+          <text x="115" y="135" font-size="12" fill="#FFF" text-anchor="middle">K</text>
+        </svg>
+        <h3>Deep Linking</h3>
+        <p>Trigger KeyPath from Raycast, Alfred, or Terminal. Integrate with your favorite tools.</p>
+      </div>
     </div>
   </section>
 
