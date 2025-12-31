@@ -27,13 +27,12 @@ content_class: content-full kanata-landing
 
         <div class="kanata-landing-actions">
           <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases/download/v1.0.0/KeyPath-1.0.0.zip">Download</a>
-          <a class="button button-secondary" href="https://github.com/malpern/KeyPath/releases/tag/v1.0.0">Release notes</a>
+
+          <div class="kanata-landing-secondary-cta">
+            <a class="button button-secondary" href="{{ '/migration/kanata-users' | relative_url }}">Existing Kanata users</a>
+            <div class="kanata-landing-secondary-note">Use your existing <code>config.kbd</code>.</div>
+          </div>
         </div>
-
-        <p class="kanata-landing-fineprint mb-0" style="margin-top: 14px;">
-          <a href="{{ '/migration/kanata-users' | relative_url }}">Easily use an existing config.kbd</a>
-        </p>
-
         <p class="kanata-landing-fineprint mb-0" style="margin-top: 12px;">
           BYOC-friendly. KeyPath runs your config; it doesn’t parse or “import” it into a UI.
         </p>

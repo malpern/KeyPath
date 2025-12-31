@@ -1133,3 +1133,22 @@ a.button:active {
     border: 1px solid var(--color-border);
     box-shadow: var(--shadow-lg);
 }
+
+
+/* Kanata landing: secondary CTA stacked label */
+.kanata-landing-secondary-cta {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.kanata-landing-secondary-note {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-tertiary);
+    line-height: 1.35;
+}
+
+.kanata-landing-secondary-note code {
+    font-size: 0.95em;
+}
