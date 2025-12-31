@@ -540,6 +540,226 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
     </div>
   </section>
 
+  <!-- Timeline Visualization Section -->
+  <section class="kanata-timeline-section">
+    <div class="timeline-header">
+      <h2>How it works</h2>
+      <p class="subtitle">Kanata transforms simple keypresses into powerful actions. Here's the timing.</p>
+    </div>
+
+    <div class="kanata-grid">
+      <!-- 1. Chords -->
+      <div class="kanata-card" data-viz="chord">
+        <div class="card-text">
+          <h3>Chords</h3>
+          <p>Press multiple keys simultaneously</p>
+        </div>
+        <div class="kanata-viz">
+          <div class="track">
+            <div class="block block--blue block--chord-1">J</div>
+            <div class="block block--purple block--chord-2">K</div>
+            <div class="block block--green chord-result">Escape</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Layers -->
+      <div class="kanata-card" data-viz="layers">
+        <div class="card-text">
+          <h3>Layers</h3>
+          <p>Switch between different key layouts</p>
+        </div>
+        <div class="kanata-viz">
+          <div class="multi-track">
+            <div class="track-row layer-0">
+              <span class="track-label">Base</span>
+              <div class="track">
+                <div class="block block--orange block--switch">NAV</div>
+              </div>
+            </div>
+            <div class="track-row layer-1">
+              <span class="track-label">Nav</span>
+              <div class="track">
+                <div class="block block--blue nav-key nav-1">←</div>
+                <div class="block block--blue nav-key nav-2">↓</div>
+                <div class="block block--blue nav-key nav-3">→</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Tap-Hold -->
+      <div class="kanata-card" data-viz="tap-hold">
+        <div class="card-text">
+          <h3>Tap-Hold</h3>
+          <p>Tap for one key, hold for another</p>
+        </div>
+        <div class="kanata-viz">
+          <div class="track" style="margin-bottom: 12px;">
+            <div class="block block--blue tap-block">Esc</div>
+            <div class="threshold-line"><span>200ms</span></div>
+          </div>
+          <div class="track">
+            <div class="block block--hold hold-block">Hyper</div>
+            <div class="threshold-line"><span>200ms</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Tap-Dance -->
+      <div class="kanata-card" data-viz="tap-dance">
+        <div class="card-text">
+          <h3>Tap-Dance</h3>
+          <p>Different actions based on tap count</p>
+        </div>
+        <div class="kanata-viz">
+          <div class="track">
+            <span class="count-badge badge-1">×1</span>
+            <span class="count-badge badge-2">×2</span>
+            <span class="count-badge badge-3">×3</span>
+            <div class="block block--blue tap-1">Q</div>
+            <div class="block block--blue tap-2">Q</div>
+            <div class="block block--blue tap-3">Q</div>
+            <div class="block block--green result-block">Quit App</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Leader Keys -->
+      <div class="kanata-card" data-viz="leader">
+        <div class="card-text">
+          <h3>Leader Keys</h3>
+          <p>Press leader, then a sequence</p>
+        </div>
+        <div class="kanata-viz">
+          <div class="track">
+            <div class="block block--orange leader-block">SPC</div>
+            <span class="arrow arrow-1">→</span>
+            <div class="block block--blue seq-1">G</div>
+            <div class="block block--blue seq-2">S</div>
+            <div class="block block--green result-out">Git Status</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. Sequences -->
+      <div class="kanata-card" data-viz="sequence">
+        <div class="card-text">
+          <h3>Sequences</h3>
+          <p>Keys in order trigger an action</p>
+        </div>
+        <div class="kanata-viz">
+          <div class="track">
+            <div class="block block--blue seq-a">D</div>
+            <div class="block block--blue seq-b">D</div>
+            <div class="block block--blue seq-c">S</div>
+            <div class="block block--green seq-result">Save All</div>
+            <div class="timing-bracket"><span>&lt;500ms</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7. One-Shot Modifiers -->
+      <div class="kanata-card" data-viz="oneshot">
+        <div class="card-text">
+          <h3>One-Shot</h3>
+          <p>Modifier applies to next key only</p>
+        </div>
+        <div class="kanata-viz">
+          <div class="track">
+            <div class="block block--orange osm-block">⇧ 1×</div>
+            <span class="arrow osm-arrow">→</span>
+            <div class="block block--blue osm-target">a</div>
+            <span class="osm-result">A</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 8. Sticky Keys -->
+      <div class="kanata-card" data-viz="sticky">
+        <div class="card-text">
+          <h3>Sticky Keys</h3>
+          <p>Toggle modifiers on/off</p>
+        </div>
+        <div class="kanata-viz">
+          <div class="track">
+            <div class="block block--orange sticky-mod">⇧</div>
+            <div class="block block--blue sticky-a">A</div>
+            <div class="block block--blue sticky-b">B</div>
+            <div class="block block--blue sticky-c">C</div>
+            <span class="sticky-result">→ ABC</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 9. Macros -->
+      <div class="kanata-card" data-viz="macro">
+        <div class="card-text">
+          <h3>Macros</h3>
+          <p>Multiple keystrokes from one trigger</p>
+        </div>
+        <div class="kanata-viz">
+          <div class="track">
+            <div class="block block--purple macro-trigger">SAVE</div>
+            <span class="macro-arrow">→</span>
+            <div class="block block--blue macro-out-1">⌘</div>
+            <div class="block block--blue macro-out-2">S</div>
+            <div class="block block--blue macro-out-3">⌘</div>
+            <div class="block block--blue macro-out-4">W</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 10. Caps-Word -->
+      <div class="kanata-card" data-viz="capsword">
+        <div class="card-text">
+          <h3>Caps-Word</h3>
+          <p>Auto-caps until space or punctuation</p>
+        </div>
+        <div class="kanata-viz">
+          <div class="track">
+            <div class="block block--orange cw-trigger">CAPS</div>
+            <div class="block block--green cw-h">H</div>
+            <div class="block block--green cw-e">E</div>
+            <div class="block block--green cw-l">L</div>
+            <div class="block block--green cw-l2">L</div>
+            <div class="block block--green cw-o">O</div>
+            <div class="block block--white cw-space">␣</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 11. Fork/Switch -->
+      <div class="kanata-card" data-viz="fork">
+        <div class="card-text">
+          <h3>Fork / Switch</h3>
+          <p>Conditional actions based on other keys</p>
+        </div>
+        <div class="kanata-viz">
+          <div class="multi-track">
+            <div class="track-row">
+              <span class="track-label">+ Shift</span>
+              <div class="track">
+                <div class="block block--blue fork-input">X</div>
+                <div class="block block--purple fork-check">Shift?</div>
+                <div class="block block--green fork-yes">CUT</div>
+              </div>
+            </div>
+            <div class="track-row">
+              <span class="track-label">No Shift</span>
+              <div class="track">
+                <div class="block block--blue fork-input">X</div>
+                <div class="block block--purple fork-check">Shift?</div>
+                <div class="block block--white fork-no">x</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <div class="kanata-landing-divider" aria-hidden="true"></div>
 
   <section class="kanata-landing-section">

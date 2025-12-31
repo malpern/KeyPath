@@ -1939,3 +1939,360 @@ a.button:active {
 .inspiration-link:hover svg {
     transform: translateX(2px) translateY(-2px);
 }
+
+/* --- Kanata Timeline Visualization Section --- */
+
+.kanata-timeline-section {
+    padding: 4rem 0;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.timeline-header {
+    text-align: center;
+    margin-bottom: 48px;
+}
+
+.timeline-header h2 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    color: #fff;
+}
+
+.timeline-header .subtitle {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 1.1rem;
+}
+
+.kanata-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    padding: 0 20px;
+}
+
+@media (max-width: 768px) {
+    .kanata-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Card Styling */
+.kanata-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    transition: border-color 0.3s ease;
+    overflow: hidden;
+}
+
+.kanata-card:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.card-text h3 {
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+    font-weight: 600;
+    font-size: 18px;
+    color: #fff;
+    margin: 0 0 4px 0;
+}
+
+.card-text p {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.6);
+    margin: 0;
+}
+
+/* Visualization Base */
+.kanata-viz {
+    width: 100%;
+    position: relative;
+    padding: 10px 0;
+}
+
+.track {
+    height: 48px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    position: relative;
+    width: 100%;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.kanata-card.in-view .track {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Block Base Styling */
+.block {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%) scale(0);
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 500;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    min-width: 32px;
+    padding: 0 8px;
+    box-sizing: border-box;
+    transform-origin: center left;
+}
+
+.block--blue { background: var(--color-primary); }
+.block--purple { background: #5856D6; }
+.block--green { background: #34C759; }
+.block--orange { background: #FF9500; color: #000; }
+.block--white { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); }
+.block--hold { background: rgba(0, 122, 255, 0.6); }
+
+/* Animation Keyframes */
+@keyframes popIn {
+    0% { transform: translateY(-50%) scale(0); opacity: 0; }
+    60% { transform: translateY(-50%) scale(1.1); opacity: 1; }
+    100% { transform: translateY(-50%) scale(1); opacity: 1; }
+}
+
+@keyframes stretch {
+    0% { width: 0; opacity: 0; transform: translateY(-50%); }
+    100% { width: var(--target-width); opacity: 1; transform: translateY(-50%); }
+}
+
+@keyframes fadeOut {
+    to { opacity: 0.3; filter: grayscale(100%); }
+}
+
+@keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 149, 0, 0); }
+    50% { box-shadow: 0 0 0 6px rgba(255, 149, 0, 0.3); }
+}
+
+@keyframes trackGlow {
+    0%, 100% { background: rgba(255, 255, 255, 0.06); }
+    50% { background: rgba(0, 122, 255, 0.15); }
+}
+
+/* 1. Chord */
+.kanata-card[data-viz="chord"] .block--chord-1 {
+    left: 10%; width: 40px; z-index: 2; margin-top: -10px;
+}
+.kanata-card[data-viz="chord"] .block--chord-2 {
+    left: 10%; width: 40px; z-index: 1; margin-top: 10px;
+}
+.kanata-card[data-viz="chord"] .chord-result {
+    left: 30%; width: auto; padding: 0 12px;
+}
+.kanata-card.in-view[data-viz="chord"] .block {
+    animation: popIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.kanata-card.in-view[data-viz="chord"] .block--chord-2 { animation-delay: 0.05s; }
+.kanata-card.in-view[data-viz="chord"] .chord-result { animation-delay: 0.5s; }
+
+/* 2. Layers */
+.multi-track { display: flex; flex-direction: column; gap: 8px; }
+.track-row { display: flex; align-items: center; gap: 10px; }
+.track-label { font-size: 10px; font-family: monospace; color: rgba(255,255,255,0.4); width: 50px; text-align: right; }
+
+.kanata-card[data-viz="layers"] .block--switch { left: 5%; width: 50px; }
+.kanata-card[data-viz="layers"] .nav-key { width: 32px; }
+.kanata-card[data-viz="layers"] .nav-1 { left: 35%; }
+.kanata-card[data-viz="layers"] .nav-2 { left: 50%; }
+.kanata-card[data-viz="layers"] .nav-3 { left: 65%; }
+.kanata-card[data-viz="layers"] .layer-1 .track { opacity: 0.3; }
+
+.kanata-card.in-view[data-viz="layers"] .block--switch {
+    animation: popIn 0.4s forwards;
+}
+.kanata-card.in-view[data-viz="layers"] .layer-0 .track {
+    animation: fadeOut 0.5s forwards 0.6s;
+}
+.kanata-card.in-view[data-viz="layers"] .layer-1 .track {
+    transition: opacity 0.5s ease 0.6s;
+    opacity: 1;
+}
+.kanata-card.in-view[data-viz="layers"] .nav-key {
+    animation: popIn 0.3s forwards;
+}
+.kanata-card.in-view[data-viz="layers"] .nav-1 { animation-delay: 0.8s; }
+.kanata-card.in-view[data-viz="layers"] .nav-2 { animation-delay: 1.0s; }
+.kanata-card.in-view[data-viz="layers"] .nav-3 { animation-delay: 1.2s; }
+
+/* 3. Tap-Hold */
+.threshold-line {
+    position: absolute; left: 30%; height: 100%; top: 0;
+    border-left: 1px dashed rgba(255,255,255,0.3); z-index: 5;
+}
+.threshold-line span {
+    position: absolute; top: -18px; left: 5px; font-size: 10px; color: rgba(255,255,255,0.5);
+}
+.kanata-card[data-viz="tap-hold"] .tap-block { left: 5%; width: 50px; }
+.kanata-card[data-viz="tap-hold"] .hold-block {
+    left: 5%; --target-width: 55%; width: 0;
+}
+
+.kanata-card.in-view[data-viz="tap-hold"] .tap-block {
+    animation: popIn 0.3s forwards;
+}
+.kanata-card.in-view[data-viz="tap-hold"] .hold-block {
+    animation: stretch 1.5s ease-out forwards 0.5s;
+}
+
+/* 4. Tap-Dance */
+.kanata-card[data-viz="tap-dance"] .tap-1 { left: 5%; width: 32px; }
+.kanata-card[data-viz="tap-dance"] .tap-2 { left: 18%; width: 32px; }
+.kanata-card[data-viz="tap-dance"] .tap-3 { left: 31%; width: 32px; }
+.kanata-card[data-viz="tap-dance"] .result-block { left: 50%; width: auto; padding: 0 12px; }
+.count-badge {
+    position: absolute; top: 3px; font-size: 10px; color: rgba(255,255,255,0.6); opacity: 0;
+}
+.badge-1 { left: 8%; } .badge-2 { left: 21%; } .badge-3 { left: 34%; }
+
+.kanata-card.in-view[data-viz="tap-dance"] .tap-1 { animation: popIn 0.2s forwards 0s; }
+.kanata-card.in-view[data-viz="tap-dance"] .badge-1 { animation: popIn 0.2s forwards 0.1s; }
+.kanata-card.in-view[data-viz="tap-dance"] .tap-2 { animation: popIn 0.2s forwards 0.4s; }
+.kanata-card.in-view[data-viz="tap-dance"] .badge-2 { animation: popIn 0.2s forwards 0.5s; }
+.kanata-card.in-view[data-viz="tap-dance"] .tap-3 { animation: popIn 0.2s forwards 0.8s; }
+.kanata-card.in-view[data-viz="tap-dance"] .badge-3 { animation: popIn 0.2s forwards 0.9s; }
+.kanata-card.in-view[data-viz="tap-dance"] .result-block { animation: popIn 0.4s forwards 1.3s; }
+
+/* 5. Leader */
+.arrow { position: absolute; top: 50%; transform: translateY(-50%); font-size: 14px; color: rgba(255,255,255,0.5); opacity: 0; }
+.kanata-card[data-viz="leader"] .leader-block { left: 5%; width: 40px; }
+.kanata-card[data-viz="leader"] .arrow-1 { left: 18%; }
+.kanata-card[data-viz="leader"] .seq-1 { left: 25%; width: 32px; }
+.kanata-card[data-viz="leader"] .seq-2 { left: 38%; width: 32px; }
+.kanata-card[data-viz="leader"] .result-out { left: 55%; width: auto; padding: 0 12px; }
+
+.kanata-card.in-view[data-viz="leader"] .leader-block { animation: popIn 0.3s forwards, pulse 1.5s infinite 0.3s; }
+.kanata-card.in-view[data-viz="leader"] .arrow-1 { animation: popIn 0.2s forwards 0.4s; }
+.kanata-card.in-view[data-viz="leader"] .seq-1 { animation: popIn 0.2s forwards 0.6s; }
+.kanata-card.in-view[data-viz="leader"] .seq-2 { animation: popIn 0.2s forwards 0.9s; }
+.kanata-card.in-view[data-viz="leader"] .result-out { animation: popIn 0.4s forwards 1.2s; }
+
+/* 6. Sequence */
+.kanata-card[data-viz="sequence"] .seq-a { left: 5%; width: 32px; }
+.kanata-card[data-viz="sequence"] .seq-b { left: 18%; width: 32px; }
+.kanata-card[data-viz="sequence"] .seq-c { left: 31%; width: 32px; }
+.kanata-card[data-viz="sequence"] .seq-result { left: 50%; width: auto; padding: 0 12px; }
+.timing-bracket {
+    position: absolute; bottom: 2px; left: 5%; width: 27%; height: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.3);
+    border-left: 1px solid rgba(255,255,255,0.3);
+    border-right: 1px solid rgba(255,255,255,0.3);
+    opacity: 0;
+}
+.timing-bracket span {
+    position: absolute; bottom: -16px; width: 100%; text-align: center; font-size: 9px; color: rgba(255,255,255,0.4);
+}
+
+.kanata-card.in-view[data-viz="sequence"] .seq-a { animation: popIn 0.2s forwards 0s; }
+.kanata-card.in-view[data-viz="sequence"] .seq-b { animation: popIn 0.2s forwards 0.3s; }
+.kanata-card.in-view[data-viz="sequence"] .seq-c { animation: popIn 0.2s forwards 0.6s; }
+.kanata-card.in-view[data-viz="sequence"] .timing-bracket { animation: popIn 0.5s forwards 0s; }
+.kanata-card.in-view[data-viz="sequence"] .seq-result { animation: popIn 0.3s forwards 1.0s; }
+
+/* 7. One-Shot */
+.kanata-card[data-viz="oneshot"] .osm-block { left: 5%; width: 52px; }
+.kanata-card[data-viz="oneshot"] .osm-arrow { left: 24%; }
+.kanata-card[data-viz="oneshot"] .osm-target { left: 32%; width: 32px; }
+.kanata-card[data-viz="oneshot"] .osm-result { left: 48%; font-size: 20px; font-weight: bold; opacity: 0; position: absolute; top: 50%; transform: translateY(-50%); color: #fff; }
+
+.kanata-card.in-view[data-viz="oneshot"] .osm-block { animation: popIn 0.3s forwards, fadeOut 0.5s forwards 1.2s; }
+.kanata-card.in-view[data-viz="oneshot"] .osm-arrow { animation: popIn 0.2s forwards 0.4s; }
+.kanata-card.in-view[data-viz="oneshot"] .osm-target { animation: popIn 0.3s forwards 0.8s; }
+.kanata-card.in-view[data-viz="oneshot"] .osm-result { animation: popIn 0.3s forwards 1.0s; }
+
+/* 8. Sticky */
+.kanata-card[data-viz="sticky"] .sticky-mod { left: 5%; width: 36px; }
+.kanata-card[data-viz="sticky"] .sticky-a { left: 20%; width: 32px; }
+.kanata-card[data-viz="sticky"] .sticky-b { left: 33%; width: 32px; }
+.kanata-card[data-viz="sticky"] .sticky-c { left: 46%; width: 32px; }
+.kanata-card[data-viz="sticky"] .sticky-result { left: 62%; font-size: 14px; opacity: 0; position: absolute; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.7); }
+.sticky-glow { box-shadow: 0 0 12px rgba(255, 149, 0, 0.6); }
+
+.kanata-card.in-view[data-viz="sticky"] .sticky-mod { animation: popIn 0.3s forwards, pulse 1s infinite 0.3s; }
+.kanata-card.in-view[data-viz="sticky"] .sticky-a { animation: popIn 0.2s forwards 0.5s; }
+.kanata-card.in-view[data-viz="sticky"] .sticky-b { animation: popIn 0.2s forwards 0.8s; }
+.kanata-card.in-view[data-viz="sticky"] .sticky-c { animation: popIn 0.2s forwards 1.1s; }
+.kanata-card.in-view[data-viz="sticky"] .sticky-result { animation: popIn 0.3s forwards 1.4s; }
+
+/* 9. Macros */
+.kanata-card[data-viz="macro"] .macro-trigger { left: 5%; width: 56px; }
+.kanata-card[data-viz="macro"] .macro-out-1 { left: 30%; width: 32px; }
+.kanata-card[data-viz="macro"] .macro-out-2 { left: 43%; width: 32px; }
+.kanata-card[data-viz="macro"] .macro-out-3 { left: 56%; width: 32px; }
+.kanata-card[data-viz="macro"] .macro-out-4 { left: 69%; width: 32px; }
+.macro-arrow { position: absolute; left: 22%; top: 50%; transform: translateY(-50%); font-size: 16px; color: rgba(255,255,255,0.4); opacity: 0; }
+
+.kanata-card.in-view[data-viz="macro"] .macro-trigger { animation: popIn 0.4s forwards; }
+.kanata-card.in-view[data-viz="macro"] .macro-arrow { animation: popIn 0.2s forwards 0.5s; }
+.kanata-card.in-view[data-viz="macro"] .macro-out-1 { animation: popIn 0.2s forwards 0.7s; }
+.kanata-card.in-view[data-viz="macro"] .macro-out-2 { animation: popIn 0.2s forwards 0.85s; }
+.kanata-card.in-view[data-viz="macro"] .macro-out-3 { animation: popIn 0.2s forwards 1.0s; }
+.kanata-card.in-view[data-viz="macro"] .macro-out-4 { animation: popIn 0.2s forwards 1.15s; }
+
+/* 10. Caps-Word */
+.kanata-card[data-viz="capsword"] .cw-trigger { left: 5%; width: 70px; }
+.kanata-card[data-viz="capsword"] .cw-h { left: 30%; width: 28px; }
+.kanata-card[data-viz="capsword"] .cw-e { left: 40%; width: 28px; }
+.kanata-card[data-viz="capsword"] .cw-l { left: 50%; width: 28px; }
+.kanata-card[data-viz="capsword"] .cw-l2 { left: 60%; width: 28px; }
+.kanata-card[data-viz="capsword"] .cw-o { left: 70%; width: 28px; }
+.kanata-card[data-viz="capsword"] .cw-space { left: 82%; width: 28px; }
+.track-glow { animation: trackGlow 1s ease-in-out infinite; }
+
+.kanata-card.in-view[data-viz="capsword"] .cw-trigger { animation: popIn 0.3s forwards; }
+.kanata-card.in-view[data-viz="capsword"] .track { animation: trackGlow 1.5s ease-in-out 0.4s 3; }
+.kanata-card.in-view[data-viz="capsword"] .cw-h { animation: popIn 0.15s forwards 0.5s; }
+.kanata-card.in-view[data-viz="capsword"] .cw-e { animation: popIn 0.15s forwards 0.65s; }
+.kanata-card.in-view[data-viz="capsword"] .cw-l { animation: popIn 0.15s forwards 0.8s; }
+.kanata-card.in-view[data-viz="capsword"] .cw-l2 { animation: popIn 0.15s forwards 0.95s; }
+.kanata-card.in-view[data-viz="capsword"] .cw-o { animation: popIn 0.15s forwards 1.1s; }
+.kanata-card.in-view[data-viz="capsword"] .cw-space { animation: popIn 0.15s forwards 1.4s; }
+
+/* 11. Fork/Switch */
+.fork-container { position: relative; }
+.fork-track { height: 32px; margin-bottom: 8px; }
+.fork-label { position: absolute; left: 35%; top: -18px; font-size: 10px; color: rgba(255,255,255,0.5); opacity: 0; }
+.kanata-card[data-viz="fork"] .fork-input { left: 5%; width: 32px; top: 50%; }
+.kanata-card[data-viz="fork"] .fork-check { left: 30%; width: 60px; }
+.kanata-card[data-viz="fork"] .fork-yes { left: 55%; width: 40px; }
+.kanata-card[data-viz="fork"] .fork-no { left: 55%; width: 32px; }
+.fork-paths { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.fork-path { display: flex; align-items: center; gap: 8px; font-size: 11px; color: rgba(255,255,255,0.5); }
+.fork-path .block { position: relative; transform: scale(0); top: auto; }
+
+.kanata-card.in-view[data-viz="fork"] .fork-input { animation: popIn 0.3s forwards; }
+.kanata-card.in-view[data-viz="fork"] .fork-label { animation: popIn 0.2s forwards 0.4s; }
+.kanata-card.in-view[data-viz="fork"] .fork-check { animation: popIn 0.3s forwards 0.5s; }
+.kanata-card.in-view[data-viz="fork"] .fork-yes { animation: popIn 0.3s forwards 0.9s; }
+.kanata-card.in-view[data-viz="fork"] .fork-no { animation: popIn 0.3s forwards 0.9s; }
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .block, .track, .arrow, .count-badge, .timing-bracket, .fork-label, .osm-result, .sticky-result, .macro-arrow {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: translateY(-50%) scale(1) !important;
+    }
+    .track {
+        opacity: 1 !important;
+        transform: translateY(0) !important;
+    }
+    .kanata-card[data-viz="tap-hold"] .hold-block {
+        width: var(--target-width) !important;
+    }
+}
