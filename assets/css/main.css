@@ -1601,12 +1601,12 @@ a.button:active {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
-    padding: var(--spacing-md);
+    gap: 4px;
+    padding: var(--spacing-sm);
     border-radius: 12px;
     border: 1px solid var(--color-border-light);
     background: color-mix(in srgb, var(--color-background-secondary) 50%, transparent);
-    min-width: 160px;
+    min-width: 180px;
     transition: all var(--transition-fast);
     cursor: default;
 }
@@ -1622,17 +1622,23 @@ a.button:active {
 }
 
 .keyboard-marquee-img {
-    width: 120px;
-    height: 60px;
-    border-radius: 6px;
+    width: 160px;
+    height: 80px;
+    border-radius: 4px;
     object-fit: contain;
 }
 
 .keyboard-marquee-name {
-    font-weight: 600;
-    font-size: var(--font-size-sm);
-    color: var(--color-text);
+    font-weight: 500;
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
     white-space: nowrap;
+    opacity: 0.7;
+}
+
+.keyboard-marquee-item:hover .keyboard-marquee-name {
+    color: var(--color-text);
+    opacity: 1;
 }
 
 .keyboard-marquee-item::after {

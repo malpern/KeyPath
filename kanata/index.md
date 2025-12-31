@@ -331,10 +331,10 @@ content_class: content-full kanata-landing
 
   <section class="kanata-landing-section">
     <h2>Works with your keyboard</h2>
-    <p class="kanata-landing-subtitle" style="margin-bottom: var(--spacing-sm);">Auto-detects your physical layout on first launch</p>
+    <p class="kanata-landing-subtitle" style="margin-bottom: var(--spacing-sm);">MacBook keyboards auto-detected on first launch</p>
     <p class="kanata-landing-fineprint mb-0">
-      KeyPath reads your keyboard's hardware type from macOS and picks the right layout automatically.
-      Or choose from 20+ supported keyboards — from compact 40% to full-size, split ergonomic to international.
+      KeyPath reads your MacBook's keyboard type (ANSI, ISO, or JIS) from macOS and picks the right layout automatically.
+      17 layouts built-in — or import from 2,000+ keyboards via QMK.
     </p>
 
     <div class="keyboard-marquee" style="margin-top: var(--spacing-xl);">
