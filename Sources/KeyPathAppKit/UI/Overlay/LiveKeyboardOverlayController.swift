@@ -67,8 +67,18 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     private let currentFrameVersion = 6
     private let inspectorPanelWidth: CGFloat = 240
     private let inspectorAnimationDuration: TimeInterval = 0.35
-    private let baseKeyboardAspectRatio: CGFloat = PhysicalLayout.macBookUS.totalWidth / PhysicalLayout.macBookUS.totalHeight
     private let minKeyboardHeight: CGFloat = 180
+
+    /// Get the currently selected physical keyboard layout from UserDefaults
+    private var activeLayout: PhysicalLayout {
+        let layoutId = UserDefaults.standard.string(forKey: LayoutPreferences.layoutIdKey) ?? LayoutPreferences.defaultLayoutId
+        return PhysicalLayout.find(id: layoutId) ?? .macBookUS
+    }
+
+    /// Keyboard aspect ratio based on the currently selected layout
+    private var currentKeyboardAspectRatio: CGFloat {
+        CGFloat(activeLayout.totalWidth / activeLayout.totalHeight)
+    }
     private let minInspectorKeyboardHeight: CGFloat = 220
     private var inspectorTotalWidth: CGFloat {
         inspectorPanelWidth + OverlayLayoutMetrics.inspectorSeamWidth
@@ -86,7 +96,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     }
 
     private var minWindowWidth: CGFloat {
-        let keyboardWidth = minKeyboardHeight * baseKeyboardAspectRatio
+        let keyboardWidth = minKeyboardHeight * currentKeyboardAspectRatio
         return keyboardWidth
             + OverlayLayoutMetrics.keyboardPadding
             + OverlayLayoutMetrics.keyboardTrailingPadding
@@ -191,7 +201,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             + OverlayLayoutMetrics.keyboardTrailingPadding
             + OverlayLayoutMetrics.outerHorizontalPadding * 2
         let keyboardHeight = startupHeight - verticalChrome
-        let keyboardWidth = keyboardHeight * baseKeyboardAspectRatio
+        let keyboardWidth = keyboardHeight * currentKeyboardAspectRatio
         let startupWidth = keyboardWidth + horizontalChrome
         let bottomMargin: CGFloat = 40
 
@@ -352,20 +362,21 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
                 let minInspectorHeight = OverlayLayoutMetrics.verticalChrome + minInspectorKeyboardHeight
                 if window.frame.height < minInspectorHeight {
                     // Auto-resize window to minimum height required for inspector
+                    // Do this synchronously (no animation) to prevent keyboard movement before drawer opens
                     AppLogger.shared.log("📐 [OverlayController] Auto-resizing window from \(window.frame.height.rounded())pt to \(minInspectorHeight)pt for inspector")
                     var newFrame = window.frame
                     let heightDelta = minInspectorHeight - newFrame.height
                     newFrame.size.height = minInspectorHeight
                     // Adjust width to maintain aspect ratio
                     let keyboardHeight = minInspectorHeight - OverlayLayoutMetrics.verticalChrome
-                    let keyboardWidth = keyboardHeight * baseKeyboardAspectRatio
+                    let keyboardWidth = keyboardHeight * currentKeyboardAspectRatio
                     let horizontalChrome = OverlayLayoutMetrics.keyboardPadding
                         + OverlayLayoutMetrics.keyboardTrailingPadding
                         + OverlayLayoutMetrics.outerHorizontalPadding * 2
                     newFrame.size.width = keyboardWidth + horizontalChrome
-                    // Keep bottom-left anchored (move origin down by height increase)
-                    newFrame.origin.y -= heightDelta
-                    window.setFrame(newFrame, display: true, animate: true)
+                    // Keep top edge anchored (don't move window down) - only adjust if needed to stay on screen
+                    let constrained = window.constrainFrameRect(newFrame, to: window.screen)
+                    window.setFrame(constrained, display: true, animate: false)
                 }
             }
             AppLogger.shared.log("🔧 [OverlayController] Opening inspector...")
