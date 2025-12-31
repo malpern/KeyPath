@@ -234,8 +234,8 @@ content_class: content-full kanata-landing
     <p class="kanata-landing-subtitle" style="margin-bottom: var(--spacing-lg);">Switch layouts instantly — no firmware flashing required</p>
 
     <video class="layouts-video" autoplay loop muted playsinline>
+      <source src="{{ '/images/alt-layouts.mp4' | relative_url }}" type="video/mp4">
       <source src="{{ '/images/alt-layouts.mov' | relative_url }}" type="video/quicktime">
-      <source src="{{ '/images/alt-layouts.mov' | relative_url }}" type="video/mp4">
     </video>
 
     <h3 style="margin-top: var(--spacing-xl);">Ergonomic layouts</h3>
