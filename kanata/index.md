@@ -1505,28 +1505,27 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
       <!-- App-Specific -->
       <div class="geo-card" data-feature="app-specific" data-geo>
         <svg viewBox="0 0 280 160">
-          <!-- Chrome icon -->
+          <!-- Safari icon -->
           <circle class="geo-app-ring" cx="90" cy="80" r="35"/>
-          <g class="geo-app-icon" transform="translate(90, 80)">
-            <circle r="25" fill="#FFFFFF"/>
-            <path d="M0,-25 A25,25 0 0,1 21.65,12.5 L8.66,5 A10,10 0 0,0 0,-10 Z" fill="#EA4335"/>
-            <path d="M21.65,12.5 A25,25 0 0,1 -21.65,12.5 L-8.66,5 A10,10 0 0,0 8.66,5 Z" fill="#34A853"/>
-            <path d="M-21.65,12.5 A25,25 0 0,1 0,-25 L0,-10 A10,10 0 0,0 -8.66,5 Z" fill="#FBBC05"/>
-            <circle r="10" fill="#4285F4"/>
-            <circle r="5" fill="#FFFFFF"/>
+          <g class="geo-app-icon">
+            <circle cx="90" cy="80" r="25" fill="url(#safariGradient)"/>
+            <polygon points="90,58 94,80 90,102 86,80" fill="#FFFFFF"/>
+            <polygon points="90,58 94,80 90,80" fill="#FF3B30"/>
+            <circle cx="90" cy="80" r="4" fill="#FFFFFF"/>
           </g>
-          <!-- Slack icon -->
+          <!-- VS Code icon -->
           <circle class="geo-app-ring" cx="190" cy="80" r="35"/>
-          <g class="geo-app-icon" transform="translate(175, 65)">
-            <rect x="0" y="10" width="6" height="15" rx="3" fill="#E01E5A"/>
-            <rect x="0" y="0" width="6" height="6" rx="3" fill="#E01E5A"/>
-            <rect x="10" y="0" width="15" height="6" rx="3" fill="#36C5F0"/>
-            <rect x="24" y="0" width="6" height="6" rx="3" fill="#36C5F0"/>
-            <rect x="24" y="10" width="6" height="15" rx="3" fill="#2EB67D"/>
-            <rect x="24" y="24" width="6" height="6" rx="3" fill="#2EB67D"/>
-            <rect x="0" y="24" width="6" height="6" rx="3" fill="#ECB22E"/>
-            <rect x="10" y="24" width="15" height="6" rx="3" fill="#ECB22E"/>
+          <g class="geo-app-icon">
+            <rect x="165" y="55" width="50" height="50" rx="8" fill="#007ACC"/>
+            <path d="M175 70 L185 80 L175 90 M185 80 L205 65 L205 95 L185 80" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
           </g>
+          <!-- Gradient definitions -->
+          <defs>
+            <linearGradient id="safariGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:#5AC8FA"/>
+              <stop offset="100%" style="stop-color:#007AFF"/>
+            </linearGradient>
+          </defs>
         </svg>
         <h3>App-Specific</h3>
         <p>Different apps, different layouts. Automatically switch when you switch windows.</p>
