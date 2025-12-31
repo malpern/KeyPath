@@ -868,7 +868,9 @@ struct OverlayKeycapView: View {
             // JIS-specific keys (not in standard keymaps)
             "¥", "英数", "かな", "_", "^", ":", "@", "fn",
             // Menu/Application key
-            "☰", "▤"
+            "☰", "▤",
+            // Numpad enter
+            "⏎", "⌅"
         ]
         return specialLabels.contains(effectiveLabel) || specialLabels.contains(key.label)
     }
@@ -899,6 +901,8 @@ struct OverlayKeycapView: View {
         case "␣": "space"
         case "⌫": "delete"
         case "↩": "return"
+        case "⏎": "enter"
+        case "⌅": "enter"
         default: nil
         }
     }
