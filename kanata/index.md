@@ -1471,7 +1471,8 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
           </g>
           <g class="geo-seq-key">
             <rect class="geo-key active" x="180" y="55" width="70" height="50" rx="8"/>
-            <text class="geo-key-label" x="215" y="80" fill="#FFF" font-size="10">ADDRESS</text>
+            <text class="geo-key-label" x="215" y="72" fill="#FFF" font-size="9">141</text>
+            <text class="geo-key-label" x="215" y="88" fill="#FFF" font-size="9">Mansfield</text>
           </g>
         </svg>
         <h3>Sequences</h3>
@@ -1504,12 +1505,28 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
       <!-- App-Specific -->
       <div class="geo-card" data-feature="app-specific" data-geo>
         <svg viewBox="0 0 280 160">
+          <!-- Chrome icon -->
           <circle class="geo-app-ring" cx="90" cy="80" r="35"/>
-          <circle class="geo-app-icon" cx="90" cy="80" r="25" fill="#0071E3"/>
-          <text class="geo-key-label" x="90" y="85" fill="#FFF" font-size="18">S</text>
+          <g class="geo-app-icon" transform="translate(90, 80)">
+            <circle r="25" fill="#FFFFFF"/>
+            <path d="M0,-25 A25,25 0 0,1 21.65,12.5 L8.66,5 A10,10 0 0,0 0,-10 Z" fill="#EA4335"/>
+            <path d="M21.65,12.5 A25,25 0 0,1 -21.65,12.5 L-8.66,5 A10,10 0 0,0 8.66,5 Z" fill="#34A853"/>
+            <path d="M-21.65,12.5 A25,25 0 0,1 0,-25 L0,-10 A10,10 0 0,0 -8.66,5 Z" fill="#FBBC05"/>
+            <circle r="10" fill="#4285F4"/>
+            <circle r="5" fill="#FFFFFF"/>
+          </g>
+          <!-- Slack icon -->
           <circle class="geo-app-ring" cx="190" cy="80" r="35"/>
-          <circle class="geo-app-icon" cx="190" cy="80" r="25" fill="#FF3B30"/>
-          <text class="geo-key-label" x="190" y="85" fill="#FFF" font-size="18">X</text>
+          <g class="geo-app-icon" transform="translate(175, 65)">
+            <rect x="0" y="10" width="6" height="15" rx="3" fill="#E01E5A"/>
+            <rect x="0" y="0" width="6" height="6" rx="3" fill="#E01E5A"/>
+            <rect x="10" y="0" width="15" height="6" rx="3" fill="#36C5F0"/>
+            <rect x="24" y="0" width="6" height="6" rx="3" fill="#36C5F0"/>
+            <rect x="24" y="10" width="6" height="15" rx="3" fill="#2EB67D"/>
+            <rect x="24" y="24" width="6" height="6" rx="3" fill="#2EB67D"/>
+            <rect x="0" y="24" width="6" height="6" rx="3" fill="#ECB22E"/>
+            <rect x="10" y="24" width="15" height="6" rx="3" fill="#ECB22E"/>
+          </g>
         </svg>
         <h3>App-Specific</h3>
         <p>Different apps, different layouts. Automatically switch when you switch windows.</p>
