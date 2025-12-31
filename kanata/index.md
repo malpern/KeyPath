@@ -151,7 +151,7 @@ content_class: content-full kanata-landing
     </div>
 
     <div class="kanata-launches-note">
-      <h3 class="mt-0 kanata-compare-title"><span class="kanata-compare-title-icon" aria-hidden="true"><svg viewBox="0 0 24 24" class="kp-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8z"/></svg></span>More powerful triggers than Raycast</h3>
+      <h3 class="mt-0 kanata-compare-title"><span class="kanata-compare-title-icon" aria-hidden="true"><svg viewBox="0 0 24 24" class="kp-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8z"/></svg></span>Launch anything with muscle memory</h3>
       <p class="kanata-landing-fineprint">
         Raycast is great for search. KeyPath is great when you want <em>muscle-memory triggers</em> —
         a chord (two keys together), a sequence (keys in order), a leader key, tap-dance, or a layer.
