@@ -939,7 +939,8 @@ struct OverlayKeycapView: View {
             } else if let navSymbol = navOverlaySymbol {
                 // Vim nav overlay
                 navOverlayContent(arrow: navSymbol, letter: baseLabel)
-            } else if let shiftSymbol = metadata.shiftSymbol {
+            } else if let shiftSymbol = metadata.shiftSymbol, !isNumpadKey {
+                // Dual symbol content (skip for numpad keys - they don't have shift symbols)
                 dualSymbolContent(main: effectiveLabel, shift: shiftSymbol)
             } else {
                 // For special keys, prefer key.label if effectiveLabel is empty
@@ -1370,6 +1371,17 @@ struct OverlayKeycapView: View {
         let accentLabels = ["⏎", "↵", "return", "enter", "esc", "escape", "⌫", "delete", "⇥", "tab"]
         let label = baseLabel.lowercased()
         return accentLabels.contains { label.contains($0.lowercased()) }
+    }
+
+    /// Whether this key is a numpad key (doesn't show shift symbols)
+    /// Numpad keyCodes on macOS: 65 (.), 67 (*), 69 (+), 71 (clear), 75 (/),
+    /// 76 (enter), 78 (-), 81 (=), 82-92 (0-9 and operators)
+    private var isNumpadKey: Bool {
+        let numpadKeyCodes: Set<UInt16> = [
+            65, 67, 69, 71, 75, 76, 78, 81, // operators and special
+            82, 83, 84, 85, 86, 87, 88, 89, 91, 92 // numbers 0-9
+        ]
+        return numpadKeyCodes.contains(key.keyCode)
     }
 
     private var foregroundColor: Color {

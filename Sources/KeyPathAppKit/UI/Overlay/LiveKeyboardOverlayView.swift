@@ -481,23 +481,14 @@ private struct OverlayDragHeader: View {
             Spacer()
 
             // Controls aligned to the right side of the header
-            // Order: Close X, Drawer, [spacer], Health indicator OR (Japanese input, Layer indicator)
+            // Order: Status indicators (left) → [spacer] → Drawer → Close (far right)
             HStack(spacing: 6) {
-                // 1. Close button (leftmost of the right-aligned group)
-                Button {
-                    AppLogger.shared.log("🔘 [Header] Close button clicked")
-                    print("🔘 [Header] Close button clicked")
-                    onClose()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: buttonSize * 0.45, weight: .semibold))
-                        .foregroundStyle(headerIconColor)
-                        .frame(width: buttonSize, height: buttonSize)
-                }
-                .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
-                .help("Close Overlay")
-                .accessibilityIdentifier("overlay-close-button")
-                .accessibilityLabel("Close keyboard overlay")
+                // 1. Status slot (leftmost of the right-aligned group):
+                // - Shows health indicator when not dismissed (including the "Ready" pill)
+                // - Otherwise shows Japanese input + layer pill
+                statusSlot(indicatorCornerRadius: indicatorCornerRadius)
+
+                Spacer()
 
                 // 2. Toggle inspector/drawer button
                 Button {
@@ -514,12 +505,21 @@ private struct OverlayDragHeader: View {
                 .accessibilityIdentifier("overlay-drawer-toggle")
                 .accessibilityLabel(isInspectorOpen ? "Close settings drawer" : "Open settings drawer")
 
-                Spacer()
-
-                // 3. Status slot (fixed position):
-                // - Shows health indicator when not dismissed (including the "Ready" pill)
-                // - Otherwise shows Japanese input + layer pill in the same slot as "Ready"
-                statusSlot(indicatorCornerRadius: indicatorCornerRadius)
+                // 3. Close button (rightmost)
+                Button {
+                    AppLogger.shared.log("🔘 [Header] Close button clicked")
+                    print("🔘 [Header] Close button clicked")
+                    onClose()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: buttonSize * 0.45, weight: .semibold))
+                        .foregroundStyle(headerIconColor)
+                        .frame(width: buttonSize, height: buttonSize)
+                }
+                .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
+                .help("Close Overlay")
+                .accessibilityIdentifier("overlay-close-button")
+                .accessibilityLabel("Close keyboard overlay")
             }
             .frame(width: maxControlsWidth, alignment: .leading)
             .padding(.trailing, 6)
@@ -568,7 +568,7 @@ private struct OverlayDragHeader: View {
 
     @ViewBuilder
     private func statusSlot(indicatorCornerRadius: CGFloat) -> some View {
-        ZStack(alignment: .trailing) {
+        ZStack(alignment: .leading) {
             if healthIndicatorState != .dismissed {
                 SystemHealthIndicatorView(
                     state: healthIndicatorState,
@@ -595,8 +595,8 @@ private struct OverlayDragHeader: View {
                 .transition(.opacity.combined(with: .scale))
             }
         }
-        // Keep the slot trailing-aligned so the layer pill occupies the same location as "Ready".
-        .frame(maxWidth: .infinity, alignment: .trailing)
+        // Keep the slot leading-aligned so the status indicators are on the left of the controls.
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func inputModePill(indicator: String, indicatorCornerRadius: CGFloat) -> some View {
