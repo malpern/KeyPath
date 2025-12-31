@@ -70,11 +70,12 @@
         { "row": 4, "col": 1, "x": 1.25, "y": 4, "w": 1.25, "keyCode": 58, "label": "⌥" },
         { "row": 4, "col": 2, "x": 2.5, "y": 4, "w": 1.25, "keyCode": 55, "label": "⌘" },
         { "row": 4, "col": 3, "x": 3.75, "y": 4, "w": 6.25, "keyCode": 49, "label": "" },
-        { "row": 4, "col": 4, "x": 10, "y": 4, "w": 1.25, "keyCode": 55, "label": "⌘" },
-        { "row": 4, "col": 5, "x": 11.25, "y": 4, "w": 1.25, "keyCode": 58, "label": "⌥" },
-        { "row": 4, "col": 6, "x": 12.5, "y": 4, "keyCode": 123, "label": "←" },
-        { "row": 4, "col": 7, "x": 13.5, "y": 4, "keyCode": 125, "label": "↓" },
-        { "row": 4, "col": 8, "x": 14.5, "y": 4, "keyCode": 124, "label": "→" }
+        { "row": 4, "col": 4, "x": 10, "y": 4, "keyCode": 55, "label": "⌘" },
+        { "row": 4, "col": 5, "x": 11, "y": 4, "keyCode": 58, "label": "⌥" },
+        { "row": 4, "col": 6, "x": 12, "y": 4, "keyCode": 62, "label": "⌃" },
+        { "row": 4, "col": 7, "x": 13, "y": 4, "keyCode": 123, "label": "←" },
+        { "row": 4, "col": 8, "x": 14, "y": 4, "keyCode": 125, "label": "↓" },
+        { "row": 4, "col": 9, "x": 15, "y": 4, "keyCode": 124, "label": "→" }
       ]
     }
   }
