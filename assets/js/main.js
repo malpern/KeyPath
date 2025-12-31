@@ -584,4 +584,35 @@
             });
         });
     }
+
+    // =========================================================================
+    // DESIGN #6: MINIMAL GEOMETRIC (Apple-style)
+    // =========================================================================
+    const geoCards = document.querySelectorAll('[data-geo]');
+
+    if (geoCards.length > 0) {
+        const geoObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('animating');
+                }
+            });
+        }, {
+            threshold: 0.3,
+            rootMargin: '0px 0px -50px 0px'
+        });
+
+        geoCards.forEach(card => {
+            geoObserver.observe(card);
+
+            // Replay animation on hover
+            card.addEventListener('mouseenter', () => {
+                if (card.classList.contains('animating')) {
+                    card.classList.remove('animating');
+                    void card.offsetWidth; // Force reflow
+                    card.classList.add('animating');
+                }
+            });
+        });
+    }
 })();

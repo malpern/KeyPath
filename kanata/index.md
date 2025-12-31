@@ -1355,6 +1355,181 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
 
   <div class="kanata-landing-divider" aria-hidden="true"></div>
 
+  <!-- DESIGN #6: MINIMAL GEOMETRIC (Apple-style) -->
+  <section class="geometric-section">
+    <h2>Precision Engineering</h2>
+    <p class="section-subtitle">Every keystroke, considered. Every action, intentional.</p>
+
+    <div class="geometric-grid">
+      <!-- Basic Remapping -->
+      <div class="geo-card" data-feature="remap" data-geo>
+        <svg viewBox="0 0 280 160">
+          <rect class="geo-key" x="40" y="60" width="50" height="50" rx="8"/>
+          <text class="geo-key-label" x="65" y="85">A</text>
+          <path class="geo-arrow" d="M100 85 L140 85 L135 80 M140 85 L135 90"/>
+          <circle class="geo-halo" cx="205" cy="85" r="35"/>
+          <rect class="geo-key active" x="180" y="60" width="50" height="50" rx="8"/>
+          <text class="geo-key-label" x="205" y="85" fill="#FFF">B</text>
+        </svg>
+        <h3>Basic Remapping</h3>
+        <p>Transform any key into any other. Swap Caps Lock to Escape, or remap your entire layout.</p>
+      </div>
+
+      <!-- Tap-Hold -->
+      <div class="geo-card" data-feature="tap-hold" data-geo>
+        <svg viewBox="0 0 280 160">
+          <circle class="geo-timer-ring" cx="140" cy="80" r="40" fill="none" stroke="#E8E8ED" stroke-width="4"/>
+          <circle class="geo-progress" cx="140" cy="80" r="25"/>
+          <rect class="geo-key" x="115" y="55" width="50" height="50" rx="8"/>
+          <text class="geo-key-label" x="140" y="72">TAP</text>
+          <text class="geo-key-label" x="140" y="92" font-size="11" fill="#86868B">HOLD</text>
+        </svg>
+        <h3>Tap-Hold</h3>
+        <p>One key, two purposes. Tap for one action, hold for another. Maximum efficiency.</p>
+      </div>
+
+      <!-- Layers -->
+      <div class="geo-card" data-feature="layers" data-geo>
+        <svg viewBox="0 0 280 160">
+          <g transform="translate(90, 30)">
+            <rect class="geo-layer" x="0" y="80" width="100" height="40" rx="6"/>
+            <rect class="geo-layer" x="10" y="50" width="100" height="40" rx="6"/>
+            <rect class="geo-layer" x="20" y="20" width="100" height="40" rx="6"/>
+          </g>
+          <text class="geo-key-label" x="160" y="55" font-size="12" fill="#FFF">ACTIVE</text>
+        </svg>
+        <h3>Layers</h3>
+        <p>Stack keyboard layouts like transparent sheets. Switch instantly between navigation, symbols, and more.</p>
+      </div>
+
+      <!-- One-Shot Modifiers -->
+      <div class="geo-card" data-feature="one-shot" data-geo>
+        <svg viewBox="0 0 280 160">
+          <circle class="geo-timer-ring" cx="140" cy="80" r="20"/>
+          <circle class="geo-timer-fill" cx="140" cy="80" r="20"/>
+          <rect class="geo-key" x="80" y="55" width="50" height="50" rx="8"/>
+          <text class="geo-key-label" x="105" y="80">⇧</text>
+          <rect class="geo-key" x="150" y="55" width="50" height="50" rx="8"/>
+          <text class="geo-key-label" x="175" y="80">A</text>
+        </svg>
+        <h3>One-Shot Modifiers</h3>
+        <p>Tap Shift once, and the next key is shifted. No holding required. Pure flow.</p>
+      </div>
+
+      <!-- Combos -->
+      <div class="geo-card" data-feature="combos" data-geo>
+        <svg viewBox="0 0 280 160">
+          <rect class="geo-key" x="30" y="55" width="45" height="50" rx="8"/>
+          <text class="geo-key-label" x="52" y="80">J</text>
+          <text class="geo-plus" x="95" y="80">+</text>
+          <rect class="geo-key" x="115" y="55" width="45" height="50" rx="8"/>
+          <text class="geo-key-label" x="137" y="80">K</text>
+          <line class="geo-equals" x1="175" y1="75" x2="195" y2="75"/>
+          <line class="geo-equals" x1="175" y1="85" x2="195" y2="85"/>
+          <rect class="geo-key active" x="205" y="55" width="45" height="50" rx="8"/>
+          <text class="geo-key-label" x="227" y="80" fill="#FFF">ESC</text>
+        </svg>
+        <h3>Combos</h3>
+        <p>Press two keys simultaneously for a third action. Create shortcuts that feel natural.</p>
+      </div>
+
+      <!-- Caps Word -->
+      <div class="geo-card" data-feature="caps-word" data-geo>
+        <svg viewBox="0 0 280 160">
+          <text class="geo-text" x="140" y="70">hello</text>
+          <text class="geo-text" x="140" y="100" fill="#0071E3" font-weight="600">HELLO</text>
+          <line stroke="#0071E3" stroke-width="2" x1="90" y1="85" x2="190" y2="85" opacity="0.3"/>
+        </svg>
+        <h3>Caps Word</h3>
+        <p>Capitalize just the next word, then return to normal. Perfect for CONSTANTS and Names.</p>
+      </div>
+
+      <!-- Mouse Keys -->
+      <div class="geo-card" data-feature="mouse-keys" data-geo>
+        <svg viewBox="0 0 280 160">
+          <path class="geo-trail" d="M80 80 Q120 60 160 100"/>
+          <polygon class="geo-cursor" points="0,0 0,18 5,14 9,22 12,21 8,13 14,10"/>
+        </svg>
+        <h3>Mouse Keys</h3>
+        <p>Control your cursor from the keyboard. Navigate without ever leaving home row.</p>
+      </div>
+
+      <!-- Sequences -->
+      <div class="geo-card" data-feature="sequences" data-geo>
+        <svg viewBox="0 0 280 160">
+          <g class="geo-seq-key">
+            <rect class="geo-key" x="30" y="55" width="40" height="50" rx="8"/>
+            <text class="geo-key-label" x="50" y="80">A</text>
+          </g>
+          <g class="geo-seq-key">
+            <rect class="geo-key" x="80" y="55" width="40" height="50" rx="8"/>
+            <text class="geo-key-label" x="100" y="80">D</text>
+          </g>
+          <g class="geo-seq-key">
+            <rect class="geo-key" x="130" y="55" width="40" height="50" rx="8"/>
+            <text class="geo-key-label" x="150" y="80">D</text>
+          </g>
+          <g class="geo-seq-key">
+            <rect class="geo-key active" x="180" y="55" width="70" height="50" rx="8"/>
+            <text class="geo-key-label" x="215" y="80" fill="#FFF" font-size="10">ADDRESS</text>
+          </g>
+        </svg>
+        <h3>Sequences</h3>
+        <p>Type abbreviations that expand to full text. "addr" becomes your full address.</p>
+      </div>
+
+      <!-- Macros -->
+      <div class="geo-card" data-feature="macros" data-geo>
+        <svg viewBox="0 0 280 160">
+          <g class="geo-macro-step">
+            <rect x="40" y="30" width="60" height="30" rx="6" fill="#F5F5F7" stroke="#D2D2D7" stroke-width="1.5"/>
+            <text class="geo-key-label" x="70" y="45" font-size="11">⌘S</text>
+          </g>
+          <g class="geo-macro-step">
+            <rect x="40" y="65" width="60" height="30" rx="6" fill="#F5F5F7" stroke="#D2D2D7" stroke-width="1.5"/>
+            <text class="geo-key-label" x="70" y="80" font-size="11">⌘W</text>
+          </g>
+          <g class="geo-macro-step">
+            <rect x="40" y="100" width="60" height="30" rx="6" fill="#F5F5F7" stroke="#D2D2D7" stroke-width="1.5"/>
+            <text class="geo-key-label" x="70" y="115" font-size="11">⌘Q</text>
+          </g>
+          <path class="geo-arrow" d="M110 45 L130 45 M110 80 L130 80 M110 115 L130 115 M130 45 L130 115" stroke-dasharray="none"/>
+          <rect class="geo-key active" x="150" y="55" width="90" height="50" rx="8"/>
+          <text class="geo-key-label" x="195" y="80" fill="#FFF" font-size="12">MACRO</text>
+        </svg>
+        <h3>Macros</h3>
+        <p>Chain multiple actions into one key. Save, close, and quit—all with a single press.</p>
+      </div>
+
+      <!-- App-Specific -->
+      <div class="geo-card" data-feature="app-specific" data-geo>
+        <svg viewBox="0 0 280 160">
+          <circle class="geo-app-ring" cx="90" cy="80" r="35"/>
+          <circle class="geo-app-icon" cx="90" cy="80" r="25" fill="#0071E3"/>
+          <text class="geo-key-label" x="90" y="85" fill="#FFF" font-size="18">S</text>
+          <circle class="geo-app-ring" cx="190" cy="80" r="35"/>
+          <circle class="geo-app-icon" cx="190" cy="80" r="25" fill="#FF3B30"/>
+          <text class="geo-key-label" x="190" y="85" fill="#FFF" font-size="18">X</text>
+        </svg>
+        <h3>App-Specific</h3>
+        <p>Different apps, different layouts. Automatically switch when you switch windows.</p>
+      </div>
+
+      <!-- Live Reload -->
+      <div class="geo-card" data-feature="live-reload" data-geo>
+        <svg viewBox="0 0 280 160">
+          <circle cx="140" cy="80" r="30" fill="none" stroke="#E8E8ED" stroke-width="2"/>
+          <path class="geo-reload-arrow" d="M140 50 A30 30 0 1 1 110 80 M110 80 L110 70 M110 80 L120 80"/>
+          <circle cx="140" cy="80" r="8" fill="#0071E3"/>
+        </svg>
+        <h3>Live Reload</h3>
+        <p>Edit your config, see changes instantly. No restart required. Iterate at the speed of thought.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="kanata-landing-divider" aria-hidden="true"></div>
+
   <section class="kanata-landing-section">
     <h2 class="mt-0">Ready?</h2>
     <p>Start with the Tips for existing Kanata users.</p>
