@@ -977,11 +977,10 @@ li {
 
 .footer-love {
     font-family: 'Caveat', cursive;
-    font-size: clamp(1.25rem, 3vw, 1.5rem);
+    font-size: 1.1rem;
     font-weight: 500;
     color: var(--color-text-tertiary);
-    margin-bottom: var(--spacing-sm);
-    letter-spacing: 0.02em;
+    margin-bottom: var(--spacing-xs);
 }
 
 .footer-standing {
