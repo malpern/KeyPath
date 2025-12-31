@@ -2662,13 +2662,14 @@ a.button:active {
     padding: 64px 24px;
     margin: 48px 0;
     border-radius: 16px;
+    color: #333; /* Force dark text on light background */
 }
 
 .recipe-section h2 {
     text-align: center;
     font-family: 'Playfair Display', serif;
     font-size: 2rem;
-    color: #2c3e50;
+    color: #2c3e50 !important;
     margin-bottom: 8px;
 }
 
@@ -2676,7 +2677,7 @@ a.button:active {
     text-align: center;
     font-family: 'Lora', serif;
     font-style: italic;
-    color: #666;
+    color: #555 !important;
     font-size: 1rem;
     margin-bottom: 48px;
 }
@@ -2721,14 +2722,14 @@ a.button:active {
 .recipe-title {
     font-family: 'Playfair Display', serif;
     font-size: 1.5rem;
-    color: #2c3e50;
+    color: #2c3e50 !important;
     margin: 0 0 6px 0;
 }
 
 .recipe-tagline {
     font-family: 'Lora', serif;
     font-style: italic;
-    color: #666;
+    color: #555 !important;
     font-size: 0.9rem;
     margin: 0;
 }
@@ -2744,7 +2745,7 @@ a.button:active {
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 1px;
-    color: #888;
+    color: #666 !important;
     margin: 0 0 12px 0;
     border-bottom: 2px solid #E07A5F;
     display: inline-block;
@@ -2763,6 +2764,7 @@ a.button:active {
     align-items: center;
     flex-wrap: wrap;
     gap: 6px;
+    color: #444 !important;
 }
 
 .key-pill {
@@ -2772,7 +2774,7 @@ a.button:active {
     border-radius: 6px;
     font-family: 'Roboto Mono', monospace;
     font-size: 0.85rem;
-    color: #333;
+    color: #333 !important;
     box-shadow: 0 2px 0 #bbb;
     display: inline-block;
     transition: transform 0.1s;
@@ -2785,7 +2787,7 @@ a.button:active {
 
 .method-text {
     font-size: 0.9rem;
-    color: #444;
+    color: #444 !important;
     line-height: 1.5;
     margin: 0;
 }
@@ -2804,11 +2806,12 @@ a.button:active {
     font-weight: bold;
     font-size: 1.1rem;
     margin-bottom: 12px;
+    color: #222 !important;
 }
 
 .chef-tip {
     font-family: 'Caveat', cursive;
-    color: #E07A5F;
+    color: #C65A45 !important;
     font-size: 1.1rem;
     background: #fff8f0;
     padding: 8px 12px;
