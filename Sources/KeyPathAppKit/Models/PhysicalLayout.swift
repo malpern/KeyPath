@@ -1,5 +1,30 @@
 import Foundation
 
+// MARK: - Layout Preferences Keys
+
+/// UserDefaults/AppStorage keys for physical layout preferences
+enum LayoutPreferences {
+    /// Key for storing the selected physical keyboard layout ID
+    static let layoutIdKey = "overlayLayoutId"
+    
+    /// Default layout ID when none is set
+    static let defaultLayoutId = "macbook-us"
+}
+
+// MARK: - Layout Categories
+
+/// Categories for organizing physical keyboard layouts in the UI
+enum LayoutCategory: String, CaseIterable, Identifiable {
+    case usStandard = "US Standard"
+    case international = "International"
+    case ergonomic = "Ergonomic / Split"
+    case custom = "Custom"
+    
+    var id: String { rawValue }
+    
+    var displayName: String { rawValue }
+}
+
 /// Represents a single physical key on a keyboard layout
 struct PhysicalKey: Identifiable, Hashable {
     let id: UUID
@@ -101,24 +126,124 @@ struct PhysicalLayout: Identifiable {
         totalHeight = maxY
     }
 
-    /// Registry of all known layouts
-    // swiftformat:disable:next redundantSelf
-    static let all: [PhysicalLayout] = [
+    // MARK: - Layout Registry
+    
+    /// US Standard layouts (ANSI-based)
+    static let usLayouts: [PhysicalLayout] = [
         macBookUS,
-        macBookJIS,
-        kinesisAdvantage360,
-        ansi40Percent,
-        ansi60Percent,
-        ansi65Percent,
-        ansi75Percent,
-        ansi80Percent,
         ansi100Percent,
-        hhkb,
+        ansi80Percent,
+        ansi75Percent,
+        ansi65Percent,
+        ansi60Percent,
+        ansi40Percent,
+        hhkb
+    ]
+    
+    /// International layouts (ISO, JIS, ABNT2, Korean)
+    static let internationalLayouts: [PhysicalLayout] = [
+        macBookISO,
+        macBookJIS,
+        macBookABNT2,
+        macBookKorean
+    ]
+    
+    /// Ergonomic and split keyboards
+    static let ergonomicLayouts: [PhysicalLayout] = [
+        kinesisAdvantage360,
         corne,
         sofle,
         ferrisSweep,
         cornix
     ]
+    
+    // MARK: - Custom Layouts Cache
+    
+    /// Cache for custom layouts to avoid blocking UI thread
+    /// Thread-safe using a lock for concurrent access
+    private static let cacheLock = NSLock()
+    nonisolated(unsafe) private static var _cachedCustomLayouts: [PhysicalLayout]?
+    nonisolated(unsafe) private static var _cacheTimestamp: Date?
+    private static let cacheTTL: TimeInterval = 5.0 // 5 second cache TTL
+    
+    /// Custom imported layouts (loaded from UserDefaults)
+    /// Note: Uses caching to avoid blocking UI thread. Call `invalidateCustomLayoutCache()` after importing.
+    static var customLayouts: [PhysicalLayout] {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        
+        // Check cache freshness
+        if let cached = _cachedCustomLayouts,
+           let timestamp = _cacheTimestamp,
+           Date().timeIntervalSince(timestamp) < cacheTTL {
+            return cached
+        }
+        
+        // Load custom layouts synchronously from storage
+        let store = CustomLayoutStore.load()
+        
+        let layouts: [PhysicalLayout] = store.layouts.compactMap { storedLayout -> PhysicalLayout? in
+            // Determine keycode mapping type from variant
+            let keyMappingType: KeyMappingType
+            if let variant = storedLayout.layoutVariant?.lowercased(), variant.contains("iso") {
+                keyMappingType = .iso
+            } else {
+                keyMappingType = .ansi
+            }
+            
+            // Choose keycode mapping function
+            let keyMapping: (Int, Int) -> (keyCode: UInt16, label: String)?
+            switch keyMappingType {
+            case .ansi:
+                keyMapping = ANSIPositionTable.keyMapping(row:col:)
+            case .iso:
+                keyMapping = ISOPositionTable.keyMapping(row:col:)
+            }
+            
+            // Re-parse the layout from stored JSON
+            guard let layout = QMKLayoutParser.parse(
+                data: storedLayout.layoutJSON,
+                keyMapping: keyMapping,
+                idOverride: "custom-\(storedLayout.id)",
+                nameOverride: storedLayout.name
+            ) else {
+                return nil
+            }
+            
+            return layout
+        }
+        
+        // Update cache
+        _cachedCustomLayouts = layouts
+        _cacheTimestamp = Date()
+        
+        return layouts
+    }
+    
+    /// Invalidate the custom layouts cache (call after importing/deleting layouts)
+    static func invalidateCustomLayoutCache() {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        _cachedCustomLayouts = nil
+        _cacheTimestamp = nil
+    }
+    
+    /// Registry of all known layouts (US first, then International, then Ergonomic, then Custom)
+    // swiftformat:disable:next redundantSelf
+    static var all: [PhysicalLayout] {
+        usLayouts + internationalLayouts + ergonomicLayouts + customLayouts
+    }
+    
+    /// Get layouts grouped by category for UI display
+    /// Order: US Standard (no header), Ergonomic, International, Custom
+    static func layoutsByCategory() -> [(category: LayoutCategory, layouts: [PhysicalLayout])] {
+        [
+            (.usStandard, usLayouts),
+            (.ergonomic, ergonomicLayouts),
+            (.international, internationalLayouts),
+            (.custom, customLayouts)
+        ]
+    }
 
     /// Find a layout by its identifier
     static func find(id: String) -> PhysicalLayout? {
@@ -575,6 +700,663 @@ struct PhysicalLayout: Identifiable {
         )
     }()
 
+    // MARK: - MacBook ISO
+
+    /// MacBook ISO (International) keyboard layout
+    /// Key differences from US: extra IntlBackslash key between Left Shift and Z,
+    /// shorter left shift to accommodate the extra key
+    static let macBookISO: PhysicalLayout = {
+        var keys: [PhysicalKey] = []
+        var currentX = 0.0
+        let keySpacing = 0.08 // Gap between keys (tighter like real MacBook)
+        let rowSpacing = 1.1 // Vertical spacing between row centers
+        let standardKeyWidth = 1.0
+        let standardKeyHeight = 1.0
+
+        // Target right edge (from number row: 13 standard + 1.5 delete + 13 gaps)
+        let targetRightEdge = 13 * (standardKeyWidth + keySpacing) + 1.5
+
+        // Row 0: ESC + Function Keys + Touch ID (same as US)
+        let escWidth = 1.5
+        let touchIdWidth = standardKeyWidth
+        let functionRowAvailable = targetRightEdge - escWidth - keySpacing - touchIdWidth - keySpacing
+        let functionKeyWidth = (functionRowAvailable - 11 * keySpacing) / 12
+
+        keys.append(PhysicalKey(
+            keyCode: 53,
+            label: "esc",
+            x: 0.0,
+            y: 0.0,
+            width: escWidth,
+            height: standardKeyHeight
+        ))
+        currentX = escWidth + keySpacing
+
+        let functionKeys: [(UInt16, String)] = [
+            (122, "F1"), (120, "F2"), (99, "F3"), (118, "F4"),
+            (96, "F5"), (97, "F6"), (98, "F7"), (100, "F8"),
+            (101, "F9"), (109, "F10"), (103, "F11"), (111, "F12")
+        ]
+        for (keyCode, label) in functionKeys {
+            keys.append(PhysicalKey(
+                keyCode: keyCode,
+                label: label,
+                x: currentX,
+                y: 0.0,
+                width: functionKeyWidth,
+                height: standardKeyHeight
+            ))
+            currentX += functionKeyWidth + keySpacing
+        }
+
+        keys.append(PhysicalKey(
+            keyCode: 0xFFFF,
+            label: "🔒",
+            x: currentX,
+            y: 0.0,
+            width: touchIdWidth,
+            height: standardKeyHeight
+        ))
+
+        // Row 1: Number Row (same as US)
+        let numberRow: [(UInt16, String, Double)] = [
+            (50, "`", standardKeyWidth),
+            (18, "1", standardKeyWidth), (19, "2", standardKeyWidth),
+            (20, "3", standardKeyWidth), (21, "4", standardKeyWidth),
+            (23, "5", standardKeyWidth), (22, "6", standardKeyWidth),
+            (26, "7", standardKeyWidth), (28, "8", standardKeyWidth),
+            (25, "9", standardKeyWidth), (29, "0", standardKeyWidth),
+            (27, "-", standardKeyWidth), (24, "=", standardKeyWidth),
+            (51, "⌫", 1.5)
+        ]
+        currentX = 0.0
+        for (keyCode, label, width) in numberRow {
+            keys.append(PhysicalKey(
+                keyCode: keyCode, label: label, x: currentX,
+                y: rowSpacing, width: width, height: standardKeyHeight
+            ))
+            currentX += width + keySpacing
+        }
+
+        // Row 2: QWERTY row (same as US)
+        let backslashWidth = targetRightEdge - (1.5 + keySpacing + 12 * (standardKeyWidth + keySpacing))
+        let topRow: [(UInt16, String, Double)] = [
+            (48, "⇥", 1.5),
+            (12, "q", standardKeyWidth), (13, "w", standardKeyWidth),
+            (14, "e", standardKeyWidth), (15, "r", standardKeyWidth),
+            (17, "t", standardKeyWidth), (16, "y", standardKeyWidth),
+            (32, "u", standardKeyWidth), (34, "i", standardKeyWidth),
+            (31, "o", standardKeyWidth), (35, "p", standardKeyWidth),
+            (33, "[", standardKeyWidth), (30, "]", standardKeyWidth),
+            (42, "\\", backslashWidth)
+        ]
+        currentX = 0.0
+        for (keyCode, label, width) in topRow {
+            keys.append(PhysicalKey(
+                keyCode: keyCode, label: label, x: currentX,
+                y: rowSpacing * 2, width: width, height: standardKeyHeight
+            ))
+            currentX += width + keySpacing
+        }
+
+        // Row 3: Home row (same as US)
+        let capsWidth = 1.8
+        let returnWidth = targetRightEdge - (capsWidth + keySpacing + 11 * (standardKeyWidth + keySpacing))
+        let middleRow: [(UInt16, String, Double)] = [
+            (57, "⇪", capsWidth),
+            (0, "a", standardKeyWidth), (1, "s", standardKeyWidth),
+            (2, "d", standardKeyWidth), (3, "f", standardKeyWidth),
+            (5, "g", standardKeyWidth), (4, "h", standardKeyWidth),
+            (38, "j", standardKeyWidth), (40, "k", standardKeyWidth),
+            (37, "l", standardKeyWidth), (41, ";", standardKeyWidth),
+            (39, "'", standardKeyWidth),
+            (36, "↩", returnWidth)
+        ]
+        currentX = 0.0
+        for (keyCode, label, width) in middleRow {
+            keys.append(PhysicalKey(
+                keyCode: keyCode, label: label, x: currentX,
+                y: rowSpacing * 3, width: width, height: standardKeyHeight
+            ))
+            currentX += width + keySpacing
+        }
+
+        // Row 4: Bottom row - ISO has shorter left shift and extra IntlBackslash key
+        // US: leftShift(2.35) + 10keys + rightShift(2.35) + 11gaps = 15.58
+        // ISO: leftShift(1.27) + intlBackslash(1.0) + 10keys + rightShift(2.35) + 12gaps = 15.66
+        // Adjust right shift to match US row width: 2.35 - 0.08 = 2.27
+        let leftShiftWidthISO = 1.27 // Shorter than US (2.35) to make room for IntlBackslash
+        let rightShiftWidthISO = 2.27 // Slightly narrower to compensate for extra gap
+        let bottomRowISO: [(UInt16, String, Double)] = [
+            (56, "⇧", leftShiftWidthISO),
+            (10, "§", standardKeyWidth), // IntlBackslash key (§ on UK, < on German, etc.)
+            (6, "z", standardKeyWidth), (7, "x", standardKeyWidth),
+            (8, "c", standardKeyWidth), (9, "v", standardKeyWidth),
+            (11, "b", standardKeyWidth), (45, "n", standardKeyWidth),
+            (46, "m", standardKeyWidth), (43, ",", standardKeyWidth),
+            (47, ".", standardKeyWidth), (44, "/", standardKeyWidth),
+            (60, "⇧", rightShiftWidthISO)
+        ]
+        currentX = 0.0
+        for (keyCode, label, width) in bottomRowISO {
+            keys.append(PhysicalKey(
+                keyCode: keyCode, label: label, x: currentX,
+                y: rowSpacing * 4, width: width, height: standardKeyHeight
+            ))
+            currentX += width + keySpacing
+        }
+
+        // Row 5: Modifiers (same as US)
+        let row5Top = rowSpacing * 5
+        let fnWidth = standardKeyWidth
+        let ctrlWidth = standardKeyWidth
+        let optWidth = standardKeyWidth
+        let cmdWidth = 1.35
+
+        let arrowKeyHeight = 0.45
+        let arrowKeyGap = 0.1
+        let arrowKeyWidth = 0.9
+        let arrowKeySpacing = 0.04
+        let arrowRightMargin = 0.15
+        let arrowClusterWidth = 3 * arrowKeyWidth + 2 * arrowKeySpacing + arrowRightMargin
+
+        let leftModsWidth = fnWidth + keySpacing + ctrlWidth + keySpacing + optWidth + keySpacing + cmdWidth + keySpacing
+        let rightModsWidth = cmdWidth + keySpacing + optWidth + keySpacing
+        let spacebarWidth = targetRightEdge - leftModsWidth - rightModsWidth - arrowClusterWidth
+
+        let modifierRow: [(UInt16, String, Double)] = [
+            (63, "fn", fnWidth),
+            (59, "⌃", ctrlWidth),
+            (58, "⌥", optWidth),
+            (55, "⌘", cmdWidth),
+            (49, " ", spacebarWidth),
+            (54, "⌘", cmdWidth),
+            (61, "⌥", optWidth)
+        ]
+        currentX = 0.0
+        for (keyCode, label, width) in modifierRow {
+            keys.append(PhysicalKey(
+                keyCode: keyCode, label: label, x: currentX,
+                y: row5Top, width: width, height: standardKeyHeight
+            ))
+            currentX += width + keySpacing
+        }
+
+        // Arrow cluster (same as US)
+        let arrowXStart = currentX
+
+        keys.append(PhysicalKey(
+            keyCode: 126, label: "▲",
+            x: arrowXStart + arrowKeyWidth + arrowKeySpacing,
+            y: row5Top,
+            width: arrowKeyWidth, height: arrowKeyHeight
+        ))
+
+        let lowerArrowY = row5Top + arrowKeyHeight + arrowKeyGap
+        keys.append(PhysicalKey(
+            keyCode: 123, label: "◀",
+            x: arrowXStart, y: lowerArrowY,
+            width: arrowKeyWidth, height: arrowKeyHeight
+        ))
+        keys.append(PhysicalKey(
+            keyCode: 125, label: "▼",
+            x: arrowXStart + arrowKeyWidth + arrowKeySpacing, y: lowerArrowY,
+            width: arrowKeyWidth, height: arrowKeyHeight
+        ))
+        keys.append(PhysicalKey(
+            keyCode: 124, label: "▶",
+            x: arrowXStart + 2 * (arrowKeyWidth + arrowKeySpacing), y: lowerArrowY,
+            width: arrowKeyWidth, height: arrowKeyHeight
+        ))
+
+        return PhysicalLayout(
+            id: "macbook-iso",
+            name: "MacBook ISO",
+            keys: keys
+        )
+    }()
+
+    // MARK: - MacBook ABNT2 (Brazilian)
+
+    /// MacBook ABNT2 (Brazilian Portuguese) keyboard layout
+    /// Key differences from ISO:
+    /// - Extra key between right shift and slash (the "/" key moves there)
+    /// - Shorter right shift to accommodate the extra key
+    /// - Extra key on number row (cedilla/acute accent area)
+    static let macBookABNT2: PhysicalLayout = {
+        var keys: [PhysicalKey] = []
+        var currentX = 0.0
+        let keySpacing = 0.08
+        let rowSpacing = 1.1
+        let standardKeyWidth = 1.0
+        let standardKeyHeight = 1.0
+
+        let targetRightEdge = 13 * (standardKeyWidth + keySpacing) + 1.5
+
+        // Row 0: ESC + Function Keys + Touch ID (same as US/ISO)
+        let escWidth = 1.5
+        let touchIdWidth = standardKeyWidth
+        let functionRowAvailable = targetRightEdge - escWidth - keySpacing - touchIdWidth - keySpacing
+        let functionKeyWidth = (functionRowAvailable - 11 * keySpacing) / 12
+
+        keys.append(PhysicalKey(
+            keyCode: 53,
+            label: "esc",
+            x: 0.0,
+            y: 0.0,
+            width: escWidth,
+            height: standardKeyHeight
+        ))
+        currentX = escWidth + keySpacing
+
+        let functionKeys: [(UInt16, String)] = [
+            (122, "F1"), (120, "F2"), (99, "F3"), (118, "F4"),
+            (96, "F5"), (97, "F6"), (98, "F7"), (100, "F8"),
+            (101, "F9"), (109, "F10"), (103, "F11"), (111, "F12")
+        ]
+        for (keyCode, label) in functionKeys {
+            keys.append(PhysicalKey(
+                keyCode: keyCode,
+                label: label,
+                x: currentX,
+                y: 0.0,
+                width: functionKeyWidth,
+                height: standardKeyHeight
+            ))
+            currentX += functionKeyWidth + keySpacing
+        }
+
+        keys.append(PhysicalKey(
+            keyCode: 0xFFFF,
+            label: "🔒",
+            x: currentX,
+            y: 0.0,
+            width: touchIdWidth,
+            height: standardKeyHeight
+        ))
+
+        // Row 1: Number Row (same as US/ISO)
+        let numberRow: [(UInt16, String, Double)] = [
+            (50, "'", standardKeyWidth), // Apostrophe position on ABNT2
+            (18, "1", standardKeyWidth), (19, "2", standardKeyWidth),
+            (20, "3", standardKeyWidth), (21, "4", standardKeyWidth),
+            (23, "5", standardKeyWidth), (22, "6", standardKeyWidth),
+            (26, "7", standardKeyWidth), (28, "8", standardKeyWidth),
+            (25, "9", standardKeyWidth), (29, "0", standardKeyWidth),
+            (27, "-", standardKeyWidth), (24, "=", standardKeyWidth),
+            (51, "⌫", 1.5)
+        ]
+        currentX = 0.0
+        for (keyCode, label, width) in numberRow {
+            keys.append(PhysicalKey(
+                keyCode: keyCode, label: label, x: currentX,
+                y: rowSpacing, width: width, height: standardKeyHeight
+            ))
+            currentX += width + keySpacing
+        }
+
+        // Row 2: QWERTY row (same as US/ISO)
+        let backslashWidth = targetRightEdge - (1.5 + keySpacing + 12 * (standardKeyWidth + keySpacing))
+        let topRow: [(UInt16, String, Double)] = [
+            (48, "⇥", 1.5),
+            (12, "q", standardKeyWidth), (13, "w", standardKeyWidth),
+            (14, "e", standardKeyWidth), (15, "r", standardKeyWidth),
+            (17, "t", standardKeyWidth), (16, "y", standardKeyWidth),
+            (32, "u", standardKeyWidth), (34, "i", standardKeyWidth),
+            (31, "o", standardKeyWidth), (35, "p", standardKeyWidth),
+            (33, "´", standardKeyWidth), (30, "[", standardKeyWidth), // Acute accent on ABNT2
+            (42, "]", backslashWidth)
+        ]
+        currentX = 0.0
+        for (keyCode, label, width) in topRow {
+            keys.append(PhysicalKey(
+                keyCode: keyCode, label: label, x: currentX,
+                y: rowSpacing * 2, width: width, height: standardKeyHeight
+            ))
+            currentX += width + keySpacing
+        }
+
+        // Row 3: Home row (same as US/ISO)
+        let capsWidth = 1.8
+        let returnWidth = targetRightEdge - (capsWidth + keySpacing + 11 * (standardKeyWidth + keySpacing))
+        let middleRow: [(UInt16, String, Double)] = [
+            (57, "⇪", capsWidth),
+            (0, "a", standardKeyWidth), (1, "s", standardKeyWidth),
+            (2, "d", standardKeyWidth), (3, "f", standardKeyWidth),
+            (5, "g", standardKeyWidth), (4, "h", standardKeyWidth),
+            (38, "j", standardKeyWidth), (40, "k", standardKeyWidth),
+            (37, "l", standardKeyWidth), (41, "ç", standardKeyWidth), // Cedilla on ABNT2
+            (39, "~", standardKeyWidth),
+            (36, "↩", returnWidth)
+        ]
+        currentX = 0.0
+        for (keyCode, label, width) in middleRow {
+            keys.append(PhysicalKey(
+                keyCode: keyCode, label: label, x: currentX,
+                y: rowSpacing * 3, width: width, height: standardKeyHeight
+            ))
+            currentX += width + keySpacing
+        }
+
+        // Row 4: Bottom row - ABNT2 has extra key between slash and right shift
+        // Like ISO but with extra key at right side
+        let leftShiftWidthABNT2 = 1.27 // Same as ISO
+        let rightShiftWidthABNT2 = 1.27 // Shorter than ISO to fit extra key
+        let bottomRowABNT2: [(UInt16, String, Double)] = [
+            (56, "⇧", leftShiftWidthABNT2),
+            (10, "\\", standardKeyWidth), // Backslash key (like ISO IntlBackslash)
+            (6, "z", standardKeyWidth), (7, "x", standardKeyWidth),
+            (8, "c", standardKeyWidth), (9, "v", standardKeyWidth),
+            (11, "b", standardKeyWidth), (45, "n", standardKeyWidth),
+            (46, "m", standardKeyWidth), (43, ",", standardKeyWidth),
+            (47, ".", standardKeyWidth), (44, ";", standardKeyWidth), // Semicolon on ABNT2
+            (94, "/", standardKeyWidth), // Extra ABNT2 key (slash)
+            (60, "⇧", rightShiftWidthABNT2)
+        ]
+        currentX = 0.0
+        for (keyCode, label, width) in bottomRowABNT2 {
+            keys.append(PhysicalKey(
+                keyCode: keyCode, label: label, x: currentX,
+                y: rowSpacing * 4, width: width, height: standardKeyHeight
+            ))
+            currentX += width + keySpacing
+        }
+
+        // Row 5: Modifiers (same as US/ISO)
+        let row5Top = rowSpacing * 5
+        let fnWidth = standardKeyWidth
+        let ctrlWidth = standardKeyWidth
+        let optWidth = standardKeyWidth
+        let cmdWidth = 1.35
+
+        let arrowKeyHeight = 0.45
+        let arrowKeyGap = 0.1
+        let arrowKeyWidth = 0.9
+        let arrowKeySpacing = 0.04
+        let arrowRightMargin = 0.15
+        let arrowClusterWidth = 3 * arrowKeyWidth + 2 * arrowKeySpacing + arrowRightMargin
+
+        let leftModsWidth = fnWidth + keySpacing + ctrlWidth + keySpacing + optWidth + keySpacing + cmdWidth + keySpacing
+        let rightModsWidth = cmdWidth + keySpacing + optWidth + keySpacing
+        let spacebarWidth = targetRightEdge - leftModsWidth - rightModsWidth - arrowClusterWidth
+
+        let modifierRow: [(UInt16, String, Double)] = [
+            (63, "fn", fnWidth),
+            (59, "⌃", ctrlWidth),
+            (58, "⌥", optWidth),
+            (55, "⌘", cmdWidth),
+            (49, " ", spacebarWidth),
+            (54, "⌘", cmdWidth),
+            (61, "⌥", optWidth)
+        ]
+        currentX = 0.0
+        for (keyCode, label, width) in modifierRow {
+            keys.append(PhysicalKey(
+                keyCode: keyCode, label: label, x: currentX,
+                y: row5Top, width: width, height: standardKeyHeight
+            ))
+            currentX += width + keySpacing
+        }
+
+        // Arrow cluster (same as US/ISO)
+        let arrowXStart = currentX
+
+        keys.append(PhysicalKey(
+            keyCode: 126, label: "▲",
+            x: arrowXStart + arrowKeyWidth + arrowKeySpacing,
+            y: row5Top,
+            width: arrowKeyWidth, height: arrowKeyHeight
+        ))
+
+        let lowerArrowY = row5Top + arrowKeyHeight + arrowKeyGap
+        keys.append(PhysicalKey(
+            keyCode: 123, label: "◀",
+            x: arrowXStart, y: lowerArrowY,
+            width: arrowKeyWidth, height: arrowKeyHeight
+        ))
+        keys.append(PhysicalKey(
+            keyCode: 125, label: "▼",
+            x: arrowXStart + arrowKeyWidth + arrowKeySpacing, y: lowerArrowY,
+            width: arrowKeyWidth, height: arrowKeyHeight
+        ))
+        keys.append(PhysicalKey(
+            keyCode: 124, label: "▶",
+            x: arrowXStart + 2 * (arrowKeyWidth + arrowKeySpacing), y: lowerArrowY,
+            width: arrowKeyWidth, height: arrowKeyHeight
+        ))
+
+        return PhysicalLayout(
+            id: "macbook-abnt2",
+            name: "MacBook ABNT2",
+            keys: keys
+        )
+    }()
+
+    // MARK: - MacBook Korean (KS)
+
+    /// MacBook Korean Standard keyboard layout
+    /// Similar to ANSI but with Han/Eng toggle key and different spacebar arrangement
+    static let macBookKorean: PhysicalLayout = {
+        var keys: [PhysicalKey] = []
+        var currentX = 0.0
+        let keySpacing = 0.08
+        let rowSpacing = 1.1
+        let standardKeyWidth = 1.0
+        let standardKeyHeight = 1.0
+
+        let targetRightEdge = 13 * (standardKeyWidth + keySpacing) + 1.5
+
+        // Row 0: ESC + Function Keys + Touch ID (same as US)
+        let escWidth = 1.5
+        let touchIdWidth = standardKeyWidth
+        let functionRowAvailable = targetRightEdge - escWidth - keySpacing - touchIdWidth - keySpacing
+        let functionKeyWidth = (functionRowAvailable - 11 * keySpacing) / 12
+
+        keys.append(PhysicalKey(
+            keyCode: 53,
+            label: "esc",
+            x: 0.0,
+            y: 0.0,
+            width: escWidth,
+            height: standardKeyHeight
+        ))
+        currentX = escWidth + keySpacing
+
+        let functionKeys: [(UInt16, String)] = [
+            (122, "F1"), (120, "F2"), (99, "F3"), (118, "F4"),
+            (96, "F5"), (97, "F6"), (98, "F7"), (100, "F8"),
+            (101, "F9"), (109, "F10"), (103, "F11"), (111, "F12")
+        ]
+        for (keyCode, label) in functionKeys {
+            keys.append(PhysicalKey(
+                keyCode: keyCode,
+                label: label,
+                x: currentX,
+                y: 0.0,
+                width: functionKeyWidth,
+                height: standardKeyHeight
+            ))
+            currentX += functionKeyWidth + keySpacing
+        }
+
+        keys.append(PhysicalKey(
+            keyCode: 0xFFFF,
+            label: "🔒",
+            x: currentX,
+            y: 0.0,
+            width: touchIdWidth,
+            height: standardKeyHeight
+        ))
+
+        // Row 1: Number Row (same as US)
+        let numberRow: [(UInt16, String, Double)] = [
+            (50, "`", standardKeyWidth),
+            (18, "1", standardKeyWidth), (19, "2", standardKeyWidth),
+            (20, "3", standardKeyWidth), (21, "4", standardKeyWidth),
+            (23, "5", standardKeyWidth), (22, "6", standardKeyWidth),
+            (26, "7", standardKeyWidth), (28, "8", standardKeyWidth),
+            (25, "9", standardKeyWidth), (29, "0", standardKeyWidth),
+            (27, "-", standardKeyWidth), (24, "=", standardKeyWidth),
+            (51, "⌫", 1.5)
+        ]
+        currentX = 0.0
+        for (keyCode, label, width) in numberRow {
+            keys.append(PhysicalKey(
+                keyCode: keyCode, label: label, x: currentX,
+                y: rowSpacing, width: width, height: standardKeyHeight
+            ))
+            currentX += width + keySpacing
+        }
+
+        // Row 2: QWERTY row (same as US)
+        let backslashWidth = targetRightEdge - (1.5 + keySpacing + 12 * (standardKeyWidth + keySpacing))
+        let topRow: [(UInt16, String, Double)] = [
+            (48, "⇥", 1.5),
+            (12, "q", standardKeyWidth), (13, "w", standardKeyWidth),
+            (14, "e", standardKeyWidth), (15, "r", standardKeyWidth),
+            (17, "t", standardKeyWidth), (16, "y", standardKeyWidth),
+            (32, "u", standardKeyWidth), (34, "i", standardKeyWidth),
+            (31, "o", standardKeyWidth), (35, "p", standardKeyWidth),
+            (33, "[", standardKeyWidth), (30, "]", standardKeyWidth),
+            (42, "₩", backslashWidth) // Won symbol on Korean keyboards
+        ]
+        currentX = 0.0
+        for (keyCode, label, width) in topRow {
+            keys.append(PhysicalKey(
+                keyCode: keyCode, label: label, x: currentX,
+                y: rowSpacing * 2, width: width, height: standardKeyHeight
+            ))
+            currentX += width + keySpacing
+        }
+
+        // Row 3: Home row (same as US)
+        let capsWidth = 1.8
+        let returnWidth = targetRightEdge - (capsWidth + keySpacing + 11 * (standardKeyWidth + keySpacing))
+        let middleRow: [(UInt16, String, Double)] = [
+            (57, "⇪", capsWidth),
+            (0, "a", standardKeyWidth), (1, "s", standardKeyWidth),
+            (2, "d", standardKeyWidth), (3, "f", standardKeyWidth),
+            (5, "g", standardKeyWidth), (4, "h", standardKeyWidth),
+            (38, "j", standardKeyWidth), (40, "k", standardKeyWidth),
+            (37, "l", standardKeyWidth), (41, ";", standardKeyWidth),
+            (39, "'", standardKeyWidth),
+            (36, "↩", returnWidth)
+        ]
+        currentX = 0.0
+        for (keyCode, label, width) in middleRow {
+            keys.append(PhysicalKey(
+                keyCode: keyCode, label: label, x: currentX,
+                y: rowSpacing * 3, width: width, height: standardKeyHeight
+            ))
+            currentX += width + keySpacing
+        }
+
+        // Row 4: Bottom row (same as US)
+        let shiftWidth = 2.35
+        let bottomRow: [(UInt16, String, Double)] = [
+            (56, "⇧", shiftWidth),
+            (6, "z", standardKeyWidth), (7, "x", standardKeyWidth),
+            (8, "c", standardKeyWidth), (9, "v", standardKeyWidth),
+            (11, "b", standardKeyWidth), (45, "n", standardKeyWidth),
+            (46, "m", standardKeyWidth), (43, ",", standardKeyWidth),
+            (47, ".", standardKeyWidth), (44, "/", standardKeyWidth),
+            (60, "⇧", shiftWidth)
+        ]
+        currentX = 0.0
+        for (keyCode, label, width) in bottomRow {
+            keys.append(PhysicalKey(
+                keyCode: keyCode, label: label, x: currentX,
+                y: rowSpacing * 4, width: width, height: standardKeyHeight
+            ))
+            currentX += width + keySpacing
+        }
+
+        // Row 5: Modifiers - Korean has Han/Eng key instead of some modifiers
+        // Spacebar is slightly shorter to accommodate language toggle keys
+        let row5Top = rowSpacing * 5
+        let fnWidth = standardKeyWidth
+        let ctrlWidth = standardKeyWidth
+        let optWidth = standardKeyWidth
+        let cmdWidth = 1.25 // Slightly narrower
+        let langKeyWidth = 0.9 // Korean language toggle keys
+
+        let arrowKeyHeight = 0.45
+        let arrowKeyGap = 0.1
+        let arrowKeyWidth = 0.9
+        let arrowKeySpacing = 0.04
+        let arrowRightMargin = 0.15
+        let arrowClusterWidth = 3 * arrowKeyWidth + 2 * arrowKeySpacing + arrowRightMargin
+
+        let leftModsWidth = fnWidth + keySpacing + ctrlWidth + keySpacing + optWidth + keySpacing + cmdWidth + keySpacing + langKeyWidth + keySpacing
+        let rightModsWidth = langKeyWidth + keySpacing + cmdWidth + keySpacing + optWidth + keySpacing
+        let spacebarWidth = targetRightEdge - leftModsWidth - rightModsWidth - arrowClusterWidth
+
+        // Korean layout: fn, ctrl, opt, cmd, 한자, [space], 한/영, cmd, opt
+        currentX = 0.0
+
+        keys.append(PhysicalKey(keyCode: 63, label: "fn", x: currentX, y: row5Top, width: fnWidth, height: standardKeyHeight))
+        currentX += fnWidth + keySpacing
+
+        keys.append(PhysicalKey(keyCode: 59, label: "⌃", x: currentX, y: row5Top, width: ctrlWidth, height: standardKeyHeight))
+        currentX += ctrlWidth + keySpacing
+
+        keys.append(PhysicalKey(keyCode: 58, label: "⌥", x: currentX, y: row5Top, width: optWidth, height: standardKeyHeight))
+        currentX += optWidth + keySpacing
+
+        keys.append(PhysicalKey(keyCode: 55, label: "⌘", x: currentX, y: row5Top, width: cmdWidth, height: standardKeyHeight))
+        currentX += cmdWidth + keySpacing
+
+        // Hanja key (keycode 104 on some systems, using placeholder)
+        keys.append(PhysicalKey(keyCode: 104, label: "한자", x: currentX, y: row5Top, width: langKeyWidth, height: standardKeyHeight))
+        currentX += langKeyWidth + keySpacing
+
+        keys.append(PhysicalKey(keyCode: 49, label: " ", x: currentX, y: row5Top, width: spacebarWidth, height: standardKeyHeight))
+        currentX += spacebarWidth + keySpacing
+
+        // Han/Eng toggle key (keycode 102 on some systems, using placeholder)
+        keys.append(PhysicalKey(keyCode: 102, label: "한/영", x: currentX, y: row5Top, width: langKeyWidth, height: standardKeyHeight))
+        currentX += langKeyWidth + keySpacing
+
+        keys.append(PhysicalKey(keyCode: 54, label: "⌘", x: currentX, y: row5Top, width: cmdWidth, height: standardKeyHeight))
+        currentX += cmdWidth + keySpacing
+
+        keys.append(PhysicalKey(keyCode: 61, label: "⌥", x: currentX, y: row5Top, width: optWidth, height: standardKeyHeight))
+        currentX += optWidth + keySpacing
+
+        // Arrow cluster (same as US)
+        let arrowXStart = currentX
+
+        keys.append(PhysicalKey(
+            keyCode: 126, label: "▲",
+            x: arrowXStart + arrowKeyWidth + arrowKeySpacing,
+            y: row5Top,
+            width: arrowKeyWidth, height: arrowKeyHeight
+        ))
+
+        let lowerArrowY = row5Top + arrowKeyHeight + arrowKeyGap
+        keys.append(PhysicalKey(
+            keyCode: 123, label: "◀",
+            x: arrowXStart, y: lowerArrowY,
+            width: arrowKeyWidth, height: arrowKeyHeight
+        ))
+        keys.append(PhysicalKey(
+            keyCode: 125, label: "▼",
+            x: arrowXStart + arrowKeyWidth + arrowKeySpacing, y: lowerArrowY,
+            width: arrowKeyWidth, height: arrowKeyHeight
+        ))
+        keys.append(PhysicalKey(
+            keyCode: 124, label: "▶",
+            x: arrowXStart + 2 * (arrowKeyWidth + arrowKeySpacing), y: lowerArrowY,
+            width: arrowKeyWidth, height: arrowKeyHeight
+        ))
+
+        return PhysicalLayout(
+            id: "macbook-korean",
+            name: "MacBook Korean",
+            keys: keys
+        )
+    }()
+
     // MARK: - Kinesis Advantage 360
 
     /// Kinesis Advantage 360 split ergonomic keyboard layout
@@ -831,14 +1613,14 @@ struct PhysicalLayout: Identifiable {
             filename: "cornix",
             keyMapping: ANSIPositionTable.keyMapping,
             idOverride: "cornix",
-            nameOverride: "Cornix"
+            nameOverride: "Cornix LP Split Wireless"
         ) {
             return layout
         }
         print("PhysicalLayout: Failed to load Cornix from JSON, using fallback")
         return PhysicalLayout(
             id: "cornix",
-            name: "Cornix",
+            name: "Cornix LP Split Wireless",
             keys: [],
             totalWidth: 15.0,
             totalHeight: 5.0

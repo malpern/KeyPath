@@ -86,9 +86,6 @@ struct RulesTabView: View {
     /// Track pending toggle states for immediate UI feedback
     @State private var pendingToggles: [UUID: Bool] = [:]
     @State private var homeRowModsEditState: HomeRowModsEditState?
-    /// Launcher welcome dialog state
-    @State private var showLauncherWelcome = false
-    @State private var pendingLauncherConfig: LauncherGridConfig?
     private let catalog = RuleCollectionCatalog()
 
     // Show all catalog collections, merging with existing state
@@ -155,17 +152,8 @@ struct RulesTabView: View {
                 if !isOn {
                     pendingSelections.removeValue(forKey: collection.id)
                 }
-                // Check if this is launcher and needs welcome dialog
-                if collection.id == RuleCollectionIdentifier.launcher,
-                   isOn,
-                   let config = collection.configuration.launcherGridConfig,
-                   !config.hasSeenWelcome {
-                    // Show welcome dialog instead of toggling directly
-                    pendingLauncherConfig = config
-                    showLauncherWelcome = true
-                } else {
-                    Task { await kanataManager.toggleRuleCollection(collection.id, enabled: isOn) }
-                }
+                // Toggle collection directly (welcome dialog moved to drawer's launcher tab)
+                Task { await kanataManager.toggleRuleCollection(collection.id, enabled: isOn) }
             },
             onEditMapping: nil,
             onDeleteMapping: nil,
@@ -368,29 +356,6 @@ struct RulesTabView: View {
                     }
                 )
                 .interactiveDismissDisabled()
-            }
-        }
-        .sheet(isPresented: $showLauncherWelcome) {
-            if var config = pendingLauncherConfig {
-                LauncherWelcomeDialog(
-                    config: Binding(
-                        get: { config },
-                        set: { config = $0 }
-                    ),
-                    onComplete: { finalConfig, _ in
-                        var updatedConfig = finalConfig
-                        updatedConfig.hasSeenWelcome = true
-                        Task {
-                            // Create launcher collection with updated config and add it
-                            var launcherCollection = catalog.defaultCollections()
-                                .first { $0.id == RuleCollectionIdentifier.launcher }!
-                            launcherCollection.configuration = .launcherGrid(updatedConfig)
-                            launcherCollection.isEnabled = true
-                            await kanataManager.addRuleCollection(launcherCollection)
-                        }
-                        showLauncherWelcome = false
-                    }
-                )
             }
         }
         .alert("Reset Configuration?", isPresented: $showingResetConfirmation) {

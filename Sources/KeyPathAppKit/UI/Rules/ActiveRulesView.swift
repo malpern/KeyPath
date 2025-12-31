@@ -77,8 +77,6 @@ private struct RuleCollectionRow: View {
     let onToggle: (Bool) -> Void
     var onLauncherConfigChanged: ((LauncherGridConfig) -> Void)?
     @State private var isExpanded = false
-    @State private var showLauncherWelcome = false
-    @State private var pendingLauncherConfig: LauncherGridConfig?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -107,7 +105,8 @@ private struct RuleCollectionRow: View {
                     isOn: Binding(
                         get: { collection.isEnabled },
                         set: { newValue in
-                            handleToggle(newValue)
+                            // Toggle directly (welcome dialog moved to drawer's launcher tab)
+                            onToggle(newValue)
                         }
                     )
                 )
@@ -136,38 +135,6 @@ private struct RuleCollectionRow: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color(nsColor: NSColor.windowBackgroundColor))
         )
-        .sheet(isPresented: $showLauncherWelcome) {
-            if var config = pendingLauncherConfig {
-                LauncherWelcomeDialog(
-                    config: Binding(
-                        get: { config },
-                        set: { config = $0 }
-                    ),
-                    onComplete: { finalConfig, _ in
-                        var updatedConfig = finalConfig
-                        updatedConfig.hasSeenWelcome = true
-                        onLauncherConfigChanged?(updatedConfig)
-                        onToggle(true)
-                        showLauncherWelcome = false
-                    }
-                )
-            }
-        }
-    }
-
-    /// Handle toggle, showing welcome dialog for launcher if needed
-    private func handleToggle(_ newValue: Bool) {
-        // Check if this is the launcher collection and needs welcome
-        if collection.id == RuleCollectionIdentifier.launcher,
-           newValue,
-           let config = collection.configuration.launcherGridConfig,
-           !config.hasSeenWelcome {
-            // Show welcome dialog instead of toggling directly
-            pendingLauncherConfig = config
-            showLauncherWelcome = true
-        } else {
-            onToggle(newValue)
-        }
     }
 }
 

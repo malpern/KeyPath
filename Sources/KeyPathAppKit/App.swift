@@ -383,7 +383,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         AppLogger.shared.debug(
             "🔍 [AppDelegate] applicationDidBecomeActive called (initialShown=\(initialMainWindowShown))")
 
-        // One-shot first activation: show overlay + mapper instead of main window
+        // One-shot first activation: show overlay (drawer starts closed)
         if !initialMainWindowShown {
             // Log diagnostic state at first activation for future debugging
             let appActive = NSApp.isActive
@@ -398,17 +398,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 AppLogger.shared.debug("🪟 [AppDelegate] App was hidden, unhiding")
             }
 
-            // Show overlay and mapper instead of main window on first activation
-            // The overlay is shown via showForStartup() in applicationDidFinishLaunching
-            // Mapper is shown centered on screen
-            if let vm = viewModel {
-                MapperWindowController.shared.showWindow(viewModel: vm)
-                MapperWindowController.shared.centerWindow()
-                AppLogger.shared.debug("🪟 [AppDelegate] First activation - showing mapper centered")
-            }
+            // Show overlay on first activation - drawer starts closed
+            // User can open drawer by clicking the toggle button
+            AppLogger.shared.debug("🪟 [AppDelegate] First activation - overlay shown")
 
             initialMainWindowShown = true
-            AppLogger.shared.debug("🪟 [AppDelegate] First activation - overlay + mapper shown (main window hidden)")
+            AppLogger.shared.debug("🪟 [AppDelegate] First activation complete (main window hidden)")
 
             if pendingReopenShow {
                 AppLogger.shared.debug(
@@ -708,7 +703,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Sets a smart default keyboard layout on first launch based on detected keyboard type.
     /// Only runs once - if user has already set a preference, this is a no-op.
     private func setSmartKeyboardLayoutDefault() {
-        let key = "overlayLayoutId"
+        let key = LayoutPreferences.layoutIdKey
 
         // Check if user has ever set a layout preference
         if UserDefaults.standard.string(forKey: key) != nil {

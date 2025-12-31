@@ -9,10 +9,13 @@ struct OverlayMapperSection: View {
     let kanataViewModel: KanataViewModel?
     let healthIndicatorState: HealthIndicatorState
     let onHealthTap: () -> Void
+    /// Fade amount for monochrome/opacity transition (0 = full color, 1 = faded)
+    var fadeAmount: CGFloat = 0
     /// Callback when a key is selected (to highlight on keyboard)
     var onKeySelected: ((UInt16?) -> Void)?
 
     @StateObject private var viewModel = MapperViewModel()
+    @State private var isLayerPickerOpen = false
 
     var body: some View {
         VStack(spacing: 8) {
@@ -20,6 +23,8 @@ struct OverlayMapperSection: View {
                 healthGateContent
             } else {
                 mapperContent
+                    .saturation(Double(1 - fadeAmount)) // Monochromatic when faded
+                    .opacity(Double(1 - fadeAmount * 0.5)) // Fade with keyboard
             }
         }
         .onAppear {
@@ -42,7 +47,7 @@ struct OverlayMapperSection: View {
         }
     }
 
-    private let showDebugBorders = true
+    private let showDebugBorders = false
 
     private var mapperContent: some View {
         VStack(spacing: 0) {
@@ -52,8 +57,8 @@ struct OverlayMapperSection: View {
                 let keycapWidth: CGFloat = 100
                 let arrowWidth: CGFloat = 20
                 let spacing: CGFloat = 16
-                let shadowBuffer: CGFloat = 8
-                let baseWidth = keycapWidth * 2 + spacing * 2 + arrowWidth + shadowBuffer
+                // No shadow buffer - flush right edge
+                let baseWidth = keycapWidth * 2 + spacing * 2 + arrowWidth
                 let scale = min(1, availableWidth / baseWidth)
 
                 MapperKeycapPair(
@@ -85,44 +90,105 @@ struct OverlayMapperSection: View {
             Spacer(minLength: 0)
 
             // Layer switcher styled like Add Shortcut button, pinned to bottom
-            GeometryReader { proxy in
-                layerSwitcherButton
-                    .frame(width: proxy.size.width * 0.9, alignment: .center)
+            // Full width to match blue debug box
+            GeometryReader { geo in
+                layerSwitcherMenu(width: geo.size.width)
                     .frame(maxWidth: .infinity, alignment: .center)
             }
-            .frame(height: 28)
-            .padding(.bottom, 0)
+            .frame(height: 28) // Match button height
+            .padding(.top, 6)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// Layer switcher button styled like the Add Shortcut button
-    private var layerSwitcherButton: some View {
-        Menu {
-            ForEach(["base", "nav"], id: \.self) { layer in
-                Button {
-                    viewModel.setLayer(layer)
-                } label: {
-                    HStack {
-                        Text(layer.lowercased() == "base" ? "Base Layer" : layer.capitalized)
-                        Spacer()
-                        if viewModel.currentLayer.lowercased() == layer.lowercased() {
-                            Image(systemName: "checkmark")
+    /// Layer switcher menu styled like the Add Shortcut button
+    /// - Parameter width: Explicit width for the menu button
+    @ViewBuilder
+    private func layerSwitcherMenu(width: CGFloat) -> some View {
+        let layerDisplayName = viewModel.currentLayer.lowercased() == "base" ? "Base Layer" : viewModel.currentLayer.capitalized
+        let availableLayers = ["base", "nav"]
+
+        // Custom button that triggers popover
+        Button {
+            isLayerPickerOpen.toggle()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "square.3.layers.3d")
+                Text(layerDisplayName)
+                Spacer()
+                Image(systemName: "chevron.down")
+                    .font(.caption2)
+                    .rotationEffect(.degrees(isLayerPickerOpen ? 180 : 0))
+                    .animation(.easeInOut(duration: 0.2), value: isLayerPickerOpen)
+            }
+            .font(.subheadline)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .frame(width: width)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.primary.opacity(0.1))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(Color.primary.opacity(0.2), lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("overlay-mapper-layer-switcher")
+        .popover(isPresented: $isLayerPickerOpen, arrowEdge: .top) {
+            // Custom styled popover matching the button appearance
+            VStack(spacing: 0) {
+                ForEach(Array(availableLayers.enumerated()), id: \.element) { index, layer in
+                    let displayName = layer.lowercased() == "base" ? "Base Layer" : layer.capitalized
+                    let isSelected = viewModel.currentLayer.lowercased() == layer.lowercased()
+
+                    Button {
+                        viewModel.setLayer(layer)
+                        isLayerPickerOpen = false
+                    } label: {
+                        HStack(spacing: 8) {
+                            if isSelected {
+                                Image(systemName: "checkmark")
+                                    .font(.caption.weight(.semibold))
+                            } else {
+                                // Invisible placeholder to maintain alignment
+                                Image(systemName: "checkmark")
+                                    .font(.caption.weight(.semibold))
+                                    .opacity(0)
+                            }
+                            Text(displayName)
+                                .font(.subheadline)
+                            Spacer()
                         }
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(LayerPickerItemButtonStyle())
+                    .focusable(false) // Remove focus ring
+                    .accessibilityIdentifier("layer-picker-\(layer)")
+
+                    // Add separator between items (not after last)
+                    if index < availableLayers.count - 1 {
+                        Divider()
+                            .opacity(0.2)
+                            .padding(.horizontal, 8)
                     }
                 }
             }
-        } label: {
-            HStack {
-                Image(systemName: "square.3.layers.3d")
-                Text(viewModel.currentLayer.lowercased() == "base" ? "Base Layer" : viewModel.currentLayer.capitalized)
-            }
-            .font(.subheadline)
-            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .frame(minWidth: width)
+            .background(.ultraThinMaterial) // Use material for consistent dark appearance
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(Color.primary.opacity(0.15), lineWidth: 0.5)
+            )
+            .padding(4)
+            .presentationCompactAdaptation(.none) // Prevent compact mode adaptation
         }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
-        .accessibilityIdentifier("overlay-mapper-layer-switcher")
     }
 
     private var shouldShowHealthGate: Bool {
@@ -200,5 +266,24 @@ struct OverlayMapperSection: View {
         case .healthy, .dismissed:
             "Open Setup"
         }
+    }
+}
+
+// MARK: - Layer Picker Item Button Style
+
+/// Custom button style for layer picker items with hover effect
+private struct LayerPickerItemButtonStyle: ButtonStyle {
+    @State private var isHovering = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.primary.opacity(isHovering ? 0.1 : (configuration.isPressed ? 0.15 : 0)))
+            )
+            .animation(.easeInOut(duration: 0.1), value: isHovering)
+            .onHover { hovering in
+                isHovering = hovering
+            }
     }
 }

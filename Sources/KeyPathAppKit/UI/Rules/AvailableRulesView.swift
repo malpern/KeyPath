@@ -5,8 +5,6 @@ import SwiftUI
 struct AvailableRulesView: View {
     @EnvironmentObject var kanataManager: KanataViewModel
     private let catalog = RuleCollectionCatalog()
-    @State private var showLauncherWelcome = false
-    @State private var pendingLauncherConfig: LauncherGridConfig?
 
     private var availableCollections: [RuleCollection] {
         let existing = Set(kanataManager.ruleCollections.map(\.id))
@@ -32,40 +30,11 @@ struct AvailableRulesView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 20)
         }
-        .sheet(isPresented: $showLauncherWelcome) {
-            if var config = pendingLauncherConfig {
-                LauncherWelcomeDialog(
-                    config: Binding(
-                        get: { config },
-                        set: { config = $0 }
-                    ),
-                    onComplete: { finalConfig, _ in
-                        var updatedConfig = finalConfig
-                        updatedConfig.hasSeenWelcome = true
-                        Task {
-                            // Create the collection with updated config and add it
-                            var launcherCollection = catalog.defaultCollections()
-                                .first { $0.id == RuleCollectionIdentifier.launcher }!
-                            launcherCollection.configuration = .launcherGrid(updatedConfig)
-                            await kanataManager.addRuleCollection(launcherCollection)
-                        }
-                        showLauncherWelcome = false
-                    }
-                )
-            }
-        }
     }
 
     private func activateCollection(_ collection: RuleCollection) {
-        // For launcher collection, show welcome dialog first
-        if collection.id == RuleCollectionIdentifier.launcher,
-           let config = collection.configuration.launcherGridConfig,
-           !config.hasSeenWelcome {
-            pendingLauncherConfig = config
-            showLauncherWelcome = true
-        } else {
-            Task { await kanataManager.addRuleCollection(collection) }
-        }
+        // Activate collection directly (welcome dialog moved to drawer's launcher tab)
+        Task { await kanataManager.addRuleCollection(collection) }
     }
 }
 

@@ -144,10 +144,10 @@ final class KanataConfigMigrationServiceTests: XCTestCase {
 
         // Should throw error
         XCTAssertThrowsError(try migrationService.prependIncludeLineIfMissing(to: configPath.path)) { error in
-            if let migrationError = error as? KanataConfigMigrationService.MigrationError {
-                XCTAssertEqual(migrationError, .includeAlreadyPresent)
-            } else {
+            guard let migrationError = error as? KanataConfigMigrationService.MigrationError,
+                  case .includeAlreadyPresent = migrationError else {
                 XCTFail("Expected MigrationError.includeAlreadyPresent")
+                return
             }
         }
     }

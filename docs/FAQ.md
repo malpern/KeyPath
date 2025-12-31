@@ -151,11 +151,45 @@ KeyPath uses `keypath.kbd` (user-owned) and `keypath-apps.kbd` (KeyPath-generate
 
 The `InstallerEngine` is a unified façade for all install/repair/uninstall operations. It's the single entry point for system modifications. See [ADR-015](/adr/adr-015-installer-engine) for details.
 
+## AI Config Generation
+
+### Do I need an API key to use KeyPath?
+
+No! KeyPath works without an API key for simple single-key remaps. AI is only needed for complex mappings like sequences, chords, and macros.
+
+### How much does AI generation cost?
+
+Each complex mapping costs approximately $0.01-0.03. Simple mappings are always free (no API call). These are estimates—check your [Anthropic dashboard](https://console.anthropic.com/) for exact charges.
+
+### Is my API key secure?
+
+Yes. Your API key is stored securely in the macOS Keychain using `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`. It's never sent anywhere except to Anthropic's API.
+
+### Can I track my AI usage?
+
+Yes! Go to Settings → General → AI Config Generation → "View Usage History" to see estimated costs and token usage.
+
+### What if I don't have an API key?
+
+KeyPath will:
+- ✅ Work for simple single-key remaps
+- ⚠️ Use basic generation for complex mappings (may not work for all cases)
+- ❌ Not be able to generate advanced sequences, chords, or macros
+
+### How do I get an API key?
+
+1. Go to [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)
+2. Create an account if needed
+3. Generate a new API key (starts with `sk-ant-`)
+4. Add it in Settings → General → AI Config Generation
+
+For full details, see the [AI Config Generation guide](/guides/ai-config-generation).
+
 ## Security & Privacy
 
 ### Does KeyPath collect data?
 
-No. KeyPath works completely offline and collects no telemetry or user data.
+No. KeyPath works completely offline and collects no telemetry or user data. The only external communication is with Anthropic's API (if you've enabled AI config generation).
 
 ### What permissions does KeyPath need?
 

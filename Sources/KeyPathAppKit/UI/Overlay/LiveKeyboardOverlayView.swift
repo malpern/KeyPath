@@ -24,21 +24,33 @@ struct LiveKeyboardOverlayView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @AppStorage("overlayLayoutId") private var selectedLayoutId: String = "macbook-us"
+    @AppStorage(LayoutPreferences.layoutIdKey) private var selectedLayoutId: String = LayoutPreferences.defaultLayoutId
     @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
     @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var keymapIncludePunctuationStore: String = "{}"
 
     @State private var escKeyLeftInset: CGFloat = 0
     @State private var keyboardWidth: CGFloat = 0
-    @State private var inspectorSection: InspectorSection = .mapper
+    @State private var inspectorSection: InspectorSection = .keyboard
     /// Shared state for tracking mouse interaction with keyboard (for refined click delay)
     @StateObject private var keyboardMouseState = KeyboardMouseState()
     /// Japanese input mode detector for showing mode indicator
     @ObservedObject private var inputSourceDetector = InputSourceDetector.shared
 
-    /// Launcher welcome dialog state (shown on first click of launcher tab in drawer)
-    @AppStorage("hasSeenLauncherDrawerWelcome") private var hasSeenLauncherDrawerWelcome = false
+    /// Launcher welcome dialog state (shown once per install/build)
+    /// We store the build date when welcome was last shown, so it shows again on new installs
+    @AppStorage("launcherWelcomeSeenForBuild") private var launcherWelcomeSeenForBuild: String = ""
     @State private var pendingLauncherConfig: LauncherGridConfig?
+    
+    /// Check if welcome should be shown for current build
+    private var hasSeenLauncherWelcomeForCurrentBuild: Bool {
+        let currentBuild = BuildInfo.current().date
+        return launcherWelcomeSeenForBuild == currentBuild
+    }
+    
+    /// Mark welcome as seen for current build
+    private func markLauncherWelcomeAsSeen() {
+        launcherWelcomeSeenForBuild = BuildInfo.current().date
+    }
 
     /// The currently selected physical keyboard layout
     private var activeLayout: PhysicalLayout {
@@ -66,9 +78,9 @@ struct LiveKeyboardOverlayView: View {
         let baseKeyboardTrailingPadding = OverlayLayoutMetrics.keyboardTrailingPadding
         let headerBottomSpacing = OverlayLayoutMetrics.headerBottomSpacing
         let outerHorizontalPadding = OverlayLayoutMetrics.outerHorizontalPadding
-        let headerContentLeadingPadding = keyboardPadding + escKeyLeftInset
         let inspectorReveal = uiState.inspectorReveal
-        let inspectorVisible = inspectorReveal > 0 || uiState.isInspectorAnimating || uiState.isInspectorOpen
+        // Inspector is visible during animation or when reveal > 0 (includes fully open state)
+        let inspectorVisible = uiState.isInspectorAnimating || inspectorReveal > 0
         let inspectorDebugEnabled = UserDefaults.standard.bool(forKey: "OverlayInspectorDebug")
         let trailingOuterPadding = inspectorVisible ? 0 : outerHorizontalPadding
         let keyboardAspectRatio = activeLayout.totalWidth / activeLayout.totalHeight
@@ -82,8 +94,6 @@ struct LiveKeyboardOverlayView: View {
         let shouldFreezeKeyboard = uiState.isInspectorAnimating
         let fixedKeyboardWidth: CGFloat? = keyboardWidth > 0 ? keyboardWidth : nil
         let fixedKeyboardHeight: CGFloat? = fixedKeyboardWidth.map { $0 / keyboardAspectRatio }
-        // Calculate right-side position: keyboard width + padding, but before inspector
-        let keyboardRightEdge = keyboardPadding + (fixedKeyboardWidth ?? 0) + keyboardTrailingPadding
 
         VStack(spacing: 0) {
             VStack(spacing: 0) {
@@ -91,8 +101,6 @@ struct LiveKeyboardOverlayView: View {
                     isDark: isDark,
                     fadeAmount: fadeAmount,
                     height: headerHeight,
-                    keyboardRightEdge: keyboardRightEdge,
-                    inspectorVisible: inspectorVisible,
                     inspectorWidth: inspectorTotalWidth,
                     reduceTransparency: reduceTransparency,
                     isInspectorOpen: uiState.isInspectorOpen,
@@ -219,6 +227,9 @@ struct LiveKeyboardOverlayView: View {
             }
         }
         .onChange(of: selectedLayoutId) { _, _ in
+            // Update ViewModel with new layout for correct layer mapping
+            viewModel.setLayout(activeLayout)
+            
             uiState.keyboardAspectRatio = keyboardAspectRatio
             guard keyboardWidth > 0 else { return }
             let desiredHeight = verticalChrome + (keyboardWidth / keyboardAspectRatio)
@@ -253,6 +264,10 @@ struct LiveKeyboardOverlayView: View {
             if !isMapperAvailable, inspectorSection == .mapper {
                 inspectorSection = .keyboard
             }
+            // Initialize ViewModel with user's selected layout
+            if viewModel.layout.id != activeLayout.id {
+                viewModel.setLayout(activeLayout)
+            }
         }
         .onDisappear {
             inputSourceDetector.stopMonitoring()
@@ -283,7 +298,7 @@ struct LiveKeyboardOverlayView: View {
 
     /// Check if launcher welcome dialog should be shown
     private func checkLauncherWelcome() {
-        guard !hasSeenLauncherDrawerWelcome else { return }
+        guard !hasSeenLauncherWelcomeForCurrentBuild else { return }
 
         Task {
             // Load the launcher config to pass to welcome dialog
@@ -312,8 +327,8 @@ struct LiveKeyboardOverlayView: View {
                 handleLauncherWelcomeComplete(finalConfig)
             },
             onDismiss: { [self] in
-                // User closed without completing - still mark as seen
-                hasSeenLauncherDrawerWelcome = true
+                // User closed without completing - still mark as seen for this build
+                markLauncherWelcomeAsSeen()
                 pendingLauncherConfig = nil
             }
         )
@@ -323,7 +338,7 @@ struct LiveKeyboardOverlayView: View {
     private func handleLauncherWelcomeComplete(_ finalConfig: LauncherGridConfig) {
         var updatedConfig = finalConfig
         updatedConfig.hasSeenWelcome = true
-        hasSeenLauncherDrawerWelcome = true
+        markLauncherWelcomeAsSeen()
 
         // Save the updated config
         Task {
@@ -420,8 +435,6 @@ private struct OverlayDragHeader: View {
     let isDark: Bool
     let fadeAmount: CGFloat
     let height: CGFloat
-    let keyboardRightEdge: CGFloat
-    let inspectorVisible: Bool
     let inspectorWidth: CGFloat
     let reduceTransparency: Bool
     let isInspectorOpen: Bool
@@ -459,20 +472,18 @@ private struct OverlayDragHeader: View {
 
     var body: some View {
         let buttonSize = max(10, height * 0.9)
-        // Position controls to the right of keyboard, expanding right but before inspector
-        let controlsStartX = keyboardRightEdge
-        let maxControlsWidth = inspectorVisible ? inspectorWidth - 12 : .infinity
+        // Always use the same width so layer indicator stays in consistent position
+        let maxControlsWidth = inspectorWidth - 12
+        let indicatorCornerRadius: CGFloat = 4
 
         HStack(spacing: 0) {
+            // Flexible spacer pushes controls to the trailing edge
             Spacer()
-                .frame(width: controlsStartX)
 
-            // Controls expand right from keyboard edge, but stop before inspector
+            // Controls aligned to the right side of the header
             // Order: Close X, Drawer, [spacer], Health indicator OR (Japanese input, Layer indicator)
-            let indicatorCornerRadius: CGFloat = 4
-
             HStack(spacing: 6) {
-                // 1. Close button (leftmost)
+                // 1. Close button (leftmost of the right-aligned group)
                 Button {
                     AppLogger.shared.log("🔘 [Header] Close button clicked")
                     print("🔘 [Header] Close button clicked")
@@ -510,12 +521,12 @@ private struct OverlayDragHeader: View {
                 // - Otherwise shows Japanese input + layer pill in the same slot as "Ready"
                 statusSlot(indicatorCornerRadius: indicatorCornerRadius)
             }
-            .frame(maxWidth: maxControlsWidth, alignment: .leading)
+            .frame(width: maxControlsWidth, alignment: .leading)
             .padding(.trailing, 6)
             .animation(.easeOut(duration: 0.12), value: currentLayerName)
             .animation(.spring(response: 0.4, dampingFraction: 0.7), value: healthIndicatorState)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .trailing)
         .frame(height: height)
         .clipped()
         .contentShape(Rectangle())
@@ -897,7 +908,7 @@ struct OverlayInspectorPanel: View {
 
     @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
     @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var includePunctuationStore: String = "{}"
-    @AppStorage("overlayLayoutId") private var selectedLayoutId: String = "macbook-us"
+    @AppStorage(LayoutPreferences.layoutIdKey) private var selectedLayoutId: String = LayoutPreferences.defaultLayoutId
     @AppStorage("overlayColorwayId") private var selectedColorwayId: String = GMKColorway.default.id
 
     private var includePunctuation: Bool {
@@ -1008,7 +1019,8 @@ struct OverlayInspectorPanel: View {
                 isDark: isDark,
                 kanataViewModel: kanataViewModel,
                 healthIndicatorState: healthIndicatorState,
-                onHealthTap: onHealthTap
+                onHealthTap: onHealthTap,
+                fadeAmount: fadeAmount
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else if healthIndicatorState == .checking {
@@ -1016,7 +1028,8 @@ struct OverlayInspectorPanel: View {
                 isDark: isDark,
                 kanataViewModel: kanataViewModel,
                 healthIndicatorState: healthIndicatorState,
-                onHealthTap: onHealthTap
+                onHealthTap: onHealthTap,
+                fadeAmount: fadeAmount
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else if isMapperAvailable {
@@ -1024,7 +1037,8 @@ struct OverlayInspectorPanel: View {
                 isDark: isDark,
                 kanataViewModel: kanataViewModel,
                 healthIndicatorState: healthIndicatorState,
-                onHealthTap: onHealthTap
+                onHealthTap: onHealthTap,
+                fadeAmount: fadeAmount
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else {
@@ -1040,7 +1054,6 @@ struct OverlayInspectorPanel: View {
     @ViewBuilder
     private var physicalLayoutContent: some View {
         KeyboardSelectionGridView(
-            layouts: PhysicalLayout.all,
             selectedLayoutId: $selectedLayoutId,
             isDark: isDark
         )
@@ -1075,7 +1088,7 @@ struct OverlayInspectorPanel: View {
 
     @ViewBuilder
     private var launchersContent: some View {
-        OverlayLaunchersSection(isDark: isDark)
+        OverlayLaunchersSection(isDark: isDark, fadeAmount: fadeAmount)
     }
 
     private var isDark: Bool {
@@ -1364,8 +1377,8 @@ private struct InspectorPanelToolbar: View {
                 onSelectSection(.launchers)
             }
             .accessibilityIdentifier("inspector-tab-launchers")
-            .accessibilityLabel("App Launchers")
-            .help("App Launcher")
+            .accessibilityLabel("Quick Launcher")
+            .help("Quick Launcher")
 
             toolbarButton(
                 systemImage: "keyboard",
@@ -1526,7 +1539,7 @@ enum InspectorSection {
     .background(Color(white: 0.3))
 }
 
-// MARK: - Mouse move monitor (resets idle on movement within overlay)
+// MARK: - Mouse move monitor (resets idle on movement/scroll within overlay)
 
 private struct MouseMoveMonitor: NSViewRepresentable {
     let onMove: () -> Void
@@ -1539,11 +1552,12 @@ private struct MouseMoveMonitor: NSViewRepresentable {
         nsView.onMove = onMove
     }
 
-    /// NSView subclass that fires on every mouse move within its bounds.
+    /// NSView subclass that fires on every mouse move or scroll within its bounds.
     @MainActor
     final class TrackingView: NSView {
         var onMove: () -> Void
         private var trackingArea: NSTrackingArea?
+        private var scrollMonitor: Any?
 
         init(onMove: @escaping () -> Void) {
             self.onMove = onMove
@@ -1569,6 +1583,27 @@ private struct MouseMoveMonitor: NSViewRepresentable {
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             window?.acceptsMouseMovedEvents = true
+
+            // Set up local event monitor for scroll wheel events
+            // This catches scroll events anywhere in the window (including the drawer)
+            if scrollMonitor == nil {
+                scrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+                    // Check if the scroll event is within our window
+                    if event.window == self?.window {
+                        self?.onMove()
+                    }
+                    return event
+                }
+            }
+        }
+
+        override func removeFromSuperview() {
+            // Clean up scroll monitor when view is removed
+            if let monitor = scrollMonitor {
+                NSEvent.removeMonitor(monitor)
+                scrollMonitor = nil
+            }
+            super.removeFromSuperview()
         }
 
         override func mouseMoved(with _: NSEvent) {

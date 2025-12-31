@@ -36,7 +36,8 @@ public class KanataConfigGenerator {
 
         // Try to load from the project directory
         if let projectRoot = getProjectRoot(),
-           let content = try? String(contentsOfFile: "\(projectRoot)/\(configPath)", encoding: .utf8) {
+           let content = try? String(contentsOfFile: "\(projectRoot)/\(configPath)", encoding: .utf8)
+        {
             AppLogger.shared.log("✅ [ConfigGenerator] Loaded Kanata config guide from project")
             return content
         }
@@ -228,16 +229,41 @@ public class KanataConfigGenerator {
     (multi key1 key2)       ; Press keys simultaneously
     """
 
-    /// Direct Claude API call (copied from RuntimeCoordinator for independence)
+    /// Error thrown when user cancels biometric authentication
+    public enum ConfigGeneratorError: Error, LocalizedError {
+        case authenticationCancelled
+        case noAPIKey
+
+        public var errorDescription: String? {
+            switch self {
+            case .authenticationCancelled:
+                "Authentication was cancelled"
+            case .noAPIKey:
+                "Claude API key not found. Set ANTHROPIC_API_KEY environment variable or add in Settings."
+            }
+        }
+    }
+
+    /// Direct Claude API call with biometric auth and cost tracking
     private func callClaudeAPIDirectly(prompt: String) async throws -> String {
-        guard let apiKey = getClaudeAPIKey() else {
-            throw NSError(
-                domain: "ClaudeAPI", code: 1,
-                userInfo: [
-                    NSLocalizedDescriptionKey:
-                        "Claude API key not found. Set ANTHROPIC_API_KEY environment variable or store in Keychain."
-                ]
-            )
+        // Get API key using KeychainService (static method for non-MainActor access)
+        guard let apiKey = KeychainService.getClaudeAPIKeyStatic() else {
+            throw ConfigGeneratorError.noAPIKey
+        }
+
+        // Biometric authentication before expensive API call
+        let authResult = await BiometricAuthService.shared.authenticate(
+            reason: "This AI generation will use your Anthropic API quota and cost approximately $0.01-0.03. Authenticate to proceed?"
+        )
+
+        switch authResult {
+        case .cancelled:
+            throw ConfigGeneratorError.authenticationCancelled
+        case let .failed(errorMessage):
+            AppLogger.shared.log("⚠️ [ConfigGenerator] Auth failed: \(errorMessage), proceeding anyway")
+        // Continue - biometric failure shouldn't block if user has API key
+        case .authenticated, .notRequired:
+            break // Continue with API call
         }
 
         let url = URL(string: "https://api.anthropic.com/v1/messages")!
@@ -290,35 +316,19 @@ public class KanataConfigGenerator {
             )
         }
 
+        // Extract and log usage for cost tracking
+        if let usage = jsonResponse["usage"] as? [String: Any],
+           let inputTokens = usage["input_tokens"] as? Int,
+           let outputTokens = usage["output_tokens"] as? Int
+        {
+            await AICostTracker.shared.trackUsage(
+                inputTokens: inputTokens,
+                outputTokens: outputTokens,
+                source: .configGenerator,
+                logPrefix: "ConfigGenerator"
+            )
+        }
+
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    /// Get Claude API key from environment variable or keychain
-    private func getClaudeAPIKey() -> String? {
-        // First try environment variable
-        if let envKey = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"], !envKey.isEmpty {
-            return envKey
-        }
-
-        // Try keychain (using the same pattern as RuntimeCoordinator)
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "KeyPath",
-            kSecAttrAccount as String: "claude-api-key",
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-
-        var dataTypeRef: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
-
-        guard status == errSecSuccess,
-              let data = dataTypeRef as? Data,
-              let key = String(data: data, encoding: .utf8)
-        else {
-            return nil
-        }
-
-        return key
     }
 }

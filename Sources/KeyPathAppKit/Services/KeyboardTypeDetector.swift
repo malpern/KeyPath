@@ -93,10 +93,9 @@ enum KeyboardTypeDetector {
         case .jis:
             "macbook-jis"
         case .iso:
-            // We don't have a specific ISO layout yet, use US as fallback
-            "macbook-us"
+            "macbook-iso"
         case .ansi, .unknown:
-            "macbook-us"
+            LayoutPreferences.defaultLayoutId
         }
     }
 }

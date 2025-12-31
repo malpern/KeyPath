@@ -25,7 +25,20 @@ struct LogicalKeymap: Identifiable {
 
     static let defaultId = "qwerty-us"
 
-    static let all: [LogicalKeymap] = [qwertyUS, colemak, colemakDH, dvorak, workman]
+    // MARK: - Layout Registry
+    
+    /// All available logical keymaps, grouped by category
+    static let all: [LogicalKeymap] = [
+        // Standard layouts
+        qwertyUS,
+        azerty,
+        qwertz,
+        // Alternative/ergonomic layouts
+        colemak,
+        colemakDH,
+        dvorak,
+        workman
+    ]
 
     static func find(id: String) -> LogicalKeymap? {
         all.first { $0.id == id }
@@ -41,6 +54,38 @@ struct LogicalKeymap: Identifiable {
             top: ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
             home: ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"],
             bottom: ["z", "x", "c", "v", "b", "n", "m", ",", ".", "/"]
+        ),
+        extraLabels: [:]
+    )
+
+    /// AZERTY - French keyboard layout
+    /// Key differences from QWERTY: A↔Q swapped, Z↔W swapped, M moved to home row
+    static let azerty: LogicalKeymap = .init(
+        id: "azerty",
+        name: "AZERTY",
+        description: "The standard French keyboard layout used in France and Belgium.",
+        learnMoreURL: URL(string: "https://en.wikipedia.org/wiki/AZERTY")!,
+        iconFilename: "AZERTY",
+        coreLabels: buildCoreMap(
+            top: ["a", "z", "e", "r", "t", "y", "u", "i", "o", "p"],
+            home: ["q", "s", "d", "f", "g", "h", "j", "k", "l", "m"],
+            bottom: ["w", "x", "c", "v", "b", "n", ",", ";", ":", "!"]
+        ),
+        extraLabels: [:]
+    )
+
+    /// QWERTZ - German/Central European keyboard layout
+    /// Key difference from QWERTY: Y↔Z swapped
+    static let qwertz: LogicalKeymap = .init(
+        id: "qwertz",
+        name: "QWERTZ",
+        description: "The standard German keyboard layout, also used in Central Europe.",
+        learnMoreURL: URL(string: "https://en.wikipedia.org/wiki/QWERTZ")!,
+        iconFilename: "QWERTZ",
+        coreLabels: buildCoreMap(
+            top: ["q", "w", "e", "r", "t", "z", "u", "i", "o", "p"],
+            home: ["a", "s", "d", "f", "g", "h", "j", "k", "l", "ö"],
+            bottom: ["y", "x", "c", "v", "b", "n", "m", ",", ".", "-"]
         ),
         extraLabels: [:]
     )

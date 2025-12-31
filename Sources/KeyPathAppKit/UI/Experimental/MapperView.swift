@@ -1152,7 +1152,7 @@ struct MapperKeycapPair: View {
         if outputAppInfo != nil { return "Launch" }
         if outputSystemActionInfo != nil { return "Action" }
         if outputURLFavicon != nil { return "URL" }
-        return "Output"
+        return "Out"
     }
 
     var body: some View {
@@ -1190,7 +1190,7 @@ struct MapperKeycapPair: View {
                     isRecording: isRecordingInput,
                     onTap: onInputTap
                 )
-                Text("Input")
+                Text("In")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -1226,7 +1226,7 @@ struct MapperKeycapPair: View {
         VStack(spacing: 8) {
             // Input keycap with label - uses overlay-style rendering
             VStack(spacing: 6) {
-                Text("Input")
+                Text("In")
                     .font(.caption)
                     .foregroundColor(.secondary)
 

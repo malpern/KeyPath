@@ -100,8 +100,11 @@ struct OverlayKeycapView: View {
             return baseLabel
         }
 
+        // Empty displayLabel means no meaningful mapping - fall back to base label
+        // Exception: if layer explicitly blocked the key, show empty
         if info.displayLabel.isEmpty {
-            return ""
+            // Fall back to physical key label (e.g., for number keys that passthrough)
+            return baseLabel.isEmpty ? key.label : baseLabel
         }
 
         if shouldUseBaseLabel, baseLabel != key.label {
@@ -536,19 +539,15 @@ struct OverlayKeycapView: View {
         }
     }
 
-    /// Small link badge for website icons in launcher mode
+    /// Link indicator for website icons in launcher mode
+    /// Simple icon with good contrast, no complex background
     @ViewBuilder
     private func launcherLinkBadge(size: CGFloat) -> some View {
         Image(systemName: "link")
-            .font(.system(size: size * 0.65, weight: .bold))
-            .foregroundColor(.white)
-            .frame(width: size, height: size)
-            .background(
-                Circle()
-                    .fill(Color.blue)
-                    .shadow(color: .black.opacity(0.3), radius: 0.5 * scale, y: 0.25 * scale)
-            )
-            .offset(x: size * 0.15, y: size * 0.15)
+            .font(.system(size: size * 1.2, weight: .semibold))
+            .foregroundStyle(.white)
+            .shadow(color: .black.opacity(0.5), radius: 1, y: 0.5)
+            .offset(x: size * 0.3, y: size * 0.3)
     }
 
     /// App icon for launcher mapping (cached in appIcon or faviconImage state)
@@ -570,28 +569,38 @@ struct OverlayKeycapView: View {
     /// Content for layer mode: action icon/symbol centered, key letter in top-left corner
     @ViewBuilder
     private var layerModeContent: some View {
+        // Arrow keys don't need top-left label (would just duplicate the arrow)
+        let isArrowKey = key.layoutRole == .arrow
+        
         if hasLayerMapping {
-            // Mapped key: action in center, key letter in top-left
+            // Mapped key: action in center, key letter in top-left (except arrows)
             ZStack(alignment: .topLeading) {
                 // Centered action content
                 layerActionContent
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                // Key letter in top-left corner
-                Text(layerKeyLabel.uppercased())
-                    .font(.system(size: 8 * scale, weight: .medium, design: .rounded))
-                    .foregroundStyle(Color.white.opacity(0.7))
-                    .padding(3 * scale)
+                // Key letter in top-left corner (skip for arrow keys to avoid dual arrows)
+                if !isArrowKey {
+                    Text(layerKeyLabel.uppercased())
+                        .font(.system(size: 8 * scale, weight: .medium, design: .rounded))
+                        .foregroundStyle(Color.white.opacity(0.7))
+                        .padding(3 * scale)
+                }
             }
         } else {
-            // Unmapped key in layer mode: small label in top-left
-            ZStack(alignment: .topLeading) {
-                Text(layerKeyLabel.uppercased())
-                    .font(.system(size: 8 * scale, weight: .medium, design: .rounded))
-                    .foregroundStyle(Color.white.opacity(0.5))
-                    .padding(3 * scale)
+            // Unmapped key in layer mode: small label in top-left (skip for arrows)
+            if isArrowKey {
+                // Arrow keys: just show centered arrow
+                arrowContent
+            } else {
+                ZStack(alignment: .topLeading) {
+                    Text(layerKeyLabel.uppercased())
+                        .font(.system(size: 8 * scale, weight: .medium, design: .rounded))
+                        .foregroundStyle(Color.white.opacity(0.5))
+                        .padding(3 * scale)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
 
@@ -840,13 +849,22 @@ struct OverlayKeycapView: View {
     // MARK: - Layout: Centered (letters, symbols, spacebar)
 
     /// Whether this key has a special label that should always be rendered in the keycap
-    /// (not handled by floating labels). Includes navigation keys, system keys, etc.
+    /// (not handled by floating labels). Includes navigation keys, system keys, number row, etc.
     private var hasSpecialLabel: Bool {
         let specialLabels: Set<String> = [
             "Home", "End", "PgUp", "PgDn", "Del", "␣", "Lyr", "Fn", "Mod",
             "↩", "⌫", "⇥", "⇪", "esc", "⎋",
             // Arrow symbols (both solid and outline variants)
             "◀", "▶", "▲", "▼", "←", "→", "↑", "↓",
+            // Number row (not in standard keymaps, render directly)
+            "`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=",
+            // Function row extras (Print Screen, Scroll Lock, Pause)
+            "prt", "scr", "pse",
+            // Navigation cluster keys (both cases for matching)
+            "ins", "del", "home", "end", "pgup", "pgdn",
+            "INS", "DEL", "HOME", "END", "PGUP", "PGDN",
+            // Numpad keys (not in standard keymaps)
+            "clr", "CLR", "/", "*", "+", ".",
             // JIS-specific keys (not in standard keymaps)
             "¥", "英数", "かな", "_", "^", ":", "@", "fn"
         ]
@@ -855,27 +873,35 @@ struct OverlayKeycapView: View {
 
     /// Word labels for navigation/system keys (like ESC style)
     private var navigationWordLabel: String? {
-        switch key.label {
-        case "Home": "home"
-        case "End": "end"
-        case "PgUp": "page up"
-        case "PgDn": "page dn"
-        case "Lyr": "layer"
-        case "Fn": nil // Fn uses globe icon
-        case "Mod": "mod"
+        switch key.label.lowercased() {
+        // Navigation cluster
+        case "home": "home"
+        case "end": "end"
+        case "pgup": "pg up"
+        case "pgdn": "pg dn"
+        case "ins": "insert"
+        case "del": "del"
+        // Function row extras
+        case "prt": "prt sc"
+        case "scr": "scroll"
+        case "pse": "pause"
+        // Numpad
+        case "clr": "clear"
+        // Other special keys
+        case "lyr": "layer"
+        case "fn": nil // Fn uses globe icon
+        case "mod": "mod"
         case "␣": "space"
-        case "⌫": "bksp" // Backspace key (short form to fit)
+        case "⌫": "delete"
         case "↩": "return"
         default: nil
         }
     }
 
-    /// SF Symbol for special keys (Delete uses icon)
+    /// SF Symbol for special keys (some use icons instead of text)
     private var navigationSFSymbol: String? {
-        switch key.label {
-        case "Del": "delete.forward"
-        default: nil
-        }
+        // Don't use icons - prefer text labels for consistency
+        nil
     }
 
     @ViewBuilder

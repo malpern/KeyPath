@@ -10,6 +10,84 @@ enum QMKLayoutParser {
         let id: String
         let name: String
         let layouts: [String: QMKLayoutDefinition]
+
+        // Metadata fields (optional for backward compatibility)
+        let manufacturer: String?
+        let url: String?
+        let maintainer: String?
+        let features: QMKFeatures?
+
+        // Custom coding keys to handle missing fields
+        enum CodingKeys: String, CodingKey {
+            case id
+            case name
+            case keyboard_name // QMK uses keyboard_name, but we map to name
+            case layouts
+            case manufacturer
+            case url
+            case maintainer
+            case features
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+
+            // Handle id (may not exist in real QMK JSON, derive from context)
+            if let idValue = try? container.decode(String.self, forKey: .id) {
+                id = idValue
+            } else {
+                // Fallback: use keyboard_name or generate
+                id = (try? container.decode(String.self, forKey: .keyboard_name)) ?? "unknown"
+            }
+
+            // Handle name (QMK uses keyboard_name, but our bundled JSON uses name)
+            if let nameValue = try? container.decode(String.self, forKey: .name) {
+                name = nameValue
+            } else if let keyboardName = try? container.decode(String.self, forKey: .keyboard_name) {
+                name = keyboardName
+            } else {
+                name = id // Fallback to id
+            }
+
+            layouts = try container.decode([String: QMKLayoutDefinition].self, forKey: .layouts)
+            manufacturer = try? container.decode(String.self, forKey: .manufacturer)
+            url = try? container.decode(String.self, forKey: .url)
+            maintainer = try? container.decode(String.self, forKey: .maintainer)
+            features = try? container.decode(QMKFeatures.self, forKey: .features)
+        }
+    }
+
+    /// QMK features object (for extracting tags)
+    struct QMKFeatures: Decodable {
+        let bootmagic: Bool?
+        let extrakey: Bool?
+        let nkro: Bool?
+        let oled: Bool?
+        let rgblight: Bool?
+        let rgb_matrix: Bool?
+
+        // Split keyboard support
+        let split: QMKSplit?
+
+        /// Extract tags from features
+        var tags: [String] {
+            var result: [String] = []
+            if split?.enabled == true {
+                result.append("split")
+            }
+            if rgb_matrix == true || rgblight == true {
+                result.append("RGB")
+            }
+            if oled == true {
+                result.append("OLED")
+            }
+            return result
+        }
+    }
+
+    /// QMK split keyboard configuration
+    struct QMKSplit: Decodable {
+        let enabled: Bool?
     }
 
     struct QMKLayoutDefinition: Decodable {

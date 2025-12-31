@@ -36,7 +36,7 @@ Different keyboard behaviors for different applications. Perfect for vim-style n
 Support for tap-hold, tap-dance, layers, macros, and all Kanata features.
 
 ### Bring Your Own Config
-Already using Kanata? [Migrate your existing configuration](/migration/kanata-users) with minimal changes.
+Already using Kanata? Start here: **[KeyPath for Kanata users](/kanata)**.
 
 ## Documentation Sections
 

@@ -8,70 +8,27 @@
         </li>
         {% endif %}
         
-        <!-- Getting Started -->
+        <!-- Kanata -->
         <li class="nav-section">
-            <div class="nav-section-title">Getting Started</div>
+            <div class="nav-section-title">Kanata</div>
             <ul class="nav-section-items">
-                <li class="nav-item {% if page.url contains '/getting-started' %}active{% endif %}">
-                    <a href="{{ '/getting-started' | relative_url }}" class="nav-link">Introduction</a>
+                {% assign is_kanata_overview = page.url == '/kanata/' or page.url == '/kanata' %}
+                <li class="nav-item {% if is_kanata_overview %}active{% endif %}">
+                    <a href="{{ '/kanata' | relative_url }}" class="nav-link">Overview</a>
                 </li>
+                {% assign is_kanata_migration = page.url contains '/migration/kanata-users' %}
+                <li class="nav-item {% if is_kanata_migration %}active{% endif %}">
+                    <a href="{{ '/migration/kanata-users' | relative_url }}" class="nav-link">Tips for existing Kanata users</a>
+                </li>
+            </ul>
+        </li>
+
+        <!-- Install -->
+        <li class="nav-section">
+            <div class="nav-section-title">Install</div>
+            <ul class="nav-section-items">
                 <li class="nav-item {% if page.url contains '/getting-started/installation' %}active{% endif %}">
                     <a href="{{ '/getting-started/installation' | relative_url }}" class="nav-link">Installation</a>
-                </li>
-                <li class="nav-item {% if page.url contains '/getting-started/first-mapping' %}active{% endif %}">
-                    <a href="{{ '/getting-started/first-mapping' | relative_url }}" class="nav-link">Your First Mapping</a>
-                </li>
-            </ul>
-        </li>
-        
-        <!-- Guides -->
-        <li class="nav-section">
-            <div class="nav-section-title">Guides</div>
-            <ul class="nav-section-items">
-                <li class="nav-item {% if page.url contains '/guides/tap-hold' %}active{% endif %}">
-                    <a href="{{ '/guides/tap-hold' | relative_url }}" class="nav-link">Tap-Hold & Tap-Dance</a>
-                </li>
-                <li class="nav-item {% if page.url contains '/guides/action-uri' %}active{% endif %}">
-                    <a href="{{ '/guides/action-uri' | relative_url }}" class="nav-link">Action URI System</a>
-                </li>
-                <li class="nav-item {% if page.url contains '/guides/window-management' %}active{% endif %}">
-                    <a href="{{ '/guides/window-management' | relative_url }}" class="nav-link">Window Management</a>
-                </li>
-                <li class="nav-item {% if page.url contains '/guides/debugging' %}active{% endif %}">
-                    <a href="{{ '/guides/debugging' | relative_url }}" class="nav-link">Debugging</a>
-                </li>
-            </ul>
-        </li>
-        
-        <!-- Migration -->
-        <li class="nav-section">
-            <div class="nav-section-title">Migration</div>
-            <ul class="nav-section-items">
-                <li class="nav-item {% if page.url contains '/migration/kanata-users' %}active{% endif %}">
-                    <a href="{{ '/migration/kanata-users' | relative_url }}" class="nav-link">From Kanata</a>
-                </li>
-            </ul>
-        </li>
-        
-        <!-- Architecture -->
-        <li class="nav-section">
-            <div class="nav-section-title">Architecture</div>
-            <ul class="nav-section-items">
-                <li class="nav-item {% if page.url contains '/architecture/overview' %}active{% endif %}">
-                    <a href="{{ '/architecture/overview' | relative_url }}" class="nav-link">Overview</a>
-                </li>
-                <li class="nav-item {% if page.url contains '/architecture/rule-collection' %}active{% endif %}">
-                    <a href="{{ '/architecture/rule-collection' | relative_url }}" class="nav-link">Rule Collection Pattern</a>
-                </li>
-            </ul>
-        </li>
-        
-        <!-- ADRs -->
-        <li class="nav-section">
-            <div class="nav-section-title">Architecture Decisions</div>
-            <ul class="nav-section-items">
-                <li class="nav-item {% if page.url == '/adr' %}active{% endif %}">
-                    <a href="{{ '/adr' | relative_url }}" class="nav-link">All ADRs</a>
                 </li>
             </ul>
         </li>

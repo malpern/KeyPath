@@ -46,15 +46,32 @@ public actor AnthropicConfigRepairService: ConfigRepairService {
     }
 
     private func callClaudeAPI(prompt: String) async throws -> String {
-        // Check for API key in environment or keychain
-        guard let apiKey = getClaudeAPIKey() else {
+        // Get API key using KeychainService (static method for non-MainActor access)
+        guard let apiKey = KeychainService.getClaudeAPIKeyStatic() else {
             throw NSError(
                 domain: "ClaudeAPI", code: 1,
                 userInfo: [
                     NSLocalizedDescriptionKey:
-                        "Claude API key not found. Set ANTHROPIC_API_KEY environment variable or store in Keychain."
+                        "Claude API key not found. Set ANTHROPIC_API_KEY environment variable or add in Settings."
                 ]
             )
+        }
+
+        // Biometric authentication before expensive API call
+        let authResult = await BiometricAuthService.shared.authenticate(
+            reason: "This config repair will use your Anthropic API quota. Authenticate to proceed?"
+        )
+
+        switch authResult {
+        case .cancelled:
+            throw NSError(
+                domain: "ClaudeAPI", code: 4,
+                userInfo: [NSLocalizedDescriptionKey: "Authentication cancelled"]
+            )
+        case let .failed(errorMessage):
+            AppLogger.shared.log("⚠️ [ConfigRepair] Auth failed: \(errorMessage), proceeding anyway")
+        case .authenticated, .notRequired:
+            break
         }
 
         var request = URLRequest(url: endpoint)
@@ -106,35 +123,19 @@ public actor AnthropicConfigRepairService: ConfigRepairService {
             )
         }
 
+        // Extract and log usage for cost tracking
+        if let usage = jsonResponse["usage"] as? [String: Any],
+           let inputTokens = usage["input_tokens"] as? Int,
+           let outputTokens = usage["output_tokens"] as? Int
+        {
+            await AICostTracker.shared.trackUsage(
+                inputTokens: inputTokens,
+                outputTokens: outputTokens,
+                source: .configRepair,
+                logPrefix: "ConfigRepair"
+            )
+        }
+
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    /// Get Claude API key from environment variable or keychain
-    private func getClaudeAPIKey() -> String? {
-        // First try environment variable
-        if let envKey = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"], !envKey.isEmpty {
-            return envKey
-        }
-
-        // Try keychain (using the same pattern as other keychain access in the app)
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "KeyPath",
-            kSecAttrAccount as String: "claude-api-key",
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-
-        var dataTypeRef: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
-
-        guard status == errSecSuccess,
-              let data = dataTypeRef as? Data,
-              let key = String(data: data, encoding: .utf8)
-        else {
-            return nil
-        }
-
-        return key
     }
 }

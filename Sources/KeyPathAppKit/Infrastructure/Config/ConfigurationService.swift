@@ -54,11 +54,10 @@ public struct KanataConfiguration: Sendable {
         let safetyNotes = """
         ;; SAFETY: This configuration is auto-generated. Do not edit by hand.
         ;; SAFETY: Only explicitly enabled mappings are written to this file.
+        ;; EMERGENCY EXIT: Hold Left Control + Space + Escape to force-quit Kanata
         """
 
-        let fakeKeysBlock = renderFakeKeysBlock(extraLayers)
-        let aliasBlock = renderAliasBlock(aliasDefinitions)
-        let chordsBlock = renderChordsBlock(chordMappings)
+        let defvarBlock = renderDefvarBlock()
         let sourceBlock = renderDefsrcBlock(blocks)
         let baseLayerBlock = renderLayerBlock(name: RuleCollectionLayer.base.kanataName, blocks: blocks) { $0.baseOutput }
         let additionalLayerBlocks = extraLayers.map { layer in
@@ -66,8 +65,11 @@ public struct KanataConfiguration: Sendable {
                 entry.layerOutputs[layer] ?? "_"
             }
         }.joined(separator: "\n")
+        let fakeKeysBlock = renderFakeKeysBlock(extraLayers)
+        let aliasBlock = renderAliasBlock(aliasDefinitions)
+        let chordsBlock = renderChordsBlock(chordMappings)
 
-        return [header, safetyNotes, fakeKeysBlock, aliasBlock, chordsBlock, sourceBlock, baseLayerBlock, additionalLayerBlocks]
+        return [header, safetyNotes, defvarBlock, sourceBlock, baseLayerBlock, additionalLayerBlocks, fakeKeysBlock, aliasBlock, chordsBlock]
             .filter { !$0.isEmpty }
             .joined(separator: "\n")
     }
@@ -76,15 +78,167 @@ public struct KanataConfiguration: Sendable {
 
     // MARK: - Rendering helpers
 
-    private static func renderAliasBlock(_ aliases: [AliasDefinition]) -> String {
-        guard !aliases.isEmpty else { return "" }
-        let definitions = aliases.map { "  \($0.aliasName) \($0.definition)" }.joined(separator: "\n")
+    /// Render defvar block with timing variables for reuse across the config.
+    /// These variables allow users to globally adjust timing values.
+    private static func renderDefvarBlock() -> String {
         return """
-        (defalias
-        \(definitions)
+        #|
+        ================================================================================
+        TIMING VARIABLES
+        ================================================================================
+        |#
+
+        (defvar
+          tap-timeout   200
+          hold-timeout  200
+          chord-timeout  50
         )
 
         """
+    }
+
+    private static func renderAliasBlock(_ aliases: [AliasDefinition]) -> String {
+        guard !aliases.isEmpty else { return "" }
+        var lines = [
+            "#|",
+            "================================================================================",
+            "ALIAS DEFINITIONS (defalias)",
+            "================================================================================",
+            "|#",
+            "",
+            "(defalias"
+        ]
+        let definitions = aliases.map { alias in
+            // Format multi-line actions with proper indentation
+            let formattedDef = formatMultiLineAction(alias.definition)
+            return "  \(alias.aliasName) \(formattedDef)"
+        }
+        lines.append(contentsOf: definitions)
+        lines.append(")")
+        lines.append("")
+        return lines.joined(separator: "\n")
+    }
+    
+    /// Format complex actions across multiple lines for better readability.
+    /// Handles common patterns like multi actions and long tap-hold chains.
+    private static func formatMultiLineAction(_ action: String) -> String {
+        // If action already contains newlines (from our formatting), return as-is
+        if action.contains("\n") {
+            return action
+        }
+        
+        // Only format if action is long enough to benefit from multi-line
+        guard action.count > 80 else {
+            return action
+        }
+        
+        // Format multi actions with multiple components
+        if action.hasPrefix("(multi ") && action.count > 100 {
+            return formatMultiAction(action)
+        }
+        
+        // Format long tap-hold actions that contain multi
+        if (action.contains("(tap-hold") || action.contains("(tap-hold-press") || action.contains("(tap-hold-release")) && action.contains("(multi ") {
+            return formatTapHoldWithMulti(action)
+        }
+        
+        // Otherwise, return as-is to avoid breaking valid syntax
+        return action
+    }
+    
+    /// Format a multi action across multiple lines.
+    /// Only handles simple cases to avoid breaking valid syntax.
+    private static func formatMultiAction(_ action: String) -> String {
+        // Extract components from (multi comp1 comp2 comp3)
+        guard action.hasPrefix("(multi ") && action.hasSuffix(")") else {
+            return action
+        }
+        
+        let inner = String(action.dropFirst(7).dropLast(1)) // Remove "(multi " and ")"
+        
+        // Count top-level components (separated by spaces at depth 0)
+        var parenDepth = 0
+        var componentCount = 0
+        var lastWasSpace = false
+        
+        for char in inner {
+            if char == "(" {
+                parenDepth += 1
+                lastWasSpace = false
+            } else if char == ")" {
+                parenDepth -= 1
+                lastWasSpace = false
+            } else if char == " " && parenDepth == 0 {
+                if !lastWasSpace {
+                    componentCount += 1
+                }
+                lastWasSpace = true
+            } else {
+                lastWasSpace = false
+            }
+        }
+        
+        // Only format if we have 3+ components (multi with 2+ items)
+        guard componentCount >= 2 else {
+            return action
+        }
+        
+        // Simple formatting: split on spaces at depth 0
+        var result = "(multi\n"
+        var currentComponent = ""
+        parenDepth = 0
+        
+        for char in inner {
+            if char == "(" {
+                currentComponent.append(char)
+                parenDepth += 1
+            } else if char == ")" {
+                currentComponent.append(char)
+                parenDepth -= 1
+            } else if char == " " && parenDepth == 0 {
+                // Space at top level - start new component
+                let trimmed = currentComponent.trimmingCharacters(in: .whitespaces)
+                if !trimmed.isEmpty {
+                    result += "    \(trimmed)\n"
+                }
+                currentComponent = ""
+            } else {
+                currentComponent.append(char)
+            }
+        }
+        
+        // Add final component
+        let trimmed = currentComponent.trimmingCharacters(in: .whitespaces)
+        if !trimmed.isEmpty {
+            result += "    \(trimmed)\n"
+        }
+        
+        result += "  )"
+        return result
+    }
+    
+    /// Format tap-hold actions that contain multi sub-actions.
+    private static func formatTapHoldWithMulti(_ action: String) -> String {
+        // Pattern: (tap-hold timeout timeout key (multi ...))
+        // We want: (tap-hold timeout timeout key\n  (multi\n    ...))
+        
+        // Find the (multi part
+        guard let multiStart = action.range(of: "(multi ") else {
+            return action
+        }
+        
+        let beforeMulti = String(action[..<multiStart.lowerBound]).trimmingCharacters(in: .whitespaces)
+        let multiPart = String(action[multiStart.lowerBound...])
+        
+        // Format the multi part
+        let formattedMulti = formatMultiAction(multiPart)
+        
+        // Combine with proper indentation
+        if formattedMulti.contains("\n") {
+            return "\(beforeMulti)\n  \(formattedMulti.replacingOccurrences(of: "\n", with: "\n  "))"
+        }
+        
+        return action
     }
 
     /// Render deffakekeys block for layer change notifications.
@@ -92,9 +246,16 @@ public struct KanataConfiguration: Sendable {
     /// working around Kanata's limitation where layer-while-held doesn't broadcast LayerChange TCP messages.
     private static func renderFakeKeysBlock(_ layers: [RuleCollectionLayer]) -> String {
         guard !layers.isEmpty else { return "" }
-        var lines = [";; === Fake Keys for Layer Notifications ==="]
-        lines.append(";; Used to broadcast layer changes via TCP (layer-while-held doesn't do this natively)")
-        lines.append("(deffakekeys")
+        var lines = [
+            "#|",
+            "================================================================================",
+            "VIRTUAL KEYS (deffakekeys)",
+            "================================================================================",
+            "|#",
+            "",
+            ";; Used to broadcast layer changes via TCP (layer-while-held doesn't do this natively)",
+            "(deffakekeys"
+        ]
         // Add enter/exit fake keys for each non-base layer
         for layer in layers {
             let layerName = layer.kanataName
@@ -108,13 +269,20 @@ public struct KanataConfiguration: Sendable {
     /// Render defchordsv2 block for chord mappings (simultaneous key presses)
     private static func renderChordsBlock(_ chordMappings: [ChordMapping]) -> String {
         guard !chordMappings.isEmpty else { return "" }
-        var lines = [";; === Chord Mappings (simultaneous key presses) ==="]
-        lines.append("(defchordsv2")
+        var lines = [
+            "#|",
+            "================================================================================",
+            "CHORD MAPPINGS (defchordsv2)",
+            "================================================================================",
+            "|#",
+            "",
+            "(defchordsv2"
+        ]
         for chord in chordMappings {
             // Format: (key1 key2) output timeout release-behavior ()
-            // timeout: 50ms is fast enough for intentional chord presses
+            // timeout: uses $chord-timeout variable (default 50ms)
             // all-released: trigger when all keys are released
-            lines.append("  (\(chord.inputKeys)) \(chord.output) 50 all-released ()")
+            lines.append("  (\(chord.inputKeys)) \(chord.output) $chord-timeout all-released ()")
         }
         lines.append(")")
         return lines.joined(separator: "\n") + "\n"
@@ -128,7 +296,15 @@ public struct KanataConfiguration: Sendable {
     }
 
     private static func renderDefsrcBlock(_ blocks: [CollectionBlock]) -> String {
-        var lines = ["(defsrc"]
+        var lines = [
+            "#|",
+            "================================================================================",
+            "PHYSICAL KEYBOARD LAYOUT (defsrc)",
+            "================================================================================",
+            "|#",
+            "",
+            "(defsrc"
+        ]
         if blocks.isEmpty {
             lines.append("  ;; No enabled collections")
         } else {
@@ -147,7 +323,21 @@ public struct KanataConfiguration: Sendable {
         blocks: [CollectionBlock],
         valueProvider: (LayerEntry) -> String
     ) -> String {
-        var lines = ["(deflayer \(name)"]
+        var lines: [String] = []
+        
+        // Add section header for base layer only (other layers are grouped)
+        if name == "base" {
+            lines.append(contentsOf: [
+                "#|",
+                "================================================================================",
+                "LAYER DEFINITIONS",
+                "================================================================================",
+                "|#",
+                ""
+            ])
+        }
+        
+        lines.append("(deflayer \(name)")
         if blocks.isEmpty {
             lines.append("  ;; No enabled collections")
         } else {
@@ -294,13 +484,13 @@ public struct KanataConfiguration: Sendable {
                     // Standard tap-hold for base layer activators
                     // Use multi to combine layer-while-held with fake key triggers for TCP layer notifications.
                     // This works around Kanata's limitation where layer-while-held doesn't broadcast LayerChange messages.
-                    "(tap-hold 200 200 \(tapKey) (multi (layer-while-held \(layerName)) (on-press-fakekey kp-layer-\(layerName)-enter tap) (on-release-fakekey kp-layer-\(layerName)-exit tap)))"
+                    "(tap-hold $tap-timeout $hold-timeout \(tapKey)\n    (multi\n      (layer-while-held \(layerName))\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (on-release-fakekey kp-layer-\(layerName)-exit tap)))"
                 } else {
                     // One-shot for chained layers (e.g., nav → window, nav → sym)
                     // Activates target layer for 2 seconds or until next key press.
                     // Include layer notification fake keys for overlay and UI updates.
                     // Exit notification triggers when one-shot releases, returning to parent layer.
-                    "(multi (one-shot-press 2000 (layer-while-held \(layerName))) (on-press-fakekey kp-layer-\(layerName)-enter tap) (on-release-fakekey kp-layer-\(layerName)-exit tap))"
+                    "(multi\n    (one-shot-press 2000 (layer-while-held \(layerName)))\n    (on-press-fakekey kp-layer-\(layerName)-enter tap)\n    (on-release-fakekey kp-layer-\(layerName)-exit tap))"
                 }
                 aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: definition))
 
@@ -415,9 +605,13 @@ public struct KanataConfiguration: Sendable {
                collection.targetLayer != .base {
                 let mappedKeys = layerMappedKeys[collection.targetLayer] ?? Set(entries.map(\.sourceKey))
                 let activatorKey = collection.momentaryActivator.map { KanataKeyConverter.convertToKanataKey($0.input) } ?? ""
+                // Read user's selected physical layout from UserDefaults
+                let selectedLayoutId = UserDefaults.standard.string(forKey: LayoutPreferences.layoutIdKey) ?? LayoutPreferences.defaultLayoutId
+                let layout = PhysicalLayout.find(id: selectedLayoutId) ?? .macBookUS
                 let extraKeys = Self.navigationUnmappedKeys(
                     excluding: mappedKeys,
-                    skipping: activatorKey.isEmpty ? [] : [activatorKey]
+                    skipping: activatorKey.isEmpty ? [] : [activatorKey],
+                    layout: layout
                 )
                 let blockedEntries = extraKeys.map { key in
                     LayerEntry(
@@ -580,11 +774,16 @@ public struct KanataConfiguration: Sendable {
         }
     }
 
-    /// Build a deterministic list of unmapped keys on the MacBook US layout to block in navigation layer.
+    /// Build a deterministic list of unmapped keys on the specified physical layout to block in navigation layer.
     /// Excludes modifier keys and any keys already mapped.
+    /// - Parameters:
+    ///   - mappedKeys: Keys that are already mapped (will not be blocked)
+    ///   - extraSkips: Additional keys to skip (e.g., layer activator key)
+    ///   - layout: The physical keyboard layout to use for determining available keys
     private static func navigationUnmappedKeys(
         excluding mappedKeys: Set<String>,
-        skipping extraSkips: Set<String> = []
+        skipping extraSkips: Set<String> = [],
+        layout: PhysicalLayout = .macBookUS
     ) -> [String] {
         // Skip modifier/utility keys and any explicitly provided skips (e.g., activator key)
         let defaultSkips: Set<String> = [
@@ -594,7 +793,7 @@ public struct KanataConfiguration: Sendable {
         ]
         let skip = defaultSkips.union(extraSkips)
 
-        let keys = PhysicalLayout.macBookUS.keys.compactMap { key -> String? in
+        let keys = layout.keys.compactMap { key -> String? in
             // Skip invalid keycodes (e.g., Touch ID uses 0xFFFF as placeholder)
             guard key.keyCode != 0xFFFF else { return nil }
             let name = OverlayKeyboardView.keyCodeToKanataName(key.keyCode).lowercased()

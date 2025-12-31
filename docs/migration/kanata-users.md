@@ -1,10 +1,11 @@
 ---
 layout: default
-title: Migrating from Kanata
-description: Bring your existing Kanata configuration to KeyPath
+title: Tips for existing Kanata users
+description: Use your existing Kanata config.kbd in KeyPath
 ---
 
-# Migrating from Kanata to KeyPath
+# Tips for existing Kanata users
+Looking for the high-level pitch first? Start with **[KeyPath for Kanata users](/kanata)**.
 
 If you're already using Kanata on macOS, KeyPath can run your existing configuration with minimal changes. This guide shows you how to migrate your setup.
 

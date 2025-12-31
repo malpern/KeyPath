@@ -8,8 +8,15 @@
     <title>{% if page.title %}{{ page.title }} | {% endif %}{{ site.title }}</title>
     <meta name="description" content="{% if page.description %}{{ page.description }}{% else %}{{ site.description }}{% endif %}">
     
-    <link rel="stylesheet" href="{{ '/assets/css/main.css' | relative_url }}">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700&family=SF+Pro+Text:wght@400;500;600&display=swap">
+    {% if site.github and site.github.build_revision %}
+        {% assign css_version = site.github.build_revision %}
+    {% else %}
+        {% assign css_version = site.time | date: '%s' %}
+    {% endif %}
+    <link rel="stylesheet" href="{{ '/assets/css/main.css' | relative_url }}?v={{ css_version }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap">
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{{ '/assets/images/favicon.png' | relative_url }}">
@@ -24,14 +31,15 @@
             {% include hero.html %}
         {% endif %}
         
-        <div class="content-wrapper">
+        <div class="content-wrapper{% if page.hide_sidebar %} no-sidebar{% endif %}">
             {% unless page.hide_sidebar %}
-            <aside class="sidebar">
+            <div class="sidebar-backdrop" data-sidebar-backdrop aria-hidden="true"></div>
+            <aside class="sidebar" id="sidebar" aria-label="Documentation navigation">
                 {% include sidebar.html %}
             </aside>
             {% endunless %}
             
-            <article class="content">
+            <article class="content{% if page.content_class %} {{ page.content_class }}{% endif %}">
                 {{ content }}
             </article>
         </div>
@@ -39,6 +47,6 @@
     
     {% include footer.html %}
     
-    <script src="{{ '/assets/js/main.js' | relative_url }}"></script>
+    <script src="{{ '/assets/js/main.js' | relative_url }}?v={{ css_version }}"></script>
 </body>
 </html>

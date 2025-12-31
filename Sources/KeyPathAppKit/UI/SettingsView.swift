@@ -17,7 +17,7 @@ struct GeneralSettingsTabView: View {
     @EnvironmentObject var kanataManager: KanataViewModel
     @State private var settingsToastManager = WizardToastManager()
     @State private var selectedSection: GeneralSettingsSection = .settings
-    @AppStorage("overlayLayoutId") private var selectedLayoutId: String = "macbook-us"
+    @AppStorage(LayoutPreferences.layoutIdKey) private var selectedLayoutId: String = LayoutPreferences.defaultLayoutId
     @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
     @State private var showingKeymapInfo = false
 
@@ -258,6 +258,9 @@ struct GeneralSettingsTabView: View {
 
                         // Script Execution (Quick Launcher)
                         ScriptExecutionSettingsSection()
+
+                        // AI Config Generation
+                        AIConfigGenerationSettingsSection()
                     }
 
                     Spacer()
@@ -979,7 +982,8 @@ struct StatusSettingsTabView: View {
         // If services look “starting” (daemons loaded/healthy but kanata not yet running), retry once shortly.
         if !context.services.kanataRunning,
            context.components.launchDaemonServicesHealthy || context.services.karabinerDaemonRunning,
-           refreshRetryScheduled == false {
+           refreshRetryScheduled == false
+        {
             refreshRetryScheduled = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 Task {
@@ -1438,5 +1442,381 @@ private struct ScriptExecutionLogView: View {
 
     private func clearLog() {
         UserDefaults.standard.removeObject(forKey: "KeyPath.Security.ScriptExecutionLog")
+    }
+}
+
+// MARK: - AI Config Generation Settings Section
+
+/// Settings section for AI-powered config generation
+private struct AIConfigGenerationSettingsSection: View {
+    @State private var hasAPIKey: Bool = KeychainService.shared.hasClaudeAPIKey
+    @State private var hasAPIKeyFromEnv: Bool = KeychainService.shared.hasClaudeAPIKeyFromEnvironment
+    @State private var hasAPIKeyInKeychain: Bool = KeychainService.shared.hasClaudeAPIKeyInKeychain
+    @State private var apiKeyInput: String = ""
+    @State private var isValidating: Bool = false
+    @State private var validationError: String?
+    @State private var showingCostInfo: Bool = false
+    @State private var showingUsageHistory: Bool = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("AI Config Generation")
+                .font(.headline)
+                .foregroundColor(.secondary)
+
+            // Status indicator
+            HStack(spacing: 8) {
+                Image(systemName: hasAPIKey ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                    .foregroundColor(hasAPIKey ? .green : .orange)
+                Text(statusText)
+                    .font(.body)
+            }
+            .accessibilityIdentifier("settings-ai-status-indicator")
+
+            // Description
+            Text("Optional: Use Claude AI to generate complex key mappings (sequences, chords, macros). Without an API key, KeyPath uses basic generation for simple mappings only.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            // Show different UI based on key source
+            if hasAPIKeyFromEnv {
+                // Developer workflow - env var is set
+                HStack(spacing: 6) {
+                    Image(systemName: "terminal.fill")
+                        .foregroundColor(.blue)
+                        .font(.caption)
+                    Text("Using ANTHROPIC_API_KEY environment variable")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .accessibilityIdentifier("settings-ai-env-note")
+            } else if !hasAPIKeyInKeychain {
+                // No key - show input
+                HStack {
+                    SecureField("sk-ant-...", text: $apiKeyInput)
+                        .textFieldStyle(.roundedBorder)
+                        .disabled(isValidating)
+                        .accessibilityIdentifier("settings-ai-api-key-field")
+
+                    if isValidating {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Button("Save") {
+                            Task {
+                                await saveAPIKey()
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        .disabled(apiKeyInput.isEmpty)
+                        .accessibilityIdentifier("settings-ai-save-key-button")
+                    }
+                }
+
+                if let error = validationError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .accessibilityIdentifier("settings-ai-error-message")
+                }
+            } else {
+                // Key in Keychain
+                HStack {
+                    Text("API key stored securely in Keychain")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    Spacer()
+
+                    Button("Remove") {
+                        removeAPIKey()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .accessibilityIdentifier("settings-ai-remove-key-button")
+                }
+            }
+
+            // Security note (only show when not using env var)
+            if !hasAPIKeyFromEnv {
+                HStack(spacing: 6) {
+                    Image(systemName: "lock.shield.fill")
+                        .foregroundColor(.green)
+                        .font(.caption)
+                    Text("Stored securely in macOS Keychain")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .accessibilityIdentifier("settings-ai-security-note")
+            }
+
+            // Biometric auth toggle
+            Toggle(isOn: Binding(
+                get: { BiometricAuthService.shared.isEnabled },
+                set: { BiometricAuthService.shared.isEnabled = $0 }
+            )) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Require \(BiometricAuthService.shared.biometricTypeName) before AI generation")
+                        .font(.body)
+                    Text("Asked once per session to confirm API usage")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .toggleStyle(.switch)
+            .accessibilityIdentifier("settings-ai-biometric-toggle")
+            .accessibilityLabel("Require biometric authentication")
+
+            // Cost information
+            DisclosureGroup(isExpanded: $showingCostInfo) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("• Rough estimate: ~$0.01-0.03 per complex mapping")
+                    Text("• Costs vary - check Anthropic's pricing page")
+                    Text("• Simple mappings are always free (no API call)")
+                    Text("• We don't track costs - check your Anthropic dashboard")
+                }
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .padding(.top, 4)
+            } label: {
+                Text("Cost Information")
+                    .font(.subheadline)
+            }
+            .accessibilityIdentifier("settings-ai-cost-disclosure")
+
+            // Links
+            HStack(spacing: 16) {
+                Link("Get API Key →", destination: URL(string: "https://console.anthropic.com/settings/keys")!)
+                    .font(.caption)
+                    .accessibilityIdentifier("settings-ai-get-key-link")
+
+                Link("View Pricing →", destination: URL(string: "https://www.anthropic.com/pricing")!)
+                    .font(.caption)
+                    .accessibilityIdentifier("settings-ai-pricing-link")
+
+                Link("Usage Dashboard →", destination: URL(string: "https://console.anthropic.com/")!)
+                    .font(.caption)
+                    .accessibilityIdentifier("settings-ai-dashboard-link")
+            }
+
+            // Usage history
+            if hasAPIKey {
+                Button("View Usage History") {
+                    showingUsageHistory = true
+                }
+                .buttonStyle(.link)
+                .font(.caption)
+                .accessibilityIdentifier("settings-ai-usage-history-button")
+            }
+
+            // Reset dialog preference
+            if AIKeyRequiredDialog.hasBeenDismissed {
+                Button("Reset \"Don't show again\" for API key dialog") {
+                    AIKeyRequiredDialog.resetDismissedState()
+                }
+                .buttonStyle(.link)
+                .font(.caption)
+                .foregroundColor(.orange)
+                .accessibilityIdentifier("settings-ai-reset-dialog-button")
+            }
+        }
+        .sheet(isPresented: $showingUsageHistory) {
+            AIUsageHistoryView()
+        }
+        .onAppear {
+            refreshStatus()
+        }
+    }
+
+    private var statusText: String {
+        if hasAPIKeyFromEnv {
+            "API Key Configured (Environment)"
+        } else if hasAPIKeyInKeychain {
+            "API Key Configured"
+        } else {
+            "API Key Not Configured"
+        }
+    }
+
+    private func refreshStatus() {
+        hasAPIKey = KeychainService.shared.hasClaudeAPIKey
+        hasAPIKeyFromEnv = KeychainService.shared.hasClaudeAPIKeyFromEnvironment
+        hasAPIKeyInKeychain = KeychainService.shared.hasClaudeAPIKeyInKeychain
+    }
+
+    private func saveAPIKey() async {
+        assert(!apiKeyInput.isEmpty, "Should not call saveAPIKey with empty input")
+
+        isValidating = true
+        validationError = nil
+
+        let validator = APIKeyValidator.shared
+        let result = await validator.validate(apiKeyInput)
+
+        isValidating = false
+
+        if result.isValid {
+            do {
+                try KeychainService.shared.storeClaudeAPIKey(apiKeyInput)
+                apiKeyInput = ""
+                refreshStatus()
+                AppLogger.shared.log("✅ [Settings] API key saved successfully")
+            } catch {
+                validationError = "Failed to save: \(error.localizedDescription)"
+            }
+        } else {
+            validationError = result.errorMessage ?? "Invalid API key"
+        }
+    }
+
+    private func removeAPIKey() {
+        do {
+            try KeychainService.shared.deleteClaudeAPIKey()
+            refreshStatus()
+            AppLogger.shared.log("✅ [Settings] API key removed")
+        } catch {
+            AppLogger.shared.log("❌ [Settings] Failed to remove API key: \(error)")
+        }
+    }
+}
+
+// MARK: - AI Usage History View
+
+/// Shows the history of AI API usage and estimated costs
+private struct AIUsageHistoryView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    private var costHistory: [[String: Any]] {
+        AICostTracker.shared.costHistory
+    }
+
+    private var totalEstimatedCost: Double {
+        AICostTracker.shared.totalEstimatedCost
+    }
+
+    private var totalTokens: (input: Int, output: Int) {
+        AICostTracker.shared.totalTokens
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("AI Usage History")
+                    .font(.headline)
+                Spacer()
+                Button("Done") {
+                    dismiss()
+                }
+                .keyboardShortcut(.cancelAction)
+                .accessibilityIdentifier("ai-usage-done-button")
+            }
+            .padding()
+
+            Divider()
+
+            if costHistory.isEmpty {
+                // Empty state
+                VStack(spacing: 12) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 40))
+                        .foregroundColor(.secondary)
+                    Text("No AI generations yet")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Text("Usage will appear here after you create complex mappings with AI")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityIdentifier("ai-usage-empty-state")
+            } else {
+                // Summary
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text("Total Estimated Cost")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("$\(String(format: "%.4f", totalEstimatedCost))")
+                                .font(.title2.weight(.semibold))
+                        }
+
+                        Spacer()
+
+                        VStack(alignment: .trailing) {
+                            Text("API Calls")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("\(costHistory.count)")
+                                .font(.title2.weight(.semibold))
+                        }
+                    }
+
+                    Text("Input: \(totalTokens.input) tokens • Output: \(totalTokens.output) tokens")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .background(Color.secondary.opacity(0.1))
+                .accessibilityIdentifier("ai-usage-summary")
+
+                // History list
+                List(Array(costHistory.enumerated().reversed()), id: \.offset) { _, entry in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(entry["timestamp"] as? String ?? "Unknown")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+
+                            let inputTokens = entry["inputTokens"] as? Int ?? 0
+                            let outputTokens = entry["outputTokens"] as? Int ?? 0
+                            Text("\(inputTokens) input + \(outputTokens) output tokens")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+
+                        let cost = entry["estimatedCost"] as? Double ?? 0
+                        Text("~$\(String(format: "%.4f", cost))")
+                            .font(.caption.monospacedDigit())
+                    }
+                    .padding(.vertical, 2)
+                }
+                .listStyle(.plain)
+            }
+
+            Divider()
+
+            // Footer with disclaimer
+            VStack(alignment: .leading, spacing: 8) {
+                Text("⚠️ These are estimates based on token usage. Actual costs may vary. Check your Anthropic dashboard for exact charges.")
+                    .font(.caption2)
+                    .foregroundColor(.orange)
+                    .italic()
+
+                HStack {
+                    Link("View Current Anthropic Pricing →", destination: URL(string: "https://www.anthropic.com/pricing")!)
+                        .font(.caption2)
+
+                    Spacer()
+
+                    if !costHistory.isEmpty {
+                        Button("Clear History") {
+                            AICostTracker.shared.clearHistory()
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .accessibilityIdentifier("ai-usage-clear-button")
+                    }
+                }
+            }
+            .padding()
+        }
+        .frame(width: 450, height: 400)
     }
 }

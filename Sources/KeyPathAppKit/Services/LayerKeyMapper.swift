@@ -360,17 +360,8 @@ actor LayerKeyMapper {
             if keyMapping.transparent {
                 // Key passes through unchanged
                 mapping[keyCode] = .transparent(fallbackLabel: fallbackLabel)
-            } else if keyMapping.outputs.isEmpty {
-                // Explicit no-op (e.g., XX) returns no outputs from simulator
-                mapping[keyCode] = LayerKeyInfo(
-                    displayLabel: "",
-                    outputKey: nil,
-                    outputKeyCode: nil,
-                    isTransparent: false,
-                    isLayerSwitch: false
-                )
             } else if keyMapping.outputs.allSatisfy({ $0.lowercased() == "xx" }) {
-                // Explicitly blocked key should render blank in the overlay
+                // Explicitly blocked key (XX) should render blank in the overlay
                 mapping[keyCode] = LayerKeyInfo(
                     displayLabel: "",
                     outputKey: nil,
@@ -379,7 +370,8 @@ actor LayerKeyMapper {
                     isLayerSwitch: false
                 )
             } else if keyMapping.outputs.isEmpty {
-                // No output (blocked key)
+                // No explicit mapping - fall back to physical key label
+                // This happens for keys that aren't defined in the config
                 mapping[keyCode] = .transparent(fallbackLabel: fallbackLabel)
             } else {
                 // Convert all outputs to display labels and combine

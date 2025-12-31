@@ -525,6 +525,17 @@ class KeyboardVisualizationViewModel: ObservableObject {
         if deepFadeAmount != 0 { deepFadeAmount = 0 }
     }
 
+    // MARK: - Layout Management
+
+    /// Update the physical keyboard layout and rebuild key mappings
+    /// - Parameter newLayout: The new physical layout to use
+    func setLayout(_ newLayout: PhysicalLayout) {
+        guard layout.id != newLayout.id else { return }
+        AppLogger.shared.info("🎹 [KeyboardViz] Layout changed: \(layout.id) -> \(newLayout.id)")
+        layout = newLayout
+        rebuildLayerMapping() // Rebuild mappings with new layout
+    }
+
     // MARK: - Layer Mapping
 
     /// Update the current layer and rebuild key mapping
@@ -1314,7 +1325,13 @@ class KeyboardVisualizationViewModel: ObservableObject {
             "f18": 79,
             "f19": 80,
             // Right Control
-            "rightctrl": 102, "rctl": 102
+            "rightctrl": 102, "rctl": 102,
+            // ISO key (between Left Shift and Z on ISO keyboards)
+            "intlbackslash": 10,
+            // ABNT2 key (between slash and right shift on Brazilian keyboards)
+            "intlro": 94,
+            // Korean language keys
+            "hangeul": 104, "hanja": 104
         ]
         return mapping[name.lowercased()]
     }

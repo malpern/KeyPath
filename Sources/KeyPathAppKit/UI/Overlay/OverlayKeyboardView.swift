@@ -390,6 +390,12 @@ struct OverlayKeyboardView: View {
         case 124: "right"
         case 125: "down"
         case 126: "up"
+        // ISO key (between Left Shift and Z on ISO keyboards)
+        case 10: "intlbackslash"
+        // ABNT2 extra key (between slash and right shift on Brazilian keyboards)
+        case 94: "intlro" // International Ro key (ABNT2)
+        // Korean language toggle keys
+        case 104: "hangeul" // Hanja key
         // Navigation keys
         case 115: "home"
         case 116: "pageup"
@@ -401,7 +407,7 @@ struct OverlayKeyboardView: View {
         case 64: "f17"
         case 79: "f18"
         case 80: "f19"
-        case 102: "rightctrl"
+        case 102: "rightctrl" // Also used for Han/Eng toggle on Korean keyboards
         case 105: "f13"
         case 106: "f16"
         case 107: "f14"
