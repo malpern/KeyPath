@@ -11,9 +11,10 @@ content_class: content-full kanata-landing
     <div class="kanata-landing-hero-grid">
       <div>
 
+        <p class="kanata-landing-kicker">Native Mac App</p>
         <h1 class="kanata-landing-title">KeyPath</h1>
 
-        <p class="kanata-landing-subtitle">A native Mac app to remap, customize, and power your keyboard</p>
+        <p class="kanata-landing-subtitle">Your keyboard, unlocked</p>
 
         <div class="kanata-landing-actions">
           <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases/download/v1.0.0/KeyPath-1.0.0.zip">Download</a>
