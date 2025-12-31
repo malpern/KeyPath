@@ -112,7 +112,33 @@ content_class: content-full kanata-landing
         </div>
       </li>
     </ul>
-  </section>
+  
+</section>
+
+  <section class="kanata-landing-section">
+    <h2 class="mt-0">Launch apps & websites</h2>
+    <p class="kanata-landing-fineprint mb-0">
+      Turn “go to X” into muscle memory: one key can open an app, a URL, or a workflow.
+    </p>
+
+    <div class="kanata-landing-grid-2 kanata-launches">
+      <div class="kanata-landing-simple">
+        <ul class="kanata-landing-bullets">
+          <li><strong>Apps:</strong> bind Safari, Finder, Slack, etc.</li>
+          <li><strong>Websites:</strong> open docs, dashboards, PRs, and tickets.</li>
+          <li><strong>Fast:</strong> trigger from a key, layer, chord, or sequence.</li>
+        </ul>
+      </div>
+
+      <div class="kanata-launches-media">
+        <img
+          class="kanata-launches-image"
+          src="{{ '/images/kanata-launcher.png' | relative_url }}"
+          alt="KeyPath launcher mapping apps and websites"
+          loading="lazy"
+        />
+      </div>
+    </div>
 
   <div class="kanata-landing-divider" aria-hidden="true"></div>
 
