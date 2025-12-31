@@ -169,7 +169,7 @@ If you use KeyPath's `script:{path}` action URI to run scripts, KeyPath applies 
 3. **KeyPath-managed sections may be regenerated**
    - If you use KeyPath's UI, managed sections (marked with `;; === KEYPATH MANAGED ===`) are overwritten on save
    - Your custom sections (outside managed blocks) are always preserved
-   - See [ADR-025](/adr/adr-025-config-management) for details
+   - See [ADR-025]({{ site.github_url }}/blob/main/docs/adr/adr-025-config-management.md) for details
 
 4. **No config translation**
    - KeyPath does not convert your Kanata config into UI rules
@@ -217,7 +217,7 @@ KeyPath only overwrites sections marked with `;; === KEYPATH MANAGED ===`. Your 
 
 1. Check if you're editing in a managed section
 2. Use KeyPath's UI for new rules, edit your config file for custom rules
-3. See [ADR-025](/adr/adr-025-config-management) for the preservation model
+3. See [ADR-025]({{ site.github_url }}/blob/main/docs/adr/adr-025-config-management.md) for the preservation model
 
 ### TCP Port Conflicts?
 
@@ -252,13 +252,13 @@ ln -s ~/.config/kanata/my-config.kbd ~/.config/keypath/keypath.kbd
 
 ## Next Steps
 
-- **Read the [Architecture Overview](/architecture/overview)** - Understand how KeyPath works
-- **Check [ADR-027](/adr/adr-027-app-specific-keymaps)** - Details on the two-file model
-- **See [ADR-023](/adr/adr-023-no-config-parsing)** - Why KeyPath doesn't parse configs
-- **Review [ADR-025](/adr/adr-025-config-management)** - How config preservation works
+- **Read the [Architecture Overview]({{ '/architecture/overview' | relative_url }})** — Understand how KeyPath works
+- **Check [ADR-027]({{ site.github_url }}/blob/main/docs/adr/adr-027-app-specific-keymaps.md)** — Details on the two-file model
+- **See [ADR-023]({{ site.github_url }}/blob/main/docs/adr/adr-023-no-config-parsing.md)** — Why KeyPath doesn't parse configs
+- **Review [ADR-025]({{ site.github_url }}/blob/main/docs/adr/adr-025-config-management.md)** — How config preservation works
 
 ## Getting Help
 
 - **GitHub Issues**: [Report bugs or ask questions]({{ site.github_url }}/issues)
-- **FAQ**: [Frequently asked questions](/faq)
-- **Debugging Guide**: [Advanced troubleshooting](/guides/debugging)
+- **FAQ**: [Frequently asked questions]({{ '/faq' | relative_url }})
+- **Debugging Guide**: [Advanced troubleshooting]({{ '/guides/debugging' | relative_url }})
