@@ -439,4 +439,149 @@
             });
         });
     }
+
+    // =========================================
+    // DESIGN #3: Recipe Cards
+    // =========================================
+    const recipeCards = document.querySelectorAll('.recipe-card[data-recipe]');
+    if (recipeCards.length > 0) {
+        const recipeObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('in-view');
+                }
+            });
+        }, { threshold: 0.1 });
+
+        recipeCards.forEach(card => {
+            recipeObserver.observe(card);
+        });
+
+        // Replay animation on hover
+        recipeCards.forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                if (card.classList.contains('in-view')) {
+                    card.classList.remove('in-view');
+                    void card.offsetWidth;
+                    card.classList.add('in-view');
+                }
+            });
+        });
+    }
+
+    // =========================================
+    // DESIGN #4: Comic Panels
+    // =========================================
+    const comicStrips = document.querySelectorAll('.comic-strip[data-comic]');
+    if (comicStrips.length > 0) {
+        const comicObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const panels = entry.target.querySelectorAll('.panel');
+                    panels.forEach((panel, index) => {
+                        setTimeout(() => {
+                            panel.classList.add('in-view');
+                        }, index * 200);
+                    });
+
+                    // Trigger SFX pop after panels
+                    const sfx = entry.target.querySelectorAll('.sfx');
+                    sfx.forEach(sound => {
+                        setTimeout(() => {
+                            sound.classList.add('in-view');
+                        }, 500);
+                    });
+                }
+            });
+        }, { threshold: 0.3 });
+
+        comicStrips.forEach(strip => {
+            comicObserver.observe(strip);
+        });
+
+        // Replay animation on hover
+        comicStrips.forEach(strip => {
+            strip.addEventListener('mouseenter', () => {
+                const panels = strip.querySelectorAll('.panel');
+                const sfx = strip.querySelectorAll('.sfx');
+
+                // Only replay if already viewed
+                if (panels[0] && panels[0].classList.contains('in-view')) {
+                    panels.forEach(panel => panel.classList.remove('in-view'));
+                    sfx.forEach(sound => sound.classList.remove('in-view'));
+                    void strip.offsetWidth;
+
+                    panels.forEach((panel, index) => {
+                        setTimeout(() => {
+                            panel.classList.add('in-view');
+                        }, index * 200);
+                    });
+
+                    sfx.forEach(sound => {
+                        setTimeout(() => {
+                            sound.classList.add('in-view');
+                        }, 500);
+                    });
+                }
+            });
+        });
+    }
+
+    // =========================================
+    // DESIGN #5: Chat Bubbles
+    // =========================================
+    const chatContainers = document.querySelectorAll('.chat-ui-container[data-chat]');
+    if (chatContainers.length > 0) {
+        const chatObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    playChatAnimation(entry.target);
+                    chatObserver.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.2 });
+
+        chatContainers.forEach(chat => {
+            chatObserver.observe(chat);
+        });
+
+        function playChatAnimation(chatContainer) {
+            const chatContent = chatContainer.querySelector('.chat-content');
+            if (!chatContent) return;
+
+            const items = chatContent.querySelectorAll('.chat-message, .typing-indicator, .chat-status');
+
+            items.forEach(item => {
+                const delay = parseInt(item.getAttribute('data-delay') || '0', 10);
+
+                setTimeout(() => {
+                    if (item.classList.contains('typing-indicator')) {
+                        item.classList.add('active');
+                        setTimeout(() => {
+                            item.classList.remove('active');
+                        }, 600);
+                    } else {
+                        item.classList.add('in-view');
+                    }
+                }, delay);
+            });
+        }
+
+        // Replay animation on hover
+        chatContainers.forEach(container => {
+            container.addEventListener('mouseenter', () => {
+                const chatContent = container.querySelector('.chat-content');
+                if (!chatContent) return;
+
+                const items = chatContent.querySelectorAll('.chat-message, .chat-status');
+                const hasPlayed = items[0] && items[0].classList.contains('in-view');
+
+                if (hasPlayed) {
+                    items.forEach(item => item.classList.remove('in-view'));
+                    void container.offsetWidth;
+                    playChatAnimation(container);
+                }
+            });
+        });
+    }
 })();

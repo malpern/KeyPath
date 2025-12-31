@@ -999,6 +999,360 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
     </div>
   </section>
 
+  <!-- Recipe Cards (Design #3) -->
+  <section class="recipe-section">
+    <h2>The Cookbook</h2>
+    <p class="section-subtitle">Every feature is a recipe. Keys are ingredients. Results are dishes.</p>
+
+    <div class="recipe-container">
+      <!-- Chords -->
+      <article class="recipe-card" data-recipe>
+        <div class="recipe-header">
+          <h3 class="recipe-title">Three-Key Salad</h3>
+          <p class="recipe-tagline">"Fresh, crisp, and instant."</p>
+        </div>
+        <div class="recipe-body">
+          <div class="recipe-col">
+            <h4>Ingredients</h4>
+            <ul class="ingredient-list">
+              <li><span class="key-pill">J</span></li>
+              <li><span class="key-pill">K</span></li>
+              <li><span class="key-pill">L</span></li>
+            </ul>
+          </div>
+          <div class="recipe-col">
+            <h4>Method</h4>
+            <p class="method-text">Toss together (press all three simultaneously) in one swift motion.</p>
+          </div>
+        </div>
+        <div class="recipe-yields">
+          <div class="yield-box">Escape</div>
+          <p class="chef-tip">Chef's Tip: Like a chord on a piano — hit all notes at once.</p>
+        </div>
+      </article>
+
+      <!-- Tap-Hold -->
+      <article class="recipe-card" data-recipe>
+        <div class="recipe-header">
+          <h3 class="recipe-title">The Quick Pickle</h3>
+          <p class="recipe-tagline">"Timing is everything."</p>
+        </div>
+        <div class="recipe-body">
+          <div class="recipe-col">
+            <h4>Ingredients</h4>
+            <ul class="ingredient-list">
+              <li><span class="key-pill">A</span></li>
+            </ul>
+          </div>
+          <div class="recipe-col">
+            <h4>Method</h4>
+            <p class="method-text">Quick tap = fresh (a). Long hold = pickled (Ctrl).</p>
+          </div>
+        </div>
+        <div class="recipe-yields">
+          <div class="yield-box">a or Ctrl</div>
+          <p class="chef-tip">Chef's Tip: Two outcomes from one ingredient.</p>
+        </div>
+      </article>
+
+      <!-- Sequences -->
+      <article class="recipe-card" data-recipe>
+        <div class="recipe-header">
+          <h3 class="recipe-title">Slow-Rise Bread</h3>
+          <p class="recipe-tagline">"Patience pays off with expansion."</p>
+        </div>
+        <div class="recipe-body">
+          <div class="recipe-col">
+            <h4>Ingredients</h4>
+            <ul class="ingredient-list">
+              <li><span class="key-pill">a</span> <span class="key-pill">d</span> <span class="key-pill">d</span> <span class="key-pill">r</span></li>
+            </ul>
+          </div>
+          <div class="recipe-col">
+            <h4>Method</h4>
+            <p class="method-text">Type in order. Let it rise naturally.</p>
+          </div>
+        </div>
+        <div class="recipe-yields">
+          <div class="yield-box">123 Main Street, USA</div>
+          <p class="chef-tip">Chef's Tip: The dough knows when it's ready.</p>
+        </div>
+      </article>
+
+      <!-- Macros -->
+      <article class="recipe-card" data-recipe>
+        <div class="recipe-header">
+          <h3 class="recipe-title">Meal Prep Sunday</h3>
+          <p class="recipe-tagline">"One trigger, full week of meals."</p>
+        </div>
+        <div class="recipe-body">
+          <div class="recipe-col">
+            <h4>Ingredients</h4>
+            <ul class="ingredient-list">
+              <li><span class="key-pill">SAVE</span></li>
+            </ul>
+          </div>
+          <div class="recipe-col">
+            <h4>Method</h4>
+            <p class="method-text">One key triggers a cascade of actions.</p>
+          </div>
+        </div>
+        <div class="recipe-yields">
+          <div class="yield-box">⌘S → ⌘W</div>
+          <p class="chef-tip">Chef's Tip: Prep once, eat all week.</p>
+        </div>
+      </article>
+
+      <!-- Layers -->
+      <article class="recipe-card" data-recipe>
+        <div class="recipe-header">
+          <h3 class="recipe-title">The Layer Cake</h3>
+          <p class="recipe-tagline">"Multiple personalities, one keyboard."</p>
+        </div>
+        <div class="recipe-body">
+          <div class="recipe-col">
+            <h4>Ingredients</h4>
+            <ul class="ingredient-list">
+              <li><span class="key-pill">Space</span> (hold)</li>
+            </ul>
+          </div>
+          <div class="recipe-col">
+            <h4>Method</h4>
+            <p class="method-text">Hold to reveal navigation layer. Release to return.</p>
+          </div>
+        </div>
+        <div class="recipe-yields">
+          <div class="yield-box">HJKL → Arrows</div>
+          <p class="chef-tip">Chef's Tip: Each layer is a different recipe book.</p>
+        </div>
+      </article>
+
+      <!-- Leader Keys -->
+      <article class="recipe-card" data-recipe>
+        <div class="recipe-header">
+          <h3 class="recipe-title">The Tasting Menu</h3>
+          <p class="recipe-tagline">"Sequential courses, one experience."</p>
+        </div>
+        <div class="recipe-body">
+          <div class="recipe-col">
+            <h4>Ingredients</h4>
+            <ul class="ingredient-list">
+              <li><span class="key-pill">Leader</span> → <span class="key-pill">G</span> → <span class="key-pill">S</span></li>
+            </ul>
+          </div>
+          <div class="recipe-col">
+            <h4>Method</h4>
+            <p class="method-text">Start with amuse-bouche, end with entrée.</p>
+          </div>
+        </div>
+        <div class="recipe-yields">
+          <div class="yield-box">Opens Slack</div>
+          <p class="chef-tip">Chef's Tip: The sommelier knows the sequence.</p>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- Comic Panels (Design #4) -->
+  <section class="comic-section">
+    <h2>The Comic Strip</h2>
+    <p class="section-subtitle">Every feature is a superhero origin story. Three panels. One power.</p>
+
+    <div class="comic-strip" data-comic>
+      <div class="comic-title">ISSUE #2: SECRET IDENTITY</div>
+      <div class="panels-container">
+        <div class="panel">
+          <div class="caption-box">Daytime...</div>
+          <div class="scene-setup">
+            <div class="comic-key">H</div>
+            <div class="comic-key">J</div>
+            <div class="comic-key">K</div>
+            <div class="comic-key">L</div>
+          </div>
+          <div class="speech-bubble">Just normal keys...</div>
+        </div>
+        <div class="panel">
+          <div class="caption-box">Suddenly!</div>
+          <div class="action-lines"></div>
+          <div class="scene-action">
+            <div class="comic-key active wide">SPACE</div>
+          </div>
+          <div class="sfx">WHOOSH!</div>
+        </div>
+        <div class="panel">
+          <div class="caption-box">Transformation!</div>
+          <div class="scene-setup">
+            <div class="comic-key">←</div>
+            <div class="comic-key">↓</div>
+            <div class="comic-key">↑</div>
+            <div class="comic-key">→</div>
+          </div>
+          <div class="speech-bubble">Navigation Hero!</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="comic-strip" data-comic>
+      <div class="comic-title">ISSUE #7: HIT & RUN</div>
+      <div class="panels-container">
+        <div class="panel">
+          <div class="caption-box">The Setup</div>
+          <div class="comic-key">Shift</div>
+          <div class="speech-bubble">No need to hold me...</div>
+        </div>
+        <div class="panel">
+          <div class="caption-box">Action!</div>
+          <div class="action-lines"></div>
+          <div class="scene-action">
+            <div class="comic-key pressed">Shift</div>
+            <div class="comic-key">A</div>
+          </div>
+          <div class="sfx">BLIP! TAP!</div>
+        </div>
+        <div class="panel">
+          <div class="caption-box">Victory</div>
+          <div class="comic-key faded">Shift</div>
+          <div class="comic-result">A</div>
+          <div class="speech-bubble">My work is done.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="comic-strip" data-comic>
+      <div class="comic-title">ISSUE #1: THE TRIPLE THREAT</div>
+      <div class="panels-container">
+        <div class="panel">
+          <div class="caption-box">Three Keys...</div>
+          <div class="scene-setup">
+            <div class="comic-key">J</div>
+            <div class="comic-key">K</div>
+            <div class="comic-key">L</div>
+          </div>
+          <div class="speech-bubble">One destiny.</div>
+        </div>
+        <div class="panel">
+          <div class="caption-box">Combined!</div>
+          <div class="action-lines"></div>
+          <div class="scene-action">
+            <div class="comic-key active">J</div>
+            <div class="comic-key active">K</div>
+            <div class="comic-key active">L</div>
+          </div>
+          <div class="sfx">THWACK!</div>
+        </div>
+        <div class="panel">
+          <div class="caption-box">Escaped!</div>
+          <div class="comic-result">⎋</div>
+          <div class="speech-bubble">Freedom!</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Chat Bubbles (Design #5) -->
+  <section class="chat-section">
+    <h2>The Conversation</h2>
+    <p class="section-subtitle">Your keyboard is a helpful assistant. You text it keypresses. It replies with actions.</p>
+
+    <div class="chat-grid">
+      <!-- Fork/Switch -->
+      <div class="chat-ui-container" data-chat>
+        <div class="chat-header">Fork / Switch</div>
+        <div class="chat-content">
+          <div class="chat-message user" data-delay="0"><span class="kbd-inline">X</span></div>
+          <div class="typing-indicator">
+            <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+          </div>
+          <div class="chat-message keyboard" data-delay="800">Checking context... Is <span class="kbd-inline">Shift</span> held?</div>
+          <div class="chat-message keyboard" data-delay="1400">No. Result: <strong>x</strong></div>
+          <div class="chat-message user" data-delay="2200"><span class="kbd-inline">Shift</span> + <span class="kbd-inline">X</span></div>
+          <div class="chat-message keyboard" data-delay="3000">Shift detected!</div>
+          <div class="chat-message keyboard" data-delay="3600">Action: <strong>CUT</strong></div>
+          <div class="chat-status" data-delay="4000">Read</div>
+        </div>
+      </div>
+
+      <!-- Leader Keys -->
+      <div class="chat-ui-container" data-chat>
+        <div class="chat-header">Leader Keys</div>
+        <div class="chat-content">
+          <div class="chat-message user" data-delay="0"><span class="kbd-inline">Leader</span></div>
+          <div class="typing-indicator">
+            <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+          </div>
+          <div class="chat-message keyboard" data-delay="600">Listening... What's the command?</div>
+          <div class="chat-message user" data-delay="1200"><span class="kbd-inline">G</span></div>
+          <div class="chat-message keyboard" data-delay="1600">G... go on</div>
+          <div class="chat-message user" data-delay="2200"><span class="kbd-inline">S</span></div>
+          <div class="chat-message keyboard" data-delay="2800">Opening <strong>Slack</strong></div>
+          <div class="chat-status" data-delay="3200">Delivered</div>
+        </div>
+      </div>
+
+      <!-- Tap-Dance -->
+      <div class="chat-ui-container" data-chat>
+        <div class="chat-header">Tap-Dance</div>
+        <div class="chat-content">
+          <div class="chat-message user" data-delay="0"><span class="kbd-inline">Q</span></div>
+          <div class="chat-message keyboard" data-delay="400">That's a <strong>q</strong></div>
+          <div class="chat-message user" data-delay="1000"><span class="kbd-inline">Q</span> <span class="kbd-inline">Q</span></div>
+          <div class="chat-message keyboard" data-delay="1400">Make that <strong>Escape</strong></div>
+          <div class="chat-message user" data-delay="2000"><span class="kbd-inline">Q</span> <span class="kbd-inline">Q</span> <span class="kbd-inline">Q</span></div>
+          <div class="chat-message keyboard" data-delay="2400"><strong>CAPS LOCK</strong> engaged</div>
+          <div class="chat-status" data-delay="2800">Read</div>
+        </div>
+      </div>
+
+      <!-- Sticky Keys -->
+      <div class="chat-ui-container" data-chat>
+        <div class="chat-header">Sticky Keys</div>
+        <div class="chat-content">
+          <div class="chat-message user" data-delay="0"><span class="kbd-inline">Ctrl</span> (double-tap)</div>
+          <div class="chat-message keyboard" data-delay="600">Ctrl <strong>LOCKED</strong>. I'll hold this for you.</div>
+          <div class="chat-message user" data-delay="1200"><span class="kbd-inline">A</span></div>
+          <div class="chat-message keyboard" data-delay="1600">⌃A – Select All</div>
+          <div class="chat-message user" data-delay="2000"><span class="kbd-inline">C</span></div>
+          <div class="chat-message keyboard" data-delay="2400">⌃C – Copy</div>
+          <div class="chat-message user" data-delay="2800"><span class="kbd-inline">Ctrl</span></div>
+          <div class="chat-message keyboard" data-delay="3200">Ctrl <strong>released</strong>. Done!</div>
+          <div class="chat-status" data-delay="3600">Read</div>
+        </div>
+      </div>
+
+      <!-- Macros -->
+      <div class="chat-ui-container" data-chat>
+        <div class="chat-header">Macros</div>
+        <div class="chat-content">
+          <div class="chat-message user" data-delay="0"><span class="kbd-inline">SAVE</span></div>
+          <div class="typing-indicator">
+            <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+          </div>
+          <div class="chat-message keyboard" data-delay="800">Executing macro...</div>
+          <div class="chat-message keyboard" data-delay="1200">⌘S (Save)</div>
+          <div class="chat-message keyboard" data-delay="1600">⌘W (Close)</div>
+          <div class="chat-message keyboard" data-delay="2000"><strong>2 actions</strong> completed</div>
+          <div class="chat-status" data-delay="2400">Delivered</div>
+        </div>
+      </div>
+
+      <!-- Sequences -->
+      <div class="chat-ui-container" data-chat>
+        <div class="chat-header">Sequences</div>
+        <div class="chat-content">
+          <div class="chat-message user" data-delay="0"><span class="kbd-inline">a</span></div>
+          <div class="chat-message keyboard" data-delay="300">a</div>
+          <div class="chat-message user" data-delay="600"><span class="kbd-inline">d</span> <span class="kbd-inline">d</span> <span class="kbd-inline">r</span></div>
+          <div class="typing-indicator">
+            <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+          </div>
+          <div class="chat-message keyboard" data-delay="1400">Wait, I know this one...</div>
+          <div class="chat-message keyboard" data-delay="2000"><strong>123 Main Street, Anytown USA</strong></div>
+          <div class="chat-status" data-delay="2400">Expanded</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <div class="kanata-landing-divider" aria-hidden="true"></div>
 
   <section class="kanata-landing-section">
