@@ -2296,3 +2296,359 @@ a.button:active {
         width: var(--target-width) !important;
     }
 }
+
+/* ============================================
+   PIANO ROLL VISUALIZATION (Design #2)
+   ============================================ */
+
+:root {
+    --pr-bg: #0d0d12;
+    --pr-grid: rgba(255,255,255,0.06);
+    --pr-key-white: #e8e8e8;
+    --pr-key-black: #2a2a2e;
+    --pr-playhead: #ff6b35;
+    --pr-note-chord: #ff6b35;
+    --pr-note-layer: #3b82f6;
+    --pr-note-tap: #10b981;
+    --pr-note-hold: #8b5cf6;
+    --pr-note-leader: #f59e0b;
+    --pr-note-seq: #ec4899;
+    --pr-note-osm: #06b6d4;
+    --pr-note-sticky: #84cc16;
+    --pr-note-macro: #f43f5e;
+    --pr-note-caps: #a855f7;
+    --pr-note-fork: #14b8a6;
+    --pr-duration: 2.5s;
+}
+
+.piano-roll-section {
+    background: var(--pr-bg);
+    padding: 64px 24px;
+    margin: 48px 0;
+    border-radius: 16px;
+}
+
+.piano-roll-section h2 {
+    text-align: center;
+    color: #fff;
+    font-size: 1.75rem;
+    margin-bottom: 8px;
+}
+
+.piano-roll-section .section-subtitle {
+    text-align: center;
+    color: rgba(255,255,255,0.5);
+    font-size: 0.95rem;
+    margin-bottom: 48px;
+}
+
+.piano-roll-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.pr-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 20px;
+    display: grid;
+    grid-template-columns: 48px 1fr;
+    gap: 12px;
+    overflow: hidden;
+}
+
+.pr-card-text {
+    grid-column: 1 / -1;
+    margin-bottom: 8px;
+}
+
+.pr-card-text h3 {
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+}
+
+.pr-card-text p {
+    color: rgba(255,255,255,0.5);
+    font-size: 0.8rem;
+    margin: 0;
+}
+
+/* Piano keys column */
+.pr-keys {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.pr-key {
+    height: 20px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 6px;
+    font-size: 9px;
+    font-weight: 500;
+    transition: background 0.15s;
+}
+
+.pr-key--white {
+    background: var(--pr-key-white);
+    color: #333;
+}
+
+.pr-key--black {
+    background: var(--pr-key-black);
+    color: #888;
+    margin-left: 8px;
+    width: calc(100% - 8px);
+}
+
+.pr-key.is-active {
+    background: var(--pr-playhead) !important;
+    color: #fff !important;
+}
+
+/* Note grid area */
+.pr-grid {
+    position: relative;
+    background:
+        linear-gradient(90deg, var(--pr-grid) 1px, transparent 1px),
+        linear-gradient(0deg, var(--pr-grid) 1px, transparent 1px);
+    background-size: 24px 22px;
+    min-height: 88px;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+/* Playhead */
+.pr-playhead {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--pr-playhead);
+    box-shadow: 0 0 12px var(--pr-playhead), 0 0 24px var(--pr-playhead);
+    opacity: 0;
+    z-index: 10;
+}
+
+.pr-card.in-view .pr-playhead {
+    animation: playheadSweep var(--pr-duration) ease-out forwards;
+}
+
+@keyframes playheadSweep {
+    0% { left: 0; opacity: 1; }
+    95% { left: 100%; opacity: 1; }
+    100% { left: 100%; opacity: 0; }
+}
+
+/* Notes */
+.pr-note {
+    position: absolute;
+    height: 18px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 600;
+    color: #fff;
+    opacity: 0;
+    transform: scale(0.8);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.pr-note--chord { background: var(--pr-note-chord); }
+.pr-note--layer { background: var(--pr-note-layer); }
+.pr-note--tap { background: var(--pr-note-tap); }
+.pr-note--hold { background: var(--pr-note-hold); }
+.pr-note--leader { background: var(--pr-note-leader); }
+.pr-note--seq { background: var(--pr-note-seq); }
+.pr-note--osm { background: var(--pr-note-osm); }
+.pr-note--sticky { background: var(--pr-note-sticky); }
+.pr-note--macro { background: var(--pr-note-macro); }
+.pr-note--caps { background: var(--pr-note-caps); }
+.pr-note--fork { background: var(--pr-note-fork); }
+
+@keyframes noteAppear {
+    0% { opacity: 0; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1.05); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes noteGlow {
+    0%, 100% { box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+    50% { box-shadow: 0 2px 16px rgba(255,255,255,0.3), 0 0 24px currentColor; }
+}
+
+/* Card-specific note positions and animations */
+
+/* 1. Chords - simultaneous keys */
+.pr-card[data-pr="chord"] .pr-note-1 { top: 2px; left: 10%; width: 60px; }
+.pr-card[data-pr="chord"] .pr-note-2 { top: 24px; left: 10%; width: 60px; }
+.pr-card[data-pr="chord"] .pr-note-3 { top: 46px; left: 10%; width: 60px; }
+.pr-card[data-pr="chord"] .pr-note-out { top: 24px; left: 55%; width: 80px; }
+
+.pr-card.in-view[data-pr="chord"] .pr-note-1,
+.pr-card.in-view[data-pr="chord"] .pr-note-2,
+.pr-card.in-view[data-pr="chord"] .pr-note-3 {
+    animation: noteAppear 0.3s ease-out 0.3s forwards;
+}
+.pr-card.in-view[data-pr="chord"] .pr-note-out {
+    animation: noteAppear 0.3s ease-out 0.8s forwards, noteGlow 0.6s ease-in-out 1s;
+}
+
+/* 2. Layers - stacked rows */
+.pr-card[data-pr="layer"] .pr-note-base { top: 2px; left: 5%; width: 45px; }
+.pr-card[data-pr="layer"] .pr-note-fn { top: 24px; left: 20%; width: 35px; }
+.pr-card[data-pr="layer"] .pr-note-nav { top: 46px; left: 35%; width: 55px; }
+.pr-card[data-pr="layer"] .pr-note-sym { top: 68px; left: 50%; width: 45px; }
+
+.pr-card.in-view[data-pr="layer"] .pr-note-base { animation: noteAppear 0.25s ease-out 0.2s forwards; }
+.pr-card.in-view[data-pr="layer"] .pr-note-fn { animation: noteAppear 0.25s ease-out 0.5s forwards; }
+.pr-card.in-view[data-pr="layer"] .pr-note-nav { animation: noteAppear 0.25s ease-out 0.8s forwards; }
+.pr-card.in-view[data-pr="layer"] .pr-note-sym { animation: noteAppear 0.25s ease-out 1.1s forwards; }
+
+/* 3. Tap-Hold - short vs long note */
+.pr-card[data-pr="tap-hold"] .pr-note-tap { top: 2px; left: 10%; width: 25px; }
+.pr-card[data-pr="tap-hold"] .pr-note-hold { top: 46px; left: 10%; width: 120px; }
+.pr-card[data-pr="tap-hold"] .pr-note-tap-out { top: 2px; left: 55%; width: 40px; }
+.pr-card[data-pr="tap-hold"] .pr-note-hold-out { top: 46px; left: 65%; width: 50px; }
+
+.pr-card.in-view[data-pr="tap-hold"] .pr-note-tap { animation: noteAppear 0.2s ease-out 0.3s forwards; }
+.pr-card.in-view[data-pr="tap-hold"] .pr-note-tap-out { animation: noteAppear 0.2s ease-out 0.5s forwards; }
+.pr-card.in-view[data-pr="tap-hold"] .pr-note-hold { animation: noteAppear 0.2s ease-out 0.8s forwards; }
+.pr-card.in-view[data-pr="tap-hold"] .pr-note-hold-out { animation: noteAppear 0.2s ease-out 1.4s forwards; }
+
+/* 4. Tap-Dance - rapid repeated taps */
+.pr-card[data-pr="tap-dance"] .pr-note-t1 { top: 24px; left: 5%; width: 18px; }
+.pr-card[data-pr="tap-dance"] .pr-note-t2 { top: 24px; left: 18%; width: 18px; }
+.pr-card[data-pr="tap-dance"] .pr-note-t3 { top: 24px; left: 31%; width: 18px; }
+.pr-card[data-pr="tap-dance"] .pr-note-out1 { top: 2px; left: 55%; width: 35px; }
+.pr-card[data-pr="tap-dance"] .pr-note-out2 { top: 24px; left: 55%; width: 50px; }
+.pr-card[data-pr="tap-dance"] .pr-note-out3 { top: 46px; left: 55%; width: 65px; }
+
+.pr-card.in-view[data-pr="tap-dance"] .pr-note-t1 { animation: noteAppear 0.15s ease-out 0.2s forwards; }
+.pr-card.in-view[data-pr="tap-dance"] .pr-note-t2 { animation: noteAppear 0.15s ease-out 0.4s forwards; }
+.pr-card.in-view[data-pr="tap-dance"] .pr-note-t3 { animation: noteAppear 0.15s ease-out 0.6s forwards; }
+.pr-card.in-view[data-pr="tap-dance"] .pr-note-out1 { animation: noteAppear 0.2s ease-out 0.35s forwards; }
+.pr-card.in-view[data-pr="tap-dance"] .pr-note-out2 { animation: noteAppear 0.2s ease-out 0.55s forwards; }
+.pr-card.in-view[data-pr="tap-dance"] .pr-note-out3 { animation: noteAppear 0.2s ease-out 0.75s forwards; }
+
+/* 5. Leader Keys - sequence of notes */
+.pr-card[data-pr="leader"] .pr-note-ldr { top: 24px; left: 5%; width: 30px; }
+.pr-card[data-pr="leader"] .pr-note-seq1 { top: 24px; left: 25%; width: 22px; }
+.pr-card[data-pr="leader"] .pr-note-seq2 { top: 24px; left: 40%; width: 22px; }
+.pr-card[data-pr="leader"] .pr-note-action { top: 24px; left: 65%; width: 60px; }
+
+.pr-card.in-view[data-pr="leader"] .pr-note-ldr { animation: noteAppear 0.2s ease-out 0.2s forwards, noteGlow 0.4s ease-in-out 0.3s; }
+.pr-card.in-view[data-pr="leader"] .pr-note-seq1 { animation: noteAppear 0.15s ease-out 0.5s forwards; }
+.pr-card.in-view[data-pr="leader"] .pr-note-seq2 { animation: noteAppear 0.15s ease-out 0.7s forwards; }
+.pr-card.in-view[data-pr="leader"] .pr-note-action { animation: noteAppear 0.3s ease-out 1s forwards, noteGlow 0.5s ease-in-out 1.2s; }
+
+/* 6. Sequences - chain of notes */
+.pr-card[data-pr="seq"] .pr-note-s1 { top: 24px; left: 5%; width: 20px; }
+.pr-card[data-pr="seq"] .pr-note-s2 { top: 24px; left: 18%; width: 20px; }
+.pr-card[data-pr="seq"] .pr-note-s3 { top: 24px; left: 31%; width: 20px; }
+.pr-card[data-pr="seq"] .pr-note-s4 { top: 24px; left: 44%; width: 20px; }
+.pr-card[data-pr="seq"] .pr-note-expand { top: 24px; left: 70%; width: 50px; }
+
+.pr-card.in-view[data-pr="seq"] .pr-note-s1 { animation: noteAppear 0.12s ease-out 0.2s forwards; }
+.pr-card.in-view[data-pr="seq"] .pr-note-s2 { animation: noteAppear 0.12s ease-out 0.35s forwards; }
+.pr-card.in-view[data-pr="seq"] .pr-note-s3 { animation: noteAppear 0.12s ease-out 0.5s forwards; }
+.pr-card.in-view[data-pr="seq"] .pr-note-s4 { animation: noteAppear 0.12s ease-out 0.65s forwards; }
+.pr-card.in-view[data-pr="seq"] .pr-note-expand { animation: noteAppear 0.3s ease-out 0.9s forwards, noteGlow 0.5s ease-in-out 1.1s; }
+
+/* 7. One-Shot Modifiers */
+.pr-card[data-pr="osm"] .pr-note-mod { top: 2px; left: 10%; width: 35px; }
+.pr-card[data-pr="osm"] .pr-note-key { top: 46px; left: 30%; width: 25px; }
+.pr-card[data-pr="osm"] .pr-note-combined { top: 24px; left: 60%; width: 55px; }
+
+.pr-card.in-view[data-pr="osm"] .pr-note-mod { animation: noteAppear 0.2s ease-out 0.3s forwards; }
+.pr-card.in-view[data-pr="osm"] .pr-note-key { animation: noteAppear 0.2s ease-out 0.6s forwards; }
+.pr-card.in-view[data-pr="osm"] .pr-note-combined { animation: noteAppear 0.25s ease-out 0.9s forwards, noteGlow 0.4s ease-in-out 1.1s; }
+
+/* 8. Sticky Keys */
+.pr-card[data-pr="sticky"] .pr-note-stick { top: 2px; left: 10%; width: 25px; }
+.pr-card[data-pr="sticky"] .pr-note-held { top: 24px; left: 10%; width: 100px; background: repeating-linear-gradient(90deg, var(--pr-note-sticky) 0px, var(--pr-note-sticky) 8px, transparent 8px, transparent 12px); }
+.pr-card[data-pr="sticky"] .pr-note-k1 { top: 46px; left: 30%; width: 20px; }
+.pr-card[data-pr="sticky"] .pr-note-k2 { top: 46px; left: 50%; width: 20px; }
+.pr-card[data-pr="sticky"] .pr-note-k3 { top: 46px; left: 70%; width: 20px; }
+
+.pr-card.in-view[data-pr="sticky"] .pr-note-stick { animation: noteAppear 0.2s ease-out 0.2s forwards; }
+.pr-card.in-view[data-pr="sticky"] .pr-note-held { animation: noteAppear 0.3s ease-out 0.35s forwards; }
+.pr-card.in-view[data-pr="sticky"] .pr-note-k1 { animation: noteAppear 0.15s ease-out 0.6s forwards; }
+.pr-card.in-view[data-pr="sticky"] .pr-note-k2 { animation: noteAppear 0.15s ease-out 0.85s forwards; }
+.pr-card.in-view[data-pr="sticky"] .pr-note-k3 { animation: noteAppear 0.15s ease-out 1.1s forwards; }
+
+/* 9. Macros */
+.pr-card[data-pr="macro"] .pr-note-trigger { top: 24px; left: 5%; width: 40px; }
+.pr-card[data-pr="macro"] .pr-note-m1 { top: 2px; left: 45%; width: 18px; }
+.pr-card[data-pr="macro"] .pr-note-m2 { top: 24px; left: 55%; width: 18px; }
+.pr-card[data-pr="macro"] .pr-note-m3 { top: 46px; left: 65%; width: 18px; }
+.pr-card[data-pr="macro"] .pr-note-m4 { top: 68px; left: 75%; width: 18px; }
+
+.pr-card.in-view[data-pr="macro"] .pr-note-trigger { animation: noteAppear 0.25s ease-out 0.2s forwards, noteGlow 0.4s ease-in-out 0.3s; }
+.pr-card.in-view[data-pr="macro"] .pr-note-m1 { animation: noteAppear 0.12s ease-out 0.5s forwards; }
+.pr-card.in-view[data-pr="macro"] .pr-note-m2 { animation: noteAppear 0.12s ease-out 0.62s forwards; }
+.pr-card.in-view[data-pr="macro"] .pr-note-m3 { animation: noteAppear 0.12s ease-out 0.74s forwards; }
+.pr-card.in-view[data-pr="macro"] .pr-note-m4 { animation: noteAppear 0.12s ease-out 0.86s forwards; }
+
+/* 10. Caps-Word */
+.pr-card[data-pr="caps"] .pr-note-activate { top: 2px; left: 5%; width: 30px; }
+.pr-card[data-pr="caps"] .pr-note-c1 { top: 24px; left: 20%; width: 16px; }
+.pr-card[data-pr="caps"] .pr-note-c2 { top: 24px; left: 30%; width: 16px; }
+.pr-card[data-pr="caps"] .pr-note-c3 { top: 24px; left: 40%; width: 16px; }
+.pr-card[data-pr="caps"] .pr-note-c4 { top: 24px; left: 50%; width: 16px; }
+.pr-card[data-pr="caps"] .pr-note-c5 { top: 24px; left: 60%; width: 16px; }
+.pr-card[data-pr="caps"] .pr-note-space { top: 46px; left: 75%; width: 25px; }
+
+.pr-card.in-view[data-pr="caps"] .pr-note-activate { animation: noteAppear 0.2s ease-out 0.2s forwards, noteGlow 0.4s ease-in-out 0.25s; }
+.pr-card.in-view[data-pr="caps"] .pr-note-c1 { animation: noteAppear 0.1s ease-out 0.45s forwards; }
+.pr-card.in-view[data-pr="caps"] .pr-note-c2 { animation: noteAppear 0.1s ease-out 0.55s forwards; }
+.pr-card.in-view[data-pr="caps"] .pr-note-c3 { animation: noteAppear 0.1s ease-out 0.65s forwards; }
+.pr-card.in-view[data-pr="caps"] .pr-note-c4 { animation: noteAppear 0.1s ease-out 0.75s forwards; }
+.pr-card.in-view[data-pr="caps"] .pr-note-c5 { animation: noteAppear 0.1s ease-out 0.85s forwards; }
+.pr-card.in-view[data-pr="caps"] .pr-note-space { animation: noteAppear 0.15s ease-out 1s forwards; }
+
+/* 11. Fork/Switch */
+.pr-card[data-pr="fork"] .pr-note-input { top: 24px; left: 5%; width: 25px; }
+.pr-card[data-pr="fork"] .pr-note-check { top: 24px; left: 30%; width: 40px; }
+.pr-card[data-pr="fork"] .pr-note-yes { top: 2px; left: 65%; width: 45px; }
+.pr-card[data-pr="fork"] .pr-note-no { top: 46px; left: 65%; width: 35px; }
+.pr-card[data-pr="fork"] .fork-arrow-up,
+.pr-card[data-pr="fork"] .fork-arrow-down {
+    position: absolute;
+    left: 55%;
+    font-size: 12px;
+    opacity: 0;
+}
+.pr-card[data-pr="fork"] .fork-arrow-up { top: 6px; }
+.pr-card[data-pr="fork"] .fork-arrow-down { top: 50px; }
+
+.pr-card.in-view[data-pr="fork"] .pr-note-input { animation: noteAppear 0.2s ease-out 0.2s forwards; }
+.pr-card.in-view[data-pr="fork"] .pr-note-check { animation: noteAppear 0.25s ease-out 0.5s forwards; }
+.pr-card.in-view[data-pr="fork"] .fork-arrow-up,
+.pr-card.in-view[data-pr="fork"] .fork-arrow-down { animation: noteAppear 0.15s ease-out 0.8s forwards; }
+.pr-card.in-view[data-pr="fork"] .pr-note-yes { animation: noteAppear 0.2s ease-out 1s forwards; }
+.pr-card.in-view[data-pr="fork"] .pr-note-no { animation: noteAppear 0.2s ease-out 1s forwards; }
+
+/* Piano Roll reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .pr-playhead {
+        display: none;
+    }
+    .pr-note {
+        opacity: 1 !important;
+        transform: scale(1) !important;
+        animation: none !important;
+    }
+}

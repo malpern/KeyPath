@@ -404,4 +404,39 @@
             });
         });
     }
+
+    // Piano Roll visualization scroll animations
+    const pianoRollCards = document.querySelectorAll('.pr-card[data-pr]');
+    if (pianoRollCards.length > 0) {
+        const prObserverOptions = {
+            root: null,
+            rootMargin: '0px 0px -10% 0px',
+            threshold: 0.3
+        };
+
+        const prCardObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('in-view');
+                }
+            });
+        }, prObserverOptions);
+
+        pianoRollCards.forEach(card => {
+            prCardObserver.observe(card);
+        });
+
+        // Replay animation on hover
+        pianoRollCards.forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                // Only replay if already viewed
+                if (card.classList.contains('in-view')) {
+                    card.classList.remove('in-view');
+                    // Force reflow
+                    void card.offsetWidth;
+                    card.classList.add('in-view');
+                }
+            });
+        });
+    }
 })();

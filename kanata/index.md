@@ -760,6 +760,245 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
     </div>
   </section>
 
+  <!-- Piano Roll Visualization (Design #2) -->
+  <section class="piano-roll-section">
+    <h2>See it like music</h2>
+    <p class="section-subtitle">Same 11 features, visualized as a piano roll. Notes trigger as the playhead sweeps past.</p>
+
+    <div class="piano-roll-grid">
+      <!-- 1. Chords -->
+      <div class="pr-card" data-pr="chord">
+        <div class="pr-card-text">
+          <h3>Chords</h3>
+          <p>Press multiple keys simultaneously for a new action</p>
+        </div>
+        <div class="pr-keys">
+          <div class="pr-key pr-key--white">J</div>
+          <div class="pr-key pr-key--white">K</div>
+          <div class="pr-key pr-key--white">L</div>
+        </div>
+        <div class="pr-grid">
+          <div class="pr-playhead"></div>
+          <div class="pr-note pr-note--chord pr-note-1">J</div>
+          <div class="pr-note pr-note--chord pr-note-2">K</div>
+          <div class="pr-note pr-note--chord pr-note-3">L</div>
+          <div class="pr-note pr-note--chord pr-note-out">Esc</div>
+        </div>
+      </div>
+
+      <!-- 2. Layers -->
+      <div class="pr-card" data-pr="layer">
+        <div class="pr-card-text">
+          <h3>Layers</h3>
+          <p>Switch entire key layouts on the fly</p>
+        </div>
+        <div class="pr-keys">
+          <div class="pr-key pr-key--white">Base</div>
+          <div class="pr-key pr-key--black">Fn</div>
+          <div class="pr-key pr-key--white">Nav</div>
+          <div class="pr-key pr-key--black">Sym</div>
+        </div>
+        <div class="pr-grid">
+          <div class="pr-playhead"></div>
+          <div class="pr-note pr-note--layer pr-note-base">qwerty</div>
+          <div class="pr-note pr-note--layer pr-note-fn">F1-F12</div>
+          <div class="pr-note pr-note--layer pr-note-nav">arrows</div>
+          <div class="pr-note pr-note--layer pr-note-sym">!@#$</div>
+        </div>
+      </div>
+
+      <!-- 3. Tap-Hold -->
+      <div class="pr-card" data-pr="tap-hold">
+        <div class="pr-card-text">
+          <h3>Tap-Hold</h3>
+          <p>Tap for one action, hold for another</p>
+        </div>
+        <div class="pr-keys">
+          <div class="pr-key pr-key--white">Tap</div>
+          <div class="pr-key pr-key--black"></div>
+          <div class="pr-key pr-key--white">Hold</div>
+        </div>
+        <div class="pr-grid">
+          <div class="pr-playhead"></div>
+          <div class="pr-note pr-note--tap pr-note-tap">A</div>
+          <div class="pr-note pr-note--tap pr-note-tap-out">a</div>
+          <div class="pr-note pr-note--hold pr-note-hold">A</div>
+          <div class="pr-note pr-note--hold pr-note-hold-out">Ctrl</div>
+        </div>
+      </div>
+
+      <!-- 4. Tap-Dance -->
+      <div class="pr-card" data-pr="tap-dance">
+        <div class="pr-card-text">
+          <h3>Tap-Dance</h3>
+          <p>Different actions for single, double, triple tap</p>
+        </div>
+        <div class="pr-keys">
+          <div class="pr-key pr-key--white">1x</div>
+          <div class="pr-key pr-key--white">2x</div>
+          <div class="pr-key pr-key--white">3x</div>
+        </div>
+        <div class="pr-grid">
+          <div class="pr-playhead"></div>
+          <div class="pr-note pr-note--tap pr-note-t1">Q</div>
+          <div class="pr-note pr-note--tap pr-note-t2">Q</div>
+          <div class="pr-note pr-note--tap pr-note-t3">Q</div>
+          <div class="pr-note pr-note--tap pr-note-out1">q</div>
+          <div class="pr-note pr-note--tap pr-note-out2">Esc</div>
+          <div class="pr-note pr-note--tap pr-note-out3">Caps</div>
+        </div>
+      </div>
+
+      <!-- 5. Leader Keys -->
+      <div class="pr-card" data-pr="leader">
+        <div class="pr-card-text">
+          <h3>Leader Keys</h3>
+          <p>Start a command sequence with a prefix key</p>
+        </div>
+        <div class="pr-keys">
+          <div class="pr-key pr-key--white"></div>
+          <div class="pr-key pr-key--white">Seq</div>
+          <div class="pr-key pr-key--white"></div>
+        </div>
+        <div class="pr-grid">
+          <div class="pr-playhead"></div>
+          <div class="pr-note pr-note--leader pr-note-ldr">LDR</div>
+          <div class="pr-note pr-note--leader pr-note-seq1">G</div>
+          <div class="pr-note pr-note--leader pr-note-seq2">S</div>
+          <div class="pr-note pr-note--leader pr-note-action">Slack</div>
+        </div>
+      </div>
+
+      <!-- 6. Sequences -->
+      <div class="pr-card" data-pr="seq">
+        <div class="pr-card-text">
+          <h3>Sequences</h3>
+          <p>Type abbreviations that expand to full text</p>
+        </div>
+        <div class="pr-keys">
+          <div class="pr-key pr-key--white"></div>
+          <div class="pr-key pr-key--white">Abbr</div>
+          <div class="pr-key pr-key--white"></div>
+        </div>
+        <div class="pr-grid">
+          <div class="pr-playhead"></div>
+          <div class="pr-note pr-note--seq pr-note-s1">a</div>
+          <div class="pr-note pr-note--seq pr-note-s2">d</div>
+          <div class="pr-note pr-note--seq pr-note-s3">d</div>
+          <div class="pr-note pr-note--seq pr-note-s4">r</div>
+          <div class="pr-note pr-note--seq pr-note-expand">address</div>
+        </div>
+      </div>
+
+      <!-- 7. One-Shot Modifiers -->
+      <div class="pr-card" data-pr="osm">
+        <div class="pr-card-text">
+          <h3>One-Shot Modifiers</h3>
+          <p>Tap modifier, then tap key (no holding)</p>
+        </div>
+        <div class="pr-keys">
+          <div class="pr-key pr-key--white">Mod</div>
+          <div class="pr-key pr-key--black"></div>
+          <div class="pr-key pr-key--white">Key</div>
+        </div>
+        <div class="pr-grid">
+          <div class="pr-playhead"></div>
+          <div class="pr-note pr-note--osm pr-note-mod">Shift</div>
+          <div class="pr-note pr-note--osm pr-note-key">A</div>
+          <div class="pr-note pr-note--osm pr-note-combined">A</div>
+        </div>
+      </div>
+
+      <!-- 8. Sticky Keys -->
+      <div class="pr-card" data-pr="sticky">
+        <div class="pr-card-text">
+          <h3>Sticky Keys</h3>
+          <p>Modifier stays active until you tap it again</p>
+        </div>
+        <div class="pr-keys">
+          <div class="pr-key pr-key--white">Lock</div>
+          <div class="pr-key pr-key--white">Held</div>
+          <div class="pr-key pr-key--white">Keys</div>
+        </div>
+        <div class="pr-grid">
+          <div class="pr-playhead"></div>
+          <div class="pr-note pr-note--sticky pr-note-stick">Ctrl</div>
+          <div class="pr-note pr-note--sticky pr-note-held"></div>
+          <div class="pr-note pr-note--sticky pr-note-k1">A</div>
+          <div class="pr-note pr-note--sticky pr-note-k2">C</div>
+          <div class="pr-note pr-note--sticky pr-note-k3">V</div>
+        </div>
+      </div>
+
+      <!-- 9. Macros -->
+      <div class="pr-card" data-pr="macro">
+        <div class="pr-card-text">
+          <h3>Macros</h3>
+          <p>One key triggers a sequence of keystrokes</p>
+        </div>
+        <div class="pr-keys">
+          <div class="pr-key pr-key--white">1</div>
+          <div class="pr-key pr-key--white">2</div>
+          <div class="pr-key pr-key--white">3</div>
+          <div class="pr-key pr-key--white">4</div>
+        </div>
+        <div class="pr-grid">
+          <div class="pr-playhead"></div>
+          <div class="pr-note pr-note--macro pr-note-trigger">SAVE</div>
+          <div class="pr-note pr-note--macro pr-note-m1">⌘</div>
+          <div class="pr-note pr-note--macro pr-note-m2">S</div>
+          <div class="pr-note pr-note--macro pr-note-m3">⌘</div>
+          <div class="pr-note pr-note--macro pr-note-m4">W</div>
+        </div>
+      </div>
+
+      <!-- 10. Caps-Word -->
+      <div class="pr-card" data-pr="caps">
+        <div class="pr-card-text">
+          <h3>Caps-Word</h3>
+          <p>Auto-caps until you hit space or punctuation</p>
+        </div>
+        <div class="pr-keys">
+          <div class="pr-key pr-key--white">Caps</div>
+          <div class="pr-key pr-key--white">Type</div>
+          <div class="pr-key pr-key--white">End</div>
+        </div>
+        <div class="pr-grid">
+          <div class="pr-playhead"></div>
+          <div class="pr-note pr-note--caps pr-note-activate">CW</div>
+          <div class="pr-note pr-note--caps pr-note-c1">H</div>
+          <div class="pr-note pr-note--caps pr-note-c2">E</div>
+          <div class="pr-note pr-note--caps pr-note-c3">L</div>
+          <div class="pr-note pr-note--caps pr-note-c4">L</div>
+          <div class="pr-note pr-note--caps pr-note-c5">O</div>
+          <div class="pr-note pr-note--caps pr-note-space">␣</div>
+        </div>
+      </div>
+
+      <!-- 11. Fork/Switch -->
+      <div class="pr-card" data-pr="fork">
+        <div class="pr-card-text">
+          <h3>Fork / Switch</h3>
+          <p>Choose action based on what other keys are held</p>
+        </div>
+        <div class="pr-keys">
+          <div class="pr-key pr-key--white">+Shift</div>
+          <div class="pr-key pr-key--black"></div>
+          <div class="pr-key pr-key--white">No Shift</div>
+        </div>
+        <div class="pr-grid">
+          <div class="pr-playhead"></div>
+          <div class="pr-note pr-note--fork pr-note-input">X</div>
+          <div class="pr-note pr-note--fork pr-note-check">Shift?</div>
+          <span class="fork-arrow-up">↗</span>
+          <span class="fork-arrow-down">↘</span>
+          <div class="pr-note pr-note--fork pr-note-yes">CUT</div>
+          <div class="pr-note pr-note--fork pr-note-no">x</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <div class="kanata-landing-divider" aria-hidden="true"></div>
 
   <section class="kanata-landing-section">
