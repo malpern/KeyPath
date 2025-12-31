@@ -130,6 +130,35 @@ content_class: content-full kanata-landing
       </div>
     </div>
 
+    <div class="kanata-launches-note">
+      <h3 class="mt-0">More powerful triggers than Raycast</h3>
+      <p class="kanata-landing-fineprint">
+        Raycast is great for search. KeyPath is great when you want <em>muscle-memory triggers</em> —
+        a chord (two keys together), a sequence (keys in order), or a layer.
+        That means you can launch apps and URLs without leaving the home row.
+      </p>
+
+      <div class="kanata-landing-grid-2 kanata-compare">
+        <div class="kanata-compare-card">
+          <div class="kanata-compare-kicker">Raycast</div>
+          <div class="kanata-compare-line"><span class="kanata-pill">⌘ Space</span> → type <span class="kanata-pill">“slack”</span> → <span class="kanata-pill">↩</span></div>
+          <div class="kanata-compare-caption">Great when you want to search + choose.</div>
+        </div>
+
+        <div class="kanata-compare-card">
+          <div class="kanata-compare-kicker">KeyPath</div>
+          <div class="kanata-compare-line">
+            <span class="kanata-pill">Chord</span> <span class="kanata-pill">S + D</span> → <span class="kanata-pill">Slack</span>
+          </div>
+          <div class="kanata-compare-line">
+            <span class="kanata-pill">Sequence</span> <span class="kanata-pill">G</span> <span class="kanata-pill">H</span> → <span class="kanata-pill">GitHub</span>
+          </div>
+          <div class="kanata-compare-caption">Best when you want instant, repeatable triggers.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <div class="kanata-landing-divider" aria-hidden="true"></div>
 
   <section class="kanata-landing-section">
@@ -159,7 +188,7 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
 
         </div>
         <p class="kanata-landing-fineprint mb-0">
-          Full details (including limitations) are in the <a href="{{ '/migration/kanata-users' | relative_url }}">Tips for existing Kanata users</a>.
+          Full details (including limitations) are in <a href="{{ '/migration/kanata-users' | relative_url }}">Tips for existing Kanata users</a>.
         </p>
       </div>
     </div>

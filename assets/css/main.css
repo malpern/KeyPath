@@ -1166,3 +1166,57 @@ a.button:active {
         align-items: stretch;
     }
 }
+
+
+/* Kanata landing: Raycast comparison */
+.kanata-launches-note {
+    margin-top: var(--spacing-xl);
+}
+
+.kanata-compare {
+    margin-top: var(--spacing-md);
+}
+
+.kanata-compare-card {
+    border: 1px solid var(--color-border-light);
+    background: color-mix(in srgb, var(--color-background-secondary) 55%, transparent);
+    border-radius: 14px;
+    padding: var(--spacing-lg);
+}
+
+.kanata-compare-kicker {
+    font-size: var(--font-size-xs);
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-text-tertiary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.kanata-compare-line {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    color: var(--color-text);
+    margin-top: 10px;
+}
+
+.kanata-compare-caption {
+    margin-top: 12px;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.kanata-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--color-border-light);
+    background: color-mix(in srgb, var(--color-background) 75%, transparent);
+    font-family: 'SF Mono', Monaco, ui-monospace, Menlo, monospace;
+    font-size: 0.9em;
+    color: var(--color-text);
+}
