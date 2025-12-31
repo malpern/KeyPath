@@ -967,11 +967,39 @@ li {
     color: var(--color-primary);
 }
 
-.footer-bottom {
+.footer-credits {
     max-width: var(--max-width);
     margin: var(--spacing-xl) auto 0;
     padding-top: var(--spacing-lg);
     border-top: 1px solid var(--color-border);
+    text-align: center;
+}
+
+.footer-love {
+    font-size: var(--font-size-base);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.footer-standing {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-tertiary);
+}
+
+.footer-standing a {
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.footer-standing a:hover {
+    color: var(--color-primary);
+}
+
+.footer-bottom {
+    max-width: var(--max-width);
+    margin: var(--spacing-md) auto 0;
+    padding-top: var(--spacing-md);
     text-align: center;
 }
 
