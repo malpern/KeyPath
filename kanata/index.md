@@ -263,13 +263,19 @@ content_class: content-full kanata-landing
           <h3 style="margin-bottom: var(--spacing-sm);">Pre-built rules included</h3>
           <p class="kanata-landing-fineprint" style="margin-bottom: var(--spacing-sm);">Enable common mechanical keyboard power moves:</p>
           <div class="rules-list">
-            <span class="term-tooltip rule-chip" data-tooltip="Transform your useless Caps Lock into something powerful: tap for Escape (great for Vim), hold for Hyper key (all 4 modifiers at once for global shortcuts).">
+            <span class="rule-chip">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               Caps Lock Remap
+              <a href="https://precondition.github.io/home-row-mods#capslock" target="_blank" rel="noopener" class="rule-info-link" title="Learn more about Caps Lock remapping">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+              </a>
             </span>
-            <span class="term-tooltip rule-chip" data-tooltip="Turn your home row keys (A, S, D, F, J, K, L, ;) into modifier keys when held. Tap for the letter, hold for Ctrl/Alt/Cmd/Shift. Reduces pinky strain and keeps hands on home row.">
+            <span class="rule-chip">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01"/></svg>
               Home Row Mods
+              <a href="https://precondition.github.io/home-row-mods" target="_blank" rel="noopener" class="rule-info-link" title="Learn more about Home Row Mods">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+              </a>
             </span>
             <span class="rule-chip">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -300,7 +306,7 @@ content_class: content-full kanata-landing
             Karabiner-Elements
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
           </a>
-          — but more powerful, customizable, and portable across machines.
+          — but with rules built in.
         </p>
       </div>
 

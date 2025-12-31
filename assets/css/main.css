@@ -1792,6 +1792,30 @@ a.button:active {
     opacity: 1;
 }
 
+.rule-info-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-left: 4px;
+    border-radius: 50%;
+    color: var(--color-text-secondary);
+    opacity: 0.5;
+    transition: all 0.2s ease;
+}
+
+.rule-info-link svg {
+    width: 14px;
+    height: 14px;
+}
+
+.rule-info-link:hover {
+    opacity: 1;
+    color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+}
+
 /* Mapping examples */
 .mapping-examples {
     display: flex;
