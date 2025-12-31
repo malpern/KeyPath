@@ -1154,13 +1154,15 @@ a.button:active {
 }
 
 
-/* Kanata hero: image on left (and stacked on small screens) */
-@media (max-width: 1024px) {
-    .kanata-landing-hero-grid {
-        grid-template-columns: 1fr;
-    }
 
-    .kanata-landing-hero-visual {
-        justify-content: flex-start;
+/* Kanata hero: tighter CTA row */
+.kanata-landing-actions {
+    align-items: center;
+}
+
+@media (max-width: 520px) {
+    .kanata-landing-actions {
+        flex-direction: column;
+        align-items: stretch;
     }
 }

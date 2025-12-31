@@ -9,15 +9,6 @@ content_class: content-full kanata-landing
 <div class="kanata-landing">
   <section class="kanata-landing-hero">
     <div class="kanata-landing-hero-grid">
-      <div class="kanata-landing-hero-visual">
-        <img
-          class="kanata-landing-hero-image"
-          src="{{ '/images/keypath-hero-nobg.png' | relative_url }}"
-          alt="KeyPath"
-          loading="lazy"
-        />
-      </div>
-
       <div>
         <div class="kanata-landing-kicker">
           <span class="kanata-landing-badge">For Kanata users on macOS</span>
@@ -25,20 +16,25 @@ content_class: content-full kanata-landing
 
         <h1 class="kanata-landing-title">KeyPath</h1>
 
-        <p class="kanata-landing-subtitle">Advanced key remapping powered by Kanata — with a native Mac app.</p>
+        <p class="kanata-landing-subtitle">A native Mac app to remap, customize, and power your keyboard</p>
 
         <div class="kanata-landing-actions">
           <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases/download/v1.0.0/KeyPath-1.0.0.zip">Download</a>
-
-          <div class="kanata-landing-secondary-cta">
-            <a class="button button-secondary" href="{{ '/migration/kanata-users' | relative_url }}">Existing Kanata users</a>
-            <div class="kanata-landing-secondary-note">Use your existing <code>config.kbd</code>.</div>
-          </div>
+          <a class="button button-secondary" href="{{ '/migration/kanata-users' | relative_url }}">Existing Kanata users</a>
         </div>
 
-        <p class="kanata-landing-fineprint mb-0" style="margin-top: 12px;">
-          KeyPath runs your config; it doesn’t parse or “import” it into a UI.
+        <p class="kanata-landing-fineprint mb-0" style="margin-top: 14px;">
+          Use your existing <code>config.kbd</code>.
         </p>
+      </div>
+
+      <div class="kanata-landing-hero-visual">
+        <img
+          class="kanata-landing-hero-image"
+          src="{{ '/images/keypath-hero-nobg.png' | relative_url }}"
+          alt="KeyPath"
+          loading="lazy"
+        />
       </div>
     </div>
   </section>
