@@ -10,7 +10,7 @@ description: Frequently asked questions about KeyPath
 
 ### What macOS version is required?
 
-macOS 15.0 (Sequoia) or later. KeyPath works on both Apple Silicon and Intel Macs.
+macOS 15.0 (Sequoia) or later. Currently **Apple Silicon only** (Intel support coming soon).
 
 ### Do I need an internet connection?
 
@@ -141,15 +141,15 @@ See [CONTRIBUTING.md]({{ site.github_url }}/blob/main/CONTRIBUTING.md) for detai
 
 ### Why doesn't KeyPath parse config files?
 
-KeyPath follows [ADR-023](/adr/adr-023-no-config-parsing): Kanata is the source of truth. Parsing would create a shadow implementation that can drift. Instead, KeyPath uses TCP and the simulator to understand config state.
+KeyPath follows [ADR-023]({{ site.github_url }}/blob/main/docs/adr/adr-023-no-config-parsing.md): Kanata is the source of truth. Parsing would create a shadow implementation that can drift. Instead, KeyPath uses TCP and the simulator to understand config state.
 
 ### How does the two-file model work?
 
-KeyPath uses `keypath.kbd` (user-owned) and `keypath-apps.kbd` (KeyPath-generated). Your config includes the generated file to access app-specific virtual keys. See [ADR-027](/adr/adr-027-app-specific-keymaps) for details.
+KeyPath uses `keypath.kbd` (user-owned) and `keypath-apps.kbd` (KeyPath-generated). Your config includes the generated file to access app-specific virtual keys. See [ADR-027]({{ site.github_url }}/blob/main/docs/adr/adr-027-app-specific-keymaps.md) for details.
 
 ### What is the InstallerEngine?
 
-The `InstallerEngine` is a unified façade for all install/repair/uninstall operations. It's the single entry point for system modifications. See [ADR-015](/adr/adr-015-installer-engine) for details.
+The `InstallerEngine` is a unified façade for all install/repair/uninstall operations. It's the single entry point for system modifications. See [ADR-015]({{ site.github_url }}/blob/main/docs/adr/adr-015-installer-engine.md) for details.
 
 ## AI Config Generation
 
