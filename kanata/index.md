@@ -231,67 +231,85 @@ content_class: content-full kanata-landing
 
   <section class="kanata-landing-section">
     <h2>Explore alternate keyboard layouts</h2>
-    <p class="kanata-landing-fineprint mb-0">
-      QWERTY was designed in 1873 to prevent typewriter jams — not for comfort or speed.
-      Modern layouts like Colemak put 74% of typing on the home row, compared to QWERTY's 32%.
-    </p>
-    <div class="layout-stat">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/></svg>
-      Switch layouts instantly — no firmware flashing required
-    </div>
+    <p class="kanata-landing-subtitle" style="margin-bottom: var(--spacing-lg);">Switch layouts instantly — no firmware flashing required</p>
+
+    <video class="layouts-video" autoplay loop muted playsinline>
+      <source src="{{ '/images/alt-layouts.mov' | relative_url }}" type="video/quicktime">
+      <source src="{{ '/images/alt-layouts.mov' | relative_url }}" type="video/mp4">
+    </video>
 
     <h3 style="margin-top: var(--spacing-xl);">Ergonomic layouts</h3>
-    <div class="layout-grid">
-      <div class="layout-card">
-        <div class="layout-card-name">Colemak</div>
-        <div class="layout-card-type">Popular</div>
-        <div class="layout-card-tooltip">Keeps many QWERTY shortcuts (Ctrl+Z/X/C/V) while dramatically improving home row usage.</div>
+    <p class="kanata-landing-fineprint mb-0">Hover to learn more</p>
+    <div class="layout-grid" style="margin-top: var(--spacing-md);">
+      <div class="layout-flip-card">
+        <div class="layout-flip-inner">
+          <div class="layout-flip-front">
+            <div class="layout-card-name">Colemak</div>
+            <div class="layout-card-type">Popular</div>
+          </div>
+          <div class="layout-flip-back">
+            <p><strong>74%</strong> of typing on home row vs QWERTY's 32%</p>
+          </div>
+        </div>
       </div>
-      <div class="layout-card">
-        <div class="layout-card-name">Colemak-DH</div>
-        <div class="layout-card-type">Modern</div>
-        <div class="layout-card-tooltip">Moves D and H to reduce lateral finger stretches. The most popular Colemak variant.</div>
+      <div class="layout-flip-card">
+        <div class="layout-flip-inner">
+          <div class="layout-flip-front">
+            <div class="layout-card-name">Colemak-DH</div>
+            <div class="layout-card-type">Modern</div>
+          </div>
+          <div class="layout-flip-back">
+            <p><strong>46%</strong> less finger travel than QWERTY</p>
+          </div>
+        </div>
       </div>
-      <div class="layout-card">
-        <div class="layout-card-name">Dvorak</div>
-        <div class="layout-card-type">Classic</div>
-        <div class="layout-card-tooltip">The original alternative layout from 1936. Emphasizes hand alternation and home row.</div>
+      <div class="layout-flip-card">
+        <div class="layout-flip-inner">
+          <div class="layout-flip-front">
+            <div class="layout-card-name">Dvorak</div>
+            <div class="layout-card-type">Classic</div>
+          </div>
+          <div class="layout-flip-back">
+            <p>Since <strong>1936</strong> — the original alternative layout</p>
+          </div>
+        </div>
       </div>
-      <div class="layout-card">
-        <div class="layout-card-name">Workman</div>
-        <div class="layout-card-type">Ergonomic</div>
-        <div class="layout-card-tooltip">Optimized for comfortable inward finger rolls and reduced lateral movement.</div>
+      <div class="layout-flip-card">
+        <div class="layout-flip-inner">
+          <div class="layout-flip-front">
+            <div class="layout-card-name">Workman</div>
+            <div class="layout-card-type">Ergonomic</div>
+          </div>
+          <div class="layout-flip-back">
+            <p>Optimized for <strong>inward rolls</strong> — the most comfortable motion</p>
+          </div>
+        </div>
       </div>
-      <div class="layout-card">
-        <div class="layout-card-name">Graphite</div>
-        <div class="layout-card-type">Newest</div>
-        <div class="layout-card-tooltip">65% home row usage with balanced hand distribution. One of the newest optimized layouts.</div>
+      <div class="layout-flip-card">
+        <div class="layout-flip-inner">
+          <div class="layout-flip-front">
+            <div class="layout-card-name">Graphite</div>
+            <div class="layout-card-type">Newest</div>
+          </div>
+          <div class="layout-flip-back">
+            <p><strong>65%</strong> home row usage with balanced hands</p>
+          </div>
+        </div>
       </div>
     </div>
 
-    <h3>International layouts</h3>
-    <div class="layout-grid">
-      <div class="layout-card">
-        <div class="layout-card-name">AZERTY</div>
-        <div class="layout-card-type">French</div>
-        <div class="layout-card-tooltip">Standard French layout used in France and Belgium. A and Q are swapped from QWERTY.</div>
-      </div>
-      <div class="layout-card">
-        <div class="layout-card-name">QWERTZ</div>
-        <div class="layout-card-type">German</div>
-        <div class="layout-card-tooltip">Standard German layout used in Central Europe. Y and Z are swapped from QWERTY.</div>
-      </div>
-    </div>
-
-    <div style="margin-top: var(--spacing-xl);">
-      <video class="layouts-video" autoplay loop muted playsinline>
-        <source src="{{ '/images/alt-layouts.mov' | relative_url }}" type="video/quicktime">
-        <source src="{{ '/images/alt-layouts.mov' | relative_url }}" type="video/mp4">
-      </video>
-      <p class="kanata-landing-fineprint" style="margin-top: var(--spacing-sm);">
-        Switch layouts in real time from the menu bar — experiment without touching firmware.
-      </p>
-    </div>
+    <h3 style="margin-top: var(--spacing-xl);">International support</h3>
+    <p style="color: var(--color-text-secondary); line-height: 1.6;">
+      <strong style="color: var(--color-text);">Logical layouts:</strong>
+      🇫🇷 AZERTY (France, Belgium) ·
+      🇩🇪 QWERTZ (Germany, Austria, Switzerland) ·
+      🇺🇸 QWERTY (US, UK, International)
+    </p>
+    <p style="color: var(--color-text-secondary); line-height: 1.6;">
+      <strong style="color: var(--color-text);">Physical keyboards:</strong>
+      ANSI 40% · ANSI 60% · ANSI 65% · ANSI 75% · ANSI TKL · ANSI Full-size ·
+      ISO layouts · Split keyboards (Corne, Sofle, Ferris Sweep, Kinesis 360)
+    </p>
   </section>
 
   <div class="kanata-landing-divider" aria-hidden="true"></div>

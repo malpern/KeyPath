@@ -1442,10 +1442,65 @@ a.button:active {
 
 .layouts-video {
     width: 100%;
-    max-width: 600px;
-    border-radius: 14px;
-    border: 1px solid var(--color-border);
-    box-shadow: var(--shadow-lg);
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    margin-left: calc(var(--spacing-lg) * -1);
+    margin-right: calc(var(--spacing-lg) * -1);
+    width: calc(100% + var(--spacing-lg) * 2);
+    max-width: none;
+}
+
+/* Flip card for ergonomic layouts */
+.layout-flip-card {
+    perspective: 1000px;
+    height: 120px;
+}
+
+.layout-flip-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.5s ease;
+    transform-style: preserve-3d;
+}
+
+.layout-flip-card:hover .layout-flip-inner {
+    transform: rotateY(180deg);
+}
+
+.layout-flip-front,
+.layout-flip-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    border-radius: 12px;
+    border: 1px solid var(--color-border-light);
+    background: color-mix(in srgb, var(--color-background-secondary) 50%, transparent);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-md);
+}
+
+.layout-flip-front {
+    text-align: center;
+}
+
+.layout-flip-back {
+    transform: rotateY(180deg);
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    border-color: var(--color-primary);
+    text-align: center;
+}
+
+.layout-flip-back p {
+    font-size: var(--font-size-sm);
+    color: var(--color-text);
+    margin: 0;
+    line-height: 1.4;
 }
 
 .layout-stat {
