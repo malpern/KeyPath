@@ -681,6 +681,7 @@ body.sidebar-open .sidebar {
 .kanata-feature.kp-accent-orange { --kp-icon-color: #FF9500; }
 .kanata-feature.kp-accent-teal { --kp-icon-color: #30B0C7; }
 .kanata-feature.kp-accent-slate { --kp-icon-color: #8E8E93; }
+.kanata-feature.kp-accent-white { --kp-icon-color: #F5F5F7; }
 
 .kanata-feature-icon {
     width: 88px;

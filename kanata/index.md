@@ -111,6 +111,16 @@ content_class: content-full kanata-landing
           <div class="kanata-feature-body">Input Monitoring + Accessibility, step-by-step.</div>
         </div>
       </li>
+
+      <li class="kanata-feature kp-accent-white">
+        <span class="kanata-feature-icon" aria-hidden="true">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" class="kp-icon"><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M2 17h20" /><path d="M6 21h12" /><path d="M12 17v4" /></svg>
+        </span>
+        <div class="kanata-feature-text">
+          <div class="kanata-feature-title">Built for macOS</div>
+          <div class="kanata-feature-body">No Electron. No CLI. A fast, native Swift app that feels at home on your Mac.</div>
+        </div>
+      </li>
     </ul>
   
 </section>
