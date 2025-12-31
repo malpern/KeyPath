@@ -249,6 +249,9 @@ content_class: content-full kanata-landing
           </div>
           <div class="layout-flip-back">
             <p><strong>74%</strong> of typing on home row vs QWERTY's 32%</p>
+            <a href="https://colemak.com/" target="_blank" rel="noopener" class="layout-info-link" title="Learn more about Colemak">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="layout-info-icon"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            </a>
           </div>
         </div>
       </div>
@@ -260,6 +263,9 @@ content_class: content-full kanata-landing
           </div>
           <div class="layout-flip-back">
             <p><strong>46%</strong> less finger travel than QWERTY</p>
+            <a href="https://colemakmods.github.io/mod-dh/" target="_blank" rel="noopener" class="layout-info-link" title="Learn more about Colemak-DH">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="layout-info-icon"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            </a>
           </div>
         </div>
       </div>
@@ -271,6 +277,9 @@ content_class: content-full kanata-landing
           </div>
           <div class="layout-flip-back">
             <p>Since <strong>1936</strong> — the original alternative layout</p>
+            <a href="https://en.wikipedia.org/wiki/Dvorak_keyboard_layout" target="_blank" rel="noopener" class="layout-info-link" title="Learn more about Dvorak">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="layout-info-icon"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            </a>
           </div>
         </div>
       </div>
@@ -282,6 +291,9 @@ content_class: content-full kanata-landing
           </div>
           <div class="layout-flip-back">
             <p>Optimized for <strong>inward rolls</strong> — the most comfortable motion</p>
+            <a href="https://workmanlayout.org/" target="_blank" rel="noopener" class="layout-info-link" title="Learn more about Workman">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="layout-info-icon"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            </a>
           </div>
         </div>
       </div>
@@ -293,6 +305,9 @@ content_class: content-full kanata-landing
           </div>
           <div class="layout-flip-back">
             <p><strong>65%</strong> home row usage with balanced hands</p>
+            <a href="https://github.com/rdavison/graphite-layout" target="_blank" rel="noopener" class="layout-info-link" title="Learn more about Graphite">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="layout-info-icon"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            </a>
           </div>
         </div>
       </div>
@@ -324,126 +339,70 @@ content_class: content-full kanata-landing
 
     <div class="keyboard-marquee" style="margin-top: var(--spacing-xl);">
       <div class="keyboard-marquee-track">
-        <div class="keyboard-marquee-item" data-stat="The original compact layout">
-          <div class="keyboard-marquee-icon">⌨️</div>
-          <div class="keyboard-marquee-name">40%</div>
-        </div>
         <div class="keyboard-marquee-item" data-stat="Most popular compact size">
-          <div class="keyboard-marquee-icon">⌨️</div>
+          <img src="{{ '/images/keyboards/60-percent.png' | relative_url }}" alt="60% keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">60%</div>
         </div>
         <div class="keyboard-marquee-item" data-stat="Arrows without the bulk">
-          <div class="keyboard-marquee-icon">⌨️</div>
+          <img src="{{ '/images/keyboards/65-percent-a.png' | relative_url }}" alt="65% keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">65%</div>
         </div>
         <div class="keyboard-marquee-item" data-stat="Function row, no numpad">
-          <div class="keyboard-marquee-icon">⌨️</div>
+          <img src="{{ '/images/keyboards/75-percent-a.png' | relative_url }}" alt="75% keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">75%</div>
         </div>
         <div class="keyboard-marquee-item" data-stat="The classic tenkeyless">
-          <div class="keyboard-marquee-icon">⌨️</div>
+          <img src="{{ '/images/keyboards/tkl-80.png' | relative_url }}" alt="TKL keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">TKL</div>
         </div>
         <div class="keyboard-marquee-item" data-stat="All 104 keys">
-          <div class="keyboard-marquee-icon">⌨️</div>
+          <img src="{{ '/images/keyboards/full-size.png' | relative_url }}" alt="Full-size keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">Full-size</div>
         </div>
-        <div class="keyboard-marquee-item" data-stat="Unix hacker's choice since 1996">
-          <div class="keyboard-marquee-icon">⌨️</div>
-          <div class="keyboard-marquee-name">HHKB</div>
-        </div>
         <div class="keyboard-marquee-item" data-stat="42 keys of pure efficiency">
-          <div class="keyboard-marquee-icon">🔀</div>
+          <img src="{{ '/images/keyboards/corne-split-a.png' | relative_url }}" alt="Corne keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">Corne</div>
         </div>
-        <div class="keyboard-marquee-item" data-stat="Split with encoders">
-          <div class="keyboard-marquee-icon">🔀</div>
-          <div class="keyboard-marquee-name">Sofle</div>
-        </div>
         <div class="keyboard-marquee-item" data-stat="34 keys, no compromises">
-          <div class="keyboard-marquee-icon">🔀</div>
+          <img src="{{ '/images/keyboards/sweep-split-a.png' | relative_url }}" alt="Ferris Sweep keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">Ferris Sweep</div>
         </div>
         <div class="keyboard-marquee-item" data-stat="The ergo endgame">
-          <div class="keyboard-marquee-icon">🔀</div>
-          <div class="keyboard-marquee-name">Kinesis 360</div>
-        </div>
-        <div class="keyboard-marquee-item" data-stat="Standard in Europe">
-          <div class="keyboard-marquee-icon">🇪🇺</div>
-          <div class="keyboard-marquee-name">ISO</div>
-        </div>
-        <div class="keyboard-marquee-item" data-stat="かな and 英数 keys">
-          <div class="keyboard-marquee-icon">🇯🇵</div>
-          <div class="keyboard-marquee-name">JIS</div>
-        </div>
-        <div class="keyboard-marquee-item" data-stat="Brazilian Portuguese">
-          <div class="keyboard-marquee-icon">🇧🇷</div>
-          <div class="keyboard-marquee-name">ABNT2</div>
-        </div>
-        <div class="keyboard-marquee-item" data-stat="한/영 toggle built in">
-          <div class="keyboard-marquee-icon">🇰🇷</div>
-          <div class="keyboard-marquee-name">Korean</div>
+          <img src="{{ '/images/keyboards/kinesis-advantage.png' | relative_url }}" alt="Kinesis keyboard" class="keyboard-marquee-img">
+          <div class="keyboard-marquee-name">Kinesis</div>
         </div>
         <!-- Duplicate for seamless loop -->
-        <div class="keyboard-marquee-item" data-stat="The original compact layout">
-          <div class="keyboard-marquee-icon">⌨️</div>
-          <div class="keyboard-marquee-name">40%</div>
-        </div>
         <div class="keyboard-marquee-item" data-stat="Most popular compact size">
-          <div class="keyboard-marquee-icon">⌨️</div>
+          <img src="{{ '/images/keyboards/60-percent.png' | relative_url }}" alt="60% keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">60%</div>
         </div>
         <div class="keyboard-marquee-item" data-stat="Arrows without the bulk">
-          <div class="keyboard-marquee-icon">⌨️</div>
+          <img src="{{ '/images/keyboards/65-percent-a.png' | relative_url }}" alt="65% keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">65%</div>
         </div>
         <div class="keyboard-marquee-item" data-stat="Function row, no numpad">
-          <div class="keyboard-marquee-icon">⌨️</div>
+          <img src="{{ '/images/keyboards/75-percent-a.png' | relative_url }}" alt="75% keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">75%</div>
         </div>
         <div class="keyboard-marquee-item" data-stat="The classic tenkeyless">
-          <div class="keyboard-marquee-icon">⌨️</div>
+          <img src="{{ '/images/keyboards/tkl-80.png' | relative_url }}" alt="TKL keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">TKL</div>
         </div>
         <div class="keyboard-marquee-item" data-stat="All 104 keys">
-          <div class="keyboard-marquee-icon">⌨️</div>
+          <img src="{{ '/images/keyboards/full-size.png' | relative_url }}" alt="Full-size keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">Full-size</div>
         </div>
-        <div class="keyboard-marquee-item" data-stat="Unix hacker's choice since 1996">
-          <div class="keyboard-marquee-icon">⌨️</div>
-          <div class="keyboard-marquee-name">HHKB</div>
-        </div>
         <div class="keyboard-marquee-item" data-stat="42 keys of pure efficiency">
-          <div class="keyboard-marquee-icon">🔀</div>
+          <img src="{{ '/images/keyboards/corne-split-a.png' | relative_url }}" alt="Corne keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">Corne</div>
         </div>
-        <div class="keyboard-marquee-item" data-stat="Split with encoders">
-          <div class="keyboard-marquee-icon">🔀</div>
-          <div class="keyboard-marquee-name">Sofle</div>
-        </div>
         <div class="keyboard-marquee-item" data-stat="34 keys, no compromises">
-          <div class="keyboard-marquee-icon">🔀</div>
+          <img src="{{ '/images/keyboards/sweep-split-a.png' | relative_url }}" alt="Ferris Sweep keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">Ferris Sweep</div>
         </div>
         <div class="keyboard-marquee-item" data-stat="The ergo endgame">
-          <div class="keyboard-marquee-icon">🔀</div>
-          <div class="keyboard-marquee-name">Kinesis 360</div>
-        </div>
-        <div class="keyboard-marquee-item" data-stat="Standard in Europe">
-          <div class="keyboard-marquee-icon">🇪🇺</div>
-          <div class="keyboard-marquee-name">ISO</div>
-        </div>
-        <div class="keyboard-marquee-item" data-stat="かな and 英数 keys">
-          <div class="keyboard-marquee-icon">🇯🇵</div>
-          <div class="keyboard-marquee-name">JIS</div>
-        </div>
-        <div class="keyboard-marquee-item" data-stat="Brazilian Portuguese">
-          <div class="keyboard-marquee-icon">🇧🇷</div>
-          <div class="keyboard-marquee-name">ABNT2</div>
-        </div>
-        <div class="keyboard-marquee-item" data-stat="한/영 toggle built in">
-          <div class="keyboard-marquee-icon">🇰🇷</div>
-          <div class="keyboard-marquee-name">Korean</div>
+          <img src="{{ '/images/keyboards/kinesis-advantage.png' | relative_url }}" alt="Kinesis keyboard" class="keyboard-marquee-img">
+          <div class="keyboard-marquee-name">Kinesis</div>
         </div>
       </div>
     </div>
