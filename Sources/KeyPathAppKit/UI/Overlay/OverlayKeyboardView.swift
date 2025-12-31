@@ -75,11 +75,23 @@ struct OverlayKeyboardView: View {
     /// Gap between keys
     private let keyGap: CGFloat = 2
 
+    /// Numpad keyCodes that should be excluded from floating labels
+    /// (numpad has same labels as main keyboard but shouldn't get floating labels)
+    private static let numpadKeyCodes: Set<UInt16> = [
+        65, 67, 69, 71, 75, 76, 78, 81, // operators and special
+        82, 83, 84, 85, 86, 87, 88, 89, 91, 92 // numbers 0-9
+    ]
+
     /// Build mapping from label → keyCode for the current keymap
     /// Used to determine which keycap a floating label should animate to
     private var labelToKeyCode: [String: UInt16] {
         var result: [String: UInt16] = [:]
         for key in layout.keys {
+            // Skip numpad keys - they have same labels as main keyboard
+            // but shouldn't receive floating labels (they render their own)
+            if Self.numpadKeyCodes.contains(key.keyCode) {
+                continue
+            }
             let label = keymap.displayLabel(for: key, includeExtraKeys: includeKeymapPunctuation)
             // Use uppercase for consistent matching
             result[label.uppercased()] = key.keyCode

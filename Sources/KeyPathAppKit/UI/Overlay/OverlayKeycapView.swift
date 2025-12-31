@@ -948,9 +948,10 @@ struct OverlayKeycapView: View {
                 dualSymbolContent(main: effectiveLabel, shift: shiftSymbol)
             } else {
                 // For special keys, prefer key.label if effectiveLabel is empty
+                // Numpad keys just show their number/symbol centered
                 let displayText = effectiveLabel.isEmpty ? key.label : effectiveLabel
-                Text(displayText.uppercased())
-                    .font(.system(size: 12 * scale, weight: .medium))
+                Text(isNumpadKey ? displayText : displayText.uppercased())
+                    .font(.system(size: isNumpadKey ? 14 * scale : 12 * scale, weight: .medium))
                     .foregroundStyle(foregroundColor)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
