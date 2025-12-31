@@ -62,12 +62,12 @@ Your `keypath.kbd` should include KeyPath's generated file at the top:
 
 ## Migration Checklist
 
-- [ ] **Backup your existing config** - Always keep a backup before migrating
-- [ ] **Copy config to KeyPath location** - `~/.config/keypath/keypath.kbd`
-- [ ] **Add include line** - `(include keypath-apps.kbd)` at the top
-- [ ] **Run KeyPath setup wizard** - Handles permissions, services, drivers
-- [ ] **Verify TCP is enabled** - KeyPath needs TCP for validation and overlay (default port 37001)
-- [ ] **Test your remappings** - Ensure everything works as expected
+1. **Backup your existing config** — Always keep a backup before migrating
+2. **Copy config to KeyPath location** — `~/.config/keypath/keypath.kbd`
+3. **Add include line** — `(include keypath-apps.kbd)` at the top
+4. **Run KeyPath setup wizard** — Handles permissions, services, drivers
+5. **Verify TCP is enabled** — KeyPath needs TCP for validation and overlay (default port 37001)
+6. **Test your remappings** — Ensure everything works as expected
 
 ## Common Patterns & KeyPath Compatibility
 
