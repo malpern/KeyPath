@@ -144,8 +144,8 @@ extension PhysicalKey {
 
         // 2. Use physical properties for remaining keys
 
-        // Arrow keys: small height (< 0.5)
-        if height < 0.5 {
+        // Arrow keys: small height (<= 0.5)
+        if height <= 0.5 {
             return .arrow
         }
 

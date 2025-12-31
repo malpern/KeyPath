@@ -866,7 +866,9 @@ struct OverlayKeycapView: View {
             // Numpad keys (not in standard keymaps)
             "clr", "CLR", "/", "*", "+", ".",
             // JIS-specific keys (not in standard keymaps)
-            "¥", "英数", "かな", "_", "^", ":", "@", "fn"
+            "¥", "英数", "かな", "_", "^", ":", "@", "fn",
+            // Menu/Application key
+            "☰", "▤"
         ]
         return specialLabels.contains(effectiveLabel) || specialLabels.contains(key.label)
     }
@@ -887,6 +889,9 @@ struct OverlayKeycapView: View {
         case "pse": "pause"
         // Numpad
         case "clr": "clear"
+        // Menu/Application key (hamburger icon)
+        case "☰": "menu"
+        case "▤": "menu"
         // Other special keys
         case "lyr": "layer"
         case "fn": nil // Fn uses globe icon

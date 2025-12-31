@@ -122,6 +122,14 @@
         combo: {
             title: 'Combo',
             body: 'A chord on specific keys that triggers something else.'
+        },
+        leader: {
+            title: 'Leader key',
+            body: 'A special key that starts a short command sequence. Example: Leader then L opens Slack.'
+        },
+        vim_motions: {
+            title: 'Vim motions',
+            body: 'Navigation keys from Vim (like hjkl, w, b). Great for moving around without leaving the home row.'
         }
     };
 
