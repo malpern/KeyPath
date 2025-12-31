@@ -22,15 +22,19 @@ content_class: content-full kanata-landing
 
         <p>
           Simple keyboard remapping on macOS: guided setup, a reliable background service, and quick fixes when something breaks.
-          Already using Kanata? Drop in your existing <code>.kbd</code> and keep working.
+          Already using Kanata? Drop in your existing <code>.kbd</code> and keep working. <a href="{{ '/migration/kanata-users' | relative_url }}">Tips for existing Kanata users</a>.
         </p>
 
         <div class="kanata-landing-actions">
-          <a class="button button-orange" href="{{ '/migration/kanata-users' | relative_url }}">Migration guide</a>
-          <a class="button button-secondary" href="{{ site.github_url }}/releases">Download</a>
+          <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases/download/v1.0.0/KeyPath-1.0.0.zip">Download</a>
+          <a class="button button-secondary" href="https://github.com/malpern/KeyPath/releases/tag/v1.0.0">Release notes</a>
         </div>
 
         <p class="kanata-landing-fineprint mb-0" style="margin-top: 14px;">
+          <a href="{{ '/migration/kanata-users' | relative_url }}">Easily use an existing config.kbd</a>
+        </p>
+
+        <p class="kanata-landing-fineprint mb-0" style="margin-top: 12px;">
           BYOC-friendly. KeyPath runs your config; it doesn’t parse or “import” it into a UI.
         </p>
       </div>
@@ -57,7 +61,7 @@ content_class: content-full kanata-landing
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" class="kp-icon"><path d="M12 2v10" /><path d="M18.4 6.6a9 9 0 1 1-12.77.04" /></svg>
         </span>
         <div class="kanata-feature-text">
-          <div class="kanata-feature-title">Kanata features</div>
+          <div class="kanata-feature-title">Advanced key remapping powered by Kanata</div>
           <div class="kanata-feature-body">Keymaps, layers, sequences, chords, macros — the good stuff.</div>
         </div>
       </li>
@@ -98,7 +102,7 @@ content_class: content-full kanata-landing
         </span>
         <div class="kanata-feature-text">
           <div class="kanata-feature-title">Bring your config</div>
-          <div class="kanata-feature-body">Keep your existing Kanata <code>.kbd</code>.</div>
+          <div class="kanata-feature-body">Keep your existing Kanata <code>.kbd</code>. <a href="{{ '/migration/kanata-users' | relative_url }}">Tips for existing Kanata users</a>.</div>
         </div>
       </li>
 
@@ -169,7 +173,7 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
 
         </div>
         <p class="kanata-landing-fineprint mb-0">
-          Full details (including limitations) are in the <a href="{{ '/migration/kanata-users' | relative_url }}">existing config guide</a>.
+          Full details (including limitations) are in the <a href="{{ '/migration/kanata-users' | relative_url }}">Tips for existing Kanata users</a>.
         </p>
       </div>
     </div>
@@ -179,7 +183,7 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
 
   <section class="kanata-landing-section">
     <h2 class="mt-0">Ready?</h2>
-    <p>Start with the existing config guide.</p>
+    <p>Start with the Tips for existing Kanata users.</p>
     <div class="kanata-landing-actions">
       <a class="button button-orange" href="{{ '/migration/kanata-users' | relative_url }}">Use existing config</a>
       <a class="button button-secondary" href="{{ site.github_url }}/issues">Ask a question</a>

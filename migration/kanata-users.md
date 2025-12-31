@@ -1,12 +1,11 @@
 ---
 layout: default
-title: Migrating from Kanata
-description: Bring your existing Kanata configuration to KeyPath
+title: Tips for existing Kanata users
+description: Use your existing Kanata config.kbd in KeyPath
 permalink: /migration/kanata-users/
 ---
 
-# Migrating from Kanata to KeyPath
-
+# Tips for existing Kanata users
 If you’re already using Kanata, you’re the exact audience for KeyPath.
 
 If you want the short pitch first, start here: **[KeyPath for Kanata users]({{ '/kanata' | relative_url }})**.
