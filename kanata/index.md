@@ -340,68 +340,68 @@ content_class: content-full kanata-landing
     <div class="keyboard-marquee" style="margin-top: var(--spacing-xl);">
       <div class="keyboard-marquee-track">
         <div class="keyboard-marquee-item" data-stat="Most popular compact size">
-          <img src="{{ '/images/keyboards/60-percent.png' | relative_url }}" alt="60% keyboard" class="keyboard-marquee-img">
+          <img src="{{ '/images/keyboards/web-60-percent.png' | relative_url }}" alt="60% keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">60%</div>
         </div>
         <div class="keyboard-marquee-item" data-stat="Arrows without the bulk">
-          <img src="{{ '/images/keyboards/65-percent-a.png' | relative_url }}" alt="65% keyboard" class="keyboard-marquee-img">
+          <img src="{{ '/images/keyboards/web-65-percent-a.png' | relative_url }}" alt="65% keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">65%</div>
         </div>
         <div class="keyboard-marquee-item" data-stat="Function row, no numpad">
-          <img src="{{ '/images/keyboards/75-percent-a.png' | relative_url }}" alt="75% keyboard" class="keyboard-marquee-img">
+          <img src="{{ '/images/keyboards/web-75-percent-a.png' | relative_url }}" alt="75% keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">75%</div>
         </div>
         <div class="keyboard-marquee-item" data-stat="The classic tenkeyless">
-          <img src="{{ '/images/keyboards/tkl-80.png' | relative_url }}" alt="TKL keyboard" class="keyboard-marquee-img">
+          <img src="{{ '/images/keyboards/web-tkl-80.png' | relative_url }}" alt="TKL keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">TKL</div>
         </div>
         <div class="keyboard-marquee-item" data-stat="All 104 keys">
-          <img src="{{ '/images/keyboards/full-size.png' | relative_url }}" alt="Full-size keyboard" class="keyboard-marquee-img">
+          <img src="{{ '/images/keyboards/web-full-size.png' | relative_url }}" alt="Full-size keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">Full-size</div>
         </div>
         <div class="keyboard-marquee-item" data-stat="42 keys of pure efficiency">
-          <img src="{{ '/images/keyboards/corne-split-a.png' | relative_url }}" alt="Corne keyboard" class="keyboard-marquee-img">
+          <img src="{{ '/images/keyboards/web-corne-split-a.png' | relative_url }}" alt="Corne keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">Corne</div>
         </div>
         <div class="keyboard-marquee-item" data-stat="34 keys, no compromises">
-          <img src="{{ '/images/keyboards/sweep-split-a.png' | relative_url }}" alt="Ferris Sweep keyboard" class="keyboard-marquee-img">
+          <img src="{{ '/images/keyboards/web-sweep-split-a.png' | relative_url }}" alt="Ferris Sweep keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">Ferris Sweep</div>
         </div>
         <div class="keyboard-marquee-item" data-stat="The ergo endgame">
-          <img src="{{ '/images/keyboards/kinesis-advantage.png' | relative_url }}" alt="Kinesis keyboard" class="keyboard-marquee-img">
+          <img src="{{ '/images/keyboards/web-kinesis-advantage.png' | relative_url }}" alt="Kinesis keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">Kinesis</div>
         </div>
         <!-- Duplicate for seamless loop -->
         <div class="keyboard-marquee-item" data-stat="Most popular compact size">
-          <img src="{{ '/images/keyboards/60-percent.png' | relative_url }}" alt="60% keyboard" class="keyboard-marquee-img">
+          <img src="{{ '/images/keyboards/web-60-percent.png' | relative_url }}" alt="60% keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">60%</div>
         </div>
         <div class="keyboard-marquee-item" data-stat="Arrows without the bulk">
-          <img src="{{ '/images/keyboards/65-percent-a.png' | relative_url }}" alt="65% keyboard" class="keyboard-marquee-img">
+          <img src="{{ '/images/keyboards/web-65-percent-a.png' | relative_url }}" alt="65% keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">65%</div>
         </div>
         <div class="keyboard-marquee-item" data-stat="Function row, no numpad">
-          <img src="{{ '/images/keyboards/75-percent-a.png' | relative_url }}" alt="75% keyboard" class="keyboard-marquee-img">
+          <img src="{{ '/images/keyboards/web-75-percent-a.png' | relative_url }}" alt="75% keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">75%</div>
         </div>
         <div class="keyboard-marquee-item" data-stat="The classic tenkeyless">
-          <img src="{{ '/images/keyboards/tkl-80.png' | relative_url }}" alt="TKL keyboard" class="keyboard-marquee-img">
+          <img src="{{ '/images/keyboards/web-tkl-80.png' | relative_url }}" alt="TKL keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">TKL</div>
         </div>
         <div class="keyboard-marquee-item" data-stat="All 104 keys">
-          <img src="{{ '/images/keyboards/full-size.png' | relative_url }}" alt="Full-size keyboard" class="keyboard-marquee-img">
+          <img src="{{ '/images/keyboards/web-full-size.png' | relative_url }}" alt="Full-size keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">Full-size</div>
         </div>
         <div class="keyboard-marquee-item" data-stat="42 keys of pure efficiency">
-          <img src="{{ '/images/keyboards/corne-split-a.png' | relative_url }}" alt="Corne keyboard" class="keyboard-marquee-img">
+          <img src="{{ '/images/keyboards/web-corne-split-a.png' | relative_url }}" alt="Corne keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">Corne</div>
         </div>
         <div class="keyboard-marquee-item" data-stat="34 keys, no compromises">
-          <img src="{{ '/images/keyboards/sweep-split-a.png' | relative_url }}" alt="Ferris Sweep keyboard" class="keyboard-marquee-img">
+          <img src="{{ '/images/keyboards/web-sweep-split-a.png' | relative_url }}" alt="Ferris Sweep keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">Ferris Sweep</div>
         </div>
         <div class="keyboard-marquee-item" data-stat="The ergo endgame">
-          <img src="{{ '/images/keyboards/kinesis-advantage.png' | relative_url }}" alt="Kinesis keyboard" class="keyboard-marquee-img">
+          <img src="{{ '/images/keyboards/web-kinesis-advantage.png' | relative_url }}" alt="Kinesis keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">Kinesis</div>
         </div>
       </div>
