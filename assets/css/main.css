@@ -1784,10 +1784,10 @@ a.button:active {
 
 /* Complex tooltip with bullet list */
 .complex-tooltip::after {
-    content: "Kanata supports:\A\A› tap-hold\A› tap-dance\A› one-shot modifiers\A› sticky keys\A› macros & sequences\A› chords & layers";
+    content: "Kanata supports:\A\A› tap-hold — tap for one key, hold for another\A› tap-dance — different actions by tap count\A› one-shot — modifier applies to next key only\A› sticky keys — toggle modifiers on/off\A› macros — multiple keys from one trigger\A› chords & layers — combos and key layouts";
     white-space: pre-line;
     text-align: left;
-    min-width: 200px;
+    min-width: 320px;
     line-height: 1.6;
 }
 
