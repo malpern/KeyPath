@@ -1546,11 +1546,13 @@ a.button:active {
 
 /* Keyboard marquee */
 .keyboard-marquee {
-    overflow: hidden;
+    overflow: visible;
+    overflow-x: clip;
     position: relative;
     margin-left: calc(var(--spacing-lg) * -1);
     margin-right: calc(var(--spacing-lg) * -1);
     padding: var(--spacing-md) 0;
+    padding-top: 60px; /* Space for tooltip above */
 }
 
 .keyboard-marquee::before,
@@ -1620,8 +1622,8 @@ a.button:active {
 }
 
 .keyboard-marquee-img {
-    width: 140px;
-    height: auto;
+    width: 120px;
+    height: 60px;
     border-radius: 6px;
     object-fit: contain;
 }
@@ -1647,7 +1649,10 @@ a.button:active {
     font-size: var(--font-size-xs);
     font-weight: 500;
     color: var(--color-text);
-    white-space: nowrap;
+    white-space: normal;
+    text-align: center;
+    min-width: 140px;
+    max-width: 200px;
     opacity: 0;
     visibility: hidden;
     transition: opacity var(--transition-fast), visibility var(--transition-fast);
