@@ -573,7 +573,7 @@ body.sidebar-open .sidebar {
 }
 
 .kanata-landing-title {
-    font-size: clamp(3.0rem, 6.25vw, 4.625rem);
+    font-size: clamp(3.6rem, 7.5vw, 5.55rem);
     line-height: 1.08;
     margin-bottom: var(--spacing-md);
 }
