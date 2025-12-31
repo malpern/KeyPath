@@ -134,7 +134,7 @@ content_class: content-full kanata-landing
       <h3 class="mt-0">More powerful triggers than Raycast</h3>
       <p class="kanata-landing-fineprint">
         Raycast is great for search. KeyPath is great when you want <em>muscle-memory triggers</em> —
-        a chord (two keys together), a sequence (keys in order), or a layer.
+        a chord (two keys together), a sequence (keys in order), a leader key, or a layer. You can even use vim motions.
         That means you can launch apps and URLs without leaving the home row.
       </p>
 
@@ -151,7 +151,11 @@ content_class: content-full kanata-landing
             <span class="kanata-pill">Chord</span> <span class="kanata-pill">S + D</span> → <span class="kanata-pill">Slack</span>
           </div>
           <div class="kanata-compare-line">
-            <span class="kanata-pill">Sequence</span> <span class="kanata-pill">G</span> <span class="kanata-pill">H</span> → <span class="kanata-pill">GitHub</span>
+            <span class="kanata-pill">Leader</span> <span class="kanata-pill">L</span> → <span class="kanata-pill">Slack</span>
+
+          </div>
+          <div class="kanata-compare-line">
+            <span class="kanata-pill">Vim motion</span> <span class="kanata-pill">g</span> <span class="kanata-pill">g</span> → <span class="kanata-pill">GitHub</span>
           </div>
           <div class="kanata-compare-caption">Best when you want instant, repeatable triggers.</div>
         </div>
