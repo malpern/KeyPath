@@ -230,6 +230,89 @@ content_class: content-full kanata-landing
   <div class="kanata-landing-divider" aria-hidden="true"></div>
 
   <section class="kanata-landing-section">
+    <h2>Build your own rules</h2>
+    <p class="kanata-landing-subtitle">Create <span class="term-tooltip" data-tooltip="A→B: Simple key swaps like CapsLock→Escape. One key becomes another.">simple</span> or <span class="term-tooltip" data-tooltip="Kanata supports: tap-hold (different actions for tap vs hold), tap-dance (different actions based on tap count), one-shot modifiers, sticky keys, macros, sequences, chords, layers, and more.">complex</span> mappings — or use pre-built rules</p>
+
+    <div class="rules-section">
+      <div class="rules-content">
+        <div>
+          <h3 style="margin-bottom: var(--spacing-sm);">Mapping examples</h3>
+          <div class="mapping-examples">
+            <div class="mapping-example">
+              <span class="mapping-key">A</span>
+              <span class="mapping-arrow">→</span>
+              <span class="mapping-result">B</span>
+              <span class="mapping-type">simple</span>
+            </div>
+            <div class="mapping-example">
+              <span class="mapping-key">Caps</span>
+              <span class="mapping-arrow">→</span>
+              <span class="mapping-result">Tap: Esc, Hold: Hyper</span>
+              <span class="mapping-type">tap-hold</span>
+            </div>
+            <div class="mapping-example">
+              <span class="mapping-key">Space × 2</span>
+              <span class="mapping-arrow">→</span>
+              <span class="mapping-result">Enter</span>
+              <span class="mapping-type">tap-dance</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h3 style="margin-bottom: var(--spacing-sm);">Pre-built rules included</h3>
+          <p class="kanata-landing-fineprint" style="margin-bottom: var(--spacing-sm);">Enable common mechanical keyboard power moves:</p>
+          <div class="rules-list">
+            <span class="term-tooltip rule-chip" data-tooltip="Transform your useless Caps Lock into something powerful: tap for Escape (great for Vim), hold for Hyper key (all 4 modifiers at once for global shortcuts).">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              Caps Lock Remap
+            </span>
+            <span class="term-tooltip rule-chip" data-tooltip="Turn your home row keys (A, S, D, F, J, K, L, ;) into modifier keys when held. Tap for the letter, hold for Ctrl/Alt/Cmd/Shift. Reduces pinky strain and keeps hands on home row.">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01"/></svg>
+              Home Row Mods
+            </span>
+            <span class="rule-chip">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              Vim Navigation
+            </span>
+            <span class="rule-chip">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              Window Snapping
+            </span>
+            <span class="rule-chip">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+              Quick Launcher
+            </span>
+            <span class="rule-chip">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M9 9h6v6H9z"/></svg>
+              Numpad Layer
+            </span>
+            <span class="rule-chip">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+              Symbol Layer
+            </span>
+          </div>
+        </div>
+
+        <p class="kanata-landing-fineprint" style="margin-top: var(--spacing-md);">
+          Inspired by
+          <a href="https://karabiner-elements.pqrs.org/" target="_blank" rel="noopener" class="inspiration-link">
+            Karabiner-Elements
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+          — but more powerful, customizable, and portable across machines.
+        </p>
+      </div>
+
+      <div class="rules-image">
+        <img src="{{ '/images/caps-lock-rule.png' | relative_url }}" alt="Caps Lock rule configuration in KeyPath">
+      </div>
+    </div>
+  </section>
+
+  <div class="kanata-landing-divider" aria-hidden="true"></div>
+
+  <section class="kanata-landing-section">
     <h2>Explore alternate keyboard layouts</h2>
     <p class="kanata-landing-subtitle" style="margin-bottom: var(--spacing-lg);">Switch layouts instantly — no firmware flashing required</p>
 

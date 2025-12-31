@@ -1669,3 +1669,211 @@ a.button:active {
     opacity: 1;
     visibility: visible;
 }
+
+/* Custom Rules Section */
+.rules-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-xl);
+    margin-top: var(--spacing-xl);
+}
+
+@media (max-width: 768px) {
+    .rules-section {
+        grid-template-columns: 1fr;
+    }
+}
+
+.rules-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.rules-image {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--color-border-light);
+    transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+
+.rules-image:hover {
+    transform: scale(1.02);
+    box-shadow: var(--shadow-lg);
+}
+
+.rules-image img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Tooltip term with hover explanation */
+.term-tooltip {
+    position: relative;
+    display: inline;
+    border-bottom: 1px dashed var(--color-text-secondary);
+    cursor: help;
+    transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.term-tooltip:hover {
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.term-tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-lg);
+    font-size: var(--font-size-xs);
+    font-weight: 400;
+    color: var(--color-text);
+    white-space: normal;
+    width: max-content;
+    max-width: 280px;
+    text-align: left;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+    z-index: 100;
+    pointer-events: none;
+}
+
+.term-tooltip:hover::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(-4px);
+}
+
+/* Rules list */
+.rules-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: var(--spacing-sm);
+}
+
+.rule-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: color-mix(in srgb, var(--color-background-secondary) 60%, transparent);
+    border: 1px solid var(--color-border-light);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    transition: all 0.2s ease;
+    cursor: default;
+}
+
+.rule-chip:hover {
+    background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+    border-color: var(--color-primary);
+    color: var(--color-text);
+    transform: translateY(-2px);
+}
+
+.rule-chip svg {
+    width: 14px;
+    height: 14px;
+    opacity: 0.7;
+}
+
+.rule-chip:hover svg {
+    opacity: 1;
+}
+
+/* Mapping examples */
+.mapping-examples {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+}
+
+.mapping-example {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--color-background-secondary) 40%, transparent);
+    border: 1px solid var(--color-border-light);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    transition: all 0.2s ease;
+}
+
+.mapping-example:hover {
+    border-color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+
+.mapping-key {
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    font-weight: 600;
+    color: var(--color-text);
+    box-shadow: 0 2px 0 var(--color-border);
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.mapping-example:hover .mapping-key {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 0 var(--color-border);
+}
+
+.mapping-arrow {
+    color: var(--color-text-secondary);
+    font-size: 1.2em;
+}
+
+.mapping-result {
+    color: var(--color-primary);
+    font-weight: 500;
+}
+
+.mapping-type {
+    margin-left: auto;
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    font-family: var(--font-sans);
+    opacity: 0.7;
+}
+
+/* Inspiration link */
+.inspiration-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    font-size: var(--font-size-sm);
+    transition: color var(--transition-fast);
+}
+
+.inspiration-link:hover {
+    color: var(--color-primary);
+}
+
+.inspiration-link svg {
+    width: 16px;
+    height: 16px;
+    transition: transform 0.2s ease;
+}
+
+.inspiration-link:hover svg {
+    transform: translateX(2px) translateY(-2px);
+}
