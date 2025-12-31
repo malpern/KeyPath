@@ -124,6 +124,34 @@ Your config should include TCP settings in `defcfg`:
 
 **Note:** If you don't specify a port, KeyPath's setup wizard will add TCP configuration automatically. If you use a custom port, update KeyPath's service configuration to match.
 
+### Command Execution Requirements
+
+**KeyPath requires `danger-enable-cmd yes`** for app launching and URL opening features. This is Kanata's built-in safety gate — disabled by default so random configs from the internet can't execute arbitrary commands.
+
+```lisp
+(defcfg
+  process-unmapped-keys yes
+  tcp-server-port 37001
+  danger-enable-cmd yes  ;; Required for KeyPath app/URL launching
+)
+```
+
+**Why it's named "danger":** Kanata's `cmd` action can execute *any* binary with *any* arguments. The scary name is intentional — it forces you to acknowledge you're enabling command execution. KeyPath uses this for legitimate app launching via macOS's `open` command, but Kanata itself applies no restrictions once enabled.
+
+### Script Execution Safety
+
+If you use KeyPath's `script:{path}` action URI to run scripts, KeyPath applies several safety layers **on top of** Kanata's `cmd`:
+
+| Safety Measure | Description |
+|----------------|-------------|
+| **Disabled by default** | Script execution is off until you enable it in Settings |
+| **File-type whitelist** | Only recognized types: `.applescript`, `.scpt`, `.sh`, `.bash`, `.zsh`, `.py`, `.rb`, `.pl`, `.lua` |
+| **First-run confirmation** | Dialog shown before first script execution |
+| **Audit logging** | All script executions logged (last 100 entries) |
+| **No shell injection** | Scripts run via direct interpreter, not shell — no metacharacter attacks |
+
+**Note:** These protections apply only to KeyPath's action system. If you write raw `(cmd ...)` actions in your Kanata config, those bypass KeyPath entirely and run with whatever permissions Kanata has.
+
 ## KeyPath Limitations & Non-Goals
 
 ### What KeyPath Does NOT Do
