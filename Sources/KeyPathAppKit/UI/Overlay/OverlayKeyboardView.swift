@@ -59,6 +59,9 @@ struct OverlayKeyboardView: View {
     @State private var initialRenderComplete: Bool = false
     /// Previous keymap ID for detecting changes (used for wobble trigger)
     @State private var previousKeymapId: String = ""
+    
+    /// Cached label-to-keyCode mapping (recomputed when layout/keymap changes)
+    @State private var cachedLabelToKeyCode: [String: UInt16] = [:]
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -84,7 +87,20 @@ struct OverlayKeyboardView: View {
 
     /// Build mapping from label → keyCode for the current keymap
     /// Used to determine which keycap a floating label should animate to
+    /// Cached to avoid rebuilding on every access (accessed ~94 times per render)
     private var labelToKeyCode: [String: UInt16] {
+        // Return cached value if available
+        if !cachedLabelToKeyCode.isEmpty {
+            return cachedLabelToKeyCode
+        }
+        
+        // Build mapping (cache will be populated by rebuildLabelToKeyCodeCache)
+        return rebuildLabelToKeyCodeCache()
+    }
+    
+    /// Rebuild the label-to-keyCode mapping cache
+    /// Called when layout/keymap changes to refresh the cache
+    private func rebuildLabelToKeyCodeCache() -> [String: UInt16] {
         var result: [String: UInt16] = [:]
         for key in layout.keys {
             // Skip numpad keys - they have same labels as main keyboard
@@ -99,16 +115,51 @@ struct OverlayKeyboardView: View {
         return result
     }
 
-    /// All labels that can appear on the keyboard (letters + numbers + punctuation)
+    /// All labels that can appear on the keyboard (letters + numbers + punctuation + international)
     private static let allLabels: [String] = {
-        // Letters A-Z
+        // Letters A-Z (uppercase for consistent matching)
         let letters = (65 ... 90).map { String(UnicodeScalar($0)) }
         // Numbers 0-9
         let numbers = (0 ... 9).map { String($0) }
         // Common punctuation
         let punctuation = [";", "'", ",", ".", "/", "[", "]", "\\", "`", "-", "="]
-        return letters + numbers + punctuation
+        // International characters commonly used in keyboard layouts
+        // QWERTZ (German): ö, ä, ü, ß
+        // AZERTY (French): é, è, ê, à, ç
+        // Other European: ñ, å, ø, æ
+        let international = ["ö", "Ö", "ä", "Ä", "ü", "Ü", "ß", "é", "É", "è", "È", "ê", "Ê",
+                            "à", "À", "ç", "Ç", "ñ", "Ñ", "å", "Å", "ø", "Ø", "æ", "Æ"]
+        return letters + numbers + punctuation + international
     }()
+    
+    /// Special labels that should always render in keycaps (not as floating labels)
+    /// Matches the special labels set in OverlayKeycapView.hasSpecialLabel
+    private static let specialLabels: Set<String> = [
+        "Home", "End", "PgUp", "PgDn", "Del", "␣", "Lyr", "Fn", "Mod",
+        "↩", "⌫", "⇥", "⇪", "esc", "⎋",
+        // Arrow symbols (both solid and outline variants)
+        "◀", "▶", "▲", "▼", "←", "→", "↑", "↓",
+        // Number row (not in standard keymaps, render directly)
+        "`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=",
+        // Function row extras (Print Screen, Scroll Lock, Pause)
+        "prt", "scr", "pse",
+        // Navigation cluster keys (both cases for matching)
+        "ins", "del", "home", "end", "pgup", "pgdn",
+        "INS", "DEL", "HOME", "END", "PGUP", "PGDN",
+        // Numpad keys (not in standard keymaps)
+        "clr", "CLR", "/", "*", "+", ".",
+        // JIS-specific keys (not in standard keymaps)
+        "¥", "英数", "かな", "_", "^", ":", "@", "fn",
+        // Menu/Application key
+        "☰", "▤",
+        // Numpad enter
+        "⏎", "⌅"
+    ]
+    
+    /// Check if a label is special (should render in keycap, not as floating label)
+    private static func isSpecialLabel(_ label: String) -> Bool {
+        specialLabels.contains(label)
+    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -138,14 +189,22 @@ struct OverlayKeyboardView: View {
                         FloatingKeymapLabel(
                             label: label,
                             targetFrame: targetFrameFor(label, scale: scale),
-                            // Visible when label exists in current keymap AND not in launcher/layer mode
-                            isVisible: labelToKeyCode[label] != nil && !isLauncherMode && !isLayerMode,
+                            // Visible when label exists in current keymap AND not special AND not in launcher/layer mode
+                            // Special labels render in keycaps, not as floating labels
+                            // Normalize to uppercase for consistent lookup (allLabels contains uppercase)
+                            isVisible: labelToKeyCode[label.uppercased()] != nil 
+                                && !Self.isSpecialLabel(label) 
+                                && !isLauncherMode 
+                                && !isLayerMode,
                             scale: scale,
                             colorway: activeColorway,
                             // Enable animation after initial render (prevents animation on drawer open)
                             enableAnimation: initialRenderComplete,
                             // Instant visibility for all layer transitions (no fade in or out)
-                            animateVisibility: false
+                            animateVisibility: false,
+                            // Pass fade amount and dark mode for glow effect
+                            fadeAmount: fadeAmount,
+                            isDarkMode: isDarkMode
                         )
                     }
                 }
@@ -165,9 +224,21 @@ struct OverlayKeyboardView: View {
         .onChange(of: keymap.id) { oldValue, newValue in
             guard oldValue != newValue else { return }
             previousKeymapId = newValue
+            // Rebuild labelToKeyCode cache when keymap changes
+            cachedLabelToKeyCode = rebuildLabelToKeyCodeCache()
+        }
+        .onChange(of: includeKeymapPunctuation) { _, _ in
+            // Rebuild labelToKeyCode cache when punctuation toggle changes
+            cachedLabelToKeyCode = rebuildLabelToKeyCodeCache()
+        }
+        .onChange(of: layout.id) { _, _ in
+            // Rebuild labelToKeyCode cache when layout changes
+            cachedLabelToKeyCode = rebuildLabelToKeyCodeCache()
         }
         .onAppear {
             previousKeymapId = keymap.id
+            // Build initial cache
+            cachedLabelToKeyCode = rebuildLabelToKeyCodeCache()
             // Enable animation after initial render completes
             // This ensures the first load positions keys without animation,
             // but subsequent keymap changes animate properly
@@ -180,7 +251,9 @@ struct OverlayKeyboardView: View {
     /// Get target frame for a floating label based on current keymap
     /// Calculates frame directly from layout instead of using GeometryReader
     private func targetFrameFor(_ label: String, scale: CGFloat) -> CGRect {
-        if let keyCode = labelToKeyCode[label],
+        // Normalize label to uppercase for consistent lookup (allLabels contains uppercase)
+        let normalizedLabel = label.uppercased()
+        if let keyCode = labelToKeyCode[normalizedLabel],
            let key = layout.keys.first(where: { $0.keyCode == keyCode }) {
             let width = keyWidth(for: key, scale: scale)
             let height = keyHeight(for: key, scale: scale)
@@ -443,6 +516,8 @@ private struct FloatingKeymapLabel: View {
     let colorway: GMKColorway
     var enableAnimation: Bool = false
     var animateVisibility: Bool = true // Set false for instant show/hide (e.g., launcher mode)
+    var fadeAmount: CGFloat = 0 // 0 = fully visible, 1 = fully faded (for glow effect)
+    var isDarkMode: Bool = false // Whether dark mode is active (enables glow effect)
 
     // Randomized animation parameters (seeded by label for consistency)
     private var springResponse: Double {
@@ -511,38 +586,53 @@ private struct FloatingKeymapLabel: View {
     }
 
     var body: some View {
-        labelContent
-            .frame(width: targetFrame.width, height: targetFrame.height)
-            .scaleEffect(scaleEffect)
-            .rotationEffect(rotation)
-            .opacity(isVisible ? 1.0 : 0.0)
-            .position(x: targetFrame.midX, y: targetFrame.midY)
-            // Only animate position during layout changes, not resize
-            .animation(isLayoutChange() ? positionAnimation : nil, value: targetFrame)
-            // Animate visibility changes unless disabled (e.g., launcher mode toggle)
-            .animation(animateVisibility ? positionAnimation : nil, value: isVisible)
-            .onChange(of: targetFrame) { _, _ in
-                let layoutChanged = isLayoutChange()
-                // Update tracked position
-                previousNormalizedX = normalizedX
-                previousNormalizedY = normalizedY
-                // Only wobble on layout changes, not resize
-                if isVisible, enableAnimation, layoutChanged {
-                    triggerWobble()
-                }
+        ZStack {
+            // Glow layers for dark mode backlight effect (same as keycap)
+            // Glow increases as keyboard fades out for ethereal effect
+            if isDarkMode {
+                labelContent
+                    .blur(radius: glowOuterRadius)
+                    .opacity(glowOuterOpacity)
+
+                labelContent
+                    .blur(radius: glowInnerRadius)
+                    .opacity(glowInnerOpacity)
             }
-            .onChange(of: isVisible) { _, newVisible in
-                // Only wobble if animations are enabled AND visibility should animate
-                // (skip wobble for instant transitions like launcher mode toggle)
-                if newVisible, !wasVisible, enableAnimation, animateVisibility {
-                    triggerWobble()
-                }
-                wasVisible = newVisible
+
+            // Crisp content layer
+            labelContent
+        }
+        .frame(width: targetFrame.width, height: targetFrame.height)
+        .scaleEffect(scaleEffect)
+        .rotationEffect(rotation)
+        .opacity(isVisible ? 1.0 : 0.0)
+        .position(x: targetFrame.midX, y: targetFrame.midY)
+        // Only animate position during layout changes, not resize
+        .animation(isLayoutChange() ? positionAnimation : nil, value: targetFrame)
+        // Animate visibility changes unless disabled (e.g., launcher mode toggle)
+        .animation(animateVisibility ? positionAnimation : nil, value: isVisible)
+        .onChange(of: targetFrame) { _, _ in
+            let layoutChanged = isLayoutChange()
+            // Update tracked position
+            previousNormalizedX = normalizedX
+            previousNormalizedY = normalizedY
+            // Only wobble on layout changes, not resize
+            if isVisible, enableAnimation, layoutChanged {
+                triggerWobble()
             }
-            .onAppear {
-                previousNormalizedX = normalizedX
-                previousNormalizedY = normalizedY
+        }
+        .onChange(of: isVisible) { _, newVisible in
+            // Only wobble if animations are enabled AND visibility should animate
+            // (skip wobble for instant transitions like launcher mode toggle)
+            if newVisible, !wasVisible, enableAnimation, animateVisibility {
+                triggerWobble()
             }
+            wasVisible = newVisible
+        }
+        .onAppear {
+            previousNormalizedX = normalizedX
+            previousNormalizedY = normalizedY
+        }
     }
 
     @ViewBuilder
@@ -580,6 +670,36 @@ private struct FloatingKeymapLabel: View {
             rotation = .zero
             scaleEffect = 1.0
         }
+    }
+
+    // MARK: - Glow (dynamic based on fade, same as keycap)
+
+    /// Outer glow blur radius: reduced when visible, increases when fading
+    private var glowOuterRadius: CGFloat {
+        let base: CGFloat = 1.5 // Reduced from 3 for crisper default
+        let max: CGFloat = 5.0 // Enhanced when faded
+        return (base + (max - base) * fadeAmount) * scale
+    }
+
+    /// Outer glow opacity: subtle when visible, stronger when fading
+    private var glowOuterOpacity: CGFloat {
+        let base: CGFloat = 0.15 // Reduced from 0.25 for crisper default
+        let max: CGFloat = 0.4 // Enhanced when faded
+        return base + (max - base) * fadeAmount
+    }
+
+    /// Inner glow blur radius: tight when visible, softer when fading
+    private var glowInnerRadius: CGFloat {
+        let base: CGFloat = 0.5 // Reduced from 1 for crisper default
+        let max: CGFloat = 2.0 // Enhanced when faded
+        return (base + (max - base) * fadeAmount) * scale
+    }
+
+    /// Inner glow opacity: subtle when visible, stronger when fading
+    private var glowInnerOpacity: CGFloat {
+        let base: CGFloat = 0.25 // Reduced from 0.4 for crisper default
+        let max: CGFloat = 0.5 // Enhanced when faded
+        return base + (max - base) * fadeAmount
     }
 }
 

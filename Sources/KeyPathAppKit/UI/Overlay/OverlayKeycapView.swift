@@ -89,6 +89,22 @@ struct OverlayKeycapView: View {
         Self.homeRowKeyCodes.contains(key.keyCode)
     }
 
+    /// Whether this keycap has visible content (not Color.clear)
+    /// When floating labels are enabled, standard keys render Color.clear and floating labels handle the content
+    private var hasVisibleContent: Bool {
+        // If floating labels are disabled, always render content
+        guard useFloatingLabels else { return true }
+        
+        // Special keys always render their own content
+        if hasSpecialLabel { return true }
+        
+        // If there's a nav overlay symbol, render it (arrow only, letter handled by floating label)
+        if navOverlaySymbol != nil { return true }
+        
+        // Otherwise, content is Color.clear (floating labels handle it)
+        return false
+    }
+
     /// The effective label to display (hold label > layer mapping > keymap/physical)
     private var effectiveLabel: String {
         // When key is pressed with a hold label, show the hold label
@@ -207,7 +223,8 @@ struct OverlayKeycapView: View {
 
             // Glow layers for dark mode backlight effect
             // Glow increases as keyboard fades out for ethereal effect
-            if isDarkMode {
+            // Skip glow when content is Color.clear (floating labels handle glow instead)
+            if isDarkMode, hasVisibleContent {
                 keyContent
                     .blur(radius: glowOuterRadius)
                     .opacity(glowOuterOpacity)
@@ -850,6 +867,11 @@ struct OverlayKeycapView: View {
 
     /// Whether this key has a special label that should always be rendered in the keycap
     /// (not handled by floating labels). Includes navigation keys, system keys, number row, etc.
+    /// 
+    /// IMPORTANT: Checks both `key.label` (physical key) and `baseLabel` (keymap label) to handle
+    /// cases where the keymap changes the label (e.g., QWERTZ maps "/" key to "-").
+    /// During layout transitions, we prioritize stability by checking physical key first,
+    /// but also check keymap label to ensure special keys render correctly.
     private var hasSpecialLabel: Bool {
         let specialLabels: Set<String> = [
             "Home", "End", "PgUp", "PgDn", "Del", "␣", "Lyr", "Fn", "Mod",
@@ -872,7 +894,10 @@ struct OverlayKeycapView: View {
             // Numpad enter
             "⏎", "⌅"
         ]
-        return specialLabels.contains(effectiveLabel) || specialLabels.contains(key.label)
+        // Check physical key label first (stable during transitions)
+        // Also check keymap label to handle cases where keymap changes the label
+        // (e.g., QWERTZ maps "/" key to "-", and "-" is special)
+        return specialLabels.contains(key.label) || specialLabels.contains(baseLabel)
     }
 
     /// Word labels for navigation/system keys (like ESC style)
@@ -886,7 +911,7 @@ struct OverlayKeycapView: View {
         case "ins": "insert"
         case "del": "del"
         // Function row extras
-        case "prt": "prt sc"
+        case "prt": "print screen"
         case "scr": "scroll"
         case "pse": "pause"
         // Numpad
@@ -924,10 +949,14 @@ struct OverlayKeycapView: View {
                 navOverlayArrowOnly(arrow: navSymbol)
             } else {
                 // Standard key - floating labels handle everything
+                // Use Color.clear to ensure no content renders during layout transitions
+                // This prevents race conditions where both floating labels and keycap content
+                // might be visible simultaneously during keymap changes
                 Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         } else {
             // Special key rendering - use key.label for physical key identity
+            // Only render here when floating labels are disabled OR this is a special key
             if let sfSymbol = navigationSFSymbol {
                 // SF Symbol icon (Delete)
                 Image(systemName: sfSymbol)
@@ -945,6 +974,8 @@ struct OverlayKeycapView: View {
                 navOverlayContent(arrow: navSymbol, letter: baseLabel)
             } else if let shiftSymbol = metadata.shiftSymbol, !isNumpadKey {
                 // Dual symbol content (skip for numpad keys - they don't have shift symbols)
+                // Note: This path is only reached when useFloatingLabels is false OR hasSpecialLabel is true
+                // When useFloatingLabels is true, floating labels handle dual symbols
                 dualSymbolContent(main: effectiveLabel, shift: shiftSymbol)
             } else {
                 // For special keys, prefer key.label if effectiveLabel is empty
@@ -964,9 +995,21 @@ struct OverlayKeycapView: View {
         VStack {
             Spacer(minLength: 0)
             HStack {
-                Text(label)
-                    .font(.system(size: 7 * scale, weight: .regular))
-                    .foregroundStyle(foregroundColor)
+                // Special case: "print screen" displays on two lines
+                if label.lowercased() == "print screen" {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("print")
+                            .font(.system(size: 7 * scale, weight: .regular))
+                            .foregroundStyle(foregroundColor)
+                        Text("screen")
+                            .font(.system(size: 7 * scale, weight: .regular))
+                            .foregroundStyle(foregroundColor)
+                    }
+                } else {
+                    Text(label)
+                        .font(.system(size: 7 * scale, weight: .regular))
+                        .foregroundStyle(foregroundColor)
+                }
                 Spacer(minLength: 0)
             }
             .padding(.leading, 4 * scale)
