@@ -1234,7 +1234,7 @@ a.button:active {
 
 /* Kanata hero: tighter CTA row */
 .kanata-landing-actions {
-    align-items: center;
+    align-items: flex-start;
 }
 
 @media (max-width: 520px) {
