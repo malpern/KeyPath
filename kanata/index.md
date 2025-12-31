@@ -10,9 +10,6 @@ content_class: content-full kanata-landing
   <section class="kanata-landing-hero">
     <div class="kanata-landing-hero-grid">
       <div>
-        <div class="kanata-landing-kicker">
-          <span class="kanata-landing-badge">For Kanata users on macOS</span>
-        </div>
 
         <h1 class="kanata-landing-title">KeyPath</h1>
 
