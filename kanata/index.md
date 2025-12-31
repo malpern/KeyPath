@@ -82,6 +82,16 @@ content_class: content-full kanata-landing
         </div>
       </li>
 
+      <li class="kanata-feature kp-accent-orange">
+        <span class="kanata-feature-icon" aria-hidden="true">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" class="kp-icon"><path d="M6 4h12" /><path d="M6 8h6" /><path d="M6 12h10" /><path d="M6 16h7" /><path d="M6 20h12" /></svg>
+        </span>
+        <div class="kanata-feature-text">
+          <div class="kanata-feature-title">Vim-style navigation</div>
+          <div class="kanata-feature-body">Use vim motions for fast navigation (hjkl, word jumps) across apps.</div>
+        </div>
+      </li>
+
       <li class="kanata-feature kp-accent-slate">
         <span class="kanata-feature-icon" aria-hidden="true">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" class="kp-icon"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" /><path d="M14 2v5a1 1 0 0 0 1 1h5" /><path d="M10 9H8" /><path d="M16 13H8" /><path d="M16 17H8" /></svg>
@@ -134,7 +144,7 @@ content_class: content-full kanata-landing
       <h3 class="mt-0">More powerful triggers than Raycast</h3>
       <p class="kanata-landing-fineprint">
         Raycast is great for search. KeyPath is great when you want <em>muscle-memory triggers</em> —
-        a chord (two keys together), a sequence (keys in order), a leader key, or a layer. You can even use vim motions.
+        a chord (two keys together), a sequence (keys in order), a leader key, combos, or a layer.
         That means you can launch apps and URLs without leaving the home row.
       </p>
 
@@ -155,7 +165,14 @@ content_class: content-full kanata-landing
 
           </div>
           <div class="kanata-compare-line">
-            <span class="kanata-pill">Vim motion</span> <span class="kanata-pill">g</span> <span class="kanata-pill">g</span> → <span class="kanata-pill">GitHub</span>
+            <span class="kanata-pill">Sequence</span> <span class="kanata-pill">G</span> <span class="kanata-pill">H</span> → <span class="kanata-pill">GitHub</span>
+          </div>
+          <div class="kanata-compare-line">
+            <span class="kanata-pill">Combo</span> <span class="kanata-pill">J + K</span> → <span class="kanata-pill">Notion</span>
+          </div>
+          <div class="kanata-compare-line">
+            <span class="kanata-pill">Layer</span> <span class="kanata-pill">Nav</span> + <span class="kanata-pill">S</span> → <span class="kanata-pill">Safari</span>
+
           </div>
           <div class="kanata-compare-caption">Best when you want instant, repeatable triggers.</div>
         </div>

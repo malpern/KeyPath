@@ -129,7 +129,7 @@
         },
         vim_motions: {
             title: 'Vim motions',
-            body: 'Short key patterns from Vim (like g g) used as fast navigation or triggers.'
+            body: 'Navigation keys from Vim (like hjkl, w, b). Great for moving around without leaving the home row.'
         }
     };
 
