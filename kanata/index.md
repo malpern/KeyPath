@@ -339,6 +339,10 @@ content_class: content-full kanata-landing
 
     <div class="keyboard-marquee" style="margin-top: var(--spacing-xl);">
       <div class="keyboard-marquee-track">
+        <div class="keyboard-marquee-item" data-stat="Auto-detected on first launch">
+          <img src="{{ '/images/keyboards/web-macbook-us.png' | relative_url }}" alt="MacBook keyboard" class="keyboard-marquee-img">
+          <div class="keyboard-marquee-name">MacBook</div>
+        </div>
         <div class="keyboard-marquee-item" data-stat="Most popular compact size">
           <img src="{{ '/images/keyboards/web-60-percent.png' | relative_url }}" alt="60% keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">60%</div>
@@ -372,6 +376,10 @@ content_class: content-full kanata-landing
           <div class="keyboard-marquee-name">Kinesis</div>
         </div>
         <!-- Duplicate for seamless loop -->
+        <div class="keyboard-marquee-item" data-stat="Auto-detected on first launch">
+          <img src="{{ '/images/keyboards/web-macbook-us.png' | relative_url }}" alt="MacBook keyboard" class="keyboard-marquee-img">
+          <div class="keyboard-marquee-name">MacBook</div>
+        </div>
         <div class="keyboard-marquee-item" data-stat="Most popular compact size">
           <img src="{{ '/images/keyboards/web-60-percent.png' | relative_url }}" alt="60% keyboard" class="keyboard-marquee-img">
           <div class="keyboard-marquee-name">60%</div>
