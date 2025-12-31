@@ -9,6 +9,15 @@ content_class: content-full kanata-landing
 <div class="kanata-landing">
   <section class="kanata-landing-hero">
     <div class="kanata-landing-hero-grid">
+      <div class="kanata-landing-hero-visual">
+        <img
+          class="kanata-landing-hero-image"
+          src="{{ '/images/keypath-hero-nobg.png' | relative_url }}"
+          alt="KeyPath"
+          loading="lazy"
+        />
+      </div>
+
       <div>
         <div class="kanata-landing-kicker">
           <span class="kanata-landing-badge">For Kanata users on macOS</span>
@@ -16,14 +25,7 @@ content_class: content-full kanata-landing
 
         <h1 class="kanata-landing-title">KeyPath</h1>
 
-        <p class="kanata-landing-subtitle">
-          Tap. Remap. Done.
-        </p>
-
-        <p>
-          Simple keyboard remapping on macOS: guided setup, a reliable background service, and quick fixes when something breaks.
-          Already using Kanata? Drop in your existing <code>.kbd</code> and keep working. <a href="{{ '/migration/kanata-users' | relative_url }}">Tips for existing Kanata users</a>.
-        </p>
+        <p class="kanata-landing-subtitle">Advanced key remapping powered by Kanata — with a native Mac app.</p>
 
         <div class="kanata-landing-actions">
           <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases/download/v1.0.0/KeyPath-1.0.0.zip">Download</a>
@@ -33,18 +35,10 @@ content_class: content-full kanata-landing
             <div class="kanata-landing-secondary-note">Use your existing <code>config.kbd</code>.</div>
           </div>
         </div>
-        <p class="kanata-landing-fineprint mb-0" style="margin-top: 12px;">
-          BYOC-friendly. KeyPath runs your config; it doesn’t parse or “import” it into a UI.
-        </p>
-      </div>
 
-      <div class="kanata-landing-hero-visual">
-        <img
-          class="kanata-landing-hero-image"
-          src="{{ '/images/keypath-hero-nobg.png' | relative_url }}"
-          alt="KeyPath"
-          loading="lazy"
-        />
+        <p class="kanata-landing-fineprint mb-0" style="margin-top: 12px;">
+          KeyPath runs your config; it doesn’t parse or “import” it into a UI.
+        </p>
       </div>
     </div>
   </section>

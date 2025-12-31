@@ -1152,3 +1152,15 @@ a.button:active {
 .kanata-landing-secondary-note code {
     font-size: 0.95em;
 }
+
+
+/* Kanata hero: image on left (and stacked on small screens) */
+@media (max-width: 1024px) {
+    .kanata-landing-hero-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .kanata-landing-hero-visual {
+        justify-content: flex-start;
+    }
+}
