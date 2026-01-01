@@ -663,67 +663,425 @@ body.sidebar-open .sidebar {
     margin-bottom: var(--spacing-2xl);
 }
 
-/* Launch examples */
-.kanata-launch-examples {
+/* =====================================================
+   MUSCLE MEMORY SECTION - Rich Layout
+   ===================================================== */
+.kanata-fullscreen-content-wide {
+    max-width: 1100px;
+    width: 100%;
+    padding: 0 var(--spacing-lg);
+}
+
+.muscle-memory-header,
+.launch-header {
+    text-align: center;
+    margin-bottom: var(--spacing-2xl);
+}
+
+.muscle-memory-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-2xl);
+    align-items: start;
+}
+
+/* Comparison Cards */
+.muscle-memory-compare {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-lg);
-    align-items: center;
 }
 
-.kanata-launch-example {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-    font-size: var(--font-size-xl);
-}
-
-.kanata-key {
-    font-family: 'SF Mono', Monaco, monospace;
+.compare-card {
     background: var(--color-background-secondary);
     border: 1px solid var(--color-border);
-    padding: var(--spacing-sm) var(--spacing-md);
-    border-radius: 8px;
-    font-weight: 500;
-    color: var(--color-text);
+    border-radius: 16px;
+    padding: var(--spacing-xl);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.kanata-arrow {
-    color: var(--color-text-tertiary);
+.compare-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.compare-keypath {
+    border-color: rgba(255, 149, 0, 0.3);
+    background: linear-gradient(135deg, rgba(255, 149, 0, 0.05), transparent);
+}
+
+.compare-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.compare-icon {
     font-size: 1.5rem;
 }
 
-.kanata-result {
+.compare-label {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.compare-flow {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+    margin-bottom: var(--spacing-sm);
+}
+
+.flow-arrow {
+    color: var(--color-text-tertiary);
+    font-size: 0.9rem;
+}
+
+.flow-text {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.flow-result {
+    font-weight: 600;
+    color: #FF9500;
+}
+
+.compare-caption {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-tertiary);
+    margin: 0;
+}
+
+/* Key Pills */
+.key-pill {
+    font-family: 'SF Mono', Monaco, monospace;
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--color-text);
+    white-space: nowrap;
+}
+
+.key-pill.small {
+    padding: 3px 8px;
+    font-size: 0.8rem;
+}
+
+.key-pill-orange {
+    background: linear-gradient(180deg, #FFB44C, #FF9500);
+    color: #111;
+    border-color: rgba(0, 0, 0, 0.1);
+}
+
+.key-plus,
+.key-then,
+.key-times {
+    font-size: 0.75rem;
+    color: var(--color-text-tertiary);
+    font-weight: 500;
+}
+
+/* Trigger List */
+.muscle-memory-triggers {
+    background: var(--color-background-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    padding: var(--spacing-xl);
+}
+
+.triggers-heading {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    margin: 0 0 var(--spacing-lg) 0;
+    color: var(--color-text);
+}
+
+.trigger-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.trigger-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-md);
+    background: var(--color-background);
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    cursor: default;
+}
+
+.trigger-item:hover {
+    background: rgba(255, 149, 0, 0.08);
+    transform: translateX(4px);
+}
+
+.trigger-keys {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.trigger-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.trigger-name {
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.trigger-result {
     color: #FF9500;
     font-weight: 600;
+    font-size: var(--font-size-sm);
 }
 
-/* Trigger types grid */
-.kanata-trigger-types {
+/* =====================================================
+   LAUNCH APPS SECTION - Rich Layout
+   ===================================================== */
+.launch-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--spacing-xl);
-    max-width: 500px;
-    margin: 0 auto;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-2xl);
+    align-items: start;
 }
 
-.kanata-trigger-type {
-    text-align: center;
+.launch-capabilities {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.capability-item {
+    display: flex;
+    gap: var(--spacing-md);
+    padding: var(--spacing-lg);
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    transition: all 0.2s ease;
+}
+
+.capability-item:hover {
+    border-color: rgba(255, 149, 0, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.capability-icon {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(255, 149, 0, 0.15), rgba(255, 149, 0, 0.05));
+    border-radius: 10px;
+}
+
+.capability-icon svg {
+    width: 24px;
+    height: 24px;
+    stroke: #FF9500;
+}
+
+.capability-text h4 {
+    margin: 0 0 4px 0;
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.capability-text p {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+}
+
+/* Launch Demo Visual */
+.launch-examples-visual {
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
     padding: var(--spacing-lg);
 }
 
-.kanata-trigger-name {
-    display: block;
-    font-size: var(--font-size-xl);
-    font-weight: 600;
-    color: var(--color-text);
-    margin-bottom: var(--spacing-xs);
+.launch-demo {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
 }
 
-.kanata-trigger-desc {
-    display: block;
-    font-size: var(--font-size-sm);
+.launch-demo-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    border-radius: 10px;
+    transition: all 0.2s ease;
+}
+
+.launch-demo-row:hover {
+    background: rgba(255, 149, 0, 0.08);
+}
+
+.launch-keys {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 120px;
+}
+
+.launch-arrow {
     color: var(--color-text-tertiary);
+    font-size: 1.2rem;
+}
+
+.launch-target {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.app-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: inline-block;
+}
+
+.app-slack { background: linear-gradient(135deg, #4A154B, #611f69); }
+.app-github { background: linear-gradient(135deg, #24292e, #1b1f23); }
+.app-safari { background: linear-gradient(135deg, #0078FF, #00C7FF); }
+.app-figma { background: linear-gradient(135deg, #F24E1E, #A259FF); }
+.app-docs { background: linear-gradient(135deg, #4285F4, #34A853); }
+
+.app-name {
+    font-weight: 600;
+    color: var(--color-text);
+    font-size: var(--font-size-base);
+}
+
+/* =====================================================
+   MICROANIMATIONS (Scroll-triggered)
+   ===================================================== */
+
+/* Initial state - items hidden until section comes into view */
+.animate-on-scroll .stagger-item {
+    opacity: 0;
+    transform: translateY(12px);
+}
+
+/* Trigger animations when section comes into view */
+.animate-on-scroll.animate-in .trigger-item {
+    animation: slideInRight 0.4s ease forwards;
+}
+
+.animate-on-scroll.animate-in .trigger-item:nth-child(1) { animation-delay: 0.1s; }
+.animate-on-scroll.animate-in .trigger-item:nth-child(2) { animation-delay: 0.15s; }
+.animate-on-scroll.animate-in .trigger-item:nth-child(3) { animation-delay: 0.2s; }
+.animate-on-scroll.animate-in .trigger-item:nth-child(4) { animation-delay: 0.25s; }
+.animate-on-scroll.animate-in .trigger-item:nth-child(5) { animation-delay: 0.3s; }
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Staggered entrance for launch demo rows */
+.animate-on-scroll.animate-in .launch-demo-row {
+    animation: slideInLeft 0.4s ease forwards;
+}
+
+.animate-on-scroll.animate-in .launch-demo-row:nth-child(1) { animation-delay: 0.1s; }
+.animate-on-scroll.animate-in .launch-demo-row:nth-child(2) { animation-delay: 0.15s; }
+.animate-on-scroll.animate-in .launch-demo-row:nth-child(3) { animation-delay: 0.2s; }
+.animate-on-scroll.animate-in .launch-demo-row:nth-child(4) { animation-delay: 0.25s; }
+.animate-on-scroll.animate-in .launch-demo-row:nth-child(5) { animation-delay: 0.3s; }
+
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Capability item entrance */
+.animate-on-scroll.animate-in .capability-item {
+    animation: fadeInUp 0.5s ease forwards;
+}
+
+.animate-on-scroll.animate-in .capability-item:nth-child(1) { animation-delay: 0.1s; }
+.animate-on-scroll.animate-in .capability-item:nth-child(2) { animation-delay: 0.2s; }
+.animate-on-scroll.animate-in .capability-item:nth-child(3) { animation-delay: 0.3s; }
+
+/* Compare cards entrance */
+.animate-on-scroll.animate-in .compare-card {
+    animation: fadeInUp 0.5s ease forwards;
+}
+
+.animate-on-scroll.animate-in .compare-card:nth-child(1) { animation-delay: 0.1s; }
+.animate-on-scroll.animate-in .compare-card:nth-child(2) { animation-delay: 0.2s; }
+
+/* Key pill subtle pulse on hover */
+.trigger-item:hover .key-pill,
+.launch-demo-row:hover .key-pill {
+    animation: keyPulse 0.3s ease;
+}
+
+@keyframes keyPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* App icon glow on hover */
+.launch-demo-row:hover .app-icon {
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+}
+
+/* Compare card subtle glow */
+.compare-keypath:hover {
+    box-shadow: 0 8px 32px rgba(255, 149, 0, 0.15);
+}
+
+/* =====================================================
+   RESPONSIVE - Fullscreen Sections
+   ===================================================== */
+@media (max-width: 900px) {
+    .muscle-memory-grid,
+    .launch-grid {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-xl);
+    }
+
+    .muscle-memory-triggers {
+        order: -1;
+    }
 }
 
 @media (max-width: 768px) {
@@ -732,13 +1090,16 @@ body.sidebar-open .sidebar {
         padding: var(--spacing-2xl) var(--spacing-md);
     }
 
-    .kanata-trigger-types {
-        grid-template-columns: 1fr;
-        gap: var(--spacing-md);
+    .kanata-fullscreen-content-wide {
+        padding: 0 var(--spacing-sm);
     }
 
-    .kanata-launch-example {
-        font-size: var(--font-size-lg);
+    .compare-flow {
+        font-size: var(--font-size-sm);
+    }
+
+    .launch-keys {
+        min-width: auto;
     }
 }
 

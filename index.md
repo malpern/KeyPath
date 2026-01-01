@@ -50,53 +50,212 @@ content_class: content-full kanata-landing
   </section>
 
   <!-- MUSCLE MEMORY SECTION -->
-  <section class="kanata-fullscreen-section">
-    <div class="kanata-fullscreen-content">
-      <h2 class="kanata-fullscreen-title">Muscle memory, not menus</h2>
-      <p class="kanata-fullscreen-subtitle">Raycast is great for search. KeyPath is for when you want<br>instant, repeatable triggers — without leaving the home row.</p>
+  <section class="kanata-fullscreen-section muscle-memory-section">
+    <div class="kanata-fullscreen-content-wide">
+      <div class="muscle-memory-header">
+        <h2 class="kanata-fullscreen-title">Muscle memory, not menus</h2>
+        <p class="kanata-fullscreen-subtitle">Raycast is great for search. KeyPath is for when you want<br>instant, repeatable triggers — without leaving the home row.</p>
+      </div>
 
-      <div class="kanata-trigger-types">
-        <div class="kanata-trigger-type">
-          <span class="kanata-trigger-name">Chord</span>
-          <span class="kanata-trigger-desc">Two keys together</span>
+      <div class="muscle-memory-grid">
+        <!-- Left: Comparison -->
+        <div class="muscle-memory-compare">
+          <div class="compare-card compare-raycast">
+            <div class="compare-header">
+              <span class="compare-icon">🔍</span>
+              <span class="compare-label">Raycast</span>
+            </div>
+            <div class="compare-flow">
+              <span class="key-pill">⌘ Space</span>
+              <span class="flow-arrow">→</span>
+              <span class="flow-text">type "slack"</span>
+              <span class="flow-arrow">→</span>
+              <span class="key-pill">↩</span>
+              <span class="flow-arrow">→</span>
+              <span class="flow-result">Slack</span>
+            </div>
+            <p class="compare-caption">Great when you want to search + choose.</p>
+          </div>
+
+          <div class="compare-card compare-keypath">
+            <div class="compare-header">
+              <span class="compare-icon">⌨️</span>
+              <span class="compare-label">KeyPath</span>
+            </div>
+            <div class="compare-flow">
+              <span class="key-pill key-pill-orange">S + D</span>
+              <span class="flow-arrow">→</span>
+              <span class="flow-result">Slack</span>
+            </div>
+            <p class="compare-caption">Best when you want instant, repeatable triggers.</p>
+          </div>
         </div>
-        <div class="kanata-trigger-type">
-          <span class="kanata-trigger-name">Sequence</span>
-          <span class="kanata-trigger-desc">Keys in order</span>
-        </div>
-        <div class="kanata-trigger-type">
-          <span class="kanata-trigger-name">Tap-dance</span>
-          <span class="kanata-trigger-desc">Double or triple tap</span>
-        </div>
-        <div class="kanata-trigger-type">
-          <span class="kanata-trigger-name">Layer</span>
-          <span class="kanata-trigger-desc">Hold to access</span>
+
+        <!-- Right: Trigger Types -->
+        <div class="muscle-memory-triggers">
+          <h3 class="triggers-heading">Five ways to trigger</h3>
+          <div class="trigger-list">
+            <div class="trigger-item" data-trigger="chord">
+              <div class="trigger-keys">
+                <span class="key-pill small">S</span>
+                <span class="key-plus">+</span>
+                <span class="key-pill small">D</span>
+              </div>
+              <div class="trigger-info">
+                <span class="trigger-name">Chord</span>
+                <span class="trigger-result">→ Slack</span>
+              </div>
+            </div>
+            <div class="trigger-item" data-trigger="leader">
+              <div class="trigger-keys">
+                <span class="key-pill small">LDR</span>
+                <span class="key-then">then</span>
+                <span class="key-pill small">S</span>
+              </div>
+              <div class="trigger-info">
+                <span class="trigger-name">Leader</span>
+                <span class="trigger-result">→ Safari</span>
+              </div>
+            </div>
+            <div class="trigger-item" data-trigger="sequence">
+              <div class="trigger-keys">
+                <span class="key-pill small">G</span>
+                <span class="key-pill small">H</span>
+              </div>
+              <div class="trigger-info">
+                <span class="trigger-name">Sequence</span>
+                <span class="trigger-result">→ GitHub</span>
+              </div>
+            </div>
+            <div class="trigger-item" data-trigger="tapdance">
+              <div class="trigger-keys">
+                <span class="key-pill small">D</span>
+                <span class="key-times">×2</span>
+              </div>
+              <div class="trigger-info">
+                <span class="trigger-name">Tap-dance</span>
+                <span class="trigger-result">→ Notion</span>
+              </div>
+            </div>
+            <div class="trigger-item" data-trigger="layer">
+              <div class="trigger-keys">
+                <span class="key-pill small">Nav</span>
+                <span class="key-plus">+</span>
+                <span class="key-pill small">S</span>
+              </div>
+              <div class="trigger-info">
+                <span class="trigger-name">Layer</span>
+                <span class="trigger-result">→ Safari</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
   <!-- LAUNCH APPS SECTION -->
-  <section class="kanata-fullscreen-section kanata-fullscreen-alt">
-    <div class="kanata-fullscreen-content">
-      <h2 class="kanata-fullscreen-title">Launch apps & websites</h2>
-      <p class="kanata-fullscreen-subtitle">One key opens Safari, Slack, GitHub, or any URL.<br>No searching. No menus. Just muscle memory.</p>
+  <section class="kanata-fullscreen-section kanata-fullscreen-alt launch-section">
+    <div class="kanata-fullscreen-content-wide">
+      <div class="launch-header">
+        <h2 class="kanata-fullscreen-title">Launch apps & websites</h2>
+        <p class="kanata-fullscreen-subtitle">Turn "go to X" into muscle memory: one key can open an app, a URL, or a workflow.</p>
+      </div>
 
-      <div class="kanata-launch-examples">
-        <div class="kanata-launch-example">
-          <span class="kanata-key">S + D</span>
-          <span class="kanata-arrow">→</span>
-          <span class="kanata-result">Slack</span>
+      <div class="launch-grid">
+        <!-- Left: Capabilities -->
+        <div class="launch-capabilities">
+          <div class="capability-item" data-capability="apps">
+            <div class="capability-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+            </div>
+            <div class="capability-text">
+              <h4>Apps</h4>
+              <p>Safari, Finder, Slack, VS Code, Figma — bind any app to a key.</p>
+            </div>
+          </div>
+          <div class="capability-item" data-capability="urls">
+            <div class="capability-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            </div>
+            <div class="capability-text">
+              <h4>Websites</h4>
+              <p>Docs, dashboards, PRs, tickets — open any URL instantly.</p>
+            </div>
+          </div>
+          <div class="capability-item" data-capability="speed">
+            <div class="capability-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            </div>
+            <div class="capability-text">
+              <h4>Fast</h4>
+              <p>Trigger from a key, layer, chord, or sequence. No delays.</p>
+            </div>
+          </div>
         </div>
-        <div class="kanata-launch-example">
-          <span class="kanata-key">G H</span>
-          <span class="kanata-arrow">→</span>
-          <span class="kanata-result">GitHub</span>
-        </div>
-        <div class="kanata-launch-example">
-          <span class="kanata-key">Nav + S</span>
-          <span class="kanata-arrow">→</span>
-          <span class="kanata-result">Safari</span>
+
+        <!-- Right: Visual Examples -->
+        <div class="launch-examples-visual">
+          <div class="launch-demo">
+            <div class="launch-demo-row" data-demo="slack">
+              <div class="launch-keys">
+                <span class="key-pill small">S</span>
+                <span class="key-plus">+</span>
+                <span class="key-pill small">D</span>
+              </div>
+              <span class="launch-arrow">→</span>
+              <div class="launch-target">
+                <span class="app-icon app-slack"></span>
+                <span class="app-name">Slack</span>
+              </div>
+            </div>
+            <div class="launch-demo-row" data-demo="github">
+              <div class="launch-keys">
+                <span class="key-pill small">G</span>
+                <span class="key-pill small">H</span>
+              </div>
+              <span class="launch-arrow">→</span>
+              <div class="launch-target">
+                <span class="app-icon app-github"></span>
+                <span class="app-name">GitHub</span>
+              </div>
+            </div>
+            <div class="launch-demo-row" data-demo="safari">
+              <div class="launch-keys">
+                <span class="key-pill small">Nav</span>
+                <span class="key-plus">+</span>
+                <span class="key-pill small">S</span>
+              </div>
+              <span class="launch-arrow">→</span>
+              <div class="launch-target">
+                <span class="app-icon app-safari"></span>
+                <span class="app-name">Safari</span>
+              </div>
+            </div>
+            <div class="launch-demo-row" data-demo="figma">
+              <div class="launch-keys">
+                <span class="key-pill small">F</span>
+                <span class="key-times">×2</span>
+              </div>
+              <span class="launch-arrow">→</span>
+              <div class="launch-target">
+                <span class="app-icon app-figma"></span>
+                <span class="app-name">Figma</span>
+              </div>
+            </div>
+            <div class="launch-demo-row" data-demo="url">
+              <div class="launch-keys">
+                <span class="key-pill small">LDR</span>
+                <span class="key-then">then</span>
+                <span class="key-pill small">D</span>
+              </div>
+              <span class="launch-arrow">→</span>
+              <div class="launch-target">
+                <span class="app-icon app-docs"></span>
+                <span class="app-name">Docs</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

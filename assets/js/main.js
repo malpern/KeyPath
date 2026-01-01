@@ -1312,4 +1312,40 @@
             attemptPlay();
         }
     });
+
+    // =====================================================
+    // SCROLL-TRIGGERED ANIMATIONS
+    // =====================================================
+    // Use Intersection Observer to trigger animations when sections come into view
+    // This prevents animations from playing before user can see them
+
+    const animationObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('animate-in');
+                // Stop observing once animated
+                animationObserver.unobserve(entry.target);
+            }
+        });
+    }, {
+        threshold: 0.15,
+        rootMargin: '0px 0px -50px 0px'
+    });
+
+    // Observe all sections that should animate on scroll
+    const animatableSections = document.querySelectorAll(
+        '.muscle-memory-section, .launch-section'
+    );
+    animatableSections.forEach(section => {
+        section.classList.add('animate-on-scroll');
+        animationObserver.observe(section);
+    });
+
+    // Observe individual items for staggered animations
+    const animatableItems = document.querySelectorAll(
+        '.trigger-item, .launch-demo-row, .capability-item, .compare-card'
+    );
+    animatableItems.forEach(item => {
+        item.classList.add('stagger-item');
+    });
 })();
