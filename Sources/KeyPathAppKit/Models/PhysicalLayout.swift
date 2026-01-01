@@ -584,11 +584,12 @@ struct PhysicalLayout: Identifiable {
         }
 
         // Row 2: QWERTY row - JIS layout
-        // JIS QWERTY row fills entire width (enter key will be on home row, spanning up)
+        // QWERTY row must leave room for enter key on right (same width as home row enter)
         let tabWidth = 1.5
+        let enterWidth = 1.9 // Wide enter (bottom of L-shape) - defined early for both rows
 
-        // QWERTY row: tab + 12 alpha keys fill the row
-        let qwertyAlphaWidth = (targetRightEdge - tabWidth - 12 * keySpacing) / 12
+        // QWERTY row: tab + 12 alpha keys + enter width (rows must align)
+        let qwertyAlphaWidth = (targetRightEdge - tabWidth - enterWidth - 13 * keySpacing) / 12
 
         keys.append(PhysicalKey(
             keyCode: 48, label: "⇥", x: 0.0,
@@ -623,9 +624,8 @@ struct PhysicalLayout: Identifiable {
         // Row 3: Home row - JIS has CONTROL on left, L-shaped ENTER on right
         // The enter key is wider here (bottom of L) and extends UP into QWERTY row
         let controlWidth = 1.8
-        let enterWidth = 1.9 // Wide enter (bottom of L-shape)
 
-        // Home row: control + 11 alpha keys + enter
+        // Home row: control + 11 alpha keys + enter (enterWidth defined above)
         let homeRowAlphaWidth = (targetRightEdge - controlWidth - enterWidth - 12 * keySpacing) / 11
 
         // JIS home row: Control + 11 alpha keys
