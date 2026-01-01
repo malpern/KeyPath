@@ -1,6 +1,6 @@
 ---
 layout: default
-title: KeyPath for Kanata Users
+title: KeyPath - The Native Mac Keyboard Power Tool
 description: Keep your Kanata config. Let KeyPath handle macOS permissions, services, and reliability.
 hide_sidebar: true
 content_class: content-full kanata-landing
