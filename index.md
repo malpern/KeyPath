@@ -86,59 +86,54 @@ content_class: content-full kanata-landing
         <div class="cinema-summary-grid">
           <div class="cinema-summary-item" data-summary="0">
             <div class="cinema-gesture-icon">
-              <!-- Chord: Two keys side by side -->
-              <svg viewBox="0 0 48 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="2" y="4" width="20" height="24" rx="4" fill="currentColor" opacity="0.9"/>
-                <rect x="26" y="4" width="20" height="24" rx="4" fill="currentColor" opacity="0.9"/>
+              <!-- Chord: Two keys pressed together -->
+              <svg viewBox="0 0 40 24" fill="none">
+                <rect x="1" y="1" width="18" height="22" rx="3" fill="currentColor"/>
+                <rect x="21" y="1" width="18" height="22" rx="3" fill="currentColor"/>
               </svg>
             </div>
-            <span class="cinema-summary-label">Two keys<br>at once</span>
+            <span class="cinema-summary-label">Chord</span>
           </div>
           <div class="cinema-summary-item" data-summary="1">
             <div class="cinema-gesture-icon">
-              <!-- Sequence: Keys with arrows -->
-              <svg viewBox="0 0 64 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="2" y="6" width="16" height="20" rx="3" fill="currentColor" opacity="0.9"/>
-                <path d="M22 16h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
-                <rect x="32" y="6" width="16" height="20" rx="3" fill="currentColor" opacity="0.6"/>
-                <path d="M52 16h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
-                <rect x="62" y="6" width="16" height="20" rx="3" fill="currentColor" opacity="0.3"/>
+              <!-- Sequence: 1-2-3 -->
+              <svg viewBox="0 0 48 24" fill="none">
+                <rect x="1" y="1" width="14" height="22" rx="3" fill="currentColor"/>
+                <rect x="17" y="1" width="14" height="22" rx="3" fill="currentColor" opacity="0.6"/>
+                <rect x="33" y="1" width="14" height="22" rx="3" fill="currentColor" opacity="0.3"/>
               </svg>
             </div>
-            <span class="cinema-summary-label">Keys in<br>a row</span>
+            <span class="cinema-summary-label">Sequence</span>
           </div>
           <div class="cinema-summary-item" data-summary="2">
             <div class="cinema-gesture-icon">
-              <!-- Double-tap: Key with ×2 -->
-              <svg viewBox="0 0 40 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="6" y="4" width="22" height="24" rx="4" fill="currentColor" opacity="0.9"/>
-                <text x="32" y="12" font-size="10" font-weight="600" fill="currentColor" opacity="0.7">×2</text>
+              <!-- Tap-dance: Key with 2x -->
+              <svg viewBox="0 0 32 24" fill="none">
+                <rect x="1" y="1" width="22" height="22" rx="3" fill="currentColor"/>
+                <text x="12" y="16" font-size="11" font-weight="700" fill="var(--color-background)" text-anchor="middle">2×</text>
               </svg>
             </div>
-            <span class="cinema-summary-label">Double-tap</span>
+            <span class="cinema-summary-label">Tap-dance</span>
           </div>
           <div class="cinema-summary-item" data-summary="3">
             <div class="cinema-gesture-icon">
-              <!-- Hold + tap: Key with bar underneath + second key -->
-              <svg viewBox="0 0 52 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="2" y="2" width="20" height="22" rx="4" fill="currentColor" opacity="0.9"/>
-                <rect x="4" y="27" width="16" height="4" rx="2" fill="currentColor" opacity="0.5"/>
-                <rect x="30" y="8" width="18" height="20" rx="4" fill="currentColor" opacity="0.6"/>
+              <!-- Hold: Key with hold bar -->
+              <svg viewBox="0 0 24 28" fill="none">
+                <rect x="1" y="1" width="22" height="22" rx="3" fill="currentColor"/>
+                <rect x="3" y="25" width="18" height="3" rx="1.5" fill="currentColor" opacity="0.5"/>
               </svg>
             </div>
-            <span class="cinema-summary-label">Hold + tap</span>
+            <span class="cinema-summary-label">Tap-hold</span>
           </div>
           <div class="cinema-summary-item" data-summary="4">
             <div class="cinema-gesture-icon">
-              <!-- Leader: Key followed by dots -->
-              <svg viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="2" y="4" width="24" height="24" rx="4" fill="currentColor" opacity="0.9"/>
-                <circle cx="36" cy="16" r="3" fill="currentColor" opacity="0.5"/>
-                <circle cx="44" cy="16" r="3" fill="currentColor" opacity="0.4"/>
-                <circle cx="52" cy="16" r="3" fill="currentColor" opacity="0.3"/>
+              <!-- Leader: Key + arrow -->
+              <svg viewBox="0 0 40 24" fill="none">
+                <rect x="1" y="1" width="22" height="22" rx="3" fill="currentColor"/>
+                <path d="M28 12h8M33 8l4 4-4 4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
               </svg>
             </div>
-            <span class="cinema-summary-label">Tap, then<br>type</span>
+            <span class="cinema-summary-label">Leader</span>
           </div>
         </div>
         <button class="cinema-replay-btn">
