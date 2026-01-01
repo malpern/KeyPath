@@ -53,7 +53,7 @@ content_class: content-full kanata-landing
   <section class="launch-cinema">
     <h2 class="cinema-title">Launch anything with muscle memory</h2>
     <p class="cinema-subtitle">
-      Turn "go to X" into muscle memory: one key can open an app, a URL, or a workflow.
+      Turn "go to X" into muscle memory: any gesture can open an app, a URL, or a workflow.
     </p>
 
     <ul class="cinema-features">
