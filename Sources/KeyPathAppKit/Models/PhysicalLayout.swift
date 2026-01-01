@@ -584,12 +584,11 @@ struct PhysicalLayout: Identifiable {
         }
 
         // Row 2: QWERTY row - JIS layout
-        // JIS has: tab, Q W E R T Y U I O P @ [ then L-shaped enter starts
+        // JIS QWERTY row fills entire width (enter key will be on home row, spanning up)
         let tabWidth = 1.5
-        let enterTopWidth = 1.3 // Top portion of L-shaped enter (labeled "enter")
 
-        // Calculate alpha key width to fit: tab + 12 alpha keys + enter top
-        let qwertyAlphaWidth = (targetRightEdge - tabWidth - enterTopWidth - 13 * keySpacing) / 12
+        // QWERTY row: tab + 12 alpha keys fill the row
+        let qwertyAlphaWidth = (targetRightEdge - tabWidth - 12 * keySpacing) / 12
 
         keys.append(PhysicalKey(
             keyCode: 48, label: "⇥", x: 0.0,
@@ -621,20 +620,15 @@ struct PhysicalLayout: Identifiable {
             currentX += qwertyAlphaWidth + keySpacing
         }
 
-        // L-shaped Enter key - represented as tall key spanning rows 2-3
-        // Position at right edge, height = 2 rows
-        let enterX = targetRightEdge - enterTopWidth
-        keys.append(PhysicalKey(
-            keyCode: 36, label: "↩", x: enterX,
-            y: rowSpacing * 2, width: enterTopWidth, height: standardKeyHeight * 2 + keySpacing
-        ))
+        // Row 3: Home row - JIS has CONTROL on left, L-shaped ENTER on right
+        // The enter key is wider here (bottom of L) and extends UP into QWERTY row
+        let controlWidth = 1.8
+        let enterWidth = 1.9 // Wide enter (bottom of L-shape)
 
-        // Row 3: Home row - JIS has CONTROL (not caps!) on left
-        // Layout: control, A S D F G H J K L ; : ]
-        let controlWidth = 1.8 // Where caps would be on US
-        let homeRowAlphaWidth = (targetRightEdge - controlWidth - enterTopWidth - 12 * keySpacing) / 11
+        // Home row: control + 11 alpha keys + enter
+        let homeRowAlphaWidth = (targetRightEdge - controlWidth - enterWidth - 12 * keySpacing) / 11
 
-        // JIS home row: Control + 11 alpha keys (enter already placed above)
+        // JIS home row: Control + 11 alpha keys
         let jisHomeRowKeys: [(UInt16, String, Double, String?, String?)] = [
             (59, "⌃", controlWidth, nil, nil), // Control key (NOT caps lock!)
             (0, "a", homeRowAlphaWidth, nil, "ち"),
@@ -659,6 +653,15 @@ struct PhysicalLayout: Identifiable {
             ))
             currentX += width + keySpacing
         }
+
+        // L-shaped Enter key - positioned at home row, extends UP into QWERTY row
+        // This creates the visual appearance of an L-shape (wider at bottom)
+        keys.append(PhysicalKey(
+            keyCode: 36, label: "↩", x: currentX,
+            y: rowSpacing * 2, // Start at QWERTY row level
+            width: enterWidth,
+            height: standardKeyHeight * 2 + keySpacing // Span 2 rows
+        ))
 
         // Row 4: Bottom row - shift, Z-/ keys, _ (ro), shift
         let leftShiftWidth = 2.1
