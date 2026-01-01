@@ -799,11 +799,11 @@ body.sidebar-open .sidebar {
     background-position: center;
 }
 
-.cinema-app-icon.slack { background-image: url('../images/cinema-icons/slack.png'); }
-.cinema-app-icon.github { background-image: url('../images/cinema-icons/github.png'); border-radius: 50%; }
-.cinema-app-icon.figma { background-image: url('../images/cinema-icons/figma.png'); }
-.cinema-app-icon.safari { background-image: url('../images/cinema-icons/safari.png'); }
-.cinema-app-icon.docs { background-image: url('../images/cinema-icons/docs.png'); }
+.cinema-app-icon.slack { background-image: url('../../images/cinema-icons/slack.png'); }
+.cinema-app-icon.github { background-image: url('../../images/cinema-icons/github.png'); border-radius: 50%; }
+.cinema-app-icon.figma { background-image: url('../../images/cinema-icons/figma.png'); }
+.cinema-app-icon.safari { background-image: url('../../images/cinema-icons/safari.png'); }
+.cinema-app-icon.docs { background-image: url('../../images/cinema-icons/docs.png'); }
 
 /* Summary slide styling */
 .cinema-summary {
@@ -858,11 +858,11 @@ body.sidebar-open .sidebar {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
-.cinema-summary-icon.slack { background-image: url('../images/cinema-icons/slack.png'); }
-.cinema-summary-icon.github { background-image: url('../images/cinema-icons/github.png'); border-radius: 50%; }
-.cinema-summary-icon.figma { background-image: url('../images/cinema-icons/figma.png'); }
-.cinema-summary-icon.safari { background-image: url('../images/cinema-icons/safari.png'); }
-.cinema-summary-icon.docs { background-image: url('../images/cinema-icons/docs.png'); }
+.cinema-summary-icon.slack { background-image: url('../../images/cinema-icons/slack.png'); }
+.cinema-summary-icon.github { background-image: url('../../images/cinema-icons/github.png'); border-radius: 50%; }
+.cinema-summary-icon.figma { background-image: url('../../images/cinema-icons/figma.png'); }
+.cinema-summary-icon.safari { background-image: url('../../images/cinema-icons/safari.png'); }
+.cinema-summary-icon.docs { background-image: url('../../images/cinema-icons/docs.png'); }
 
 .cinema-summary-label {
     font-size: var(--font-size-sm);
