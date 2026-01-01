@@ -94,13 +94,13 @@ struct OverlayKeycapView: View {
     private var hasVisibleContent: Bool {
         // If floating labels are disabled, always render content
         guard useFloatingLabels else { return true }
-        
+
         // Special keys always render their own content
         if hasSpecialLabel { return true }
-        
+
         // If there's a nav overlay symbol, render it (arrow only, letter handled by floating label)
         if navOverlaySymbol != nil { return true }
-        
+
         // Otherwise, content is Color.clear (floating labels handle it)
         return false
     }
@@ -501,63 +501,100 @@ struct OverlayKeycapView: View {
     // MARK: - Multi-Legend Content (JIS/ISO)
 
     /// Renders a key with multiple legends in different positions
-    /// Used for JIS keyboards where keys have:
+    /// Two layout modes based on key type:
+    ///
+    /// **Number row (has shiftLabel)**: 3-position layout
     /// - Top-left: shifted character (e.g., "!")
     /// - Bottom-left: main character (e.g., "1")
     /// - Bottom-right: hiragana (e.g., "ぬ")
-    /// - Top-right: tertiary legend (optional)
+    ///
+    /// **Alpha keys (no shiftLabel)**: 2-position layout
+    /// - Center: LARGE main character (e.g., "Q")
+    /// - Bottom-right: small hiragana (e.g., "た")
     @ViewBuilder
     private var multiLegendContent: some View {
         GeometryReader { geometry in
             let padding: CGFloat = 3 * scale
-            let mainFontSize: CGFloat = 10 * scale
-            let shiftFontSize: CGFloat = 8 * scale
             let subFontSize: CGFloat = 7 * scale
 
-            ZStack {
-                // Top-left: shift label (shifted character)
-                if let shiftLabel = key.shiftLabel {
-                    Text(shiftLabel)
-                        .font(.system(size: shiftFontSize, weight: .regular))
-                        .foregroundStyle(foregroundColor.opacity(0.7))
-                        .position(
-                            x: padding + shiftFontSize / 2,
-                            y: padding + shiftFontSize / 2
-                        )
-                }
+            // Choose layout based on whether key has shift label
+            if key.shiftLabel != nil {
+                // Number row style: 3-position layout
+                let mainFontSize: CGFloat = 10 * scale
+                let shiftFontSize: CGFloat = 8 * scale
 
-                // Top-right: tertiary label (optional)
-                if let tertiaryLabel = key.tertiaryLabel {
-                    Text(tertiaryLabel)
-                        .font(.system(size: subFontSize, weight: .regular))
-                        .foregroundStyle(foregroundColor.opacity(0.5))
-                        .position(
-                            x: geometry.size.width - padding - subFontSize / 2,
-                            y: padding + subFontSize / 2
-                        )
-                }
+                ZStack {
+                    // Top-left: shift label (shifted character)
+                    if let shiftLabel = key.shiftLabel {
+                        Text(shiftLabel)
+                            .font(.system(size: shiftFontSize, weight: .regular))
+                            .foregroundStyle(foregroundColor.opacity(0.7))
+                            .position(
+                                x: padding + shiftFontSize / 2,
+                                y: padding + shiftFontSize / 2
+                            )
+                    }
 
-                // Bottom-left: main label (primary character)
-                Text(key.label)
-                    .font(.system(size: mainFontSize, weight: .medium))
-                    .foregroundStyle(foregroundColor)
-                    .position(
-                        x: padding + mainFontSize / 2,
-                        y: geometry.size.height - padding - mainFontSize / 2
-                    )
+                    // Top-right: tertiary label (optional)
+                    if let tertiaryLabel = key.tertiaryLabel {
+                        Text(tertiaryLabel)
+                            .font(.system(size: subFontSize, weight: .regular))
+                            .foregroundStyle(foregroundColor.opacity(0.5))
+                            .position(
+                                x: geometry.size.width - padding - subFontSize / 2,
+                                y: padding + subFontSize / 2
+                            )
+                    }
 
-                // Bottom-right: sub label (hiragana/katakana)
-                if let subLabel = key.subLabel {
-                    Text(subLabel)
-                        .font(.system(size: subFontSize, weight: .regular))
-                        .foregroundStyle(foregroundColor.opacity(0.6))
+                    // Bottom-left: main label (primary character)
+                    Text(key.label)
+                        .font(.system(size: mainFontSize, weight: .medium))
+                        .foregroundStyle(foregroundColor)
                         .position(
-                            x: geometry.size.width - padding - subFontSize / 2,
-                            y: geometry.size.height - padding - subFontSize / 2
+                            x: padding + mainFontSize / 2,
+                            y: geometry.size.height - padding - mainFontSize / 2
                         )
+
+                    // Bottom-right: sub label (hiragana/katakana)
+                    if let subLabel = key.subLabel {
+                        Text(subLabel)
+                            .font(.system(size: subFontSize, weight: .regular))
+                            .foregroundStyle(foregroundColor.opacity(0.6))
+                            .position(
+                                x: geometry.size.width - padding - subFontSize / 2,
+                                y: geometry.size.height - padding - subFontSize / 2
+                            )
+                    }
                 }
+                .frame(width: geometry.size.width, height: geometry.size.height)
+            } else {
+                // Alpha key style: large centered letter + small bottom-right hiragana
+                let mainFontSize: CGFloat = 14 * scale
+
+                ZStack {
+                    // Center: LARGE main character
+                    Text(key.label.uppercased())
+                        .font(.system(size: mainFontSize, weight: .medium))
+                        .foregroundStyle(foregroundColor)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                    // Bottom-right: small hiragana
+                    if let subLabel = key.subLabel {
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Spacer()
+                                Text(subLabel)
+                                    .font(.system(size: subFontSize, weight: .regular))
+                                    .foregroundStyle(foregroundColor.opacity(0.5))
+                                    .padding(.trailing, padding)
+                                    .padding(.bottom, padding)
+                            }
+                        }
+                    }
+                }
+                .frame(width: geometry.size.width, height: geometry.size.height)
             }
-            .frame(width: geometry.size.width, height: geometry.size.height)
         }
     }
 
@@ -934,7 +971,7 @@ struct OverlayKeycapView: View {
 
     /// Whether this key has a special label that should always be rendered in the keycap
     /// (not handled by floating labels). Includes navigation keys, system keys, number row, etc.
-    /// 
+    ///
     /// IMPORTANT: Checks both `key.label` (physical key) and `baseLabel` (keymap label) to handle
     /// cases where the keymap changes the label (e.g., QWERTZ maps "/" key to "-").
     /// During layout transitions, we prioritize stability by checking physical key first,
