@@ -8,17 +8,17 @@
         </li>
         {% endif %}
         
-        <!-- Kanata -->
+        <!-- Home -->
         <li class="nav-section">
-            <div class="nav-section-title">Kanata</div>
+            <div class="nav-section-title">KeyPath</div>
             <ul class="nav-section-items">
-                {% assign is_kanata_overview = page.url == '/kanata/' or page.url == '/kanata' %}
-                <li class="nav-item {% if is_kanata_overview %}active{% endif %}">
-                    <a href="{{ '/kanata' | relative_url }}" class="nav-link">Overview</a>
+                {% assign is_home = page.url == '/' %}
+                <li class="nav-item {% if is_home %}active{% endif %}">
+                    <a href="{{ '/' | relative_url }}" class="nav-link">Home</a>
                 </li>
                 {% assign is_kanata_migration = page.url contains '/migration/kanata-users' %}
                 <li class="nav-item {% if is_kanata_migration %}active{% endif %}">
-                    <a href="{{ '/migration/kanata-users' | relative_url }}" class="nav-link">Tips for existing Kanata users</a>
+                    <a href="{{ '/migration/kanata-users' | relative_url }}" class="nav-link">For Kanata users</a>
                 </li>
             </ul>
         </li>
