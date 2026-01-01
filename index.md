@@ -256,102 +256,44 @@ content_class: content-full kanata-landing
 
   <div class="kanata-landing-divider" aria-hidden="true"></div>
 
-  <section class="kanata-landing-section">
-    <h2>Explore alternate keyboard layouts</h2>
-    <p class="kanata-landing-subtitle" style="margin-bottom: var(--spacing-lg);">Reduce finger strain and type more efficiently. Switch layouts instantly — no firmware flashing required.</p>
+  <!-- ALTERNATE LAYOUTS - Full Screen -->
+  <section class="layouts-fullscreen">
+    <div class="layouts-fullscreen-content">
+      <h2 class="layouts-fullscreen-title">Explore alternate keyboard layouts</h2>
+      <p class="layouts-fullscreen-subtitle">Switch layouts instantly — no firmware flashing required</p>
 
-    <video class="layouts-video" autoplay loop muted playsinline preload="auto" poster="{{ '/images/alt-layouts-poster.jpg' | relative_url }}">
-      <source src="{{ '/images/alt-layouts.mp4' | relative_url }}" type="video/mp4">
-      <source src="{{ '/images/alt-layouts.mov' | relative_url }}" type="video/quicktime">
-    </video>
+      <video class="layouts-video" autoplay loop muted playsinline preload="auto" poster="{{ '/images/alt-layouts-poster.jpg' | relative_url }}">
+        <source src="{{ '/images/alt-layouts.mp4' | relative_url }}" type="video/mp4">
+        <source src="{{ '/images/alt-layouts.mov' | relative_url }}" type="video/quicktime">
+      </video>
 
-    <h3 style="margin-top: var(--spacing-xl);">Ergonomic layouts</h3>
-    <p class="kanata-landing-fineprint mb-0">Hover to learn more</p>
-    <div class="layout-grid" style="margin-top: var(--spacing-md);">
-      <div class="layout-flip-card">
-        <div class="layout-flip-inner">
-          <div class="layout-flip-front">
-            <div class="layout-card-name">Colemak</div>
-            <div class="layout-card-type">Popular</div>
-          </div>
-          <div class="layout-flip-back">
-            <p><strong>74%</strong> of typing on home row vs QWERTY's 32%</p>
-            <a href="https://colemak.com/" target="_blank" rel="noopener" class="layout-info-link" title="Learn more about Colemak">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="layout-info-icon"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-            </a>
-          </div>
-        </div>
+      <div class="layouts-chips">
+        <a href="https://colemak.com/" target="_blank" rel="noopener" class="layout-chip">
+          <span class="layout-chip-name">Colemak</span>
+          <span class="layout-chip-stat">74% home row</span>
+        </a>
+        <a href="https://colemakmods.github.io/mod-dh/" target="_blank" rel="noopener" class="layout-chip">
+          <span class="layout-chip-name">Colemak-DH</span>
+          <span class="layout-chip-stat">46% less travel</span>
+        </a>
+        <a href="https://en.wikipedia.org/wiki/Dvorak_keyboard_layout" target="_blank" rel="noopener" class="layout-chip">
+          <span class="layout-chip-name">Dvorak</span>
+          <span class="layout-chip-stat">Since 1936</span>
+        </a>
+        <a href="https://workmanlayout.org/" target="_blank" rel="noopener" class="layout-chip">
+          <span class="layout-chip-name">Workman</span>
+          <span class="layout-chip-stat">Inward rolls</span>
+        </a>
+        <a href="https://github.com/rdavison/graphite-layout" target="_blank" rel="noopener" class="layout-chip">
+          <span class="layout-chip-name">Graphite</span>
+          <span class="layout-chip-stat">65% home row</span>
+        </a>
       </div>
-      <div class="layout-flip-card">
-        <div class="layout-flip-inner">
-          <div class="layout-flip-front">
-            <div class="layout-card-name">Colemak-DH</div>
-            <div class="layout-card-type">Modern</div>
-          </div>
-          <div class="layout-flip-back">
-            <p><strong>46%</strong> less finger travel than QWERTY</p>
-            <a href="https://colemakmods.github.io/mod-dh/" target="_blank" rel="noopener" class="layout-info-link" title="Learn more about Colemak-DH">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="layout-info-icon"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-            </a>
-          </div>
-        </div>
-      </div>
-      <div class="layout-flip-card">
-        <div class="layout-flip-inner">
-          <div class="layout-flip-front">
-            <div class="layout-card-name">Dvorak</div>
-            <div class="layout-card-type">Classic</div>
-          </div>
-          <div class="layout-flip-back">
-            <p>Since <strong>1936</strong> — the original alternative layout</p>
-            <a href="https://en.wikipedia.org/wiki/Dvorak_keyboard_layout" target="_blank" rel="noopener" class="layout-info-link" title="Learn more about Dvorak">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="layout-info-icon"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-            </a>
-          </div>
-        </div>
-      </div>
-      <div class="layout-flip-card">
-        <div class="layout-flip-inner">
-          <div class="layout-flip-front">
-            <div class="layout-card-name">Workman</div>
-            <div class="layout-card-type">Ergonomic</div>
-          </div>
-          <div class="layout-flip-back">
-            <p>Optimized for <strong>inward rolls</strong> — the most comfortable motion</p>
-            <a href="https://workmanlayout.org/" target="_blank" rel="noopener" class="layout-info-link" title="Learn more about Workman">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="layout-info-icon"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-            </a>
-          </div>
-        </div>
-      </div>
-      <div class="layout-flip-card">
-        <div class="layout-flip-inner">
-          <div class="layout-flip-front">
-            <div class="layout-card-name">Graphite</div>
-            <div class="layout-card-type">Newest</div>
-          </div>
-          <div class="layout-flip-back">
-            <p><strong>65%</strong> home row usage with balanced hands</p>
-            <a href="https://github.com/rdavison/graphite-layout" target="_blank" rel="noopener" class="layout-info-link" title="Learn more about Graphite">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="layout-info-icon"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-            </a>
-          </div>
-        </div>
-      </div>
+
+      <p class="layouts-international">
+        Plus AZERTY, QWERTZ, JIS, and international variants
+      </p>
     </div>
-
-    <h3 style="margin-top: var(--spacing-xl);">International support</h3>
-    <p style="color: var(--color-text-secondary); line-height: 1.6;">
-      <strong style="color: var(--color-text);">Logical layouts:</strong>
-      🇺🇸 QWERTY (US, UK, International) ·
-      🇫🇷 AZERTY (France, Belgium) ·
-      🇩🇪 QWERTZ (Germany, Austria, Switzerland) ·
-      🇯🇵 JIS (Japan)
-    </p>
-    <p style="color: var(--color-text-secondary); line-height: 1.6;">
-      <strong style="color: var(--color-text);">Physical keyboards:</strong>
-      🇺🇸 ANSI · 🇪🇺 ISO · 🇯🇵 JIS · 🇧🇷 ABNT2 · 🇰🇷 Korean
-    </p>
   </section>
 
   <div class="kanata-landing-divider" aria-hidden="true"></div>

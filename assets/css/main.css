@@ -1475,6 +1475,113 @@ body.sidebar-open .sidebar {
 }
 
 /* =====================================================
+   LAYOUTS FULLSCREEN SECTION
+   ===================================================== */
+.layouts-fullscreen {
+    min-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-3xl) var(--spacing-lg);
+    background: var(--color-background);
+}
+
+.layouts-fullscreen-content {
+    max-width: 1000px;
+    width: 100%;
+    text-align: center;
+}
+
+.layouts-fullscreen-title {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0 0 var(--spacing-md) 0;
+}
+
+.layouts-fullscreen-subtitle {
+    font-size: clamp(1rem, 2.5vw, 1.25rem);
+    color: var(--color-text-secondary);
+    margin: 0 0 var(--spacing-2xl) 0;
+    line-height: 1.5;
+}
+
+.layouts-fullscreen .layouts-video {
+    width: 100%;
+    max-width: 900px;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    margin-bottom: var(--spacing-2xl);
+}
+
+.layouts-chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-xl);
+}
+
+.layout-chip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: var(--color-background-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    text-decoration: none;
+    transition: all 0.25s ease;
+    min-width: 120px;
+}
+
+.layout-chip:hover {
+    border-color: rgba(255, 149, 0, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.layout-chip-name {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.layout-chip-stat {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+.layouts-international {
+    font-size: var(--font-size-base);
+    color: var(--color-text-tertiary);
+    margin: 0;
+}
+
+/* Responsive - Tablet */
+@media (max-width: 768px) {
+    .layouts-chips {
+        gap: var(--spacing-sm);
+    }
+
+    .layout-chip {
+        padding: var(--spacing-sm) var(--spacing-md);
+        min-width: 100px;
+    }
+
+    .layout-chip-name {
+        font-size: var(--font-size-sm);
+    }
+
+    .layout-chip-stat {
+        font-size: var(--font-size-xs);
+    }
+}
+
+/* =====================================================
    MICROANIMATIONS (Scroll-triggered)
    ===================================================== */
 
