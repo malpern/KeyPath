@@ -41,6 +41,25 @@ struct PhysicalKey: Identifiable, Hashable {
     let rotationPivotX: Double? // Rotation pivot X (for QMK rotation)
     let rotationPivotY: Double? // Rotation pivot Y (for QMK rotation)
 
+    // MARK: - Multi-Legend Support (JIS/ISO)
+
+    /// Shifted character legend (top position on keycap)
+    /// Example: "!" for the "1" key, "@" for "2", etc.
+    let shiftLabel: String?
+
+    /// Sub-label for alternate input (front/bottom-right on keycap)
+    /// Example: Hiragana characters on JIS keyboards ("ぬ" on "1" key)
+    let subLabel: String?
+
+    /// Tertiary label for additional legends (front/bottom-left on keycap)
+    /// Example: Additional symbols or alternate character sets
+    let tertiaryLabel: String?
+
+    /// Whether this key has multi-legend content requiring special rendering
+    var hasMultipleLegends: Bool {
+        shiftLabel != nil || subLabel != nil || tertiaryLabel != nil
+    }
+
     init(
         id: UUID = UUID(),
         keyCode: UInt16,
@@ -51,7 +70,10 @@ struct PhysicalKey: Identifiable, Hashable {
         height: Double = 1.0,
         rotation: Double = 0.0,
         rotationPivotX: Double? = nil,
-        rotationPivotY: Double? = nil
+        rotationPivotY: Double? = nil,
+        shiftLabel: String? = nil,
+        subLabel: String? = nil,
+        tertiaryLabel: String? = nil
     ) {
         self.id = id
         self.keyCode = keyCode
@@ -63,6 +85,9 @@ struct PhysicalKey: Identifiable, Hashable {
         self.rotation = rotation
         self.rotationPivotX = rotationPivotX
         self.rotationPivotY = rotationPivotY
+        self.shiftLabel = shiftLabel
+        self.subLabel = subLabel
+        self.tertiaryLabel = tertiaryLabel
     }
 
     /// Computed visual position after applying rotation transform
@@ -523,31 +548,42 @@ struct PhysicalLayout: Identifiable {
             height: standardKeyHeight
         ))
 
-        // Row 1: Number Row - JIS adds ¥ key, narrower delete
-        // Layout: ` 1 2 3 4 5 6 7 8 9 0 - ^ ¥ ⌫
+        // Row 1: Number Row - JIS with multi-legend support
+        // Each key has: main label, shift label (top), sub label (hiragana)
+        // Layout: 半角 1 2 3 4 5 6 7 8 9 0 - ^ ¥ ⌫
         let deleteWidthJIS = 1.0 // Narrower than US (was 1.5)
         let yenWidth = standardKeyWidth
-        let numberRowJIS: [(UInt16, String, Double)] = [
-            (50, "`", standardKeyWidth),
-            (18, "1", standardKeyWidth), (19, "2", standardKeyWidth),
-            (20, "3", standardKeyWidth), (21, "4", standardKeyWidth),
-            (23, "5", standardKeyWidth), (22, "6", standardKeyWidth),
-            (26, "7", standardKeyWidth), (28, "8", standardKeyWidth),
-            (25, "9", standardKeyWidth), (29, "0", standardKeyWidth),
-            (27, "-", standardKeyWidth), (24, "^", standardKeyWidth), // ^ instead of = on JIS
-            (93, "¥", yenWidth), // Yen key (JIS specific)
-            (51, "⌫", deleteWidthJIS)
-        ]
         currentX = 0.0
-        for (keyCode, label, width) in numberRowJIS {
+
+        // JIS number row with proper multi-legend data
+        // Format: (keyCode, mainLabel, width, shiftLabel, subLabel)
+        let jisNumberRowKeys: [(UInt16, String, Double, String?, String?)] = [
+            (50, "半角", standardKeyWidth, "全角", nil), // Hankaku/Zenkaku toggle
+            (18, "1", standardKeyWidth, "!", "ぬ"),
+            (19, "2", standardKeyWidth, "\"", "ふ"),
+            (20, "3", standardKeyWidth, "#", "あ"),
+            (21, "4", standardKeyWidth, "$", "う"),
+            (23, "5", standardKeyWidth, "%", "え"),
+            (22, "6", standardKeyWidth, "&", "お"),
+            (26, "7", standardKeyWidth, "'", "や"),
+            (28, "8", standardKeyWidth, "(", "ゆ"),
+            (25, "9", standardKeyWidth, ")", "よ"),
+            (29, "0", standardKeyWidth, nil, "わ"),
+            (27, "-", standardKeyWidth, "=", "ほ"),
+            (24, "^", standardKeyWidth, "~", "へ"),
+            (93, "¥", yenWidth, "|", nil),
+            (51, "⌫", deleteWidthJIS, nil, nil)
+        ]
+        for (keyCode, label, width, shiftLabel, subLabel) in jisNumberRowKeys {
             keys.append(PhysicalKey(
                 keyCode: keyCode, label: label, x: currentX,
-                y: rowSpacing, width: width, height: standardKeyHeight
+                y: rowSpacing, width: width, height: standardKeyHeight,
+                shiftLabel: shiftLabel, subLabel: subLabel
             ))
             currentX += width + keySpacing
         }
 
-        // Row 2: QWERTY row - JIS has narrower keys to fit, [ ] @ on this row
+        // Row 2: QWERTY row - JIS with hiragana sub-labels
         let tabWidth = 1.5
         // Calculate remaining width after tab
         let qwertyAvailable = targetRightEdge - tabWidth - keySpacing
@@ -560,66 +596,93 @@ struct PhysicalLayout: Identifiable {
         ))
         currentX = tabWidth + keySpacing
 
-        let topRowJIS: [(UInt16, String)] = [
-            (12, "q"), (13, "w"), (14, "e"), (15, "r"), (17, "t"),
-            (16, "y"), (32, "u"), (34, "i"), (31, "o"), (35, "p"),
-            (33, "@"), (30, "[")
+        // JIS QWERTY row with hiragana
+        // Format: (keyCode, mainLabel, shiftLabel, subLabel)
+        let jisTopRowKeys: [(UInt16, String, String?, String?)] = [
+            (12, "q", nil, "た"),
+            (13, "w", nil, "て"),
+            (14, "e", nil, "い"),
+            (15, "r", nil, "す"),
+            (17, "t", nil, "か"),
+            (16, "y", nil, "ん"),
+            (32, "u", nil, "な"),
+            (34, "i", nil, "に"),
+            (31, "o", nil, "ら"),
+            (35, "p", nil, "せ"),
+            (33, "@", "`", "゛"), // JIS @ key with dakuten
+            (30, "[", "{", "゜") // JIS [ key with handakuten
         ]
-        for (keyCode, label) in topRowJIS {
+        for (keyCode, label, shiftLabel, subLabel) in jisTopRowKeys {
             keys.append(PhysicalKey(
                 keyCode: keyCode, label: label, x: currentX,
-                y: rowSpacing * 2, width: qwertyKeyWidth, height: standardKeyHeight
+                y: rowSpacing * 2, width: qwertyKeyWidth, height: standardKeyHeight,
+                shiftLabel: shiftLabel, subLabel: subLabel
             ))
             currentX += qwertyKeyWidth + keySpacing
         }
 
-        // Row 3: Home row with L-shaped Enter
+        // Row 3: Home row with L-shaped Enter and hiragana
         // JIS Enter is tall (spans rows 2-3) and positioned at right edge
         let capsWidth = 1.8
         // Enter key dimensions for L-shape (we'll use a tall single key approximation)
         let enterWidth = targetRightEdge - (capsWidth + keySpacing + 11 * (standardKeyWidth + keySpacing))
 
-        let middleRowJIS: [(UInt16, String, Double)] = [
-            (57, "⇪", capsWidth),
-            (0, "a", standardKeyWidth), (1, "s", standardKeyWidth),
-            (2, "d", standardKeyWidth), (3, "f", standardKeyWidth),
-            (5, "g", standardKeyWidth), (4, "h", standardKeyWidth),
-            (38, "j", standardKeyWidth), (40, "k", standardKeyWidth),
-            (37, "l", standardKeyWidth), (41, ";", standardKeyWidth),
-            (39, ":", standardKeyWidth), // : instead of ' on JIS
-            (42, "]", standardKeyWidth), // ] is here on JIS
-            (36, "↩", enterWidth)
+        // JIS home row with hiragana
+        // Format: (keyCode, mainLabel, width, shiftLabel, subLabel)
+        let jisHomeRowKeys: [(UInt16, String, Double, String?, String?)] = [
+            (57, "⇪", capsWidth, nil, nil),
+            (0, "a", standardKeyWidth, nil, "ち"),
+            (1, "s", standardKeyWidth, nil, "と"),
+            (2, "d", standardKeyWidth, nil, "し"),
+            (3, "f", standardKeyWidth, nil, "は"),
+            (5, "g", standardKeyWidth, nil, "き"),
+            (4, "h", standardKeyWidth, nil, "く"),
+            (38, "j", standardKeyWidth, nil, "ま"),
+            (40, "k", standardKeyWidth, nil, "の"),
+            (37, "l", standardKeyWidth, nil, "り"),
+            (41, ";", standardKeyWidth, "+", "れ"),
+            (39, ":", standardKeyWidth, "*", "け"),
+            (42, "]", standardKeyWidth, "}", "む"),
+            (36, "↩", enterWidth, nil, nil)
         ]
         currentX = 0.0
-        for (keyCode, label, width) in middleRowJIS {
+        for (keyCode, label, width, shiftLabel, subLabel) in jisHomeRowKeys {
             keys.append(PhysicalKey(
                 keyCode: keyCode, label: label, x: currentX,
-                y: rowSpacing * 3, width: width, height: standardKeyHeight
+                y: rowSpacing * 3, width: width, height: standardKeyHeight,
+                shiftLabel: shiftLabel, subLabel: subLabel
             ))
             currentX += width + keySpacing
         }
 
-        // Row 4: Bottom row - shorter right shift, adds _ (ro) key
+        // Row 4: Bottom row - shorter right shift, adds _ (ro) key, with hiragana
         let leftShiftWidth = 2.35
         let rightShiftWidthJIS = 1.5 // Shorter than US
         let underscoreWidth = standardKeyWidth
 
-        // Calculate key widths to fit
-        let bottomRowJIS: [(UInt16, String, Double)] = [
-            (56, "⇧", leftShiftWidth),
-            (6, "z", standardKeyWidth), (7, "x", standardKeyWidth),
-            (8, "c", standardKeyWidth), (9, "v", standardKeyWidth),
-            (11, "b", standardKeyWidth), (45, "n", standardKeyWidth),
-            (46, "m", standardKeyWidth), (43, ",", standardKeyWidth),
-            (47, ".", standardKeyWidth), (44, "/", standardKeyWidth),
-            (94, "_", underscoreWidth), // Underscore/Ro key (JIS specific)
-            (60, "⇧", rightShiftWidthJIS)
+        // JIS bottom row with hiragana
+        // Format: (keyCode, mainLabel, width, shiftLabel, subLabel)
+        let jisBottomRowKeys: [(UInt16, String, Double, String?, String?)] = [
+            (56, "⇧", leftShiftWidth, nil, nil),
+            (6, "z", standardKeyWidth, nil, "つ"),
+            (7, "x", standardKeyWidth, nil, "さ"),
+            (8, "c", standardKeyWidth, nil, "そ"),
+            (9, "v", standardKeyWidth, nil, "ひ"),
+            (11, "b", standardKeyWidth, nil, "こ"),
+            (45, "n", standardKeyWidth, nil, "み"),
+            (46, "m", standardKeyWidth, nil, "も"),
+            (43, ",", standardKeyWidth, "<", "ね"),
+            (47, ".", standardKeyWidth, ">", "る"),
+            (44, "/", standardKeyWidth, "?", "め"),
+            (94, "_", underscoreWidth, nil, "ろ"), // Underscore/Ro key (JIS specific)
+            (60, "⇧", rightShiftWidthJIS, nil, nil)
         ]
         currentX = 0.0
-        for (keyCode, label, width) in bottomRowJIS {
+        for (keyCode, label, width, shiftLabel, subLabel) in jisBottomRowKeys {
             keys.append(PhysicalKey(
                 keyCode: keyCode, label: label, x: currentX,
-                y: rowSpacing * 4, width: width, height: standardKeyHeight
+                y: rowSpacing * 4, width: width, height: standardKeyHeight,
+                shiftLabel: shiftLabel, subLabel: subLabel
             ))
             currentX += width + keySpacing
         }

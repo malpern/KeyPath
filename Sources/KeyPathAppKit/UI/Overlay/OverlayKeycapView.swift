@@ -455,6 +455,10 @@ struct OverlayKeycapView: View {
         else if isLayerMode {
             layerModeContent
         }
+        // Multi-legend keys (JIS/ISO) get special 4-position rendering
+        else if key.hasMultipleLegends {
+            multiLegendContent
+        }
         // Check for novelty override first (ESC, Enter with special icons)
         else if hasNoveltyKey {
             noveltyKeyContent
@@ -491,6 +495,69 @@ struct OverlayKeycapView: View {
             case .escKey:
                 escKeyContent
             }
+        }
+    }
+
+    // MARK: - Multi-Legend Content (JIS/ISO)
+
+    /// Renders a key with multiple legends in different positions
+    /// Used for JIS keyboards where keys have:
+    /// - Top-left: shifted character (e.g., "!")
+    /// - Bottom-left: main character (e.g., "1")
+    /// - Bottom-right: hiragana (e.g., "ぬ")
+    /// - Top-right: tertiary legend (optional)
+    @ViewBuilder
+    private var multiLegendContent: some View {
+        GeometryReader { geometry in
+            let padding: CGFloat = 3 * scale
+            let mainFontSize: CGFloat = 10 * scale
+            let shiftFontSize: CGFloat = 8 * scale
+            let subFontSize: CGFloat = 7 * scale
+
+            ZStack {
+                // Top-left: shift label (shifted character)
+                if let shiftLabel = key.shiftLabel {
+                    Text(shiftLabel)
+                        .font(.system(size: shiftFontSize, weight: .regular))
+                        .foregroundStyle(foregroundColor.opacity(0.7))
+                        .position(
+                            x: padding + shiftFontSize / 2,
+                            y: padding + shiftFontSize / 2
+                        )
+                }
+
+                // Top-right: tertiary label (optional)
+                if let tertiaryLabel = key.tertiaryLabel {
+                    Text(tertiaryLabel)
+                        .font(.system(size: subFontSize, weight: .regular))
+                        .foregroundStyle(foregroundColor.opacity(0.5))
+                        .position(
+                            x: geometry.size.width - padding - subFontSize / 2,
+                            y: padding + subFontSize / 2
+                        )
+                }
+
+                // Bottom-left: main label (primary character)
+                Text(key.label)
+                    .font(.system(size: mainFontSize, weight: .medium))
+                    .foregroundStyle(foregroundColor)
+                    .position(
+                        x: padding + mainFontSize / 2,
+                        y: geometry.size.height - padding - mainFontSize / 2
+                    )
+
+                // Bottom-right: sub label (hiragana/katakana)
+                if let subLabel = key.subLabel {
+                    Text(subLabel)
+                        .font(.system(size: subFontSize, weight: .regular))
+                        .foregroundStyle(foregroundColor.opacity(0.6))
+                        .position(
+                            x: geometry.size.width - padding - subFontSize / 2,
+                            y: geometry.size.height - padding - subFontSize / 2
+                        )
+                }
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height)
         }
     }
 

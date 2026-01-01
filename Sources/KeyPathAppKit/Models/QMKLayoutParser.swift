@@ -106,6 +106,11 @@ enum QMKLayoutParser {
         let ry: Double? // Rotation pivot Y
         let keyCode: UInt16? // macOS CGEvent key code (optional for backward compatibility)
         let label: String? // Display label (optional for backward compatibility)
+
+        // Multi-legend support (JIS/ISO keyboards)
+        let shiftLabel: String? // Shifted character (top position)
+        let subLabel: String? // Alternate input legend (front/bottom-right, e.g., hiragana)
+        let tertiaryLabel: String? // Additional legend (front/bottom-left)
     }
 
     // MARK: - Parsing
@@ -157,7 +162,10 @@ enum QMKLayoutParser {
                     height: qmkKey.h ?? 1.0,
                     rotation: qmkKey.r ?? 0.0,
                     rotationPivotX: qmkKey.rx,
-                    rotationPivotY: qmkKey.ry
+                    rotationPivotY: qmkKey.ry,
+                    shiftLabel: qmkKey.shiftLabel,
+                    subLabel: qmkKey.subLabel,
+                    tertiaryLabel: qmkKey.tertiaryLabel
                 )
                 keys.append(key)
             }
