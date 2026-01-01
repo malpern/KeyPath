@@ -583,12 +583,13 @@ struct PhysicalLayout: Identifiable {
             currentX += width + keySpacing
         }
 
-        // Row 2: QWERTY row - JIS with hiragana sub-labels
+        // Row 2: QWERTY row - JIS layout
+        // JIS has: tab, Q W E R T Y U I O P @ [ then L-shaped enter starts
         let tabWidth = 1.5
-        // Calculate remaining width after tab
-        let qwertyAvailable = targetRightEdge - tabWidth - keySpacing
-        // 13 keys after tab: q w e r t y u i o p @ [ (no backslash - it's on home row)
-        let qwertyKeyWidth = (qwertyAvailable - 11 * keySpacing) / 12
+        let enterTopWidth = 1.3 // Top portion of L-shaped enter (labeled "enter")
+
+        // Calculate alpha key width to fit: tab + 12 alpha keys + enter top
+        let qwertyAlphaWidth = (targetRightEdge - tabWidth - enterTopWidth - 13 * keySpacing) / 12
 
         keys.append(PhysicalKey(
             keyCode: 48, label: "⇥", x: 0.0,
@@ -597,7 +598,6 @@ struct PhysicalLayout: Identifiable {
         currentX = tabWidth + keySpacing
 
         // JIS QWERTY row with hiragana
-        // Format: (keyCode, mainLabel, shiftLabel, subLabel)
         let jisTopRowKeys: [(UInt16, String, String?, String?)] = [
             (12, "q", nil, "た"),
             (13, "w", nil, "て"),
@@ -609,41 +609,46 @@ struct PhysicalLayout: Identifiable {
             (34, "i", nil, "に"),
             (31, "o", nil, "ら"),
             (35, "p", nil, "せ"),
-            (33, "@", "`", "゛"), // JIS @ key with dakuten
-            (30, "[", "{", "゜") // JIS [ key with handakuten
+            (33, "@", "`", "゛"),
+            (30, "[", "{", "゜")
         ]
         for (keyCode, label, shiftLabel, subLabel) in jisTopRowKeys {
             keys.append(PhysicalKey(
                 keyCode: keyCode, label: label, x: currentX,
-                y: rowSpacing * 2, width: qwertyKeyWidth, height: standardKeyHeight,
+                y: rowSpacing * 2, width: qwertyAlphaWidth, height: standardKeyHeight,
                 shiftLabel: shiftLabel, subLabel: subLabel
             ))
-            currentX += qwertyKeyWidth + keySpacing
+            currentX += qwertyAlphaWidth + keySpacing
         }
 
-        // Row 3: Home row with L-shaped Enter and hiragana
-        // JIS Enter is tall (spans rows 2-3) and positioned at right edge
-        let capsWidth = 1.8
-        // Enter key dimensions for L-shape (we'll use a tall single key approximation)
-        let enterWidth = targetRightEdge - (capsWidth + keySpacing + 11 * (standardKeyWidth + keySpacing))
+        // L-shaped Enter key - represented as tall key spanning rows 2-3
+        // Position at right edge, height = 2 rows
+        let enterX = targetRightEdge - enterTopWidth
+        keys.append(PhysicalKey(
+            keyCode: 36, label: "↩", x: enterX,
+            y: rowSpacing * 2, width: enterTopWidth, height: standardKeyHeight * 2 + keySpacing
+        ))
 
-        // JIS home row with hiragana
-        // Format: (keyCode, mainLabel, width, shiftLabel, subLabel)
+        // Row 3: Home row - JIS has CONTROL (not caps!) on left
+        // Layout: control, A S D F G H J K L ; : ]
+        let controlWidth = 1.8 // Where caps would be on US
+        let homeRowAlphaWidth = (targetRightEdge - controlWidth - enterTopWidth - 12 * keySpacing) / 11
+
+        // JIS home row: Control + 11 alpha keys (enter already placed above)
         let jisHomeRowKeys: [(UInt16, String, Double, String?, String?)] = [
-            (57, "⇪", capsWidth, nil, nil),
-            (0, "a", standardKeyWidth, nil, "ち"),
-            (1, "s", standardKeyWidth, nil, "と"),
-            (2, "d", standardKeyWidth, nil, "し"),
-            (3, "f", standardKeyWidth, nil, "は"),
-            (5, "g", standardKeyWidth, nil, "き"),
-            (4, "h", standardKeyWidth, nil, "く"),
-            (38, "j", standardKeyWidth, nil, "ま"),
-            (40, "k", standardKeyWidth, nil, "の"),
-            (37, "l", standardKeyWidth, nil, "り"),
-            (41, ";", standardKeyWidth, "+", "れ"),
-            (39, ":", standardKeyWidth, "*", "け"),
-            (42, "]", standardKeyWidth, "}", "む"),
-            (36, "↩", enterWidth, nil, nil)
+            (59, "⌃", controlWidth, nil, nil), // Control key (NOT caps lock!)
+            (0, "a", homeRowAlphaWidth, nil, "ち"),
+            (1, "s", homeRowAlphaWidth, nil, "と"),
+            (2, "d", homeRowAlphaWidth, nil, "し"),
+            (3, "f", homeRowAlphaWidth, nil, "は"),
+            (5, "g", homeRowAlphaWidth, nil, "き"),
+            (4, "h", homeRowAlphaWidth, nil, "く"),
+            (38, "j", homeRowAlphaWidth, nil, "ま"),
+            (40, "k", homeRowAlphaWidth, nil, "の"),
+            (37, "l", homeRowAlphaWidth, nil, "り"),
+            (41, ";", homeRowAlphaWidth, "+", "れ"),
+            (39, ":", homeRowAlphaWidth, "*", "け"),
+            (42, "]", homeRowAlphaWidth, "}", "む")
         ]
         currentX = 0.0
         for (keyCode, label, width, shiftLabel, subLabel) in jisHomeRowKeys {
@@ -655,26 +660,26 @@ struct PhysicalLayout: Identifiable {
             currentX += width + keySpacing
         }
 
-        // Row 4: Bottom row - shorter right shift, adds _ (ro) key, with hiragana
-        let leftShiftWidth = 2.35
-        let rightShiftWidthJIS = 1.5 // Shorter than US
+        // Row 4: Bottom row - shift, Z-/ keys, _ (ro), shift
+        let leftShiftWidth = 2.1
+        let rightShiftWidthJIS = 2.1
         let underscoreWidth = standardKeyWidth
+        // Calculate alpha width: total - shifts - underscore - spacing
+        let bottomAlphaWidth = (targetRightEdge - leftShiftWidth - rightShiftWidthJIS - underscoreWidth - 12 * keySpacing) / 10
 
-        // JIS bottom row with hiragana
-        // Format: (keyCode, mainLabel, width, shiftLabel, subLabel)
         let jisBottomRowKeys: [(UInt16, String, Double, String?, String?)] = [
             (56, "⇧", leftShiftWidth, nil, nil),
-            (6, "z", standardKeyWidth, nil, "つ"),
-            (7, "x", standardKeyWidth, nil, "さ"),
-            (8, "c", standardKeyWidth, nil, "そ"),
-            (9, "v", standardKeyWidth, nil, "ひ"),
-            (11, "b", standardKeyWidth, nil, "こ"),
-            (45, "n", standardKeyWidth, nil, "み"),
-            (46, "m", standardKeyWidth, nil, "も"),
-            (43, ",", standardKeyWidth, "<", "ね"),
-            (47, ".", standardKeyWidth, ">", "る"),
-            (44, "/", standardKeyWidth, "?", "め"),
-            (94, "_", underscoreWidth, nil, "ろ"), // Underscore/Ro key (JIS specific)
+            (6, "z", bottomAlphaWidth, nil, "つ"),
+            (7, "x", bottomAlphaWidth, nil, "さ"),
+            (8, "c", bottomAlphaWidth, nil, "そ"),
+            (9, "v", bottomAlphaWidth, nil, "ひ"),
+            (11, "b", bottomAlphaWidth, nil, "こ"),
+            (45, "n", bottomAlphaWidth, nil, "み"),
+            (46, "m", bottomAlphaWidth, nil, "も"),
+            (43, ",", bottomAlphaWidth, "<", "ね"),
+            (47, ".", bottomAlphaWidth, ">", "る"),
+            (44, "/", bottomAlphaWidth, "?", "め"),
+            (94, "_", underscoreWidth, nil, "ろ"),
             (60, "⇧", rightShiftWidthJIS, nil, nil)
         ]
         currentX = 0.0
@@ -687,14 +692,14 @@ struct PhysicalLayout: Identifiable {
             currentX += width + keySpacing
         }
 
-        // Row 5: Modifier row - JIS has 英数 (Eisuu) and かな (Kana) keys, shorter spacebar
+        // Row 5: Modifier row - JIS has caps, option, command, 英数, space, かな, command, fn, arrows
         let row5Top = rowSpacing * 5
-        let fnWidth = standardKeyWidth
-        let ctrlWidth = standardKeyWidth
+        let capsWidth = standardKeyWidth // Caps lock moved here on JIS
         let optWidth = standardKeyWidth
         let cmdWidth = 1.2
-        let eisuWidth = 1.0 // 英数 key
-        let kanaWidth = 1.0 // かな key
+        let eisuWidth = 1.3 // 英数 key
+        let kanaWidth = 1.3 // かな key
+        let fnWidth = standardKeyWidth
 
         // Arrow cluster (same as US)
         let arrowKeyHeight = 0.45
@@ -705,20 +710,21 @@ struct PhysicalLayout: Identifiable {
         let arrowClusterWidth = 3 * arrowKeyWidth + 2 * arrowKeySpacing + arrowRightMargin
 
         // Calculate spacebar: JIS spacebar is shorter due to 英数 and かな keys
-        let leftModsWidth = fnWidth + keySpacing + ctrlWidth + keySpacing + optWidth + keySpacing + cmdWidth + keySpacing + eisuWidth + keySpacing
-        let rightModsWidth = kanaWidth + keySpacing + cmdWidth + keySpacing + optWidth + keySpacing
+        // JIS modifier row: caps, option, command, 英数, space, かな, command, fn, arrows
+        // Note: Control moved to home row on JIS, caps moved here
+        let leftModsWidth = capsWidth + keySpacing + optWidth + keySpacing + cmdWidth + keySpacing + eisuWidth + keySpacing
+        let rightModsWidth = kanaWidth + keySpacing + cmdWidth + keySpacing + fnWidth + keySpacing
         let spacebarWidthJIS = targetRightEdge - leftModsWidth - rightModsWidth - arrowClusterWidth
 
         let modifierRowJIS: [(UInt16, String, Double)] = [
-            (63, "fn", fnWidth),
-            (59, "⌃", ctrlWidth),
+            (57, "⇪", capsWidth), // Caps lock moved here on JIS
             (58, "⌥", optWidth),
             (55, "⌘", cmdWidth),
             (102, "英数", eisuWidth), // Eisuu key (JIS specific)
             (49, " ", spacebarWidthJIS),
             (104, "かな", kanaWidth), // Kana key (JIS specific)
             (54, "⌘", cmdWidth),
-            (61, "⌥", optWidth)
+            (63, "fn", fnWidth) // fn key on right side for JIS
         ]
         currentX = 0.0
         for (keyCode, label, width) in modifierRowJIS {
