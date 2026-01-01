@@ -284,7 +284,7 @@ content_class: content-full kanata-landing
   <section class="keyboards-fullscreen">
     <div class="keyboards-fullscreen-content">
       <h2 class="keyboards-fullscreen-title">Works with your keyboard</h2>
-      <p class="keyboards-fullscreen-subtitle">17 layouts built-in. MacBook keyboards auto-detected on first launch.</p>
+      <p class="keyboards-fullscreen-subtitle">From MacBook to mechanical split — no firmware flashing required</p>
     </div>
 
     <div class="keyboard-marquee">
