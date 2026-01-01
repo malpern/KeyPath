@@ -9,6 +9,7 @@ class WizardNavigationCoordinator: ObservableObject {
     // MARK: - Published Properties
 
     @Published var currentPage: WizardPage = .summary
+    @Published var lastVisitedPage: WizardPage?
     @Published var userInteractionMode = false
     /// Optional external sequence to drive back/next order (e.g., filtered issues-only list).
     /// When nil or empty, the default ordered pages are used.
@@ -21,7 +22,16 @@ class WizardNavigationCoordinator: ObservableObject {
     private let autoNavigationGracePeriod: TimeInterval = 10.0
 
     // Navigation animation configuration
-    private let navigationAnimation: Animation = .easeInOut(duration: 0.3)
+    private let navigationAnimation: Animation = .spring(response: 0.35, dampingFraction: 0.9)
+
+    /// Returns true if navigating forward (to a later page in the flow)
+    var isNavigatingForward: Bool {
+        guard let lastPage = lastVisitedPage else { return true }
+        let order = WizardPage.orderedPages
+        guard let currentIndex = order.firstIndex(of: currentPage),
+              let lastIndex = order.firstIndex(of: lastPage) else { return true }
+        return currentIndex > lastIndex
+    }
 
     // MARK: - Navigation Methods
 
@@ -29,6 +39,7 @@ class WizardNavigationCoordinator: ObservableObject {
     func navigateToPage(_ page: WizardPage) {
         AppLogger.shared.log("🧭 [NavCoord] navigateToPage(\(page)) called, current=\(currentPage)")
         withAnimation(navigationAnimation) {
+            lastVisitedPage = currentPage
             currentPage = page
             lastPageChangeTime = Date()
             userInteractionMode = true
@@ -47,6 +58,7 @@ class WizardNavigationCoordinator: ObservableObject {
         guard recommendedPage != currentPage else { return }
 
         withAnimation(navigationAnimation) {
+            lastVisitedPage = currentPage
             currentPage = recommendedPage
             lastPageChangeTime = Date()
         }

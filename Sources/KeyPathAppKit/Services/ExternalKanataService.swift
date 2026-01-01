@@ -55,7 +55,8 @@ public enum ExternalKanataService {
     /// Get info about running external Kanata, or nil if none/only KeyPath-managed
     public static func getExternalKanataInfo() -> WizardSystemPaths.RunningKanataInfo? {
         guard let info = WizardSystemPaths.detectRunningKanataProcess(),
-              !info.isKeyPathManaged else {
+              !info.isKeyPathManaged
+        else {
             return nil
         }
         return info
@@ -105,7 +106,7 @@ public enum ExternalKanataService {
             arguments: ["unload", "-w", path]
         )
 
-        if unloadResult.status != 0 && !unloadResult.stderr.contains("Could not find") {
+        if unloadResult.status != 0, !unloadResult.stderr.contains("Could not find") {
             throw NSError(
                 domain: "ExternalKanataService",
                 code: Int(unloadResult.status),
@@ -123,7 +124,8 @@ public enum ExternalKanataService {
     private static func extractLabelFromPlist(at path: String) -> String? {
         guard let data = FileManager.default.contents(atPath: path),
               let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
-              let label = plist["Label"] as? String else {
+              let label = plist["Label"] as? String
+        else {
             return nil
         }
         return label

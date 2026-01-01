@@ -265,6 +265,18 @@ enum WizardDesign {
             insertion: .move(edge: .top).combined(with: .opacity),
             removal: .opacity
         )
+
+        /// Page slide forward (next page)
+        static let pageSlideForward: AnyTransition = .asymmetric(
+            insertion: .move(edge: .trailing).combined(with: .opacity),
+            removal: .move(edge: .leading).combined(with: .opacity)
+        )
+
+        /// Page slide backward (previous page)
+        static let pageSlideBackward: AnyTransition = .asymmetric(
+            insertion: .move(edge: .leading).combined(with: .opacity),
+            removal: .move(edge: .trailing).combined(with: .opacity)
+        )
     }
 
     // MARK: - View Modifiers
@@ -716,6 +728,154 @@ extension View {
     /// Apply toast card styling
     func wizardToastCard() -> some View {
         modifier(WizardDesign.Component.ToastCard())
+    }
+}
+
+// MARK: - Success Celebration Animation
+
+/// Animated checkmark burst for celebrating successful operations
+struct CheckmarkBurstView: View {
+    @Binding var isShowing: Bool
+
+    @State private var checkmarkScale: CGFloat = 0
+    @State private var checkmarkOpacity: Double = 0
+    @State private var ringScale: CGFloat = 0.5
+    @State private var ringOpacity: Double = 1
+    @State private var particleScale: CGFloat = 0.3
+    @State private var particleOpacity: Double = 1
+    @State private var particleRotation: Double = 0
+
+    private let particleCount = 8
+
+    var body: some View {
+        ZStack {
+            // Expanding ring
+            Circle()
+                .stroke(Color.green.opacity(0.4), lineWidth: 3)
+                .frame(width: 80, height: 80)
+                .scaleEffect(ringScale)
+                .opacity(ringOpacity)
+
+            // Radiating particles
+            ForEach(0 ..< particleCount, id: \.self) { index in
+                Circle()
+                    .fill(Color.green)
+                    .frame(width: 8, height: 8)
+                    .offset(y: -50 * particleScale)
+                    .rotationEffect(.degrees(Double(index) * (360.0 / Double(particleCount)) + particleRotation))
+                    .opacity(particleOpacity)
+            }
+
+            // Central checkmark
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 60, weight: .medium))
+                .foregroundColor(.green)
+                .scaleEffect(checkmarkScale)
+                .opacity(checkmarkOpacity)
+        }
+        .onChange(of: isShowing) { _, newValue in
+            if newValue {
+                animateBurst()
+            }
+        }
+        .onAppear {
+            if isShowing {
+                animateBurst()
+            }
+        }
+    }
+
+    private func animateBurst() {
+        // Reset states
+        checkmarkScale = 0
+        checkmarkOpacity = 0
+        ringScale = 0.5
+        ringOpacity = 1
+        particleScale = 0.3
+        particleOpacity = 1
+        particleRotation = 0
+
+        // Checkmark bounces in
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+            checkmarkScale = 1.0
+            checkmarkOpacity = 1.0
+        }
+
+        // Ring expands outward
+        withAnimation(.easeOut(duration: 0.6)) {
+            ringScale = 2.5
+            ringOpacity = 0
+        }
+
+        // Particles burst outward with rotation
+        withAnimation(.easeOut(duration: 0.5)) {
+            particleScale = 2.0
+            particleRotation = 30
+        }
+        withAnimation(.easeOut(duration: 0.5).delay(0.2)) {
+            particleOpacity = 0
+        }
+
+        // Fade out checkmark after delay
+        withAnimation(.easeOut(duration: 0.3).delay(1.2)) {
+            checkmarkOpacity = 0
+            checkmarkScale = 0.8
+        }
+
+        // Reset showing state
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            isShowing = false
+        }
+    }
+}
+
+/// Mini checkmark burst for inline success feedback
+struct MiniCheckmarkBurst: View {
+    @Binding var isShowing: Bool
+
+    @State private var scale: CGFloat = 0
+    @State private var opacity: Double = 0
+    @State private var ringScale: CGFloat = 0.5
+    @State private var ringOpacity: Double = 1
+
+    var body: some View {
+        ZStack {
+            // Small expanding ring
+            Circle()
+                .stroke(Color.green.opacity(0.5), lineWidth: 2)
+                .frame(width: 24, height: 24)
+                .scaleEffect(ringScale)
+                .opacity(ringOpacity)
+
+            // Checkmark
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 20))
+                .foregroundColor(.green)
+                .scaleEffect(scale)
+                .opacity(opacity)
+        }
+        .onChange(of: isShowing) { _, newValue in
+            if newValue {
+                animate()
+            }
+        }
+    }
+
+    private func animate() {
+        scale = 0
+        opacity = 0
+        ringScale = 0.5
+        ringOpacity = 1
+
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+            scale = 1.0
+            opacity = 1.0
+        }
+
+        withAnimation(.easeOut(duration: 0.4)) {
+            ringScale = 2.0
+            ringOpacity = 0
+        }
     }
 }
 

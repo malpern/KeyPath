@@ -410,8 +410,12 @@ struct InstallationWizardView: View {
                 )
             }
         }
-        // Use opacity-only transition to prevent vertical movement
-        .transition(.opacity)
+        // Directional page transition based on navigation direction
+        .transition(
+            navigationCoordinator.isNavigatingForward
+                ? WizardDesign.Transition.pageSlideForward
+                : WizardDesign.Transition.pageSlideBackward
+        )
     }
 
     @ViewBuilder

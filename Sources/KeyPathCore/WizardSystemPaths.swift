@@ -471,7 +471,8 @@ public enum WizardSystemPaths {
         let fileManager = FileManager.default
 
         guard fileManager.fileExists(atPath: launchAgentsDir),
-              let contents = try? fileManager.contentsOfDirectory(atPath: launchAgentsDir) else {
+              let contents = try? fileManager.contentsOfDirectory(atPath: launchAgentsDir)
+        else {
             return []
         }
 

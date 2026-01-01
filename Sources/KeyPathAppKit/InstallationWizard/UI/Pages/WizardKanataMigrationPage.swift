@@ -17,6 +17,8 @@ struct WizardKanataMigrationPage: View {
     @State private var showCheckmarks = [false, false, false]
     @State private var heroScale: CGFloat = 0.8
     @State private var heroOpacity: Double = 0
+    @State private var showSuccessBurst = false
+    @State private var pendingCompletion: Bool? // Stores hasRunningKanata until burst finishes
 
     let onMigrationComplete: (Bool) -> Void // hasRunningKanata
     let onSkip: () -> Void
@@ -38,25 +40,43 @@ struct WizardKanataMigrationPage: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Hero section with entrance animation
-            WizardHeroSection(
-                icon: "keyboard",
-                iconColor: .blue,
-                title: "Welcome, Kanata user!",
-                subtitle: detectedConfig != nil
-                    ? "We detected your config"
-                    : "No existing Kanata config detected"
-            )
-            .scaleEffect(heroScale)
-            .opacity(heroOpacity)
+        ZStack {
+            VStack(spacing: 0) {
+                // Hero section with entrance animation
+                WizardHeroSection(
+                    icon: "keyboard",
+                    iconColor: .blue,
+                    title: "Welcome, Kanata user!",
+                    subtitle: detectedConfig != nil
+                        ? "We detected your config"
+                        : "No existing Kanata config detected"
+                )
+                .scaleEffect(heroScale)
+                .opacity(heroOpacity)
 
-            if let config = detectedConfig {
-                configDetectedView(config: config)
-            } else {
-                noConfigView()
+                if let config = detectedConfig {
+                    configDetectedView(config: config)
+                } else {
+                    noConfigView()
+                }
+            }
+
+            // Success burst overlay
+            if showSuccessBurst {
+                Color.black.opacity(0.1)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+
+                CheckmarkBurstView(isShowing: $showSuccessBurst)
+                    .onChange(of: showSuccessBurst) { _, isShowing in
+                        if !isShowing, let hasRunning = pendingCompletion {
+                            // Burst finished, now complete
+                            onMigrationComplete(hasRunning)
+                        }
+                    }
             }
         }
+        .animation(.easeInOut(duration: 0.2), value: showSuccessBurst)
         .onAppear {
             detectConfig()
             animateEntrance()
@@ -267,16 +287,16 @@ struct WizardKanataMigrationPage: View {
 
                 await MainActor.run {
                     isMigrating = false
-                    // Pass whether there's a running kanata to stop
+                    // Store completion state and show burst
                     let hasRunning = runningKanataInfo != nil && !(runningKanataInfo?.isKeyPathManaged ?? true)
-                    onMigrationComplete(hasRunning)
+                    triggerSuccessBurst(hasRunningKanata: hasRunning)
                 }
             } catch let error as KanataConfigMigrationService.MigrationError {
                 await MainActor.run {
                     if case .includeAlreadyPresent = error {
-                        // Not really an error - proceed
+                        // Not really an error - proceed with burst
                         let hasRunning = runningKanataInfo != nil && !(runningKanataInfo?.isKeyPathManaged ?? true)
-                        onMigrationComplete(hasRunning)
+                        triggerSuccessBurst(hasRunningKanata: hasRunning)
                     } else {
                         migrationError = error.localizedDescription
                         isMigrating = false
@@ -289,6 +309,11 @@ struct WizardKanataMigrationPage: View {
                 }
             }
         }
+    }
+
+    private func triggerSuccessBurst(hasRunningKanata: Bool) {
+        pendingCompletion = hasRunningKanata
+        showSuccessBurst = true
     }
 
     // MARK: - File Picker
