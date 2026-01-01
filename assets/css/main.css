@@ -691,9 +691,16 @@ body.sidebar-open .sidebar {
     font-size: 1.125rem;
     color: var(--color-text-secondary);
     text-align: center;
-    max-width: 600px;
     margin: 0 0 var(--spacing-lg) 0;
     line-height: 1.6;
+    white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+    .cinema-subtitle {
+        white-space: normal;
+        max-width: 90%;
+    }
 }
 
 .cinema-features {
