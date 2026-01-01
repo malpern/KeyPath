@@ -49,10 +49,10 @@ content_class: content-full kanata-landing
     </div>
   </section>
 
-  <!-- LAUNCH APPS & WEBSITES SECTION -->
-  <section class="kanata-landing-section">
-    <h2 class="mt-0">Launch apps & websites</h2>
-    <p class="kanata-landing-fineprint mb-0">
+  <!-- LAUNCH ANYTHING SECTION - Cinematic Demo -->
+  <section class="launch-cinema">
+    <h2 class="cinema-title">Launch anything with muscle memory</h2>
+    <p class="cinema-subtitle">
       Turn "go to X" into muscle memory: one key can open an app, a URL, or a workflow.
     </p>
 
@@ -74,14 +74,7 @@ content_class: content-full kanata-landing
         />
       </div>
     </div>
-  </section>
 
-  <div class="kanata-landing-divider" aria-hidden="true"></div>
-
-  <!-- LAUNCH ANYTHING SECTION - Cinematic Demo -->
-  <section class="launch-cinema">
-    <h2 class="cinema-title">Launch anything with muscle memory</h2>
-    <p class="cinema-subtitle">Raycast is great for search. KeyPath is great when you want muscle-memory triggers — a chord (two keys together), a sequence (keys in order), a leader key, tap-dance, or a layer. That means you can launch apps and URLs without leaving the home row.</p>
     <div class="launch-cinema-stage">
       <!-- Gesture label (typed in) -->
       <div class="cinema-gesture">
