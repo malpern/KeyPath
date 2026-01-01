@@ -111,6 +111,75 @@ content_class: content-full kanata-landing
     </div>
   </section>
 
+  <!-- OLD SECTIONS (keeping for reference, will remove later) -->
+  <div class="kanata-landing-divider" aria-hidden="true"></div>
+
+  <section class="kanata-landing-section">
+    <h2 class="mt-0">Launch apps & websites (OLD)</h2>
+    <p class="kanata-landing-fineprint mb-0">
+      Turn "go to X" into muscle memory: one key can open an app, a URL, or a workflow.
+    </p>
+
+    <div class="kanata-landing-grid-2 kanata-launches">
+      <div class="kanata-landing-simple">
+        <ul class="kanata-landing-bullets">
+          <li><strong>Apps:</strong> bind Safari, Finder, Slack, etc.</li>
+          <li><strong>Websites:</strong> open docs, dashboards, PRs, and tickets.</li>
+          <li><strong>Fast:</strong> trigger from a key, layer, chord, or sequence.</li>
+        </ul>
+      </div>
+
+      <div class="kanata-launches-media">
+        <img
+          class="kanata-launches-image"
+          src="{{ '/images/kanata-launcher.png' | relative_url }}"
+          alt="KeyPath launcher mapping apps and websites"
+          loading="lazy"
+        />
+      </div>
+    </div>
+
+    <div class="kanata-launches-note">
+      <h3 class="mt-0 kanata-compare-title"><span class="kanata-compare-title-icon" aria-hidden="true"><svg viewBox="0 0 24 24" class="kp-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8z"/></svg></span>Launch anything with muscle memory (OLD)</h3>
+      <p class="kanata-landing-fineprint">
+        Raycast is great for search. KeyPath is great when you want <em>muscle-memory triggers</em> —
+        a chord (two keys together), a sequence (keys in order), a leader key, tap-dance, or a layer.
+        That means you can launch apps and URLs without leaving the home row.
+      </p>
+
+      <div class="kanata-landing-grid-2 kanata-compare">
+        <div class="kanata-compare-card">
+          <div class="kanata-compare-kicker">Raycast</div>
+          <div class="kanata-compare-line"><span class="kanata-pill">⌘ Space</span> → type <span class="kanata-pill">"slack"</span> → <span class="kanata-pill">↩</span> → Slack</div>
+          <div class="kanata-compare-caption">Great when you want to search + choose.</div>
+        </div>
+
+        <div class="kanata-compare-card">
+          <div class="kanata-compare-kicker">KeyPath</div>
+          <div class="kanata-compare-line">
+            <span class="kanata-pill">Chord</span> <span class="kanata-pill">S + D</span> → Slack
+          </div>
+          <div class="kanata-compare-line">
+            <span class="kanata-pill">Leader</span> <span class="kanata-pill">L</span> → Slack
+          </div>
+          <div class="kanata-compare-line">
+            <span class="kanata-pill">Sequence</span> <span class="kanata-pill">G</span> <span class="kanata-pill">H</span> → GitHub
+          </div>
+          <div class="kanata-compare-line">
+            <span class="kanata-pill">Tap-dance</span> <span class="kanata-pill">D × 2</span> → Notion
+          </div>
+          <div class="kanata-compare-line">
+            <span class="kanata-pill">Layer</span> <span class="kanata-pill">Nav</span> + <span class="kanata-pill">S</span> → Safari
+          </div>
+          <div class="kanata-compare-caption">Best when you want instant, repeatable triggers.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="kanata-landing-divider" aria-hidden="true"></div>
+  <!-- END OLD SECTIONS -->
+
   <!-- BUILD YOUR OWN RULES - Full Screen -->
   <section class="rules-fullscreen">
     <div class="rules-fullscreen-content">
