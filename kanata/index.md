@@ -14,7 +14,7 @@ content_class: content-full kanata-landing
         <p class="kanata-landing-kicker">KeyPath</p>
         <h1 class="kanata-landing-title">Turn your keyboard into a command center</h1>
 
-        <p class="kanata-landing-subtitle">Launch apps, remap keys, tile windows, and automate workflows — all without leaving the home row.</p>
+        <p class="kanata-landing-subtitle">Launch apps, remap keys, tile windows, and automate workflows — all without leaving the home row on your Mac.</p>
 
         <div class="kanata-landing-actions">
           <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases/download/v1.0.0/KeyPath-1.0.0.zip">Download for macOS 15+ <span class="button-badge">Free</span></a>
