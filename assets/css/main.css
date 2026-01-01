@@ -658,7 +658,7 @@ body.sidebar-open .sidebar {
 /* Hero Typography - left-aligned hierarchy */
 .content .kanata-landing-title,
 .kanata-landing-title {
-    font-size: clamp(3rem, 7vw, 4.5rem);
+    font-size: clamp(4rem, 9.5vw, 6rem);
     line-height: 1.05;
     letter-spacing: -0.03em;
     margin-bottom: var(--spacing-md);
