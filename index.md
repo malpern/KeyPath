@@ -56,24 +56,13 @@ content_class: content-full kanata-landing
       Turn "go to X" into muscle memory: one key can open an app, a URL, or a workflow.
     </p>
 
-    <div class="kanata-landing-grid-2 kanata-launches">
-      <div class="kanata-landing-simple">
-        <ul class="kanata-landing-bullets">
-          <li><strong>Apps:</strong> bind Safari, Finder, Slack, etc.</li>
-          <li><strong>Websites:</strong> open docs, dashboards, PRs, and tickets.</li>
-          <li><strong>Fast:</strong> trigger from a key, layer, chord, or sequence.</li>
-        </ul>
-      </div>
+    <ul class="cinema-features">
+      <li><strong>Apps:</strong> bind Safari, Finder, Slack, etc.</li>
+      <li><strong>Websites:</strong> open docs, dashboards, PRs, and tickets.</li>
+      <li><strong>Fast:</strong> trigger from a key, layer, chord, or sequence.</li>
+    </ul>
 
-      <div class="kanata-launches-media">
-        <img
-          class="kanata-launches-image"
-          src="{{ '/images/kanata-launcher.png' | relative_url }}"
-          alt="KeyPath launcher mapping apps and websites"
-          loading="lazy"
-        />
-      </div>
-    </div>
+    <div class="cinema-spacer"></div>
 
     <div class="launch-cinema-stage">
       <!-- Gesture label (typed in) -->
