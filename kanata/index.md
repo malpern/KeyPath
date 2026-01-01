@@ -88,7 +88,7 @@ content_class: content-full kanata-landing
         </span>
         <div class="kanata-feature-text">
           <div class="kanata-feature-title">Vim-style navigation</div>
-          <div class="kanata-feature-body">Use vim motions for fast navigation (hjkl, word jumps) across apps.</div>
+          <div class="kanata-feature-body">Use vim motions for fast navigation (hjkl, word jumps) across apps. <a href="https://danielmiessler.com/blog/vim" target="_blank" rel="noopener" class="feature-learn-more">Learn Vim For the Last Time</a></div>
         </div>
       </li>
 
@@ -320,7 +320,7 @@ content_class: content-full kanata-landing
 
   <section class="kanata-landing-section">
     <h2>Explore alternate keyboard layouts</h2>
-    <p class="kanata-landing-subtitle" style="margin-bottom: var(--spacing-lg);">Reduce finger strain and type more efficiently. Switch layouts instantly — no firmware flashing required.</p>
+    <p class="kanata-landing-subtitle" style="margin-bottom: var(--spacing-lg);">Reduce finger strain and type more efficiently. Switch layouts instantly — no firmware flashing required. <a href="https://www.daskeyboard.com/blog/qwerty-vs-dvorak-vs-colemak-keyboard-layouts/" target="_blank" rel="noopener" class="hrm-learn-more"><svg class="hrm-learn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"/></svg>Comparing keyboard layouts</a></p>
 
     <video class="layouts-video" autoplay loop muted playsinline>
       <source src="{{ '/images/alt-layouts.mp4' | relative_url }}" type="video/mp4">
