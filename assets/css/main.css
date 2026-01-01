@@ -678,9 +678,10 @@ body.sidebar-open .sidebar {
 .content .kanata-landing-title,
 .kanata-landing-title {
     font-size: clamp(4rem, 9.5vw, 6rem);
-    line-height: 1.05;
+    line-height: 1.1;
     letter-spacing: -0.03em;
     margin-bottom: var(--spacing-md);
+    padding-bottom: 0.05em; /* Prevent descender clipping */
     background: linear-gradient(180deg, var(--color-text) 40%, var(--color-text-secondary) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
