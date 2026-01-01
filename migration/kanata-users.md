@@ -9,23 +9,26 @@ description: Use your existing Kanata config.kbd in KeyPath
   <p class="migration-hero-subtitle">Keep your config. Let KeyPath handle the rest.</p>
 </div>
 
-If you're already using Kanata on macOS, KeyPath can run your existing configuration with minimal changes. This guide shows you how to migrate your setup.
+If you're already using Kanata on macOS, KeyPath works with your existing configuration — no manual copying required.
 
 ## Quick Start
 
-**The simplest path:** Place your existing Kanata config at KeyPath's expected location and add a single include line.
+**KeyPath auto-detects your config.** On first launch, it checks:
 
-1. **Copy your config** to `~/.config/keypath/keypath.kbd`
-2. **Add this line at the top** of your config:
-   ```lisp
-   (include keypath-apps.kbd)
-   ```
-3. **Run KeyPath's setup wizard** - it will handle permissions, services, and drivers automatically
+- Running Kanata process (finds config from command-line args)
+- `~/.config/kanata/kanata.kbd`
+- `~/.config/kanata/config.kbd`
+- `~/kanata.kbd`
 
-That's it! KeyPath will:
-- Generate `keypath-apps.kbd` for app-specific rules (if you use KeyPath's UI)
-- Preserve all your existing Kanata configuration
-- Hot-reload changes via TCP (default port 37001)
+When found, click **"Use This Config"** and you're done.
+
+**What happens:**
+- KeyPath creates a symlink to your original file (no copying)
+- Adds `(include keypath-apps.kbd)` to enable KeyPath features
+- Creates a backup before any changes
+- Your config stays in its original location
+
+**If your config isn't detected:** Click "Choose Different" to select it manually.
 
 ## Understanding the Two-File Model
 
@@ -62,14 +65,16 @@ Your `keypath.kbd` should include KeyPath's generated file at the top:
 
 **Why this works:** Kanata processes includes before evaluating the rest of your config, so KeyPath's app-specific virtual keys are available for your custom rules to reference.
 
-## Migration Checklist
+## What KeyPath Handles Automatically
 
-1. **Backup your existing config** — Always keep a backup before migrating
-2. **Copy config to KeyPath location** — `~/.config/keypath/keypath.kbd`
-3. **Add include line** — `(include keypath-apps.kbd)` at the top
-4. **Run KeyPath setup wizard** — Handles permissions, services, drivers
-5. **Verify TCP is enabled** — KeyPath needs TCP for validation and overlay (default port 37001)
-6. **Test your remappings** — Ensure everything works as expected
+When you click "Use This Config":
+
+1. **Backup** — Creates a timestamped backup before any changes
+2. **Symlink** — Links to your original file (no copying)
+3. **Include line** — Adds `(include keypath-apps.kbd)` if missing
+4. **Permissions** — Guides you through Input Monitoring and Accessibility
+5. **Driver** — Installs Karabiner VirtualHID if needed
+6. **Service** — Configures LaunchDaemon for boot-time remapping
 
 ## Common Patterns & KeyPath Compatibility
 

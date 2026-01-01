@@ -58,15 +58,17 @@ Yes! KeyPath preserves your custom configuration. If you edit `~/.config/keypath
 
 ### How do I migrate from standalone Kanata?
 
-See the [Migration Guide](/migration/kanata-users) for complete instructions. The quick path:
+**KeyPath detects your existing config automatically.** On first launch, it checks:
+- Running Kanata process (gets config path from args)
+- Common locations (`~/.config/kanata/`, home directory)
 
-1. Copy your config to `~/.config/keypath/keypath.kbd`
-2. Add `(include keypath-apps.kbd)` at the top
-3. Run KeyPath's setup wizard
+When found, click "Use This Config" and you're done. KeyPath symlinks to your original file and adds the include line it needs. Your config stays where it is.
 
-### Can I use symlinks for my config?
+See the [Migration Guide](/migration/kanata-users) for details.
 
-Yes, but with caution. KeyPath generates `keypath-apps.kbd` in `~/.config/keypath/`. If your symlink points elsewhere, the include may fail. It's safer to copy your config or use KeyPath's migration wizard.
+### Can I keep my config in its original location?
+
+Yes — that's the default. KeyPath creates a symlink to your original file rather than copying it. Edit your config wherever you like; KeyPath hot-reloads changes automatically.
 
 ### What TCP port does KeyPath use?
 

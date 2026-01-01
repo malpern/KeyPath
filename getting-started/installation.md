@@ -42,28 +42,33 @@ The build script:
 
 ## First Launch Setup
 
-When you first launch KeyPath, the **Installation Wizard** will guide you through:
+When you first launch KeyPath, the **Installation Wizard** guides you through setup:
 
-### 1. Permission Setup
+### 1. Existing Kanata Config Detection
+
+If you're already using Kanata, KeyPath automatically detects your config:
+
+- **Running Kanata process** — finds the config from command-line args
+- **Common locations** — checks `~/.config/kanata/`, `~/.config/keypath/`, and home directory
+- **Common names** — looks for `kanata.kbd`, `config.kbd`
+
+When found, KeyPath offers to use your existing config with one click. Your original file stays where it is — KeyPath creates a symlink and adds the include line it needs.
+
+### 2. Permission Setup
 
 KeyPath needs two macOS permissions:
 
-- **Input Monitoring** - To detect key presses
-- **Accessibility** - To send remapped keys
+- **Input Monitoring** — to detect key presses
+- **Accessibility** — to send remapped keys
 
-The wizard provides one-click access to System Settings for each permission.
+The wizard provides one-click access to System Settings for each.
 
-### 2. Driver Installation
+### 3. Driver & Service Setup
 
-KeyPath automatically installs the Karabiner VirtualHID driver if needed. This driver enables system-level keyboard remapping.
-
-### 3. Service Configuration
-
-KeyPath sets up LaunchDaemon services to run Kanata at the system level. This ensures remappings work at boot time and survive app restarts.
-
-### 4. System Validation
-
-The wizard validates your setup and provides one-click fixes for common issues.
+KeyPath automatically:
+- Installs the Karabiner VirtualHID driver (for system-level remapping)
+- Configures LaunchDaemon services (remappings work at boot)
+- Validates your setup and offers one-click fixes for issues
 
 ## System Requirements
 
