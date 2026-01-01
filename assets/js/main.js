@@ -1359,7 +1359,7 @@
             },
             {
                 gesture: 'Tap, then type',
-                keys: [{ label: 'SPC', delay: 0 }, { label: 'D', delay: 500 }],
+                keys: [{ label: 'space', delay: 0 }, { label: 'D', delay: 500 }],
                 keyType: 'leader',
                 app: 'docs',
                 appLabel: 'Docs'
@@ -1508,7 +1508,7 @@
             await sleep(500);
         }
 
-        // Show summary slide with staggered items
+        // Show summary slide with staggered items (stays visible, no auto-hide)
         async function showSummary() {
             summary.classList.add('visible');
 
@@ -1518,14 +1518,22 @@
                 summaryItems[i].classList.add('visible');
             }
 
-            await sleep(3000); // Hold summary for 3 seconds
+            // Show replay button after items appear
+            await sleep(300);
+            const replayBtn = summary.querySelector('.cinema-replay-btn');
+            if (replayBtn) {
+                replayBtn.classList.add('visible');
+            }
+            // Summary stays visible - no auto-hide
         }
 
-        async function hideSummary() {
+        function hideSummary() {
             summaryItems.forEach(item => item.classList.remove('visible'));
-            await sleep(200);
+            const replayBtn = summary.querySelector('.cinema-replay-btn');
+            if (replayBtn) {
+                replayBtn.classList.remove('visible');
+            }
             summary.classList.remove('visible');
-            await sleep(500);
         }
 
         async function playExample(index) {
@@ -1537,13 +1545,11 @@
                 dot.classList.toggle('active', i === index);
             });
 
-            // Check if this is the summary slide (index 5)
+            // Check if this is the summary slide (index 5) - stop here, don't loop
             if (index === 5) {
                 await showSummary();
-                await hideSummary();
                 isAnimating = false;
-                currentIndex = 0;
-                playExample(currentIndex);
+                // Stay on summary - user can click "Play again" to restart
                 return;
             }
 
@@ -1570,11 +1576,24 @@
         dots.forEach((dot, i) => {
             dot.addEventListener('click', () => {
                 if (!isAnimating) {
+                    hideSummary();
                     currentIndex = i;
                     playExample(currentIndex);
                 }
             });
         });
+
+        // Replay button click handler
+        const replayBtn = cinemaSection.querySelector('.cinema-replay-btn');
+        if (replayBtn) {
+            replayBtn.addEventListener('click', () => {
+                if (!isAnimating) {
+                    hideSummary();
+                    currentIndex = 0;
+                    setTimeout(() => playExample(currentIndex), 300);
+                }
+            });
+        }
 
         // Start when section is visible
         const cinemaObserver = new IntersectionObserver((entries) => {

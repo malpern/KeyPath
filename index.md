@@ -51,6 +51,7 @@ content_class: content-full kanata-landing
 
   <!-- LAUNCH ANYTHING SECTION - Cinematic Demo -->
   <section class="launch-cinema">
+    <h2 class="cinema-title">Launch anything with muscle memory</h2>
     <div class="launch-cinema-stage">
       <!-- Gesture label (typed in) -->
       <div class="cinema-gesture">
@@ -92,6 +93,10 @@ content_class: content-full kanata-landing
             <span class="cinema-summary-label">Tap, then<br>type</span>
           </div>
         </div>
+        <button class="cinema-replay-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          Play again
+        </button>
       </div>
     </div>
 
