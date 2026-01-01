@@ -27,6 +27,33 @@
             document.body.classList.toggle('mobile-menu-open');
         });
     }
+
+    // Visualization Toggle (Timeline / Piano Roll)
+    const vizToggleBtns = document.querySelectorAll('.viz-toggle-btn');
+    if (vizToggleBtns.length > 0) {
+        vizToggleBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const target = this.dataset.vizTarget;
+
+                // Update buttons
+                vizToggleBtns.forEach(b => {
+                    b.classList.remove('active');
+                    b.setAttribute('aria-selected', 'false');
+                });
+                this.classList.add('active');
+                this.setAttribute('aria-selected', 'true');
+
+                // Update panels
+                document.querySelectorAll('.viz-panel').forEach(panel => {
+                    panel.classList.remove('active');
+                });
+                const targetPanel = document.getElementById('viz-' + target);
+                if (targetPanel) {
+                    targetPanel.classList.add('active');
+                }
+            });
+        });
+    }
     
     // Copy code block button
     // Handle both regular code blocks and Rouge-highlighted blocks (.highlight > pre > code)

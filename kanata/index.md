@@ -540,13 +540,24 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
     </div>
   </section>
 
-  <!-- Timeline Visualization Section -->
-  <section class="kanata-timeline-section">
-    <div class="timeline-header">
-      <h2>How it works</h2>
-      <p class="subtitle">Kanata transforms simple keypresses into powerful actions. Here's the timing.</p>
+  <!-- Explained Two Ways Section -->
+  <section class="explained-section">
+    <div class="explained-header">
+      <h2>Explained Two Ways</h2>
+      <p class="subtitle">Kanata transforms simple keypresses into powerful actions. Pick your visualization style.</p>
+
+      <div class="viz-toggle" role="tablist" aria-label="Visualization style">
+        <button class="viz-toggle-btn active" role="tab" aria-selected="true" data-viz-target="timeline">
+          Timeline
+        </button>
+        <button class="viz-toggle-btn" role="tab" aria-selected="false" data-viz-target="piano-roll">
+          Piano Roll
+        </button>
+      </div>
     </div>
 
+  <!-- Timeline Visualization -->
+  <div class="viz-panel active" id="viz-timeline" role="tabpanel">
     <div class="kanata-grid">
       <!-- 1. Chords -->
       <div class="kanata-card" data-viz="chord">
@@ -758,13 +769,10 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
         </div>
       </div>
     </div>
-  </section>
+  </div>
 
-  <!-- Piano Roll Visualization (Design #2) -->
-  <section class="piano-roll-section">
-    <h2>See it like music</h2>
-    <p class="section-subtitle">Same 11 features, visualized as a piano roll. Notes trigger as the playhead sweeps past.</p>
-
+  <!-- Piano Roll Visualization -->
+  <div class="viz-panel" id="viz-piano-roll" role="tabpanel">
     <div class="piano-roll-grid">
       <!-- 1. Chords -->
       <div class="pr-card" data-pr="chord">
@@ -997,6 +1005,7 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
         </div>
       </div>
     </div>
+  </div>
   </section>
 
   <!-- DESIGN #6: MINIMAL GEOMETRIC -->
@@ -1424,10 +1433,31 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
 
   <section class="kanata-landing-section">
     <h2 class="mt-0">Ready?</h2>
-    <p>Start with the Tips for existing Kanata users.</p>
+    <p>Download KeyPath and start customizing your keyboard.</p>
     <div class="kanata-landing-actions">
-      <a class="button button-orange" href="{{ '/migration/kanata-users' | relative_url }}">Use existing config</a>
-      <a class="button button-secondary" href="{{ site.github_url }}/issues">Ask a question</a>
+      <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases/download/v1.0.0/KeyPath-1.0.0.zip">Download</a>
+      <a class="button button-secondary" href="{{ site.github_url }}/discussions">Ask a question</a>
+    </div>
+  </section>
+
+  <div class="kanata-landing-divider" aria-hidden="true"></div>
+
+  <!-- Creator Section -->
+  <section class="creator-section">
+    <h2>Created by</h2>
+    <div class="creator-card">
+      <a href="https://twitter.com/malpern" target="_blank" rel="noopener noreferrer" class="creator-link">
+        <img
+          src="https://pbs.twimg.com/profile_images/1780811953/n651398223_2387_normal.jpg"
+          alt="Marc Alperin"
+          class="creator-avatar"
+          loading="lazy"
+        />
+        <div class="creator-info">
+          <span class="creator-name">Marc Alperin</span>
+          <span class="creator-handle">@malpern</span>
+        </div>
+      </a>
     </div>
   </section>
 </div>

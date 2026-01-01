@@ -1940,6 +1940,130 @@ a.button:active {
     transform: translateX(2px) translateY(-2px);
 }
 
+/* --- Explained Two Ways Section (Tabbed Visualization) --- */
+
+.explained-section {
+    padding: 4rem 0;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.explained-header {
+    text-align: center;
+    margin-bottom: 48px;
+}
+
+.explained-header h2 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    color: #fff;
+}
+
+.explained-header .subtitle {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 1.1rem;
+    margin-bottom: 24px;
+}
+
+/* Segmented Control */
+.viz-toggle {
+    display: inline-flex;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 4px;
+    gap: 4px;
+}
+
+.viz-toggle-btn {
+    padding: 8px 20px;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.95rem;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.viz-toggle-btn:hover {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.viz-toggle-btn.active {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+
+/* Visualization Panels */
+.viz-panel {
+    display: none;
+}
+
+.viz-panel.active {
+    display: block;
+}
+
+/* Creator Section */
+.creator-section {
+    text-align: center;
+    padding: 3rem 0;
+}
+
+.creator-section h2 {
+    font-size: 1.25rem;
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+}
+
+.creator-card {
+    display: inline-block;
+}
+
+.creator-link {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 24px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.creator-link:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+.creator-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.creator-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+}
+
+.creator-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #fff;
+}
+
+.creator-handle {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
 /* --- Kanata Timeline Visualization Section --- */
 
 .kanata-timeline-section {
