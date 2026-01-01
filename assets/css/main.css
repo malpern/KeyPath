@@ -2145,6 +2145,70 @@ body.sidebar-open .sidebar {
     margin-top: var(--spacing-2xl);
 }
 
+/* Existing Kanata users section */
+.kanata-existing-users {
+    text-align: center;
+}
+
+.kanata-existing-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--spacing-xl);
+    margin-top: var(--spacing-xl);
+}
+
+.kanata-existing-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+    text-align: left;
+    max-width: 280px;
+}
+
+.kanata-existing-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.kanata-existing-item strong {
+    display: block;
+    color: var(--color-text);
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.kanata-existing-item span {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    line-height: 1.4;
+}
+
+.kanata-existing-cta {
+    margin-top: var(--spacing-xl);
+}
+
+.kanata-existing-cta a {
+    color: var(--color-primary);
+    font-weight: 500;
+}
+
+.kanata-existing-cta a:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+    .kanata-existing-grid {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .kanata-existing-item {
+        max-width: 100%;
+    }
+}
+
 .kanata-landing-simple {
     /* Remove extra container chrome; use spacing instead */
     border-radius: 0;
@@ -2270,7 +2334,26 @@ body.sidebar-open .sidebar {
     margin: var(--spacing-2xl) 0;
 }
 
-/* Reduce “module” roundness inside Kanata landing page */
+.kanata-landing-list {
+    list-style: none;
+    padding: 0;
+    margin: var(--spacing-sm) 0 0 0;
+}
+
+.kanata-landing-list li {
+    padding: 0.25em 0;
+    color: var(--color-secondary-text);
+    font-size: 0.95rem;
+}
+
+.kanata-landing-list code {
+    background: var(--color-code-bg);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    font-size: 0.85em;
+}
+
+/* Reduce "module" roundness inside Kanata landing page */
 .kanata-landing .button {
     border-radius: 10px;
 }

@@ -558,28 +558,35 @@ content_class: content-full kanata-landing
 
   <div class="kanata-landing-divider" aria-hidden="true"></div>
 
-  <section class="kanata-landing-section">
+  <section class="kanata-landing-section kanata-existing-users">
     <h2>Already using Kanata?</h2>
-    <p class="kanata-landing-subtitle">KeyPath finds your config automatically. One click and you're done.</p>
-    <div class="kanata-landing-grid-2">
-      <div class="kanata-landing-card">
-        <h3>Auto-detected</h3>
-        <p>On first launch, KeyPath checks for a running Kanata process and common config locations. If found, you'll see a prompt to import it.</p>
-        <ul class="kanata-landing-list">
-          <li><code>~/.config/kanata/</code></li>
-          <li><code>~/.config/keypath/</code></li>
-          <li>Command-line args of running Kanata</li>
-        </ul>
+    <p class="kanata-landing-subtitle">Keep your config. Keep your workflow. Just add a native Mac app.</p>
+    <div class="kanata-existing-grid">
+      <div class="kanata-existing-item">
+        <span class="kanata-existing-icon">⚡</span>
+        <div>
+          <strong>Zero migration</strong>
+          <span>KeyPath finds and imports your existing config automatically</span>
+        </div>
       </div>
-
-      <div class="kanata-landing-card">
-        <h3>Your config stays put</h3>
-        <p>KeyPath creates a symlink — it doesn't move or copy your file. Keep editing in your favorite editor; KeyPath hot-reloads on save.</p>
-        <p class="kanata-landing-fineprint mb-0">
-          For the technically curious: KeyPath adds a single <code>(include&nbsp;keypath-apps.kbd)</code> line so it can inject app-specific virtual keys. Full details in <a href="{{ '/migration/kanata-users' | relative_url }}">Tips for existing Kanata users</a>.
-        </p>
+      <div class="kanata-existing-item">
+        <span class="kanata-existing-icon">✏️</span>
+        <div>
+          <strong>Edit anywhere</strong>
+          <span>Keep using your favorite editor — changes hot-reload instantly</span>
+        </div>
+      </div>
+      <div class="kanata-existing-item">
+        <span class="kanata-existing-icon">🔒</span>
+        <div>
+          <strong>Nothing moves</strong>
+          <span>Your files stay exactly where they are</span>
+        </div>
       </div>
     </div>
+    <p class="kanata-existing-cta">
+      <a href="{{ '/migration/kanata-users' | relative_url }}">Tips for existing Kanata users →</a>
+    </p>
   </section>
 
   <!-- How It Works Section -->
