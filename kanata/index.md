@@ -7,27 +7,29 @@ content_class: content-full kanata-landing
 ---
 
 <div class="kanata-landing">
+  <!-- HERO: Full-screen impact with progressive reveal -->
   <section class="kanata-landing-hero">
-    <div class="kanata-landing-hero-grid">
-      <div>
+    <div class="kanata-landing-hero-content">
+      <h1 class="kanata-landing-title hero-animate hero-animate-1">KeyPath</h1>
+      <p class="kanata-landing-tagline hero-animate hero-animate-2">Turn your keyboard into a command center</p>
+      <p class="kanata-landing-subtitle hero-animate hero-animate-3">Remap keys, launch apps, tile windows, and automate workflows — all without leaving the home row.</p>
 
-        <h1 class="kanata-landing-title">KeyPath</h1>
-        <p class="kanata-landing-tagline">Turn your keyboard into a command center</p>
-        <p class="kanata-landing-subtitle">Launch apps, remap keys, tile windows, and automate workflows — all without leaving the home row on your Mac.</p>
-
-        <div class="kanata-landing-actions">
-          <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases/download/v1.0.0/KeyPath-1.0.0.zip">Download for macOS 15+ <span class="button-badge">Free</span></a>
-        </div>
+      <div class="kanata-landing-actions hero-animate hero-animate-4">
+        <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases/download/v1.0.0/KeyPath-1.0.0.zip">Download for macOS <span class="button-badge">Free</span></a>
       </div>
 
-      <div class="kanata-landing-hero-visual">
-        <img
-          class="kanata-landing-hero-image"
-          src="{{ '/images/keypath-hero-nobg.png' | relative_url }}"
-          alt="KeyPath"
-          loading="lazy"
-        />
-      </div>
+      <p class="kanata-landing-requirements hero-animate hero-animate-5">Requires macOS 15+ (Sequoia) · Apple Silicon</p>
+    </div>
+
+    <!-- Floating visual (decorative, fades into background) -->
+    <div class="kanata-landing-hero-visual">
+      <img
+        class="kanata-landing-hero-image"
+        src="{{ '/images/keypath-hero-nobg.png' | relative_url }}"
+        alt=""
+        loading="eager"
+        aria-hidden="true"
+      />
     </div>
   </section>
 
