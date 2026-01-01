@@ -11,7 +11,7 @@ content_class: content-full kanata-landing
     <div class="kanata-landing-hero-grid">
       <div>
 
-        <p class="kanata-landing-kicker">Native Mac App</p>
+        <p class="kanata-landing-kicker">The Native Mac Keyboard Power Tool</p>
         <h1 class="kanata-landing-title">KeyPath</h1>
 
         <p class="kanata-landing-subtitle">Remap any key. Launch apps. Tile windows. All from your keyboard.</p>
