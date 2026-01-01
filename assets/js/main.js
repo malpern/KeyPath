@@ -670,54 +670,65 @@
     }
 
     // =========================================================================
-    // Home Row Mods Demo Animation
+    // Home Row Mods Interactive Demo
     // =========================================================================
     const hrmDemo = document.querySelector('.hrm-demo');
     if (hrmDemo) {
         const outputText = hrmDemo.querySelector('.hrm-output-text');
         const outputBox = hrmDemo.querySelector('.hrm-output');
         const modeLabel = hrmDemo.querySelector('.hrm-demo-mode');
-        const keys = {
+        const keyboard = hrmDemo.querySelector('.hrm-keyboard');
+        const keyElements = {
             a: hrmDemo.querySelector('[data-key="a"]'),
             s: hrmDemo.querySelector('[data-key="s"]'),
             d: hrmDemo.querySelector('[data-key="d"]'),
             f: hrmDemo.querySelector('[data-key="f"]')
         };
+        const modLabels = { a: 'Ctrl', s: 'Alt', d: '⌘', f: '⇧' };
+        const modNames = { a: 'Ctrl+', s: 'Alt+', d: '⌘', f: 'Shift+' };
+
+        // State
+        let isInteractive = false;
+        let autoAnimationId = null;
+        let heldKeys = new Set();
+        let holdTimers = {};
+        const HOLD_THRESHOLD = 200; // ms to count as hold
 
         // Check for reduced motion preference
         const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-        // Animation sequence
-        function runHrmDemo() {
+        // ---- Auto Demo Animation ----
+        function runAutoDemo() {
             let step = 0;
+            let cancelled = false;
 
             const sequence = [
-                // Phase 1: Type "asdf" with quick taps
+                // Type letters
                 { action: 'mode', text: 'Tap for letters', delay: 800 },
-                { action: 'tap', key: 'a', output: 'a', delay: 200 },
-                { action: 'tap', key: 's', output: 'as', delay: 200 },
-                { action: 'tap', key: 'd', output: 'asd', delay: 200 },
-                { action: 'tap', key: 'f', output: 'asdf', delay: 600 },
-                { action: 'clear', delay: 800 },
-
-                // Phase 2: Hold D + tap S for ⌘S
-                { action: 'mode', text: 'Hold for modifiers', delay: 600 },
-                { action: 'hold', key: 'd', delay: 400 },
-                { action: 'tap', key: 's', output: '⌘S', shortcut: true, delay: 400 },
-                { action: 'release', key: 'd', delay: 600 },
+                { action: 'tap', key: 'a', delay: 250 },
+                { action: 'tap', key: 's', delay: 250 },
+                { action: 'tap', key: 'd', delay: 250 },
+                { action: 'tap', key: 'f', delay: 700 },
+                { action: 'clear', delay: 600 },
+                // ⌘S shortcut
+                { action: 'mode', text: 'Hold for modifiers', delay: 500 },
+                { action: 'hold', key: 'd', delay: 350 },
+                { action: 'tap', key: 's', delay: 500 },
+                { action: 'release', key: 'd', delay: 700 },
+                { action: 'clear', delay: 600 },
+                // Ctrl+F shortcut
+                { action: 'hold', key: 'a', delay: 350 },
+                { action: 'tap', key: 'f', delay: 500 },
+                { action: 'release', key: 'a', delay: 700 },
                 { action: 'clear', delay: 1000 },
-
-                // Phase 3: Hold A + tap F for Ctrl+F
-                { action: 'hold', key: 'a', delay: 400 },
-                { action: 'tap', key: 'f', output: 'Ctrl+F', shortcut: true, delay: 400 },
-                { action: 'release', key: 'a', delay: 600 },
-                { action: 'clear', delay: 1200 },
-
                 // Loop
                 { action: 'restart', delay: 0 }
             ];
 
+            let currentOutput = '';
+
             function executeStep() {
+                if (cancelled || isInteractive) return;
                 if (step >= sequence.length) return;
 
                 const s = sequence[step];
@@ -729,36 +740,45 @@
                         break;
 
                     case 'tap':
-                        if (keys[s.key]) {
-                            keys[s.key].classList.add('pressed');
+                        if (keyElements[s.key]) {
+                            keyElements[s.key].classList.add('pressed');
                             setTimeout(() => {
-                                keys[s.key].classList.remove('pressed');
+                                if (!cancelled) keyElements[s.key].classList.remove('pressed');
                             }, 100);
                         }
-                        if (s.output) {
-                            outputText.textContent = s.output;
-                            if (s.shortcut) {
-                                outputBox.classList.add('shortcut');
-                            }
+                        // Output depends on held keys
+                        if (heldKeys.size > 0) {
+                            let mod = '';
+                            heldKeys.forEach(k => mod += modNames[k]);
+                            currentOutput = mod + s.key.toUpperCase();
+                            outputBox.classList.add('shortcut');
+                        } else {
+                            currentOutput += s.key;
+                            outputBox.classList.remove('shortcut');
                         }
+                        outputText.textContent = currentOutput;
                         break;
 
                     case 'hold':
-                        if (keys[s.key]) {
-                            keys[s.key].classList.add('held');
+                        if (keyElements[s.key]) {
+                            keyElements[s.key].classList.add('held');
+                            heldKeys.add(s.key);
                         }
                         break;
 
                     case 'release':
-                        if (keys[s.key]) {
-                            keys[s.key].classList.remove('held');
+                        if (keyElements[s.key]) {
+                            keyElements[s.key].classList.remove('held');
+                            heldKeys.delete(s.key);
                         }
                         break;
 
                     case 'clear':
+                        currentOutput = '';
                         outputText.textContent = '';
                         outputBox.classList.remove('shortcut');
                         modeLabel.classList.remove('visible');
+                        heldKeys.clear();
                         break;
 
                     case 'restart':
@@ -767,22 +787,150 @@
                 }
 
                 step++;
-                if (step < sequence.length) {
-                    setTimeout(executeStep, sequence[step - 1].delay);
+                if (step < sequence.length && !cancelled && !isInteractive) {
+                    autoAnimationId = setTimeout(executeStep, sequence[step - 1].delay);
                 }
             }
 
             executeStep();
+
+            return () => { cancelled = true; };
         }
 
-        // Only run animation when visible (Intersection Observer)
-        let animationRunning = false;
+        // ---- Interactive Mode ----
+        function enterInteractiveMode() {
+            if (isInteractive) return;
+            isInteractive = true;
+
+            // Stop auto animation
+            if (autoAnimationId) {
+                clearTimeout(autoAnimationId);
+                autoAnimationId = null;
+            }
+
+            // Clear state
+            Object.values(keyElements).forEach(el => {
+                el.classList.remove('pressed', 'held');
+            });
+            heldKeys.clear();
+            outputText.textContent = '';
+            outputBox.classList.remove('shortcut');
+
+            // Show interactive hint
+            modeLabel.textContent = 'Try it! Click = letter, hold = modifier';
+            modeLabel.classList.add('visible');
+        }
+
+        function handleOutput() {
+            if (heldKeys.size > 0) {
+                outputBox.classList.add('shortcut');
+            } else {
+                outputBox.classList.remove('shortcut');
+            }
+        }
+
+        // Key interaction handlers
+        function onKeyDown(key, element) {
+            // Start hold timer
+            holdTimers[key] = {
+                start: Date.now(),
+                timeout: setTimeout(() => {
+                    // Became a hold
+                    element.classList.remove('pressed');
+                    element.classList.add('held');
+                    heldKeys.add(key);
+                    handleOutput();
+                }, HOLD_THRESHOLD)
+            };
+            element.classList.add('pressed');
+        }
+
+        function onKeyUp(key, element) {
+            const timer = holdTimers[key];
+            if (timer) {
+                clearTimeout(timer.timeout);
+                const duration = Date.now() - timer.start;
+
+                if (duration < HOLD_THRESHOLD) {
+                    // It was a tap - emit letter (or modified letter)
+                    element.classList.remove('pressed');
+
+                    if (heldKeys.size > 0) {
+                        // Modified tap
+                        let mod = '';
+                        heldKeys.forEach(k => mod += modNames[k]);
+                        outputText.textContent = mod + key.toUpperCase();
+                        outputBox.classList.add('shortcut');
+                    } else {
+                        // Plain letter
+                        outputText.textContent += key;
+                        outputBox.classList.remove('shortcut');
+                    }
+                } else {
+                    // It was a hold - release modifier
+                    element.classList.remove('held');
+                    heldKeys.delete(key);
+                    handleOutput();
+                }
+                delete holdTimers[key];
+            }
+        }
+
+        // Attach event listeners to keys
+        Object.entries(keyElements).forEach(([key, element]) => {
+            if (!element) return;
+
+            // Mouse events
+            element.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                enterInteractiveMode();
+                onKeyDown(key, element);
+            });
+
+            element.addEventListener('mouseup', (e) => {
+                e.preventDefault();
+                onKeyUp(key, element);
+            });
+
+            element.addEventListener('mouseleave', () => {
+                // If mouse leaves while pressed, treat as release
+                if (holdTimers[key]) {
+                    onKeyUp(key, element);
+                }
+            });
+
+            // Touch events for mobile
+            element.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                enterInteractiveMode();
+                onKeyDown(key, element);
+            }, { passive: false });
+
+            element.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                onKeyUp(key, element);
+            }, { passive: false });
+        });
+
+        // Clear output on click
+        outputBox.addEventListener('click', () => {
+            if (isInteractive) {
+                outputText.textContent = '';
+                outputBox.classList.remove('shortcut');
+            }
+        });
+
+        // Make keys look clickable
+        keyboard.style.cursor = 'pointer';
+
+        // ---- Start Auto Demo ----
+        let animationStarted = false;
 
         const hrmObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
-                if (entry.isIntersecting && !animationRunning && !prefersReducedMotion) {
-                    animationRunning = true;
-                    runHrmDemo();
+                if (entry.isIntersecting && !animationStarted && !prefersReducedMotion) {
+                    animationStarted = true;
+                    runAutoDemo();
                 }
             });
         }, {
@@ -791,11 +939,9 @@
 
         hrmObserver.observe(hrmDemo);
 
-        // For reduced motion: show static state
+        // For reduced motion: start in interactive mode
         if (prefersReducedMotion) {
-            outputText.textContent = 'asdf';
-            modeLabel.textContent = 'Tap for letters, hold for modifiers';
-            modeLabel.classList.add('visible');
+            enterInteractiveMode();
         }
     }
 })();

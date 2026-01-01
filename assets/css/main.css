@@ -4264,8 +4264,20 @@ a.button:active {
         0 2px 4px rgba(0, 0, 0, 0.05),
         inset 0 1px 0 rgba(255, 255, 255, 0.9);
     transition: all 0.08s ease-out;
-    cursor: default;
+    cursor: pointer;
     user-select: none;
+}
+
+.hrm-key:hover {
+    background: linear-gradient(180deg, #FFFFFF 0%, #E8E8EA 100%);
+    box-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.12),
+        0 3px 6px rgba(0, 0, 0, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.hrm-key:active {
+    transform: translateY(2px);
 }
 
 .hrm-key-letter {
@@ -4596,6 +4608,13 @@ a.button:active {
 
     .hrm-key-mod-label {
         color: #98989D;
+    }
+
+    .hrm-key:hover {
+        background: linear-gradient(180deg, #48484A 0%, #3A3A3C 100%);
+        box-shadow:
+            0 2px 6px rgba(0, 0, 0, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08);
     }
 
     .hrm-key.pressed {
