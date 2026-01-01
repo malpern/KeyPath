@@ -54,7 +54,33 @@
             });
         });
     }
-    
+
+    // Easter egg: Press 'p' twice to reveal Piano Roll toggle
+    const vizToggle = document.querySelector('.viz-toggle-hidden');
+    if (vizToggle) {
+        let lastKeyTime = 0;
+        let lastKey = '';
+
+        document.addEventListener('keydown', function(e) {
+            // Ignore if user is typing in an input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            const now = Date.now();
+
+            if (e.key.toLowerCase() === 'p') {
+                if (lastKey === 'p' && (now - lastKeyTime) < 500) {
+                    // Double-p detected - reveal the toggle
+                    vizToggle.classList.add('revealed');
+                    vizToggle.setAttribute('aria-hidden', 'false');
+                }
+                lastKey = 'p';
+                lastKeyTime = now;
+            } else {
+                lastKey = '';
+            }
+        });
+    }
+
     // Copy code block button
     // Handle both regular code blocks and Rouge-highlighted blocks (.highlight > pre > code)
     document.querySelectorAll('pre code, .highlight pre code').forEach(block => {

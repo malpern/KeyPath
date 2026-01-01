@@ -608,6 +608,19 @@ body.sidebar-open .sidebar {
     filter: saturate(1.02);
 }
 
+.button-badge {
+    display: inline-block;
+    background: rgba(0, 0, 0, 0.15);
+    font-size: 0.7em;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: 6px;
+    vertical-align: middle;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
 .kanata-landing-hero-visual {
     display: flex;
     align-items: center;
@@ -621,6 +634,84 @@ body.sidebar-open .sidebar {
     /* No background: hero image is transparent */
     background: transparent;
     filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.25));
+}
+
+/* Kanata User Callout */
+.kanata-user-callout {
+    background: linear-gradient(135deg, rgba(0, 122, 255, 0.08) 0%, rgba(88, 86, 214, 0.08) 100%);
+    border: 1px solid rgba(0, 122, 255, 0.2);
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    margin: 2rem auto 0;
+    max-width: 600px;
+}
+
+.kanata-user-callout-content {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1rem;
+}
+
+.kanata-user-callout-badge {
+    background: linear-gradient(135deg, #007AFF, #5856D6);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.kanata-user-callout p {
+    flex: 1;
+    min-width: 200px;
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--color-text-secondary);
+}
+
+.kanata-user-callout code {
+    background: rgba(0, 122, 255, 0.1);
+    color: #007AFF;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.85em;
+}
+
+.kanata-user-callout-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #007AFF;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: gap 0.2s ease;
+}
+
+.kanata-user-callout-link:hover {
+    gap: 8px;
+}
+
+.kanata-user-callout-link svg {
+    transition: transform 0.2s ease;
+}
+
+.kanata-user-callout-link:hover svg {
+    transform: translateX(2px);
+}
+
+@media (prefers-color-scheme: dark) {
+    .kanata-user-callout {
+        background: linear-gradient(135deg, rgba(0, 122, 255, 0.12) 0%, rgba(88, 86, 214, 0.12) 100%);
+        border-color: rgba(0, 122, 255, 0.3);
+    }
+
+    .kanata-user-callout code {
+        background: rgba(0, 122, 255, 0.15);
+    }
 }
 
 .kanata-landing-section {
@@ -1982,6 +2073,19 @@ a.button:active {
     border-radius: 8px;
     padding: 4px;
     gap: 4px;
+}
+
+.viz-toggle-hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-10px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.viz-toggle-hidden.revealed {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
 }
 
 .viz-toggle-btn {
@@ -3367,6 +3471,36 @@ a.button:active {
     padding: 80px 24px;
     background: linear-gradient(180deg, #FBFBFD 0%, #F5F5F7 100%);
     --ease-apple: cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* Compact version for docs/migration pages */
+.geometric-section-compact {
+    padding: 40px 0;
+    background: transparent;
+    border-radius: 16px;
+    margin: 2rem 0;
+}
+
+.geometric-section-compact .geometric-grid {
+    gap: 16px;
+}
+
+.geometric-section-compact .geo-card {
+    padding: 16px;
+}
+
+.geometric-section-compact .geo-card svg {
+    height: 100px;
+}
+
+.geometric-section-compact .geo-card h3 {
+    font-size: 16px;
+    margin-bottom: 4px;
+}
+
+.geometric-section-compact .geo-card p {
+    font-size: 13px;
+    line-height: 1.4;
 }
 
 .geometric-section h2 {

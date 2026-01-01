@@ -14,10 +14,10 @@ content_class: content-full kanata-landing
         <p class="kanata-landing-kicker">Native Mac App</p>
         <h1 class="kanata-landing-title">KeyPath</h1>
 
-        <p class="kanata-landing-subtitle">Your keyboard, unlocked</p>
+        <p class="kanata-landing-subtitle">Remap any key. Launch apps. Tile windows. All from your keyboard.</p>
 
         <div class="kanata-landing-actions">
-          <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases/download/v1.0.0/KeyPath-1.0.0.zip">Download</a>
+          <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases/download/v1.0.0/KeyPath-1.0.0.zip">Download <span class="button-badge">Free</span></a>
           <div class="kanata-landing-secondary-cta">
             <a class="button button-secondary" href="{{ '/migration/kanata-users' | relative_url }}">Existing Kanata users</a>
             <span class="kanata-landing-secondary-note">Use your existing <code>config.kbd</code></span>
@@ -35,6 +35,18 @@ content_class: content-full kanata-landing
       </div>
     </div>
   </section>
+
+  <!-- Kanata User Callout -->
+  <div class="kanata-user-callout">
+    <div class="kanata-user-callout-content">
+      <span class="kanata-user-callout-badge">Already using Kanata?</span>
+      <p>Keep your <code>config.kbd</code> — KeyPath handles macOS permissions, auto-start, and the menubar UI.</p>
+      <a href="{{ '/migration/kanata-users' | relative_url }}" class="kanata-user-callout-link">
+        Migration guide
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+  </div>
 
   <section class="kanata-landing-section">
     <h2 class="mt-0">Why KeyPath?</h2>
@@ -540,13 +552,14 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
     </div>
   </section>
 
-  <!-- Explained Two Ways Section -->
+  <!-- How It Works Section -->
   <section class="explained-section">
     <div class="explained-header">
-      <h2>Explained Two Ways</h2>
-      <p class="subtitle">Kanata transforms simple keypresses into powerful actions. Pick your visualization style.</p>
+      <h2>How It Works</h2>
+      <p class="subtitle">Kanata transforms simple keypresses into powerful actions.</p>
 
-      <div class="viz-toggle" role="tablist" aria-label="Visualization style">
+      <!-- Hidden toggle - revealed by easter egg (press 'p' twice) -->
+      <div class="viz-toggle viz-toggle-hidden" role="tablist" aria-label="Visualization style" aria-hidden="true">
         <button class="viz-toggle-btn active" role="tab" aria-selected="true" data-viz-target="timeline">
           Timeline
         </button>
@@ -1055,106 +1068,6 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
         <p>Stack keyboard layouts like transparent sheets. Switch instantly between navigation, symbols, and more.</p>
       </div>
 
-      <!-- One-Shot Modifiers -->
-      <div class="geo-card" data-feature="one-shot" data-geo>
-        <svg viewBox="0 0 280 160">
-          <circle class="geo-timer-ring" cx="140" cy="80" r="20"/>
-          <circle class="geo-timer-fill" cx="140" cy="80" r="20"/>
-          <rect class="geo-key" x="80" y="55" width="50" height="50" rx="8"/>
-          <text class="geo-key-label" x="105" y="80">⇧</text>
-          <rect class="geo-key" x="150" y="55" width="50" height="50" rx="8"/>
-          <text class="geo-key-label" x="175" y="80">A</text>
-        </svg>
-        <h3>One-Shot Modifiers</h3>
-        <p>Tap Shift once, and the next key is shifted. No holding required. Pure flow.</p>
-      </div>
-
-      <!-- Combos -->
-      <div class="geo-card" data-feature="combos" data-geo>
-        <svg viewBox="0 0 280 160">
-          <rect class="geo-key" x="30" y="55" width="45" height="50" rx="8"/>
-          <text class="geo-key-label" x="52" y="80">J</text>
-          <text class="geo-plus" x="95" y="80">+</text>
-          <rect class="geo-key" x="115" y="55" width="45" height="50" rx="8"/>
-          <text class="geo-key-label" x="137" y="80">K</text>
-          <line class="geo-equals" x1="175" y1="75" x2="195" y2="75"/>
-          <line class="geo-equals" x1="175" y1="85" x2="195" y2="85"/>
-          <rect class="geo-key active" x="205" y="55" width="45" height="50" rx="8"/>
-          <text class="geo-key-label" x="227" y="80" fill="#FFF">ESC</text>
-        </svg>
-        <h3>Combos</h3>
-        <p>Press two keys simultaneously for a third action. Create shortcuts that feel natural.</p>
-      </div>
-
-      <!-- Caps Word -->
-      <div class="geo-card" data-feature="caps-word" data-geo>
-        <svg viewBox="0 0 280 160">
-          <text class="geo-text" x="140" y="70">hello</text>
-          <text class="geo-text" x="140" y="100" fill="#0071E3" font-weight="600">HELLO</text>
-          <line stroke="#0071E3" stroke-width="2" x1="90" y1="85" x2="190" y2="85" opacity="0.3"/>
-        </svg>
-        <h3>Caps Word</h3>
-        <p>Capitalize just the next word, then return to normal. Perfect for CONSTANTS and Names.</p>
-      </div>
-
-      <!-- Mouse Keys -->
-      <div class="geo-card" data-feature="mouse-keys" data-geo>
-        <svg viewBox="0 0 280 160">
-          <path class="geo-trail" d="M80 80 Q120 60 160 100"/>
-          <polygon class="geo-cursor" points="0,0 0,18 5,14 9,22 12,21 8,13 14,10"/>
-        </svg>
-        <h3>Mouse Keys</h3>
-        <p>Control your cursor from the keyboard. Navigate without ever leaving home row.</p>
-      </div>
-
-      <!-- Sequences -->
-      <div class="geo-card" data-feature="sequences" data-geo>
-        <svg viewBox="0 0 280 160">
-          <g class="geo-seq-key">
-            <rect class="geo-key" x="30" y="55" width="40" height="50" rx="8"/>
-            <text class="geo-key-label" x="50" y="80">A</text>
-          </g>
-          <g class="geo-seq-key">
-            <rect class="geo-key" x="80" y="55" width="40" height="50" rx="8"/>
-            <text class="geo-key-label" x="100" y="80">D</text>
-          </g>
-          <g class="geo-seq-key">
-            <rect class="geo-key" x="130" y="55" width="40" height="50" rx="8"/>
-            <text class="geo-key-label" x="150" y="80">D</text>
-          </g>
-          <g class="geo-seq-key">
-            <rect class="geo-key active" x="180" y="55" width="70" height="50" rx="8"/>
-            <text class="geo-key-label" x="215" y="72" fill="#FFF" font-size="9">141</text>
-            <text class="geo-key-label" x="215" y="88" fill="#FFF" font-size="9">Mansfield</text>
-          </g>
-        </svg>
-        <h3>Sequences</h3>
-        <p>Type abbreviations that expand to full text. "addr" becomes your full address.</p>
-      </div>
-
-      <!-- Macros -->
-      <div class="geo-card" data-feature="macros" data-geo>
-        <svg viewBox="0 0 280 160">
-          <g class="geo-macro-step">
-            <rect x="40" y="30" width="60" height="30" rx="6" fill="#F5F5F7" stroke="#D2D2D7" stroke-width="1.5"/>
-            <text class="geo-key-label" x="70" y="45" font-size="11">⌘S</text>
-          </g>
-          <g class="geo-macro-step">
-            <rect x="40" y="65" width="60" height="30" rx="6" fill="#F5F5F7" stroke="#D2D2D7" stroke-width="1.5"/>
-            <text class="geo-key-label" x="70" y="80" font-size="11">⌘W</text>
-          </g>
-          <g class="geo-macro-step">
-            <rect x="40" y="100" width="60" height="30" rx="6" fill="#F5F5F7" stroke="#D2D2D7" stroke-width="1.5"/>
-            <text class="geo-key-label" x="70" y="115" font-size="11">⌘Q</text>
-          </g>
-          <path class="geo-arrow" d="M110 45 L130 45 M110 80 L130 80 M110 115 L130 115 M130 45 L130 115" stroke-dasharray="none"/>
-          <rect class="geo-key active" x="150" y="55" width="90" height="50" rx="8"/>
-          <text class="geo-key-label" x="195" y="80" fill="#FFF" font-size="12">MACRO</text>
-        </svg>
-        <h3>Macros</h3>
-        <p>Chain multiple actions into one key. Save, close, and quit—all with a single press.</p>
-      </div>
-
       <!-- Home Row Mods -->
       <div class="geo-card" data-feature="home-row-mods" data-geo>
         <svg viewBox="0 0 280 160">
@@ -1203,70 +1116,28 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
         <p>HJKL as arrow keys. Navigate text, code, and apps without leaving home row. Vim muscle memory everywhere.</p>
       </div>
 
-      <!-- Custom Rules -->
-      <div class="geo-card" data-feature="custom-rules" data-geo>
+      <!-- Macros -->
+      <div class="geo-card" data-feature="macros" data-geo>
         <svg viewBox="0 0 280 160">
-          <!-- Caps Lock → Escape -->
-          <rect class="geo-key" x="30" y="30" width="60" height="35" rx="6"/>
-          <text class="geo-key-label" x="60" y="52" font-size="10">CAPS</text>
-          <text x="100" y="52" font-size="14" fill="#0071E3">→</text>
-          <text x="125" y="52" font-size="12" fill="#0071E3" font-weight="600">ESC</text>
-          <!-- Symbol layer indicator -->
-          <rect x="30" y="75" width="50" height="25" rx="5" fill="#FF9500" opacity="0.2"/>
-          <text x="55" y="92" font-size="10" fill="#FF9500" text-anchor="middle" font-weight="500">!@#$</text>
-          <text x="90" y="92" font-size="10" fill="#86868B">Symbol Layer</text>
-          <!-- Number layer indicator -->
-          <rect x="30" y="110" width="50" height="25" rx="5" fill="#5856D6" opacity="0.2"/>
-          <text x="55" y="127" font-size="10" fill="#5856D6" text-anchor="middle" font-weight="500">1234</text>
-          <text x="90" y="127" font-size="10" fill="#86868B">Number Layer</text>
-          <!-- Plus more -->
-          <text x="200" y="90" font-size="24" fill="#E8E8ED">...</text>
-        </svg>
-        <h3>Custom Rules</h3>
-        <p>Caps Lock to Escape, symbol layers, number pads, and more. Build exactly the keyboard you want.</p>
-      </div>
-
-      <!-- App-Specific -->
-      <div class="geo-card" data-feature="app-specific" data-geo>
-        <svg viewBox="0 0 280 160">
-          <!-- Safari icon -->
-          <circle class="geo-app-ring" cx="90" cy="80" r="35"/>
-          <g class="geo-app-icon">
-            <circle cx="90" cy="80" r="25" fill="url(#safariGradient)"/>
-            <polygon points="90,58 94,80 90,102 86,80" fill="#FFFFFF"/>
-            <polygon points="90,58 94,80 90,80" fill="#FF3B30"/>
-            <circle cx="90" cy="80" r="4" fill="#FFFFFF"/>
+          <g class="geo-macro-step">
+            <rect x="40" y="30" width="60" height="30" rx="6" fill="#F5F5F7" stroke="#D2D2D7" stroke-width="1.5"/>
+            <text class="geo-key-label" x="70" y="45" font-size="11">⌘S</text>
           </g>
-          <!-- VS Code icon -->
-          <circle class="geo-app-ring" cx="190" cy="80" r="35"/>
-          <g class="geo-app-icon">
-            <rect x="165" y="55" width="50" height="50" rx="8" fill="#007ACC"/>
-            <path d="M175 70 L185 80 L175 90 M185 80 L205 65 L205 95 L185 80" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          <g class="geo-macro-step">
+            <rect x="40" y="65" width="60" height="30" rx="6" fill="#F5F5F7" stroke="#D2D2D7" stroke-width="1.5"/>
+            <text class="geo-key-label" x="70" y="80" font-size="11">⌘W</text>
           </g>
-          <!-- Gradient definitions -->
-          <defs>
-            <linearGradient id="safariGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" style="stop-color:#5AC8FA"/>
-              <stop offset="100%" style="stop-color:#007AFF"/>
-            </linearGradient>
-          </defs>
+          <g class="geo-macro-step">
+            <rect x="40" y="100" width="60" height="30" rx="6" fill="#F5F5F7" stroke="#D2D2D7" stroke-width="1.5"/>
+            <text class="geo-key-label" x="70" y="115" font-size="11">⌘Q</text>
+          </g>
+          <path class="geo-arrow" d="M110 45 L130 45 M110 80 L130 80 M110 115 L130 115 M130 45 L130 115" stroke-dasharray="none"/>
+          <rect class="geo-key active" x="150" y="55" width="90" height="50" rx="8"/>
+          <text class="geo-key-label" x="195" y="80" fill="#FFF" font-size="12">MACRO</text>
         </svg>
-        <h3>App-Specific</h3>
-        <p>Different apps, different layouts. Automatically switch when you switch windows.</p>
+        <h3>Macros</h3>
+        <p>Chain multiple actions into one key. Save, close, and quit—all with a single press.</p>
       </div>
-
-      <!-- Live Reload -->
-      <div class="geo-card" data-feature="live-reload" data-geo>
-        <svg viewBox="0 0 280 160">
-          <circle cx="140" cy="80" r="30" fill="none" stroke="#E8E8ED" stroke-width="2"/>
-          <path class="geo-reload-arrow" d="M140 50 A30 30 0 1 1 110 80 M110 80 L110 70 M110 80 L120 80"/>
-          <circle cx="140" cy="80" r="8" fill="#0071E3"/>
-        </svg>
-        <h3>Live Reload</h3>
-        <p>Edit your config, see changes instantly. No restart required. Iterate at the speed of thought.</p>
-      </div>
-
-      <!-- KeyPath-specific features -->
 
       <!-- Launch Apps -->
       <div class="geo-card" data-feature="launch-app" data-geo>
@@ -1290,28 +1161,7 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
         <p>Open any app with a keystroke. No dock, no Spotlight. Instant access to your tools.</p>
       </div>
 
-      <!-- Open URLs -->
-      <div class="geo-card" data-feature="open-url" data-geo>
-        <svg viewBox="0 0 280 160">
-          <!-- Keyboard key -->
-          <rect class="geo-key" x="30" y="55" width="50" height="50" rx="8"/>
-          <text class="geo-key-label" x="55" y="80">G</text>
-          <!-- Arrow -->
-          <path class="geo-arrow" d="M90 80 L140 80 L135 75 M140 80 L135 85"/>
-          <!-- Globe/browser icon - positioned at center (190, 80) -->
-          <g class="geo-app-icon">
-            <circle cx="190" cy="80" r="28" fill="none" stroke="#0071E3" stroke-width="2.5"/>
-            <ellipse cx="190" cy="80" rx="12" ry="28" fill="none" stroke="#0071E3" stroke-width="2"/>
-            <line x1="162" y1="80" x2="218" y2="80" stroke="#0071E3" stroke-width="2"/>
-            <path d="M165 68 Q190 64 215 68" fill="none" stroke="#0071E3" stroke-width="1.5"/>
-            <path d="M165 92 Q190 96 215 92" fill="none" stroke="#0071E3" stroke-width="1.5"/>
-          </g>
-        </svg>
-        <h3>Open URLs</h3>
-        <p>Launch websites directly from your keyboard. GitHub, docs, dashboards—one key away.</p>
-      </div>
-
-      <!-- Window Snapping -->
+      <!-- Window Arranging -->
       <div class="geo-card" data-feature="window-snap" data-geo>
         <svg viewBox="0 0 280 160">
           <!-- Monitor outline -->
@@ -1328,103 +1178,8 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
           <text class="geo-key-label" x="92" y="85" font-size="16" fill="#0071E3">H</text>
           <text class="geo-key-label" x="188" y="85" font-size="16" fill="#86868B">L</text>
         </svg>
-        <h3>Window Snapping</h3>
+        <h3>Window Arranging</h3>
         <p>Snap windows to halves, quarters, or maximize. Tile your workspace without touching the mouse.</p>
-      </div>
-
-      <!-- Multi-Display -->
-      <div class="geo-card" data-feature="multi-display" data-geo>
-        <svg viewBox="0 0 280 160">
-          <!-- Left monitor -->
-          <rect x="20" y="40" width="100" height="70" rx="6" fill="none" stroke="#D2D2D7" stroke-width="2"/>
-          <rect x="60" y="110" width="20" height="8" fill="#D2D2D7"/>
-          <!-- Right monitor -->
-          <rect x="160" y="40" width="100" height="70" rx="6" fill="none" stroke="#D2D2D7" stroke-width="2"/>
-          <rect x="200" y="110" width="20" height="8" fill="#D2D2D7"/>
-          <!-- Window moving between displays -->
-          <rect class="geo-moving-window" x="35" y="50" width="40" height="30" rx="3" fill="#0071E3" opacity="0.8"/>
-          <!-- Arrow -->
-          <path class="geo-arrow" d="M125 75 L155 75 L150 70 M155 75 L150 80" stroke-width="2.5"/>
-          <!-- Key hint -->
-          <text class="geo-key-label" x="140" y="130" font-size="12" fill="#86868B">] next display</text>
-        </svg>
-        <h3>Multi-Display</h3>
-        <p>Move windows between monitors instantly. Navigate your multi-display setup from the keyboard.</p>
-      </div>
-
-      <!-- Spaces -->
-      <div class="geo-card" data-feature="spaces" data-geo>
-        <svg viewBox="0 0 280 160">
-          <!-- Space indicators -->
-          <g transform="translate(40, 60)">
-            <rect x="0" y="0" width="50" height="40" rx="4" fill="#E8E8ED" stroke="#D2D2D7" stroke-width="1"/>
-            <text class="geo-key-label" x="25" y="25" font-size="10" fill="#86868B">1</text>
-          </g>
-          <g transform="translate(60, 50)">
-            <rect x="0" y="0" width="50" height="40" rx="4" fill="#0071E3" stroke="#0077ED" stroke-width="2"/>
-            <text class="geo-key-label" x="25" y="25" font-size="10" fill="#FFF">2</text>
-          </g>
-          <g transform="translate(80, 60)">
-            <rect x="0" y="0" width="50" height="40" rx="4" fill="#E8E8ED" stroke="#D2D2D7" stroke-width="1"/>
-            <text class="geo-key-label" x="25" y="25" font-size="10" fill="#86868B">3</text>
-          </g>
-          <!-- Arrow showing window moving -->
-          <path class="geo-arrow" d="M160 70 L200 70 L195 65 M200 70 L195 75"/>
-          <!-- Window -->
-          <rect class="geo-space-window" x="210" y="50" width="40" height="30" rx="3" fill="#0071E3" opacity="0.8"/>
-          <!-- Key hint -->
-          <text class="geo-key-label" x="140" y="130" font-size="12" fill="#86868B">S → next Space</text>
-        </svg>
-        <h3>Spaces</h3>
-        <p>Move windows between macOS Spaces. Organize your virtual desktops without Mission Control.</p>
-      </div>
-
-      <!-- Notifications -->
-      <div class="geo-card" data-feature="notify" data-geo>
-        <svg viewBox="0 0 280 160">
-          <!-- Notification banner -->
-          <g class="geo-notification">
-            <rect x="60" y="35" width="160" height="60" rx="12" fill="#FFFFFF" stroke="#E8E8ED" stroke-width="1"/>
-            <!-- App icon -->
-            <rect x="75" y="50" width="30" height="30" rx="7" fill="#0071E3"/>
-            <text x="90" y="70" font-size="14" fill="#FFF" text-anchor="middle" dominant-baseline="central">⌨</text>
-            <!-- Text -->
-            <text x="115" y="58" font-size="11" font-weight="600" fill="#1D1D1F">Layer Changed</text>
-            <text x="115" y="75" font-size="10" fill="#86868B">Navigation mode active</text>
-          </g>
-          <!-- Bell icon hint -->
-          <g transform="translate(130, 105)">
-            <path d="M10 0 L10 3 M10 17 L10 20 M3 10 L0 10 M17 10 L20 10" stroke="#0071E3" stroke-width="1.5" stroke-linecap="round"/>
-            <circle cx="10" cy="10" r="6" fill="none" stroke="#0071E3" stroke-width="1.5"/>
-          </g>
-        </svg>
-        <h3>Notifications</h3>
-        <p>Get visual feedback for layer changes, actions, and events. Stay informed without breaking flow.</p>
-      </div>
-
-      <!-- Deep Linking -->
-      <div class="geo-card" data-feature="deep-link" data-geo>
-        <svg viewBox="0 0 280 160">
-          <!-- External app icons -->
-          <g class="geo-external-apps">
-            <!-- Raycast-style icon -->
-            <rect x="40" y="50" width="40" height="40" rx="8" fill="#FF6363"/>
-            <path d="M50 70 L70 70 M60 60 L60 80" stroke="#FFF" stroke-width="3" stroke-linecap="round"/>
-            <!-- Alfred-style icon -->
-            <rect x="95" y="50" width="40" height="40" rx="8" fill="#5C1F87"/>
-            <circle cx="115" cy="70" r="10" fill="#FFF"/>
-            <!-- Terminal -->
-            <rect x="150" y="50" width="40" height="40" rx="8" fill="#1D1D1F"/>
-            <text x="170" y="75" font-size="16" fill="#34C759" text-anchor="middle">$_</text>
-          </g>
-          <!-- Arrows pointing to KeyPath -->
-          <path class="geo-arrow" d="M60 95 L100 115 M115 95 L115 115 M170 95 L130 115"/>
-          <!-- KeyPath icon -->
-          <rect x="100" y="115" width="30" height="30" rx="6" fill="#0071E3"/>
-          <text x="115" y="135" font-size="12" fill="#FFF" text-anchor="middle">K</text>
-        </svg>
-        <h3>Deep Linking</h3>
-        <p>Trigger KeyPath from Raycast, Alfred, or Terminal. Integrate with your favorite tools.</p>
       </div>
     </div>
   </section>
@@ -1435,7 +1190,7 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
     <h2 class="mt-0">Ready?</h2>
     <p>Download KeyPath and start customizing your keyboard.</p>
     <div class="kanata-landing-actions">
-      <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases/download/v1.0.0/KeyPath-1.0.0.zip">Download</a>
+      <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases/download/v1.0.0/KeyPath-1.0.0.zip">Download <span class="button-badge">Free</span></a>
       <a class="button button-secondary" href="{{ site.github_url }}/discussions">Ask a question</a>
     </div>
   </section>
