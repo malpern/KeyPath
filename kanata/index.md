@@ -17,11 +17,7 @@ content_class: content-full kanata-landing
         <p class="kanata-landing-subtitle">Remap any key. Launch apps. Tile windows. All from your keyboard.</p>
 
         <div class="kanata-landing-actions">
-          <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases/download/v1.0.0/KeyPath-1.0.0.zip">Download <span class="button-badge">Free</span></a>
-          <div class="kanata-landing-secondary-cta">
-            <a class="button button-secondary" href="{{ '/migration/kanata-users' | relative_url }}">Existing Kanata users</a>
-            <span class="kanata-landing-secondary-note">Use your existing <code>config.kbd</code></span>
-          </div>
+          <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases/download/v1.0.0/KeyPath-1.0.0.zip">Download for macOS 15+ <span class="button-badge">Free</span></a>
         </div>
       </div>
 
