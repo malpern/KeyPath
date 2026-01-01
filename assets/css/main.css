@@ -714,6 +714,39 @@ body.sidebar-open .sidebar {
     }
 }
 
+/* Migration Page Hero */
+.migration-hero {
+    text-align: center;
+    padding: 3rem 1.5rem 2rem;
+    margin-bottom: 2rem;
+    background: linear-gradient(135deg, rgba(0, 122, 255, 0.08) 0%, rgba(88, 86, 214, 0.08) 100%);
+    border-radius: 16px;
+}
+
+.migration-hero h1 {
+    font-family: var(--font-display);
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin: 0 0 0.75rem;
+    background: linear-gradient(135deg, #007AFF, #5856D6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.migration-hero-subtitle {
+    font-size: 1.1rem;
+    color: var(--color-text-secondary);
+    margin: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+    .migration-hero {
+        background: linear-gradient(135deg, rgba(0, 122, 255, 0.15) 0%, rgba(88, 86, 214, 0.15) 100%);
+    }
+}
+
 .kanata-landing-section {
     margin-top: var(--spacing-2xl);
 }

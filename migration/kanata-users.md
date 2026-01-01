@@ -4,8 +4,10 @@ title: Tips for existing Kanata users
 description: Use your existing Kanata config.kbd in KeyPath
 ---
 
-# Tips for existing Kanata users
-Looking for the high-level pitch first? Start with **[KeyPath for Kanata users](/kanata)**.
+<div class="migration-hero">
+  <h1>Power of Kanata.<br>Ease of a Mac app.</h1>
+  <p class="migration-hero-subtitle">Keep your config. Let KeyPath handle the rest.</p>
+</div>
 
 If you're already using Kanata on macOS, KeyPath can run your existing configuration with minimal changes. This guide shows you how to migrate your setup.
 
