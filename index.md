@@ -9,6 +9,9 @@ content_class: content-full kanata-landing
 <div class="kanata-landing">
   <!-- HERO: Full-screen impact with progressive reveal -->
   <section class="kanata-landing-hero">
+    <!-- Breathing glow effect -->
+    <div class="kanata-landing-hero-glow" aria-hidden="true"></div>
+
     <div class="kanata-landing-hero-content">
       <h1 class="kanata-landing-title hero-animate hero-animate-1">KeyPath</h1>
       <p class="kanata-landing-tagline hero-animate hero-animate-2">Turn your keyboard into a command center</p>

@@ -538,10 +538,29 @@ body.sidebar-open .sidebar {
     margin: calc(var(--spacing-2xl) * -1) calc(var(--spacing-lg) * -1) 0;
     padding: var(--spacing-3xl) var(--spacing-2xl);
 
-    /* Subtle gradient backdrop - warm glow on left */
-    background:
-        radial-gradient(ellipse 55% 70% at 0% 50%, rgba(255, 149, 0, 0.18), transparent),
-        radial-gradient(ellipse 40% 40% at 100% 20%, rgba(255, 255, 255, 0.03), transparent);
+    /* Base dark background */
+    background: radial-gradient(ellipse 40% 40% at 100% 20%, rgba(255, 255, 255, 0.03), transparent);
+}
+
+/* Breathing orange glow */
+.kanata-landing-hero-glow {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse 55% 70% at 0% 50%, rgba(255, 149, 0, 0.18), transparent);
+    animation: hero-glow-breathe 10s ease-in-out infinite;
+    z-index: 0;
+}
+
+@keyframes hero-glow-breathe {
+    0%, 100% {
+        opacity: 0.7;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
 }
 
 /* Scroll indicator at bottom center */
