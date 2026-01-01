@@ -2018,50 +2018,62 @@ a.button:active {
 }
 
 .creator-card {
-    display: inline-block;
-}
-
-.creator-link {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 16px 24px;
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 24px 32px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 16px;
-    text-decoration: none;
-    transition: all 0.2s ease;
-}
-
-.creator-link:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.2);
-    transform: translateY(-2px);
+    max-width: 500px;
+    text-align: left;
 }
 
 .creator-avatar {
-    width: 56px;
-    height: 56px;
+    width: 72px;
+    height: 72px;
     border-radius: 50%;
     border: 2px solid rgba(255, 255, 255, 0.2);
+    flex-shrink: 0;
+    object-fit: cover;
 }
 
 .creator-info {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
+    gap: 8px;
 }
 
 .creator-name {
-    font-size: 1.1rem;
+    font-size: 1.25rem;
     font-weight: 600;
     color: #fff;
 }
 
-.creator-handle {
+.creator-bio {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.creator-twitter {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-size: 0.9rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.7);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.creator-twitter:hover {
+    color: #1DA1F2;
+}
+
+.twitter-icon {
+    width: 16px;
+    height: 16px;
 }
 
 /* --- Kanata Timeline Visualization Section --- */
