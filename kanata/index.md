@@ -644,16 +644,11 @@ content_class: content-full kanata-landing
       <p class="hrm-cta-text">
         Home row mods used to require custom keyboard firmware. Now you can have them on any Mac keyboard —
         including your MacBook's built-in keyboard.
+        <a href="https://precondition.github.io/home-row-mods" target="_blank" rel="noopener" class="hrm-learn-more">
+          <svg class="hrm-learn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"/></svg>
+          Learn more
+        </a>
       </p>
-
-      <a href="https://precondition.github.io/home-row-mods" target="_blank" rel="noopener" class="hrm-deep-dive">
-        <img src="https://precondition.github.io/favicon.ico" alt="" class="hrm-deep-dive-icon" width="24" height="24">
-        <div class="hrm-deep-dive-text">
-          <span class="hrm-deep-dive-title">A guide to home row mods</span>
-          <span class="hrm-deep-dive-meta">precondition.github.io · Long read</span>
-        </div>
-        <svg class="hrm-deep-dive-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg>
-      </a>
     </div>
   </section>
 
