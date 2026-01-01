@@ -13,6 +13,9 @@ struct KeyboardSelectionGridView: View {
     /// Whether QMK keyboard search is enabled (off by default)
     @AppStorage(LayoutPreferences.qmkSearchEnabledKey) private var qmkSearchEnabled = false
 
+    /// Track whether initial scroll has happened to prevent repeated scrolling
+    @State private var hasScrolledToInitialSelection = false
+
     // Search state
     @State private var searchText = ""
     @FocusState private var isSearchFocused: Bool
@@ -207,7 +210,10 @@ struct KeyboardSelectionGridView: View {
                 }
             }
             .onAppear {
-                // Scroll to selected layout on appear
+                // Scroll to selected layout only on initial appear (not on re-renders)
+                guard !hasScrolledToInitialSelection else { return }
+                hasScrolledToInitialSelection = true
+
                 Task { @MainActor in
                     try? await Task.sleep(for: .milliseconds(100))
                     withAnimation(.easeInOut(duration: 0.3)) {
