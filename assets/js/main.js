@@ -20,6 +20,27 @@
         });
     });
     
+    // Hero parallax effect - glow follows mouse subtly
+    const heroGlow = document.querySelector('.kanata-landing-hero-glow');
+    const heroSection = document.querySelector('.kanata-landing-hero');
+    if (heroGlow && heroSection) {
+        heroSection.addEventListener('mousemove', (e) => {
+            const rect = heroSection.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / rect.width - 0.5; // -0.5 to 0.5
+            const y = (e.clientY - rect.top) / rect.height - 0.5;
+
+            // Subtle movement - max 20px
+            const moveX = x * 20;
+            const moveY = y * 15;
+
+            heroGlow.style.transform = `translate(${moveX}px, ${moveY}px)`;
+        });
+
+        heroSection.addEventListener('mouseleave', () => {
+            heroGlow.style.transform = 'translate(0, 0)';
+        });
+    }
+
     // Mobile menu toggle (if needed in future)
     const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
     if (mobileMenuToggle) {

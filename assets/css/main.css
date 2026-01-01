@@ -542,24 +542,25 @@ body.sidebar-open .sidebar {
     background: radial-gradient(ellipse 40% 40% at 100% 20%, rgba(255, 255, 255, 0.03), transparent);
 }
 
-/* Breathing orange glow */
+/* Breathing orange glow - subtle */
 .kanata-landing-hero-glow {
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background: radial-gradient(ellipse 60% 80% at 0% 50%, rgba(255, 149, 0, 0.22), transparent);
-    animation: hero-glow-breathe 8s ease-in-out infinite;
+    background: radial-gradient(ellipse 60% 80% at 0% 50%, rgba(255, 149, 0, 0.18), transparent);
+    animation: hero-glow-breathe 12s ease-in-out infinite;
     z-index: 0;
+    transition: transform 0.3s ease-out;
 }
 
 @keyframes hero-glow-breathe {
     0%, 100% {
-        opacity: 0.4;
-        transform: scale(1) translateX(0);
+        opacity: 0.7;
+        transform: scale(1);
     }
     50% {
         opacity: 1;
-        transform: scale(1.15) translateX(3%);
+        transform: scale(1.08);
     }
 }
 
