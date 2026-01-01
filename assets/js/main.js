@@ -1359,7 +1359,7 @@
             },
             {
                 gesture: 'Tap, then type',
-                keys: [{ label: '␣', delay: 0 }, { label: 'D', delay: 500 }],
+                keys: [{ label: 'SPC', delay: 0 }, { label: 'D', delay: 500 }],
                 keyType: 'leader',
                 app: 'docs',
                 appLabel: 'Docs'
