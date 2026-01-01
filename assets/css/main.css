@@ -540,7 +540,7 @@ body.sidebar-open .sidebar {
 
     /* Subtle gradient backdrop - warm glow on left */
     background:
-        radial-gradient(ellipse 50% 60% at 0% 50%, rgba(255, 149, 0, 0.12), transparent),
+        radial-gradient(ellipse 55% 70% at 0% 50%, rgba(255, 149, 0, 0.18), transparent),
         radial-gradient(ellipse 40% 40% at 100% 20%, rgba(255, 255, 255, 0.03), transparent);
 }
 
