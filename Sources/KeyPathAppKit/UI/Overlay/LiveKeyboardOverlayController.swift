@@ -79,6 +79,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     private var currentKeyboardAspectRatio: CGFloat {
         CGFloat(activeLayout.totalWidth / activeLayout.totalHeight)
     }
+
     private let minInspectorKeyboardHeight: CGFloat = 220
     private var inspectorTotalWidth: CGFloat {
         inspectorPanelWidth + OverlayLayoutMetrics.inspectorSeamWidth

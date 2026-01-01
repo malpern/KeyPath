@@ -29,7 +29,7 @@ That's it! KeyPath will:
 
 KeyPath uses a two-file configuration model:
 
-```
+```text
 ~/.config/keypath/
   keypath-apps.kbd    ← KeyPath owns (regenerated automatically)
   keypath.kbd         ← You own (preserved, never overwritten)

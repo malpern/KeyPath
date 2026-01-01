@@ -68,11 +68,13 @@ final class RecentKeypressesService: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] notification in
-            guard let self, isRecording else { return }
-
-            if let userInfo = notification.userInfo,
-               let key = userInfo["key"] as? String,
-               let action = userInfo["action"] as? String {
+            guard let self else { return }
+            // Extract data from notification before crossing actor boundary
+            let userInfo = notification.userInfo
+            let key = userInfo?["key"] as? String
+            let action = userInfo?["action"] as? String
+            Task { @MainActor [weak self] in
+                guard let self, isRecording, let key, let action else { return }
                 addEvent(key: key, action: action)
             }
         }
@@ -85,9 +87,11 @@ final class RecentKeypressesService: ObservableObject {
             queue: .main
         ) { [weak self] notification in
             guard let self else { return }
-
-            if let userInfo = notification.userInfo,
-               let layerName = userInfo["layerName"] as? String {
+            // Extract data from notification before crossing actor boundary
+            let userInfo = notification.userInfo
+            let layerName = userInfo?["layerName"] as? String
+            Task { @MainActor [weak self] in
+                guard let self, let layerName else { return }
                 currentLayer = layerName
             }
         }

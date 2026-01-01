@@ -59,7 +59,7 @@ struct OverlayKeyboardView: View {
     @State private var initialRenderComplete: Bool = false
     /// Previous keymap ID for detecting changes (used for wobble trigger)
     @State private var previousKeymapId: String = ""
-    
+
     /// Cached label-to-keyCode mapping (recomputed when layout/keymap changes)
     @State private var cachedLabelToKeyCode: [String: UInt16] = [:]
 
@@ -93,11 +93,11 @@ struct OverlayKeyboardView: View {
         if !cachedLabelToKeyCode.isEmpty {
             return cachedLabelToKeyCode
         }
-        
+
         // Build mapping (cache will be populated by rebuildLabelToKeyCodeCache)
         return rebuildLabelToKeyCodeCache()
     }
-    
+
     /// Rebuild the label-to-keyCode mapping cache
     /// Called when layout/keymap changes to refresh the cache
     private func rebuildLabelToKeyCodeCache() -> [String: UInt16] {
@@ -128,10 +128,10 @@ struct OverlayKeyboardView: View {
         // AZERTY (French): é, è, ê, à, ç
         // Other European: ñ, å, ø, æ
         let international = ["ö", "Ö", "ä", "Ä", "ü", "Ü", "ß", "é", "É", "è", "È", "ê", "Ê",
-                            "à", "À", "ç", "Ç", "ñ", "Ñ", "å", "Å", "ø", "Ø", "æ", "Æ"]
+                             "à", "À", "ç", "Ç", "ñ", "Ñ", "å", "Å", "ø", "Ø", "æ", "Æ"]
         return letters + numbers + punctuation + international
     }()
-    
+
     /// Special labels that should always render in keycaps (not as floating labels)
     /// Matches the special labels set in OverlayKeycapView.hasSpecialLabel
     private static let specialLabels: Set<String> = [
@@ -155,7 +155,7 @@ struct OverlayKeyboardView: View {
         // Numpad enter
         "⏎", "⌅"
     ]
-    
+
     /// Check if a label is special (should render in keycap, not as floating label)
     private static func isSpecialLabel(_ label: String) -> Bool {
         specialLabels.contains(label)
@@ -192,9 +192,9 @@ struct OverlayKeyboardView: View {
                             // Visible when label exists in current keymap AND not special AND not in launcher/layer mode
                             // Special labels render in keycaps, not as floating labels
                             // Normalize to uppercase for consistent lookup (allLabels contains uppercase)
-                            isVisible: labelToKeyCode[label.uppercased()] != nil 
-                                && !Self.isSpecialLabel(label) 
-                                && !isLauncherMode 
+                            isVisible: labelToKeyCode[label.uppercased()] != nil
+                                && !Self.isSpecialLabel(label)
+                                && !isLauncherMode
                                 && !isLayerMode,
                             scale: scale,
                             colorway: activeColorway,

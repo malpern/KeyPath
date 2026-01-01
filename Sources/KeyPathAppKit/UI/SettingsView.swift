@@ -231,6 +231,22 @@ struct GeneralSettingsTabView: View {
                             .help("Reset the keyboard overlay to its default size and position")
                             .accessibilityIdentifier("settings-reset-overlay-size-button")
                             .accessibilityLabel("Reset Overlay Size")
+
+                            Toggle(isOn: Binding(
+                                get: { UserDefaults.standard.bool(forKey: LayoutPreferences.qmkSearchEnabledKey) },
+                                set: { UserDefaults.standard.set($0, forKey: LayoutPreferences.qmkSearchEnabledKey) }
+                            )) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("QMK Keyboard Search")
+                                        .font(.body)
+                                    Text("Search and import layouts from the QMK keyboard database")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .toggleStyle(.switch)
+                            .accessibilityIdentifier("settings-qmk-search-toggle")
+                            .accessibilityLabel("Enable QMK keyboard search")
                         }
 
                         // Global Hotkey

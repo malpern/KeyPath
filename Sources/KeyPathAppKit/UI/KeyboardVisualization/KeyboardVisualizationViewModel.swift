@@ -732,21 +732,21 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
     /// Cached regex for extracting push-msg type:value patterns
     /// Pattern: (push-msg "type:value")
-    private nonisolated(unsafe) static let pushMsgTypeValueRegex = try! NSRegularExpression(
+    private nonisolated static let pushMsgTypeValueRegex = try! NSRegularExpression(
         pattern: #"\(push-msg\s+\"([^:\"]+):([^\"]+)\"\)"#,
         options: []
     )
 
     /// Cached regex for extracting app launch identifiers
     /// Pattern: (push-msg "launch:AppName")
-    private nonisolated(unsafe) static let pushMsgLaunchRegex = try! NSRegularExpression(
+    private nonisolated static let pushMsgLaunchRegex = try! NSRegularExpression(
         pattern: #"\(push-msg\s+\"launch:([^\"]+)\"\)"#,
         options: []
     )
 
     /// Cached regex for extracting URL identifiers
     /// Pattern: (push-msg "open:domain.com")
-    private nonisolated(unsafe) static let pushMsgOpenRegex = try! NSRegularExpression(
+    private nonisolated static let pushMsgOpenRegex = try! NSRegularExpression(
         pattern: #"\(push-msg\s+\"open:([^\"]+)\"\)"#,
         options: []
     )

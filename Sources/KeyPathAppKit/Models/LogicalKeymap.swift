@@ -28,16 +28,33 @@ struct LogicalKeymap: Identifiable {
     // MARK: - Layout Registry
 
     /// All available logical keymaps, grouped by category
+    /// Alt layouts (ergonomic) come first, then International layouts
     static let all: [LogicalKeymap] = [
-        // Standard layouts
-        qwertyUS,
-        azerty,
-        qwertz,
         // Alternative/ergonomic layouts
+        qwertyUS,
         colemak,
         colemakDH,
         dvorak,
-        workman
+        workman,
+        graphite,
+        // International layouts
+        azerty,
+        qwertz
+    ]
+
+    /// Alternative/ergonomic layouts (excluding QWERTY)
+    static let altLayouts: [LogicalKeymap] = [
+        colemak,
+        colemakDH,
+        dvorak,
+        workman,
+        graphite
+    ]
+
+    /// International layouts
+    static let internationalLayouts: [LogicalKeymap] = [
+        azerty,
+        qwertz
     ]
 
     static func find(id: String) -> LogicalKeymap? {
@@ -152,6 +169,20 @@ struct LogicalKeymap: Identifiable {
             KeyCode.backslash: "\\",
             KeyCode.apostrophe: "-"
         ]
+    )
+
+    static let graphite: LogicalKeymap = .init(
+        id: "graphite",
+        name: "Graphite",
+        description: "Ergonomic layout optimized for finger travel with 65% home row usage and balanced hand distribution.",
+        learnMoreURL: URL(string: "https://github.com/joa/graphite")!,
+        iconFilename: "Graphite",
+        coreLabels: buildCoreMap(
+            top: ["b", "l", "d", "w", "z", "y", "o", "u", "j", ";"],
+            home: ["n", "r", "t", "s", "g", "p", "h", "a", "e", "i"],
+            bottom: ["q", "x", "m", "c", "v", "k", "f", ",", ".", "/"]
+        ),
+        extraLabels: [:]
     )
 
     private static let topRowKeyCodes: [UInt16] = [12, 13, 14, 15, 17, 16, 32, 34, 31, 35]
