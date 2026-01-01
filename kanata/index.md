@@ -317,7 +317,7 @@ content_class: content-full kanata-landing
     <h2>Explore alternate keyboard layouts</h2>
     <p class="kanata-landing-subtitle" style="margin-bottom: var(--spacing-lg);">Reduce finger strain and type more efficiently. Switch layouts instantly — no firmware flashing required.</p>
 
-    <video class="layouts-video" autoplay loop muted playsinline>
+    <video class="layouts-video" autoplay loop muted playsinline preload="auto" poster="{{ '/images/alt-layouts-poster.jpg' | relative_url }}">
       <source src="{{ '/images/alt-layouts.mp4' | relative_url }}" type="video/mp4">
       <source src="{{ '/images/alt-layouts.mov' | relative_url }}" type="video/quicktime">
     </video>

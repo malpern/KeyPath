@@ -685,6 +685,7 @@
             f: hrmDemo.querySelector('[data-key="f"]')
         };
         const modNames = { a: 'Ctrl+', s: 'Alt+', d: '⌘', f: 'Shift+' };
+        const modSymbols = { a: '⌃', s: '⌥', d: '⌘', f: '⇧' }; // For display
 
         // State
         let isInteractive = false;
@@ -704,60 +705,76 @@
             outputBox.classList.add('shortcut-flash');
         }
 
+        // Update display to show currently held modifiers
+        function updateModifierDisplay() {
+            if (heldKeys.size > 0) {
+                let mods = '';
+                // Show modifiers in consistent order: Ctrl, Alt, Cmd, Shift
+                ['a', 's', 'd', 'f'].forEach(k => {
+                    if (heldKeys.has(k)) mods += modSymbols[k];
+                });
+                outputText.textContent = mods + '…';
+                outputBox.classList.add('shortcut', 'holding');
+            } else {
+                outputBox.classList.remove('holding');
+            }
+        }
+
         // ---- Auto Demo Animation ----
+        // Slowed down for better readability
         function runAutoDemo() {
             let step = 0;
             let cancelled = false;
 
             const sequence = [
                 // Type letters "asdf"
-                { action: 'mode', text: 'Tap for letters', delay: 700 },
-                { action: 'tap', key: 'a', delay: 200 },
-                { action: 'tap', key: 's', delay: 200 },
-                { action: 'tap', key: 'd', delay: 200 },
-                { action: 'tap', key: 'f', delay: 600 },
-                { action: 'clear', delay: 500 },
+                { action: 'mode', text: 'Tap for letters', delay: 1200 },
+                { action: 'tap', key: 'a', delay: 400 },
+                { action: 'tap', key: 's', delay: 400 },
+                { action: 'tap', key: 'd', delay: 400 },
+                { action: 'tap', key: 'f', delay: 1000 },
+                { action: 'clear', delay: 800 },
 
                 // ⌘S (Save)
-                { action: 'mode', text: 'Hold for modifiers', delay: 400 },
-                { action: 'hold', key: 'd', delay: 300 },
-                { action: 'tap', key: 's', delay: 450 },
-                { action: 'release', key: 'd', delay: 600 },
-                { action: 'clear', delay: 400 },
+                { action: 'mode', text: 'Hold for modifiers', delay: 800 },
+                { action: 'hold', key: 'd', delay: 600 },
+                { action: 'tap', key: 's', delay: 800 },
+                { action: 'release', key: 'd', delay: 1000 },
+                { action: 'clear', delay: 800 },
 
-                // Ctrl+A (Select All)
-                { action: 'hold', key: 'a', delay: 300 },
-                { action: 'tap', key: 'd', delay: 450 },
-                { action: 'release', key: 'a', delay: 600 },
-                { action: 'clear', delay: 400 },
+                // Ctrl+D (Select word / common shortcut)
+                { action: 'hold', key: 'a', delay: 600 },
+                { action: 'tap', key: 'd', delay: 800 },
+                { action: 'release', key: 'a', delay: 1000 },
+                { action: 'clear', delay: 800 },
 
                 // ⌘F (Find)
-                { action: 'hold', key: 'd', delay: 300 },
-                { action: 'tap', key: 'f', delay: 450 },
-                { action: 'release', key: 'd', delay: 600 },
-                { action: 'clear', delay: 400 },
+                { action: 'hold', key: 'd', delay: 600 },
+                { action: 'tap', key: 'f', delay: 800 },
+                { action: 'release', key: 'd', delay: 1000 },
+                { action: 'clear', delay: 800 },
 
                 // Shift+A (capital A)
-                { action: 'hold', key: 'f', delay: 300 },
-                { action: 'tap', key: 'a', delay: 450 },
-                { action: 'release', key: 'f', delay: 600 },
-                { action: 'clear', delay: 400 },
+                { action: 'hold', key: 'f', delay: 600 },
+                { action: 'tap', key: 'a', delay: 800 },
+                { action: 'release', key: 'f', delay: 1000 },
+                { action: 'clear', delay: 800 },
 
                 // Type "dad" fast
-                { action: 'mode', text: 'Fast typing still works', delay: 400 },
-                { action: 'tap', key: 'd', delay: 120 },
-                { action: 'tap', key: 'a', delay: 120 },
-                { action: 'tap', key: 'd', delay: 600 },
-                { action: 'clear', delay: 400 },
+                { action: 'mode', text: 'Fast typing still works', delay: 800 },
+                { action: 'tap', key: 'd', delay: 180 },
+                { action: 'tap', key: 'a', delay: 180 },
+                { action: 'tap', key: 'd', delay: 1000 },
+                { action: 'clear', delay: 800 },
 
                 // ⌘⇧S (Save As) - two modifiers!
-                { action: 'mode', text: 'Combine modifiers', delay: 400 },
-                { action: 'hold', key: 'd', delay: 250 },
-                { action: 'hold', key: 'f', delay: 300 },
-                { action: 'tap', key: 's', delay: 450 },
-                { action: 'release', key: 'f', delay: 200 },
-                { action: 'release', key: 'd', delay: 600 },
-                { action: 'clear', delay: 800 },
+                { action: 'mode', text: 'Combine modifiers', delay: 800 },
+                { action: 'hold', key: 'd', delay: 500 },
+                { action: 'hold', key: 'f', delay: 600 },
+                { action: 'tap', key: 's', delay: 800 },
+                { action: 'release', key: 'f', delay: 400 },
+                { action: 'release', key: 'd', delay: 1200 },
+                { action: 'clear', delay: 1200 },
 
                 // Loop
                 { action: 'restart', delay: 0 }
@@ -898,10 +915,12 @@
             holdTimers[key] = {
                 start: Date.now(),
                 timeout: setTimeout(() => {
-                    // Became a hold
+                    // Became a hold - show as modifier
                     element.classList.remove('pressed');
                     element.classList.add('held');
                     heldKeys.add(key);
+                    // Show modifier feedback in display area
+                    updateModifierDisplay();
                 }, HOLD_THRESHOLD)
             };
             element.classList.add('pressed');
@@ -920,21 +939,29 @@
                     if (heldKeys.size > 0) {
                         // Modified tap - shortcut!
                         let mod = '';
-                        heldKeys.forEach(k => mod += modNames[k]);
+                        // Build modifier string in consistent order
+                        ['a', 's', 'd', 'f'].forEach(k => {
+                            if (heldKeys.has(k)) mod += modNames[k];
+                        });
                         outputText.textContent = mod + key.toUpperCase();
                         outputBox.classList.add('shortcut');
+                        outputBox.classList.remove('holding');
                         triggerShortcutFlash();
                     } else {
                         // Plain letter
                         outputText.textContent += key;
-                        outputBox.classList.remove('shortcut', 'shortcut-flash');
+                        outputBox.classList.remove('shortcut', 'shortcut-flash', 'holding');
                     }
                 } else {
                     // It was a hold - release modifier
                     element.classList.remove('held');
                     heldKeys.delete(key);
+                    // Update modifier display (may still have other modifiers held)
                     if (heldKeys.size === 0) {
-                        outputBox.classList.remove('shortcut', 'shortcut-flash');
+                        outputText.textContent = '';
+                        outputBox.classList.remove('shortcut', 'shortcut-flash', 'holding');
+                    } else {
+                        updateModifierDisplay();
                     }
                 }
                 delete holdTimers[key];
@@ -1018,4 +1045,250 @@
             modeLabel.classList.add('visible');
         }
     }
+
+    // =========================================================================
+    // Keyboard Marquee - Drag & Throw with Momentum
+    // =========================================================================
+    const marqueeTrack = document.querySelector('.keyboard-marquee-track');
+    if (marqueeTrack) {
+        const marquee = marqueeTrack.parentElement;
+
+        // State
+        let isDragging = false;
+        let startX = 0;
+        let currentX = 0;
+        let velocityX = 0;
+        let lastX = 0;
+        let lastTime = 0;
+        let animationFrame = null;
+        let momentumFrame = null;
+
+        // Physics constants
+        const FRICTION = 0.95; // Deceleration per frame (lower = more friction)
+        const MIN_VELOCITY = 0.5; // Stop momentum below this speed
+        const VELOCITY_SCALE = 0.3; // Scale down velocity for smoother feel
+
+        // Get current transform X value
+        function getTransformX() {
+            const style = window.getComputedStyle(marqueeTrack);
+            const matrix = new DOMMatrix(style.transform);
+            return matrix.m41; // translateX value
+        }
+
+        // Set transform directly
+        function setTransformX(x) {
+            marqueeTrack.style.transform = `translateX(${x}px)`;
+        }
+
+        // Wrap position to keep marquee seamless
+        function wrapPosition(x) {
+            const trackWidth = marqueeTrack.scrollWidth / 2; // Half because content is duplicated
+            // Wrap around when scrolled past half
+            if (x < -trackWidth) {
+                return x + trackWidth;
+            } else if (x > 0) {
+                return x - trackWidth;
+            }
+            return x;
+        }
+
+        // Start drag
+        function onDragStart(e) {
+            // Cancel any ongoing momentum
+            if (momentumFrame) {
+                cancelAnimationFrame(momentumFrame);
+                momentumFrame = null;
+            }
+
+            isDragging = true;
+            marqueeTrack.classList.add('is-dragging');
+            marqueeTrack.classList.remove('has-momentum', 'resuming');
+
+            // Get starting position
+            const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            currentX = getTransformX();
+            startX = clientX - currentX;
+            lastX = clientX;
+            lastTime = performance.now();
+            velocityX = 0;
+
+            // Prevent default to avoid text selection
+            e.preventDefault();
+        }
+
+        // During drag
+        function onDragMove(e) {
+            if (!isDragging) return;
+
+            const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            const now = performance.now();
+            const dt = now - lastTime;
+
+            // Calculate velocity (pixels per ms)
+            if (dt > 0) {
+                velocityX = (clientX - lastX) / dt * 16; // Normalize to ~60fps
+            }
+
+            lastX = clientX;
+            lastTime = now;
+
+            // Update position
+            currentX = clientX - startX;
+            currentX = wrapPosition(currentX);
+            setTransformX(currentX);
+
+            e.preventDefault();
+        }
+
+        // End drag - apply momentum
+        function onDragEnd(e) {
+            if (!isDragging) return;
+
+            isDragging = false;
+            marqueeTrack.classList.remove('is-dragging');
+
+            // Scale velocity for natural feel
+            velocityX *= VELOCITY_SCALE;
+
+            // Only apply momentum if velocity is significant
+            if (Math.abs(velocityX) > MIN_VELOCITY) {
+                marqueeTrack.classList.add('has-momentum');
+                applyMomentum();
+            } else {
+                resumeAutoScroll();
+            }
+        }
+
+        // Apply momentum with friction
+        function applyMomentum() {
+            velocityX *= FRICTION;
+
+            // Update position
+            currentX += velocityX;
+            currentX = wrapPosition(currentX);
+            setTransformX(currentX);
+
+            // Continue or stop
+            if (Math.abs(velocityX) > MIN_VELOCITY) {
+                momentumFrame = requestAnimationFrame(applyMomentum);
+            } else {
+                marqueeTrack.classList.remove('has-momentum');
+                resumeAutoScroll();
+            }
+        }
+
+        // Resume CSS animation from current position
+        function resumeAutoScroll() {
+            // Calculate what percentage through the animation we are
+            const trackWidth = marqueeTrack.scrollWidth / 2;
+            const progress = Math.abs(currentX) / trackWidth;
+
+            // Remove inline transform
+            marqueeTrack.style.transform = '';
+            marqueeTrack.classList.add('resuming');
+
+            // Set animation to resume from current position
+            // Animation goes from 0 to -50%, so we set delay to jump to current spot
+            const totalDuration = 40; // seconds (matches CSS)
+            const delay = -(progress * totalDuration);
+            marqueeTrack.style.animationDelay = `${delay}s`;
+
+            // Force reflow then remove resuming class
+            void marqueeTrack.offsetWidth;
+            marqueeTrack.classList.remove('resuming');
+        }
+
+        // Mouse events
+        marqueeTrack.addEventListener('mousedown', onDragStart);
+        window.addEventListener('mousemove', onDragMove);
+        window.addEventListener('mouseup', onDragEnd);
+
+        // Touch events (mobile)
+        marqueeTrack.addEventListener('touchstart', onDragStart, { passive: false });
+        window.addEventListener('touchmove', onDragMove, { passive: false });
+        window.addEventListener('touchend', onDragEnd);
+        window.addEventListener('touchcancel', onDragEnd);
+
+        // Prevent click on items during/after drag
+        let dragDistance = 0;
+        marqueeTrack.addEventListener('mousedown', (e) => {
+            dragDistance = 0;
+        });
+        marqueeTrack.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                dragDistance += Math.abs(e.movementX);
+            }
+        });
+        marqueeTrack.addEventListener('click', (e) => {
+            // If we dragged more than 5px, prevent the click
+            if (dragDistance > 5) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, true);
+
+        // Disable hover pause when using momentum (re-enable when auto-scrolling)
+        const originalHoverRule = '.keyboard-marquee:hover .keyboard-marquee-track { animation-play-state: paused; }';
+    }
+
+    // =========================================================================
+    // Video Playback Reliability
+    // =========================================================================
+    // Handle autoplay videos that may fail to load/play initially
+    document.querySelectorAll('video[autoplay]').forEach(video => {
+        let retryCount = 0;
+        const maxRetries = 3;
+        const retryDelay = 1000; // 1 second between retries
+
+        const attemptPlay = () => {
+            video.play().catch(err => {
+                // Autoplay was blocked or failed
+                if (retryCount < maxRetries) {
+                    retryCount++;
+                    setTimeout(attemptPlay, retryDelay);
+                }
+            });
+        };
+
+        // Handle stalled/waiting events
+        video.addEventListener('stalled', () => {
+            if (retryCount < maxRetries) {
+                retryCount++;
+                // Reload and retry
+                const currentTime = video.currentTime;
+                video.load();
+                video.currentTime = currentTime;
+                setTimeout(attemptPlay, retryDelay);
+            }
+        });
+
+        // Handle errors
+        video.addEventListener('error', () => {
+            if (retryCount < maxRetries) {
+                retryCount++;
+                setTimeout(() => {
+                    video.load();
+                    attemptPlay();
+                }, retryDelay);
+            }
+        });
+
+        // Ensure video plays when visible (IntersectionObserver)
+        const videoObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    // Reset retry count and attempt to play
+                    retryCount = 0;
+                    attemptPlay();
+                }
+            });
+        }, { threshold: 0.25 });
+
+        videoObserver.observe(video);
+
+        // Also try playing immediately if already loaded
+        if (video.readyState >= 2) {
+            attemptPlay();
+        }
+    });
 })();
