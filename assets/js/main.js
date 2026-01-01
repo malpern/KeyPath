@@ -1314,6 +1314,255 @@
     });
 
     // =====================================================
+    // LAUNCH CINEMA - Cinematic Demo Sequencer
+    // =====================================================
+    const cinemaSection = document.querySelector('.launch-cinema');
+    if (cinemaSection) {
+        const gestureText = cinemaSection.querySelector('.cinema-gesture-text');
+        const cursor = cinemaSection.querySelector('.cinema-cursor');
+        const keysContainer = cinemaSection.querySelector('.cinema-keys');
+        const result = cinemaSection.querySelector('.cinema-result');
+        const appIcon = cinemaSection.querySelector('.cinema-app-icon');
+        const appName = cinemaSection.querySelector('.cinema-app-name');
+        const dots = cinemaSection.querySelectorAll('.cinema-dot');
+
+        const examples = [
+            {
+                gesture: 'Two keys at once',
+                keys: [{ label: 'S', delay: 0 }, { label: 'D', delay: 0 }],
+                keyType: 'chord', // both appear and press together
+                app: 'slack',
+                appLabel: 'Slack'
+            },
+            {
+                gesture: 'Keys in a row',
+                keys: [{ label: 'G', delay: 0 }, { label: 'H', delay: 300 }],
+                keyType: 'sequence',
+                app: 'github',
+                appLabel: 'GitHub'
+            },
+            {
+                gesture: 'Double-tap',
+                keys: [{ label: 'F', delay: 0 }],
+                keyType: 'doubletap',
+                app: 'figma',
+                appLabel: 'Figma'
+            },
+            {
+                gesture: 'Hold + tap',
+                keys: [{ label: 'Nav', delay: 0 }, { label: 'S', delay: 400 }],
+                keyType: 'hold',
+                app: 'safari',
+                appLabel: 'Safari'
+            },
+            {
+                gesture: 'Tap, then type',
+                keys: [{ label: '␣', delay: 0 }, { label: 'D', delay: 500 }],
+                keyType: 'leader',
+                app: 'docs',
+                appLabel: 'Docs'
+            }
+        ];
+
+        let currentIndex = 0;
+        let isAnimating = false;
+
+        // Type text character by character
+        async function typeText(text) {
+            gestureText.textContent = '';
+            cursor.style.display = 'inline';
+            for (let i = 0; i < text.length; i++) {
+                gestureText.textContent += text[i];
+                await sleep(50 + Math.random() * 30);
+            }
+            await sleep(200);
+            cursor.style.display = 'none';
+        }
+
+        // Show keys based on type
+        async function showKeys(example) {
+            keysContainer.innerHTML = '';
+
+            if (example.keyType === 'chord') {
+                // Show both keys, then press together
+                const key1 = createKey(example.keys[0].label);
+                const plus = document.createElement('span');
+                plus.className = 'cinema-key-plus';
+                plus.textContent = '+';
+                const key2 = createKey(example.keys[1].label);
+
+                keysContainer.appendChild(key1);
+                keysContainer.appendChild(plus);
+                keysContainer.appendChild(key2);
+
+                await sleep(100);
+                key1.classList.add('visible');
+                plus.classList.add('visible');
+                key2.classList.add('visible');
+
+                await sleep(400);
+                key1.classList.add('pressed');
+                key2.classList.add('pressed');
+
+            } else if (example.keyType === 'sequence') {
+                // Show first, press, then second
+                const key1 = createKey(example.keys[0].label);
+                const key2 = createKey(example.keys[1].label);
+
+                keysContainer.appendChild(key1);
+                keysContainer.appendChild(key2);
+
+                await sleep(100);
+                key1.classList.add('visible');
+                await sleep(200);
+                key1.classList.add('pressed');
+                await sleep(300);
+                key1.classList.remove('pressed');
+
+                key2.classList.add('visible');
+                await sleep(200);
+                key2.classList.add('pressed');
+
+            } else if (example.keyType === 'doubletap') {
+                // Show one key, tap twice
+                const key = createKey(example.keys[0].label);
+                keysContainer.appendChild(key);
+
+                await sleep(100);
+                key.classList.add('visible');
+                await sleep(200);
+                key.classList.add('pressed');
+                await sleep(150);
+                key.classList.remove('pressed');
+                await sleep(150);
+                key.classList.add('pressed');
+
+            } else if (example.keyType === 'hold') {
+                // Show first key held, then second tapped
+                const key1 = createKey(example.keys[0].label);
+                const plus = document.createElement('span');
+                plus.className = 'cinema-key-plus';
+                plus.textContent = '+';
+                const key2 = createKey(example.keys[1].label);
+
+                keysContainer.appendChild(key1);
+                keysContainer.appendChild(plus);
+                keysContainer.appendChild(key2);
+
+                await sleep(100);
+                key1.classList.add('visible');
+                plus.classList.add('visible');
+                await sleep(200);
+                key1.classList.add('pressed'); // Hold
+
+                await sleep(400);
+                key2.classList.add('visible');
+                await sleep(200);
+                key2.classList.add('pressed');
+
+            } else if (example.keyType === 'leader') {
+                // Tap first, then type second
+                const key1 = createKey(example.keys[0].label);
+                const arrow = document.createElement('span');
+                arrow.className = 'cinema-key-plus';
+                arrow.textContent = '→';
+                const key2 = createKey(example.keys[1].label);
+
+                keysContainer.appendChild(key1);
+                keysContainer.appendChild(arrow);
+                keysContainer.appendChild(key2);
+
+                await sleep(100);
+                key1.classList.add('visible');
+                await sleep(200);
+                key1.classList.add('pressed');
+                await sleep(200);
+                key1.classList.remove('pressed');
+
+                arrow.classList.add('visible');
+                await sleep(300);
+
+                key2.classList.add('visible');
+                await sleep(200);
+                key2.classList.add('pressed');
+            }
+
+            await sleep(300);
+        }
+
+        function createKey(label) {
+            const key = document.createElement('div');
+            key.className = 'cinema-key';
+            key.textContent = label;
+            return key;
+        }
+
+        async function showResult(example) {
+            appIcon.className = 'cinema-app-icon ' + example.app;
+            appName.textContent = example.appLabel;
+            result.classList.add('visible');
+            await sleep(1500);
+        }
+
+        async function hideAll() {
+            result.classList.remove('visible');
+            keysContainer.innerHTML = '';
+            gestureText.textContent = '';
+            await sleep(300);
+        }
+
+        async function playExample(index) {
+            if (isAnimating) return;
+            isAnimating = true;
+
+            const example = examples[index];
+
+            // Update dots
+            dots.forEach((dot, i) => {
+                dot.classList.toggle('active', i === index);
+            });
+
+            // Run animation sequence
+            await typeText(example.gesture);
+            await showKeys(example);
+            await showResult(example);
+            await hideAll();
+
+            isAnimating = false;
+
+            // Next example
+            currentIndex = (currentIndex + 1) % examples.length;
+            playExample(currentIndex);
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Click on dots to jump to example
+        dots.forEach((dot, i) => {
+            dot.addEventListener('click', () => {
+                if (!isAnimating) {
+                    currentIndex = i;
+                    playExample(currentIndex);
+                }
+            });
+        });
+
+        // Start when section is visible
+        const cinemaObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && !isAnimating) {
+                    playExample(currentIndex);
+                    cinemaObserver.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.3 });
+
+        cinemaObserver.observe(cinemaSection);
+    }
+
+    // =====================================================
     // SCROLL-TRIGGERED ANIMATIONS
     // =====================================================
     // Use Intersection Observer to trigger animations when sections come into view

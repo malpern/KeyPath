@@ -49,77 +49,32 @@ content_class: content-full kanata-landing
     </div>
   </section>
 
-  <!-- LAUNCH ANYTHING SECTION (Combined) -->
-  <section class="kanata-fullscreen-section launch-anything-section">
-    <div class="kanata-fullscreen-content-wide">
-      <div class="launch-anything-header">
-        <h2 class="kanata-fullscreen-title">Launch anything with muscle memory</h2>
-        <p class="kanata-fullscreen-subtitle">Apps, websites, folders — no searching, no clicking.</p>
+  <!-- LAUNCH ANYTHING SECTION - Cinematic Demo -->
+  <section class="launch-cinema">
+    <div class="launch-cinema-stage">
+      <!-- Gesture label (typed in) -->
+      <div class="cinema-gesture">
+        <span class="cinema-gesture-text"></span>
+        <span class="cinema-cursor">|</span>
       </div>
 
-      <div class="launch-anything-grid">
-        <!-- Left: Trigger examples -->
-        <div class="launch-anything-content">
-          <h3 class="trigger-examples-header">Many ways to trigger</h3>
-          <div class="trigger-examples">
-            <div class="trigger-row">
-              <span class="trigger-gesture">Two keys at once</span>
-              <div class="trigger-keys">
-                <span class="key-pill small">S</span>
-                <span class="key-plus">+</span>
-                <span class="key-pill small">D</span>
-              </div>
-              <span class="trigger-result">→ Slack</span>
-            </div>
-            <div class="trigger-row">
-              <span class="trigger-gesture">Keys in a row</span>
-              <div class="trigger-keys">
-                <span class="key-pill small">G</span>
-                <span class="key-pill small">H</span>
-              </div>
-              <span class="trigger-result">→ GitHub</span>
-            </div>
-            <div class="trigger-row">
-              <span class="trigger-gesture">Double-tap</span>
-              <div class="trigger-keys">
-                <span class="key-pill small">F</span>
-                <span class="key-times">×2</span>
-              </div>
-              <span class="trigger-result">→ Figma</span>
-            </div>
-            <div class="trigger-row">
-              <span class="trigger-gesture">Hold + tap</span>
-              <div class="trigger-keys">
-                <span class="key-pill small">Nav</span>
-                <span class="key-plus">+</span>
-                <span class="key-pill small">S</span>
-              </div>
-              <span class="trigger-result">→ Safari</span>
-            </div>
-            <div class="trigger-row">
-              <span class="trigger-gesture">Tap, then type</span>
-              <div class="trigger-keys">
-                <span class="key-pill small">␣</span>
-                <span class="key-then">→</span>
-                <span class="key-pill small">D</span>
-              </div>
-              <span class="trigger-result">→ Docs</span>
-            </div>
-          </div>
-        </div>
+      <!-- Keys display -->
+      <div class="cinema-keys"></div>
 
-        <!-- Right: UI Screenshot (cropped/zoomed) -->
-        <div class="launch-anything-visual">
-          <div class="launch-ui-frame">
-            <img
-              class="launch-ui-image"
-              src="{{ '/images/kanata-launcher.png' | relative_url }}"
-              alt="KeyPath launcher showing app and website bindings"
-              loading="lazy"
-            />
-          </div>
-        </div>
+      <!-- Result (app icon + name) -->
+      <div class="cinema-result">
+        <div class="cinema-app-icon"></div>
+        <div class="cinema-app-name"></div>
       </div>
+    </div>
+
+    <!-- Progress dots -->
+    <div class="cinema-progress">
+      <span class="cinema-dot active" data-index="0"></span>
+      <span class="cinema-dot" data-index="1"></span>
+      <span class="cinema-dot" data-index="2"></span>
+      <span class="cinema-dot" data-index="3"></span>
+      <span class="cinema-dot" data-index="4"></span>
     </div>
   </section>
 
