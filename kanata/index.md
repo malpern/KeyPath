@@ -15,7 +15,6 @@ content_class: content-full kanata-landing
         <h1 class="kanata-landing-title">KeyPath</h1>
 
         <p class="kanata-landing-subtitle">Remap any key. Launch apps. Tile windows. All from your keyboard.</p>
-        <p class="kanata-landing-subkicker">Power of Kanata. Ease of a Mac app.</p>
 
         <div class="kanata-landing-actions">
           <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases/download/v1.0.0/KeyPath-1.0.0.zip">Download <span class="button-badge">Free</span></a>
@@ -119,7 +118,7 @@ content_class: content-full kanata-landing
         </span>
         <div class="kanata-feature-text">
           <div class="kanata-feature-title">Built for macOS</div>
-          <div class="kanata-feature-body">No Electron. No CLI. Native Swift app with menubar UI. Config via simple text files for full control.</div>
+          <div class="kanata-feature-body">No Electron. No CLI. A fast, native Swift app that feels at home on your Mac.</div>
         </div>
       </li>
     </ul>
@@ -424,7 +423,7 @@ content_class: content-full kanata-landing
     <p class="kanata-landing-subtitle" style="margin-bottom: var(--spacing-sm);">MacBook keyboards auto-detected on first launch</p>
     <p class="kanata-landing-fineprint mb-0">
       KeyPath reads your MacBook's keyboard type (ANSI, ISO, or JIS) from macOS and picks the right layout automatically.
-      17 layouts built-in. TouchID keeps working. No driver conflicts.
+      17 layouts built-in.
     </p>
 
     <div class="keyboard-marquee" style="margin-top: var(--spacing-xl);">

@@ -587,14 +587,7 @@ body.sidebar-open .sidebar {
 .kanata-landing-subtitle {
     font-size: var(--font-size-lg);
     color: var(--color-text-secondary);
-    margin-bottom: var(--spacing-sm);
-}
-
-.kanata-landing-subkicker {
-    font-size: var(--font-size-sm);
-    color: var(--color-text-tertiary);
     margin-bottom: var(--spacing-lg);
-    font-style: italic;
 }
 
 .kanata-landing-actions {
