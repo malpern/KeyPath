@@ -577,10 +577,10 @@ content_class: content-full kanata-landing
         </div>
       </div>
       <div class="kanata-existing-item">
-        <span class="kanata-existing-icon">🔒</span>
+        <span class="kanata-existing-icon">🔗</span>
         <div>
-          <strong>Nothing moves</strong>
-          <span>Your files stay exactly where they are</span>
+          <strong>One line added</strong>
+          <span>Just an <code>include</code> for KeyPath's app integrations</span>
         </div>
       </div>
     </div>
