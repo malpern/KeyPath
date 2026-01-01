@@ -1334,7 +1334,7 @@
 
     // Observe all sections that should animate on scroll
     const animatableSections = document.querySelectorAll(
-        '.muscle-memory-section, .launch-section'
+        '.launch-anything-section'
     );
     animatableSections.forEach(section => {
         section.classList.add('animate-on-scroll');
@@ -1343,7 +1343,7 @@
 
     // Observe individual items for staggered animations
     const animatableItems = document.querySelectorAll(
-        '.trigger-item, .launch-demo-row, .capability-item, .compare-card'
+        '.trigger-row, .compare-card'
     );
     animatableItems.forEach(item => {
         item.classList.add('stagger-item');

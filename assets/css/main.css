@@ -664,7 +664,7 @@ body.sidebar-open .sidebar {
 }
 
 /* =====================================================
-   MUSCLE MEMORY SECTION - Rich Layout
+   LAUNCH ANYTHING SECTION - Combined Layout
    ===================================================== */
 .kanata-fullscreen-content-wide {
     max-width: 1100px;
@@ -672,24 +672,29 @@ body.sidebar-open .sidebar {
     padding: 0 var(--spacing-lg);
 }
 
-.muscle-memory-header,
-.launch-header {
+.launch-anything-header {
     text-align: center;
     margin-bottom: var(--spacing-2xl);
 }
 
-.muscle-memory-grid {
+.launch-anything-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--spacing-2xl);
-    align-items: start;
+    align-items: center;
+}
+
+.launch-anything-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xl);
 }
 
 /* Comparison Cards */
-.muscle-memory-compare {
+.launch-compare {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-lg);
+    gap: var(--spacing-md);
 }
 
 .compare-card {
@@ -849,8 +854,61 @@ body.sidebar-open .sidebar {
     font-size: var(--font-size-sm);
 }
 
+/* Trigger Examples (plain language version) */
+.trigger-examples {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.trigger-row {
+    display: grid;
+    grid-template-columns: 120px 1fr auto;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--color-background-secondary);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.trigger-row:hover {
+    background: rgba(255, 149, 0, 0.08);
+    transform: translateX(4px);
+}
+
+.trigger-gesture {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    font-weight: 500;
+}
+
+/* UI Screenshot - cropped and zoomed */
+.launch-anything-visual {
+    position: relative;
+}
+
+.launch-ui-frame {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--color-background-secondary);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    height: 400px;
+}
+
+.launch-ui-image {
+    width: 200%;
+    height: auto;
+    object-fit: cover;
+    object-position: top left;
+    transform: scale(1.1);
+    transform-origin: top left;
+}
+
 /* =====================================================
-   LAUNCH APPS SECTION - Rich Layout
+   LAUNCH APPS SECTION - Rich Layout (legacy, keep for now)
    ===================================================== */
 .launch-grid {
     display: grid;
@@ -987,15 +1045,15 @@ body.sidebar-open .sidebar {
 }
 
 /* Trigger animations when section comes into view */
-.animate-on-scroll.animate-in .trigger-item {
+.animate-on-scroll.animate-in .trigger-row {
     animation: slideInRight 0.4s ease forwards;
 }
 
-.animate-on-scroll.animate-in .trigger-item:nth-child(1) { animation-delay: 0.1s; }
-.animate-on-scroll.animate-in .trigger-item:nth-child(2) { animation-delay: 0.15s; }
-.animate-on-scroll.animate-in .trigger-item:nth-child(3) { animation-delay: 0.2s; }
-.animate-on-scroll.animate-in .trigger-item:nth-child(4) { animation-delay: 0.25s; }
-.animate-on-scroll.animate-in .trigger-item:nth-child(5) { animation-delay: 0.3s; }
+.animate-on-scroll.animate-in .trigger-row:nth-child(1) { animation-delay: 0.1s; }
+.animate-on-scroll.animate-in .trigger-row:nth-child(2) { animation-delay: 0.15s; }
+.animate-on-scroll.animate-in .trigger-row:nth-child(3) { animation-delay: 0.2s; }
+.animate-on-scroll.animate-in .trigger-row:nth-child(4) { animation-delay: 0.25s; }
+.animate-on-scroll.animate-in .trigger-row:nth-child(5) { animation-delay: 0.3s; }
 
 @keyframes slideInRight {
     from {
@@ -1008,48 +1066,34 @@ body.sidebar-open .sidebar {
     }
 }
 
-/* Staggered entrance for launch demo rows */
-.animate-on-scroll.animate-in .launch-demo-row {
-    animation: slideInLeft 0.4s ease forwards;
+/* Compare cards entrance */
+.animate-on-scroll.animate-in .compare-card {
+    animation: fadeInUp 0.4s ease forwards;
 }
 
-.animate-on-scroll.animate-in .launch-demo-row:nth-child(1) { animation-delay: 0.1s; }
-.animate-on-scroll.animate-in .launch-demo-row:nth-child(2) { animation-delay: 0.15s; }
-.animate-on-scroll.animate-in .launch-demo-row:nth-child(3) { animation-delay: 0.2s; }
-.animate-on-scroll.animate-in .launch-demo-row:nth-child(4) { animation-delay: 0.25s; }
-.animate-on-scroll.animate-in .launch-demo-row:nth-child(5) { animation-delay: 0.3s; }
+.animate-on-scroll.animate-in .compare-card:nth-child(1) { animation-delay: 0.05s; }
+.animate-on-scroll.animate-in .compare-card:nth-child(2) { animation-delay: 0.15s; }
 
-@keyframes slideInLeft {
+/* UI image fade in */
+.animate-on-scroll.animate-in .launch-ui-frame {
+    animation: fadeInScale 0.6s ease forwards;
+    animation-delay: 0.2s;
+    opacity: 0;
+}
+
+@keyframes fadeInScale {
     from {
         opacity: 0;
-        transform: translateX(10px);
+        transform: scale(0.95);
     }
     to {
         opacity: 1;
-        transform: translateX(0);
+        transform: scale(1);
     }
 }
 
-/* Capability item entrance */
-.animate-on-scroll.animate-in .capability-item {
-    animation: fadeInUp 0.5s ease forwards;
-}
-
-.animate-on-scroll.animate-in .capability-item:nth-child(1) { animation-delay: 0.1s; }
-.animate-on-scroll.animate-in .capability-item:nth-child(2) { animation-delay: 0.2s; }
-.animate-on-scroll.animate-in .capability-item:nth-child(3) { animation-delay: 0.3s; }
-
-/* Compare cards entrance */
-.animate-on-scroll.animate-in .compare-card {
-    animation: fadeInUp 0.5s ease forwards;
-}
-
-.animate-on-scroll.animate-in .compare-card:nth-child(1) { animation-delay: 0.1s; }
-.animate-on-scroll.animate-in .compare-card:nth-child(2) { animation-delay: 0.2s; }
-
 /* Key pill subtle pulse on hover */
-.trigger-item:hover .key-pill,
-.launch-demo-row:hover .key-pill {
+.trigger-row:hover .key-pill {
     animation: keyPulse 0.3s ease;
 }
 
@@ -1057,11 +1101,6 @@ body.sidebar-open .sidebar {
     0% { transform: scale(1); }
     50% { transform: scale(1.05); }
     100% { transform: scale(1); }
-}
-
-/* App icon glow on hover */
-.launch-demo-row:hover .app-icon {
-    box-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
 }
 
 /* Compare card subtle glow */
@@ -1073,14 +1112,22 @@ body.sidebar-open .sidebar {
    RESPONSIVE - Fullscreen Sections
    ===================================================== */
 @media (max-width: 900px) {
-    .muscle-memory-grid,
+    .launch-anything-grid,
     .launch-grid {
         grid-template-columns: 1fr;
         gap: var(--spacing-xl);
     }
 
-    .muscle-memory-triggers {
+    .launch-anything-visual {
         order: -1;
+    }
+
+    .launch-ui-frame {
+        height: 300px;
+    }
+
+    .trigger-row {
+        grid-template-columns: 100px 1fr auto;
     }
 }
 
