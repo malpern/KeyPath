@@ -511,7 +511,7 @@ content_class: content-full kanata-landing
   <section class="hrm-section">
     <div class="hrm-header">
       <h2>Home Row Mods</h2>
-      <p class="hrm-subtitle">The keyboard upgrade you didn't know you needed. <a href="https://precondition.github.io/home-row-mods" target="_blank" rel="noopener" class="hrm-learn-more">Learn more (long read) →</a></p>
+      <p class="hrm-subtitle">The keyboard upgrade you didn't know you needed</p>
     </div>
 
     <div class="hrm-content">
@@ -619,23 +619,23 @@ content_class: content-full kanata-landing
           <ul class="hrm-compare-list">
             <li class="hrm-compare-pro hrm-has-tooltip">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
-              <span class="hrm-tooltip-trigger">Multiple <code>tap-hold</code> algorithms</span>
-              <span class="hrm-tooltip">Kanata offers <code>tap-hold</code>, <code>tap-hold-press</code>, <code>tap-hold-release</code>, and <code>tap-hold-press-timeout</code> — each optimized for different typing styles. Choose the one that feels right for you.</span>
+              <span class="hrm-tooltip-trigger">Multiple tap-hold modes</span>
+              <span class="hrm-tooltip">Choose the behavior that matches how you type. Some people tap fast, others hold longer — KeyPath adapts to your style.</span>
             </li>
             <li class="hrm-compare-pro hrm-has-tooltip">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
-              <span class="hrm-tooltip-trigger">"Permissive hold" prevents misfires</span>
-              <span class="hrm-tooltip">With permissive hold, a key only activates as a modifier if another key is pressed <em>while</em> it's held. Fast typing like "as" won't accidentally trigger Ctrl — it just types "as".</span>
+              <span class="hrm-tooltip-trigger">Smart misfire prevention</span>
+              <span class="hrm-tooltip">Type "as" fast and it just types "as" — not Ctrl+S. KeyPath is smart about the difference between fast typing and intentional shortcuts.</span>
             </li>
             <li class="hrm-compare-pro hrm-has-tooltip">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
-              <span class="hrm-tooltip-trigger">Per-key timing customization</span>
-              <span class="hrm-tooltip">Your pinky is slower than your index finger. Kanata lets you set different tap/hold thresholds for each key — 200ms for A (pinky), 150ms for F (index). Karabiner only has one global setting.</span>
+              <span class="hrm-tooltip-trigger">Tune each key individually</span>
+              <span class="hrm-tooltip">Your pinky moves slower than your index finger. Set different timing for each key so they all feel just right.</span>
             </li>
             <li class="hrm-compare-pro hrm-has-tooltip">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
-              <span class="hrm-tooltip-trigger">Bilateral <code>combos</code></span>
-              <span class="hrm-tooltip">Require modifiers from opposite hands to activate. A (left Ctrl) + ; (right Shift) = Ctrl+Shift. But A + S (same hand) just types "as". Eliminates almost all misfires.</span>
+              <span class="hrm-tooltip-trigger">Same-hand typing works perfectly</span>
+              <span class="hrm-tooltip">Want Ctrl+Shift? Use keys from both hands. Just typing letters? Same-hand combos stay as letters. Almost zero accidental triggers.</span>
             </li>
           </ul>
         </div>
@@ -645,6 +645,15 @@ content_class: content-full kanata-landing
         Home row mods used to require custom keyboard firmware. Now you can have them on any Mac keyboard —
         including your MacBook's built-in keyboard.
       </p>
+
+      <a href="https://precondition.github.io/home-row-mods" target="_blank" rel="noopener" class="hrm-deep-dive">
+        <img src="https://precondition.github.io/favicon.ico" alt="" class="hrm-deep-dive-icon" width="24" height="24">
+        <div class="hrm-deep-dive-text">
+          <span class="hrm-deep-dive-title">A guide to home row mods</span>
+          <span class="hrm-deep-dive-meta">precondition.github.io · Long read</span>
+        </div>
+        <svg class="hrm-deep-dive-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg>
+      </a>
     </div>
   </section>
 
