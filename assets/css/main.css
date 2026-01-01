@@ -4574,17 +4574,6 @@ a.button:active {
     flex-shrink: 0;
 }
 
-/* Feature learn more link (in feature list) */
-.feature-learn-more {
-    color: var(--color-text-secondary);
-    text-decoration: none;
-    margin-left: 4px;
-}
-
-.feature-learn-more:hover {
-    color: var(--color-primary);
-}
-
 /* Tooltip styles */
 .hrm-has-tooltip {
     position: relative;
