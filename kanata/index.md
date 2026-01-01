@@ -507,6 +507,154 @@ content_class: content-full kanata-landing
 
   <div class="kanata-landing-divider" aria-hidden="true"></div>
 
+  <!-- Home Row Mods Section -->
+  <section class="hrm-section">
+    <div class="hrm-header">
+      <h2>Home Row Mods</h2>
+      <p class="hrm-subtitle">The keyboard upgrade you didn't know you needed</p>
+    </div>
+
+    <div class="hrm-content">
+      <div class="hrm-demo">
+        <div class="hrm-keyboard">
+          <div class="hrm-row hrm-row-top">
+            <div class="hrm-key hrm-key-dim">Q</div>
+            <div class="hrm-key hrm-key-dim">W</div>
+            <div class="hrm-key hrm-key-dim">E</div>
+            <div class="hrm-key hrm-key-dim">R</div>
+            <div class="hrm-key hrm-key-dim">T</div>
+          </div>
+          <div class="hrm-row hrm-row-home">
+            <div class="hrm-key hrm-key-mod" data-tap="A" data-hold="Ctrl">
+              <span class="hrm-tap">A</span>
+              <span class="hrm-hold">Ctrl</span>
+              <span class="hrm-indicator hrm-indicator-ctrl"></span>
+            </div>
+            <div class="hrm-key hrm-key-mod" data-tap="S" data-hold="Alt">
+              <span class="hrm-tap">S</span>
+              <span class="hrm-hold">Alt</span>
+              <span class="hrm-indicator hrm-indicator-alt"></span>
+            </div>
+            <div class="hrm-key hrm-key-mod" data-tap="D" data-hold="Cmd">
+              <span class="hrm-tap">D</span>
+              <span class="hrm-hold">Cmd</span>
+              <span class="hrm-indicator hrm-indicator-cmd"></span>
+            </div>
+            <div class="hrm-key hrm-key-mod" data-tap="F" data-hold="Shift">
+              <span class="hrm-tap">F</span>
+              <span class="hrm-hold">Shift</span>
+              <span class="hrm-indicator hrm-indicator-shift"></span>
+            </div>
+            <div class="hrm-key hrm-key-dim">G</div>
+          </div>
+          <div class="hrm-row hrm-row-bottom">
+            <div class="hrm-key hrm-key-dim">Z</div>
+            <div class="hrm-key hrm-key-dim">X</div>
+            <div class="hrm-key hrm-key-dim">C</div>
+            <div class="hrm-key hrm-key-dim">V</div>
+            <div class="hrm-key hrm-key-dim">B</div>
+          </div>
+        </div>
+        <p class="hrm-demo-caption">Tap for letters. Hold for modifiers. Never leave home row.</p>
+      </div>
+
+      <div class="hrm-explanation">
+        <div class="hrm-benefit">
+          <div class="hrm-benefit-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
+          </div>
+          <div class="hrm-benefit-text">
+            <h4>No more reaching</h4>
+            <p>Ctrl, Alt, Cmd, and Shift live right under your fingers. No stretching to the corners of your keyboard.</p>
+          </div>
+        </div>
+
+        <div class="hrm-benefit">
+          <div class="hrm-benefit-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          </div>
+          <div class="hrm-benefit-text">
+            <h4>Faster shortcuts</h4>
+            <p>⌘+S becomes D+S. ⌘+C becomes D+C. Your fingers barely move.</p>
+          </div>
+        </div>
+
+        <div class="hrm-benefit">
+          <div class="hrm-benefit-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          </div>
+          <div class="hrm-benefit-text">
+            <h4>Happier hands</h4>
+            <p>Less strain, less fatigue. Home row mods are a game-changer for heavy keyboard users.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hrm-comparison">
+      <h3>Why KeyPath does this better</h3>
+      <p class="hrm-comparison-intro">Home row mods need precise timing to feel right. Kanata's tap-hold algorithm is the best on Mac.</p>
+
+      <div class="hrm-comparison-grid">
+        <div class="hrm-compare-card hrm-compare-others">
+          <div class="hrm-compare-header">
+            <span class="hrm-compare-label">Karabiner-Elements</span>
+          </div>
+          <ul class="hrm-compare-list">
+            <li class="hrm-compare-con">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              Basic tap-hold only
+            </li>
+            <li class="hrm-compare-con">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              Accidental triggers when typing fast
+            </li>
+            <li class="hrm-compare-con">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              Global timing only — can't tune per-key
+            </li>
+            <li class="hrm-compare-con">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              No bilateral combination support
+            </li>
+          </ul>
+        </div>
+
+        <div class="hrm-compare-card hrm-compare-keypath">
+          <div class="hrm-compare-header">
+            <span class="hrm-compare-label">KeyPath</span>
+            <span class="hrm-compare-badge">Powered by Kanata</span>
+          </div>
+          <ul class="hrm-compare-list">
+            <li class="hrm-compare-pro">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+              Multiple tap-hold algorithms
+            </li>
+            <li class="hrm-compare-pro">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+              "Permissive hold" prevents misfires
+            </li>
+            <li class="hrm-compare-pro">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+              Per-key timing customization
+            </li>
+            <li class="hrm-compare-pro">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+              Bilateral combos (e.g., A+; for Ctrl+Shift)
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <p class="hrm-cta-text">
+        Home row mods used to require custom keyboard firmware. Now you can have them on any Mac keyboard —
+        including your MacBook's built-in keyboard.
+      </p>
+    </div>
+  </section>
+
+  <div class="kanata-landing-divider" aria-hidden="true"></div>
+
   <section class="kanata-landing-section">
     <h2>Use your existing Kanata config</h2>
     <div class="kanata-landing-grid-2">
