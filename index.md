@@ -349,15 +349,14 @@ content_class: content-full kanata-landing
 
   <div class="kanata-landing-divider" aria-hidden="true"></div>
 
-  <section class="kanata-landing-section">
-    <h2>Works with your keyboard</h2>
-    <p class="kanata-landing-subtitle" style="margin-bottom: var(--spacing-sm);">MacBook keyboards auto-detected on first launch</p>
-    <p class="kanata-landing-fineprint mb-0">
-      KeyPath reads your MacBook's keyboard type (ANSI, ISO, or JIS) from macOS and picks the right layout automatically.
-      17 layouts built-in.
-    </p>
+  <!-- WORKS WITH YOUR KEYBOARD - Full Screen -->
+  <section class="keyboards-fullscreen">
+    <div class="keyboards-fullscreen-content">
+      <h2 class="keyboards-fullscreen-title">Works with your keyboard</h2>
+      <p class="keyboards-fullscreen-subtitle">17 layouts built-in. MacBook keyboards auto-detected on first launch.</p>
+    </div>
 
-    <div class="keyboard-marquee" style="margin-top: var(--spacing-xl);">
+    <div class="keyboard-marquee">
       <div class="keyboard-marquee-track">
         <div class="keyboard-marquee-item" data-stat="Auto-detected on first launch">
           <img src="{{ '/images/keyboards/web-macbook-us.png' | relative_url }}" alt="MacBook keyboard" class="keyboard-marquee-img">
