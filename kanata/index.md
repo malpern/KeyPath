@@ -36,18 +36,6 @@ content_class: content-full kanata-landing
     </div>
   </section>
 
-  <!-- Kanata User Callout -->
-  <div class="kanata-user-callout">
-    <div class="kanata-user-callout-content">
-      <span class="kanata-user-callout-badge">Already using Kanata?</span>
-      <p>Keep your <code>config.kbd</code> — KeyPath handles macOS permissions, auto-start, and the menubar UI.</p>
-      <a href="{{ '/migration/kanata-users' | relative_url }}" class="kanata-user-callout-link">
-        Migration guide
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-      </a>
-    </div>
-  </div>
-
   <section class="kanata-landing-section">
     <h2 class="mt-0">Why KeyPath?</h2>
     <p class="kanata-landing-fineprint mb-0">
