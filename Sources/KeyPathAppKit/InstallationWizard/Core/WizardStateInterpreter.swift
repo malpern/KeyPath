@@ -204,6 +204,8 @@ struct WizardStateInterpreter {
             [] // FDA page doesn't use issues, it's optional
         case .summary:
             issues // Summary shows all issues
+        case .stopExternalKanata:
+            [] // Stop external kanata page doesn't use issues
         }
     }
 

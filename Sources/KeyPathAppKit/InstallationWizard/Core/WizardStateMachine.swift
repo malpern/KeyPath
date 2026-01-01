@@ -162,8 +162,10 @@ class WizardStateMachine: ObservableObject {
             .summary // First page
         case .kanataMigration:
             .summary // Migration is early optional page
+        case .stopExternalKanata:
+            .kanataMigration // Stop external kanata comes after migration
         case .helper:
-            .kanataMigration // Helper is after migration
+            .stopExternalKanata // Helper is after stop external kanata
         case .fullDiskAccess:
             .helper
         case .conflicts:

@@ -10,6 +10,7 @@ final class WizardWindowController {
     static let shared = WizardWindowController()
 
     private var window: NSWindow?
+    private var windowDelegate: WizardWindowDelegate?
     private var onDismiss: (() -> Void)?
 
     private init() {}
@@ -58,7 +59,9 @@ final class WizardWindowController {
         window.minSize = NSSize(width: 700, height: 500)
         window.contentView = hostingView
         window.isReleasedWhenClosed = false
-        window.delegate = WizardWindowDelegate(controller: self)
+        let delegate = WizardWindowDelegate(controller: self)
+        window.delegate = delegate
+        windowDelegate = delegate
 
         // Persistent window position
         window.setFrameAutosaveName("WizardWindow")
@@ -80,6 +83,7 @@ final class WizardWindowController {
         AppLogger.shared.log("🔮 [WizardWindow] Closing wizard window")
         window?.close()
         handleWindowClosed()
+        windowDelegate = nil
     }
 
     /// Called when the window is closed (either programmatically or by user)

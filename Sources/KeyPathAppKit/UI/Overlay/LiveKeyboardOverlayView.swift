@@ -91,7 +91,9 @@ struct LiveKeyboardOverlayView: View {
         let inspectorTotalWidth = inspectorPanelWidth + inspectorLeadingGap
         let inspectorChrome = inspectorVisible ? inspectorTotalWidth : 0
         let verticalChrome = OverlayLayoutMetrics.verticalChrome
-        let shouldFreezeKeyboard = uiState.isInspectorAnimating
+        // Freeze keyboard width when inspector is visible or animating to prevent shrinking
+        // This ensures the keyboard maintains its size when the drawer opens
+        let shouldFreezeKeyboard = uiState.isInspectorAnimating || inspectorVisible || uiState.isInspectorOpen
         let fixedKeyboardWidth: CGFloat? = keyboardWidth > 0 ? keyboardWidth : nil
         let fixedKeyboardHeight: CGFloat? = fixedKeyboardWidth.map { $0 / keyboardAspectRatio }
 
@@ -910,6 +912,9 @@ struct OverlayInspectorPanel: View {
     @AppStorage(LayoutPreferences.layoutIdKey) private var selectedLayoutId: String = LayoutPreferences.defaultLayoutId
     @AppStorage("overlayColorwayId") private var selectedColorwayId: String = GMKColorway.default.id
 
+    /// Category to scroll to in physical layout grid
+    @State private var scrollToLayoutCategory: LayoutCategory?
+
     private var includePunctuation: Bool {
         KeymapPreferences.includePunctuation(for: selectedKeymapId, store: includePunctuationStore)
     }
@@ -946,6 +951,9 @@ struct OverlayInspectorPanel: View {
                 mapperContent
                     .padding(.horizontal, 12)
                     .padding(.bottom, 6)
+            } else if selectedSection == .layout {
+                // Physical layout has its own ScrollView with ScrollViewReader for anchoring
+                physicalLayoutContent
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
@@ -955,7 +963,7 @@ struct OverlayInspectorPanel: View {
                         case .keyboard:
                             keymapsContent
                         case .layout:
-                            physicalLayoutContent
+                            EmptyView() // Handled above
                         case .keycaps:
                             keycapsContent
                         case .sounds:
@@ -994,18 +1002,79 @@ struct OverlayInspectorPanel: View {
 
     @ViewBuilder
     private var keymapsContent: some View {
-        // Keymap cards in 2-column grid
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-            ForEach(LogicalKeymap.all) { keymap in
+        VStack(alignment: .leading, spacing: 16) {
+            // Alt layouts section (QWERTY + ergonomic layouts) - no header
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                // QWERTY first
                 KeymapCard(
-                    keymap: keymap,
-                    isSelected: selectedKeymapId == keymap.id,
+                    keymap: LogicalKeymap.qwertyUS,
+                    isSelected: selectedKeymapId == LogicalKeymap.qwertyUS.id,
                     isDark: isDark,
                     fadeAmount: fadeAmount
                 ) {
-                    selectedKeymapId = keymap.id
+                    selectedKeymapId = LogicalKeymap.qwertyUS.id
+                }
+
+                // Then alt layouts
+                ForEach(LogicalKeymap.altLayouts) { keymap in
+                    KeymapCard(
+                        keymap: keymap,
+                        isSelected: selectedKeymapId == keymap.id,
+                        isDark: isDark,
+                        fadeAmount: fadeAmount
+                    ) {
+                        selectedKeymapId = keymap.id
+                    }
                 }
             }
+
+            // International layouts section
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("International")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.primary.opacity(0.7))
+                        .textCase(.uppercase)
+                        .tracking(0.8)
+                    Spacer()
+                }
+                .padding(.leading, 4)
+                .padding(.trailing, 4)
+                .padding(.top, 8)
+
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    ForEach(LogicalKeymap.internationalLayouts) { keymap in
+                        KeymapCard(
+                            keymap: keymap,
+                            isSelected: selectedKeymapId == keymap.id,
+                            isDark: isDark,
+                            fadeAmount: fadeAmount
+                        ) {
+                            selectedKeymapId = keymap.id
+                        }
+                    }
+                }
+            }
+
+            // Link to international physical layouts
+            Button {
+                onSelectSection(.layout)
+                // Set scroll target after tab switch to ensure view is ready
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    scrollToLayoutCategory = .international
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Text("International physical layouts")
+                        .font(.system(size: 11))
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 9, weight: .semibold))
+                }
+                .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 8)
+            .accessibilityIdentifier("international-physical-layouts-link")
         }
     }
 
@@ -1054,8 +1123,12 @@ struct OverlayInspectorPanel: View {
     private var physicalLayoutContent: some View {
         KeyboardSelectionGridView(
             selectedLayoutId: $selectedLayoutId,
-            isDark: isDark
+            isDark: isDark,
+            scrollToCategory: $scrollToLayoutCategory
         )
+        // Stable identity prevents scroll position reset when parent re-renders
+        // (e.g., when modifier keys like Command trigger pressedKeyCodes updates)
+        .id("physical-layout-grid")
     }
 
     // MARK: - Keycaps Content

@@ -9,6 +9,9 @@ enum LayoutPreferences {
 
     /// Default layout ID when none is set
     static let defaultLayoutId = "macbook-us"
+
+    /// Key for enabling QMK keyboard search (default: false)
+    static let qmkSearchEnabledKey = "qmkSearchEnabled"
 }
 
 // MARK: - Layout Categories

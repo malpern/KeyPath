@@ -344,4 +344,139 @@ public enum WizardSystemPaths {
         }
         return fullPath
     }
+
+    // MARK: - Running Kanata Process Detection
+
+    /// Information about a running Kanata process
+    public struct RunningKanataInfo {
+        public let pid: Int
+        public let configPath: String?
+        public let binaryPath: String
+        public let isKeyPathManaged: Bool
+    }
+
+    /// Detect a running Kanata process and extract its config path from command line args
+    /// Returns nil if no Kanata process is running
+    /// Prioritizes external (non-KeyPath) processes over KeyPath-managed ones
+    public static func detectRunningKanataProcess() -> RunningKanataInfo? {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/ps")
+        task.arguments = ["-eo", "pid,args"]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = FileHandle.nullDevice
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+        } catch {
+            return nil
+        }
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        guard let output = String(data: data, encoding: .utf8) else { return nil }
+
+        // Known KeyPath-managed binary paths
+        let keyPathManagedPaths = [
+            kanataSystemInstallPath,
+            bundledKanataPath
+        ]
+
+        var externalProcess: RunningKanataInfo?
+        var keyPathProcess: RunningKanataInfo?
+
+        for line in output.components(separatedBy: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+            // Skip lines that don't contain kanata binary
+            guard trimmed.contains("kanata") else { continue }
+            // Skip grep/ps commands themselves
+            guard !trimmed.contains("grep") && !trimmed.contains("ps -eo") else { continue }
+
+            // Parse PID and args
+            let parts = trimmed.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
+            guard parts.count >= 2,
+                  let pid = Int(parts[0]) else { continue }
+
+            let args = String(parts[1])
+
+            // Extract binary path (first component)
+            let argComponents = args.split(separator: " ", omittingEmptySubsequences: true)
+            guard let binaryPathComponent = argComponents.first else { continue }
+            let binaryPath = String(binaryPathComponent)
+
+            // Only consider actual kanata binaries
+            guard binaryPath.hasSuffix("kanata") || binaryPath.contains("/kanata") else { continue }
+
+            // Extract config path from --cfg or -c argument
+            let configPath = extractConfigPath(from: args)
+
+            let isKeyPathManaged = keyPathManagedPaths.contains { binaryPath.contains($0) }
+
+            let info = RunningKanataInfo(
+                pid: pid,
+                configPath: configPath,
+                binaryPath: binaryPath,
+                isKeyPathManaged: isKeyPathManaged
+            )
+
+            if isKeyPathManaged {
+                keyPathProcess = info
+            } else {
+                externalProcess = info
+            }
+        }
+
+        // Prefer external process (user's own kanata) over KeyPath-managed
+        return externalProcess ?? keyPathProcess
+    }
+
+    /// Extract config path from kanata command line arguments
+    /// Handles both --cfg <path> and -c <path> formats
+    private static func extractConfigPath(from args: String) -> String? {
+        let patterns = ["--cfg", "-c"]
+
+        for pattern in patterns {
+            guard let range = args.range(of: pattern) else { continue }
+
+            let afterPattern = args[range.upperBound...].trimmingCharacters(in: .whitespaces)
+
+            // Handle quoted paths
+            if afterPattern.hasPrefix("\"") {
+                let withoutQuote = afterPattern.dropFirst()
+                if let endQuote = withoutQuote.firstIndex(of: "\"") {
+                    return String(withoutQuote[..<endQuote])
+                }
+            } else if afterPattern.hasPrefix("'") {
+                let withoutQuote = afterPattern.dropFirst()
+                if let endQuote = withoutQuote.firstIndex(of: "'") {
+                    return String(withoutQuote[..<endQuote])
+                }
+            } else {
+                // Unquoted path - take until next space or end
+                let path = afterPattern.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true).first
+                if let path {
+                    return String(path)
+                }
+            }
+        }
+
+        return nil
+    }
+
+    /// Common LaunchAgent locations for user-installed Kanata
+    public static var userKanataLaunchAgentPaths: [String] {
+        let launchAgentsDir = "\(userHomeDirectory)/Library/LaunchAgents"
+        let fileManager = FileManager.default
+
+        guard fileManager.fileExists(atPath: launchAgentsDir),
+              let contents = try? fileManager.contentsOfDirectory(atPath: launchAgentsDir) else {
+            return []
+        }
+
+        return contents
+            .filter { $0.lowercased().contains("kanata") && $0.hasSuffix(".plist") }
+            .map { "\(launchAgentsDir)/\($0)" }
+    }
 }

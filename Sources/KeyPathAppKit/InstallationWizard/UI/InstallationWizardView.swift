@@ -350,20 +350,40 @@ struct InstallationWizardView: View {
                 )
             case .kanataMigration:
                 WizardKanataMigrationPage(
-                    onComplete: {
-                        // After migration, refresh state and continue
-                        refreshState()
-                        // Navigate to next logical page based on state
-                        if currentIssues.contains(where: { $0.category == .installation && $0.identifier == .component(.kanataBinaryMissing) }) {
-                            navigationCoordinator.navigateToPage(.kanataComponents)
+                    onMigrationComplete: { hasRunningKanata in
+                        // After migration, check if we need to stop external kanata
+                        if hasRunningKanata {
+                            navigationCoordinator.navigateToPage(.stopExternalKanata)
                         } else {
-                            navigationCoordinator.navigateToPage(.summary)
+                            // No running kanata, continue to next step
+                            refreshState()
+                            if currentIssues.contains(where: { $0.category == .installation && $0.identifier == .component(.kanataBinaryMissing) }) {
+                                navigationCoordinator.navigateToPage(.kanataComponents)
+                            } else {
+                                navigationCoordinator.navigateToPage(.summary)
+                            }
                         }
                     },
                     onSkip: {
                         // Skip migration, continue to next step
                         refreshState()
                         navigationCoordinator.navigateToPage(.summary)
+                    }
+                )
+            case .stopExternalKanata:
+                WizardStopKanataPage(
+                    onComplete: {
+                        // After stopping, refresh state and continue
+                        refreshState()
+                        if currentIssues.contains(where: { $0.category == .installation && $0.identifier == .component(.kanataBinaryMissing) }) {
+                            navigationCoordinator.navigateToPage(.kanataComponents)
+                        } else {
+                            navigationCoordinator.navigateToPage(.summary)
+                        }
+                    },
+                    onCancel: {
+                        // User cancelled, go back to migration
+                        navigationCoordinator.navigateToPage(.kanataMigration)
                     }
                 )
             case .helper:

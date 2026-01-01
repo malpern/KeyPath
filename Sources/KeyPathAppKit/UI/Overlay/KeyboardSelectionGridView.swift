@@ -5,8 +5,13 @@ import SwiftUI
 struct KeyboardSelectionGridView: View {
     @Binding var selectedLayoutId: String
     let isDark: Bool
+    /// Optional category to scroll to when the view appears or changes
+    @Binding var scrollToCategory: LayoutCategory?
     @State private var showImportSheet = false
     @State private var refreshTrigger = UUID() // Trigger refresh when custom layouts change
+
+    /// Whether QMK keyboard search is enabled (off by default)
+    @AppStorage(LayoutPreferences.qmkSearchEnabledKey) private var qmkSearchEnabled = false
 
     // Search state
     @State private var searchText = ""
@@ -27,9 +32,10 @@ struct KeyboardSelectionGridView: View {
     ]
 
     /// Initialize with automatically grouped layouts
-    init(selectedLayoutId: Binding<String>, isDark: Bool) {
+    init(selectedLayoutId: Binding<String>, isDark: Bool, scrollToCategory: Binding<LayoutCategory?> = .constant(nil)) {
         _selectedLayoutId = selectedLayoutId
         self.isDark = isDark
+        _scrollToCategory = scrollToCategory
         _refreshTrigger = State(initialValue: UUID())
     }
 
@@ -38,6 +44,7 @@ struct KeyboardSelectionGridView: View {
     init(layouts _: [PhysicalLayout], selectedLayoutId: Binding<String>, isDark: Bool) {
         _selectedLayoutId = selectedLayoutId
         self.isDark = isDark
+        _scrollToCategory = .constant(nil)
         _refreshTrigger = State(initialValue: UUID())
         // Note: groupedLayouts is now computed, so layouts parameter is ignored
         // This init exists only for preview compatibility
@@ -45,17 +52,19 @@ struct KeyboardSelectionGridView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Search bar at the top
-            searchBar
+            // Search bar at the top (only when QMK search is enabled in settings)
+            if qmkSearchEnabled {
+                searchBar
+            }
 
             // Content: search results or layout grid
-            if !searchText.isEmpty {
+            if qmkSearchEnabled, !searchText.isEmpty {
                 searchResultsView
+                    .id(refreshTrigger) // Only refresh search results
             } else {
                 layoutGridView
             }
         }
-        .id(refreshTrigger) // Force refresh when trigger changes
         .sheet(isPresented: $showImportSheet) {
             QMKImportSheet(
                 selectedLayoutId: $selectedLayoutId,
@@ -169,11 +178,10 @@ struct KeyboardSelectionGridView: View {
     // MARK: - Layout Grid View
 
     private var layoutGridView: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 20) {
-                ForEach(groupedLayouts, id: \.category.id) { group in
-                    // Always show Custom section (even if empty), show others only if they have layouts
-                    if group.category == .custom || !group.layouts.isEmpty {
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    ForEach(groupedLayouts.filter { $0.category == .custom || !$0.layouts.isEmpty }, id: \.category.id) { group in
                         LayoutCategorySection(
                             category: group.category,
                             layouts: group.layouts,
@@ -182,11 +190,31 @@ struct KeyboardSelectionGridView: View {
                             showImportSheet: $showImportSheet,
                             refreshTrigger: $refreshTrigger
                         )
+                        .id(group.category.id)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 12)
+            }
+            .onChange(of: scrollToCategory) { _, newCategory in
+                if let category = newCategory {
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(500))
+                        withAnimation(.easeInOut(duration: 0.5)) {
+                            proxy.scrollTo(category.id, anchor: .top)
+                        }
                     }
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 12)
+            .onAppear {
+                // Scroll to selected layout on appear
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(100))
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        proxy.scrollTo("layout-\(selectedLayoutId)", anchor: .center)
+                    }
+                }
+            }
         }
     }
 
@@ -321,9 +349,8 @@ private struct LayoutCategorySection: View {
                         isDark: isDark,
                         isCustom: layout.id.hasPrefix("custom-")
                     ) {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            selectedLayoutId = layout.id
-                        }
+                        // No animation on selection - keeps drawer stable
+                        selectedLayoutId = layout.id
                     } onDelete: {
                         if layout.id.hasPrefix("custom-") {
                             Task {
@@ -338,6 +365,7 @@ private struct LayoutCategorySection: View {
                             }
                         }
                     }
+                    .id("layout-\(layout.id)")
                 }
 
                 // Import button card for Custom section (if no layouts yet)
@@ -361,7 +389,6 @@ private struct KeyboardIllustrationCard: View {
     let onDelete: (() -> Void)?
 
     @State private var isHovering = false
-    @State private var scale: CGFloat = 1.0
     @State private var showDeleteConfirmation = false
 
     // Image size - fairly big as requested
@@ -414,7 +441,6 @@ private struct KeyboardIllustrationCard: View {
                         .padding(12)
                 }
                 .frame(height: imageHeight + 24)
-                .scaleEffect(scale)
 
                 // Label - centered below image, supports multi-line for long names
                 Text(layout.name)
@@ -431,29 +457,13 @@ private struct KeyboardIllustrationCard: View {
         .accessibilityIdentifier("overlay-keyboard-layout-button-\(layout.id)")
         .accessibilityLabel("Select keyboard layout \(layout.name)")
         .onHover { hovering in
+            // Animate only hover state, not scale - avoids layout shifts
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovering = hovering
             }
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                scale = hovering ? 1.03 : 1.0
-            }
         }
-        .onChange(of: isSelected) { _, newValue in
-            if newValue {
-                // Selection "pop" animation
-                withAnimation(.spring(response: 0.25, dampingFraction: 0.5)) {
-                    scale = 1.06
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
-                        scale = 1.0
-                    }
-                }
-            }
-        }
-        // Animate all state changes smoothly
-        .animation(.easeInOut(duration: 0.2), value: isSelected)
-        .animation(.easeInOut(duration: 0.15), value: isHovering)
+        // No scale "pop" animation on selection - keeps drawer stable
+        // Selection ring and shadow changes provide sufficient visual feedback
         .contextMenu {
             if isCustom, let onDelete {
                 Button(role: .destructive) {

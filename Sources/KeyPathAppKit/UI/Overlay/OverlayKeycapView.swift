@@ -888,11 +888,20 @@ struct OverlayKeycapView: View {
             // Numpad keys (not in standard keymaps)
             "clr", "CLR", "/", "*", "+", ".",
             // JIS-specific keys (not in standard keymaps)
-            "¥", "英数", "かな", "_", "^", ":", "@", "fn",
+            "¥", "英数", "かな", "_", "^", ":", "@", "fn", "Fn",
             // Menu/Application key
             "☰", "▤",
             // Numpad enter
-            "⏎", "⌅"
+            "⏎", "⌅",
+            // Modifier keys (text labels for split/ergonomic keyboards)
+            "Shift", "shift", "⇧",
+            "Control", "control", "Ctrl", "ctrl", "⌃",
+            "Option", "option", "Alt", "alt", "⌥",
+            "Command", "command", "Cmd", "cmd", "⌘",
+            // Layer keys (common in split keyboards like Corne)
+            "Lower", "lower", "Lwr", "lwr",
+            "Raise", "raise", "Rse", "rse",
+            "Adjust", "adjust", "Adj", "adj"
         ]
         // Check physical key label first (stable during transitions)
         // Also check keymap label to handle cases where keymap changes the label
@@ -921,13 +930,22 @@ struct OverlayKeycapView: View {
         case "▤": "menu"
         // Other special keys
         case "lyr": "layer"
-        case "fn": nil // Fn uses globe icon
+        case "fn": "fn" // Function key for split keyboards
         case "mod": "mod"
         case "␣": "space"
         case "⌫": "delete"
         case "↩": "return"
         case "⏎": "enter"
         case "⌅": "enter"
+        // Modifier keys (text labels for split/ergonomic keyboards)
+        case "shift", "⇧": "shift"
+        case "control", "ctrl", "⌃": "ctrl"
+        case "option", "alt", "⌥": "opt"
+        case "command", "cmd", "⌘": "cmd"
+        // Layer keys (common in split keyboards like Corne)
+        case "lower", "lwr": "lower"
+        case "raise", "rse": "raise"
+        case "adjust", "adj": "adjust"
         default: nil
         }
     }

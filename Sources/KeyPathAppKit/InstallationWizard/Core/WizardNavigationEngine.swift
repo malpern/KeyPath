@@ -160,6 +160,8 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
             return false // Optional, not blocking
         case .kanataMigration:
             return false // Optional, not blocking
+        case .stopExternalKanata:
+            return false // Optional, only shown when migrating with running process
         case .communication:
             return false // Optional, not blocking
         case .summary:
@@ -209,7 +211,9 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
         case .fullDiskAccess:
             "Grant Full Disk Access"
         case .kanataMigration:
-            "Continue Setup"
+            "Use This Config"
+        case .stopExternalKanata:
+            "Stop Kanata"
         case .summary:
             switch state {
             case .active:
@@ -253,6 +257,8 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
             return true // Can always try to grant FDA
         case .kanataMigration:
             return true // Can always skip or migrate
+        case .stopExternalKanata:
+            return true // Can always stop external kanata
         case .summary:
             return true
         }
