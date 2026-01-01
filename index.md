@@ -58,40 +58,9 @@ content_class: content-full kanata-landing
       </div>
 
       <div class="launch-anything-grid">
-        <!-- Left: Content -->
+        <!-- Left: Trigger examples -->
         <div class="launch-anything-content">
-          <!-- Comparison -->
-          <div class="launch-compare">
-            <div class="compare-card compare-raycast">
-              <div class="compare-header">
-                <span class="compare-icon">🔍</span>
-                <span class="compare-label">Raycast</span>
-              </div>
-              <div class="compare-flow">
-                <span class="key-pill">⌘ Space</span>
-                <span class="flow-arrow">→</span>
-                <span class="flow-text">type "slack"</span>
-                <span class="flow-arrow">→</span>
-                <span class="key-pill">↩</span>
-              </div>
-              <p class="compare-caption">Great for searching.</p>
-            </div>
-
-            <div class="compare-card compare-keypath">
-              <div class="compare-header">
-                <span class="compare-icon">⌨️</span>
-                <span class="compare-label">KeyPath</span>
-              </div>
-              <div class="compare-flow">
-                <span class="key-pill key-pill-orange">S + D</span>
-                <span class="flow-arrow">→</span>
-                <span class="flow-result">Slack</span>
-              </div>
-              <p class="compare-caption">Instant. No thinking.</p>
-            </div>
-          </div>
-
-          <!-- Trigger examples with plain language -->
+          <h3 class="trigger-examples-header">Many ways to trigger</h3>
           <div class="trigger-examples">
             <div class="trigger-row">
               <span class="trigger-gesture">Two keys at once</span>

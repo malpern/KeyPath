@@ -855,6 +855,13 @@ body.sidebar-open .sidebar {
 }
 
 /* Trigger Examples (plain language version) */
+.trigger-examples-header {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0 0 var(--spacing-md) 0;
+}
+
 .trigger-examples {
     display: flex;
     flex-direction: column;
