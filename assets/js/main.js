@@ -1121,13 +1121,20 @@
                 momentumFrame = null;
             }
 
+            // IMPORTANT: Get transform position BEFORE stopping animation
+            // Otherwise the position jumps when animation is removed
+            currentX = getTransformX();
+
+            // Now freeze at current position by setting inline transform
+            setTransformX(currentX);
+
+            // Now safe to stop the animation
             isDragging = true;
             marqueeTrack.classList.add('is-dragging');
             marqueeTrack.classList.remove('has-momentum', 'resuming');
 
             // Get starting position
             const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
-            currentX = getTransformX();
             startX = clientX - currentX;
             lastX = clientX;
             lastTime = performance.now();
