@@ -11,9 +11,8 @@ content_class: content-full kanata-landing
     <div class="kanata-landing-hero-grid">
       <div>
 
-        <p class="kanata-landing-kicker">KeyPath</p>
-        <h1 class="kanata-landing-title">Turn your keyboard into a command center</h1>
-
+        <h1 class="kanata-landing-title">KeyPath</h1>
+        <p class="kanata-landing-tagline">Turn your keyboard into a command center</p>
         <p class="kanata-landing-subtitle">Launch apps, remap keys, tile windows, and automate workflows — all without leaving the home row on your Mac.</p>
 
         <div class="kanata-landing-actions">
