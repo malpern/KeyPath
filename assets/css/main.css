@@ -914,6 +914,80 @@ body.sidebar-open .sidebar {
     max-height: 36px;
 }
 
+/* Gesture icon hover animations */
+.cinema-gesture-icon svg rect,
+.cinema-gesture-icon svg path,
+.cinema-gesture-icon svg text {
+    transition: all 0.15s ease-out;
+}
+
+/* Chord: both keys press down together */
+.cinema-summary-item[data-summary="0"]:hover .cinema-gesture-icon svg rect {
+    transform: translateY(2px);
+    filter: brightness(1.2);
+}
+
+/* Sequence: keys light up in order */
+.cinema-summary-item[data-summary="1"]:hover .cinema-gesture-icon svg rect:nth-child(1) {
+    animation: sequence-pulse 0.6s ease-out infinite;
+}
+.cinema-summary-item[data-summary="1"]:hover .cinema-gesture-icon svg rect:nth-child(2) {
+    animation: sequence-pulse 0.6s ease-out 0.15s infinite;
+}
+.cinema-summary-item[data-summary="1"]:hover .cinema-gesture-icon svg rect:nth-child(3) {
+    animation: sequence-pulse 0.6s ease-out 0.3s infinite;
+}
+
+@keyframes sequence-pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+}
+
+/* Tap-dance: key bounces twice */
+.cinema-summary-item[data-summary="2"]:hover .cinema-gesture-icon svg rect {
+    animation: tap-dance 0.4s ease-out;
+}
+
+@keyframes tap-dance {
+    0%, 100% { transform: translateY(0); }
+    25% { transform: translateY(3px); }
+    50% { transform: translateY(0); }
+    75% { transform: translateY(3px); }
+}
+
+/* Tap-hold: key presses, bar fills */
+.cinema-summary-item[data-summary="3"]:hover .cinema-gesture-icon svg rect:first-child {
+    transform: translateY(2px);
+}
+.cinema-summary-item[data-summary="3"]:hover .cinema-gesture-icon svg rect:last-child {
+    animation: hold-fill 0.8s ease-out infinite;
+    transform-origin: left center;
+}
+
+@keyframes hold-fill {
+    0% { transform: scaleX(0.2); opacity: 0.3; }
+    100% { transform: scaleX(1); opacity: 1; }
+}
+
+/* Leader: key taps, arrow shoots forward */
+.cinema-summary-item[data-summary="4"]:hover .cinema-gesture-icon svg rect {
+    animation: leader-tap 0.3s ease-out;
+}
+.cinema-summary-item[data-summary="4"]:hover .cinema-gesture-icon svg path {
+    animation: leader-arrow 0.5s ease-out 0.15s infinite;
+}
+
+@keyframes leader-tap {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(2px); }
+}
+
+@keyframes leader-arrow {
+    0% { opacity: 0.3; transform: translateX(0); }
+    50% { opacity: 1; transform: translateX(3px); }
+    100% { opacity: 0.3; transform: translateX(0); }
+}
+
 .cinema-summary-label {
     font-size: var(--font-size-sm);
     color: var(--color-text-secondary);

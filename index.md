@@ -559,33 +559,24 @@ content_class: content-full kanata-landing
   <div class="kanata-landing-divider" aria-hidden="true"></div>
 
   <section class="kanata-landing-section">
-    <h2>Use your existing Kanata config</h2>
+    <h2>Already using Kanata?</h2>
+    <p class="kanata-landing-subtitle">KeyPath finds your config automatically. One click and you're done.</p>
     <div class="kanata-landing-grid-2">
       <div class="kanata-landing-card">
-        <h3>1) Put your config where KeyPath expects it</h3>
-        <p>Copy (or symlink) your existing Kanata config into KeyPath’s config directory.</p>
-        <div class="kanata-landing-code">
-
-```bash
-mkdir -p ~/.config/keypath
-cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
-```
-
-        </div>
+        <h3>Auto-detected</h3>
+        <p>On first launch, KeyPath checks for a running Kanata process and common config locations. If found, you'll see a prompt to import it.</p>
+        <ul class="kanata-landing-list">
+          <li><code>~/.config/kanata/</code></li>
+          <li><code>~/.config/keypath/</code></li>
+          <li>Command-line args of running Kanata</li>
+        </ul>
       </div>
 
       <div class="kanata-landing-card">
-        <h3>2) Add one include line</h3>
-        <p>KeyPath uses a simple two-file model: you own <code>keypath.kbd</code>; KeyPath owns a generated companion file.</p>
-        <div class="kanata-landing-code">
-
-```lisp
-(include keypath-apps.kbd)
-```
-
-        </div>
+        <h3>Your config stays put</h3>
+        <p>KeyPath creates a symlink — it doesn't move or copy your file. Keep editing in your favorite editor; KeyPath hot-reloads on save.</p>
         <p class="kanata-landing-fineprint mb-0">
-          Full details (including limitations) are in <a href="{{ '/migration/kanata-users' | relative_url }}">Tips for existing Kanata users</a>.
+          For the technically curious: KeyPath adds a single <code>(include&nbsp;keypath-apps.kbd)</code> line so it can inject app-specific virtual keys. Full details in <a href="{{ '/migration/kanata-users' | relative_url }}">Tips for existing Kanata users</a>.
         </p>
       </div>
     </div>
