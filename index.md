@@ -11,6 +11,8 @@ content_class: content-full kanata-landing
   <section class="kanata-landing-hero">
     <!-- Breathing glow effect -->
     <div class="kanata-landing-hero-glow" aria-hidden="true"></div>
+    <!-- Soft grain texture -->
+    <div class="kanata-landing-hero-grain" aria-hidden="true"></div>
 
     <div class="kanata-landing-hero-content">
       <h1 class="kanata-landing-title hero-animate hero-animate-1">KeyPath</h1>
