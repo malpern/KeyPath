@@ -4489,6 +4489,90 @@ a.button:active {
     line-height: 1.6;
 }
 
+/* Learn more link */
+.hrm-learn-more {
+    color: var(--color-primary);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.hrm-learn-more:hover {
+    text-decoration: underline;
+}
+
+/* Tooltip styles */
+.hrm-has-tooltip {
+    position: relative;
+}
+
+.hrm-has-tooltip > svg {
+    flex-shrink: 0;
+}
+
+.hrm-tooltip-trigger {
+    cursor: help;
+    border-bottom: 1px dotted currentColor;
+    flex: 1;
+}
+
+.hrm-tooltip-trigger code {
+    font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+    font-size: 0.9em;
+    background: rgba(0, 122, 255, 0.1);
+    padding: 1px 4px;
+    border-radius: 3px;
+    color: var(--color-primary);
+}
+
+.hrm-tooltip {
+    display: none;
+    position: absolute;
+    left: 0;
+    top: 100%;
+    margin-top: 8px;
+    width: 280px;
+    padding: 12px;
+    background: #1C1C1E;
+    color: #F5F5F7;
+    font-size: var(--font-size-xs);
+    line-height: 1.5;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    z-index: 100;
+}
+
+.hrm-tooltip code {
+    font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+    font-size: 0.95em;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 1px 4px;
+    border-radius: 3px;
+    color: #5AC8FA;
+}
+
+.hrm-tooltip em {
+    color: #FFD60A;
+    font-style: normal;
+    font-weight: 500;
+}
+
+.hrm-has-tooltip:hover .hrm-tooltip {
+    display: block;
+}
+
+/* Tooltip arrow */
+.hrm-tooltip::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: 20px;
+    width: 12px;
+    height: 12px;
+    background: #1C1C1E;
+    transform: rotate(45deg);
+    border-radius: 2px 0 0 0;
+}
+
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
     .hrm-keyboard {

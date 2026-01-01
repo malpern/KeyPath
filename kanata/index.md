@@ -511,7 +511,7 @@ content_class: content-full kanata-landing
   <section class="hrm-section">
     <div class="hrm-header">
       <h2>Home Row Mods</h2>
-      <p class="hrm-subtitle">The keyboard upgrade you didn't know you needed</p>
+      <p class="hrm-subtitle">The keyboard upgrade you didn't know you needed. <a href="https://precondition.github.io/home-row-mods" target="_blank" rel="noopener" class="hrm-learn-more">Learn more (long read) →</a></p>
     </div>
 
     <div class="hrm-content">
@@ -616,21 +616,25 @@ content_class: content-full kanata-landing
             <span class="hrm-compare-badge">Powered by Kanata</span>
           </div>
           <ul class="hrm-compare-list">
-            <li class="hrm-compare-pro">
+            <li class="hrm-compare-pro hrm-has-tooltip">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
-              Multiple tap-hold algorithms
+              <span class="hrm-tooltip-trigger">Multiple <code>tap-hold</code> algorithms</span>
+              <span class="hrm-tooltip">Kanata offers <code>tap-hold</code>, <code>tap-hold-press</code>, <code>tap-hold-release</code>, and <code>tap-hold-press-timeout</code> — each optimized for different typing styles. Choose the one that feels right for you.</span>
             </li>
-            <li class="hrm-compare-pro">
+            <li class="hrm-compare-pro hrm-has-tooltip">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
-              "Permissive hold" prevents misfires
+              <span class="hrm-tooltip-trigger">"Permissive hold" prevents misfires</span>
+              <span class="hrm-tooltip">With permissive hold, a key only activates as a modifier if another key is pressed <em>while</em> it's held. Fast typing like "as" won't accidentally trigger Ctrl — it just types "as".</span>
             </li>
-            <li class="hrm-compare-pro">
+            <li class="hrm-compare-pro hrm-has-tooltip">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
-              Per-key timing customization
+              <span class="hrm-tooltip-trigger">Per-key timing customization</span>
+              <span class="hrm-tooltip">Your pinky is slower than your index finger. Kanata lets you set different tap/hold thresholds for each key — 200ms for A (pinky), 150ms for F (index). Karabiner only has one global setting.</span>
             </li>
-            <li class="hrm-compare-pro">
+            <li class="hrm-compare-pro hrm-has-tooltip">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
-              Bilateral combos (e.g., A+; for Ctrl+Shift)
+              <span class="hrm-tooltip-trigger">Bilateral <code>combos</code></span>
+              <span class="hrm-tooltip">Require modifiers from opposite hands to activate. A (left Ctrl) + ; (right Shift) = Ctrl+Shift. But A + S (same hand) just types "as". Eliminates almost all misfires.</span>
             </li>
           </ul>
         </div>
