@@ -2226,17 +2226,24 @@ body.sidebar-open .sidebar {
     line-height: 1.4;
 }
 
-.kanata-existing-cta {
-    margin: 0;
+.kanata-existing-learn-more {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    font-size: var(--font-size-sm);
+    margin-top: var(--spacing-md);
 }
 
-.kanata-existing-cta a {
+.kanata-existing-learn-more:hover {
     color: var(--color-primary);
-    font-weight: 500;
 }
 
-.kanata-existing-cta a:hover {
-    text-decoration: underline;
+.kanata-existing-learn-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
 }
 
 @media (max-width: 768px) {
