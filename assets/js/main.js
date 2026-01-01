@@ -668,4 +668,134 @@
             });
         });
     }
+
+    // =========================================================================
+    // Home Row Mods Demo Animation
+    // =========================================================================
+    const hrmDemo = document.querySelector('.hrm-demo');
+    if (hrmDemo) {
+        const outputText = hrmDemo.querySelector('.hrm-output-text');
+        const outputBox = hrmDemo.querySelector('.hrm-output');
+        const modeLabel = hrmDemo.querySelector('.hrm-demo-mode');
+        const keys = {
+            a: hrmDemo.querySelector('[data-key="a"]'),
+            s: hrmDemo.querySelector('[data-key="s"]'),
+            d: hrmDemo.querySelector('[data-key="d"]'),
+            f: hrmDemo.querySelector('[data-key="f"]')
+        };
+
+        // Check for reduced motion preference
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        // Animation sequence
+        function runHrmDemo() {
+            let step = 0;
+
+            const sequence = [
+                // Phase 1: Type "asdf" with quick taps
+                { action: 'mode', text: 'Tap for letters', delay: 800 },
+                { action: 'tap', key: 'a', output: 'a', delay: 200 },
+                { action: 'tap', key: 's', output: 'as', delay: 200 },
+                { action: 'tap', key: 'd', output: 'asd', delay: 200 },
+                { action: 'tap', key: 'f', output: 'asdf', delay: 600 },
+                { action: 'clear', delay: 800 },
+
+                // Phase 2: Hold D + tap S for ⌘S
+                { action: 'mode', text: 'Hold for modifiers', delay: 600 },
+                { action: 'hold', key: 'd', delay: 400 },
+                { action: 'tap', key: 's', output: '⌘S', shortcut: true, delay: 400 },
+                { action: 'release', key: 'd', delay: 600 },
+                { action: 'clear', delay: 1000 },
+
+                // Phase 3: Hold A + tap F for Ctrl+F
+                { action: 'hold', key: 'a', delay: 400 },
+                { action: 'tap', key: 'f', output: 'Ctrl+F', shortcut: true, delay: 400 },
+                { action: 'release', key: 'a', delay: 600 },
+                { action: 'clear', delay: 1200 },
+
+                // Loop
+                { action: 'restart', delay: 0 }
+            ];
+
+            function executeStep() {
+                if (step >= sequence.length) return;
+
+                const s = sequence[step];
+
+                switch (s.action) {
+                    case 'mode':
+                        modeLabel.textContent = s.text;
+                        modeLabel.classList.add('visible');
+                        break;
+
+                    case 'tap':
+                        if (keys[s.key]) {
+                            keys[s.key].classList.add('pressed');
+                            setTimeout(() => {
+                                keys[s.key].classList.remove('pressed');
+                            }, 100);
+                        }
+                        if (s.output) {
+                            outputText.textContent = s.output;
+                            if (s.shortcut) {
+                                outputBox.classList.add('shortcut');
+                            }
+                        }
+                        break;
+
+                    case 'hold':
+                        if (keys[s.key]) {
+                            keys[s.key].classList.add('held');
+                        }
+                        break;
+
+                    case 'release':
+                        if (keys[s.key]) {
+                            keys[s.key].classList.remove('held');
+                        }
+                        break;
+
+                    case 'clear':
+                        outputText.textContent = '';
+                        outputBox.classList.remove('shortcut');
+                        modeLabel.classList.remove('visible');
+                        break;
+
+                    case 'restart':
+                        step = -1;
+                        break;
+                }
+
+                step++;
+                if (step < sequence.length) {
+                    setTimeout(executeStep, sequence[step - 1].delay);
+                }
+            }
+
+            executeStep();
+        }
+
+        // Only run animation when visible (Intersection Observer)
+        let animationRunning = false;
+
+        const hrmObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && !animationRunning && !prefersReducedMotion) {
+                    animationRunning = true;
+                    runHrmDemo();
+                }
+            });
+        }, {
+            threshold: 0.5
+        });
+
+        hrmObserver.observe(hrmDemo);
+
+        // For reduced motion: show static state
+        if (prefersReducedMotion) {
+            outputText.textContent = 'asdf';
+            modeLabel.textContent = 'Tap for letters, hold for modifiers';
+            modeLabel.classList.add('visible');
+        }
+    }
 })();

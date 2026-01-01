@@ -516,46 +516,36 @@ content_class: content-full kanata-landing
 
     <div class="hrm-content">
       <div class="hrm-demo">
+        <!-- Output display showing what's being typed -->
+        <div class="hrm-output">
+          <span class="hrm-output-text"></span>
+          <span class="hrm-output-cursor">|</span>
+        </div>
+
         <div class="hrm-keyboard">
-          <div class="hrm-row hrm-row-top">
-            <div class="hrm-key hrm-key-dim">Q</div>
-            <div class="hrm-key hrm-key-dim">W</div>
-            <div class="hrm-key hrm-key-dim">E</div>
-            <div class="hrm-key hrm-key-dim">R</div>
-            <div class="hrm-key hrm-key-dim">T</div>
-          </div>
           <div class="hrm-row hrm-row-home">
-            <div class="hrm-key hrm-key-mod" data-tap="A" data-hold="Ctrl">
-              <span class="hrm-tap">A</span>
-              <span class="hrm-hold">Ctrl</span>
-              <span class="hrm-indicator hrm-indicator-ctrl"></span>
+            <div class="hrm-key hrm-key-mod" data-key="a" data-mod="Ctrl">
+              <span class="hrm-key-letter">A</span>
+              <span class="hrm-key-mod-label">Ctrl</span>
             </div>
-            <div class="hrm-key hrm-key-mod" data-tap="S" data-hold="Alt">
-              <span class="hrm-tap">S</span>
-              <span class="hrm-hold">Alt</span>
-              <span class="hrm-indicator hrm-indicator-alt"></span>
+            <div class="hrm-key hrm-key-mod" data-key="s" data-mod="Alt">
+              <span class="hrm-key-letter">S</span>
+              <span class="hrm-key-mod-label">Alt</span>
             </div>
-            <div class="hrm-key hrm-key-mod" data-tap="D" data-hold="Cmd">
-              <span class="hrm-tap">D</span>
-              <span class="hrm-hold">Cmd</span>
-              <span class="hrm-indicator hrm-indicator-cmd"></span>
+            <div class="hrm-key hrm-key-mod" data-key="d" data-mod="Cmd">
+              <span class="hrm-key-letter">D</span>
+              <span class="hrm-key-mod-label">⌘</span>
             </div>
-            <div class="hrm-key hrm-key-mod" data-tap="F" data-hold="Shift">
-              <span class="hrm-tap">F</span>
-              <span class="hrm-hold">Shift</span>
-              <span class="hrm-indicator hrm-indicator-shift"></span>
+            <div class="hrm-key hrm-key-mod" data-key="f" data-mod="Shift">
+              <span class="hrm-key-letter">F</span>
+              <span class="hrm-key-mod-label">⇧</span>
             </div>
-            <div class="hrm-key hrm-key-dim">G</div>
-          </div>
-          <div class="hrm-row hrm-row-bottom">
-            <div class="hrm-key hrm-key-dim">Z</div>
-            <div class="hrm-key hrm-key-dim">X</div>
-            <div class="hrm-key hrm-key-dim">C</div>
-            <div class="hrm-key hrm-key-dim">V</div>
-            <div class="hrm-key hrm-key-dim">B</div>
           </div>
         </div>
-        <p class="hrm-demo-caption">Tap for letters. Hold for modifiers. Never leave home row.</p>
+
+        <div class="hrm-demo-label">
+          <span class="hrm-demo-mode"></span>
+        </div>
       </div>
 
       <div class="hrm-explanation">
