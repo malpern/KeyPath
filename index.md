@@ -49,34 +49,8 @@ content_class: content-full kanata-landing
     </div>
   </section>
 
-  <!-- LAUNCH APPS SECTION -->
-  <section class="kanata-fullscreen-section">
-    <div class="kanata-fullscreen-content">
-      <h2 class="kanata-fullscreen-title">Launch apps & websites</h2>
-      <p class="kanata-fullscreen-subtitle">One key opens Safari, Slack, GitHub, or any URL.<br>No searching. No menus. Just muscle memory.</p>
-
-      <div class="kanata-launch-examples">
-        <div class="kanata-launch-example">
-          <span class="kanata-key">S + D</span>
-          <span class="kanata-arrow">→</span>
-          <span class="kanata-result">Slack</span>
-        </div>
-        <div class="kanata-launch-example">
-          <span class="kanata-key">G H</span>
-          <span class="kanata-arrow">→</span>
-          <span class="kanata-result">GitHub</span>
-        </div>
-        <div class="kanata-launch-example">
-          <span class="kanata-key">Nav + S</span>
-          <span class="kanata-arrow">→</span>
-          <span class="kanata-result">Safari</span>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <!-- MUSCLE MEMORY SECTION -->
-  <section class="kanata-fullscreen-section kanata-fullscreen-alt">
+  <section class="kanata-fullscreen-section">
     <div class="kanata-fullscreen-content">
       <h2 class="kanata-fullscreen-title">Muscle memory, not menus</h2>
       <p class="kanata-fullscreen-subtitle">Raycast is great for search. KeyPath is for when you want<br>instant, repeatable triggers — without leaving the home row.</p>
@@ -97,6 +71,32 @@ content_class: content-full kanata-landing
         <div class="kanata-trigger-type">
           <span class="kanata-trigger-name">Layer</span>
           <span class="kanata-trigger-desc">Hold to access</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LAUNCH APPS SECTION -->
+  <section class="kanata-fullscreen-section kanata-fullscreen-alt">
+    <div class="kanata-fullscreen-content">
+      <h2 class="kanata-fullscreen-title">Launch apps & websites</h2>
+      <p class="kanata-fullscreen-subtitle">One key opens Safari, Slack, GitHub, or any URL.<br>No searching. No menus. Just muscle memory.</p>
+
+      <div class="kanata-launch-examples">
+        <div class="kanata-launch-example">
+          <span class="kanata-key">S + D</span>
+          <span class="kanata-arrow">→</span>
+          <span class="kanata-result">Slack</span>
+        </div>
+        <div class="kanata-launch-example">
+          <span class="kanata-key">G H</span>
+          <span class="kanata-arrow">→</span>
+          <span class="kanata-result">GitHub</span>
+        </div>
+        <div class="kanata-launch-example">
+          <span class="kanata-key">Nav + S</span>
+          <span class="kanata-arrow">→</span>
+          <span class="kanata-result">Safari</span>
         </div>
       </div>
     </div>
