@@ -21,14 +21,13 @@ content_class: content-full kanata-landing
       <p class="kanata-landing-requirements hero-animate hero-animate-5">Requires macOS 15+ (Sequoia) · Apple Silicon</p>
     </div>
 
-    <!-- Floating visual (decorative, fades into background) -->
+    <!-- App screenshot -->
     <div class="kanata-landing-hero-visual">
       <img
         class="kanata-landing-hero-image"
         src="{{ '/images/keypath-hero-nobg.png' | relative_url }}"
-        alt=""
+        alt="KeyPath app showing keyboard visualization with layers"
         loading="eager"
-        aria-hidden="true"
       />
     </div>
   </section>

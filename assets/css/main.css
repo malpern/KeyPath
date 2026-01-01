@@ -522,31 +522,29 @@ body.sidebar-open .sidebar {
 }
 
 /* ===========================================
-   HERO SECTION - Full-screen impact design
+   HERO SECTION - 50/50 Split Layout
    =========================================== */
 
 .kanata-landing-hero {
     position: relative;
     min-height: 85vh;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     align-items: center;
-    text-align: center;
+    gap: var(--spacing-2xl);
     overflow: hidden;
 
     /* Full-bleed: touch all edges */
     margin: calc(var(--spacing-2xl) * -1) calc(var(--spacing-lg) * -1) 0;
-    padding: var(--spacing-3xl) var(--spacing-lg);
+    padding: var(--spacing-3xl) var(--spacing-2xl);
 
-    /* Dramatic gradient backdrop */
+    /* Subtle gradient backdrop - warm glow on left */
     background:
-        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(255, 149, 0, 0.15), transparent),
-        radial-gradient(ellipse 60% 40% at 70% 10%, rgba(255, 204, 0, 0.08), transparent),
-        radial-gradient(ellipse 50% 30% at 30% 20%, rgba(255, 255, 255, 0.03), transparent);
+        radial-gradient(ellipse 50% 60% at 0% 50%, rgba(255, 149, 0, 0.12), transparent),
+        radial-gradient(ellipse 40% 40% at 100% 20%, rgba(255, 255, 255, 0.03), transparent);
 }
 
-/* Scroll indicator at bottom */
+/* Scroll indicator at bottom center */
 .kanata-landing-hero::after {
     content: "";
     position: absolute;
@@ -557,7 +555,7 @@ body.sidebar-open .sidebar {
     border: 2px solid var(--color-text-tertiary);
     border-radius: 12px;
     transform: translateX(-50%);
-    opacity: 0.4;
+    opacity: 0.3;
 }
 .kanata-landing-hero::before {
     content: "";
@@ -569,12 +567,12 @@ body.sidebar-open .sidebar {
     background: var(--color-text-tertiary);
     border-radius: 2px;
     transform: translateX(-50%);
-    opacity: 0.4;
+    opacity: 0.3;
     animation: hero-scroll-hint 2s ease-in-out infinite;
 }
 @keyframes hero-scroll-hint {
-    0%, 100% { transform: translateX(-50%) translateY(0); opacity: 0.4; }
-    50% { transform: translateX(-50%) translateY(8px); opacity: 0.7; }
+    0%, 100% { transform: translateX(-50%) translateY(0); opacity: 0.3; }
+    50% { transform: translateX(-50%) translateY(8px); opacity: 0.6; }
 }
 
 /* Progressive reveal animations */
@@ -589,6 +587,17 @@ body.sidebar-open .sidebar {
     }
 }
 
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
 .hero-animate {
     opacity: 0;
     animation: fadeInUp 0.8s ease-out forwards;
@@ -599,29 +608,31 @@ body.sidebar-open .sidebar {
 .hero-animate-4 { animation-delay: 0.55s; }
 .hero-animate-5 { animation-delay: 0.7s; }
 
-/* Hero content container */
+/* Hero text content (left side) */
 .kanata-landing-hero-content {
-    max-width: 900px;
-    margin: 0 auto;
-    position: relative;
-    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: left;
 }
 
-/* Floating app image */
+/* Hero visual (right side) */
 .kanata-landing-hero-visual {
-    position: absolute;
-    right: -5%;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 1;
-    opacity: 0.12;
-    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    animation: fadeInScale 1s ease-out 0.3s forwards;
 }
 
 .kanata-landing-hero-image {
-    width: clamp(300px, 45vw, 500px);
+    width: 100%;
+    max-width: 580px;
     height: auto;
-    filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.3));
+    border-radius: 16px;
+    box-shadow:
+        0 25px 50px -12px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
 .kanata-landing-kicker {
@@ -646,13 +657,13 @@ body.sidebar-open .sidebar {
     color: var(--color-text);
 }
 
-/* Hero Typography - dramatic, centered hierarchy */
+/* Hero Typography - left-aligned hierarchy */
 .content .kanata-landing-title,
 .kanata-landing-title {
-    font-size: clamp(3.5rem, 10vw, 5.5rem);
+    font-size: clamp(3rem, 7vw, 4.5rem);
     line-height: 1.05;
     letter-spacing: -0.03em;
-    margin-bottom: var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
     background: linear-gradient(180deg, var(--color-text) 40%, var(--color-text-secondary) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -660,21 +671,19 @@ body.sidebar-open .sidebar {
 }
 
 .kanata-landing-tagline {
-    font-size: clamp(1.5rem, 4vw, 2.25rem);
+    font-size: clamp(1.25rem, 3vw, 1.75rem);
     font-weight: 500;
     color: var(--color-text);
     margin-bottom: var(--spacing-md);
-    line-height: 1.35;
+    line-height: 1.4;
     letter-spacing: -0.01em;
 }
 
 .kanata-landing-subtitle {
-    font-size: clamp(1rem, 2vw, 1.25rem);
+    font-size: clamp(1rem, 1.5vw, 1.125rem);
     color: var(--color-text-secondary);
     margin-bottom: var(--spacing-xl);
-    max-width: 600px;
-    margin-left: auto;
-    margin-right: auto;
+    max-width: 480px;
     line-height: 1.6;
 }
 
@@ -682,13 +691,12 @@ body.sidebar-open .sidebar {
     display: flex;
     flex-wrap: wrap;
     gap: var(--spacing-md);
-    justify-content: center;
 }
 
 .kanata-landing-requirements {
     font-size: var(--font-size-sm);
     color: var(--color-text-tertiary);
-    margin-top: var(--spacing-lg);
+    margin-top: var(--spacing-md);
 }
 
 .button-orange {
@@ -1004,7 +1012,34 @@ body.sidebar-open .sidebar {
     color: var(--color-text-tertiary);
 }
 
+/* Hero responsive - tablet */
 @media (max-width: 1024px) {
+    .kanata-landing-hero {
+        grid-template-columns: 1fr;
+        text-align: center;
+        min-height: auto;
+        padding: var(--spacing-3xl) var(--spacing-lg);
+        gap: var(--spacing-xl);
+    }
+
+    .kanata-landing-hero-content {
+        text-align: center;
+        order: 1;
+    }
+
+    .kanata-landing-hero-visual {
+        order: 2;
+    }
+
+    .kanata-landing-subtitle {
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .kanata-landing-actions {
+        justify-content: center;
+    }
+
     .kanata-landing-grid-3 {
         grid-template-columns: 1fr;
     }
@@ -1017,12 +1052,11 @@ body.sidebar-open .sidebar {
 /* Hero responsive - mobile */
 @media (max-width: 768px) {
     .kanata-landing-hero {
-        min-height: 80vh;
         padding: var(--spacing-2xl) var(--spacing-md);
     }
 
-    .kanata-landing-hero-visual {
-        display: none; /* Hide floating image on mobile */
+    .kanata-landing-hero-image {
+        max-width: 100%;
     }
 
     .kanata-landing-hero::after,
