@@ -1573,14 +1573,14 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
           <rect class="geo-key" x="30" y="55" width="50" height="50" rx="8"/>
           <text class="geo-key-label" x="55" y="80">G</text>
           <!-- Arrow -->
-          <path class="geo-arrow" d="M90 80 L130 80 L125 75 M130 80 L125 85"/>
-          <!-- Globe/browser icon -->
-          <g class="geo-app-icon" transform="translate(165, 55)">
-            <circle cx="25" cy="25" r="24" fill="none" stroke="#0071E3" stroke-width="2.5"/>
-            <ellipse cx="25" cy="25" rx="10" ry="24" fill="none" stroke="#0071E3" stroke-width="2"/>
-            <line x1="1" y1="25" x2="49" y2="25" stroke="#0071E3" stroke-width="2"/>
-            <path d="M5 15 Q25 12 45 15" fill="none" stroke="#0071E3" stroke-width="1.5"/>
-            <path d="M5 35 Q25 38 45 35" fill="none" stroke="#0071E3" stroke-width="1.5"/>
+          <path class="geo-arrow" d="M90 80 L140 80 L135 75 M140 80 L135 85"/>
+          <!-- Globe/browser icon - positioned at center (190, 80) -->
+          <g class="geo-app-icon">
+            <circle cx="190" cy="80" r="28" fill="none" stroke="#0071E3" stroke-width="2.5"/>
+            <ellipse cx="190" cy="80" rx="12" ry="28" fill="none" stroke="#0071E3" stroke-width="2"/>
+            <line x1="162" y1="80" x2="218" y2="80" stroke="#0071E3" stroke-width="2"/>
+            <path d="M165 68 Q190 64 215 68" fill="none" stroke="#0071E3" stroke-width="1.5"/>
+            <path d="M165 92 Q190 96 215 92" fill="none" stroke="#0071E3" stroke-width="1.5"/>
           </g>
         </svg>
         <h3>Open URLs</h3>
