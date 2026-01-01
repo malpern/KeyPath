@@ -20,7 +20,7 @@
         });
     });
     
-    // Hero parallax effect - glow follows mouse subtly
+    // Hero parallax effect - glow follows mouse
     const heroGlow = document.querySelector('.kanata-landing-hero-glow');
     const heroSection = document.querySelector('.kanata-landing-hero');
     if (heroGlow && heroSection) {
@@ -29,15 +29,15 @@
             const x = (e.clientX - rect.left) / rect.width - 0.5; // -0.5 to 0.5
             const y = (e.clientY - rect.top) / rect.height - 0.5;
 
-            // Subtle movement - max 20px
-            const moveX = x * 20;
-            const moveY = y * 15;
+            // More noticeable movement - max 80px horizontal, 50px vertical
+            const moveX = x * 80;
+            const moveY = y * 50;
 
-            heroGlow.style.transform = `translate(${moveX}px, ${moveY}px)`;
+            heroGlow.style.transform = `translate(${moveX}px, ${moveY}px) scale(1.08)`;
         });
 
         heroSection.addEventListener('mouseleave', () => {
-            heroGlow.style.transform = 'translate(0, 0)';
+            heroGlow.style.transform = 'translate(0, 0) scale(1)';
         });
     }
 
