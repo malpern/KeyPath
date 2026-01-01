@@ -595,10 +595,6 @@ content_class: content-full kanata-landing
           </div>
         </div>
       </div>
-
-      <p class="kanata-existing-cta">
-        <a href="{{ '/migration/kanata-users' | relative_url }}">Tips for existing Kanata users →</a>
-      </p>
     </div>
   </section>
 
