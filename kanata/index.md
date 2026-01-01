@@ -11,10 +11,10 @@ content_class: content-full kanata-landing
     <div class="kanata-landing-hero-grid">
       <div>
 
-        <p class="kanata-landing-kicker">The Native Mac Keyboard Power Tool</p>
-        <h1 class="kanata-landing-title">KeyPath</h1>
+        <p class="kanata-landing-kicker">KeyPath</p>
+        <h1 class="kanata-landing-title">Turn your keyboard into a command center</h1>
 
-        <p class="kanata-landing-subtitle">Remap any key. Launch apps. Tile windows. All from your keyboard.</p>
+        <p class="kanata-landing-subtitle">Launch apps, remap keys, tile windows, and automate workflows — all without leaving the home row.</p>
 
         <div class="kanata-landing-actions">
           <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases/download/v1.0.0/KeyPath-1.0.0.zip">Download for macOS 15+ <span class="button-badge">Free</span></a>
