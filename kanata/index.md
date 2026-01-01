@@ -518,6 +518,7 @@ content_class: content-full kanata-landing
       <div class="hrm-demo">
         <!-- Output display showing what's being typed -->
         <div class="hrm-output">
+          <span class="hrm-output-badge">Shortcut</span>
           <span class="hrm-output-text"></span>
           <span class="hrm-output-cursor">|</span>
         </div>

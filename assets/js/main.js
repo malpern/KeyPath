@@ -684,12 +684,12 @@
             d: hrmDemo.querySelector('[data-key="d"]'),
             f: hrmDemo.querySelector('[data-key="f"]')
         };
-        const modLabels = { a: 'Ctrl', s: 'Alt', d: '⌘', f: '⇧' };
         const modNames = { a: 'Ctrl+', s: 'Alt+', d: '⌘', f: 'Shift+' };
 
         // State
         let isInteractive = false;
         let autoAnimationId = null;
+        let cancelAutoDemo = null;
         let heldKeys = new Set();
         let holdTimers = {};
         const HOLD_THRESHOLD = 200; // ms to count as hold
@@ -697,30 +697,68 @@
         // Check for reduced motion preference
         const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+        // Flash effect for shortcuts
+        function triggerShortcutFlash() {
+            outputBox.classList.remove('shortcut-flash');
+            void outputBox.offsetWidth; // Force reflow
+            outputBox.classList.add('shortcut-flash');
+        }
+
         // ---- Auto Demo Animation ----
         function runAutoDemo() {
             let step = 0;
             let cancelled = false;
 
             const sequence = [
-                // Type letters
-                { action: 'mode', text: 'Tap for letters', delay: 800 },
-                { action: 'tap', key: 'a', delay: 250 },
-                { action: 'tap', key: 's', delay: 250 },
-                { action: 'tap', key: 'd', delay: 250 },
-                { action: 'tap', key: 'f', delay: 700 },
-                { action: 'clear', delay: 600 },
-                // ⌘S shortcut
-                { action: 'mode', text: 'Hold for modifiers', delay: 500 },
-                { action: 'hold', key: 'd', delay: 350 },
-                { action: 'tap', key: 's', delay: 500 },
-                { action: 'release', key: 'd', delay: 700 },
-                { action: 'clear', delay: 600 },
-                // Ctrl+F shortcut
-                { action: 'hold', key: 'a', delay: 350 },
-                { action: 'tap', key: 'f', delay: 500 },
-                { action: 'release', key: 'a', delay: 700 },
-                { action: 'clear', delay: 1000 },
+                // Type letters "asdf"
+                { action: 'mode', text: 'Tap for letters', delay: 700 },
+                { action: 'tap', key: 'a', delay: 200 },
+                { action: 'tap', key: 's', delay: 200 },
+                { action: 'tap', key: 'd', delay: 200 },
+                { action: 'tap', key: 'f', delay: 600 },
+                { action: 'clear', delay: 500 },
+
+                // ⌘S (Save)
+                { action: 'mode', text: 'Hold for modifiers', delay: 400 },
+                { action: 'hold', key: 'd', delay: 300 },
+                { action: 'tap', key: 's', delay: 450 },
+                { action: 'release', key: 'd', delay: 600 },
+                { action: 'clear', delay: 400 },
+
+                // Ctrl+A (Select All)
+                { action: 'hold', key: 'a', delay: 300 },
+                { action: 'tap', key: 'd', delay: 450 },
+                { action: 'release', key: 'a', delay: 600 },
+                { action: 'clear', delay: 400 },
+
+                // ⌘F (Find)
+                { action: 'hold', key: 'd', delay: 300 },
+                { action: 'tap', key: 'f', delay: 450 },
+                { action: 'release', key: 'd', delay: 600 },
+                { action: 'clear', delay: 400 },
+
+                // Shift+A (capital A)
+                { action: 'hold', key: 'f', delay: 300 },
+                { action: 'tap', key: 'a', delay: 450 },
+                { action: 'release', key: 'f', delay: 600 },
+                { action: 'clear', delay: 400 },
+
+                // Type "dad" fast
+                { action: 'mode', text: 'Fast typing still works', delay: 400 },
+                { action: 'tap', key: 'd', delay: 120 },
+                { action: 'tap', key: 'a', delay: 120 },
+                { action: 'tap', key: 'd', delay: 600 },
+                { action: 'clear', delay: 400 },
+
+                // ⌘⇧S (Save As) - two modifiers!
+                { action: 'mode', text: 'Combine modifiers', delay: 400 },
+                { action: 'hold', key: 'd', delay: 250 },
+                { action: 'hold', key: 'f', delay: 300 },
+                { action: 'tap', key: 's', delay: 450 },
+                { action: 'release', key: 'f', delay: 200 },
+                { action: 'release', key: 'd', delay: 600 },
+                { action: 'clear', delay: 800 },
+
                 // Loop
                 { action: 'restart', delay: 0 }
             ];
@@ -752,6 +790,7 @@
                             heldKeys.forEach(k => mod += modNames[k]);
                             currentOutput = mod + s.key.toUpperCase();
                             outputBox.classList.add('shortcut');
+                            triggerShortcutFlash();
                         } else {
                             currentOutput += s.key;
                             outputBox.classList.remove('shortcut');
@@ -776,7 +815,7 @@
                     case 'clear':
                         currentOutput = '';
                         outputText.textContent = '';
-                        outputBox.classList.remove('shortcut');
+                        outputBox.classList.remove('shortcut', 'shortcut-flash');
                         modeLabel.classList.remove('visible');
                         heldKeys.clear();
                         break;
@@ -794,7 +833,14 @@
 
             executeStep();
 
-            return () => { cancelled = true; };
+            // Return cancel function
+            return () => {
+                cancelled = true;
+                if (autoAnimationId) {
+                    clearTimeout(autoAnimationId);
+                    autoAnimationId = null;
+                }
+            };
         }
 
         // ---- Interactive Mode ----
@@ -803,29 +849,46 @@
             isInteractive = true;
 
             // Stop auto animation
-            if (autoAnimationId) {
-                clearTimeout(autoAnimationId);
-                autoAnimationId = null;
+            if (cancelAutoDemo) {
+                cancelAutoDemo();
+                cancelAutoDemo = null;
             }
 
             // Clear state
             Object.values(keyElements).forEach(el => {
-                el.classList.remove('pressed', 'held');
+                if (el) el.classList.remove('pressed', 'held');
             });
             heldKeys.clear();
             outputText.textContent = '';
-            outputBox.classList.remove('shortcut');
+            outputBox.classList.remove('shortcut', 'shortcut-flash');
 
             // Show interactive hint
             modeLabel.textContent = 'Try it! Click = letter, hold = modifier';
             modeLabel.classList.add('visible');
         }
 
-        function handleOutput() {
-            if (heldKeys.size > 0) {
-                outputBox.classList.add('shortcut');
-            } else {
-                outputBox.classList.remove('shortcut');
+        function exitInteractiveMode() {
+            if (!isInteractive) return;
+            isInteractive = false;
+
+            // Clear any held keys
+            Object.keys(holdTimers).forEach(key => {
+                clearTimeout(holdTimers[key].timeout);
+            });
+            holdTimers = {};
+
+            // Clear state
+            Object.values(keyElements).forEach(el => {
+                if (el) el.classList.remove('pressed', 'held');
+            });
+            heldKeys.clear();
+            outputText.textContent = '';
+            outputBox.classList.remove('shortcut', 'shortcut-flash');
+            modeLabel.classList.remove('visible');
+
+            // Restart auto demo
+            if (!prefersReducedMotion) {
+                cancelAutoDemo = runAutoDemo();
             }
         }
 
@@ -839,7 +902,6 @@
                     element.classList.remove('pressed');
                     element.classList.add('held');
                     heldKeys.add(key);
-                    handleOutput();
                 }, HOLD_THRESHOLD)
             };
             element.classList.add('pressed');
@@ -856,21 +918,24 @@
                     element.classList.remove('pressed');
 
                     if (heldKeys.size > 0) {
-                        // Modified tap
+                        // Modified tap - shortcut!
                         let mod = '';
                         heldKeys.forEach(k => mod += modNames[k]);
                         outputText.textContent = mod + key.toUpperCase();
                         outputBox.classList.add('shortcut');
+                        triggerShortcutFlash();
                     } else {
                         // Plain letter
                         outputText.textContent += key;
-                        outputBox.classList.remove('shortcut');
+                        outputBox.classList.remove('shortcut', 'shortcut-flash');
                     }
                 } else {
                     // It was a hold - release modifier
                     element.classList.remove('held');
                     heldKeys.delete(key);
-                    handleOutput();
+                    if (heldKeys.size === 0) {
+                        outputBox.classList.remove('shortcut', 'shortcut-flash');
+                    }
                 }
                 delete holdTimers[key];
             }
@@ -912,25 +977,32 @@
             }, { passive: false });
         });
 
+        // Resume auto demo when mouse leaves keyboard area
+        keyboard.addEventListener('mouseleave', () => {
+            // Small delay before resuming to avoid accidental triggers
+            setTimeout(() => {
+                if (isInteractive && Object.keys(holdTimers).length === 0) {
+                    exitInteractiveMode();
+                }
+            }, 800);
+        });
+
         // Clear output on click
         outputBox.addEventListener('click', () => {
             if (isInteractive) {
                 outputText.textContent = '';
-                outputBox.classList.remove('shortcut');
+                outputBox.classList.remove('shortcut', 'shortcut-flash');
             }
         });
 
-        // Make keys look clickable
-        keyboard.style.cursor = 'pointer';
-
-        // ---- Start Auto Demo ----
-        let animationStarted = false;
+        // ---- Start Auto Demo on scroll into view ----
+        let demoStarted = false;
 
         const hrmObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
-                if (entry.isIntersecting && !animationStarted && !prefersReducedMotion) {
-                    animationStarted = true;
-                    runAutoDemo();
+                if (entry.isIntersecting && !demoStarted && !prefersReducedMotion) {
+                    demoStarted = true;
+                    cancelAutoDemo = runAutoDemo();
                 }
             });
         }, {
@@ -941,7 +1013,9 @@
 
         // For reduced motion: start in interactive mode
         if (prefersReducedMotion) {
-            enterInteractiveMode();
+            isInteractive = true;
+            modeLabel.textContent = 'Click = letter, hold = modifier';
+            modeLabel.classList.add('visible');
         }
     }
 })();
