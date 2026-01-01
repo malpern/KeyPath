@@ -1569,7 +1569,7 @@ body.sidebar-open .sidebar {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: var(--spacing-md);
-    margin-bottom: var(--spacing-xl);
+    margin: 0 auto var(--spacing-xl) auto;
     max-width: 800px;
 }
 
