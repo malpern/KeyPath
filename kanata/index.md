@@ -1146,6 +1146,77 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
         <p>Chain multiple actions into one key. Save, close, and quit—all with a single press.</p>
       </div>
 
+      <!-- Home Row Mods -->
+      <div class="geo-card" data-feature="home-row-mods" data-geo>
+        <svg viewBox="0 0 280 160">
+          <!-- Home row keys -->
+          <rect class="geo-key" x="30" y="55" width="45" height="50" rx="8"/>
+          <text class="geo-key-label" x="52" y="72" font-size="14">A</text>
+          <text class="geo-key-label" x="52" y="92" font-size="9" fill="#86868B">Ctrl</text>
+          <rect class="geo-key" x="80" y="55" width="45" height="50" rx="8"/>
+          <text class="geo-key-label" x="102" y="72" font-size="14">S</text>
+          <text class="geo-key-label" x="102" y="92" font-size="9" fill="#86868B">Alt</text>
+          <rect class="geo-key" x="130" y="55" width="45" height="50" rx="8"/>
+          <text class="geo-key-label" x="152" y="72" font-size="14">D</text>
+          <text class="geo-key-label" x="152" y="92" font-size="9" fill="#86868B">Cmd</text>
+          <rect class="geo-key" x="180" y="55" width="45" height="50" rx="8"/>
+          <text class="geo-key-label" x="202" y="72" font-size="14">F</text>
+          <text class="geo-key-label" x="202" y="92" font-size="9" fill="#86868B">Shift</text>
+          <!-- Indicator dots -->
+          <circle cx="52" cy="115" r="4" fill="#0071E3" class="geo-hrm-dot"/>
+          <circle cx="102" cy="115" r="4" fill="#FF9500" class="geo-hrm-dot"/>
+          <circle cx="152" cy="115" r="4" fill="#AF52DE" class="geo-hrm-dot"/>
+          <circle cx="202" cy="115" r="4" fill="#34C759" class="geo-hrm-dot"/>
+        </svg>
+        <h3>Home Row Mods</h3>
+        <p>Modifiers on your home row. Tap for letters, hold for Ctrl, Alt, Cmd, Shift. No finger gymnastics.</p>
+      </div>
+
+      <!-- Vim Navigation -->
+      <div class="geo-card" data-feature="vim-nav" data-geo>
+        <svg viewBox="0 0 280 160">
+          <!-- HJKL keys -->
+          <rect class="geo-key" x="30" y="55" width="45" height="50" rx="8"/>
+          <text class="geo-key-label" x="52" y="80">H</text>
+          <rect class="geo-key" x="80" y="55" width="45" height="50" rx="8"/>
+          <text class="geo-key-label" x="102" y="80">J</text>
+          <rect class="geo-key" x="130" y="55" width="45" height="50" rx="8"/>
+          <text class="geo-key-label" x="152" y="80">K</text>
+          <rect class="geo-key" x="180" y="55" width="45" height="50" rx="8"/>
+          <text class="geo-key-label" x="202" y="80">L</text>
+          <!-- Arrow indicators below -->
+          <text x="52" y="125" font-size="18" fill="#0071E3" text-anchor="middle">←</text>
+          <text x="102" y="125" font-size="18" fill="#0071E3" text-anchor="middle">↓</text>
+          <text x="152" y="125" font-size="18" fill="#0071E3" text-anchor="middle">↑</text>
+          <text x="202" y="125" font-size="18" fill="#0071E3" text-anchor="middle">→</text>
+        </svg>
+        <h3>Vim Navigation</h3>
+        <p>HJKL as arrow keys. Navigate text, code, and apps without leaving home row. Vim muscle memory everywhere.</p>
+      </div>
+
+      <!-- Custom Rules -->
+      <div class="geo-card" data-feature="custom-rules" data-geo>
+        <svg viewBox="0 0 280 160">
+          <!-- Caps Lock → Escape -->
+          <rect class="geo-key" x="30" y="30" width="60" height="35" rx="6"/>
+          <text class="geo-key-label" x="60" y="52" font-size="10">CAPS</text>
+          <text x="100" y="52" font-size="14" fill="#0071E3">→</text>
+          <text x="125" y="52" font-size="12" fill="#0071E3" font-weight="600">ESC</text>
+          <!-- Symbol layer indicator -->
+          <rect x="30" y="75" width="50" height="25" rx="5" fill="#FF9500" opacity="0.2"/>
+          <text x="55" y="92" font-size="10" fill="#FF9500" text-anchor="middle" font-weight="500">!@#$</text>
+          <text x="90" y="92" font-size="10" fill="#86868B">Symbol Layer</text>
+          <!-- Number layer indicator -->
+          <rect x="30" y="110" width="50" height="25" rx="5" fill="#5856D6" opacity="0.2"/>
+          <text x="55" y="127" font-size="10" fill="#5856D6" text-anchor="middle" font-weight="500">1234</text>
+          <text x="90" y="127" font-size="10" fill="#86868B">Number Layer</text>
+          <!-- Plus more -->
+          <text x="200" y="90" font-size="24" fill="#E8E8ED">...</text>
+        </svg>
+        <h3>Custom Rules</h3>
+        <p>Caps Lock to Escape, symbol layers, number pads, and more. Build exactly the keyboard you want.</p>
+      </div>
+
       <!-- App-Specific -->
       <div class="geo-card" data-feature="app-specific" data-geo>
         <svg viewBox="0 0 280 160">

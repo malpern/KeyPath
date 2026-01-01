@@ -3609,6 +3609,49 @@ a.button:active {
     100% { transform: rotate(360deg); }
 }
 
+/* Home Row Mods, Vim Nav, Custom Rules animations */
+
+.geo-card[data-feature="home-row-mods"] .geo-hrm-dot {
+    opacity: 0;
+    transform: scale(0);
+    transition: all 0.3s var(--ease-apple);
+}
+
+.geo-card[data-feature="home-row-mods"].animating .geo-hrm-dot:nth-child(5) { opacity: 1; transform: scale(1); transition-delay: 0.1s; }
+.geo-card[data-feature="home-row-mods"].animating .geo-hrm-dot:nth-child(6) { opacity: 1; transform: scale(1); transition-delay: 0.2s; }
+.geo-card[data-feature="home-row-mods"].animating .geo-hrm-dot:nth-child(7) { opacity: 1; transform: scale(1); transition-delay: 0.3s; }
+.geo-card[data-feature="home-row-mods"].animating .geo-hrm-dot:nth-child(8) { opacity: 1; transform: scale(1); transition-delay: 0.4s; }
+
+.geo-card[data-feature="vim-nav"] text[fill="#0071E3"] {
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all 0.3s var(--ease-apple);
+}
+
+.geo-card[data-feature="vim-nav"].animating text[fill="#0071E3"]:nth-of-type(1) { opacity: 1; transform: translateY(0); transition-delay: 0.1s; }
+.geo-card[data-feature="vim-nav"].animating text[fill="#0071E3"]:nth-of-type(2) { opacity: 1; transform: translateY(0); transition-delay: 0.2s; }
+.geo-card[data-feature="vim-nav"].animating text[fill="#0071E3"]:nth-of-type(3) { opacity: 1; transform: translateY(0); transition-delay: 0.3s; }
+.geo-card[data-feature="vim-nav"].animating text[fill="#0071E3"]:nth-of-type(4) { opacity: 1; transform: translateY(0); transition-delay: 0.4s; }
+
+.geo-card[data-feature="custom-rules"] rect[fill="#FF9500"],
+.geo-card[data-feature="custom-rules"] rect[fill="#5856D6"] {
+    opacity: 0;
+    transform: translateX(-10px);
+    transition: all 0.4s var(--ease-apple);
+}
+
+.geo-card[data-feature="custom-rules"].animating rect[fill="#FF9500"] {
+    opacity: 0.2;
+    transform: translateX(0);
+    transition-delay: 0.2s;
+}
+
+.geo-card[data-feature="custom-rules"].animating rect[fill="#5856D6"] {
+    opacity: 0.2;
+    transform: translateX(0);
+    transition-delay: 0.35s;
+}
+
 /* KeyPath-specific feature animations */
 
 .geo-card[data-feature="launch-app"] .geo-app-icon rect {
