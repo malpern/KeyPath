@@ -558,35 +558,48 @@ content_class: content-full kanata-landing
 
   <div class="kanata-landing-divider" aria-hidden="true"></div>
 
-  <section class="kanata-landing-section kanata-existing-users">
-    <h2>Already using Kanata?</h2>
-    <p class="kanata-landing-subtitle">Keep your config. Keep your workflow. Just add a native Mac app.</p>
-    <div class="kanata-existing-grid">
-      <div class="kanata-existing-item">
-        <span class="kanata-existing-icon">⚡</span>
-        <div>
-          <strong>Zero migration</strong>
-          <span>KeyPath finds and imports your existing config automatically</span>
+  <!-- ALREADY USING KANATA - Full Screen -->
+  <section class="kanata-existing-fullscreen">
+    <div class="kanata-existing-content">
+      <h2 class="kanata-existing-title">Already using Kanata?</h2>
+      <p class="kanata-existing-subtitle">Keep your config. Keep your workflow. Just add a native Mac app.</p>
+
+      <div class="kanata-existing-grid">
+        <div class="kanata-existing-card">
+          <div class="kanata-existing-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          </div>
+          <div class="kanata-existing-text">
+            <span class="kanata-existing-name">Zero migration</span>
+            <span class="kanata-existing-desc">KeyPath finds and imports your existing config automatically</span>
+          </div>
+        </div>
+
+        <div class="kanata-existing-card">
+          <div class="kanata-existing-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          </div>
+          <div class="kanata-existing-text">
+            <span class="kanata-existing-name">Edit anywhere</span>
+            <span class="kanata-existing-desc">Keep using your favorite editor — changes hot-reload instantly</span>
+          </div>
+        </div>
+
+        <div class="kanata-existing-card">
+          <div class="kanata-existing-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          </div>
+          <div class="kanata-existing-text">
+            <span class="kanata-existing-name">One line added</span>
+            <span class="kanata-existing-desc">Just an include for KeyPath's app integrations</span>
+          </div>
         </div>
       </div>
-      <div class="kanata-existing-item">
-        <span class="kanata-existing-icon">✏️</span>
-        <div>
-          <strong>Edit anywhere</strong>
-          <span>Keep using your favorite editor — changes hot-reload instantly</span>
-        </div>
-      </div>
-      <div class="kanata-existing-item">
-        <span class="kanata-existing-icon">🔗</span>
-        <div>
-          <strong>One line added</strong>
-          <span>Just an <code>include</code> for KeyPath's app integrations</span>
-        </div>
-      </div>
+
+      <p class="kanata-existing-cta">
+        <a href="{{ '/migration/kanata-users' | relative_url }}">Tips for existing Kanata users →</a>
+      </p>
     </div>
-    <p class="kanata-existing-cta">
-      <a href="{{ '/migration/kanata-users' | relative_url }}">Tips for existing Kanata users →</a>
-    </p>
   </section>
 
   <!-- How It Works Section -->
