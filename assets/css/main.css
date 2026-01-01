@@ -5578,26 +5578,32 @@ a.button:active {
    ========================================================================== */
 
 .hrm-section {
-    padding: var(--spacing-3xl) var(--spacing-xl);
-    max-width: 900px;
-    margin: 0 auto;
+    min-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-3xl) var(--spacing-lg);
+    background: var(--color-background);
 }
 
 .hrm-header {
     text-align: center;
     margin-bottom: var(--spacing-2xl);
+    max-width: 900px;
 }
 
 .hrm-header h2 {
     font-family: var(--font-display);
-    font-size: var(--font-size-4xl);
+    font-size: clamp(2rem, 5vw, 3rem);
     font-weight: 600;
     color: var(--color-text);
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
 }
 
 .hrm-subtitle {
-    font-size: var(--font-size-lg);
+    font-size: clamp(1rem, 2.5vw, 1.25rem);
+    line-height: 1.5;
     color: var(--color-text-secondary);
     margin: 0;
 }
@@ -6144,10 +6150,7 @@ a.button:active {
 @media (max-width: 768px) {
     .hrm-section {
         padding: var(--spacing-2xl) var(--spacing-md);
-    }
-
-    .hrm-header h2 {
-        font-size: var(--font-size-3xl);
+        min-height: auto;
     }
 
     .hrm-content {
@@ -6187,14 +6190,7 @@ a.button:active {
 @media (max-width: 480px) {
     .hrm-section {
         padding: var(--spacing-xl) var(--spacing-sm);
-    }
-
-    .hrm-header h2 {
-        font-size: var(--font-size-2xl);
-    }
-
-    .hrm-subtitle {
-        font-size: var(--font-size-base);
+        min-height: auto;
     }
 
     /* Larger touch targets on mobile - minimum 44px */
