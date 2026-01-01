@@ -722,12 +722,13 @@ body.sidebar-open .sidebar {
     background: linear-gradient(180deg, #FFB44C, #FF9500);
     color: #111;
     border: 1px solid rgba(0, 0, 0, 0.10);
+    transition: all 0.2s ease;
 }
 
 .button-orange:hover {
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-md);
-    filter: saturate(1.02);
+    background: linear-gradient(180deg, #FFF, #F5F5F7);
+    color: #111;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
 }
 
 .button-badge {
