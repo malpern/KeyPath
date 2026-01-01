@@ -175,90 +175,77 @@ content_class: content-full kanata-landing
   <div class="kanata-landing-divider" aria-hidden="true"></div>
   <!-- END OLD SECTIONS -->
 
-  <section class="kanata-landing-section">
-    <h2>Build your own rules</h2>
-    <p class="kanata-landing-subtitle">Create <span class="term-tooltip" data-tooltip="A→B: Simple key swaps like CapsLock→Escape. One key becomes another.">simple</span> or <span class="term-tooltip complex-tooltip">complex</span> mappings — or use pre-built rules</p>
+  <!-- BUILD YOUR OWN RULES - Full Screen -->
+  <section class="rules-fullscreen">
+    <div class="rules-fullscreen-content">
+      <h2 class="rules-fullscreen-title">Pre-built rules included</h2>
+      <p class="rules-fullscreen-subtitle">Enable popular keyboard power moves with one click</p>
 
-    <div class="rules-section">
-      <div class="rules-content">
-        <div>
-          <h3 style="margin-bottom: var(--spacing-sm);">Mapping examples</h3>
-          <div class="mapping-examples">
-            <div class="mapping-example">
-              <span class="mapping-key">A</span>
-              <span class="mapping-arrow">→</span>
-              <span class="mapping-result">B</span>
-              <span class="mapping-type">simple</span>
-            </div>
-            <div class="mapping-example">
-              <span class="mapping-key">Caps</span>
-              <span class="mapping-arrow">→</span>
-              <span class="mapping-result">Tap: Esc, Hold: Hyper</span>
-              <span class="mapping-type">tap-hold</span>
-            </div>
-            <div class="mapping-example">
-              <span class="mapping-key">Space × 2</span>
-              <span class="mapping-arrow">→</span>
-              <span class="mapping-result">Enter</span>
-              <span class="mapping-type">tap-dance</span>
-            </div>
+      <div class="rules-chips-grid">
+        <div class="rule-chip-large">
+          <div class="rule-chip-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <div class="rule-chip-text">
+            <span class="rule-chip-name">Caps Lock Remap</span>
+            <span class="rule-chip-desc">Escape on tap, Hyper on hold</span>
           </div>
         </div>
 
-        <div>
-          <h3 style="margin-bottom: var(--spacing-sm);">Pre-built rules included</h3>
-          <p class="kanata-landing-fineprint" style="margin-bottom: var(--spacing-sm);">Enable common mechanical keyboard power moves:</p>
-          <div class="rules-list">
-            <span class="rule-chip">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              Caps Lock Remap
-              <a href="https://precondition.github.io/home-row-mods#capslock" target="_blank" rel="noopener" class="rule-info-link" title="Learn more about Caps Lock remapping">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-              </a>
-            </span>
-            <span class="rule-chip">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01"/></svg>
-              Home Row Mods
-              <a href="https://precondition.github.io/home-row-mods" target="_blank" rel="noopener" class="rule-info-link" title="Learn more about Home Row Mods">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-              </a>
-            </span>
-            <span class="rule-chip">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-              Vim Navigation
-            </span>
-            <span class="rule-chip">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-              Window Snapping
-            </span>
-            <span class="rule-chip">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
-              Quick Launcher
-            </span>
-            <span class="rule-chip">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M9 9h6v6H9z"/></svg>
-              Numpad Layer
-            </span>
-            <span class="rule-chip">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-              Symbol Layer
-            </span>
+        <div class="rule-chip-large">
+          <div class="rule-chip-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01"/></svg>
+          </div>
+          <div class="rule-chip-text">
+            <span class="rule-chip-name">Home Row Mods</span>
+            <span class="rule-chip-desc">Ctrl, Alt, Cmd, Shift under your fingers</span>
           </div>
         </div>
 
-        <p class="kanata-landing-fineprint" style="margin-top: var(--spacing-md);">
-          Inspired by
-          <a href="https://karabiner-elements.pqrs.org/" target="_blank" rel="noopener" class="inspiration-link">
-            Karabiner-Elements
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-          </a>
-          — but with rules built in.
-        </p>
+        <div class="rule-chip-large">
+          <div class="rule-chip-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </div>
+          <div class="rule-chip-text">
+            <span class="rule-chip-name">Vim Navigation</span>
+            <span class="rule-chip-desc">HJKL as arrow keys everywhere</span>
+          </div>
+        </div>
+
+        <div class="rule-chip-large">
+          <div class="rule-chip-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          </div>
+          <div class="rule-chip-text">
+            <span class="rule-chip-name">Window Snapping</span>
+            <span class="rule-chip-desc">Tile windows with keyboard shortcuts</span>
+          </div>
+        </div>
+
+        <div class="rule-chip-large">
+          <div class="rule-chip-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+          </div>
+          <div class="rule-chip-text">
+            <span class="rule-chip-name">Quick Launcher</span>
+            <span class="rule-chip-desc">Open apps and URLs with hotkeys</span>
+          </div>
+        </div>
+
+        <div class="rule-chip-large">
+          <div class="rule-chip-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          </div>
+          <div class="rule-chip-text">
+            <span class="rule-chip-name">Symbol Layer</span>
+            <span class="rule-chip-desc">Access symbols without Shift</span>
+          </div>
+        </div>
       </div>
 
-      <div class="rules-image">
-        <img src="{{ '/images/caps-lock-rule.png' | relative_url }}" alt="Caps Lock rule configuration in KeyPath">
-      </div>
+      <p class="rules-fullscreen-note">
+        Or build your own — KeyPath supports all Kanata features
+      </p>
     </div>
   </section>
 

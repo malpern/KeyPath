@@ -1309,6 +1309,127 @@ body.sidebar-open .sidebar {
 }
 
 /* =====================================================
+   RULES FULLSCREEN SECTION
+   ===================================================== */
+.rules-fullscreen {
+    min-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-3xl) var(--spacing-lg);
+    background: var(--color-background);
+}
+
+.rules-fullscreen-content {
+    max-width: 900px;
+    width: 100%;
+    text-align: center;
+}
+
+.rules-fullscreen-title {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0 0 var(--spacing-md) 0;
+}
+
+.rules-fullscreen-subtitle {
+    font-size: clamp(1rem, 2.5vw, 1.25rem);
+    color: var(--color-text-secondary);
+    margin: 0 0 var(--spacing-2xl) 0;
+    line-height: 1.5;
+}
+
+.rules-chips-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-2xl);
+}
+
+.rule-chip-large {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-lg) var(--spacing-xl);
+    background: var(--color-background-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    transition: all 0.25s ease;
+    text-align: left;
+}
+
+.rule-chip-large:hover {
+    border-color: rgba(255, 149, 0, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.rule-chip-icon {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(255, 149, 0, 0.15), rgba(255, 149, 0, 0.05));
+    border-radius: 12px;
+}
+
+.rule-chip-icon svg {
+    width: 24px;
+    height: 24px;
+    stroke: #FF9500;
+}
+
+.rule-chip-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.rule-chip-name {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.rule-chip-desc {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    line-height: 1.4;
+}
+
+.rules-fullscreen-note {
+    font-size: var(--font-size-base);
+    color: var(--color-text-tertiary);
+    margin: 0;
+}
+
+/* Responsive - Tablet */
+@media (max-width: 768px) {
+    .rules-chips-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .rule-chip-large {
+        padding: var(--spacing-md) var(--spacing-lg);
+    }
+
+    .rule-chip-icon {
+        width: 40px;
+        height: 40px;
+    }
+
+    .rule-chip-icon svg {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+/* =====================================================
    MICROANIMATIONS (Scroll-triggered)
    ===================================================== */
 
