@@ -66,6 +66,33 @@ content_class: content-full kanata-landing
         <div class="cinema-app-icon"></div>
         <div class="cinema-app-name"></div>
       </div>
+
+      <!-- Summary slide -->
+      <div class="cinema-summary">
+        <h3 class="cinema-summary-title">Five ways to trigger anything</h3>
+        <div class="cinema-summary-grid">
+          <div class="cinema-summary-item" data-summary="0">
+            <div class="cinema-summary-icon slack"></div>
+            <span class="cinema-summary-label">Two keys<br>at once</span>
+          </div>
+          <div class="cinema-summary-item" data-summary="1">
+            <div class="cinema-summary-icon github"></div>
+            <span class="cinema-summary-label">Keys in<br>a row</span>
+          </div>
+          <div class="cinema-summary-item" data-summary="2">
+            <div class="cinema-summary-icon figma"></div>
+            <span class="cinema-summary-label">Double-tap</span>
+          </div>
+          <div class="cinema-summary-item" data-summary="3">
+            <div class="cinema-summary-icon safari"></div>
+            <span class="cinema-summary-label">Hold + tap</span>
+          </div>
+          <div class="cinema-summary-item" data-summary="4">
+            <div class="cinema-summary-icon docs"></div>
+            <span class="cinema-summary-label">Tap, then<br>type</span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Progress dots -->
@@ -75,6 +102,7 @@ content_class: content-full kanata-landing
       <span class="cinema-dot" data-index="2"></span>
       <span class="cinema-dot" data-index="3"></span>
       <span class="cinema-dot" data-index="4"></span>
+      <span class="cinema-dot" data-index="5"></span>
     </div>
   </section>
 

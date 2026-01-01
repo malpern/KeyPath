@@ -1324,13 +1324,15 @@
         const result = cinemaSection.querySelector('.cinema-result');
         const appIcon = cinemaSection.querySelector('.cinema-app-icon');
         const appName = cinemaSection.querySelector('.cinema-app-name');
+        const summary = cinemaSection.querySelector('.cinema-summary');
+        const summaryItems = cinemaSection.querySelectorAll('.cinema-summary-item');
         const dots = cinemaSection.querySelectorAll('.cinema-dot');
 
         const examples = [
             {
                 gesture: 'Two keys at once',
                 keys: [{ label: 'S', delay: 0 }, { label: 'D', delay: 0 }],
-                keyType: 'chord', // both appear and press together
+                keyType: 'chord',
                 app: 'slack',
                 appLabel: 'Slack'
             },
@@ -1367,24 +1369,23 @@
         let currentIndex = 0;
         let isAnimating = false;
 
-        // Type text character by character
+        // Type text character by character (slowed down)
         async function typeText(text) {
             gestureText.textContent = '';
             cursor.style.display = 'inline';
             for (let i = 0; i < text.length; i++) {
                 gestureText.textContent += text[i];
-                await sleep(50 + Math.random() * 30);
+                await sleep(70 + Math.random() * 40); // Slower typing
             }
-            await sleep(200);
+            await sleep(400);
             cursor.style.display = 'none';
         }
 
-        // Show keys based on type
+        // Show keys based on type (slowed down)
         async function showKeys(example) {
             keysContainer.innerHTML = '';
 
             if (example.keyType === 'chord') {
-                // Show both keys, then press together
                 const key1 = createKey(example.keys[0].label);
                 const plus = document.createElement('span');
                 plus.className = 'cinema-key-plus';
@@ -1395,50 +1396,47 @@
                 keysContainer.appendChild(plus);
                 keysContainer.appendChild(key2);
 
-                await sleep(100);
+                await sleep(200);
                 key1.classList.add('visible');
                 plus.classList.add('visible');
                 key2.classList.add('visible');
 
-                await sleep(400);
+                await sleep(600);
                 key1.classList.add('pressed');
                 key2.classList.add('pressed');
 
             } else if (example.keyType === 'sequence') {
-                // Show first, press, then second
                 const key1 = createKey(example.keys[0].label);
                 const key2 = createKey(example.keys[1].label);
 
                 keysContainer.appendChild(key1);
                 keysContainer.appendChild(key2);
 
-                await sleep(100);
-                key1.classList.add('visible');
                 await sleep(200);
-                key1.classList.add('pressed');
+                key1.classList.add('visible');
                 await sleep(300);
+                key1.classList.add('pressed');
+                await sleep(400);
                 key1.classList.remove('pressed');
 
                 key2.classList.add('visible');
-                await sleep(200);
+                await sleep(300);
                 key2.classList.add('pressed');
 
             } else if (example.keyType === 'doubletap') {
-                // Show one key, tap twice
                 const key = createKey(example.keys[0].label);
                 keysContainer.appendChild(key);
 
-                await sleep(100);
-                key.classList.add('visible');
                 await sleep(200);
+                key.classList.add('visible');
+                await sleep(300);
                 key.classList.add('pressed');
-                await sleep(150);
+                await sleep(200);
                 key.classList.remove('pressed');
-                await sleep(150);
+                await sleep(250);
                 key.classList.add('pressed');
 
             } else if (example.keyType === 'hold') {
-                // Show first key held, then second tapped
                 const key1 = createKey(example.keys[0].label);
                 const plus = document.createElement('span');
                 plus.className = 'cinema-key-plus';
@@ -1449,19 +1447,18 @@
                 keysContainer.appendChild(plus);
                 keysContainer.appendChild(key2);
 
-                await sleep(100);
+                await sleep(200);
                 key1.classList.add('visible');
                 plus.classList.add('visible');
-                await sleep(200);
-                key1.classList.add('pressed'); // Hold
+                await sleep(300);
+                key1.classList.add('pressed');
 
-                await sleep(400);
+                await sleep(600);
                 key2.classList.add('visible');
-                await sleep(200);
+                await sleep(300);
                 key2.classList.add('pressed');
 
             } else if (example.keyType === 'leader') {
-                // Tap first, then type second
                 const key1 = createKey(example.keys[0].label);
                 const arrow = document.createElement('span');
                 arrow.className = 'cinema-key-plus';
@@ -1472,22 +1469,22 @@
                 keysContainer.appendChild(arrow);
                 keysContainer.appendChild(key2);
 
-                await sleep(100);
+                await sleep(200);
                 key1.classList.add('visible');
-                await sleep(200);
+                await sleep(300);
                 key1.classList.add('pressed');
-                await sleep(200);
+                await sleep(300);
                 key1.classList.remove('pressed');
 
                 arrow.classList.add('visible');
-                await sleep(300);
+                await sleep(400);
 
                 key2.classList.add('visible');
-                await sleep(200);
+                await sleep(300);
                 key2.classList.add('pressed');
             }
 
-            await sleep(300);
+            await sleep(500);
         }
 
         function createKey(label) {
@@ -1501,26 +1498,56 @@
             appIcon.className = 'cinema-app-icon ' + example.app;
             appName.textContent = example.appLabel;
             result.classList.add('visible');
-            await sleep(1500);
+            await sleep(2000); // Longer display time
         }
 
         async function hideAll() {
             result.classList.remove('visible');
             keysContainer.innerHTML = '';
             gestureText.textContent = '';
-            await sleep(300);
+            await sleep(500);
+        }
+
+        // Show summary slide with staggered items
+        async function showSummary() {
+            summary.classList.add('visible');
+
+            // Stagger the items appearing
+            for (let i = 0; i < summaryItems.length; i++) {
+                await sleep(150);
+                summaryItems[i].classList.add('visible');
+            }
+
+            await sleep(3000); // Hold summary for 3 seconds
+        }
+
+        async function hideSummary() {
+            summaryItems.forEach(item => item.classList.remove('visible'));
+            await sleep(200);
+            summary.classList.remove('visible');
+            await sleep(500);
         }
 
         async function playExample(index) {
             if (isAnimating) return;
             isAnimating = true;
 
-            const example = examples[index];
-
             // Update dots
             dots.forEach((dot, i) => {
                 dot.classList.toggle('active', i === index);
             });
+
+            // Check if this is the summary slide (index 5)
+            if (index === 5) {
+                await showSummary();
+                await hideSummary();
+                isAnimating = false;
+                currentIndex = 0;
+                playExample(currentIndex);
+                return;
+            }
+
+            const example = examples[index];
 
             // Run animation sequence
             await typeText(example.gesture);
@@ -1530,8 +1557,8 @@
 
             isAnimating = false;
 
-            // Next example
-            currentIndex = (currentIndex + 1) % examples.length;
+            // Next example (including summary as index 5)
+            currentIndex = (currentIndex + 1) % 6;
             playExample(currentIndex);
         }
 

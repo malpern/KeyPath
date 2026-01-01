@@ -795,13 +795,86 @@ body.sidebar-open .sidebar {
     height: 96px;
     border-radius: 22px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    background-size: cover;
+    background-position: center;
 }
 
-.cinema-app-icon.slack { background: linear-gradient(135deg, #4A154B, #611f69); }
-.cinema-app-icon.github { background: linear-gradient(135deg, #24292e, #0d1117); }
-.cinema-app-icon.figma { background: linear-gradient(135deg, #F24E1E, #A259FF); }
-.cinema-app-icon.safari { background: linear-gradient(135deg, #0078FF, #00C7FF); }
-.cinema-app-icon.docs { background: linear-gradient(135deg, #4285F4, #34A853); }
+.cinema-app-icon.slack { background-image: url('../images/cinema-icons/slack.png'); }
+.cinema-app-icon.github { background-image: url('../images/cinema-icons/github.png'); border-radius: 50%; }
+.cinema-app-icon.figma { background-image: url('../images/cinema-icons/figma.png'); }
+.cinema-app-icon.safari { background-image: url('../images/cinema-icons/safari.png'); }
+.cinema-app-icon.docs { background-image: url('../images/cinema-icons/docs.png'); }
+
+/* Summary slide styling */
+.cinema-summary {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-xl);
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.5s ease;
+}
+
+.cinema-summary.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.cinema-summary-title {
+    font-size: clamp(1.5rem, 4vw, 2.5rem);
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0;
+}
+
+.cinema-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: var(--spacing-lg);
+}
+
+.cinema-summary-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-sm);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.4s ease;
+}
+
+.cinema-summary-item.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.cinema-summary-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background-size: cover;
+    background-position: center;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.cinema-summary-icon.slack { background-image: url('../images/cinema-icons/slack.png'); }
+.cinema-summary-icon.github { background-image: url('../images/cinema-icons/github.png'); border-radius: 50%; }
+.cinema-summary-icon.figma { background-image: url('../images/cinema-icons/figma.png'); }
+.cinema-summary-icon.safari { background-image: url('../images/cinema-icons/safari.png'); }
+.cinema-summary-icon.docs { background-image: url('../images/cinema-icons/docs.png'); }
+
+.cinema-summary-label {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    text-align: center;
+}
+
+@media (max-width: 768px) {
+    .cinema-summary-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
 
 .cinema-app-name {
     font-size: clamp(1.25rem, 3vw, 1.75rem);
