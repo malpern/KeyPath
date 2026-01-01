@@ -35,94 +35,19 @@ content_class: content-full kanata-landing
     </div>
   </section>
 
-  <section class="kanata-landing-section">
-    <h2 class="mt-0">Why KeyPath?</h2>
-    <p class="kanata-landing-fineprint mb-0">
-      Everything you love about Kanata — with Mac ease-of-use and extra power built in.
-    </p>
-    <ul class="kanata-feature-list">
-      <li class="kanata-feature kp-accent-blue">
-        <span class="kanata-feature-icon" aria-hidden="true">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" class="kp-icon"><path d="M12 2v10" /><path d="M18.4 6.6a9 9 0 1 1-12.77.04" /></svg>
-        </span>
-        <div class="kanata-feature-text">
-          <div class="kanata-feature-title">Advanced key remapping powered by Kanata</div>
-          <div class="kanata-feature-body">Keymaps, layers, sequences, chords, macros — the good stuff.</div>
+  <!-- DEMO VIDEO SECTION -->
+  <section class="kanata-landing-video-section">
+    <div class="kanata-landing-video-container">
+      <div class="kanata-landing-video-placeholder">
+        <div class="kanata-landing-video-icon">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="64" height="64">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
         </div>
-      </li>
-
-      <li class="kanata-feature kp-accent-purple">
-        <span class="kanata-feature-icon" aria-hidden="true">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" class="kp-icon"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M10 4v4" /><path d="M2 8h20" /><path d="M6 4v4" /></svg>
-        </span>
-        <div class="kanata-feature-text">
-          <div class="kanata-feature-title">App launcher</div>
-          <div class="kanata-feature-body">Open apps with a key, layer, or shortcut.</div>
-        </div>
-      </li>
-
-      <li class="kanata-feature kp-accent-green">
-        <span class="kanata-feature-icon" aria-hidden="true">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" class="kp-icon"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18" /><path d="M9 21V9" /></svg>
-        </span>
-        <div class="kanata-feature-text">
-          <div class="kanata-feature-title">Window tools</div>
-          <div class="kanata-feature-body">Snap, move, and resize with consistent shortcuts.</div>
-        </div>
-      </li>
-
-      <li class="kanata-feature kp-accent-orange">
-        <span class="kanata-feature-icon" aria-hidden="true">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" class="kp-icon"><path d="M10 8h.01" /><path d="M12 12h.01" /><path d="M14 8h.01" /><path d="M16 12h.01" /><path d="M18 8h.01" /><path d="M6 8h.01" /><path d="M7 16h10" /><path d="M8 12h.01" /><rect width="20" height="16" x="2" y="4" rx="2" /></svg>
-        </span>
-        <div class="kanata-feature-text">
-          <div class="kanata-feature-title">Home-row mods</div>
-          <div class="kanata-feature-body">Tap-hold, layers, macros, and combos.</div>
-        </div>
-      </li>
-
-      <li class="kanata-feature kp-accent-orange">
-        <span class="kanata-feature-icon" aria-hidden="true">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" class="kp-icon"><path d="M6 4h12" /><path d="M6 8h6" /><path d="M6 12h10" /><path d="M6 16h7" /><path d="M6 20h12" /></svg>
-        </span>
-        <div class="kanata-feature-text">
-          <div class="kanata-feature-title">Vim-style navigation</div>
-          <div class="kanata-feature-body">Use vim motions for fast navigation (hjkl, word jumps) across apps.</div>
-        </div>
-      </li>
-
-      <li class="kanata-feature kp-accent-slate">
-        <span class="kanata-feature-icon" aria-hidden="true">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" class="kp-icon"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" /><path d="M14 2v5a1 1 0 0 0 1 1h5" /><path d="M10 9H8" /><path d="M16 13H8" /><path d="M16 17H8" /></svg>
-        </span>
-        <div class="kanata-feature-text">
-          <div class="kanata-feature-title">Bring your config</div>
-          <div class="kanata-feature-body">Keep your existing Kanata <code>.kbd</code>. <a href="{{ '/migration/kanata-users' | relative_url }}">Here’s How</a>.</div>
-        </div>
-      </li>
-
-      <li class="kanata-feature kp-accent-teal">
-        <span class="kanata-feature-icon" aria-hidden="true">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" class="kp-icon"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" /></svg>
-        </span>
-        <div class="kanata-feature-text">
-          <div class="kanata-feature-title">Simple Mac installer</div>
-          <div class="kanata-feature-body">No terminal required.</div>
-        </div>
-      </li>
-
-      <li class="kanata-feature kp-accent-white">
-        <span class="kanata-feature-icon" aria-hidden="true">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" class="kp-icon"><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M2 17h20" /><path d="M6 21h12" /><path d="M12 17v4" /></svg>
-        </span>
-        <div class="kanata-feature-text">
-          <div class="kanata-feature-title">Built for macOS</div>
-          <div class="kanata-feature-body">No Electron. No CLI. A fast, native Swift app that feels at home on your Mac.</div>
-        </div>
-      </li>
-    </ul>
-  
-</section>
+        <p class="kanata-landing-video-label">Demo video coming soon</p>
+      </div>
+    </div>
+  </section>
 
   <section class="kanata-landing-section">
     <h2 class="mt-0">Launch apps & websites</h2>
