@@ -784,7 +784,7 @@ body.sidebar-open .sidebar {
 }
 
 .cinema-arrow {
-    font-size: 2.5rem;
+    font-size: 3rem;
     color: var(--color-text-tertiary);
     opacity: 0;
     transition: opacity 0.3s ease;
@@ -826,18 +826,18 @@ body.sidebar-open .sidebar {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 72px;
-    height: 72px;
+    width: 96px;
+    height: 96px;
     background: linear-gradient(180deg, #3a3a3c, #2c2c2e);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
+    border-radius: 14px;
     font-family: 'SF Mono', Monaco, monospace;
-    font-size: 1.4rem;
+    font-size: 1.8rem;
     font-weight: 600;
     color: #fff;
     box-shadow:
-        0 4px 0 #1c1c1e,
-        0 5px 10px rgba(0, 0, 0, 0.4),
+        0 5px 0 #1c1c1e,
+        0 6px 12px rgba(0, 0, 0, 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
     opacity: 0;
     transform: scale(0.8) translateY(10px);
@@ -860,7 +860,7 @@ body.sidebar-open .sidebar {
 }
 
 .cinema-key-plus {
-    font-size: 2rem;
+    font-size: 2.5rem;
     color: var(--color-text-tertiary);
     opacity: 0;
     transition: opacity 0.3s ease;
@@ -887,10 +887,10 @@ body.sidebar-open .sidebar {
 }
 
 .cinema-app-icon {
-    width: 72px;
-    height: 72px;
-    border-radius: 16px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    width: 96px;
+    height: 96px;
+    border-radius: 22px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
     background-size: cover;
     background-position: center;
 }
