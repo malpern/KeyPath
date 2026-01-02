@@ -116,9 +116,9 @@ content_class: content-full kanata-landing
 </section>
 
   <section class="kanata-landing-section">
-    <h2 class="mt-0">Launch apps & websites</h2>
+    <h2 class="mt-0">Launch apps, sites, and docs in one keystroke</h2>
     <p class="kanata-landing-fineprint mb-0">
-      Turn “go to X” into muscle memory: one key can open an app, a URL, or a workflow.
+      Bind apps, URLs, docs, dashboards, and workflows to a key, chord, or layer — instant muscle memory.
     </p>
 
     <div class="kanata-landing-grid-2 kanata-launches">
@@ -131,10 +131,19 @@ content_class: content-full kanata-landing
       </div>
 
       <div class="kanata-launches-media">
+        <div class="kanata-demo-video">
+          <img
+            class="kanata-launches-image"
+            src="{{ '/images/kanata-launcher.png' | relative_url }}"
+            alt="KeyPath demo video still"
+            loading="lazy"
+          />
+          <span class="kanata-demo-play" aria-hidden="true"></span>
+        </div>
         <img
-          class="kanata-launches-image"
-          src="{{ '/images/kanata-launcher.png' | relative_url }}"
-          alt="KeyPath launcher mapping apps and websites"
+          class="kanata-virtual-keyboard"
+          src="{{ '/images/keypath-recording.png' | relative_url }}"
+          alt="Virtual keyboard overlay with live key labels"
           loading="lazy"
         />
       </div>
@@ -263,4 +272,3 @@ cp ~/.config/kanata/kanata.kbd ~/.config/keypath/keypath.kbd
     </div>
   </section>
 </div>
-
