@@ -671,7 +671,7 @@ body.sidebar-open .sidebar {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: var(--spacing-2xl) var(--spacing-2xl) var(--spacing-xl);
+    padding: var(--spacing-2xl) var(--spacing-2xl) var(--spacing-md);
     position: relative;
     background: var(--color-background);
     overflow: hidden;
@@ -707,7 +707,7 @@ body.sidebar-open .sidebar {
     display: flex;
     justify-content: center;
     gap: var(--spacing-lg);
-    margin-bottom: var(--spacing-xl);
+    margin-bottom: var(--spacing-2xl);
 }
 
 .cinema-toc-item {
