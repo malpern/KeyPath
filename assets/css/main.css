@@ -7394,22 +7394,13 @@ a.button:active {
 .keyboard-hero-section:not(.hyper-pulse-stopped) .kb-key-hyper::after {
     content: "";
     position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 100%;
-    height: 100%;
+    inset: 0;
     border-radius: var(--kb-radius);
-    border: none;
-    background: repeating-radial-gradient(circle,
-        rgba(168, 85, 247, 0.0) 0%,
-        rgba(168, 85, 247, 0.0) 56%,
-        rgba(168, 85, 247, 0.65) 60%,
-        rgba(168, 85, 247, 0.0) 68%,
-        rgba(168, 85, 247, 0.0) 78%);
-    transform: translate(-50%, -50%) scale(1);
+    border: 1px solid rgba(168, 85, 247, 0.45);
+    background: rgba(168, 85, 247, 0.12);
     opacity: 0;
     pointer-events: none;
-    animation: hyper-ripple 2.6s ease-out infinite;
+    animation: hyper-wave 2.8s ease-out infinite;
 }
 
 .keyboard-hero-section:not(.hyper-pulse-stopped) .kb-key-hyper::after {
@@ -7439,10 +7430,13 @@ a.button:active {
     color: #fff !important;
 }
 
-@keyframes hyper-ripple {
+@keyframes hyper-wave {
     0% {
         opacity: 0;
-        transform: translate(-50%, -50%) scale(0.95);
+        box-shadow:
+            0 0 0 0 rgba(168, 85, 247, 0.0),
+            0 0 0 0 rgba(168, 85, 247, 0.0),
+            0 0 0 0 rgba(168, 85, 247, 0.0);
     }
     12% {
         opacity: 0.85;
@@ -7452,7 +7446,10 @@ a.button:active {
     }
     100% {
         opacity: 0;
-        transform: translate(-50%, -50%) scale(2.25);
+        box-shadow:
+            0 0 0 10px rgba(168, 85, 247, 0.45),
+            0 0 0 22px rgba(168, 85, 247, 0.25),
+            0 0 0 34px rgba(168, 85, 247, 0.15);
     }
 }
 
