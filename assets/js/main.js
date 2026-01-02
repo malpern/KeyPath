@@ -1381,8 +1381,10 @@
             gestureText.textContent = '';
             cursor.style.display = 'inline';
             for (let i = 0; i < text.length; i++) {
+                if (shouldCancel) return;
                 gestureText.textContent += text[i];
                 await sleep(70 + Math.random() * 40); // Slower typing
+                if (shouldCancel) return;
             }
             await sleep(400);
             cursor.style.display = 'none';
@@ -1390,6 +1392,7 @@
 
         // Show keys based on type (slowed down)
         async function showKeys(example) {
+            if (shouldCancel) return;
             keysContainer.innerHTML = '';
 
             if (example.keyType === 'chord') {
@@ -1403,12 +1406,12 @@
                 keysContainer.appendChild(plus);
                 keysContainer.appendChild(key2);
 
-                await sleep(200);
+                await sleep(200); if (shouldCancel) return;
                 key1.classList.add('visible');
                 plus.classList.add('visible');
                 key2.classList.add('visible');
 
-                await sleep(600);
+                await sleep(600); if (shouldCancel) return;
                 key1.classList.add('pressed');
                 key2.classList.add('pressed');
 
@@ -1419,28 +1422,28 @@
                 keysContainer.appendChild(key1);
                 keysContainer.appendChild(key2);
 
-                await sleep(200);
+                await sleep(200); if (shouldCancel) return;
                 key1.classList.add('visible');
-                await sleep(300);
+                await sleep(300); if (shouldCancel) return;
                 key1.classList.add('pressed');
-                await sleep(400);
+                await sleep(400); if (shouldCancel) return;
                 key1.classList.remove('pressed');
 
                 key2.classList.add('visible');
-                await sleep(300);
+                await sleep(300); if (shouldCancel) return;
                 key2.classList.add('pressed');
 
             } else if (example.keyType === 'doubletap') {
                 const key = createKey(example.keys[0].label);
                 keysContainer.appendChild(key);
 
-                await sleep(200);
+                await sleep(200); if (shouldCancel) return;
                 key.classList.add('visible');
-                await sleep(300);
+                await sleep(300); if (shouldCancel) return;
                 key.classList.add('pressed');
-                await sleep(200);
+                await sleep(200); if (shouldCancel) return;
                 key.classList.remove('pressed');
-                await sleep(250);
+                await sleep(250); if (shouldCancel) return;
                 key.classList.add('pressed');
 
             } else if (example.keyType === 'hold') {
@@ -1454,15 +1457,15 @@
                 keysContainer.appendChild(plus);
                 keysContainer.appendChild(key2);
 
-                await sleep(200);
+                await sleep(200); if (shouldCancel) return;
                 key1.classList.add('visible');
                 plus.classList.add('visible');
-                await sleep(300);
+                await sleep(300); if (shouldCancel) return;
                 key1.classList.add('pressed');
 
-                await sleep(600);
+                await sleep(600); if (shouldCancel) return;
                 key2.classList.add('visible');
-                await sleep(300);
+                await sleep(300); if (shouldCancel) return;
                 key2.classList.add('pressed');
 
             } else if (example.keyType === 'leader') {
@@ -1476,18 +1479,18 @@
                 keysContainer.appendChild(arrow);
                 keysContainer.appendChild(key2);
 
-                await sleep(200);
+                await sleep(200); if (shouldCancel) return;
                 key1.classList.add('visible');
-                await sleep(300);
+                await sleep(300); if (shouldCancel) return;
                 key1.classList.add('pressed');
-                await sleep(300);
+                await sleep(300); if (shouldCancel) return;
                 key1.classList.remove('pressed');
 
                 arrow.classList.add('visible');
-                await sleep(400);
+                await sleep(400); if (shouldCancel) return;
 
                 key2.classList.add('visible');
-                await sleep(300);
+                await sleep(300); if (shouldCancel) return;
                 key2.classList.add('pressed');
             }
 
@@ -1502,17 +1505,19 @@
         }
 
         async function showResult(example) {
+            if (shouldCancel) return;
             // Show arrow first
             if (cinemaArrow) cinemaArrow.classList.add('visible');
-            await sleep(200);
+            await sleep(200); if (shouldCancel) return;
             // Then show result
             appIcon.className = 'cinema-app-icon ' + example.app;
             appName.textContent = example.appLabel;
             result.classList.add('visible');
-            await sleep(2000); // Longer display time
+            await sleep(2000); if (shouldCancel) return;
         }
 
         async function hideAll() {
+            if (shouldCancel) return;
             result.classList.remove('visible');
             if (cinemaArrow) cinemaArrow.classList.remove('visible');
             keysContainer.innerHTML = '';
