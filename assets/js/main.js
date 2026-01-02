@@ -1690,4 +1690,43 @@
             }, { passive: false });
         });
     }
+
+    // ============================================
+    // KEYBOARD INACTIVITY FADE
+    // ============================================
+    // Fade keyboard to glowing state after inactivity
+    const keyboardSection = document.querySelector('.keyboard-hero-section');
+    if (keyboardSection) {
+        let idleTimeout;
+        const IDLE_DELAY = 3000; // 3 seconds of inactivity
+
+        function resetIdleTimer() {
+            // Remove idle class immediately on activity
+            keyboardSection.classList.remove('keyboard-idle');
+
+            // Clear existing timeout
+            clearTimeout(idleTimeout);
+
+            // Set new timeout
+            idleTimeout = setTimeout(() => {
+                keyboardSection.classList.add('keyboard-idle');
+            }, IDLE_DELAY);
+        }
+
+        // Track mouse movement within section
+        keyboardSection.addEventListener('mouseenter', resetIdleTimer);
+        keyboardSection.addEventListener('mousemove', resetIdleTimer);
+        keyboardSection.addEventListener('mouseleave', () => {
+            // When mouse leaves, start idle timer immediately
+            clearTimeout(idleTimeout);
+            idleTimeout = setTimeout(() => {
+                keyboardSection.classList.add('keyboard-idle');
+            }, IDLE_DELAY);
+        });
+
+        // Start idle timer on page load
+        idleTimeout = setTimeout(() => {
+            keyboardSection.classList.add('keyboard-idle');
+        }, IDLE_DELAY);
+    }
 })();

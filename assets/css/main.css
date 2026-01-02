@@ -2773,12 +2773,12 @@ li {
     box-shadow:
         0 -4px 20px rgba(0, 0, 0, 0.5),
         inset 0 1px 0 rgba(255, 255, 255, 0.03);
-    /* Fade effect - dimmed by default with enhanced glow */
-    opacity: 0.6;
+    /* Start fully illuminated */
+    opacity: 1;
     transition: opacity 0.6s ease;
 }
 
-/* Ethereal glow on text when dimmed - matches app's fadeAmount glow */
+/* Base state - crisp text, minimal glow */
 .css-keyboard .kb-primary,
 .css-keyboard .kb-secondary,
 .css-keyboard .kb-label,
@@ -2787,18 +2787,39 @@ li {
 .css-keyboard .kb-mod-symbol,
 .css-keyboard .kb-arrow-icon {
     text-shadow:
-        0 0 8px currentColor,
-        0 0 16px currentColor,
-        0 0 24px rgba(255, 255, 255, 0.3);
+        0 0 2px currentColor,
+        0 0 4px rgba(255, 255, 255, 0.15);
     transition: text-shadow 0.6s ease;
 }
 
 .css-keyboard .kb-sf-icon {
-    filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 12px rgba(255, 255, 255, 0.4));
+    filter: drop-shadow(0 0 2px currentColor);
     transition: filter 0.6s ease;
 }
 
-/* Full illumination on hover - reduce glow for crisp look */
+/* Idle state - fade and add ethereal glow after inactivity */
+.keyboard-hero-section.keyboard-idle .css-keyboard {
+    opacity: 0.6;
+}
+
+.keyboard-hero-section.keyboard-idle .css-keyboard .kb-primary,
+.keyboard-hero-section.keyboard-idle .css-keyboard .kb-secondary,
+.keyboard-hero-section.keyboard-idle .css-keyboard .kb-label,
+.keyboard-hero-section.keyboard-idle .css-keyboard .kb-fn-label,
+.keyboard-hero-section.keyboard-idle .css-keyboard .kb-mod-label,
+.keyboard-hero-section.keyboard-idle .css-keyboard .kb-mod-symbol,
+.keyboard-hero-section.keyboard-idle .css-keyboard .kb-arrow-icon {
+    text-shadow:
+        0 0 8px currentColor,
+        0 0 16px currentColor,
+        0 0 24px rgba(255, 255, 255, 0.3);
+}
+
+.keyboard-hero-section.keyboard-idle .css-keyboard .kb-sf-icon {
+    filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 12px rgba(255, 255, 255, 0.4));
+}
+
+/* Hover cancels idle state immediately */
 .keyboard-hero-section:hover .css-keyboard {
     opacity: 1;
 }
