@@ -1112,6 +1112,27 @@ body.sidebar-open .sidebar {
     transition: opacity 0.3s ease;
 }
 
+/* "See how it works" link */
+.cinema-see-more {
+    display: inline-block;
+    margin-top: var(--spacing-xl);
+    color: var(--color-text-tertiary);
+    font-size: var(--font-size-sm);
+    text-decoration: none !important;
+    border: none !important;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.cinema-see-more:hover {
+    color: var(--color-text-secondary);
+    transform: translateY(2px);
+}
+
+/* Smooth scroll for anchor links */
+html {
+    scroll-behavior: smooth;
+}
+
 @media (max-width: 768px) {
     .cinema-key {
         width: 64px;

@@ -120,6 +120,8 @@ content_class: content-full kanata-landing
         <div class="cinema-app-name"></div>
       </div>
     </div>
+
+    <a href="#how-it-works" class="cinema-see-more">See how it works...</a>
   </section>
 
   <!-- BUILD YOUR OWN RULES - Full Screen -->
@@ -572,7 +574,7 @@ content_class: content-full kanata-landing
   </section>
 
   <!-- How It Works Section -->
-  <section class="explained-section">
+  <section class="explained-section" id="how-it-works">
     <div class="explained-header">
       <h2>How It Works</h2>
       <p class="subtitle">Kanata transforms simple keypresses into powerful actions.</p>
