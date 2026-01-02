@@ -2810,6 +2810,17 @@ li {
     color: var(--color-text-tertiary);
 }
 
+.footer-copyright a {
+    color: var(--color-text-secondary);
+    font-weight: 500;
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.footer-copyright a:hover {
+    color: var(--color-primary);
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
     .content-wrapper {
