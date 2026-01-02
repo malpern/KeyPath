@@ -160,7 +160,7 @@ struct RulesTabView: View {
             description: dynamicCollectionDescription(for: collection),
             layerActivator: collection.momentaryActivator,
             leaderKeyDisplay: currentLeaderKeyDisplay,
-            activationHint: collection.activationHint,
+            activationHint: dynamicActivationHint(for: collection),
             displayStyle: style,
             collection: needsCollection ? collection : nil,
             onSelectOutput: style == .singleKeyPicker ? { output in
@@ -405,34 +405,86 @@ struct RulesTabView: View {
         formatKeyWithSymbol(currentLeaderKey)
     }
 
-    /// Generate a dynamic description for tap-hold picker collections showing configured values
+    /// Generate a dynamic description for collections
+    /// For tapHoldPicker: returns the collection summary (tap/hold config shown as activation hint)
+    /// For launcherGrid: returns dynamic description based on activation mode
     private func dynamicCollectionDescription(for collection: RuleCollection) -> String {
-        // Use type-safe configuration pattern
+        // Handle launcher grid configurations
+        if case .launcherGrid = collection.configuration {
+            return dynamicLauncherDescription(for: collection)
+        }
+
+        // For tapHoldPicker, always return the summary - the tap/hold config is shown as activation hint
+        return collection.summary
+    }
+
+    /// Generate a dynamic activation hint for tap-hold picker collections showing the current config
+    private func dynamicTapHoldActivationHint(for collection: RuleCollection) -> String? {
         guard case let .tapHoldPicker(config) = collection.configuration else {
-            return collection.summary
-        }
-
-        // Check effective enabled state
-        let effectiveEnabled: Bool = if let pendingToggle = pendingToggles[collection.id] {
-            pendingToggle
-        } else {
-            collection.isEnabled
-        }
-
-        // If disabled, show the generic summary
-        guard effectiveEnabled else {
-            return collection.summary
+            return nil
         }
 
         // Get the selected tap and hold outputs from config
-        let tapOutput = config.selectedTapOutput ?? config.tapOptions.first?.output ?? "esc"
-        let holdOutput = config.selectedHoldOutput ?? config.holdOptions.first?.output ?? "hyper"
+        let tapOutput = config.selectedTapOutput ?? config.tapOptions.first?.output ?? "hyper"
+        let holdOutput = config.selectedHoldOutput ?? config.holdOptions.first?.output ?? "XX"
 
         // Find labels for the outputs
         let tapLabel = config.tapOptions.first { $0.output == tapOutput }?.label ?? tapOutput
         let holdLabel = config.holdOptions.first { $0.output == holdOutput }?.label ?? holdOutput
 
         return "Tap: \(tapLabel), Hold: \(holdLabel)"
+    }
+
+    /// Generate a dynamic description for launcher collections showing the current activation mode
+    private func dynamicLauncherDescription(for collection: RuleCollection) -> String {
+        guard case let .launcherGrid(config) = collection.configuration else {
+            return collection.summary
+        }
+
+        switch config.activationMode {
+        case .holdHyper:
+            switch config.hyperTriggerMode {
+            case .hold:
+                return "Hold Hyper to quickly launch apps and websites with keyboard shortcuts."
+            case .tap:
+                return "Tap Hyper to toggle the launcher on/off. Then press a shortcut key."
+            }
+        case .leaderSequence:
+            return "Press \(currentLeaderKeyDisplay) → L to activate the launcher layer."
+        }
+    }
+
+    /// Generate a dynamic activation hint for launcher collections showing the current activation mode
+    private func dynamicLauncherActivationHint(for collection: RuleCollection) -> String {
+        guard case let .launcherGrid(config) = collection.configuration else {
+            return collection.activationHint ?? "Hold Hyper key"
+        }
+
+        switch config.activationMode {
+        case .holdHyper:
+            switch config.hyperTriggerMode {
+            case .hold:
+                return "Hold Hyper key"
+            case .tap:
+                return "Tap Hyper key"
+            }
+        case .leaderSequence:
+            return "\(currentLeaderKeyDisplay) → L"
+        }
+    }
+
+    /// Get the activation hint for a collection - dynamic for launcher and tapHoldPicker
+    private func dynamicActivationHint(for collection: RuleCollection) -> String? {
+        // Handle launcher grid configurations dynamically
+        if case .launcherGrid = collection.configuration {
+            return dynamicLauncherActivationHint(for: collection)
+        }
+        // Handle tap-hold picker configurations dynamically
+        if case .tapHoldPicker = collection.configuration {
+            return dynamicTapHoldActivationHint(for: collection)
+        }
+        // All other collections use static activation hint
+        return collection.activationHint
     }
 
     /// Generate a dynamic name for picker-style collections that shows the current mapping
@@ -2192,8 +2244,8 @@ private struct TapHoldPickerContent: View {
         let cfg = collection.configuration.tapHoldPickerConfig
         let tapOptions = cfg?.tapOptions ?? []
         let holdOptions = cfg?.holdOptions ?? []
-        _selectedTap = State(initialValue: cfg?.selectedTapOutput ?? tapOptions.first?.output ?? "esc")
-        _selectedHold = State(initialValue: cfg?.selectedHoldOutput ?? holdOptions.first?.output ?? "hyper")
+        _selectedTap = State(initialValue: cfg?.selectedTapOutput ?? tapOptions.first?.output ?? "hyper")
+        _selectedHold = State(initialValue: cfg?.selectedHoldOutput ?? holdOptions.first?.output ?? "XX")
     }
 
     private var tapOptions: [SingleKeyPreset] {

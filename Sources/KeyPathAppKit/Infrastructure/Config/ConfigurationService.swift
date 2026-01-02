@@ -936,8 +936,8 @@ public struct KanataConfiguration: Sendable {
             return []
         }
 
-        let tapOutput = config.selectedTapOutput ?? "esc"
-        let holdOutput = config.selectedHoldOutput ?? "hyper"
+        let tapOutput = config.selectedTapOutput ?? config.tapOptions.first?.output ?? "esc"
+        let holdOutput = config.selectedHoldOutput ?? config.holdOptions.first?.output ?? "XX"
 
         // Create dual-role behavior: tap = tapOutput, hold = holdOutput
         let behavior = DualRoleBehavior(

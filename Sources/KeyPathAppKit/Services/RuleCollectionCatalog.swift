@@ -384,6 +384,12 @@ struct RuleCollectionCatalog {
                 ],
                 holdOptions: [
                     SingleKeyPreset(
+                        output: "XX",
+                        label: "None",
+                        description: "No hold action - tap only (recommended)",
+                        icon: "minus.circle"
+                    ),
+                    SingleKeyPreset(
                         output: "hyper",
                         label: "✦ Hyper",
                         description: "All four modifiers (⌃⌥⇧⌘) - ultimate shortcut prefix",
@@ -406,12 +412,6 @@ struct RuleCollectionCatalog {
                         label: "⇧ Shift",
                         description: "Shift modifier",
                         icon: "shift"
-                    ),
-                    SingleKeyPreset(
-                        output: "XX",
-                        label: "None",
-                        description: "No hold action - tap only",
-                        icon: "minus.circle"
                     )
                 ],
                 selectedTapOutput: "hyper",
