@@ -111,13 +111,19 @@ content_class: content-full kanata-landing
         <span class="cinema-cursor">|</span>
       </div>
 
-      <!-- Keys display -->
-      <div class="cinema-keys"></div>
+      <!-- Keys and Result on same line -->
+      <div class="cinema-action-row">
+        <!-- Keys display -->
+        <div class="cinema-keys"></div>
 
-      <!-- Result (app icon + name) -->
-      <div class="cinema-result">
-        <div class="cinema-app-icon"></div>
-        <div class="cinema-app-name"></div>
+        <!-- Arrow -->
+        <div class="cinema-arrow">→</div>
+
+        <!-- Result (app icon + name) -->
+        <div class="cinema-result">
+          <div class="cinema-app-icon"></div>
+          <div class="cinema-app-name"></div>
+        </div>
       </div>
     </div>
 

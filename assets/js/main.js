@@ -1328,6 +1328,7 @@
         const gestureText = cinemaSection.querySelector('.cinema-gesture-text');
         const cursor = cinemaSection.querySelector('.cinema-cursor');
         const keysContainer = cinemaSection.querySelector('.cinema-keys');
+        const cinemaArrow = cinemaSection.querySelector('.cinema-arrow');
         const result = cinemaSection.querySelector('.cinema-result');
         const appIcon = cinemaSection.querySelector('.cinema-app-icon');
         const appName = cinemaSection.querySelector('.cinema-app-name');
@@ -1500,6 +1501,10 @@
         }
 
         async function showResult(example) {
+            // Show arrow first
+            if (cinemaArrow) cinemaArrow.classList.add('visible');
+            await sleep(200);
+            // Then show result
             appIcon.className = 'cinema-app-icon ' + example.app;
             appName.textContent = example.appLabel;
             result.classList.add('visible');
@@ -1508,6 +1513,7 @@
 
         async function hideAll() {
             result.classList.remove('visible');
+            if (cinemaArrow) cinemaArrow.classList.remove('visible');
             keysContainer.innerHTML = '';
             gestureText.textContent = '';
             await sleep(500);
