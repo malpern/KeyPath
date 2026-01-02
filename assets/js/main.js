@@ -1652,42 +1652,54 @@
     });
 
     // =========================================================================
-    // CSS Keyboard - Click to light up keys
+    // CSS Keyboard - Press highlight (on press, stays while held)
     // =========================================================================
     const cssKeyboard = document.querySelector('.css-keyboard');
     if (cssKeyboard) {
         const keys = cssKeyboard.querySelectorAll('.kb-key');
 
+        function pressKey(key) {
+            key.classList.remove('kb-key-fading');
+            key.classList.add('kb-key-pressed');
+        }
+
+        function releaseKey(key) {
+            if (!key.classList.contains('kb-key-pressed')) return;
+            key.classList.remove('kb-key-pressed');
+            key.classList.add('kb-key-fading');
+
+            setTimeout(() => {
+                key.classList.remove('kb-key-fading');
+            }, 400);
+        }
+
         keys.forEach(key => {
-            key.addEventListener('click', (e) => {
-                e.preventDefault();
-
-                // Remove any existing animation classes
-                key.classList.remove('kb-key-pressed', 'kb-key-fading');
-
-                // Force reflow to restart animation
-                void key.offsetWidth;
-
-                // Add pressed state
-                key.classList.add('kb-key-pressed');
-
-                // After a short delay, start fade out
-                setTimeout(() => {
-                    key.classList.remove('kb-key-pressed');
-                    key.classList.add('kb-key-fading');
-
-                    // Remove fading class after animation completes
-                    setTimeout(() => {
-                        key.classList.remove('kb-key-fading');
-                    }, 400);
-                }, 150);
+            key.addEventListener('pointerdown', (e) => {
+                if (e.pointerType === 'mouse' && e.button !== 0) return;
+                pressKey(key);
+                if (typeof key.setPointerCapture === 'function') {
+                    try {
+                        key.setPointerCapture(e.pointerId);
+                    } catch (err) {
+                        // Ignore capture errors for unsupported pointers
+                    }
+                }
             });
 
-            // Also handle touch events for mobile
-            key.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                key.click();
-            }, { passive: false });
+            key.addEventListener('pointerup', (e) => {
+                releaseKey(key);
+                if (typeof key.releasePointerCapture === 'function') {
+                    try {
+                        key.releasePointerCapture(e.pointerId);
+                    } catch (err) {
+                        // Ignore release errors for unsupported pointers
+                    }
+                }
+            });
+
+            key.addEventListener('pointercancel', () => {
+                releaseKey(key);
+            });
         });
     }
 

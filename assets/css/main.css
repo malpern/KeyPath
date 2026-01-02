@@ -7302,6 +7302,7 @@ a.button:active {
         rgba(147, 51, 234, 0.3) 0%,
         rgba(126, 34, 206, 0.4) 100%) !important;
     border-color: rgba(168, 85, 247, 0.4) !important;
+    animation: hyper-pulse 2.6s ease-in-out infinite;
 }
 
 .kb-key-hyper .kb-label {
@@ -7320,10 +7321,30 @@ a.button:active {
     box-shadow:
         0 0 20px rgba(168, 85, 247, 0.5),
         inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+    animation: none;
 }
 
 .kb-key-hyper.kb-key-pressed .kb-label {
     color: #fff !important;
+}
+
+@keyframes hyper-pulse {
+    0% {
+        box-shadow:
+            0 0 0 rgba(168, 85, 247, 0.0),
+            inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    }
+    50% {
+        box-shadow:
+            0 0 18px rgba(168, 85, 247, 0.45),
+            0 0 32px rgba(168, 85, 247, 0.25),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    100% {
+        box-shadow:
+            0 0 0 rgba(168, 85, 247, 0.0),
+            inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    }
 }
 
 /* ============================================
@@ -7408,6 +7429,7 @@ a.button:active {
     box-shadow:
         0 0 20px rgba(168, 85, 247, 0.5),
         inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+    animation: none;
 }
 
 /* Keyboard should be fully bright when launcher is active */
