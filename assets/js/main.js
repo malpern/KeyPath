@@ -1729,8 +1729,8 @@
     // ============================================
     // Click D-O-J-O on the virtual keyboard to reveal the secret card
     const dojoOverlay = document.getElementById('dojo-overlay');
-    const cssKeyboard = document.querySelector('.css-keyboard');
-    if (dojoOverlay && cssKeyboard) {
+    const dojoKeyboard = document.querySelector('.css-keyboard');
+    if (dojoOverlay && dojoKeyboard) {
         const secretCode = ['d', 'o', 'j', 'o'];
         let clickedKeys = [];
         let resetTimeout;
@@ -1755,7 +1755,7 @@
         }
 
         // Listen for clicks on keyboard keys
-        cssKeyboard.querySelectorAll('.kb-key').forEach(key => {
+        dojoKeyboard.querySelectorAll('.kb-key').forEach(key => {
             key.addEventListener('click', () => {
                 const letter = getKeyLetter(key);
                 if (!letter) return;
