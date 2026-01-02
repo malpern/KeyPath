@@ -2753,28 +2753,6 @@ li {
     padding-bottom: 0;
 }
 
-/* Breathing cool blue glow for keyboard section */
-.keyboard-hero-section::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: radial-gradient(ellipse 70% 60% at 50% 0%, rgba(90, 200, 250, 0.08), transparent);
-    animation: keyboard-glow-breathe 16s ease-in-out infinite;
-    z-index: 0;
-}
-
-@keyframes keyboard-glow-breathe {
-    0%, 100% {
-        opacity: 0.4;
-        transform: scale(1) translateY(0);
-    }
-    50% {
-        opacity: 0.8;
-        transform: scale(1.02) translateY(-5px);
-    }
-}
-
 .keyboard-hero-wrapper {
     position: relative;
     max-width: 1000px;
