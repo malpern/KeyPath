@@ -76,7 +76,7 @@ public struct KeyPathApp: App {
             // Fetch Kanata version for About panel
             await BuildInfo.fetchKanataVersion()
 
-            // Start global hotkey monitoring (Option+Command+K to show/hide)
+            // Start global hotkey monitoring (Option+Command+K to show/hide, Option+Command+L to reset/center)
             GlobalHotkeyService.shared.startMonitoring()
         }
     }
@@ -335,7 +335,8 @@ private func openPreferencesTab(_ notification: Notification.Name) {
         for item in appMenu.items {
             // Look for the "Settings..." menu item (standard name on macOS)
             if item.title.contains("Settings") || item.title.contains("Preferences"),
-               let action = item.action {
+               let action = item.action
+            {
                 AppLogger.shared.log("✅ [App] Found Settings menu item, triggering it")
                 NSApp.activate(ignoringOtherApps: true)
                 NSApp.sendAction(action, to: item.target, from: item)
@@ -372,7 +373,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
         AppLogger.shared.log("🔍 [AppDelegate] applicationShouldTerminateAfterLastWindowClosed called")
-        return true
+        // Keep the app resident when the global hotkey is enabled so Option+Command+K
+        // can bring the overlay back even with no windows visible.
+        return !GlobalHotkeyService.shared.isEnabled
     }
 
     func applicationWillHide(_: Notification) {

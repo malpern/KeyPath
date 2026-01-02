@@ -260,9 +260,9 @@ struct GeneralSettingsTabView: View {
                                 set: { GlobalHotkeyService.shared.isEnabled = $0 }
                             )) {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("⌥⌘K to show/hide KeyPath")
+                                    Text("⌥⌘K to show/hide, ⌥⌘L to reset & center")
                                         .font(.body)
-                                    Text("Press Option+Command+K to toggle all KeyPath windows")
+                                    Text("Press Option+Command+K to toggle all KeyPath windows, Option+Command+L to restore the overlay size")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -998,7 +998,8 @@ struct StatusSettingsTabView: View {
         // If services look “starting” (daemons loaded/healthy but kanata not yet running), retry once shortly.
         if !context.services.kanataRunning,
            context.components.launchDaemonServicesHealthy || context.services.karabinerDaemonRunning,
-           refreshRetryScheduled == false {
+           refreshRetryScheduled == false
+        {
             refreshRetryScheduled = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 Task {

@@ -3,6 +3,7 @@ import KeyPathCore
 
 /// Manages global keyboard shortcuts for KeyPath.
 /// Default: Option+Command+K toggles the keyboard overlay visibility.
+///          Option+Command+L shows the overlay, recenters it, and restores default size.
 @MainActor
 final class GlobalHotkeyService {
     static let shared = GlobalHotkeyService()
@@ -65,29 +66,18 @@ final class GlobalHotkeyService {
         // Local monitor for when KeyPath is focused
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             // Check synchronously if this is our hotkey
-            guard let self else { return event }
+            guard let self, let action = self.action(for: event) else { return event }
 
-            // Check for Option+Command+K
-            // keyCode 40 = 'k'
-            guard event.keyCode == 40,
-                  event.modifierFlags.contains(.option),
-                  event.modifierFlags.contains(.command),
-                  !event.modifierFlags.contains(.control),
-                  !event.modifierFlags.contains(.shift)
-            else {
-                return event
-            }
-
-            // Trigger the toggle on main actor
+            // Trigger the action on main actor
             Task { @MainActor in
-                self.toggleOverlayVisibility()
+                self.perform(action)
             }
 
             // Consume the event
             return nil
         }
 
-        AppLogger.shared.log("⌨️ [GlobalHotkey] Started monitoring (Option+Command+K)")
+        AppLogger.shared.log("⌨️ [GlobalHotkey] Started monitoring (⌥⌘K, ⌥⌘L)")
     }
 
     /// Stop monitoring for the global hotkey.
@@ -108,19 +98,11 @@ final class GlobalHotkeyService {
     /// Handle a key event and return true if it was the global hotkey
     @discardableResult
     private func handleKeyEvent(_ event: NSEvent) -> Bool {
-        // Check for Option+Command+K
-        // keyCode 40 = 'k'
-        guard event.keyCode == 40,
-              event.modifierFlags.contains(.option),
-              event.modifierFlags.contains(.command),
-              !event.modifierFlags.contains(.control),
-              !event.modifierFlags.contains(.shift)
-        else {
+        guard let action = action(for: event) else {
             return false
         }
 
-        AppLogger.shared.log("⌨️ [GlobalHotkey] Option+Command+K triggered")
-        toggleOverlayVisibility()
+        perform(action)
         return true
     }
 
@@ -132,5 +114,62 @@ final class GlobalHotkeyService {
         let wasVisible = overlay.isVisible
         overlay.isVisible = !wasVisible
         AppLogger.shared.log("👁️ [GlobalHotkey] Overlay toggled: \(wasVisible) → \(!wasVisible)")
+    }
+
+    private func restoreOverlayToDefaultCentered() {
+        LiveKeyboardOverlayController.shared.showResetCentered()
+        AppLogger.shared.log("👁️ [GlobalHotkey] Overlay restored to default size and centered")
+    }
+
+    private func action(for event: NSEvent) -> GlobalHotkeyAction? {
+        guard let match = GlobalHotkeyMatcher.match(
+            keyCode: event.keyCode,
+            modifiers: event.modifierFlags
+        ) else {
+            return nil
+        }
+
+        AppLogger.shared.log("⌨️ [GlobalHotkey] \(match.label) triggered")
+        return match.action
+    }
+
+    private func perform(_ action: GlobalHotkeyAction) {
+        switch action {
+        case .toggleOverlay:
+            toggleOverlayVisibility()
+        case .resetOverlay:
+            restoreOverlayToDefaultCentered()
+        }
+    }
+}
+
+enum GlobalHotkeyAction {
+    case toggleOverlay
+    case resetOverlay
+}
+
+struct GlobalHotkeyDefinition {
+    let keyCode: UInt16
+    let action: GlobalHotkeyAction
+    let label: String
+}
+
+enum GlobalHotkeyMatcher {
+    static let requiredModifiers: NSEvent.ModifierFlags = [.option, .command]
+    static let forbiddenModifiers: NSEvent.ModifierFlags = [.control, .shift]
+
+    static let hotkeys: [GlobalHotkeyDefinition] = [
+        GlobalHotkeyDefinition(keyCode: 40, action: .toggleOverlay, label: "Option+Command+K"),
+        GlobalHotkeyDefinition(keyCode: 37, action: .resetOverlay, label: "Option+Command+L"),
+    ]
+
+    static func match(keyCode: UInt16, modifiers: NSEvent.ModifierFlags) -> GlobalHotkeyDefinition? {
+        guard modifiers.isSuperset(of: requiredModifiers),
+              modifiers.intersection(forbiddenModifiers).isEmpty
+        else {
+            return nil
+        }
+
+        return hotkeys.first(where: { $0.keyCode == keyCode })
     }
 }
