@@ -2957,9 +2957,16 @@ li {
 
 /* SF Symbol Icon */
 .kb-sf-icon {
+    width: 16px;
+    height: 16px;
+    color: rgba(255, 255, 255, 0.7);
+    flex-shrink: 0;
+}
+
+/* SF icons in function keys */
+.kb-key-fn .kb-sf-icon {
     width: 14px;
     height: 14px;
-    color: rgba(255, 255, 255, 0.7);
 }
 
 .kb-globe {

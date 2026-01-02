@@ -1231,22 +1231,22 @@ content_class: content-full kanata-landing
 <section class="keyboard-hero-section">
   <div class="keyboard-hero-wrapper">
     <div class="css-keyboard">
-      <!-- Function Row - simple text icons -->
+      <!-- Function Row - SF Symbol style SVG icons -->
       <div class="kb-row kb-row-fn">
         <div class="kb-key kb-key-fn kb-key-esc"><span class="kb-label">esc</span></div>
-        <div class="kb-key kb-key-fn"><span class="kb-fn-icon">●</span><span class="kb-fn-label">F1</span></div>
-        <div class="kb-key kb-key-fn"><span class="kb-fn-icon">☀</span><span class="kb-fn-label">F2</span></div>
-        <div class="kb-key kb-key-fn"><span class="kb-fn-icon">▦</span><span class="kb-fn-label">F3</span></div>
-        <div class="kb-key kb-key-fn"><span class="kb-fn-icon">⌕</span><span class="kb-fn-label">F4</span></div>
-        <div class="kb-key kb-key-fn"><span class="kb-fn-icon">⏺</span><span class="kb-fn-label">F5</span></div>
-        <div class="kb-key kb-key-fn"><span class="kb-fn-icon">☾</span><span class="kb-fn-label">F6</span></div>
-        <div class="kb-key kb-key-fn"><span class="kb-fn-icon">◀◀</span><span class="kb-fn-label">F7</span></div>
-        <div class="kb-key kb-key-fn"><span class="kb-fn-icon">▐▐</span><span class="kb-fn-label">F8</span></div>
-        <div class="kb-key kb-key-fn"><span class="kb-fn-icon">▶▶</span><span class="kb-fn-label">F9</span></div>
-        <div class="kb-key kb-key-fn"><span class="kb-fn-icon">🔇</span><span class="kb-fn-label">F10</span></div>
-        <div class="kb-key kb-key-fn"><span class="kb-fn-icon">🔉</span><span class="kb-fn-label">F11</span></div>
-        <div class="kb-key kb-key-fn"><span class="kb-fn-icon">🔊</span><span class="kb-fn-label">F12</span></div>
-        <div class="kb-key kb-key-fn kb-key-power"><span class="kb-fn-icon">⏻</span></div>
+        <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg><span class="kb-fn-label">F1</span></div>
+        <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/><path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg><span class="kb-fn-label">F2</span></div>
+        <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="2" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><rect x="16" y="2" width="6" height="6" rx="1"/><rect x="2" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/><rect x="16" y="9" width="6" height="6" rx="1"/></svg><span class="kb-fn-label">F3</span></div>
+        <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="10" cy="10" r="6"/><path d="M21 21l-4.35-4.35"/></svg><span class="kb-fn-label">F4</span></div>
+        <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1a4 4 0 0 0-4 4v6a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M12 19v4M8 23h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg><span class="kb-fn-label">F5</span></div>
+        <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span class="kb-fn-label">F6</span></div>
+        <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M19 20L9 12l10-8v16z"/><rect x="5" y="5" width="3" height="14"/></svg><span class="kb-fn-label">F7</span></div>
+        <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h3v16H6zM15 4h3v16h-3z"/></svg><span class="kb-fn-label">F8</span></div>
+        <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M5 4l10 8-10 8V4z"/><rect x="16" y="5" width="3" height="14"/></svg><span class="kb-fn-label">F9</span></div>
+        <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M11 5L6 9H2v6h4l5 4V5z" opacity="0.5"/><path d="M4 20L20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="kb-fn-label">F10</span></div>
+        <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg><span class="kb-fn-label">F11</span></div>
+        <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg><span class="kb-fn-label">F12</span></div>
+        <div class="kb-key kb-key-fn kb-key-power"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 2v8"/><path d="M18.36 6.64A9 9 0 1 1 5.64 6.64"/></svg></div>
       </div>
       <!-- Number Row -->
       <div class="kb-row">
