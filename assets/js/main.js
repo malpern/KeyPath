@@ -1655,6 +1655,9 @@
     // CSS Keyboard - Press highlight (on press, stays while held)
     // =========================================================================
     const cssKeyboard = document.querySelector('.css-keyboard');
+    const keyboardSection = document.querySelector('.keyboard-hero-section');
+    let wakeKeyboard = null;
+    let stopHyperPulse = null;
     if (cssKeyboard) {
         const keys = cssKeyboard.querySelectorAll('.kb-key');
 
@@ -1707,7 +1710,6 @@
     // KEYBOARD INACTIVITY FADE
     // ============================================
     // Fade keyboard to glowing state after inactivity
-    const keyboardSection = document.querySelector('.keyboard-hero-section');
     if (keyboardSection) {
         let idleTimeout;
         const IDLE_DELAY = 3000; // 3 seconds of inactivity
@@ -1719,11 +1721,15 @@
             }, IDLE_DELAY);
         }
 
-        function wakeKeyboard() {
+        wakeKeyboard = function wakeKeyboard() {
             // Remove idle class and restart timer
             keyboardSection.classList.remove('keyboard-idle');
             startIdleTimer();
-        }
+        };
+
+        stopHyperPulse = function stopHyperPulse() {
+            keyboardSection.classList.add('hyper-pulse-stopped');
+        };
 
         // Wake on any mouse activity
         keyboardSection.addEventListener('mouseenter', wakeKeyboard);
@@ -1840,20 +1846,33 @@
 
         // Click hyper keys to toggle launcher
         hyperKeys.forEach(key => {
+            key.addEventListener('pointerdown', (e) => {
+                e.stopPropagation();
+                manualHyperUsed = true;
+                if (typeof stopHyperPulse === 'function') {
+                    stopHyperPulse();
+                }
+            });
+
             key.addEventListener('click', (e) => {
                 e.stopPropagation();
                 manualHyperUsed = true;
+                if (typeof stopHyperPulse === 'function') {
+                    stopHyperPulse();
+                }
                 toggleLauncher();
             });
         });
 
         // Auto-trigger launcher when keyboard is scrolled past mid-screen
-        const keyboardSection = document.querySelector('.keyboard-hero-section');
         if (keyboardSection) {
             window.addEventListener('scroll', () => {
                 if (manualHyperUsed || autoLauncherTriggered) return;
-                const rect = keyboardSection.getBoundingClientRect();
+                const rect = launcherKeyboard.getBoundingClientRect();
                 if (rect.top < window.innerHeight * 0.5 && rect.bottom > 0) {
+                    if (typeof stopHyperPulse === 'function') {
+                        stopHyperPulse();
+                    }
                     openLauncher();
                     autoLauncherTriggered = true;
                 }
