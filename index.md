@@ -1233,7 +1233,7 @@ content_class: content-full kanata-landing
     <div class="css-keyboard">
       <!-- Function Row - SF Symbol style SVG icons -->
       <div class="kb-row kb-row-fn">
-        <div class="kb-key kb-key-fn kb-key-hyper" id="hyper-key"><span class="kb-label">hyper</span></div>
+        <div class="kb-key kb-key-fn kb-key-esc"><span class="kb-label">esc</span></div>
         <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg><span class="kb-fn-label">F1</span></div>
         <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/><path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg><span class="kb-fn-label">F2</span></div>
         <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="2" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><rect x="16" y="2" width="6" height="6" rx="1"/><rect x="2" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/><rect x="16" y="9" width="6" height="6" rx="1"/></svg><span class="kb-fn-label">F3</span></div>
