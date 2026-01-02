@@ -171,6 +171,50 @@ struct OverlayKeycapView: View {
     /// Cached favicon for URL actions
     @State private var faviconImage: NSImage?
 
+    // MARK: - Tab Transition Animation State
+
+    /// Animation progress for launcher mode transition (0 = standard, 1 = launcher)
+    @State private var launcherTransition: CGFloat = 0
+    /// Whether icon should be visible (delayed appearance)
+    @State private var iconVisible: Bool = false
+
+    /// Per-key animation variation (0.0 to 1.0) based on distance from home row
+    /// Home row keys move first and fastest; keys further away are noticeably slower
+    private var keyAnimationVariation: CGFloat {
+        // Home row is at y ≈ 2 (A, S, D, F, G, H, J, K, L row)
+        let homeRowY: CGFloat = 2.0
+        let maxDistance: CGFloat = 3.0  // Max rows away from home row
+
+        // Distance from home row (0 = home row, higher = further)
+        let homeRowDistance = abs(key.y - homeRowY)
+        let distanceFactor = min(homeRowDistance / maxDistance, 1.0)
+
+        // Apply power curve to make the difference more dramatic
+        // Home row stays near 0, but each row away jumps more significantly
+        let dramaticFactor = pow(distanceFactor, 0.7)
+
+        // Small random noise for organic feel (scaled by distance)
+        let noise = sin(CGFloat(key.keyCode) * 0.7 + key.x * 0.3) * 0.08
+
+        // Home row: ~0, row±1: ~0.4, row±2: ~0.7, far rows: ~1.0
+        return min(1.0, dramaticFactor + noise * distanceFactor)
+    }
+
+    /// Per-key delay in milliseconds (home row: 0ms, far keys: up to 60ms)
+    private var keyAnimationDelayMs: Int {
+        Int(keyAnimationVariation * 60)
+    }
+
+    /// Per-key spring response (home row: very snappy 0.18, far keys: slow 0.5)
+    private var keySpringResponse: CGFloat {
+        0.18 + keyAnimationVariation * 0.32
+    }
+
+    /// Per-key spring damping (home row: bouncy 0.5, far keys: heavy 0.85)
+    private var keySpringDamping: CGFloat {
+        0.5 + keyAnimationVariation * 0.35
+    }
+
     /// Shared state for tracking mouse interaction with keyboard (for refined click delay)
     @EnvironmentObject private var keyboardMouseState: KeyboardMouseState
 
@@ -203,6 +247,7 @@ struct OverlayKeycapView: View {
     var body: some View {
         ZStack {
             // Key background with subtle shadow
+            // Animated color transition for launcher mode (per-key timing variation)
             RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(keyBackground)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -211,6 +256,7 @@ struct OverlayKeycapView: View {
                     RoundedRectangle(cornerRadius: cornerRadius)
                         .stroke(keyStroke, lineWidth: strokeWidth)
                 )
+                .animation(nil, value: isLauncherMode)
 
             // Home row color accent for Kinesis (different keycap color)
 
@@ -247,8 +293,19 @@ struct OverlayKeycapView: View {
         .animation(.spring(response: 0.15, dampingFraction: 0.6), value: isPressed)
         .animation(.easeOut(duration: 0.3), value: fadeAmount)
         .animation(.easeInOut(duration: 0.15), value: isClickable)
-        // Instant transition when launcher mode or layer changes (no animation delay)
-        .animation(nil, value: isLauncherMode)
+        // Choreographed transition for launcher mode (label → color → icon)
+        // Near-instant transition: labels instant, icons get 50ms fade
+        .onChange(of: isLauncherMode) { _, newValue in
+            launcherTransition = newValue ? 1 : 0
+            withAnimation(.easeOut(duration: 0.05)) {
+                iconVisible = newValue
+            }
+        }
+        // Initialize animation state on appear
+        .onAppear {
+            launcherTransition = isLauncherMode ? 1 : 0
+            iconVisible = isLauncherMode
+        }
         .animation(nil, value: currentLayerName)
         // Hover detection with dwell time (must be before contentShape for hit testing)
         .contentShape(Rectangle())
@@ -611,53 +668,73 @@ struct OverlayKeycapView: View {
     }
 
     /// Content for launcher mode: app icon centered, key letter in top-left corner
+    /// Uses animated transition values for smooth tab-switching animation
     @ViewBuilder
     private var launcherModeContent: some View {
-        if let mapping = launcherMapping {
-            // Mapped key: app icon centered, key letter in top-left
-            ZStack(alignment: .topLeading) {
-                // Centered icon (app or favicon)
-                // 18pt size, nudged right to avoid overlapping key label
-                if let icon = launcherAppIcon {
-                    ZStack(alignment: .bottomTrailing) {
-                        Image(nsImage: icon)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 18 * scale, height: 18 * scale)
-                            .clipShape(RoundedRectangle(cornerRadius: 4 * scale))
+        // Subtle label transition - icons are the focus
+        let labelFontSize = lerp(from: 11, to: 8, progress: launcherTransition) * scale
+        let labelOpacity = lerp(from: 0.85, to: 0.55, progress: launcherTransition)
+        // Label offset: subtle move to top-left (less dramatic than before)
+        let labelOffsetX = lerp(from: 0, to: -10, progress: launcherTransition) * scale
+        let labelOffsetY = lerp(from: 0, to: -10, progress: launcherTransition) * scale
 
-                        // Link badge for websites
-                        if !mapping.target.isApp {
-                            launcherLinkBadge(size: 6 * scale)
+        // Fade multiplier for keyboard dimming (icons stay visible at 30% when fully dimmed)
+        let fadeFactor = 1 - fadeAmount * 0.7
+
+        if let mapping = launcherMapping {
+            // Mapped key: app icon centered, key letter fades to corner
+            ZStack {
+                // Centered icon (app or favicon) - THE STAR OF THE SHOW
+                if iconVisible {
+                    if let icon = launcherAppIcon {
+                        ZStack(alignment: .bottomTrailing) {
+                            Image(nsImage: icon)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 20 * scale, height: 20 * scale)
+                                .clipShape(RoundedRectangle(cornerRadius: 4 * scale))
+
+                            // Link badge for websites
+                            if !mapping.target.isApp {
+                                launcherLinkBadge(size: 6 * scale)
+                            }
                         }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .offset(x: 2 * scale)
-                } else {
-                    // Fallback placeholder while icon loads
-                    Image(systemName: mapping.target.isApp ? "app.fill" : "globe")
-                        .font(.system(size: 12 * scale))
-                        .foregroundStyle(foregroundColor.opacity(0.6))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .scaleEffect(iconVisible ? 1.0 : 0.3)
+                        .opacity((iconVisible ? 1.0 : 0) * fadeFactor)
                         .offset(x: 2 * scale)
+                    } else {
+                        // Fallback placeholder while icon loads
+                        Image(systemName: mapping.target.isApp ? "app.fill" : "globe")
+                            .font(.system(size: 14 * scale))
+                            .foregroundStyle(foregroundColor.opacity(0.6))
+                            .scaleEffect(iconVisible ? 1.0 : 0.3)
+                            .opacity((iconVisible ? 1.0 : 0) * fadeFactor)
+                            .offset(x: 2 * scale)
+                    }
                 }
 
-                // Key letter in top-left corner (or hold label like ✦)
+                // Key letter - fades to corner (subtle, not distracting)
                 Text(launcherKeyLabel.uppercased())
-                    .font(.system(size: 8 * scale, weight: .medium, design: .rounded))
-                    .foregroundStyle(Color.white.opacity(0.7))
-                    .padding(3 * scale)
+                    .font(.system(size: labelFontSize, weight: .medium, design: .rounded))
+                    .foregroundStyle(Color.white.opacity(labelOpacity * fadeFactor))
+                    .offset(x: labelOffsetX, y: labelOffsetY)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            // Unmapped key in launcher mode: small label in top-left (or hold label like ✦)
-            ZStack(alignment: .topLeading) {
+            // Unmapped key in launcher mode: label fades back
+            ZStack {
                 Text(launcherKeyLabel.uppercased())
-                    .font(.system(size: 8 * scale, weight: .medium, design: .rounded))
-                    .foregroundStyle(Color.white.opacity(0.5))
-                    .padding(3 * scale)
+                    .font(.system(size: labelFontSize, weight: .medium, design: .rounded))
+                    .foregroundStyle(Color.white.opacity(lerp(from: 0.85, to: 0.4, progress: launcherTransition) * fadeFactor))
+                    .offset(x: labelOffsetX, y: labelOffsetY)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+
+    /// Linear interpolation helper
+    private func lerp(from: CGFloat, to: CGFloat, progress: CGFloat) -> CGFloat {
+        from + (to - from) * progress
     }
 
     /// Link indicator for website icons in launcher mode
