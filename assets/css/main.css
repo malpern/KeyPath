@@ -2034,6 +2034,10 @@ html {
     display: flex;
     flex-wrap: wrap;
     gap: var(--spacing-md);
+}
+
+/* Center buttons only in the Ready section, not the hero */
+.kanata-landing-section .kanata-landing-actions {
     justify-content: center;
 }
 
