@@ -7294,127 +7294,98 @@ a.button:active {
 }
 
 /* ============================================
-   LAUNCHER LAYER OVERLAY
+   LAUNCHER LAYER ON KEYBOARD
    ============================================ */
-.launcher-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0);
-    backdrop-filter: blur(0px);
+
+/* Hide launcher icons by default */
+.kb-launcher-icon,
+.kb-launcher-img {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+}
+
+.kb-launcher-icon {
+    font-size: 24px;
+    line-height: 1;
+}
+
+.kb-launcher-img {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Keys with launcher mappings need relative positioning */
+.kb-key[data-launcher] {
+    position: relative;
+}
+
+/* When launcher mode is active, show icons and hide letters */
+.css-keyboard.launcher-active .kb-key[data-launcher] .kb-primary,
+.css-keyboard.launcher-active .kb-key[data-launcher] .kb-secondary {
     opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s ease, background 0.3s ease, backdrop-filter 0.3s ease, visibility 0s 0.3s;
+    transition: opacity 0.2s ease;
 }
 
-.launcher-overlay.visible {
-    opacity: 1;
-    visibility: visible;
-    background: rgba(0, 0, 0, 0.9);
-    backdrop-filter: blur(30px);
-    transition: opacity 0.3s ease, background 0.3s ease, backdrop-filter 0.3s ease, visibility 0s 0s;
+.css-keyboard.launcher-active .kb-launcher-icon,
+.css-keyboard.launcher-active .kb-launcher-img {
+    display: block;
+    animation: launcher-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.launcher-keyboard {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 24px;
-    transform: scale(0.9) translateY(20px);
-    opacity: 0;
-    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+@keyframes launcher-pop {
+    0% {
+        transform: translate(-50%, -50%) scale(0.5);
+        opacity: 0;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
 }
 
-.launcher-overlay.visible .launcher-keyboard {
-    transform: scale(1) translateY(0);
-    opacity: 1;
+/* Launcher active keys get a subtle purple glow */
+.css-keyboard.launcher-active .kb-key[data-launcher] {
+    background: linear-gradient(180deg,
+        rgba(147, 51, 234, 0.15) 0%,
+        rgba(126, 34, 206, 0.2) 100%);
+    border-color: rgba(168, 85, 247, 0.3);
+    box-shadow:
+        0 0 12px rgba(168, 85, 247, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-.launcher-title {
-    font-family: var(--font-display);
-    font-size: 28px;
-    font-weight: 600;
+/* Hyper key stays pressed while launcher is active */
+.css-keyboard.launcher-active .kb-key-hyper {
+    background: linear-gradient(180deg,
+        rgba(168, 85, 247, 0.6) 0%,
+        rgba(147, 51, 234, 0.7) 100%) !important;
+    box-shadow:
+        0 0 20px rgba(168, 85, 247, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Keyboard should be fully bright when launcher is active */
+.keyboard-hero-section .css-keyboard.launcher-active {
+    opacity: 1 !important;
+}
+
+/* LinkedIn special styling */
+.kb-key[data-launcher="linkedin"] .kb-launcher-icon {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0A66C2;
+    font-family: var(--font-text);
+}
+
+/* X/Twitter special styling */
+.kb-key[data-launcher="twitter"] .kb-launcher-icon {
+    font-size: 20px;
+    font-weight: 900;
     color: #fff;
-    text-shadow: 0 2px 20px rgba(168, 85, 247, 0.5);
-}
-
-.launcher-hint {
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.5);
-    margin-top: -16px;
-}
-
-.launcher-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
-    max-width: 500px;
-}
-
-.launcher-key {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    padding: 16px;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.launcher-key:hover {
-    background: rgba(168, 85, 247, 0.2);
-    border-color: rgba(168, 85, 247, 0.4);
-    transform: scale(1.05);
-    box-shadow: 0 8px 32px rgba(168, 85, 247, 0.3);
-}
-
-.launcher-key img {
-    width: 64px;
-    height: 64px;
-    border-radius: 14px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.launcher-key span {
-    font-size: 12px;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.7);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    padding: 4px 10px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
-}
-
-.launcher-key:hover span {
-    background: rgba(168, 85, 247, 0.4);
-    color: #fff;
-}
-
-.launcher-footer {
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.4);
-    margin-top: 8px;
-}
-
-@media (max-width: 600px) {
-    .launcher-grid {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 12px;
-    }
-
-    .launcher-key {
-        padding: 12px;
-    }
-
-    .launcher-key img {
-        width: 48px;
-        height: 48px;
-    }
 }

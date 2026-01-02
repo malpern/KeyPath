@@ -1798,57 +1798,47 @@
     }
 
     // ============================================
-    // LAUNCHER LAYER
+    // LAUNCHER LAYER ON KEYBOARD
     // ============================================
-    // Click Hyper key to show the launcher layer
-    const launcherOverlay = document.getElementById('launcher-overlay');
+    // Click Hyper key to toggle launcher mode on the keyboard
+    const launcherKeyboard = document.querySelector('.css-keyboard');
     const hyperKeys = document.querySelectorAll('.kb-key-hyper');
 
-    if (launcherOverlay && hyperKeys.length > 0) {
-        function showLauncher() {
-            launcherOverlay.classList.add('visible');
-            document.body.style.overflow = 'hidden';
+    if (launcherKeyboard && hyperKeys.length > 0) {
+        function toggleLauncher() {
+            launcherKeyboard.classList.toggle('launcher-active');
+            // Wake keyboard when launcher is active
+            if (launcherKeyboard.classList.contains('launcher-active')) {
+                wakeKeyboard();
+            }
         }
 
-        function hideLauncher() {
-            launcherOverlay.classList.remove('visible');
-            document.body.style.overflow = '';
+        function closeLauncher() {
+            launcherKeyboard.classList.remove('launcher-active');
         }
 
         // Click hyper keys to toggle launcher
         hyperKeys.forEach(key => {
             key.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (launcherOverlay.classList.contains('visible')) {
-                    hideLauncher();
-                } else {
-                    showLauncher();
-                }
+                toggleLauncher();
             });
         });
 
         // ESC closes launcher
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && launcherOverlay.classList.contains('visible')) {
-                hideLauncher();
+            if (e.key === 'Escape' && launcherKeyboard.classList.contains('launcher-active')) {
+                closeLauncher();
             }
         });
 
-        // Click overlay background to close
-        launcherOverlay.addEventListener('click', (e) => {
-            if (e.target === launcherOverlay) {
-                hideLauncher();
-            }
-        });
-
-        // Click launcher keys to "launch" (just close with visual feedback)
-        launcherOverlay.querySelectorAll('.launcher-key').forEach(key => {
+        // Clicking a launcher key closes the launcher
+        launcherKeyboard.querySelectorAll('.kb-key[data-launcher]').forEach(key => {
             key.addEventListener('click', () => {
-                key.style.transform = 'scale(0.95)';
-                setTimeout(() => {
-                    key.style.transform = '';
-                    hideLauncher();
-                }, 150);
+                if (launcherKeyboard.classList.contains('launcher-active')) {
+                    // Brief delay before closing to show the press
+                    setTimeout(closeLauncher, 200);
+                }
             });
         });
     }

@@ -1251,10 +1251,10 @@ content_class: content-full kanata-landing
       <!-- Number Row -->
       <div class="kb-row">
         <div class="kb-key"><span class="kb-secondary">~</span><span class="kb-primary">`</span></div>
-        <div class="kb-key"><span class="kb-secondary">!</span><span class="kb-primary">1</span></div>
-        <div class="kb-key"><span class="kb-secondary">@</span><span class="kb-primary">2</span></div>
-        <div class="kb-key"><span class="kb-secondary">#</span><span class="kb-primary">3</span></div>
-        <div class="kb-key"><span class="kb-secondary">$</span><span class="kb-primary">4</span></div>
+        <div class="kb-key" data-launcher="github"><span class="kb-secondary">!</span><span class="kb-primary">1</span><span class="kb-launcher-icon">🐙</span></div>
+        <div class="kb-key" data-launcher="google"><span class="kb-secondary">@</span><span class="kb-primary">2</span><span class="kb-launcher-icon">🔍</span></div>
+        <div class="kb-key" data-launcher="notion"><span class="kb-secondary">#</span><span class="kb-primary">3</span><span class="kb-launcher-icon">📝</span></div>
+        <div class="kb-key" data-launcher="stackoverflow"><span class="kb-secondary">$</span><span class="kb-primary">4</span><span class="kb-launcher-icon">📚</span></div>
         <div class="kb-key"><span class="kb-secondary">%</span><span class="kb-primary">5</span></div>
         <div class="kb-key"><span class="kb-secondary">^</span><span class="kb-primary">6</span></div>
         <div class="kb-key"><span class="kb-secondary">&amp;</span><span class="kb-primary">7</span></div>
@@ -1270,14 +1270,14 @@ content_class: content-full kanata-landing
         <div class="kb-key kb-key-tab"><span class="kb-label">tab</span></div>
         <div class="kb-key"><span class="kb-primary">Q</span></div>
         <div class="kb-key"><span class="kb-primary">W</span></div>
-        <div class="kb-key"><span class="kb-primary">E</span></div>
-        <div class="kb-key"><span class="kb-primary">R</span></div>
+        <div class="kb-key" data-launcher="mail"><span class="kb-primary">E</span><img class="kb-launcher-img" src="{{ '/images/apps/mail.png' | relative_url }}" alt="Mail"></div>
+        <div class="kb-key" data-launcher="reddit"><span class="kb-primary">R</span><span class="kb-launcher-icon">🔴</span></div>
         <div class="kb-key"><span class="kb-primary">T</span></div>
         <div class="kb-key"><span class="kb-primary">Y</span></div>
-        <div class="kb-key"><span class="kb-primary">U</span></div>
-        <div class="kb-key"><span class="kb-primary">I</span></div>
-        <div class="kb-key"><span class="kb-primary">O</span></div>
-        <div class="kb-key"><span class="kb-primary">P</span></div>
+        <div class="kb-key" data-launcher="music"><span class="kb-primary">U</span><img class="kb-launcher-img" src="{{ '/images/apps/music.png' | relative_url }}" alt="Music"></div>
+        <div class="kb-key" data-launcher="claude"><span class="kb-primary">I</span><span class="kb-launcher-icon">🤖</span></div>
+        <div class="kb-key" data-launcher="obsidian"><span class="kb-primary">O</span><span class="kb-launcher-icon">💎</span></div>
+        <div class="kb-key" data-launcher="photos"><span class="kb-primary">P</span><span class="kb-launcher-icon">🖼️</span></div>
         <div class="kb-key"><span class="kb-secondary">{</span><span class="kb-primary">[</span></div>
         <div class="kb-key"><span class="kb-secondary">}</span><span class="kb-primary">]</span></div>
         <div class="kb-key kb-key-backslash"><span class="kb-secondary">|</span><span class="kb-primary">\</span></div>
@@ -1285,15 +1285,15 @@ content_class: content-full kanata-landing
       <!-- Home Row -->
       <div class="kb-row">
         <div class="kb-key kb-key-caps kb-key-hyper" id="caps-hyper-key"><span class="kb-label">hyper</span></div>
-        <div class="kb-key"><span class="kb-primary">A</span></div>
-        <div class="kb-key"><span class="kb-primary">S</span></div>
-        <div class="kb-key"><span class="kb-primary">D</span></div>
-        <div class="kb-key"><span class="kb-primary">F</span></div>
-        <div class="kb-key"><span class="kb-primary">G</span></div>
-        <div class="kb-key"><span class="kb-primary">H</span></div>
-        <div class="kb-key"><span class="kb-primary">J</span></div>
-        <div class="kb-key"><span class="kb-primary">K</span></div>
-        <div class="kb-key"><span class="kb-primary">L</span></div>
+        <div class="kb-key" data-launcher="calendar"><span class="kb-primary">A</span><img class="kb-launcher-img" src="{{ '/images/apps/calendar.png' | relative_url }}" alt="Calendar"></div>
+        <div class="kb-key" data-launcher="safari"><span class="kb-primary">S</span><img class="kb-launcher-img" src="{{ '/images/apps/safari.png' | relative_url }}" alt="Safari"></div>
+        <div class="kb-key" data-launcher="terminal"><span class="kb-primary">D</span><img class="kb-launcher-img" src="{{ '/images/apps/terminal.png' | relative_url }}" alt="Terminal"></div>
+        <div class="kb-key" data-launcher="finder"><span class="kb-primary">F</span><img class="kb-launcher-img" src="{{ '/images/apps/finder.png' | relative_url }}" alt="Finder"></div>
+        <div class="kb-key" data-launcher="chatgpt"><span class="kb-primary">G</span><span class="kb-launcher-icon">💬</span></div>
+        <div class="kb-key" data-launcher="youtube"><span class="kb-primary">H</span><span class="kb-launcher-icon">▶️</span></div>
+        <div class="kb-key" data-launcher="twitter"><span class="kb-primary">J</span><span class="kb-launcher-icon">𝕏</span></div>
+        <div class="kb-key" data-launcher="messages"><span class="kb-primary">K</span><img class="kb-launcher-img" src="{{ '/images/apps/messages.png' | relative_url }}" alt="Messages"></div>
+        <div class="kb-key" data-launcher="linkedin"><span class="kb-primary">L</span><span class="kb-launcher-icon">in</span></div>
         <div class="kb-key"><span class="kb-secondary">:</span><span class="kb-primary">;</span></div>
         <div class="kb-key"><span class="kb-secondary">"</span><span class="kb-primary">'</span></div>
         <div class="kb-key kb-key-return"><span class="kb-label">return</span></div>
@@ -1301,12 +1301,12 @@ content_class: content-full kanata-landing
       <!-- Bottom Row -->
       <div class="kb-row">
         <div class="kb-key kb-key-shift-l"><span class="kb-label">shift</span></div>
-        <div class="kb-key"><span class="kb-primary">Z</span></div>
-        <div class="kb-key"><span class="kb-primary">X</span></div>
-        <div class="kb-key"><span class="kb-primary">C</span></div>
-        <div class="kb-key"><span class="kb-primary">V</span></div>
+        <div class="kb-key" data-launcher="zoom"><span class="kb-primary">Z</span><span class="kb-launcher-icon">📹</span></div>
+        <div class="kb-key" data-launcher="slack"><span class="kb-primary">X</span><img class="kb-launcher-img" src="{{ '/images/apps/slack.png' | relative_url }}" alt="Slack"></div>
+        <div class="kb-key" data-launcher="discord"><span class="kb-primary">C</span><span class="kb-launcher-icon">🎮</span></div>
+        <div class="kb-key" data-launcher="vscode"><span class="kb-primary">V</span><img class="kb-launcher-img" src="{{ '/images/apps/code.png' | relative_url }}" alt="VS Code"></div>
         <div class="kb-key"><span class="kb-primary">B</span></div>
-        <div class="kb-key"><span class="kb-primary">N</span></div>
+        <div class="kb-key" data-launcher="notes"><span class="kb-primary">N</span><img class="kb-launcher-img" src="{{ '/images/apps/notes.png' | relative_url }}" alt="Notes"></div>
         <div class="kb-key"><span class="kb-primary">M</span></div>
         <div class="kb-key"><span class="kb-secondary">&lt;</span><span class="kb-primary">,</span></div>
         <div class="kb-key"><span class="kb-secondary">&gt;</span><span class="kb-primary">.</span></div>
@@ -1341,29 +1341,6 @@ content_class: content-full kanata-landing
     <div class="keyboard-hero-fade"></div>
   </div>
 </section>
-
-<!-- Launcher Layer Overlay -->
-<div class="launcher-overlay" id="launcher-overlay">
-  <div class="launcher-keyboard">
-    <div class="launcher-title">Launcher Layer</div>
-    <div class="launcher-hint">Press a key to launch an app</div>
-    <div class="launcher-grid">
-      <div class="launcher-key" data-key="s"><img src="{{ '/images/apps/safari.png' | relative_url }}" alt="Safari"><span>S</span></div>
-      <div class="launcher-key" data-key="t"><img src="{{ '/images/apps/terminal.png' | relative_url }}" alt="Terminal"><span>T</span></div>
-      <div class="launcher-key" data-key="f"><img src="{{ '/images/apps/finder.png' | relative_url }}" alt="Finder"><span>F</span></div>
-      <div class="launcher-key" data-key="m"><img src="{{ '/images/apps/messages.png' | relative_url }}" alt="Messages"><span>M</span></div>
-      <div class="launcher-key" data-key="a"><img src="{{ '/images/apps/arc.png' | relative_url }}" alt="Arc"><span>A</span></div>
-      <div class="launcher-key" data-key="c"><img src="{{ '/images/apps/cursor.png' | relative_url }}" alt="Cursor"><span>C</span></div>
-      <div class="launcher-key" data-key="x"><img src="{{ '/images/apps/xcode.png' | relative_url }}" alt="Xcode"><span>X</span></div>
-      <div class="launcher-key" data-key="n"><img src="{{ '/images/apps/notes.png' | relative_url }}" alt="Notes"><span>N</span></div>
-      <div class="launcher-key" data-key="e"><img src="{{ '/images/apps/mail.png' | relative_url }}" alt="Mail"><span>E</span></div>
-      <div class="launcher-key" data-key="k"><img src="{{ '/images/apps/slack.png' | relative_url }}" alt="Slack"><span>K</span></div>
-      <div class="launcher-key" data-key="u"><img src="{{ '/images/apps/music.png' | relative_url }}" alt="Music"><span>U</span></div>
-      <div class="launcher-key" data-key="v"><img src="{{ '/images/apps/code.png' | relative_url }}" alt="Code"><span>V</span></div>
-    </div>
-    <div class="launcher-footer">Tap Hyper to close</div>
-  </div>
-</div>
 
 <!-- Dojo Easter Egg Overlay -->
 <div class="dojo-overlay" id="dojo-overlay">
