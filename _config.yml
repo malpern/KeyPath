@@ -51,7 +51,7 @@ github_url: "https://github.com/malpern/KeyPath"
 # Navigation
 navigation:
   - title: Home
-    url: /kanata
+    url: /
   - title: Install
     url: /getting-started/installation
   - title: FAQ
