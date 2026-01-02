@@ -1233,7 +1233,7 @@ content_class: content-full kanata-landing
     <div class="css-keyboard">
       <!-- Function Row - SF Symbol style SVG icons -->
       <div class="kb-row kb-row-fn">
-        <div class="kb-key kb-key-fn kb-key-esc"><span class="kb-label">esc</span></div>
+        <div class="kb-key kb-key-fn kb-key-hyper" id="hyper-key"><span class="kb-label">hyper</span></div>
         <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg><span class="kb-fn-label">F1</span></div>
         <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/><path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg><span class="kb-fn-label">F2</span></div>
         <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="2" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><rect x="16" y="2" width="6" height="6" rx="1"/><rect x="2" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/><rect x="16" y="9" width="6" height="6" rx="1"/></svg><span class="kb-fn-label">F3</span></div>
@@ -1284,7 +1284,7 @@ content_class: content-full kanata-landing
       </div>
       <!-- Home Row -->
       <div class="kb-row">
-        <div class="kb-key kb-key-caps"><span class="kb-label">esc</span></div>
+        <div class="kb-key kb-key-caps kb-key-hyper" id="caps-hyper-key"><span class="kb-label">hyper</span></div>
         <div class="kb-key"><span class="kb-primary">A</span></div>
         <div class="kb-key"><span class="kb-primary">S</span></div>
         <div class="kb-key"><span class="kb-primary">D</span></div>
@@ -1341,6 +1341,29 @@ content_class: content-full kanata-landing
     <div class="keyboard-hero-fade"></div>
   </div>
 </section>
+
+<!-- Launcher Layer Overlay -->
+<div class="launcher-overlay" id="launcher-overlay">
+  <div class="launcher-keyboard">
+    <div class="launcher-title">Launcher Layer</div>
+    <div class="launcher-hint">Press a key to launch an app</div>
+    <div class="launcher-grid">
+      <div class="launcher-key" data-key="s"><img src="{{ '/images/apps/safari.png' | relative_url }}" alt="Safari"><span>S</span></div>
+      <div class="launcher-key" data-key="t"><img src="{{ '/images/apps/terminal.png' | relative_url }}" alt="Terminal"><span>T</span></div>
+      <div class="launcher-key" data-key="f"><img src="{{ '/images/apps/finder.png' | relative_url }}" alt="Finder"><span>F</span></div>
+      <div class="launcher-key" data-key="m"><img src="{{ '/images/apps/messages.png' | relative_url }}" alt="Messages"><span>M</span></div>
+      <div class="launcher-key" data-key="a"><img src="{{ '/images/apps/arc.png' | relative_url }}" alt="Arc"><span>A</span></div>
+      <div class="launcher-key" data-key="c"><img src="{{ '/images/apps/cursor.png' | relative_url }}" alt="Cursor"><span>C</span></div>
+      <div class="launcher-key" data-key="x"><img src="{{ '/images/apps/xcode.png' | relative_url }}" alt="Xcode"><span>X</span></div>
+      <div class="launcher-key" data-key="n"><img src="{{ '/images/apps/notes.png' | relative_url }}" alt="Notes"><span>N</span></div>
+      <div class="launcher-key" data-key="e"><img src="{{ '/images/apps/mail.png' | relative_url }}" alt="Mail"><span>E</span></div>
+      <div class="launcher-key" data-key="k"><img src="{{ '/images/apps/slack.png' | relative_url }}" alt="Slack"><span>K</span></div>
+      <div class="launcher-key" data-key="u"><img src="{{ '/images/apps/music.png' | relative_url }}" alt="Music"><span>U</span></div>
+      <div class="launcher-key" data-key="v"><img src="{{ '/images/apps/code.png' | relative_url }}" alt="Code"><span>V</span></div>
+    </div>
+    <div class="launcher-footer">Tap Hyper to close</div>
+  </div>
+</div>
 
 <!-- Dojo Easter Egg Overlay -->
 <div class="dojo-overlay" id="dojo-overlay">

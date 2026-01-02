@@ -1796,4 +1796,60 @@
             }
         });
     }
+
+    // ============================================
+    // LAUNCHER LAYER
+    // ============================================
+    // Click Hyper key to show the launcher layer
+    const launcherOverlay = document.getElementById('launcher-overlay');
+    const hyperKeys = document.querySelectorAll('.kb-key-hyper');
+
+    if (launcherOverlay && hyperKeys.length > 0) {
+        function showLauncher() {
+            launcherOverlay.classList.add('visible');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function hideLauncher() {
+            launcherOverlay.classList.remove('visible');
+            document.body.style.overflow = '';
+        }
+
+        // Click hyper keys to toggle launcher
+        hyperKeys.forEach(key => {
+            key.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (launcherOverlay.classList.contains('visible')) {
+                    hideLauncher();
+                } else {
+                    showLauncher();
+                }
+            });
+        });
+
+        // ESC closes launcher
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && launcherOverlay.classList.contains('visible')) {
+                hideLauncher();
+            }
+        });
+
+        // Click overlay background to close
+        launcherOverlay.addEventListener('click', (e) => {
+            if (e.target === launcherOverlay) {
+                hideLauncher();
+            }
+        });
+
+        // Click launcher keys to "launch" (just close with visual feedback)
+        launcherOverlay.querySelectorAll('.launcher-key').forEach(key => {
+            key.addEventListener('click', () => {
+                key.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    key.style.transform = '';
+                    hideLauncher();
+                }, 150);
+            });
+        });
+    }
 })();
