@@ -7298,14 +7298,41 @@ a.button:active {
    HYPER KEY STYLING
    ============================================ */
 .kb-key-hyper {
+    position: relative;
+    overflow: visible;
+    z-index: 1;
     background: linear-gradient(180deg,
         rgba(147, 51, 234, 0.3) 0%,
         rgba(126, 34, 206, 0.4) 100%) !important;
     border-color: rgba(168, 85, 247, 0.4) !important;
 }
 
-.keyboard-hero-section:not(.hyper-pulse-stopped) .kb-key-hyper {
-    animation: hyper-pulse 2.4s ease-in-out infinite;
+.keyboard-hero-section:not(.hyper-pulse-stopped) .kb-key-hyper::before,
+.keyboard-hero-section:not(.hyper-pulse-stopped) .kb-key-hyper::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 170%;
+    height: 170%;
+    border-radius: 999px;
+    border: 2px solid rgba(168, 85, 247, 0.55);
+    background: radial-gradient(circle,
+        rgba(168, 85, 247, 0.25) 0%,
+        rgba(168, 85, 247, 0.12) 35%,
+        rgba(168, 85, 247, 0.0) 70%);
+    transform: translate(-50%, -50%) scale(0.25);
+    opacity: 0;
+    pointer-events: none;
+    animation: hyper-ripple 2.8s ease-out infinite;
+}
+
+.keyboard-hero-section:not(.hyper-pulse-stopped) .kb-key-hyper::after {
+    width: 220%;
+    height: 220%;
+    border-color: rgba(168, 85, 247, 0.35);
+    animation-delay: 1.3s;
+}
 }
 
 .kb-key-hyper .kb-label {
@@ -7324,31 +7351,37 @@ a.button:active {
     box-shadow:
         0 0 20px rgba(168, 85, 247, 0.5),
         inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
-    animation: none;
 }
 
 .kb-key-hyper.kb-key-pressed .kb-label {
     color: #fff !important;
 }
 
-@keyframes hyper-pulse {
+@keyframes hyper-ripple {
     0% {
-        box-shadow:
-            0 0 0 rgba(168, 85, 247, 0.0),
-            inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.2);
     }
-    50% {
-        box-shadow:
-            0 0 28px rgba(168, 85, 247, 0.65),
-            0 0 60px rgba(168, 85, 247, 0.45),
-            0 0 110px rgba(168, 85, 247, 0.25),
-            inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    12% {
+        opacity: 0.85;
+    }
+    55% {
+        opacity: 0.35;
     }
     100% {
-        box-shadow:
-            0 0 0 rgba(168, 85, 247, 0.0),
-            inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(2.6);
     }
+}
+
+.kb-key-hyper:hover::before,
+.kb-key-hyper:hover::after,
+.kb-key-hyper.kb-key-pressed::before,
+.kb-key-hyper.kb-key-pressed::after,
+.keyboard-hero-section.hyper-pulse-stopped .kb-key-hyper::before,
+.keyboard-hero-section.hyper-pulse-stopped .kb-key-hyper::after {
+    animation: none;
+    opacity: 0;
 }
 
 /* ============================================
@@ -7433,7 +7466,6 @@ a.button:active {
     box-shadow:
         0 0 20px rgba(168, 85, 247, 0.5),
         inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
-    animation: none;
 }
 
 /* Keyboard should be fully bright when launcher is active */
