@@ -1202,6 +1202,70 @@ content_class: content-full kanata-landing
         <h3>Window Arranging</h3>
         <p>Snap windows to halves, quarters, or maximize. Tile your workspace without touching the mouse.</p>
       </div>
+
+      <!-- One-Shot Modifiers -->
+      <div class="geo-card" data-feature="one-shot" data-geo>
+        <svg viewBox="0 0 280 160">
+          <rect class="geo-key" x="60" y="55" width="50" height="50" rx="8"/>
+          <text class="geo-key-label" x="85" y="80">⇧</text>
+          <path class="geo-arrow" d="M120 80 L150 80 L145 75 M150 80 L145 85"/>
+          <rect class="geo-key" x="160" y="55" width="50" height="50" rx="8"/>
+          <text class="geo-key-label" x="185" y="80">A</text>
+          <text class="geo-key-label" x="140" y="130" font-size="11" fill="#0071E3">tap, then tap</text>
+        </svg>
+        <h3>One-Shot Modifiers</h3>
+        <p>Tap Shift once, the next key is shifted. No holding required. Pure typing flow.</p>
+      </div>
+
+      <!-- Sticky Keys -->
+      <div class="geo-card" data-feature="sticky-keys" data-geo>
+        <svg viewBox="0 0 280 160">
+          <rect class="geo-key active" x="40" y="55" width="50" height="50" rx="8"/>
+          <text class="geo-key-label" x="65" y="80" fill="#FFF">Ctrl</text>
+          <circle cx="65" cy="115" r="4" fill="#34C759"/>
+          <text class="geo-key-label" x="65" y="135" font-size="9" fill="#34C759">LOCKED</text>
+          <rect class="geo-key" x="110" y="55" width="40" height="50" rx="8"/>
+          <text class="geo-key-label" x="130" y="80">A</text>
+          <rect class="geo-key" x="160" y="55" width="40" height="50" rx="8"/>
+          <text class="geo-key-label" x="180" y="80">C</text>
+          <rect class="geo-key" x="210" y="55" width="40" height="50" rx="8"/>
+          <text class="geo-key-label" x="230" y="80">V</text>
+        </svg>
+        <h3>Sticky Keys</h3>
+        <p>Lock a modifier until you tap it again. Ctrl stays active for multiple commands.</p>
+      </div>
+
+      <!-- Caps-Word -->
+      <div class="geo-card" data-feature="caps-word" data-geo>
+        <svg viewBox="0 0 280 160">
+          <text class="geo-key-label" x="140" y="50" font-size="14" fill="#86868B">hello</text>
+          <path d="M90 60 L190 60" stroke="#0071E3" stroke-width="2" opacity="0.3"/>
+          <text class="geo-key-label" x="140" y="90" font-size="18" fill="#0071E3" font-weight="600">HELLO</text>
+          <text class="geo-key-label" x="140" y="130" font-size="11" fill="#86868B">auto-off after space</text>
+        </svg>
+        <h3>Caps-Word</h3>
+        <p>Capitalize the next word only, then return to normal. Perfect for CONSTANTS.</p>
+      </div>
+
+      <!-- Fork/Switch -->
+      <div class="geo-card" data-feature="fork-switch" data-geo>
+        <svg viewBox="0 0 280 160">
+          <rect class="geo-key" x="40" y="60" width="45" height="40" rx="8"/>
+          <text class="geo-key-label" x="62" y="85">X</text>
+          <path d="M95 80 L130 80" stroke="#86868B" stroke-width="2"/>
+          <text class="geo-key-label" x="145" y="85" font-size="11" fill="#86868B">?</text>
+          <path d="M160 75 L190 55" stroke="#34C759" stroke-width="2"/>
+          <path d="M160 85 L190 105" stroke="#FF9500" stroke-width="2"/>
+          <rect class="geo-key" x="195" y="35" width="50" height="35" rx="6" fill="#34C759" opacity="0.2" stroke="#34C759"/>
+          <text class="geo-key-label" x="220" y="57" font-size="11" fill="#34C759">CUT</text>
+          <text class="geo-key-label" x="220" y="27" font-size="9" fill="#34C759">+Shift</text>
+          <rect class="geo-key" x="195" y="90" width="50" height="35" rx="6"/>
+          <text class="geo-key-label" x="220" y="112" font-size="11">x</text>
+          <text class="geo-key-label" x="220" y="135" font-size="9" fill="#86868B">no shift</text>
+        </svg>
+        <h3>Fork / Switch</h3>
+        <p>One key, different actions based on what modifiers are held. Context-aware keys.</p>
+      </div>
     </div>
   </section>
 
