@@ -2668,9 +2668,10 @@ li {
     width: 100vw;
     margin-left: calc(-50vw + 50%);
     overflow: hidden;
-    background: linear-gradient(180deg, var(--color-background) 0%, #1a1a1a 100%);
+    background: var(--color-background-secondary);
     margin-bottom: 0;
     padding-top: var(--spacing-2xl);
+    padding-bottom: 0;
 }
 
 .keyboard-hero-wrapper {
@@ -2685,8 +2686,8 @@ li {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    padding: 20px 24px 30px;
-    background: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%);
+    padding: 20px 24px 40px;
+    background: linear-gradient(180deg, #2a2a2a 0%, var(--color-background-secondary) 100%);
     border-radius: 16px 16px 0 0;
     box-shadow:
         0 -4px 20px rgba(0, 0, 0, 0.3),
@@ -2953,15 +2954,9 @@ li {
     color: #98989d;
 }
 
-/* Gradient fade at the bottom to blend into footer */
+/* Gradient fade at the bottom - hidden since backgrounds match */
 .keyboard-hero-fade {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 80px;
-    background: linear-gradient(180deg, transparent 0%, var(--color-background-secondary) 100%);
-    pointer-events: none;
+    display: none;
 }
 
 /* Responsive - Tablet */
