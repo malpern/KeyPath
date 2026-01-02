@@ -52,6 +52,7 @@ content_class: content-full kanata-landing
   <!-- LAUNCH ANYTHING SECTION - Cinematic Demo -->
   <section class="launch-cinema">
     <h2 class="cinema-title">5 Ways to Launch Anything</h2>
+    <p class="cinema-subtitle">Any of these gestures can open apps, URLs, or workflows.</p>
 
     <!-- Gesture TOC - highlights as each example plays -->
     <div class="cinema-toc">

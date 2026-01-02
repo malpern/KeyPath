@@ -704,7 +704,7 @@ body.sidebar-open .sidebar {
     display: flex;
     justify-content: center;
     gap: var(--spacing-lg);
-    margin-bottom: var(--spacing-2xl);
+    margin-bottom: var(--spacing-lg);
 }
 
 .cinema-toc-item {

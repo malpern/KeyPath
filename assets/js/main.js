@@ -1356,7 +1356,7 @@
                 appLabel: 'Figma'
             },
             {
-                gesture: 'Hold + tap',
+                gesture: 'Tap-hold',
                 keys: [{ label: 'Nav', delay: 0 }, { label: 'S', delay: 400 }],
                 keyType: 'hold',
                 app: 'safari',
