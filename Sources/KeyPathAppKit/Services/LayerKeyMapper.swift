@@ -266,7 +266,58 @@ actor LayerKeyMapper {
 
     // MARK: - Key Mapping via Simulator
 
-    /// Build mapping using simulator's --key-mapping mode
+    /// Result from parsing raw simulation events for a single key
+    private struct RawSimulationResult {
+        let input: String
+        let outputs: [String]
+        let isTransparent: Bool
+    }
+
+    /// Parse raw simulation events to extract output keys for a single key tap.
+    /// Uses JSON mode (--json) to correctly capture all outputs from multi actions,
+    /// unlike --key-mapping mode which only returns the first output.
+    /// - Parameters:
+    ///   - simName: The simulator key name that was pressed
+    ///   - events: The simulation events from JSON mode
+    /// - Returns: RawSimulationResult with all output keys, or nil if no outputs found
+    private func parseRawSimulationEvents(simName: String, events: [SimEvent]) -> RawSimulationResult? {
+        // Capture all output key presses from the simulation.
+        // For tap-hold keys, tap outputs fire at the moment of release, so we can't just
+        // track outputs while the input is held - we need to capture all output presses.
+        // Since we simulate one key at a time, all outputs belong to that key's action.
+        var pressedOutputs = Set<String>()
+        var allPressedOutputs: [String] = [] // Preserve order for primary key detection
+
+        for event in events {
+            switch event {
+            case let .output(t: _, action: action, key: key):
+                if action == .press {
+                    let lowerKey = key.lowercased()
+                    if !pressedOutputs.contains(lowerKey) {
+                        allPressedOutputs.append(lowerKey)
+                    }
+                    pressedOutputs.insert(lowerKey)
+                }
+            default:
+                continue
+            }
+        }
+
+        if allPressedOutputs.isEmpty {
+            return nil
+        }
+
+        // Check if this is a transparent key (input == output with no other keys)
+        let isTransparent = allPressedOutputs.count == 1 && allPressedOutputs[0] == simName.lowercased()
+
+        return RawSimulationResult(
+            input: simName,
+            outputs: allPressedOutputs,
+            isTransparent: isTransparent
+        )
+    }
+
+    /// Build mapping using simulator's raw JSON mode to correctly capture multi actions.
     /// Each key is simulated independently to avoid tap-hold interference.
     /// This is slower but accurate - handles aliases, tap-hold, forks, macros, etc.
     /// - Parameters:
@@ -286,7 +337,8 @@ actor LayerKeyMapper {
 
         // Simulate each key independently to avoid tap-hold interference
         // Run in parallel for performance
-        let results = await withTaskGroup(of: (UInt16, String, SimulatorKeyMappingResult?).self) { group in
+        // Use raw JSON mode to correctly capture all outputs from multi actions
+        let results = await withTaskGroup(of: (UInt16, String, String, SimulationResult?).self) { group in
             for key in physicalKeys {
                 let tcpName = OverlayKeyboardView.keyCodeToKanataName(key.keyCode)
                 let simName = toSimulatorKeyName(tcpName)
@@ -299,20 +351,20 @@ actor LayerKeyMapper {
                     // typical threshold is 200ms, so 250ms ensures the tap fires).
                     let simContent = "d:\(simName) t:50 u:\(simName) t:250"
                     do {
-                        let result = try await self.simulatorService.simulateKeyMapping(
+                        let result = try await self.simulatorService.simulateRaw(
                             simContent: simContent,
                             configPath: configPath,
                             startLayer: startLayer
                         )
-                        return (keyCode, label, result)
+                        return (keyCode, label, simName, result)
                     } catch {
                         AppLogger.shared.debug("🗺️ [LayerKeyMapper] Simulation failed for \(simName): \(error)")
-                        return (keyCode, label, nil)
+                        return (keyCode, label, simName, nil)
                     }
                 }
             }
 
-            var collected: [(UInt16, String, SimulatorKeyMappingResult?)] = []
+            var collected: [(UInt16, String, String, SimulationResult?)] = []
             for await result in group {
                 collected.append(result)
             }
@@ -320,9 +372,22 @@ actor LayerKeyMapper {
         }
 
         // Process results
-        for (keyCode, fallbackLabel, result) in results {
-            guard let result, let keyMapping = result.mappings.first else {
-                // Simulation failed or no mapping - use physical label
+        for (keyCode, fallbackLabel, simName, result) in results {
+            guard let result else {
+                // Simulation failed - use physical label
+                mapping[keyCode] = LayerKeyInfo(
+                    displayLabel: fallbackLabel,
+                    outputKey: nil,
+                    outputKeyCode: nil,
+                    isTransparent: false,
+                    isLayerSwitch: false
+                )
+                continue
+            }
+
+            // Parse events to extract outputs
+            guard let parsed = parseRawSimulationEvents(simName: simName, events: result.events) else {
+                // No outputs found - use physical label
                 mapping[keyCode] = LayerKeyInfo(
                     displayLabel: fallbackLabel,
                     outputKey: nil,
@@ -334,33 +399,33 @@ actor LayerKeyMapper {
             }
 
             // Check for app launch mappings (push-msg "launch:...")
-            if let appIdentifier = extractAppLaunchMapping(from: keyMapping.outputs) {
+            if let appIdentifier = extractAppLaunchMapping(from: parsed.outputs) {
                 mapping[keyCode] = .appLaunch(appIdentifier: appIdentifier)
-                AppLogger.shared.debug("🚀 [LayerKeyMapper] Mapped \(keyMapping.input)(\(keyCode)) -> AppLaunch(\(appIdentifier))")
+                AppLogger.shared.debug("🚀 [LayerKeyMapper] Mapped \(parsed.input)(\(keyCode)) -> AppLaunch(\(appIdentifier))")
                 continue
             }
 
             // Check for system action mappings (push-msg "system:...")
-            if let systemAction = extractSystemActionMapping(from: keyMapping.outputs) {
+            if let systemAction = extractSystemActionMapping(from: parsed.outputs) {
                 mapping[keyCode] = .systemAction(
                     action: systemAction,
                     description: systemActionDisplayLabel(systemAction)
                 )
-                AppLogger.shared.debug("⚙️ [LayerKeyMapper] Mapped \(keyMapping.input)(\(keyCode)) -> SystemAction(\(systemAction))")
+                AppLogger.shared.debug("⚙️ [LayerKeyMapper] Mapped \(parsed.input)(\(keyCode)) -> SystemAction(\(systemAction))")
                 continue
             }
 
             // Check if output is a URL mapping
-            if let urlMapping = extractURLMapping(from: keyMapping.outputs) {
+            if let urlMapping = extractURLMapping(from: parsed.outputs) {
                 mapping[keyCode] = .webURL(url: urlMapping)
-                AppLogger.shared.debug("🌐 [LayerKeyMapper] Mapped \(keyMapping.input)(\(keyCode)) -> URL(\(urlMapping))")
+                AppLogger.shared.debug("🌐 [LayerKeyMapper] Mapped \(parsed.input)(\(keyCode)) -> URL(\(urlMapping))")
                 continue
             }
 
-            if keyMapping.transparent {
+            if parsed.isTransparent {
                 // Key passes through unchanged
                 mapping[keyCode] = .transparent(fallbackLabel: fallbackLabel)
-            } else if keyMapping.outputs.allSatisfy({ $0.lowercased() == "xx" }) {
+            } else if parsed.outputs.allSatisfy({ $0.lowercased() == "xx" }) {
                 // Explicitly blocked key (XX) should render blank in the overlay
                 mapping[keyCode] = LayerKeyInfo(
                     displayLabel: "",
@@ -369,20 +434,20 @@ actor LayerKeyMapper {
                     isTransparent: false,
                     isLayerSwitch: false
                 )
-            } else if keyMapping.outputs.isEmpty {
+            } else if parsed.outputs.isEmpty {
                 // No explicit mapping - fall back to physical key label
                 // This happens for keys that aren't defined in the config
                 mapping[keyCode] = .transparent(fallbackLabel: fallbackLabel)
             } else {
                 // Convert all outputs to display labels using labelForOutputKeys for Hyper/Meh detection
-                let outputSet = Set(keyMapping.outputs.map { $0.lowercased() })
+                let outputSet = Set(parsed.outputs)
                 let finalLabel = Self.labelForOutputKeys(outputSet, displayForKey: kanataKeyToDisplayLabel)
-                    ?? keyMapping.outputs.map { kanataKeyToDisplayLabel($0) }.joined()
+                    ?? parsed.outputs.map { kanataKeyToDisplayLabel($0) }.joined()
 
-                // Find primary output key for dual highlighting
+                // Find primary output key for dual highlighting (first non-modifier)
                 var primaryOutputKey: String?
                 var primaryOutputKeyCode: UInt16?
-                for output in keyMapping.outputs {
+                for output in parsed.outputs {
                     if !isModifierSymbol(output) {
                         primaryOutputKey = output
                         primaryOutputKeyCode = kanataKeyToKeyCode(output)
@@ -390,12 +455,12 @@ actor LayerKeyMapper {
                     }
                 }
                 // Special-case spacebar: ensure display label stays blank
-                let normalizedInput = keyMapping.input.lowercased()
-                let normalizedOutputs = keyMapping.outputs.map { $0.lowercased() }
+                let normalizedInput = parsed.input.lowercased()
+                let normalizedOutputs = parsed.outputs.map { $0.lowercased() }
                 let isSpaceInput = ["space", "spacebar", "spc", "sp"].contains(normalizedInput)
                 let isSpaceOnlyOutput = Set(normalizedOutputs).isSubset(of: ["space", "spacebar", "spc", "sp"])
                 let displayLabel = (isSpaceInput || isSpaceOnlyOutput) ? "" : finalLabel
-                let outputKey = primaryOutputKey ?? keyMapping.outputs.first
+                let outputKey = primaryOutputKey ?? parsed.outputs.first
 
                 if let outputKey {
                     mapping[keyCode] = .mapped(
@@ -403,8 +468,8 @@ actor LayerKeyMapper {
                         outputKey: outputKey,
                         outputKeyCode: primaryOutputKeyCode
                     )
-                    if outputKey.uppercased() != keyMapping.input.uppercased() {
-                        AppLogger.shared.debug("🗺️ [LayerKeyMapper] Mapped \(keyMapping.input)(\(keyCode)) -> \(outputKey)(\(displayLabel))")
+                    if outputKey.uppercased() != parsed.input.uppercased() {
+                        AppLogger.shared.debug("🗺️ [LayerKeyMapper] Mapped \(parsed.input)(\(keyCode)) -> \(outputKey)(\(displayLabel))")
                     }
                 } else {
                     mapping[keyCode] = LayerKeyInfo(
