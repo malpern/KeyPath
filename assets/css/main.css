@@ -624,6 +624,20 @@ body.sidebar-open .sidebar {
     margin: 0;
 }
 
+.kanata-landing-video-embed {
+    width: 100%;
+    height: 100%;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.kanata-landing-video-embed iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
 /* ===========================================
    FULLSCREEN SECTIONS - Simplified content
    =========================================== */

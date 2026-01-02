@@ -1842,4 +1842,21 @@
             });
         });
     }
+
+    // ============================================
+    // DEMO VIDEO EASTER EGG
+    // ============================================
+    const demoPlaceholder = document.getElementById('demo-video-placeholder');
+    const demoEmbed = document.getElementById('demo-video-embed');
+
+    if (demoPlaceholder && demoEmbed) {
+        demoPlaceholder.addEventListener('click', () => {
+            // Hide placeholder, show Rick Roll
+            demoPlaceholder.style.display = 'none';
+            demoEmbed.style.display = 'block';
+            // Set the src to autoplay Rick Roll
+            const iframe = demoEmbed.querySelector('iframe');
+            iframe.src = 'https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&start=0';
+        });
+    }
 })();

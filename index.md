@@ -38,13 +38,16 @@ content_class: content-full kanata-landing
   <!-- DEMO VIDEO SECTION -->
   <section class="kanata-landing-video-section">
     <div class="kanata-landing-video-container">
-      <div class="kanata-landing-video-placeholder">
+      <div class="kanata-landing-video-placeholder" id="demo-video-placeholder">
         <div class="kanata-landing-video-icon">
           <svg viewBox="0 0 24 24" fill="currentColor" width="64" height="64">
             <path d="M8 5v14l11-7z"/>
           </svg>
         </div>
         <p class="kanata-landing-video-label">Demo video coming soon</p>
+      </div>
+      <div class="kanata-landing-video-embed" id="demo-video-embed" style="display: none;">
+        <iframe width="100%" height="100%" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
       </div>
     </div>
   </section>
