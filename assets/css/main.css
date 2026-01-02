@@ -2767,6 +2767,65 @@ li {
     padding-bottom: 0;
 }
 
+.keyboard-hero-section.launch-burst::before,
+.keyboard-hero-section.launch-burst::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 62%;
+    pointer-events: none;
+    transform: translate(-50%, -50%) scale(0.2);
+    opacity: 0;
+}
+
+.keyboard-hero-section.launch-burst::before {
+    width: 120vmax;
+    height: 120vmax;
+    background: radial-gradient(circle,
+        rgba(82, 178, 255, 0.45) 0%,
+        rgba(82, 178, 255, 0.28) 18%,
+        rgba(82, 178, 255, 0.0) 55%);
+    animation: launch-burst 0.9s ease-out;
+    mix-blend-mode: screen;
+}
+
+.keyboard-hero-section.launch-burst::after {
+    width: 70vmax;
+    height: 70vmax;
+    border-radius: 999px;
+    border: 2px solid rgba(120, 210, 255, 0.55);
+    animation: launch-ring 0.9s ease-out;
+    mix-blend-mode: screen;
+}
+
+@keyframes launch-burst {
+    0% {
+        opacity: 0.0;
+        transform: translate(-50%, -50%) scale(0.1);
+    }
+    20% {
+        opacity: 0.9;
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.9);
+    }
+}
+
+@keyframes launch-ring {
+    0% {
+        opacity: 0.0;
+        transform: translate(-50%, -50%) scale(0.15);
+    }
+    25% {
+        opacity: 0.85;
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(1.25);
+    }
+}
+
 .keyboard-hero-wrapper {
     position: relative;
     max-width: 1000px;
@@ -3111,6 +3170,29 @@ li {
         0 0 40px rgba(0, 122, 255, 0.3),
         inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
     transform: translateY(1px);
+}
+
+.kb-key.kb-key-launching {
+    background: linear-gradient(180deg, rgba(0, 173, 255, 0.9) 0%, rgba(0, 116, 232, 0.95) 100%) !important;
+    border-color: rgba(0, 116, 232, 0.9) !important;
+    box-shadow:
+        0 0 22px rgba(0, 173, 255, 0.85),
+        0 0 45px rgba(0, 173, 255, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+    transform: translateY(1px) scale(0.96);
+}
+
+.kb-key.kb-key-launching .kb-primary,
+.kb-key.kb-key-launching .kb-secondary,
+.kb-key.kb-key-launching .kb-label,
+.kb-key.kb-key-launching .kb-icon,
+.kb-key.kb-key-launching .kb-fn-icon,
+.kb-key.kb-key-launching .kb-fn-label,
+.kb-key.kb-key-launching .kb-mod-label,
+.kb-key.kb-key-launching .kb-mod-symbol,
+.kb-key.kb-key-launching .kb-arrow-icon,
+.kb-key.kb-key-launching .kb-sf-icon {
+    color: #ffffff !important;
 }
 
 .kb-key.kb-key-pressed .kb-primary,

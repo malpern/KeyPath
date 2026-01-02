@@ -1891,10 +1891,25 @@
             }
         });
 
+        function triggerLaunchBurst() {
+            if (!keyboardSection) return;
+            keyboardSection.classList.remove('launch-burst');
+            void keyboardSection.offsetWidth;
+            keyboardSection.classList.add('launch-burst');
+            setTimeout(() => {
+                keyboardSection.classList.remove('launch-burst');
+            }, 900);
+        }
+
         // Clicking a launcher key closes the launcher
         launcherKeyboard.querySelectorAll('.kb-key[data-launcher]').forEach(key => {
             key.addEventListener('click', () => {
                 if (launcherKeyboard.classList.contains('launcher-active')) {
+                    triggerLaunchBurst();
+                    key.classList.add('kb-key-launching');
+                    setTimeout(() => {
+                        key.classList.remove('kb-key-launching');
+                    }, 500);
                     // Brief delay before closing to show the press
                     setTimeout(closeLauncher, 200);
                 }
