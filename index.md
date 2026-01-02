@@ -56,7 +56,7 @@ content_class: content-full kanata-landing
   <section class="keyboard-hero-section">
     <div class="keyboard-hero-wrapper">
       <div class="keyboard-hero-copy">
-        <h2 class="keyboard-hero-title">Launch apps, websites, and docs in one keystroke</h2>
+        <h2 class="keyboard-hero-title">Launch any app, site, or doc all from the home row</h2>
         <p class="keyboard-hero-subtitle">Turn shortcuts into muscle memory — bind any key, chord, or layer to open tools, dashboards, and files instantly.</p>
       </div>
       <div class="css-keyboard">
