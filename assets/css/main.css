@@ -2775,7 +2775,7 @@ li {
         inset 0 1px 0 rgba(255, 255, 255, 0.03);
     /* Start fully illuminated */
     opacity: 1;
-    transition: opacity 0.6s ease;
+    transition: opacity 1.5s ease;
 }
 
 /* Base state - crisp text, minimal glow */
@@ -2789,12 +2789,12 @@ li {
     text-shadow:
         0 0 2px currentColor,
         0 0 4px rgba(255, 255, 255, 0.15);
-    transition: text-shadow 0.6s ease;
+    transition: text-shadow 1.5s ease;
 }
 
 .css-keyboard .kb-sf-icon {
     filter: drop-shadow(0 0 2px currentColor);
-    transition: filter 0.6s ease;
+    transition: filter 1.5s ease;
 }
 
 /* Idle state - fade and add ethereal glow after inactivity */
