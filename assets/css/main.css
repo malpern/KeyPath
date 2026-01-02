@@ -6366,13 +6366,13 @@ a.button:active {
 .hrm-output {
     background: #1C1C1E;
     border-radius: 8px;
-    padding: 12px 24px;
-    min-width: 280px;
+    padding: 12px 20px;
+    min-width: 240px;
     min-height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 12px;
+    gap: 10px;
     font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
     font-size: 20px;
     color: #34C759;
@@ -6466,6 +6466,11 @@ a.button:active {
 
 .hrm-output.shortcut .hrm-output-badge {
     display: inline-block;
+}
+
+/* Hide badge while holding - only show when shortcut is triggered */
+.hrm-output.shortcut.holding .hrm-output-badge {
+    display: none;
 }
 
 .hrm-keyboard {
@@ -6916,10 +6921,10 @@ a.button:active {
     }
 
     .hrm-output {
-        min-width: 260px;
+        min-width: 220px;
         font-size: 18px;
-        padding: 10px 20px;
-        gap: 10px;
+        padding: 10px 16px;
+        gap: 8px;
     }
 
     .hrm-output-badge {
@@ -6964,12 +6969,12 @@ a.button:active {
     }
 
     .hrm-output {
-        min-width: 240px;
+        min-width: 200px;
         min-height: 50px;
-        font-size: 16px;
-        padding: 12px 18px;
+        font-size: 18px;
+        padding: 12px 16px;
         border-radius: 10px;
-        gap: 8px;
+        gap: 6px;
     }
 
     .hrm-output-badge {
