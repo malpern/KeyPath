@@ -734,14 +734,18 @@ body.sidebar-open .sidebar {
     color: var(--color-text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    text-decoration: none;
-    border-bottom: none;
+    text-decoration: none !important;
+    border: none !important;
+    border-bottom: none !important;
+    background-image: none !important;
 }
 
 .cinema-toc-item.active .cinema-toc-label {
     color: var(--color-text);
-    text-decoration: none;
-    border-bottom: none;
+    text-decoration: none !important;
+    border: none !important;
+    border-bottom: none !important;
+    background-image: none !important;
 }
 
 @media (max-width: 640px) {
