@@ -2856,6 +2856,8 @@ li {
     width: 54px;
     height: 34px;
     flex-direction: column;
+    align-items: center;
+    justify-content: center;
     gap: 1px;
 }
 
@@ -6601,20 +6603,17 @@ a.button:active {
 }
 
 .hrm-benefit {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
+    display: grid;
+    grid-template-columns: 56px 1fr;
     gap: var(--spacing-md);
-    align-items: flex-start;
+    align-items: start;
 }
 
 .hrm-benefit-icon {
-    flex-shrink: 0;
-    width: 40px;
-    height: 40px;
-    margin-top: 4px;
+    width: 56px;
+    height: 56px;
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
-    border-radius: 10px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
