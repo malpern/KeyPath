@@ -202,6 +202,9 @@ struct LabelMetadata {
         case "⌃": return LabelMetadata(wordLabel: "control")
         case "⌥": return LabelMetadata(wordLabel: "option")
         case "⌘": return LabelMetadata(wordLabel: "command")
+        // Hyper and Meh modifiers (remapped modifier combos)
+        case "✦": return LabelMetadata(wordLabel: "hyper")
+        case "◆": return LabelMetadata(wordLabel: "meh")
         // Number row shift symbols
         case "1": return LabelMetadata(shiftSymbol: "!")
         case "2": return LabelMetadata(shiftSymbol: "@")
