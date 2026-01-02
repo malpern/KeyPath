@@ -674,6 +674,28 @@ body.sidebar-open .sidebar {
     overflow: hidden;
 }
 
+/* Breathing blue glow for cinema section */
+.launch-cinema::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse 50% 70% at 80% 30%, rgba(0, 122, 255, 0.12), transparent);
+    animation: cinema-glow-breathe 10s ease-in-out infinite;
+    z-index: 0;
+}
+
+@keyframes cinema-glow-breathe {
+    0%, 100% {
+        opacity: 0.6;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+}
+
 .cinema-title {
     font-family: var(--font-display);
     font-size: clamp(2.5rem, 6vw, 3.5rem);
@@ -2729,6 +2751,28 @@ li {
     margin-bottom: 0;
     padding-top: var(--spacing-2xl);
     padding-bottom: 0;
+}
+
+/* Breathing cool blue glow for keyboard section */
+.keyboard-hero-section::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse 70% 60% at 50% 0%, rgba(90, 200, 250, 0.08), transparent);
+    animation: keyboard-glow-breathe 16s ease-in-out infinite;
+    z-index: 0;
+}
+
+@keyframes keyboard-glow-breathe {
+    0%, 100% {
+        opacity: 0.4;
+        transform: scale(1) translateY(0);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(1.02) translateY(-5px);
+    }
 }
 
 .keyboard-hero-wrapper {
@@ -6325,6 +6369,30 @@ a.button:active {
     justify-content: center;
     padding: var(--spacing-2xl) var(--spacing-lg);
     background: var(--color-background);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Breathing gold glow for HRM section */
+.hrm-section::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse 60% 50% at 20% 60%, rgba(255, 204, 0, 0.10), transparent);
+    animation: hrm-glow-breathe 14s ease-in-out infinite;
+    z-index: 0;
+}
+
+@keyframes hrm-glow-breathe {
+    0%, 100% {
+        opacity: 0.5;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.9;
+        transform: scale(1.06);
+    }
 }
 
 .hrm-header {
