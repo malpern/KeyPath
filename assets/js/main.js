@@ -1727,11 +1727,12 @@
     // ============================================
     // DOJO EASTER EGG
     // ============================================
-    // Type "dojo" anywhere to reveal the secret card
+    // Click D-O-J-O on the virtual keyboard to reveal the secret card
     const dojoOverlay = document.getElementById('dojo-overlay');
-    if (dojoOverlay) {
-        const secretCode = 'dojo';
-        let typedKeys = '';
+    const cssKeyboard = document.querySelector('.css-keyboard');
+    if (dojoOverlay && cssKeyboard) {
+        const secretCode = ['d', 'o', 'j', 'o'];
+        let clickedKeys = [];
         let resetTimeout;
 
         function showDojo() {
@@ -1744,39 +1745,47 @@
             document.body.style.overflow = '';
         }
 
-        // Listen for keypresses
-        document.addEventListener('keydown', (e) => {
-            // ESC closes the overlay
-            if (e.key === 'Escape' && dojoOverlay.classList.contains('visible')) {
-                hideDojo();
-                return;
+        // Get key letter from a clicked key element
+        function getKeyLetter(keyEl) {
+            const primary = keyEl.querySelector('.kb-primary');
+            if (primary) {
+                return primary.textContent.toLowerCase();
             }
+            return null;
+        }
 
-            // Ignore if overlay is showing or if user is typing in an input
-            if (dojoOverlay.classList.contains('visible')) return;
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        // Listen for clicks on keyboard keys
+        cssKeyboard.querySelectorAll('.kb-key').forEach(key => {
+            key.addEventListener('click', () => {
+                const letter = getKeyLetter(key);
+                if (!letter) return;
 
-            // Track typed characters
-            const key = e.key.toLowerCase();
-            if (key.length === 1 && key.match(/[a-z]/)) {
-                typedKeys += key;
+                clickedKeys.push(letter);
 
-                // Keep only the last N characters (length of secret code)
-                if (typedKeys.length > secretCode.length) {
-                    typedKeys = typedKeys.slice(-secretCode.length);
+                // Keep only the last N keys
+                if (clickedKeys.length > secretCode.length) {
+                    clickedKeys = clickedKeys.slice(-secretCode.length);
                 }
 
                 // Check for match
-                if (typedKeys === secretCode) {
+                if (clickedKeys.length === secretCode.length &&
+                    clickedKeys.every((k, i) => k === secretCode[i])) {
                     showDojo();
-                    typedKeys = '';
+                    clickedKeys = [];
                 }
 
-                // Reset after 2 seconds of no typing
+                // Reset after 3 seconds of no clicking
                 clearTimeout(resetTimeout);
                 resetTimeout = setTimeout(() => {
-                    typedKeys = '';
-                }, 2000);
+                    clickedKeys = [];
+                }, 3000);
+            });
+        });
+
+        // ESC closes the overlay
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && dojoOverlay.classList.contains('visible')) {
+                hideDojo();
             }
         });
 
