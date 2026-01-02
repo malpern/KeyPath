@@ -602,7 +602,7 @@ content_class: content-full kanata-landing
       <!-- 1. Chords -->
       <div class="kanata-card" data-viz="chord">
         <div class="card-text">
-          <h3>Chords</h3>
+          <h3><svg class="card-icon" viewBox="0 0 40 24" fill="currentColor"><rect x="1" y="1" width="18" height="22" rx="3"/><rect x="21" y="1" width="18" height="22" rx="3"/></svg>Chords</h3>
           <p>Press multiple keys simultaneously</p>
         </div>
         <div class="kanata-viz">
@@ -643,7 +643,7 @@ content_class: content-full kanata-landing
       <!-- 3. Tap-Hold -->
       <div class="kanata-card" data-viz="tap-hold">
         <div class="card-text">
-          <h3>Tap-Hold</h3>
+          <h3><svg class="card-icon" viewBox="0 0 24 28" fill="currentColor"><rect x="1" y="1" width="22" height="22" rx="3"/><rect x="3" y="25" width="18" height="3" rx="1.5" opacity="0.5"/></svg>Tap-Hold</h3>
           <p>Tap for one key, hold for another</p>
         </div>
         <div class="kanata-viz">
@@ -661,7 +661,7 @@ content_class: content-full kanata-landing
       <!-- 4. Tap-Dance -->
       <div class="kanata-card" data-viz="tap-dance">
         <div class="card-text">
-          <h3>Tap-Dance</h3>
+          <h3><svg class="card-icon" viewBox="0 0 32 24" fill="currentColor"><rect x="1" y="1" width="22" height="22" rx="3"/><text x="12" y="16" font-size="11" font-weight="700" fill="var(--color-background)" text-anchor="middle">2×</text></svg>Tap-Dance</h3>
           <p>Different actions based on tap count</p>
         </div>
         <div class="kanata-viz">
@@ -680,7 +680,7 @@ content_class: content-full kanata-landing
       <!-- 5. Leader Keys -->
       <div class="kanata-card" data-viz="leader">
         <div class="card-text">
-          <h3>Leader Keys</h3>
+          <h3><svg class="card-icon" viewBox="0 0 40 24" fill="currentColor"><rect x="1" y="1" width="22" height="22" rx="3"/><path d="M28 12h8M33 8l4 4-4 4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.6" fill="none"/></svg>Leader Keys</h3>
           <p>Press leader, then a sequence</p>
         </div>
         <div class="kanata-viz">

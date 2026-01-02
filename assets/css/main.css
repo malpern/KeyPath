@@ -4346,6 +4346,16 @@ a.button:active {
     margin: 0 0 4px 0;
     text-decoration: none !important;
     border-bottom: none !important;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.card-icon {
+    width: 24px;
+    height: 18px;
+    flex-shrink: 0;
+    opacity: 0.6;
 }
 
 .card-text p {
