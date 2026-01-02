@@ -2656,12 +2656,62 @@ li {
     color: var(--color-text-secondary);
 }
 
+/* =========================================================================
+   Keyboard Hero Section (before footer)
+   ========================================================================= */
+.keyboard-hero-section {
+    position: relative;
+    width: 100vw;
+    margin-left: calc(-50vw + 50%);
+    overflow: hidden;
+    background: linear-gradient(180deg, var(--color-background) 0%, var(--color-background-secondary) 100%);
+    margin-bottom: 0;
+}
+
+.keyboard-hero-wrapper {
+    position: relative;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding-top: var(--spacing-xl);
+}
+
+.keyboard-hero-image {
+    display: block;
+    width: 100%;
+    max-width: 900px;
+    height: auto;
+    margin: 0 auto;
+    /* Clip the bottom portion (trackpad area) */
+    clip-path: inset(0 0 35% 0);
+    /* Fade effect - dimmed by default */
+    opacity: 0.4;
+    filter: brightness(0.6);
+    transition: opacity 0.6s ease, filter 0.6s ease;
+}
+
+/* Full illumination on hover */
+.keyboard-hero-section:hover .keyboard-hero-image {
+    opacity: 1;
+    filter: brightness(1);
+}
+
+/* Gradient fade at the bottom to blend into footer */
+.keyboard-hero-fade {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 120px;
+    background: linear-gradient(180deg, transparent 0%, var(--color-background-secondary) 100%);
+    pointer-events: none;
+}
+
 /* Footer */
 .site-footer {
     background-color: var(--color-background-secondary);
-    border-top: 1px solid var(--color-border);
+    border-top: none;
     padding: var(--spacing-3xl) var(--spacing-lg);
-    margin-top: var(--spacing-3xl);
+    margin-top: 0;
 }
 
 .footer-content {

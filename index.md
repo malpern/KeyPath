@@ -1221,4 +1221,16 @@ content_class: content-full kanata-landing
 
 </div>
 
+<!-- Full-width keyboard visualization before footer -->
+<section class="keyboard-hero-section">
+  <div class="keyboard-hero-wrapper">
+    <img
+      src="{{ '/images/keyboards/web-macbook-us.png' | relative_url }}"
+      alt="MacBook keyboard"
+      class="keyboard-hero-image"
+    />
+    <div class="keyboard-hero-fade"></div>
+  </div>
+</section>
+
 <!-- rebuild trigger -->
