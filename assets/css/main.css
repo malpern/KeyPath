@@ -7495,6 +7495,47 @@ a.button:active {
     border-radius: 8px;
 }
 
+.kb-key[data-launcher] {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='34' height='34' viewBox='0 0 34 34'%3E%3Cpath d='M10 2h12c3.3 0 6 2.7 6 6v16c0 1.1-0.9 2-2 2-1.4 0-2.8-0.6-3.7-1.5L14 13.8c-1.8-1.8-4.7 0.1-4.7 2.4V28c0 1.1-0.9 2-2 2s-2-0.9-2-2V8c0-3.3 2.7-6 6-6z' fill='%23ffffff' stroke='%23000000' stroke-opacity='0.2' stroke-width='1.5'/%3E%3C/svg%3E") 8 4, pointer;
+}
+
+.kb-key[data-launcher].launcher-zooming {
+    transition: transform 0.35s ease-out, opacity 0.35s ease-out;
+    transform-origin: center;
+    transform: scale(1);
+}
+
+.kb-key[data-launcher].launcher-zooming::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: rgba(82, 178, 255, 0.25);
+    opacity: 0;
+    pointer-events: none;
+    animation: launcher-pulse 0.8s ease-out forwards;
+}
+
+.kb-key[data-launcher].launcher-zooming .kb-launcher-icon,
+.kb-key[data-launcher].launcher-zooming .kb-launcher-img {
+    transform: scale(0.8);
+}
+
+@keyframes launcher-pulse {
+    0% {
+        opacity: 0.9;
+        transform: scale(1);
+    }
+    40% {
+        opacity: 0.5;
+        transform: scale(2.5);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(4);
+    }
+}
+
 /* Keys with launcher mappings need relative positioning */
 .kb-key[data-launcher] {
     position: relative;

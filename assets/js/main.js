@@ -1906,10 +1906,13 @@
             key.addEventListener('click', () => {
                 if (launcherKeyboard.classList.contains('launcher-active')) {
                     triggerLaunchBurst();
-                    key.classList.add('kb-key-launching');
+                    key.classList.add('kb-key-launching', 'launcher-zooming');
                     setTimeout(() => {
                         key.classList.remove('kb-key-launching');
-                    }, 500);
+                    }, 600);
+                    setTimeout(() => {
+                        key.classList.remove('launcher-zooming');
+                    }, 900);
                     // Brief delay before closing to show the press
                     setTimeout(closeLauncher, 200);
                 }
