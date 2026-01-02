@@ -2034,6 +2034,7 @@ html {
     display: flex;
     flex-wrap: wrap;
     gap: var(--spacing-md);
+    justify-content: center;
 }
 
 .kanata-landing-requirements {
