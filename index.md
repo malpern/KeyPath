@@ -1140,21 +1140,24 @@ content_class: content-full kanata-landing
       <!-- Macros -->
       <div class="geo-card" data-feature="macros" data-geo>
         <svg viewBox="0 0 280 160">
+          <!-- Trigger key on left -->
+          <rect class="geo-key active" x="40" y="55" width="70" height="50" rx="8"/>
+          <text class="geo-key-label" x="75" y="80" fill="#FFF" font-size="11">MACRO</text>
+          <!-- Arrow pointing right -->
+          <path class="geo-arrow" d="M120 80 L140 80 M140 45 L140 115 M140 45 L170 45 M140 80 L170 80 M140 115 L170 115"/>
+          <!-- Actions on right -->
           <g class="geo-macro-step">
-            <rect x="40" y="30" width="60" height="30" rx="6" fill="#F5F5F7" stroke="#D2D2D7" stroke-width="1.5"/>
-            <text class="geo-key-label" x="70" y="45" font-size="11">⌘S</text>
+            <rect x="175" y="30" width="60" height="30" rx="6" fill="#F5F5F7" stroke="#D2D2D7" stroke-width="1.5"/>
+            <text class="geo-key-label" x="205" y="45" font-size="11">⌘S</text>
           </g>
           <g class="geo-macro-step">
-            <rect x="40" y="65" width="60" height="30" rx="6" fill="#F5F5F7" stroke="#D2D2D7" stroke-width="1.5"/>
-            <text class="geo-key-label" x="70" y="80" font-size="11">⌘W</text>
+            <rect x="175" y="65" width="60" height="30" rx="6" fill="#F5F5F7" stroke="#D2D2D7" stroke-width="1.5"/>
+            <text class="geo-key-label" x="205" y="80" font-size="11">⌘W</text>
           </g>
           <g class="geo-macro-step">
-            <rect x="40" y="100" width="60" height="30" rx="6" fill="#F5F5F7" stroke="#D2D2D7" stroke-width="1.5"/>
-            <text class="geo-key-label" x="70" y="115" font-size="11">⌘Q</text>
+            <rect x="175" y="100" width="60" height="30" rx="6" fill="#F5F5F7" stroke="#D2D2D7" stroke-width="1.5"/>
+            <text class="geo-key-label" x="205" y="115" font-size="11">⌘Q</text>
           </g>
-          <path class="geo-arrow" d="M110 45 L130 45 M110 80 L130 80 M110 115 L130 115 M130 45 L130 115" stroke-dasharray="none"/>
-          <rect class="geo-key active" x="150" y="55" width="90" height="50" rx="8"/>
-          <text class="geo-key-label" x="195" y="80" fill="#FFF" font-size="12">MACRO</text>
         </svg>
         <h3>Macros</h3>
         <p>Chain multiple actions into one key. Save, close, and quit—all with a single press.</p>
