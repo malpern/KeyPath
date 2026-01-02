@@ -2196,6 +2196,7 @@ html {
 
 .kanata-landing-section {
     margin-top: var(--spacing-2xl);
+    text-align: center;
 }
 
 /* Existing Kanata users - Full Screen */
