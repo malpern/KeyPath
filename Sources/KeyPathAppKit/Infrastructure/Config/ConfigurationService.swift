@@ -423,11 +423,18 @@ public struct KanataConfiguration: Sendable {
         // These are collections with momentaryActivator.input == "hyper" (like Quick Launcher).
         // Since "hyper" isn't a physical key, we integrate these layers into the hyper hold action
         // of collections like Caps Lock Remap that output hyper on hold.
-        let hyperLinkedLayers = collections
+        let hyperLinkedLayerInfos: [HyperLinkedLayerInfo] = collections
             .filter(\.isEnabled)
-            .compactMap(\.momentaryActivator)
-            .filter { $0.input.lowercased() == "hyper" }
-            .map(\.targetLayer.kanataName)
+            .compactMap { collection -> HyperLinkedLayerInfo? in
+                guard let activator = collection.momentaryActivator,
+                      activator.input.lowercased() == "hyper"
+                else {
+                    return nil
+                }
+                // Get trigger mode from launcher config if available
+                let triggerMode: HyperTriggerMode = collection.configuration.launcherGridConfig?.hyperTriggerMode ?? .hold
+                return HyperLinkedLayerInfo(layerName: activator.targetLayer.kanataName, triggerMode: triggerMode)
+            }
 
         // Precompute mapped keys for non-base layers to avoid blocking keys mapped by other collections.
         var layerMappedKeys: [RuleCollectionLayer: Set<String>] = [:]
@@ -467,7 +474,7 @@ public struct KanataConfiguration: Sendable {
             guard collection.isEnabled, let activator = collection.momentaryActivator else { continue }
 
             // Skip "hyper" activators - they're integrated into the hyper hold action
-            // (handled by KanataBehaviorRenderer.hyperLinkedLayers set above)
+            // (handled by KanataBehaviorRenderer via hyperLinkedLayerInfos set above)
             if activator.input.lowercased() == "hyper" {
                 continue
             }
@@ -562,8 +569,8 @@ public struct KanataConfiguration: Sendable {
                 let layerOutput: String
                 if mapping.behavior != nil {
                     // Advanced behavior (tap-hold, tap-dance) - use renderer
-                    // Pass hyperLinkedLayers so "hyper" hold action includes linked layer activations
-                    let rendered = KanataBehaviorRenderer.render(mapping, hyperLinkedLayers: hyperLinkedLayers)
+                    // Pass hyperLinkedLayerInfos so "hyper" hold action includes linked layer activations
+                    let rendered = KanataBehaviorRenderer.render(mapping, hyperLinkedLayerInfos: hyperLinkedLayerInfos)
                     // Create alias for complex behaviors to keep deflayer clean
                     let aliasName = behaviorAliasName(for: mapping, layer: collection.targetLayer)
                     aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: rendered))
@@ -967,14 +974,23 @@ public struct KanataConfiguration: Sendable {
 
     /// Generate key mappings from launcher grid configuration
     private static func generateLauncherGridMappings(from config: LauncherGridConfig) -> [KeyMapping] {
-        config.mappings
+        var mappings = config.mappings
             .filter(\.isEnabled)
+            // In tap mode, ESC is reserved for canceling the one-shot, so filter it out
+            .filter { config.hyperTriggerMode != .tap || $0.key.lowercased() != "esc" }
             .map { mapping in
                 KeyMapping(
                     input: mapping.key,
                     output: mapping.target.kanataOutput
                 )
             }
+
+        // In tap mode, add ESC → XX (no output) to cancel one-shot without side effects
+        if config.hyperTriggerMode == .tap {
+            mappings.append(KeyMapping(input: "esc", output: "XX"))
+        }
+
+        return mappings
     }
 
     private static func convertSingleKeyToForkFormat(_ key: String) -> String {
@@ -1505,7 +1521,6 @@ public final class ConfigurationService: FileConfigurationProviding {
             if result.exitCode == 0 {
                 AppLogger.shared.log("✅ [Validation-CLI] CLI validation PASSED")
                 try? FileManager.default.removeItem(at: tempConfigURL)
-                AppLogger.shared.log("🗑️ [Validation-CLI] Temp file cleaned up")
                 return (true, [])
             } else {
                 let errors = parseKanataErrors(output)
@@ -1515,7 +1530,6 @@ public final class ConfigurationService: FileConfigurationProviding {
                     )
                 } else {
                     try? FileManager.default.removeItem(at: tempConfigURL)
-                    AppLogger.shared.log("🗑️ [Validation-CLI] Temp file cleaned up")
                 }
                 AppLogger.shared.log(
                     "❌ [Validation-CLI] CLI validation FAILED with \(errors.count) errors:")
@@ -1748,16 +1762,32 @@ public final class ConfigurationService: FileConfigurationProviding {
     }
 
     /// Parse Kanata error output to extract error messages
+    /// Kanata uses miette for rich error formatting, which outputs:
+    /// - [ERROR] line with brief description
+    /// - Code context with arrows pointing to the error
+    /// - "help:" line with actionable description (e.g., "Unknown key in defsrc: \"hangeul\"")
     public func parseKanataErrors(_ output: String) -> [String] {
         var errors: [String] = []
         let lines = output.components(separatedBy: .newlines)
 
+        // Extract [ERROR] lines
         for line in lines where line.contains("[ERROR]") {
-            // Extract the actual error message
             if let errorRange = line.range(of: "[ERROR]") {
                 let errorMessage = String(line[errorRange.upperBound...]).trimmingCharacters(
                     in: .whitespaces)
                 errors.append(errorMessage)
+            }
+        }
+
+        // Also extract "help:" lines - these contain the most actionable information
+        // e.g., "help: Unknown key in defsrc: \"hangeul\""
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("help:") {
+                let helpMessage = String(trimmed.dropFirst(5)).trimmingCharacters(in: .whitespaces)
+                if !helpMessage.isEmpty {
+                    errors.append("💡 \(helpMessage)")
+                }
             }
         }
 
@@ -1956,7 +1986,17 @@ public enum KanataKeyConverter {
             "leftbrace": "[",
             "rightbrace": "]",
             "leftbracket": "[",
-            "rightbracket": "]"
+            "rightbracket": "]",
+            // International/locale-specific keys
+            // Korean keyboard keys
+            "hangeul": "kana", // Korean Hanja key → maps to Japanese kana (similar input mode toggle)
+            "hanja": "eisu", // Korean Han/Eng toggle → maps to Japanese eisu (alphanumeric mode)
+            // ISO/International keys
+            "intlbackslash": "nubs", // ISO key between Left Shift and Z (Non-US Backslash)
+            "intlro": "ro", // ABNT2/JIS Ro key (extra key between slash and right shift)
+            // JIS keys (already have native Kanata names, but add aliases)
+            "eisu": "eisu", // Japanese alphanumeric key
+            "kana": "kana" // Japanese kana key
         ]
 
         let lowercased = input.lowercased()

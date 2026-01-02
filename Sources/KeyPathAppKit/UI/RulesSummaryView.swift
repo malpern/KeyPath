@@ -2220,6 +2220,34 @@ private struct TapHoldPickerContent: View {
         !holdOptions.contains { $0.output == selectedHold } && !selectedHold.isEmpty
     }
 
+    /// Get display label for a custom tap selection (handles system actions)
+    private var customTapDisplayLabel: String {
+        displayLabelFor(selectedTap)
+    }
+
+    /// Get display label for a custom hold selection (handles system actions)
+    private var customHoldDisplayLabel: String {
+        displayLabelFor(selectedHold)
+    }
+
+    /// Get display label for a custom value (system action or key)
+    private func displayLabelFor(_ value: String) -> String {
+        if let actionId = CustomRuleValidator.extractSystemActionId(from: value),
+           let action = CustomRuleValidator.systemAction(for: actionId) {
+            return action.name
+        }
+        return value
+    }
+
+    /// Get SF Symbol for a custom value if it's a system action
+    private func sfSymbolFor(_ value: String) -> String? {
+        if let actionId = CustomRuleValidator.extractSystemActionId(from: value),
+           let action = CustomRuleValidator.systemAction(for: actionId) {
+            return action.sfSymbol
+        }
+        return nil
+    }
+
     /// Check if caps lock is "lost" (not available via tap or hold)
     private var capsLockLost: Bool {
         selectedTap != "caps" && selectedHold != "caps"
@@ -2246,9 +2274,21 @@ private struct TapHoldPickerContent: View {
                         }
                     }
 
+                    // Show custom selection as a segment when one is selected
+                    if isCustomTapSelection {
+                        CustomValueSegment(
+                            label: customTapDisplayLabel,
+                            sfSymbol: sfSymbolFor(selectedTap),
+                            isSelected: true,
+                            isLast: false
+                        ) {
+                            // Already selected, do nothing
+                        }
+                    }
+
                     PickerSegment(
-                        label: "Custom",
-                        isSelected: isCustomTapSelection,
+                        label: isCustomTapSelection ? "Edit" : "Custom",
+                        isSelected: false,
                         isFirst: false,
                         isLast: true
                     ) {
@@ -2259,10 +2299,16 @@ private struct TapHoldPickerContent: View {
                         CustomKeyPopover(
                             keyInput: $customTapInput,
                             onConfirm: {
-                                let normalized = CustomRuleValidator.normalizeKey(customTapInput)
-                                if CustomRuleValidator.isValidKey(normalized) {
-                                    selectedTap = normalized
-                                    onSelectTapOutput(normalized)
+                                // For system action outputs, use the value directly
+                                if CustomRuleValidator.isSystemActionOutput(customTapInput) {
+                                    selectedTap = customTapInput
+                                    onSelectTapOutput(customTapInput)
+                                } else {
+                                    let normalized = CustomRuleValidator.normalizeKey(customTapInput)
+                                    if CustomRuleValidator.isValidKey(normalized) {
+                                        selectedTap = normalized
+                                        onSelectTapOutput(normalized)
+                                    }
                                 }
                                 showingCustomTapPopover = false
                             },
@@ -2301,9 +2347,21 @@ private struct TapHoldPickerContent: View {
                         }
                     }
 
+                    // Show custom selection as a segment when one is selected
+                    if isCustomHoldSelection {
+                        CustomValueSegment(
+                            label: customHoldDisplayLabel,
+                            sfSymbol: sfSymbolFor(selectedHold),
+                            isSelected: true,
+                            isLast: false
+                        ) {
+                            // Already selected, do nothing
+                        }
+                    }
+
                     PickerSegment(
-                        label: "Custom",
-                        isSelected: isCustomHoldSelection,
+                        label: isCustomHoldSelection ? "Edit" : "Custom",
+                        isSelected: false,
                         isFirst: false,
                         isLast: true
                     ) {
@@ -2314,10 +2372,16 @@ private struct TapHoldPickerContent: View {
                         CustomKeyPopover(
                             keyInput: $customHoldInput,
                             onConfirm: {
-                                let normalized = CustomRuleValidator.normalizeKey(customHoldInput)
-                                if CustomRuleValidator.isValidKey(normalized) {
-                                    selectedHold = normalized
-                                    onSelectHoldOutput(normalized)
+                                // For system action outputs, use the value directly
+                                if CustomRuleValidator.isSystemActionOutput(customHoldInput) {
+                                    selectedHold = customHoldInput
+                                    onSelectHoldOutput(customHoldInput)
+                                } else {
+                                    let normalized = CustomRuleValidator.normalizeKey(customHoldInput)
+                                    if CustomRuleValidator.isValidKey(normalized) {
+                                        selectedHold = normalized
+                                        onSelectHoldOutput(normalized)
+                                    }
                                 }
                                 showingCustomHoldPopover = false
                             },
@@ -2368,26 +2432,39 @@ private struct CustomKeyPopover: View {
     let onConfirm: () -> Void
     let onCancel: () -> Void
 
-    @State private var showingSuggestions = false
+    @State private var showingSuggestions = true
     @FocusState private var isInputFocused: Bool
 
-    private var suggestions: [String] {
-        CustomRuleValidator.suggestions(for: keyInput).prefix(8).map { $0 }
+    private var structuredSuggestions: [CustomRuleValidator.Suggestion] {
+        Array(CustomRuleValidator.structuredSuggestions(for: keyInput).prefix(12))
     }
 
     private var isValidKey: Bool {
+        // For system action outputs, they're already in the correct format
+        if CustomRuleValidator.isSystemActionOutput(keyInput) {
+            return true
+        }
         let normalized = CustomRuleValidator.normalizeKey(keyInput)
         return CustomRuleValidator.isValidKey(normalized)
     }
 
+    /// Display label for the current input (shows friendly name for system actions)
+    private var displayLabel: String {
+        if let actionId = CustomRuleValidator.extractSystemActionId(from: keyInput),
+           let action = CustomRuleValidator.systemAction(for: actionId) {
+            return action.name
+        }
+        return keyInput
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Enter Custom Key")
+            Text("Enter Custom Key or Action")
                 .font(.headline)
 
             // Key input with autocomplete
             VStack(alignment: .leading, spacing: 4) {
-                TextField("Key name (e.g., tab, grv)", text: $keyInput)
+                TextField("Key name or action (e.g., tab, Mission Control)", text: $keyInput)
                     .textFieldStyle(.roundedBorder)
                     .focused($isInputFocused)
                     .onSubmit {
@@ -2395,35 +2472,56 @@ private struct CustomKeyPopover: View {
                             onConfirm()
                         }
                     }
-                    .onChange(of: keyInput) { _, newValue in
-                        showingSuggestions = !newValue.isEmpty
+                    .onChange(of: keyInput) { _, _ in
+                        showingSuggestions = true
                     }
 
-                // Autocomplete suggestions
-                if showingSuggestions, !suggestions.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 6) {
-                            ForEach(suggestions, id: \.self) { suggestion in
+                // Autocomplete suggestions with icons for system actions
+                if showingSuggestions, !structuredSuggestions.isEmpty {
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 4) {
+                            ForEach(Array(structuredSuggestions.enumerated()), id: \.offset) { _, suggestion in
                                 Button {
-                                    keyInput = suggestion
+                                    keyInput = suggestion.value
                                     showingSuggestions = false
                                 } label: {
-                                    Text(suggestion)
-                                        .font(.caption.monospaced())
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Color.accentColor.opacity(0.1))
-                                        .cornerRadius(4)
+                                    HStack(spacing: 6) {
+                                        if let symbol = suggestion.sfSymbol {
+                                            Image(systemName: symbol)
+                                                .font(.caption)
+                                                .foregroundColor(.accentColor)
+                                                .frame(width: 16)
+                                        }
+                                        Text(suggestion.displayLabel)
+                                            .font(.caption)
+                                            .lineLimit(1)
+                                        Spacer()
+                                    }
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 6)
+                                    .background(Color.accentColor.opacity(0.08))
+                                    .cornerRadius(4)
                                 }
                                 .buttonStyle(.plain)
                             }
                         }
                     }
-                    .frame(height: 28)
+                    .frame(maxHeight: 180)
                 }
 
-                // Validation feedback
-                if !keyInput.isEmpty, !isValidKey {
+                // Show friendly name when system action is selected
+                if CustomRuleValidator.isSystemActionOutput(keyInput) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .font(.caption)
+                        Text("Action: \(displayLabel)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                // Validation feedback for invalid input
+                else if !keyInput.isEmpty, !isValidKey {
                     Text("Unknown key name")
                         .font(.caption)
                         .foregroundColor(.orange)
@@ -2454,7 +2552,7 @@ private struct CustomKeyPopover: View {
             }
         }
         .padding(16)
-        .frame(width: 280)
+        .frame(width: 320)
         .onAppear {
             isInputFocused = true
         }
@@ -2534,6 +2632,46 @@ private struct SegmentShape: Shape {
         }
 
         return path
+    }
+}
+
+// MARK: - Custom Value Segment
+
+/// A segment that displays a custom value (with optional icon for system actions)
+private struct CustomValueSegment: View {
+    let label: String
+    let sfSymbol: String?
+    let isSelected: Bool
+    let isLast: Bool
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                if let symbol = sfSymbol {
+                    Image(systemName: symbol)
+                        .font(.caption)
+                }
+                Text(label)
+                    .font(.subheadline.weight(isSelected ? .semibold : .regular))
+                    .lineLimit(1)
+            }
+            .foregroundColor(isSelected ? .white : .primary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .frame(minWidth: 60)
+            .background(
+                RoundedRectangle(cornerRadius: isLast ? 6 : 0)
+                    .fill(isSelected ? Color.accentColor : (isHovered ? Color.primary.opacity(0.08) : Color.clear))
+                    .clipShape(SegmentShape(isFirst: false, isLast: isLast))
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("rules-summary-custom-segment-\(label.lowercased().replacingOccurrences(of: " ", with: "-"))")
+        .accessibilityLabel(label)
+        .onHover { isHovered = $0 }
     }
 }
 

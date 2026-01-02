@@ -1,5 +1,18 @@
 import Foundation
 
+// MARK: - Hyper Linked Layer Info
+
+/// Information about a layer that should be activated when Hyper is triggered
+public struct HyperLinkedLayerInfo: Equatable, Sendable {
+    public let layerName: String
+    public let triggerMode: HyperTriggerMode
+
+    public init(layerName: String, triggerMode: HyperTriggerMode = .hold) {
+        self.layerName = layerName
+        self.triggerMode = triggerMode
+    }
+}
+
 // MARK: - Kanata Behavior Renderer
 
 /// Renders `MappingBehavior` values to Kanata configuration syntax.
@@ -7,9 +20,20 @@ public enum KanataBehaviorRenderer {
     /// Render a mapping's behavior (or simple output) to Kanata syntax.
     /// - Parameters:
     ///   - mapping: The key mapping to render.
-    ///   - hyperLinkedLayers: Layers that should be activated when "hyper" is triggered.
+    ///   - hyperLinkedLayers: Layers that should be activated when "hyper" is triggered (legacy).
     /// - Returns: Kanata action string (e.g., `(tap-hold 200 200 a lctl)` or just `esc`).
     public static func render(_ mapping: KeyMapping, hyperLinkedLayers: [String] = []) -> String {
+        // Convert legacy format to new format (default to hold mode)
+        let layerInfos = hyperLinkedLayers.map { HyperLinkedLayerInfo(layerName: $0) }
+        return render(mapping, hyperLinkedLayerInfos: layerInfos)
+    }
+
+    /// Render a mapping's behavior (or simple output) to Kanata syntax.
+    /// - Parameters:
+    ///   - mapping: The key mapping to render.
+    ///   - hyperLinkedLayerInfos: Layers with trigger mode info for "hyper" activation.
+    /// - Returns: Kanata action string (e.g., `(tap-hold 200 200 a lctl)` or just `esc`).
+    public static func render(_ mapping: KeyMapping, hyperLinkedLayerInfos: [HyperLinkedLayerInfo]) -> String {
         guard let behavior = mapping.behavior else {
             // No advanced behavior—fall back to simple output rendering
             return KanataKeyConverter.convertToKanataSequence(mapping.output)
@@ -17,9 +41,9 @@ public enum KanataBehaviorRenderer {
 
         switch behavior {
         case let .dualRole(dr):
-            return renderDualRole(dr, hyperLinkedLayers: hyperLinkedLayers)
+            return renderDualRole(dr, hyperLinkedLayerInfos: hyperLinkedLayerInfos)
         case let .tapDance(td):
-            return renderTapDance(td, hyperLinkedLayers: hyperLinkedLayers)
+            return renderTapDance(td, hyperLinkedLayerInfos: hyperLinkedLayerInfos)
         }
     }
 
@@ -27,9 +51,10 @@ public enum KanataBehaviorRenderer {
 
     /// Render a dual-role (tap-hold) behavior.
     /// Chooses the appropriate Kanata variant based on flags.
-    private static func renderDualRole(_ dr: DualRoleBehavior, hyperLinkedLayers: [String]) -> String {
-        let tapAction = convertAction(dr.tapAction, hyperLinkedLayers: hyperLinkedLayers)
-        let holdAction = convertAction(dr.holdAction, hyperLinkedLayers: hyperLinkedLayers)
+    private static func renderDualRole(_ dr: DualRoleBehavior, hyperLinkedLayerInfos: [HyperLinkedLayerInfo]) -> String {
+        // TAP action should NOT include layer activation - only HOLD gets that
+        let tapAction = convertAction(dr.tapAction, hyperLinkedLayerInfos: [])
+        let holdAction = convertAction(dr.holdAction, hyperLinkedLayerInfos: hyperLinkedLayerInfos)
         let tapTimeout = dr.tapTimeout
         let holdTimeout = dr.holdTimeout
 
@@ -59,14 +84,14 @@ public enum KanataBehaviorRenderer {
 
     /// Render a tap-dance behavior.
     /// Format: `(tap-dance timeout (action1 action2 ...))`
-    private static func renderTapDance(_ td: TapDanceBehavior, hyperLinkedLayers: [String]) -> String {
+    private static func renderTapDance(_ td: TapDanceBehavior, hyperLinkedLayerInfos: [HyperLinkedLayerInfo]) -> String {
         guard !td.steps.isEmpty else {
             // Edge case: empty steps—return passthrough
             return "_"
         }
 
         let actions = td.steps.map { step in
-            convertAction(step.action, hyperLinkedLayers: hyperLinkedLayers)
+            convertAction(step.action, hyperLinkedLayerInfos: hyperLinkedLayerInfos)
         }
 
         // Kanata tap-dance syntax: (tap-dance timeout (action1 action2 ...))
@@ -77,19 +102,28 @@ public enum KanataBehaviorRenderer {
 
     /// Convert an action string to Kanata syntax.
     /// Handles special keywords (hyper, meh) and multi-key combinations.
-    private static func convertAction(_ action: String, hyperLinkedLayers: [String]) -> String {
+    private static func convertAction(_ action: String, hyperLinkedLayerInfos: [HyperLinkedLayerInfo]) -> String {
         let trimmed = action.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
         // Special keyword: "hyper" = Cmd+Ctrl+Alt+Shift
-        // If hyperLinkedLayers is set, also activate those layers during hyper hold
+        // If hyperLinkedLayerInfos is set, also activate those layers during hyper hold/tap
         if trimmed == "hyper" {
-            if hyperLinkedLayers.isEmpty {
+            if hyperLinkedLayerInfos.isEmpty {
                 return "(multi lctl lmet lalt lsft)"
             } else {
-                // Include layer-while-held and fake key notifications for each linked layer
+                // Include layer activation and fake key notifications for each linked layer
                 var components = ["lctl", "lmet", "lalt", "lsft"]
-                for layerName in hyperLinkedLayers {
-                    components.append("(layer-while-held \(layerName))")
+                for layerInfo in hyperLinkedLayerInfos {
+                    let layerName = layerInfo.layerName
+                    switch layerInfo.triggerMode {
+                    case .hold:
+                        // Hold mode: layer stays active while hyper is held
+                        components.append("(layer-while-held \(layerName))")
+                    case .tap:
+                        // Tap mode: one-shot layer that deactivates after next key press
+                        // Using one-shot-press with 5 second timeout (deactivates on any key or timeout)
+                        components.append("(one-shot-press 5000 (layer-while-held \(layerName)))")
+                    }
                     components.append("(on-press-fakekey kp-layer-\(layerName)-enter tap)")
                     components.append("(on-release-fakekey kp-layer-\(layerName)-exit tap)")
                 }

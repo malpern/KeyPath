@@ -308,10 +308,42 @@ public struct LayerPresetPickerConfig: Codable, Equatable, Sendable {
 
 /// Activation mode for the launcher layer
 public enum LauncherActivationMode: String, Codable, Equatable, Sendable {
-    /// Hold Hyper key to activate launcher layer
-    case holdHyper
+    /// Hyper key to activate launcher layer (tap or hold based on hyperTriggerMode)
+    case holdHyper // Keep name for backward compatibility
     /// Leader → L sequence to activate launcher layer
     case leaderSequence
+
+    /// Display name for UI
+    public var displayName: String {
+        switch self {
+        case .holdHyper: "Hyper"
+        case .leaderSequence: "Leader → L"
+        }
+    }
+}
+
+/// How the Hyper key triggers the launcher layer
+public enum HyperTriggerMode: String, Codable, Equatable, Sendable {
+    /// Tap Hyper to toggle launcher layer
+    case tap
+    /// Hold Hyper to activate launcher layer (releases on key up)
+    case hold
+
+    /// Display name for UI
+    public var displayName: String {
+        switch self {
+        case .tap: "Tap"
+        case .hold: "Hold"
+        }
+    }
+
+    /// Description for UI
+    public var description: String {
+        switch self {
+        case .tap: "Tap Hyper to toggle the launcher on/off"
+        case .hold: "Hold Hyper to show launcher, release to hide"
+        }
+    }
 }
 
 /// Target for a launcher mapping - app, URL, folder, or script
@@ -397,71 +429,88 @@ public struct LauncherMapping: Codable, Equatable, Sendable, Identifiable {
 /// Configuration for the launcher grid display style
 public struct LauncherGridConfig: Codable, Equatable, Sendable {
     public var activationMode: LauncherActivationMode
+    /// How Hyper key triggers the launcher (only used when activationMode is .holdHyper)
+    public var hyperTriggerMode: HyperTriggerMode
     public var mappings: [LauncherMapping]
     /// Whether the user has seen the welcome dialog
     public var hasSeenWelcome: Bool
 
     public init(
         activationMode: LauncherActivationMode = .holdHyper,
+        hyperTriggerMode: HyperTriggerMode = .hold,
         mappings: [LauncherMapping] = LauncherGridConfig.defaultMappings,
         hasSeenWelcome: Bool = false
     ) {
         self.activationMode = activationMode
+        self.hyperTriggerMode = hyperTriggerMode
         self.mappings = mappings
         self.hasSeenWelcome = hasSeenWelcome
     }
 
     /// Default configuration with preset app and website mappings
     public static var defaultConfig: LauncherGridConfig {
-        LauncherGridConfig(activationMode: .holdHyper, mappings: defaultMappings, hasSeenWelcome: false)
+        LauncherGridConfig(activationMode: .holdHyper, hyperTriggerMode: .hold, mappings: defaultMappings, hasSeenWelcome: false)
+    }
+
+    // Custom decoding to handle missing hyperTriggerMode in existing configs
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        activationMode = try container.decode(LauncherActivationMode.self, forKey: .activationMode)
+        hyperTriggerMode = try container.decodeIfPresent(HyperTriggerMode.self, forKey: .hyperTriggerMode) ?? .hold
+        mappings = try container.decode([LauncherMapping].self, forKey: .mappings)
+        hasSeenWelcome = try container.decode(Bool.self, forKey: .hasSeenWelcome)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case activationMode, hyperTriggerMode, mappings, hasSeenWelcome
     }
 
     /// Available number keys for website shortcuts (used when adding from browser history)
     public static let availableNumberKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
 
     /// Default app and website mappings
+    /// Home row prioritized for most-used apps and sites
     public static var defaultMappings: [LauncherMapping] {
-        // Apps (letters)
-        let appMappings: [LauncherMapping] = [
+        // Home row - most used (asdfghjkl)
+        let homeRowMappings: [LauncherMapping] = [
+            LauncherMapping(key: "a", target: .app(name: "Calendar", bundleId: "com.apple.iCal")),
             LauncherMapping(key: "s", target: .app(name: "Safari", bundleId: "com.apple.Safari")),
-            LauncherMapping(key: "t", target: .app(name: "Terminal", bundleId: "com.apple.Terminal")),
+            LauncherMapping(key: "d", target: .app(name: "Terminal", bundleId: "com.apple.Terminal")),
             LauncherMapping(key: "f", target: .app(name: "Finder", bundleId: "com.apple.finder")),
-            LauncherMapping(key: "m", target: .app(name: "Messages", bundleId: "com.apple.MobileSMS")),
-            LauncherMapping(key: "e", target: .app(name: "Mail", bundleId: "com.apple.mail")),
-            LauncherMapping(key: "c", target: .app(name: "Calendar", bundleId: "com.apple.iCal")),
-            LauncherMapping(key: "n", target: .app(name: "Notes", bundleId: "com.apple.Notes")),
-            LauncherMapping(key: "u", target: .app(name: "Music", bundleId: "com.apple.Music")),
-            LauncherMapping(key: "p", target: .app(name: "Photos", bundleId: "com.apple.Photos")),
-            LauncherMapping(key: "a", target: .app(name: "App Store", bundleId: "com.apple.AppStore")),
-            LauncherMapping(key: "v", target: .app(name: "VS Code", bundleId: "com.microsoft.VSCode")),
-            LauncherMapping(key: "o", target: .app(name: "Obsidian", bundleId: "md.obsidian")),
-            LauncherMapping(key: "d", target: .app(name: "Discord", bundleId: "com.hnc.Discord")),
-            LauncherMapping(key: "k", target: .app(name: "Slack", bundleId: "com.tinyspeck.slackmacgap")),
-            LauncherMapping(key: "z", target: .app(name: "Zoom", bundleId: "us.zoom.xos"))
+            LauncherMapping(key: "g", target: .url("chatgpt.com")),
+            LauncherMapping(key: "h", target: .url("youtube.com")),
+            LauncherMapping(key: "j", target: .url("x.com")),
+            LauncherMapping(key: "k", target: .app(name: "Messages", bundleId: "com.apple.MobileSMS")),
+            LauncherMapping(key: "l", target: .url("linkedin.com"))
         ]
 
-        // Websites (numbers)
-        let websiteMappings: [LauncherMapping] = [
+        // Top row (qwertyuiop)
+        let topRowMappings: [LauncherMapping] = [
+            LauncherMapping(key: "e", target: .app(name: "Mail", bundleId: "com.apple.mail")),
+            LauncherMapping(key: "r", target: .url("reddit.com")),
+            LauncherMapping(key: "u", target: .app(name: "Music", bundleId: "com.apple.Music")),
+            LauncherMapping(key: "i", target: .url("claude.ai")),
+            LauncherMapping(key: "o", target: .app(name: "Obsidian", bundleId: "md.obsidian")),
+            LauncherMapping(key: "p", target: .app(name: "Photos", bundleId: "com.apple.Photos"))
+        ]
+
+        // Bottom row (zxcvbnm)
+        let bottomRowMappings: [LauncherMapping] = [
+            LauncherMapping(key: "z", target: .app(name: "Zoom", bundleId: "us.zoom.xos")),
+            LauncherMapping(key: "x", target: .app(name: "Slack", bundleId: "com.tinyspeck.slackmacgap")),
+            LauncherMapping(key: "c", target: .app(name: "Discord", bundleId: "com.hnc.Discord")),
+            LauncherMapping(key: "v", target: .app(name: "VS Code", bundleId: "com.microsoft.VSCode")),
+            LauncherMapping(key: "n", target: .app(name: "Notes", bundleId: "com.apple.Notes"))
+        ]
+
+        // Number row (websites)
+        let numberRowMappings: [LauncherMapping] = [
             LauncherMapping(key: "1", target: .url("github.com")),
             LauncherMapping(key: "2", target: .url("google.com")),
-            LauncherMapping(key: "3", target: .url("youtube.com")),
-            LauncherMapping(key: "4", target: .url("x.com")),
-            LauncherMapping(key: "5", target: .url("reddit.com")),
-            LauncherMapping(key: "6", target: .url("chatgpt.com")),
-            LauncherMapping(key: "7", target: .url("claude.ai")),
-            LauncherMapping(key: "8", target: .url("stackoverflow.com")),
-            LauncherMapping(key: "9", target: .url("linkedin.com")),
-            LauncherMapping(key: "0", target: .url("notion.so"))
+            LauncherMapping(key: "3", target: .url("notion.so")),
+            LauncherMapping(key: "4", target: .url("stackoverflow.com"))
         ]
 
-        // Folders (function keys)
-        let folderMappings: [LauncherMapping] = [
-            LauncherMapping(key: "f5", target: .folder(path: "~/Downloads", name: "Downloads")),
-            LauncherMapping(key: "f6", target: .folder(path: "~/Documents", name: "Documents")),
-            LauncherMapping(key: "f7", target: .folder(path: "~/Desktop", name: "Desktop")),
-            LauncherMapping(key: "f8", target: .folder(path: "~", name: "Home"))
-        ]
-
-        return appMappings + websiteMappings + folderMappings
+        return homeRowMappings + topRowMappings + bottomRowMappings + numberRowMappings
     }
 }

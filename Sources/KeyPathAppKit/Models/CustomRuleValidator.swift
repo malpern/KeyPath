@@ -149,6 +149,61 @@ public enum CustomRuleValidator {
         "brdn", "brup", "prev", "pp", "next", "mute", "vold", "volu"
     ]
 
+    // MARK: - System Actions
+
+    /// System action info for autocomplete suggestions
+    public struct SystemActionSuggestion: Equatable, Sendable {
+        public let id: String
+        public let name: String
+        public let sfSymbol: String
+        /// If non-nil, this is a direct keycode (media key)
+        public let kanataKeycode: String?
+
+        public init(id: String, name: String, sfSymbol: String, kanataKeycode: String? = nil) {
+            self.id = id
+            self.name = name
+            self.sfSymbol = sfSymbol
+            self.kanataKeycode = kanataKeycode
+        }
+
+        /// The kanata output string for this action
+        public var kanataOutput: String {
+            if let keycode = kanataKeycode {
+                return keycode
+            }
+            return "(push-msg \"system:\(id)\")"
+        }
+    }
+
+    /// All available system actions for autocomplete
+    public static let systemActions: [SystemActionSuggestion] = [
+        // Push-msg system actions
+        SystemActionSuggestion(id: "spotlight", name: "Spotlight", sfSymbol: "magnifyingglass"),
+        SystemActionSuggestion(id: "mission-control", name: "Mission Control", sfSymbol: "rectangle.3.group"),
+        SystemActionSuggestion(id: "launchpad", name: "Launchpad", sfSymbol: "square.grid.3x3"),
+        SystemActionSuggestion(id: "dnd", name: "Do Not Disturb", sfSymbol: "moon"),
+        SystemActionSuggestion(id: "notification-center", name: "Notification Center", sfSymbol: "bell"),
+        SystemActionSuggestion(id: "dictation", name: "Dictation", sfSymbol: "mic"),
+        SystemActionSuggestion(id: "siri", name: "Siri", sfSymbol: "waveform.circle"),
+        // Media keys (direct keycodes)
+        SystemActionSuggestion(id: "play-pause", name: "Play/Pause", sfSymbol: "playpause", kanataKeycode: "pp"),
+        SystemActionSuggestion(id: "next-track", name: "Next Track", sfSymbol: "forward", kanataKeycode: "next"),
+        SystemActionSuggestion(id: "prev-track", name: "Previous Track", sfSymbol: "backward", kanataKeycode: "prev"),
+        SystemActionSuggestion(id: "mute", name: "Mute", sfSymbol: "speaker.slash", kanataKeycode: "mute"),
+        SystemActionSuggestion(id: "volume-up", name: "Volume Up", sfSymbol: "speaker.wave.3", kanataKeycode: "volu"),
+        SystemActionSuggestion(id: "volume-down", name: "Volume Down", sfSymbol: "speaker.wave.1", kanataKeycode: "voldwn"),
+        SystemActionSuggestion(id: "brightness-up", name: "Brightness Up", sfSymbol: "sun.max", kanataKeycode: "brup"),
+        SystemActionSuggestion(id: "brightness-down", name: "Brightness Down", sfSymbol: "sun.min", kanataKeycode: "brdn")
+    ]
+
+    /// Set of valid system action identifiers
+    public static let validSystemActionIds: Set<String> = Set(systemActions.map(\.id))
+
+    /// Look up a system action by its ID
+    public static func systemAction(for id: String) -> SystemActionSuggestion? {
+        systemActions.first { $0.id == id }
+    }
+
     // MARK: - Validation
 
     /// Validation error types
@@ -223,7 +278,7 @@ public enum CustomRuleValidator {
         return errors
     }
 
-    /// Check if a string is a valid Kanata key name
+    /// Check if a string is a valid Kanata key name or system action output
     public static func isValidKey(_ key: String) -> Bool {
         let normalized = key.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -242,7 +297,43 @@ public enum CustomRuleValidator {
             return true
         }
 
+        // Check if it's a system action push-msg output
+        if isSystemActionOutput(key) {
+            return true
+        }
+
         return false
+    }
+
+    /// Check if a string is a valid system action output (push-msg format)
+    public static func isSystemActionOutput(_ output: String) -> Bool {
+        // Check for push-msg system action format: (push-msg "system:xxx")
+        let pattern = #"^\(push-msg "system:([^"]+)"\)$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return false }
+        let range = NSRange(output.startIndex ..< output.endIndex, in: output)
+        if let match = regex.firstMatch(in: output, range: range) {
+            // Extract the action ID and verify it's valid
+            if let actionRange = Range(match.range(at: 1), in: output) {
+                let actionId = String(output[actionRange])
+                return validSystemActionIds.contains(actionId)
+            }
+        }
+        return false
+    }
+
+    /// Extract system action ID from a push-msg output, if valid
+    public static func extractSystemActionId(from output: String) -> String? {
+        let pattern = #"^\(push-msg "system:([^"]+)"\)$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let range = NSRange(output.startIndex ..< output.endIndex, in: output)
+        if let match = regex.firstMatch(in: output, range: range),
+           let actionRange = Range(match.range(at: 1), in: output) {
+            let actionId = String(output[actionRange])
+            if validSystemActionIds.contains(actionId) {
+                return actionId
+            }
+        }
+        return nil
     }
 
     /// Check if a string is a valid key or a key with modifier prefix (e.g., M-right)
@@ -327,6 +418,89 @@ public enum CustomRuleValidator {
     }
 
     // MARK: - Autocomplete
+
+    /// A suggestion for autocomplete, can be a key or a system action
+    public enum Suggestion: Equatable, Sendable {
+        case key(String)
+        case systemAction(SystemActionSuggestion)
+
+        /// The string value to use when selected
+        public var value: String {
+            switch self {
+            case let .key(k): k
+            case let .systemAction(a): a.kanataOutput
+            }
+        }
+
+        /// Display label for the suggestion
+        public var displayLabel: String {
+            switch self {
+            case let .key(k): k
+            case let .systemAction(a): a.name
+            }
+        }
+
+        /// SF Symbol icon (nil for regular keys)
+        public var sfSymbol: String? {
+            switch self {
+            case .key: nil
+            case let .systemAction(a): a.sfSymbol
+            }
+        }
+    }
+
+    /// Get structured autocomplete suggestions including system actions
+    /// - Parameter prefix: The partial input typed by the user
+    /// - Returns: Array of suggestions (keys and system actions), sorted by relevance
+    public static func structuredSuggestions(for prefix: String) -> [Suggestion] {
+        let lowercased = prefix.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if lowercased.isEmpty {
+            // Show system actions first when empty, then common keys
+            var results: [Suggestion] = systemActions.map { .systemAction($0) }
+            results += commonKeys.map { .key($0) }
+            return results
+        }
+
+        var results: [(suggestion: Suggestion, priority: Int)] = []
+
+        // Check system actions first (highest priority for type-ahead)
+        for action in systemActions {
+            let matches = action.id.contains(lowercased) ||
+                action.name.lowercased().contains(lowercased)
+            if matches {
+                results.append((.systemAction(action), 0))
+            }
+        }
+
+        // Check common keys (high priority)
+        for key in commonKeys where key.hasPrefix(lowercased) {
+            results.append((.key(key), 1))
+        }
+
+        // Check all valid keys
+        for key in validKanataKeys where key.hasPrefix(lowercased) && !commonKeys.contains(key) {
+            results.append((.key(key), 2))
+        }
+
+        // Check aliases (show canonical form)
+        for (alias, canonical) in keyAliases where alias.hasPrefix(lowercased) {
+            if !results.contains(where: {
+                if case let .key(k) = $0.suggestion { return k == canonical }
+                return false
+            }) {
+                results.append((.key(canonical), 3))
+            }
+        }
+
+        // Sort by priority then alphabetically
+        return results.sorted { a, b in
+            if a.priority != b.priority {
+                return a.priority < b.priority
+            }
+            return a.suggestion.displayLabel < b.suggestion.displayLabel
+        }.map(\.suggestion)
+    }
 
     /// Get autocomplete suggestions for a partial key input
     /// - Parameter prefix: The partial input typed by the user

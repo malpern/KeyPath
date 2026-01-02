@@ -576,8 +576,10 @@ struct ContentView: View {
             }
             .onChange(of: kanataManager.lastError) { _, newError in
                 if let error = newError {
-                    configValidationErrorMessage = error
-                    showingConfigValidationError = true
+                    // Show the full validation failure modal instead of a simple alert
+                    // Split error message by newlines to show as separate error items
+                    let errorLines = error.components(separatedBy: "\n").filter { !$0.isEmpty }
+                    presentValidationFailureModal(errorLines)
                     // Clear the error so it doesn't re-trigger
                     kanataManager.lastError = nil
                 }

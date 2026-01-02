@@ -2,7 +2,7 @@ import AppKit
 import KeyPathCore
 
 /// Manages global keyboard shortcuts for KeyPath.
-/// Default: Option+Command+K shows/hides KeyPath and all its windows.
+/// Default: Option+Command+K toggles the keyboard overlay visibility.
 @MainActor
 final class GlobalHotkeyService {
     static let shared = GlobalHotkeyService()
@@ -30,12 +30,6 @@ final class GlobalHotkeyService {
             AppLogger.shared.log("⌨️ [GlobalHotkey] Enabled: \(newValue)")
         }
     }
-
-    /// Whether KeyPath windows are currently hidden by the hotkey
-    private var isHiddenByHotkey = false
-
-    /// Whether the overlay was visible before hiding (to restore on show)
-    private var overlayWasVisibleBeforeHide = false
 
     /// Global event monitor handle
     private var globalMonitor: Any?
@@ -86,7 +80,7 @@ final class GlobalHotkeyService {
 
             // Trigger the toggle on main actor
             Task { @MainActor in
-                self.toggleKeyPathVisibility()
+                self.toggleOverlayVisibility()
             }
 
             // Consume the event
@@ -126,103 +120,17 @@ final class GlobalHotkeyService {
         }
 
         AppLogger.shared.log("⌨️ [GlobalHotkey] Option+Command+K triggered")
-        toggleKeyPathVisibility()
+        toggleOverlayVisibility()
         return true
     }
 
     // MARK: - Visibility Toggle
 
-    /// Toggle visibility of all KeyPath windows
-    private func toggleKeyPathVisibility() {
-        if isHiddenByHotkey || NSApp.isHidden {
-            showKeyPath()
-        } else {
-            hideKeyPath()
-        }
-    }
-
-    /// Hide KeyPath and all its windows
-    private func hideKeyPath() {
-        AppLogger.shared.log("👁️ [GlobalHotkey] Hiding KeyPath")
-        isHiddenByHotkey = true
-
-        // Remember overlay visibility BEFORE hiding
-        overlayWasVisibleBeforeHide = LiveKeyboardOverlayController.shared.isVisible
-
-        // Hide the overlay without updating its saved state
-        if overlayWasVisibleBeforeHide {
-            LiveKeyboardOverlayController.shared.isVisible = false
-        }
-
-        // Hide the app (this hides all windows)
-        NSApp.hide(nil)
-
-        AppLogger.shared.log("👁️ [GlobalHotkey] Hidden (overlay was: \(overlayWasVisibleBeforeHide))")
-    }
-
-    /// Show KeyPath and restore windows
-    private func showKeyPath() {
-        AppLogger.shared.log("👁️ [GlobalHotkey] Showing KeyPath (overlay was: \(overlayWasVisibleBeforeHide))")
-        isHiddenByHotkey = false
-
-        // Unhide the app
-        NSApp.unhide(nil)
-        NSApp.activate(ignoringOtherApps: true)
-
-        // Show the main window
-        if let mainWindow = NSApp.windows.first(where: { $0.title == "KeyPath" || $0.identifier?.rawValue == "main" }) {
-            mainWindow.makeKeyAndOrderFront(nil)
-        }
-
-        // Restore the overlay if it was visible before we hid
-        if overlayWasVisibleBeforeHide {
-            LiveKeyboardOverlayController.shared.isVisible = true
-            // Center the overlay in the bottom half of the screen
-            centerOverlayInBottomHalf()
-        }
-    }
-
-    /// Center the keyboard overlay in the bottom half of the screen
-    private func centerOverlayInBottomHalf() {
-        guard LiveKeyboardOverlayController.shared.isVisible else { return }
-
-        // Access the overlay window through reflection or a method we'll add
-        // For now, we'll use the public interface
-        Task { @MainActor in
-            // Give the window time to appear
-            try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
-
-            guard let screen = NSScreen.main else { return }
-            let screenFrame = screen.visibleFrame
-
-            // Get overlay window - it's a floating window with specific title
-            guard let overlayWindow = NSApp.windows.first(where: {
-                $0.title == "KeyPath Keyboard Overlay" ||
-                    $0.accessibilityIdentifier() == "keypath-keyboard-overlay-window"
-            }) else {
-                AppLogger.shared.log("⚠️ [GlobalHotkey] Could not find overlay window to center")
-                return
-            }
-
-            let windowSize = overlayWindow.frame.size
-
-            // Calculate center position for bottom half of screen
-            // Bottom half: from screenFrame.minY to screenFrame.midY
-            let bottomHalfHeight = screenFrame.height / 2
-            let bottomHalfMidY = screenFrame.minY + (bottomHalfHeight / 2)
-
-            // Center horizontally
-            let centerX = screenFrame.midX - (windowSize.width / 2)
-
-            // Center vertically in bottom half, but keep some padding from bottom
-            let centerY = bottomHalfMidY - (windowSize.height / 2)
-            let minY = screenFrame.minY + 20 // Minimum 20pt from bottom
-            let finalY = max(centerY, minY)
-
-            let newOrigin = NSPoint(x: centerX, y: finalY)
-            overlayWindow.setFrameOrigin(newOrigin)
-
-            AppLogger.shared.log("📐 [GlobalHotkey] Centered overlay at (\(Int(newOrigin.x)), \(Int(newOrigin.y)))")
-        }
+    /// Toggle visibility of the keyboard overlay
+    private func toggleOverlayVisibility() {
+        let overlay = LiveKeyboardOverlayController.shared
+        let wasVisible = overlay.isVisible
+        overlay.isVisible = !wasVisible
+        AppLogger.shared.log("👁️ [GlobalHotkey] Overlay toggled: \(wasVisible) → \(!wasVisible)")
     }
 }

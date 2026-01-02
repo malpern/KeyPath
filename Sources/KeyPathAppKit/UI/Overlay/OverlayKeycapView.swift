@@ -183,7 +183,7 @@ struct OverlayKeycapView: View {
     private var keyAnimationVariation: CGFloat {
         // Home row is at y ≈ 2 (A, S, D, F, G, H, J, K, L row)
         let homeRowY: CGFloat = 2.0
-        let maxDistance: CGFloat = 3.0  // Max rows away from home row
+        let maxDistance: CGFloat = 3.0 // Max rows away from home row
 
         // Distance from home row (0 = home row, higher = further)
         let homeRowDistance = abs(key.y - homeRowY)

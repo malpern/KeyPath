@@ -406,6 +406,12 @@ struct RuleCollectionCatalog {
                         label: "⇧ Shift",
                         description: "Shift modifier",
                         icon: "shift"
+                    ),
+                    SingleKeyPreset(
+                        output: "XX",
+                        label: "None",
+                        description: "No hold action - tap only",
+                        icon: "minus.circle"
                     )
                 ],
                 selectedTapOutput: "esc",

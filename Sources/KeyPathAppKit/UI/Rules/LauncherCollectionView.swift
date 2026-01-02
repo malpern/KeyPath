@@ -17,6 +17,9 @@ struct LauncherCollectionView: View {
     @State private var showAddMapping = false
     @State private var preselectedKey: String?
 
+    // Local state for immediate UI response
+    @State private var localHyperTriggerMode: HyperTriggerMode = .hold
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Activation mode picker
@@ -129,11 +132,43 @@ struct LauncherCollectionView: View {
                     onConfigChanged(config)
                 }
             )) {
-                Text("Hold Hyper").tag(LauncherActivationMode.holdHyper)
-                Text("Leader → L").tag(LauncherActivationMode.leaderSequence)
+                Text(LauncherActivationMode.holdHyper.displayName).tag(LauncherActivationMode.holdHyper)
+                Text(LauncherActivationMode.leaderSequence.displayName).tag(LauncherActivationMode.leaderSequence)
             }
             .pickerStyle(.segmented)
             .accessibilityIdentifier("launcher-activation-mode-picker")
+
+            // Hyper trigger mode radio buttons (only shown when Hyper mode is selected)
+            if config.activationMode == .holdHyper {
+                HStack(spacing: 16) {
+                    ForEach([HyperTriggerMode.hold, HyperTriggerMode.tap], id: \.self) { mode in
+                        Button {
+                            // Immediate local update for responsive UI
+                            localHyperTriggerMode = mode
+                            // Persist via callback
+                            var updated = config
+                            updated.hyperTriggerMode = mode
+                            onConfigChanged(updated)
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: localHyperTriggerMode == mode ? "circle.inset.filled" : "circle")
+                                    .foregroundColor(localHyperTriggerMode == mode ? .accentColor : .secondary)
+                                    .font(.system(size: 14))
+                                Text(mode.displayName)
+                                    .font(.subheadline)
+                                    .foregroundColor(.primary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("launcher-hyper-trigger-\(mode.rawValue)")
+                    }
+                }
+                .padding(.top, 4)
+                .animation(.easeInOut(duration: 0.15), value: localHyperTriggerMode)
+                .onAppear {
+                    localHyperTriggerMode = config.hyperTriggerMode
+                }
+            }
 
             Text(activationDescription)
                 .font(.caption)
@@ -144,7 +179,7 @@ struct LauncherCollectionView: View {
     private var activationDescription: String {
         switch config.activationMode {
         case .holdHyper:
-            "Hold the Hyper key (Caps Lock when held) and press a shortcut key."
+            localHyperTriggerMode.description + " Then press a shortcut key."
         case .leaderSequence:
             "Press Leader, then L, then press a shortcut key."
         }
