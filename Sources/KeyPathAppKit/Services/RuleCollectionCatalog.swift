@@ -370,6 +370,12 @@ struct RuleCollectionCatalog {
                         icon: "delete.left"
                     ),
                     SingleKeyPreset(
+                        output: "hyper",
+                        label: "✦ Hyper",
+                        description: "Tap for Hyper (⌃⌥⇧⌘) - useful when hold is something else",
+                        icon: "bolt.circle"
+                    ),
+                    SingleKeyPreset(
                         output: "XX",
                         label: "None",
                         description: "No tap action - hold only",
