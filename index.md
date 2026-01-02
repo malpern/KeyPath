@@ -1342,4 +1342,14 @@ content_class: content-full kanata-landing
   </div>
 </section>
 
+<!-- Dojo Easter Egg Overlay -->
+<div class="dojo-overlay" id="dojo-overlay">
+  <div class="dojo-card">
+    <span class="dojo-card-corner top-left">D</span>
+    <img src="{{ '/images/dojo.png' | relative_url }}" alt="Dojo" class="dojo-card-image">
+    <span class="dojo-card-corner bottom-right">D</span>
+  </div>
+  <span class="dojo-hint">Press ESC to close</span>
+</div>
+
 <!-- rebuild trigger -->

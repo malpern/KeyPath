@@ -1723,4 +1723,68 @@
         // Start idle timer on page load
         startIdleTimer();
     }
+
+    // ============================================
+    // DOJO EASTER EGG
+    // ============================================
+    // Type "dojo" anywhere to reveal the secret card
+    const dojoOverlay = document.getElementById('dojo-overlay');
+    if (dojoOverlay) {
+        const secretCode = 'dojo';
+        let typedKeys = '';
+        let resetTimeout;
+
+        function showDojo() {
+            dojoOverlay.classList.add('visible');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function hideDojo() {
+            dojoOverlay.classList.remove('visible');
+            document.body.style.overflow = '';
+        }
+
+        // Listen for keypresses
+        document.addEventListener('keydown', (e) => {
+            // ESC closes the overlay
+            if (e.key === 'Escape' && dojoOverlay.classList.contains('visible')) {
+                hideDojo();
+                return;
+            }
+
+            // Ignore if overlay is showing or if user is typing in an input
+            if (dojoOverlay.classList.contains('visible')) return;
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            // Track typed characters
+            const key = e.key.toLowerCase();
+            if (key.length === 1 && key.match(/[a-z]/)) {
+                typedKeys += key;
+
+                // Keep only the last N characters (length of secret code)
+                if (typedKeys.length > secretCode.length) {
+                    typedKeys = typedKeys.slice(-secretCode.length);
+                }
+
+                // Check for match
+                if (typedKeys === secretCode) {
+                    showDojo();
+                    typedKeys = '';
+                }
+
+                // Reset after 2 seconds of no typing
+                clearTimeout(resetTimeout);
+                resetTimeout = setTimeout(() => {
+                    typedKeys = '';
+                }, 2000);
+            }
+        });
+
+        // Click overlay background to close
+        dojoOverlay.addEventListener('click', (e) => {
+            if (e.target === dojoOverlay) {
+                hideDojo();
+            }
+        });
+    }
 })();
