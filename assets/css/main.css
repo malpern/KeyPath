@@ -2735,6 +2735,8 @@ li {
         0 2px 4px rgba(0, 0, 0, 0.3),
         inset 0 1px 0 rgba(255, 255, 255, 0.05);
     transition: all 0.15s ease;
+    cursor: pointer;
+    user-select: none;
 }
 
 .kb-key:hover {
@@ -2864,61 +2866,91 @@ li {
     width: 280px;
 }
 
-/* Arrow Keys */
-.kb-key-arrows {
-    width: 120px;
-    height: 54px;
-    padding: 4px;
-}
-
-.kb-arrows {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-    height: 100%;
-}
-
-.kb-arrow {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
+/* SF Symbol Icon */
+.kb-sf-icon {
+    width: 16px;
+    height: 16px;
     color: #98989d;
 }
 
-.kb-arrow-up {
-    height: 22px;
-    width: 36px;
-    background: linear-gradient(180deg, #3a3a3c 0%, #2c2c2e 100%);
-    border: 1px solid #48484a;
-    border-radius: 4px 4px 0 0;
+/* Arrow Keys - Individual half-height keys */
+.kb-key-arrow {
+    width: 40px;
+    height: 26px;
+    padding: 0;
 }
 
-.kb-arrow-bottom {
-    display: flex;
-    gap: 2px;
+.kb-key-arrow-up {
+    margin-left: auto;
+    margin-bottom: -1px;
 }
 
-.kb-arrow-left,
-.kb-arrow-down,
-.kb-arrow-right {
-    width: 36px;
-    height: 22px;
-    background: linear-gradient(180deg, #3a3a3c 0%, #2c2c2e 100%);
-    border: 1px solid #48484a;
+.kb-key-arrow-left,
+.kb-key-arrow-down,
+.kb-key-arrow-right {
+    margin-top: -1px;
 }
 
-.kb-arrow-left {
-    border-radius: 0 0 0 4px;
+.kb-arrow-icon {
+    font-size: 14px;
+    color: #98989d;
 }
 
-.kb-arrow-down {
-    border-radius: 0;
+/* Key pressed/clicked state - blue glow */
+.kb-key.kb-key-pressed {
+    background: linear-gradient(180deg, #007AFF 0%, #0051D5 100%) !important;
+    border-color: #0051D5 !important;
+    box-shadow:
+        0 0 20px rgba(0, 122, 255, 0.6),
+        0 0 40px rgba(0, 122, 255, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+    transform: translateY(1px);
 }
 
-.kb-arrow-right {
-    border-radius: 0 0 4px 0;
+.kb-key.kb-key-pressed .kb-primary,
+.kb-key.kb-key-pressed .kb-secondary,
+.kb-key.kb-key-pressed .kb-label,
+.kb-key.kb-key-pressed .kb-icon,
+.kb-key.kb-key-pressed .kb-fn-label,
+.kb-key.kb-key-pressed .kb-mod-label,
+.kb-key.kb-key-pressed .kb-arrow-icon,
+.kb-key.kb-key-pressed .kb-sf-icon {
+    color: #ffffff !important;
+}
+
+/* Fade out animation */
+@keyframes keyFadeOut {
+    0% {
+        background: linear-gradient(180deg, #007AFF 0%, #0051D5 100%);
+        border-color: #0051D5;
+        box-shadow:
+            0 0 20px rgba(0, 122, 255, 0.6),
+            0 0 40px rgba(0, 122, 255, 0.3),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    100% {
+        background: linear-gradient(180deg, #3a3a3c 0%, #2c2c2e 100%);
+        border-color: #48484a;
+        box-shadow:
+            0 2px 4px rgba(0, 0, 0, 0.3),
+            inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+}
+
+.kb-key.kb-key-fading {
+    animation: keyFadeOut 0.4s ease-out forwards;
+}
+
+.kb-key.kb-key-fading .kb-primary,
+.kb-key.kb-key-fading .kb-secondary,
+.kb-key.kb-key-fading .kb-label,
+.kb-key.kb-key-fading .kb-icon,
+.kb-key.kb-key-fading .kb-fn-label,
+.kb-key.kb-key-fading .kb-mod-label,
+.kb-key.kb-key-fading .kb-arrow-icon,
+.kb-key.kb-key-fading .kb-sf-icon {
+    transition: color 0.4s ease-out;
+    color: #98989d;
 }
 
 /* Gradient fade at the bottom to blend into footer */

@@ -1604,4 +1604,44 @@
     animatableItems.forEach(item => {
         item.classList.add('stagger-item');
     });
+
+    // =========================================================================
+    // CSS Keyboard - Click to light up keys
+    // =========================================================================
+    const cssKeyboard = document.querySelector('.css-keyboard');
+    if (cssKeyboard) {
+        const keys = cssKeyboard.querySelectorAll('.kb-key');
+
+        keys.forEach(key => {
+            key.addEventListener('click', (e) => {
+                e.preventDefault();
+
+                // Remove any existing animation classes
+                key.classList.remove('kb-key-pressed', 'kb-key-fading');
+
+                // Force reflow to restart animation
+                void key.offsetWidth;
+
+                // Add pressed state
+                key.classList.add('kb-key-pressed');
+
+                // After a short delay, start fade out
+                setTimeout(() => {
+                    key.classList.remove('kb-key-pressed');
+                    key.classList.add('kb-key-fading');
+
+                    // Remove fading class after animation completes
+                    setTimeout(() => {
+                        key.classList.remove('kb-key-fading');
+                    }, 400);
+                }, 150);
+            });
+
+            // Also handle touch events for mobile
+            key.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                key.click();
+            }, { passive: false });
+        });
+    }
 })();

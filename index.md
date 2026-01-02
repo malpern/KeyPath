@@ -1309,23 +1309,20 @@ content_class: content-full kanata-landing
       </div>
       <!-- Modifier Row -->
       <div class="kb-row kb-row-mods">
-        <div class="kb-key kb-key-fn-mod"><span class="kb-icon">🌐</span><span class="kb-mod-label">fn</span></div>
+        <div class="kb-key kb-key-fn-mod">
+          <svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 1.5c4.687 0 8.5 3.813 8.5 8.5s-3.813 8.5-8.5 8.5-8.5-3.813-8.5-8.5 3.813-8.5 8.5-8.5zm0 2a6.5 6.5 0 00-6.5 6.5h1.5a5 5 0 015-5v-1.5zm0 3a3.5 3.5 0 00-3.5 3.5h1.5a2 2 0 012-2v-1.5z"/></svg>
+          <span class="kb-mod-label">fn</span>
+        </div>
         <div class="kb-key kb-key-ctrl"><span class="kb-icon">⌃</span></div>
         <div class="kb-key kb-key-opt"><span class="kb-icon">⌥</span></div>
         <div class="kb-key kb-key-cmd"><span class="kb-icon">⌘</span></div>
         <div class="kb-key kb-key-space"></div>
         <div class="kb-key kb-key-cmd"><span class="kb-icon">⌘</span></div>
         <div class="kb-key kb-key-opt"><span class="kb-icon">⌥</span></div>
-        <div class="kb-key kb-key-arrows">
-          <div class="kb-arrows">
-            <div class="kb-arrow kb-arrow-up">↑</div>
-            <div class="kb-arrow-bottom">
-              <span class="kb-arrow kb-arrow-left">←</span>
-              <span class="kb-arrow kb-arrow-down">↓</span>
-              <span class="kb-arrow kb-arrow-right">→</span>
-            </div>
-          </div>
-        </div>
+        <div class="kb-key kb-key-arrow kb-key-arrow-up"><span class="kb-arrow-icon">↑</span></div>
+        <div class="kb-key kb-key-arrow kb-key-arrow-left"><span class="kb-arrow-icon">←</span></div>
+        <div class="kb-key kb-key-arrow kb-key-arrow-down"><span class="kb-arrow-icon">↓</span></div>
+        <div class="kb-key kb-key-arrow kb-key-arrow-right"><span class="kb-arrow-icon">→</span></div>
       </div>
     </div>
     <div class="keyboard-hero-fade"></div>
