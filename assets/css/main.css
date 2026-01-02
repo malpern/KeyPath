@@ -2661,42 +2661,264 @@ li {
 }
 
 /* =========================================================================
-   Keyboard Hero Section (before footer)
+   CSS Keyboard Hero Section (before footer)
    ========================================================================= */
 .keyboard-hero-section {
     position: relative;
     width: 100vw;
     margin-left: calc(-50vw + 50%);
     overflow: hidden;
-    background: linear-gradient(180deg, var(--color-background) 0%, var(--color-background-secondary) 100%);
+    background: linear-gradient(180deg, var(--color-background) 0%, #1a1a1a 100%);
     margin-bottom: 0;
+    padding-top: var(--spacing-2xl);
 }
 
 .keyboard-hero-wrapper {
     position: relative;
-    max-width: 1400px;
+    max-width: 1000px;
     margin: 0 auto;
-    padding-top: var(--spacing-xl);
+    padding: 0 var(--spacing-lg);
 }
 
-.keyboard-hero-image {
-    display: block;
-    width: 100%;
-    max-width: 900px;
-    height: auto;
-    margin: 0 auto;
-    /* Clip the bottom portion (trackpad area) */
-    clip-path: inset(0 0 35% 0);
+/* CSS Keyboard Container */
+.css-keyboard {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 20px 24px 30px;
+    background: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%);
+    border-radius: 16px 16px 0 0;
+    box-shadow:
+        0 -4px 20px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
     /* Fade effect - dimmed by default */
-    opacity: 0.4;
-    filter: brightness(0.6);
+    opacity: 0.5;
+    filter: brightness(0.7);
     transition: opacity 0.6s ease, filter 0.6s ease;
 }
 
 /* Full illumination on hover */
-.keyboard-hero-section:hover .keyboard-hero-image {
+.keyboard-hero-section:hover .css-keyboard {
     opacity: 1;
     filter: brightness(1);
+}
+
+/* Keyboard Rows */
+.kb-row {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+}
+
+.kb-row-fn {
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.kb-row-mods {
+    gap: 5px;
+}
+
+/* Base Key Styles */
+.kb-key {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 54px;
+    height: 54px;
+    background: linear-gradient(180deg, #3a3a3c 0%, #2c2c2e 100%);
+    border: 1px solid #48484a;
+    border-radius: 8px;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+    box-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    transition: all 0.15s ease;
+}
+
+.kb-key:hover {
+    background: linear-gradient(180deg, #48484a 0%, #3a3a3c 100%);
+    transform: translateY(-1px);
+    box-shadow:
+        0 4px 8px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Key Labels */
+.kb-primary {
+    font-size: 18px;
+    font-weight: 500;
+    color: #f5f5f7;
+    line-height: 1;
+}
+
+.kb-secondary {
+    font-size: 11px;
+    color: #98989d;
+    line-height: 1;
+    margin-bottom: 2px;
+}
+
+.kb-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #98989d;
+    text-transform: lowercase;
+}
+
+.kb-icon {
+    font-size: 16px;
+    line-height: 1;
+}
+
+.kb-fn-label {
+    font-size: 9px;
+    color: #636366;
+    margin-top: 2px;
+}
+
+.kb-mod-label {
+    font-size: 10px;
+    color: #98989d;
+    margin-top: 1px;
+}
+
+/* Function Keys */
+.kb-key-fn {
+    width: 54px;
+    height: 34px;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.kb-key-fn .kb-icon {
+    font-size: 14px;
+}
+
+.kb-key-esc {
+    width: 54px;
+}
+
+.kb-key-power {
+    width: 54px;
+}
+
+/* Wide Keys */
+.kb-key-delete {
+    width: 82px;
+}
+
+.kb-key-tab {
+    width: 82px;
+    align-items: flex-start;
+    padding-left: 12px;
+}
+
+.kb-key-caps {
+    width: 94px;
+    align-items: flex-start;
+    padding-left: 12px;
+}
+
+.kb-key-return {
+    width: 94px;
+    align-items: flex-end;
+    padding-right: 12px;
+}
+
+.kb-key-shift-l {
+    width: 124px;
+    align-items: flex-start;
+    padding-left: 12px;
+}
+
+.kb-key-shift-r {
+    width: 124px;
+    align-items: flex-end;
+    padding-right: 12px;
+}
+
+.kb-key-backslash {
+    width: 54px;
+}
+
+/* Modifier Row Keys */
+.kb-key-fn-mod {
+    width: 54px;
+    height: 54px;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.kb-key-ctrl,
+.kb-key-opt {
+    width: 54px;
+}
+
+.kb-key-cmd {
+    width: 68px;
+}
+
+.kb-key-space {
+    width: 280px;
+}
+
+/* Arrow Keys */
+.kb-key-arrows {
+    width: 120px;
+    height: 54px;
+    padding: 4px;
+}
+
+.kb-arrows {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+}
+
+.kb-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: #98989d;
+}
+
+.kb-arrow-up {
+    height: 22px;
+    width: 36px;
+    background: linear-gradient(180deg, #3a3a3c 0%, #2c2c2e 100%);
+    border: 1px solid #48484a;
+    border-radius: 4px 4px 0 0;
+}
+
+.kb-arrow-bottom {
+    display: flex;
+    gap: 2px;
+}
+
+.kb-arrow-left,
+.kb-arrow-down,
+.kb-arrow-right {
+    width: 36px;
+    height: 22px;
+    background: linear-gradient(180deg, #3a3a3c 0%, #2c2c2e 100%);
+    border: 1px solid #48484a;
+}
+
+.kb-arrow-left {
+    border-radius: 0 0 0 4px;
+}
+
+.kb-arrow-down {
+    border-radius: 0;
+}
+
+.kb-arrow-right {
+    border-radius: 0 0 4px 0;
 }
 
 /* Gradient fade at the bottom to blend into footer */
@@ -2705,9 +2927,29 @@ li {
     bottom: 0;
     left: 0;
     right: 0;
-    height: 120px;
+    height: 80px;
     background: linear-gradient(180deg, transparent 0%, var(--color-background-secondary) 100%);
     pointer-events: none;
+}
+
+/* Responsive - Tablet */
+@media (max-width: 900px) {
+    .css-keyboard {
+        transform: scale(0.85);
+        transform-origin: top center;
+    }
+}
+
+/* Responsive - Mobile */
+@media (max-width: 600px) {
+    .css-keyboard {
+        transform: scale(0.65);
+        transform-origin: top center;
+    }
+
+    .keyboard-hero-section {
+        padding-top: var(--spacing-lg);
+    }
 }
 
 /* Footer */

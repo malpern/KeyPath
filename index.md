@@ -1221,14 +1221,113 @@ content_class: content-full kanata-landing
 
 </div>
 
-<!-- Full-width keyboard visualization before footer -->
+<!-- Full-width CSS keyboard visualization before footer -->
 <section class="keyboard-hero-section">
   <div class="keyboard-hero-wrapper">
-    <img
-      src="{{ '/images/keyboards/web-macbook-us.png' | relative_url }}"
-      alt="MacBook keyboard"
-      class="keyboard-hero-image"
-    />
+    <div class="css-keyboard">
+      <!-- Function Row -->
+      <div class="kb-row kb-row-fn">
+        <div class="kb-key kb-key-fn kb-key-esc"><span class="kb-label">esc</span></div>
+        <div class="kb-key kb-key-fn"><span class="kb-icon">☀</span><span class="kb-fn-label">F1</span></div>
+        <div class="kb-key kb-key-fn"><span class="kb-icon">☀</span><span class="kb-fn-label">F2</span></div>
+        <div class="kb-key kb-key-fn"><span class="kb-icon">⌨</span><span class="kb-fn-label">F3</span></div>
+        <div class="kb-key kb-key-fn"><span class="kb-icon">🔍</span><span class="kb-fn-label">F4</span></div>
+        <div class="kb-key kb-key-fn"><span class="kb-icon">🎤</span><span class="kb-fn-label">F5</span></div>
+        <div class="kb-key kb-key-fn"><span class="kb-icon">🌙</span><span class="kb-fn-label">F6</span></div>
+        <div class="kb-key kb-key-fn"><span class="kb-icon">⏪</span><span class="kb-fn-label">F7</span></div>
+        <div class="kb-key kb-key-fn"><span class="kb-icon">⏯</span><span class="kb-fn-label">F8</span></div>
+        <div class="kb-key kb-key-fn"><span class="kb-icon">⏩</span><span class="kb-fn-label">F9</span></div>
+        <div class="kb-key kb-key-fn"><span class="kb-icon">🔇</span><span class="kb-fn-label">F10</span></div>
+        <div class="kb-key kb-key-fn"><span class="kb-icon">🔉</span><span class="kb-fn-label">F11</span></div>
+        <div class="kb-key kb-key-fn"><span class="kb-icon">🔊</span><span class="kb-fn-label">F12</span></div>
+        <div class="kb-key kb-key-fn kb-key-power"><span class="kb-icon">⏻</span></div>
+      </div>
+      <!-- Number Row -->
+      <div class="kb-row">
+        <div class="kb-key"><span class="kb-secondary">~</span><span class="kb-primary">`</span></div>
+        <div class="kb-key"><span class="kb-secondary">!</span><span class="kb-primary">1</span></div>
+        <div class="kb-key"><span class="kb-secondary">@</span><span class="kb-primary">2</span></div>
+        <div class="kb-key"><span class="kb-secondary">#</span><span class="kb-primary">3</span></div>
+        <div class="kb-key"><span class="kb-secondary">$</span><span class="kb-primary">4</span></div>
+        <div class="kb-key"><span class="kb-secondary">%</span><span class="kb-primary">5</span></div>
+        <div class="kb-key"><span class="kb-secondary">^</span><span class="kb-primary">6</span></div>
+        <div class="kb-key"><span class="kb-secondary">&amp;</span><span class="kb-primary">7</span></div>
+        <div class="kb-key"><span class="kb-secondary">*</span><span class="kb-primary">8</span></div>
+        <div class="kb-key"><span class="kb-secondary">(</span><span class="kb-primary">9</span></div>
+        <div class="kb-key"><span class="kb-secondary">)</span><span class="kb-primary">0</span></div>
+        <div class="kb-key"><span class="kb-secondary">_</span><span class="kb-primary">-</span></div>
+        <div class="kb-key"><span class="kb-secondary">+</span><span class="kb-primary">=</span></div>
+        <div class="kb-key kb-key-delete"><span class="kb-label">delete</span></div>
+      </div>
+      <!-- QWERTY Row -->
+      <div class="kb-row">
+        <div class="kb-key kb-key-tab"><span class="kb-label">tab</span></div>
+        <div class="kb-key"><span class="kb-primary">Q</span></div>
+        <div class="kb-key"><span class="kb-primary">W</span></div>
+        <div class="kb-key"><span class="kb-primary">E</span></div>
+        <div class="kb-key"><span class="kb-primary">R</span></div>
+        <div class="kb-key"><span class="kb-primary">T</span></div>
+        <div class="kb-key"><span class="kb-primary">Y</span></div>
+        <div class="kb-key"><span class="kb-primary">U</span></div>
+        <div class="kb-key"><span class="kb-primary">I</span></div>
+        <div class="kb-key"><span class="kb-primary">O</span></div>
+        <div class="kb-key"><span class="kb-primary">P</span></div>
+        <div class="kb-key"><span class="kb-secondary">{</span><span class="kb-primary">[</span></div>
+        <div class="kb-key"><span class="kb-secondary">}</span><span class="kb-primary">]</span></div>
+        <div class="kb-key kb-key-backslash"><span class="kb-secondary">|</span><span class="kb-primary">\</span></div>
+      </div>
+      <!-- Home Row -->
+      <div class="kb-row">
+        <div class="kb-key kb-key-caps"><span class="kb-label">esc</span></div>
+        <div class="kb-key"><span class="kb-primary">A</span></div>
+        <div class="kb-key"><span class="kb-primary">S</span></div>
+        <div class="kb-key"><span class="kb-primary">D</span></div>
+        <div class="kb-key"><span class="kb-primary">F</span></div>
+        <div class="kb-key"><span class="kb-primary">G</span></div>
+        <div class="kb-key"><span class="kb-primary">H</span></div>
+        <div class="kb-key"><span class="kb-primary">J</span></div>
+        <div class="kb-key"><span class="kb-primary">K</span></div>
+        <div class="kb-key"><span class="kb-primary">L</span></div>
+        <div class="kb-key"><span class="kb-secondary">:</span><span class="kb-primary">;</span></div>
+        <div class="kb-key"><span class="kb-secondary">"</span><span class="kb-primary">'</span></div>
+        <div class="kb-key kb-key-return"><span class="kb-label">return</span></div>
+      </div>
+      <!-- Bottom Row -->
+      <div class="kb-row">
+        <div class="kb-key kb-key-shift-l"><span class="kb-label">shift</span></div>
+        <div class="kb-key"><span class="kb-primary">Z</span></div>
+        <div class="kb-key"><span class="kb-primary">X</span></div>
+        <div class="kb-key"><span class="kb-primary">C</span></div>
+        <div class="kb-key"><span class="kb-primary">V</span></div>
+        <div class="kb-key"><span class="kb-primary">B</span></div>
+        <div class="kb-key"><span class="kb-primary">N</span></div>
+        <div class="kb-key"><span class="kb-primary">M</span></div>
+        <div class="kb-key"><span class="kb-secondary">&lt;</span><span class="kb-primary">,</span></div>
+        <div class="kb-key"><span class="kb-secondary">&gt;</span><span class="kb-primary">.</span></div>
+        <div class="kb-key"><span class="kb-secondary">?</span><span class="kb-primary">/</span></div>
+        <div class="kb-key kb-key-shift-r"><span class="kb-label">shift</span></div>
+      </div>
+      <!-- Modifier Row -->
+      <div class="kb-row kb-row-mods">
+        <div class="kb-key kb-key-fn-mod"><span class="kb-icon">🌐</span><span class="kb-mod-label">fn</span></div>
+        <div class="kb-key kb-key-ctrl"><span class="kb-icon">⌃</span></div>
+        <div class="kb-key kb-key-opt"><span class="kb-icon">⌥</span></div>
+        <div class="kb-key kb-key-cmd"><span class="kb-icon">⌘</span></div>
+        <div class="kb-key kb-key-space"></div>
+        <div class="kb-key kb-key-cmd"><span class="kb-icon">⌘</span></div>
+        <div class="kb-key kb-key-opt"><span class="kb-icon">⌥</span></div>
+        <div class="kb-key kb-key-arrows">
+          <div class="kb-arrows">
+            <div class="kb-arrow kb-arrow-up">↑</div>
+            <div class="kb-arrow-bottom">
+              <span class="kb-arrow kb-arrow-left">←</span>
+              <span class="kb-arrow kb-arrow-down">↓</span>
+              <span class="kb-arrow kb-arrow-right">→</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="keyboard-hero-fade"></div>
   </div>
 </section>
