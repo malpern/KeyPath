@@ -3594,14 +3594,12 @@ a.button:active {
 .term-tooltip {
     position: relative;
     display: inline;
-    border-bottom: 1px dashed var(--color-text-secondary);
     cursor: help;
-    transition: color var(--transition-fast), border-color var(--transition-fast);
+    transition: color var(--transition-fast);
 }
 
 .term-tooltip:hover {
     color: var(--color-primary);
-    border-color: var(--color-primary);
 }
 
 .term-tooltip::after {
