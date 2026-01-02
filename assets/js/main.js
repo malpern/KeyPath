@@ -1700,33 +1700,27 @@
         let idleTimeout;
         const IDLE_DELAY = 3000; // 3 seconds of inactivity
 
-        function resetIdleTimer() {
-            // Remove idle class immediately on activity
-            keyboardSection.classList.remove('keyboard-idle');
-
-            // Clear existing timeout
+        function startIdleTimer() {
             clearTimeout(idleTimeout);
-
-            // Set new timeout
             idleTimeout = setTimeout(() => {
                 keyboardSection.classList.add('keyboard-idle');
             }, IDLE_DELAY);
         }
 
-        // Track mouse movement within section
-        keyboardSection.addEventListener('mouseenter', resetIdleTimer);
-        keyboardSection.addEventListener('mousemove', resetIdleTimer);
-        keyboardSection.addEventListener('mouseleave', () => {
-            // When mouse leaves, start idle timer immediately
-            clearTimeout(idleTimeout);
-            idleTimeout = setTimeout(() => {
-                keyboardSection.classList.add('keyboard-idle');
-            }, IDLE_DELAY);
-        });
+        function wakeKeyboard() {
+            // Remove idle class and restart timer
+            keyboardSection.classList.remove('keyboard-idle');
+            startIdleTimer();
+        }
+
+        // Wake on any mouse activity
+        keyboardSection.addEventListener('mouseenter', wakeKeyboard);
+        keyboardSection.addEventListener('mousemove', wakeKeyboard);
+
+        // When mouse leaves, keyboard stays lit - timer continues from last activity
+        // No special handling needed, the existing timer will fire after IDLE_DELAY
 
         // Start idle timer on page load
-        idleTimeout = setTimeout(() => {
-            keyboardSection.classList.add('keyboard-idle');
-        }, IDLE_DELAY);
+        startIdleTimer();
     }
 })();
