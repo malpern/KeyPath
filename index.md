@@ -56,13 +56,55 @@ content_class: content-full kanata-landing
       Turn "go to X" into muscle memory: any gesture can open an app, a URL, or a workflow.
     </p>
 
-    <ul class="cinema-features">
-      <li><strong>Apps:</strong> bind Safari, Finder, Slack, etc.</li>
-      <li><strong>Websites:</strong> open docs, dashboards, PRs, and tickets.</li>
-      <li><strong>Fast:</strong> trigger from a key, layer, chord, or sequence.</li>
-    </ul>
-
-    <div class="cinema-spacer"></div>
+    <!-- Gesture TOC - highlights as each example plays -->
+    <div class="cinema-toc">
+      <div class="cinema-toc-item" data-index="0">
+        <div class="cinema-gesture-icon">
+          <svg viewBox="0 0 40 24" fill="none">
+            <rect x="1" y="1" width="18" height="22" rx="3" fill="currentColor"/>
+            <rect x="21" y="1" width="18" height="22" rx="3" fill="currentColor"/>
+          </svg>
+        </div>
+        <span class="cinema-toc-label">Chord</span>
+      </div>
+      <div class="cinema-toc-item" data-index="1">
+        <div class="cinema-gesture-icon">
+          <svg viewBox="0 0 48 24" fill="none">
+            <rect x="1" y="1" width="14" height="22" rx="3" fill="currentColor"/>
+            <rect x="17" y="1" width="14" height="22" rx="3" fill="currentColor" opacity="0.6"/>
+            <rect x="33" y="1" width="14" height="22" rx="3" fill="currentColor" opacity="0.3"/>
+          </svg>
+        </div>
+        <span class="cinema-toc-label">Sequence</span>
+      </div>
+      <div class="cinema-toc-item" data-index="2">
+        <div class="cinema-gesture-icon">
+          <svg viewBox="0 0 32 24" fill="none">
+            <rect x="1" y="1" width="22" height="22" rx="3" fill="currentColor"/>
+            <text x="12" y="16" font-size="11" font-weight="700" fill="var(--color-background)" text-anchor="middle">2×</text>
+          </svg>
+        </div>
+        <span class="cinema-toc-label">Tap-dance</span>
+      </div>
+      <div class="cinema-toc-item" data-index="3">
+        <div class="cinema-gesture-icon">
+          <svg viewBox="0 0 24 28" fill="none">
+            <rect x="1" y="1" width="22" height="22" rx="3" fill="currentColor"/>
+            <rect x="3" y="25" width="18" height="3" rx="1.5" fill="currentColor" opacity="0.5"/>
+          </svg>
+        </div>
+        <span class="cinema-toc-label">Tap-hold</span>
+      </div>
+      <div class="cinema-toc-item" data-index="4">
+        <div class="cinema-gesture-icon">
+          <svg viewBox="0 0 40 24" fill="none">
+            <rect x="1" y="1" width="22" height="22" rx="3" fill="currentColor"/>
+            <path d="M28 12h8M33 8l4 4-4 4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+          </svg>
+        </div>
+        <span class="cinema-toc-label">Leader</span>
+      </div>
+    </div>
 
     <div class="launch-cinema-stage">
       <!-- Gesture label (typed in) -->
@@ -79,79 +121,14 @@ content_class: content-full kanata-landing
         <div class="cinema-app-icon"></div>
         <div class="cinema-app-name"></div>
       </div>
-
-      <!-- Summary slide -->
-      <div class="cinema-summary">
-        <h3 class="cinema-summary-title">Five ways to trigger anything</h3>
-        <div class="cinema-summary-grid">
-          <div class="cinema-summary-item" data-summary="0">
-            <div class="cinema-gesture-icon">
-              <!-- Chord: Two keys pressed together -->
-              <svg viewBox="0 0 40 24" fill="none">
-                <rect x="1" y="1" width="18" height="22" rx="3" fill="currentColor"/>
-                <rect x="21" y="1" width="18" height="22" rx="3" fill="currentColor"/>
-              </svg>
-            </div>
-            <span class="cinema-summary-label">Chord</span>
-          </div>
-          <div class="cinema-summary-item" data-summary="1">
-            <div class="cinema-gesture-icon">
-              <!-- Sequence: 1-2-3 -->
-              <svg viewBox="0 0 48 24" fill="none">
-                <rect x="1" y="1" width="14" height="22" rx="3" fill="currentColor"/>
-                <rect x="17" y="1" width="14" height="22" rx="3" fill="currentColor" opacity="0.6"/>
-                <rect x="33" y="1" width="14" height="22" rx="3" fill="currentColor" opacity="0.3"/>
-              </svg>
-            </div>
-            <span class="cinema-summary-label">Sequence</span>
-          </div>
-          <div class="cinema-summary-item" data-summary="2">
-            <div class="cinema-gesture-icon">
-              <!-- Tap-dance: Key with 2x -->
-              <svg viewBox="0 0 32 24" fill="none">
-                <rect x="1" y="1" width="22" height="22" rx="3" fill="currentColor"/>
-                <text x="12" y="16" font-size="11" font-weight="700" fill="var(--color-background)" text-anchor="middle">2×</text>
-              </svg>
-            </div>
-            <span class="cinema-summary-label">Tap-dance</span>
-          </div>
-          <div class="cinema-summary-item" data-summary="3">
-            <div class="cinema-gesture-icon">
-              <!-- Hold: Key with hold bar -->
-              <svg viewBox="0 0 24 28" fill="none">
-                <rect x="1" y="1" width="22" height="22" rx="3" fill="currentColor"/>
-                <rect x="3" y="25" width="18" height="3" rx="1.5" fill="currentColor" opacity="0.5"/>
-              </svg>
-            </div>
-            <span class="cinema-summary-label">Tap-hold</span>
-          </div>
-          <div class="cinema-summary-item" data-summary="4">
-            <div class="cinema-gesture-icon">
-              <!-- Leader: Key + arrow -->
-              <svg viewBox="0 0 40 24" fill="none">
-                <rect x="1" y="1" width="22" height="22" rx="3" fill="currentColor"/>
-                <path d="M28 12h8M33 8l4 4-4 4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
-              </svg>
-            </div>
-            <span class="cinema-summary-label">Leader</span>
-          </div>
-        </div>
-        <button class="cinema-replay-btn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-          Play again
-        </button>
-      </div>
     </div>
 
-    <!-- Progress dots -->
-    <div class="cinema-progress">
-      <span class="cinema-dot active" data-index="0"></span>
-      <span class="cinema-dot" data-index="1"></span>
-      <span class="cinema-dot" data-index="2"></span>
-      <span class="cinema-dot" data-index="3"></span>
-      <span class="cinema-dot" data-index="4"></span>
-      <span class="cinema-dot" data-index="5"></span>
-    </div>
+    <!-- Replay button (shown after all examples) -->
+    <button class="cinema-replay-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+      Play again
+    </button>
+
   </section>
 
   <!-- BUILD YOUR OWN RULES - Full Screen -->

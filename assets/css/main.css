@@ -702,27 +702,54 @@ body.sidebar-open .sidebar {
     }
 }
 
-.cinema-features {
-    list-style: none;
-    padding: 0;
-    margin: 0 0 var(--spacing-xl) 0;
+/* Cinema TOC - table of contents for gesture types */
+.cinema-toc {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.cinema-toc-item {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-sm);
-    text-align: center;
+    align-items: center;
+    gap: var(--spacing-xs);
+    opacity: 0.3;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    cursor: pointer;
 }
 
-.cinema-features li {
-    font-size: 1rem;
+.cinema-toc-item:hover {
+    opacity: 0.6;
+}
+
+.cinema-toc-item.active {
+    opacity: 1;
+}
+
+.cinema-toc-item.active .cinema-gesture-icon {
+    transform: scale(1.1);
+}
+
+.cinema-toc-label {
+    font-size: var(--font-size-xs);
     color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
-.cinema-features li strong {
+.cinema-toc-item.active .cinema-toc-label {
     color: var(--color-text);
 }
 
-.cinema-spacer {
-    height: var(--spacing-lg);
+@media (max-width: 640px) {
+    .cinema-toc {
+        gap: var(--spacing-md);
+    }
+    .cinema-toc-label {
+        font-size: 10px;
+    }
 }
 
 .launch-cinema-stage {
@@ -927,20 +954,25 @@ body.sidebar-open .sidebar {
     transition: all 0.15s ease-out;
 }
 
+/* Gesture icon hover animations - now on TOC items */
 /* Chord: both keys press down together */
-.cinema-summary-item[data-summary="0"]:hover .cinema-gesture-icon svg rect {
+.cinema-toc-item[data-index="0"]:hover .cinema-gesture-icon svg rect,
+.cinema-toc-item[data-index="0"].active .cinema-gesture-icon svg rect {
     transform: translateY(2px);
     filter: brightness(1.2);
 }
 
 /* Sequence: keys light up in order */
-.cinema-summary-item[data-summary="1"]:hover .cinema-gesture-icon svg rect:nth-child(1) {
+.cinema-toc-item[data-index="1"]:hover .cinema-gesture-icon svg rect:nth-child(1),
+.cinema-toc-item[data-index="1"].active .cinema-gesture-icon svg rect:nth-child(1) {
     animation: sequence-pulse 0.6s ease-out infinite;
 }
-.cinema-summary-item[data-summary="1"]:hover .cinema-gesture-icon svg rect:nth-child(2) {
+.cinema-toc-item[data-index="1"]:hover .cinema-gesture-icon svg rect:nth-child(2),
+.cinema-toc-item[data-index="1"].active .cinema-gesture-icon svg rect:nth-child(2) {
     animation: sequence-pulse 0.6s ease-out 0.15s infinite;
 }
-.cinema-summary-item[data-summary="1"]:hover .cinema-gesture-icon svg rect:nth-child(3) {
+.cinema-toc-item[data-index="1"]:hover .cinema-gesture-icon svg rect:nth-child(3),
+.cinema-toc-item[data-index="1"].active .cinema-gesture-icon svg rect:nth-child(3) {
     animation: sequence-pulse 0.6s ease-out 0.3s infinite;
 }
 
@@ -950,8 +982,9 @@ body.sidebar-open .sidebar {
 }
 
 /* Tap-dance: key bounces twice */
-.cinema-summary-item[data-summary="2"]:hover .cinema-gesture-icon svg rect {
-    animation: tap-dance 0.4s ease-out;
+.cinema-toc-item[data-index="2"]:hover .cinema-gesture-icon svg rect,
+.cinema-toc-item[data-index="2"].active .cinema-gesture-icon svg rect {
+    animation: tap-dance 0.4s ease-out infinite;
 }
 
 @keyframes tap-dance {
@@ -962,10 +995,12 @@ body.sidebar-open .sidebar {
 }
 
 /* Tap-hold: key presses, bar fills */
-.cinema-summary-item[data-summary="3"]:hover .cinema-gesture-icon svg rect:first-child {
+.cinema-toc-item[data-index="3"]:hover .cinema-gesture-icon svg rect:first-child,
+.cinema-toc-item[data-index="3"].active .cinema-gesture-icon svg rect:first-child {
     transform: translateY(2px);
 }
-.cinema-summary-item[data-summary="3"]:hover .cinema-gesture-icon svg rect:last-child {
+.cinema-toc-item[data-index="3"]:hover .cinema-gesture-icon svg rect:last-child,
+.cinema-toc-item[data-index="3"].active .cinema-gesture-icon svg rect:last-child {
     animation: hold-fill 0.8s ease-out infinite;
     transform-origin: left center;
 }
@@ -976,10 +1011,12 @@ body.sidebar-open .sidebar {
 }
 
 /* Leader: key taps, arrow shoots forward */
-.cinema-summary-item[data-summary="4"]:hover .cinema-gesture-icon svg rect {
+.cinema-toc-item[data-index="4"]:hover .cinema-gesture-icon svg rect,
+.cinema-toc-item[data-index="4"].active .cinema-gesture-icon svg rect {
     animation: leader-tap 0.3s ease-out;
 }
-.cinema-summary-item[data-summary="4"]:hover .cinema-gesture-icon svg path {
+.cinema-toc-item[data-index="4"]:hover .cinema-gesture-icon svg path,
+.cinema-toc-item[data-index="4"].active .cinema-gesture-icon svg path {
     animation: leader-arrow 0.5s ease-out 0.15s infinite;
 }
 
@@ -992,18 +1029,6 @@ body.sidebar-open .sidebar {
     0% { opacity: 0.3; transform: translateX(0); }
     50% { opacity: 1; transform: translateX(3px); }
     100% { opacity: 0.3; transform: translateX(0); }
-}
-
-.cinema-summary-label {
-    font-size: var(--font-size-sm);
-    color: var(--color-text-secondary);
-    text-align: center;
-}
-
-@media (max-width: 768px) {
-    .cinema-summary-grid {
-        grid-template-columns: repeat(3, 1fr);
-    }
 }
 
 /* Replay button */

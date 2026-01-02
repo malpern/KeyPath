@@ -1331,9 +1331,8 @@
         const result = cinemaSection.querySelector('.cinema-result');
         const appIcon = cinemaSection.querySelector('.cinema-app-icon');
         const appName = cinemaSection.querySelector('.cinema-app-name');
-        const summary = cinemaSection.querySelector('.cinema-summary');
-        const summaryItems = cinemaSection.querySelectorAll('.cinema-summary-item');
-        const dots = cinemaSection.querySelectorAll('.cinema-dot');
+        const tocItems = cinemaSection.querySelectorAll('.cinema-toc-item');
+        const replayBtn = cinemaSection.querySelector('.cinema-replay-btn');
 
         const examples = [
             {
@@ -1515,50 +1514,29 @@
             await sleep(500);
         }
 
-        // Show summary slide with staggered items (stays visible, no auto-hide)
-        async function showSummary() {
-            summary.classList.add('visible');
-
-            // Stagger the items appearing
-            for (let i = 0; i < summaryItems.length; i++) {
-                await sleep(150);
-                summaryItems[i].classList.add('visible');
-            }
-
-            // Show replay button after items appear
-            await sleep(300);
-            const replayBtn = summary.querySelector('.cinema-replay-btn');
-            if (replayBtn) {
-                replayBtn.classList.add('visible');
-            }
-            // Summary stays visible - no auto-hide
+        // Update TOC highlighting
+        function updateToc(index) {
+            tocItems.forEach((item, i) => {
+                item.classList.toggle('active', i === index);
+            });
         }
 
-        function hideSummary() {
-            summaryItems.forEach(item => item.classList.remove('visible'));
-            const replayBtn = summary.querySelector('.cinema-replay-btn');
-            if (replayBtn) {
-                replayBtn.classList.remove('visible');
-            }
-            summary.classList.remove('visible');
+        // Show/hide replay button
+        function showReplayBtn() {
+            if (replayBtn) replayBtn.classList.add('visible');
+        }
+
+        function hideReplayBtn() {
+            if (replayBtn) replayBtn.classList.remove('visible');
         }
 
         async function playExample(index) {
             if (isAnimating) return;
             isAnimating = true;
 
-            // Update dots
-            dots.forEach((dot, i) => {
-                dot.classList.toggle('active', i === index);
-            });
-
-            // Check if this is the summary slide (index 5) - stop here, don't loop
-            if (index === 5) {
-                await showSummary();
-                isAnimating = false;
-                // Stay on summary - user can click "Play again" to restart
-                return;
-            }
+            // Update TOC highlighting
+            updateToc(index);
+            hideReplayBtn();
 
             const example = examples[index];
 
@@ -1570,20 +1548,24 @@
 
             isAnimating = false;
 
-            // Next example (including summary as index 5)
-            currentIndex = (currentIndex + 1) % 6;
-            playExample(currentIndex);
+            // Next example or show replay button at end
+            currentIndex = currentIndex + 1;
+            if (currentIndex < 5) {
+                playExample(currentIndex);
+            } else {
+                // All examples done - show replay button
+                showReplayBtn();
+            }
         }
 
         function sleep(ms) {
             return new Promise(resolve => setTimeout(resolve, ms));
         }
 
-        // Click on dots to jump to example
-        dots.forEach((dot, i) => {
-            dot.addEventListener('click', () => {
+        // Click on TOC items to jump to example
+        tocItems.forEach((item, i) => {
+            item.addEventListener('click', () => {
                 if (!isAnimating) {
-                    hideSummary();
                     currentIndex = i;
                     playExample(currentIndex);
                 }
@@ -1591,11 +1573,9 @@
         });
 
         // Replay button click handler
-        const replayBtn = cinemaSection.querySelector('.cinema-replay-btn');
         if (replayBtn) {
             replayBtn.addEventListener('click', () => {
                 if (!isAnimating) {
-                    hideSummary();
                     currentIndex = 0;
                     setTimeout(() => playExample(currentIndex), 300);
                 }
