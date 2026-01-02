@@ -965,26 +965,26 @@ body.sidebar-open .sidebar {
 /* Sequence: keys light up in order */
 .cinema-toc-item[data-index="1"]:hover .cinema-gesture-icon svg rect:nth-child(1),
 .cinema-toc-item[data-index="1"].active .cinema-gesture-icon svg rect:nth-child(1) {
-    animation: sequence-pulse 0.6s ease-out infinite;
+    animation: sequence-pulse 0.6s ease-out forwards;
 }
 .cinema-toc-item[data-index="1"]:hover .cinema-gesture-icon svg rect:nth-child(2),
 .cinema-toc-item[data-index="1"].active .cinema-gesture-icon svg rect:nth-child(2) {
-    animation: sequence-pulse 0.6s ease-out 0.15s infinite;
+    animation: sequence-pulse 0.6s ease-out 0.15s forwards;
 }
 .cinema-toc-item[data-index="1"]:hover .cinema-gesture-icon svg rect:nth-child(3),
 .cinema-toc-item[data-index="1"].active .cinema-gesture-icon svg rect:nth-child(3) {
-    animation: sequence-pulse 0.6s ease-out 0.3s infinite;
+    animation: sequence-pulse 0.6s ease-out 0.3s forwards;
 }
 
 @keyframes sequence-pulse {
-    0%, 100% { opacity: 0.3; }
-    50% { opacity: 1; }
+    0% { opacity: 0.3; }
+    100% { opacity: 1; }
 }
 
 /* Tap-dance: key bounces twice */
 .cinema-toc-item[data-index="2"]:hover .cinema-gesture-icon svg rect,
 .cinema-toc-item[data-index="2"].active .cinema-gesture-icon svg rect {
-    animation: tap-dance 0.4s ease-out infinite;
+    animation: tap-dance 0.4s ease-out;
 }
 
 @keyframes tap-dance {
@@ -1001,7 +1001,7 @@ body.sidebar-open .sidebar {
 }
 .cinema-toc-item[data-index="3"]:hover .cinema-gesture-icon svg rect:last-child,
 .cinema-toc-item[data-index="3"].active .cinema-gesture-icon svg rect:last-child {
-    animation: hold-fill 0.8s ease-out infinite;
+    animation: hold-fill 0.8s ease-out forwards;
     transform-origin: left center;
 }
 
@@ -1017,7 +1017,7 @@ body.sidebar-open .sidebar {
 }
 .cinema-toc-item[data-index="4"]:hover .cinema-gesture-icon svg path,
 .cinema-toc-item[data-index="4"].active .cinema-gesture-icon svg path {
-    animation: leader-arrow 0.5s ease-out 0.15s infinite;
+    animation: leader-arrow 0.5s ease-out 0.15s forwards;
 }
 
 @keyframes leader-tap {
@@ -1026,9 +1026,8 @@ body.sidebar-open .sidebar {
 }
 
 @keyframes leader-arrow {
-    0% { opacity: 0.3; transform: translateX(0); }
-    50% { opacity: 1; transform: translateX(3px); }
-    100% { opacity: 0.3; transform: translateX(0); }
+    0% { opacity: 0.6; transform: translateX(0); }
+    100% { opacity: 1; transform: translateX(3px); }
 }
 
 /* Replay button */
