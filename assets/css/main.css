@@ -7313,14 +7313,15 @@ a.button:active {
     position: absolute;
     left: 50%;
     top: 50%;
-    width: 170%;
-    height: 170%;
+    width: 145%;
+    height: 145%;
     border-radius: 999px;
-    border: 2px solid rgba(168, 85, 247, 0.55);
-    background: radial-gradient(circle,
-        rgba(168, 85, 247, 0.25) 0%,
-        rgba(168, 85, 247, 0.12) 35%,
-        rgba(168, 85, 247, 0.0) 70%);
+    border: none;
+    background: repeating-radial-gradient(circle,
+        rgba(168, 85, 247, 0.55) 0px,
+        rgba(168, 85, 247, 0.55) 2px,
+        rgba(168, 85, 247, 0.0) 10px,
+        rgba(168, 85, 247, 0.0) 18px);
     transform: translate(-50%, -50%) scale(0.25);
     opacity: 0;
     pointer-events: none;
@@ -7328,9 +7329,8 @@ a.button:active {
 }
 
 .keyboard-hero-section:not(.hyper-pulse-stopped) .kb-key-hyper::after {
-    width: 220%;
-    height: 220%;
-    border-color: rgba(168, 85, 247, 0.35);
+    width: 190%;
+    height: 190%;
     animation-delay: 1.3s;
 }
 }
@@ -7370,7 +7370,7 @@ a.button:active {
     }
     100% {
         opacity: 0;
-        transform: translate(-50%, -50%) scale(2.6);
+        transform: translate(-50%, -50%) scale(2.0);
     }
 }
 
