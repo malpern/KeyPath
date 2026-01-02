@@ -52,6 +52,125 @@ content_class: content-full kanata-landing
     </div>
   </section>
 
+  <!-- VIRTUAL KEYBOARD HERO -->
+  <section class="keyboard-hero-section">
+    <div class="keyboard-hero-wrapper">
+      <div class="keyboard-hero-copy">
+        <h2 class="keyboard-hero-title">Launch apps, websites, and docs in one keystroke</h2>
+        <p class="keyboard-hero-subtitle">Turn shortcuts into muscle memory — bind any key, chord, or layer to open tools, dashboards, and files instantly.</p>
+      </div>
+      <div class="css-keyboard">
+        <!-- Function Row - SF Symbol style SVG icons -->
+        <div class="kb-row kb-row-fn">
+          <div class="kb-key kb-key-fn kb-key-esc"><span class="kb-label">esc</span></div>
+          <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg><span class="kb-fn-label">F1</span></div>
+          <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/><path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg><span class="kb-fn-label">F2</span></div>
+          <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="2" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><rect x="16" y="2" width="6" height="6" rx="1"/><rect x="2" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/><rect x="16" y="9" width="6" height="6" rx="1"/></svg><span class="kb-fn-label">F3</span></div>
+          <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="10" cy="10" r="6"/><path d="M21 21l-4.35-4.35"/></svg><span class="kb-fn-label">F4</span></div>
+          <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1a4 4 0 0 0-4 4v6a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M12 19v4M8 23h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg><span class="kb-fn-label">F5</span></div>
+          <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span class="kb-fn-label">F6</span></div>
+          <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M19 20L9 12l10-8v16z"/><rect x="5" y="5" width="3" height="14"/></svg><span class="kb-fn-label">F7</span></div>
+          <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h3v16H6zM15 4h3v16h-3z"/></svg><span class="kb-fn-label">F8</span></div>
+          <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M5 4l10 8-10 8V4z"/><rect x="16" y="5" width="3" height="14"/></svg><span class="kb-fn-label">F9</span></div>
+          <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M11 5L6 9H2v6h4l5 4V5z" opacity="0.5"/><path d="M4 20L20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="kb-fn-label">F10</span></div>
+          <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg><span class="kb-fn-label">F11</span></div>
+          <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg><span class="kb-fn-label">F12</span></div>
+          <div class="kb-key kb-key-fn kb-key-power"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 2v8"/><path d="M18.36 6.64A9 9 0 1 1 5.64 6.64"/></svg></div>
+        </div>
+        <!-- Number Row -->
+        <div class="kb-row">
+          <div class="kb-key"><span class="kb-secondary">~</span><span class="kb-primary">`</span></div>
+          <div class="kb-key" data-launcher="github"><span class="kb-secondary">!</span><span class="kb-primary">1</span><span class="kb-launcher-icon">🐙</span></div>
+          <div class="kb-key" data-launcher="google"><span class="kb-secondary">@</span><span class="kb-primary">2</span><span class="kb-launcher-icon">🔍</span></div>
+          <div class="kb-key" data-launcher="notion"><span class="kb-secondary">#</span><span class="kb-primary">3</span><span class="kb-launcher-icon">📝</span></div>
+          <div class="kb-key" data-launcher="stackoverflow"><span class="kb-secondary">$</span><span class="kb-primary">4</span><span class="kb-launcher-icon">📚</span></div>
+          <div class="kb-key"><span class="kb-secondary">%</span><span class="kb-primary">5</span></div>
+          <div class="kb-key"><span class="kb-secondary">^</span><span class="kb-primary">6</span></div>
+          <div class="kb-key"><span class="kb-secondary">&amp;</span><span class="kb-primary">7</span></div>
+          <div class="kb-key"><span class="kb-secondary">*</span><span class="kb-primary">8</span></div>
+          <div class="kb-key"><span class="kb-secondary">(</span><span class="kb-primary">9</span></div>
+          <div class="kb-key"><span class="kb-secondary">)</span><span class="kb-primary">0</span></div>
+          <div class="kb-key"><span class="kb-secondary">_</span><span class="kb-primary">-</span></div>
+          <div class="kb-key"><span class="kb-secondary">+</span><span class="kb-primary">=</span></div>
+          <div class="kb-key kb-key-delete"><span class="kb-label">delete</span></div>
+        </div>
+        <!-- QWERTY Row -->
+        <div class="kb-row">
+          <div class="kb-key kb-key-tab"><span class="kb-label">tab</span></div>
+          <div class="kb-key"><span class="kb-primary">Q</span></div>
+          <div class="kb-key"><span class="kb-primary">W</span></div>
+          <div class="kb-key" data-launcher="mail"><span class="kb-primary">E</span><img class="kb-launcher-img" src="{{ '/images/apps/mail.png' | relative_url }}" alt="Mail"></div>
+          <div class="kb-key" data-launcher="reddit"><span class="kb-primary">R</span><span class="kb-launcher-icon">🔴</span></div>
+          <div class="kb-key"><span class="kb-primary">T</span></div>
+          <div class="kb-key"><span class="kb-primary">Y</span></div>
+          <div class="kb-key" data-launcher="music"><span class="kb-primary">U</span><img class="kb-launcher-img" src="{{ '/images/apps/music.png' | relative_url }}" alt="Music"></div>
+          <div class="kb-key" data-launcher="claude"><span class="kb-primary">I</span><span class="kb-launcher-icon">🤖</span></div>
+          <div class="kb-key" data-launcher="obsidian"><span class="kb-primary">O</span><span class="kb-launcher-icon">💎</span></div>
+          <div class="kb-key" data-launcher="photos"><span class="kb-primary">P</span><span class="kb-launcher-icon">🖼️</span></div>
+          <div class="kb-key"><span class="kb-secondary">{</span><span class="kb-primary">[</span></div>
+          <div class="kb-key"><span class="kb-secondary">}</span><span class="kb-primary">]</span></div>
+          <div class="kb-key kb-key-backslash"><span class="kb-secondary">|</span><span class="kb-primary">\</span></div>
+        </div>
+        <!-- Home Row -->
+        <div class="kb-row">
+          <div class="kb-key kb-key-caps kb-key-hyper" id="caps-hyper-key"><span class="kb-label">hyper</span></div>
+          <div class="kb-key" data-launcher="calendar"><span class="kb-primary">A</span><img class="kb-launcher-img" src="{{ '/images/apps/calendar.png' | relative_url }}" alt="Calendar"></div>
+          <div class="kb-key" data-launcher="safari"><span class="kb-primary">S</span><img class="kb-launcher-img" src="{{ '/images/apps/safari.png' | relative_url }}" alt="Safari"></div>
+          <div class="kb-key" data-launcher="terminal"><span class="kb-primary">D</span><img class="kb-launcher-img" src="{{ '/images/apps/terminal.png' | relative_url }}" alt="Terminal"></div>
+          <div class="kb-key" data-launcher="finder"><span class="kb-primary">F</span><img class="kb-launcher-img" src="{{ '/images/apps/finder.png' | relative_url }}" alt="Finder"></div>
+          <div class="kb-key" data-launcher="chatgpt"><span class="kb-primary">G</span><span class="kb-launcher-icon">💬</span></div>
+          <div class="kb-key" data-launcher="youtube"><span class="kb-primary">H</span><span class="kb-launcher-icon">▶️</span></div>
+          <div class="kb-key" data-launcher="twitter"><span class="kb-primary">J</span><span class="kb-launcher-icon">𝕏</span></div>
+          <div class="kb-key" data-launcher="messages"><span class="kb-primary">K</span><img class="kb-launcher-img" src="{{ '/images/apps/messages.png' | relative_url }}" alt="Messages"></div>
+          <div class="kb-key" data-launcher="linkedin"><span class="kb-primary">L</span><span class="kb-launcher-icon">in</span></div>
+          <div class="kb-key"><span class="kb-secondary">:</span><span class="kb-primary">;</span></div>
+          <div class="kb-key"><span class="kb-secondary">"</span><span class="kb-primary">'</span></div>
+          <div class="kb-key kb-key-return"><span class="kb-label">return</span></div>
+        </div>
+        <!-- Bottom Row -->
+        <div class="kb-row">
+          <div class="kb-key kb-key-shift-l"><span class="kb-label">shift</span></div>
+          <div class="kb-key" data-launcher="zoom"><span class="kb-primary">Z</span><span class="kb-launcher-icon">📹</span></div>
+          <div class="kb-key" data-launcher="slack"><span class="kb-primary">X</span><img class="kb-launcher-img" src="{{ '/images/apps/slack.png' | relative_url }}" alt="Slack"></div>
+          <div class="kb-key" data-launcher="discord"><span class="kb-primary">C</span><span class="kb-launcher-icon">🎮</span></div>
+          <div class="kb-key" data-launcher="vscode"><span class="kb-primary">V</span><img class="kb-launcher-img" src="{{ '/images/apps/code.png' | relative_url }}" alt="VS Code"></div>
+          <div class="kb-key"><span class="kb-primary">B</span></div>
+          <div class="kb-key" data-launcher="notes"><span class="kb-primary">N</span><img class="kb-launcher-img" src="{{ '/images/apps/notes.png' | relative_url }}" alt="Notes"></div>
+          <div class="kb-key"><span class="kb-primary">M</span></div>
+          <div class="kb-key"><span class="kb-secondary">&lt;</span><span class="kb-primary">,</span></div>
+          <div class="kb-key"><span class="kb-secondary">&gt;</span><span class="kb-primary">.</span></div>
+          <div class="kb-key"><span class="kb-secondary">?</span><span class="kb-primary">/</span></div>
+          <div class="kb-key kb-key-shift-r"><span class="kb-label">shift</span></div>
+        </div>
+        <!-- Modifier Row with inverted-T arrow keys -->
+        <div class="kb-row kb-row-mods">
+          <div class="kb-key kb-key-fn-mod">
+            <svg class="kb-sf-icon kb-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M12 3c-3 3-3 15 0 18M12 3c3 3 3 15 0 18"/></svg>
+            <span class="kb-mod-label">fn</span>
+          </div>
+          <div class="kb-key kb-key-ctrl"><span class="kb-mod-symbol">⌃</span></div>
+          <div class="kb-key kb-key-opt"><span class="kb-mod-symbol">⌥</span></div>
+          <div class="kb-key kb-key-cmd"><span class="kb-mod-symbol">⌘</span></div>
+          <div class="kb-key kb-key-space"></div>
+          <div class="kb-key kb-key-cmd"><span class="kb-mod-symbol">⌘</span></div>
+          <div class="kb-key kb-key-opt"><span class="kb-mod-symbol">⌥</span></div>
+          <!-- Inverted T arrow cluster -->
+          <div class="kb-arrow-cluster">
+            <div class="kb-arrow-row-top">
+              <div class="kb-key kb-key-arrow"><span class="kb-arrow-icon">↑</span></div>
+            </div>
+            <div class="kb-arrow-row-bottom">
+              <div class="kb-key kb-key-arrow"><span class="kb-arrow-icon">←</span></div>
+              <div class="kb-key kb-key-arrow"><span class="kb-arrow-icon">↓</span></div>
+              <div class="kb-key kb-key-arrow"><span class="kb-arrow-icon">→</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="keyboard-hero-fade"></div>
+    </div>
+  </section>
+
   <!-- LAUNCH ANYTHING SECTION - Cinematic Demo -->
   <section class="launch-cinema">
     <h2 class="cinema-title">5 Ways to Launch Anything</h2>
@@ -1230,120 +1349,7 @@ content_class: content-full kanata-landing
 
 </div>
 
-<!-- Full-width CSS keyboard visualization before footer -->
-<section class="keyboard-hero-section">
-  <div class="keyboard-hero-wrapper">
-    <div class="css-keyboard">
-      <!-- Function Row - SF Symbol style SVG icons -->
-      <div class="kb-row kb-row-fn">
-        <div class="kb-key kb-key-fn kb-key-esc"><span class="kb-label">esc</span></div>
-        <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg><span class="kb-fn-label">F1</span></div>
-        <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/><path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg><span class="kb-fn-label">F2</span></div>
-        <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="2" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><rect x="16" y="2" width="6" height="6" rx="1"/><rect x="2" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/><rect x="16" y="9" width="6" height="6" rx="1"/></svg><span class="kb-fn-label">F3</span></div>
-        <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="10" cy="10" r="6"/><path d="M21 21l-4.35-4.35"/></svg><span class="kb-fn-label">F4</span></div>
-        <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1a4 4 0 0 0-4 4v6a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M12 19v4M8 23h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg><span class="kb-fn-label">F5</span></div>
-        <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span class="kb-fn-label">F6</span></div>
-        <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M19 20L9 12l10-8v16z"/><rect x="5" y="5" width="3" height="14"/></svg><span class="kb-fn-label">F7</span></div>
-        <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h3v16H6zM15 4h3v16h-3z"/></svg><span class="kb-fn-label">F8</span></div>
-        <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M5 4l10 8-10 8V4z"/><rect x="16" y="5" width="3" height="14"/></svg><span class="kb-fn-label">F9</span></div>
-        <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M11 5L6 9H2v6h4l5 4V5z" opacity="0.5"/><path d="M4 20L20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="kb-fn-label">F10</span></div>
-        <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg><span class="kb-fn-label">F11</span></div>
-        <div class="kb-key kb-key-fn"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg><span class="kb-fn-label">F12</span></div>
-        <div class="kb-key kb-key-fn kb-key-power"><svg class="kb-sf-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 2v8"/><path d="M18.36 6.64A9 9 0 1 1 5.64 6.64"/></svg></div>
-      </div>
-      <!-- Number Row -->
-      <div class="kb-row">
-        <div class="kb-key"><span class="kb-secondary">~</span><span class="kb-primary">`</span></div>
-        <div class="kb-key" data-launcher="github"><span class="kb-secondary">!</span><span class="kb-primary">1</span><span class="kb-launcher-icon">🐙</span></div>
-        <div class="kb-key" data-launcher="google"><span class="kb-secondary">@</span><span class="kb-primary">2</span><span class="kb-launcher-icon">🔍</span></div>
-        <div class="kb-key" data-launcher="notion"><span class="kb-secondary">#</span><span class="kb-primary">3</span><span class="kb-launcher-icon">📝</span></div>
-        <div class="kb-key" data-launcher="stackoverflow"><span class="kb-secondary">$</span><span class="kb-primary">4</span><span class="kb-launcher-icon">📚</span></div>
-        <div class="kb-key"><span class="kb-secondary">%</span><span class="kb-primary">5</span></div>
-        <div class="kb-key"><span class="kb-secondary">^</span><span class="kb-primary">6</span></div>
-        <div class="kb-key"><span class="kb-secondary">&amp;</span><span class="kb-primary">7</span></div>
-        <div class="kb-key"><span class="kb-secondary">*</span><span class="kb-primary">8</span></div>
-        <div class="kb-key"><span class="kb-secondary">(</span><span class="kb-primary">9</span></div>
-        <div class="kb-key"><span class="kb-secondary">)</span><span class="kb-primary">0</span></div>
-        <div class="kb-key"><span class="kb-secondary">_</span><span class="kb-primary">-</span></div>
-        <div class="kb-key"><span class="kb-secondary">+</span><span class="kb-primary">=</span></div>
-        <div class="kb-key kb-key-delete"><span class="kb-label">delete</span></div>
-      </div>
-      <!-- QWERTY Row -->
-      <div class="kb-row">
-        <div class="kb-key kb-key-tab"><span class="kb-label">tab</span></div>
-        <div class="kb-key"><span class="kb-primary">Q</span></div>
-        <div class="kb-key"><span class="kb-primary">W</span></div>
-        <div class="kb-key" data-launcher="mail"><span class="kb-primary">E</span><img class="kb-launcher-img" src="{{ '/images/apps/mail.png' | relative_url }}" alt="Mail"></div>
-        <div class="kb-key" data-launcher="reddit"><span class="kb-primary">R</span><span class="kb-launcher-icon">🔴</span></div>
-        <div class="kb-key"><span class="kb-primary">T</span></div>
-        <div class="kb-key"><span class="kb-primary">Y</span></div>
-        <div class="kb-key" data-launcher="music"><span class="kb-primary">U</span><img class="kb-launcher-img" src="{{ '/images/apps/music.png' | relative_url }}" alt="Music"></div>
-        <div class="kb-key" data-launcher="claude"><span class="kb-primary">I</span><span class="kb-launcher-icon">🤖</span></div>
-        <div class="kb-key" data-launcher="obsidian"><span class="kb-primary">O</span><span class="kb-launcher-icon">💎</span></div>
-        <div class="kb-key" data-launcher="photos"><span class="kb-primary">P</span><span class="kb-launcher-icon">🖼️</span></div>
-        <div class="kb-key"><span class="kb-secondary">{</span><span class="kb-primary">[</span></div>
-        <div class="kb-key"><span class="kb-secondary">}</span><span class="kb-primary">]</span></div>
-        <div class="kb-key kb-key-backslash"><span class="kb-secondary">|</span><span class="kb-primary">\</span></div>
-      </div>
-      <!-- Home Row -->
-      <div class="kb-row">
-        <div class="kb-key kb-key-caps kb-key-hyper" id="caps-hyper-key"><span class="kb-label">hyper</span></div>
-        <div class="kb-key" data-launcher="calendar"><span class="kb-primary">A</span><img class="kb-launcher-img" src="{{ '/images/apps/calendar.png' | relative_url }}" alt="Calendar"></div>
-        <div class="kb-key" data-launcher="safari"><span class="kb-primary">S</span><img class="kb-launcher-img" src="{{ '/images/apps/safari.png' | relative_url }}" alt="Safari"></div>
-        <div class="kb-key" data-launcher="terminal"><span class="kb-primary">D</span><img class="kb-launcher-img" src="{{ '/images/apps/terminal.png' | relative_url }}" alt="Terminal"></div>
-        <div class="kb-key" data-launcher="finder"><span class="kb-primary">F</span><img class="kb-launcher-img" src="{{ '/images/apps/finder.png' | relative_url }}" alt="Finder"></div>
-        <div class="kb-key" data-launcher="chatgpt"><span class="kb-primary">G</span><span class="kb-launcher-icon">💬</span></div>
-        <div class="kb-key" data-launcher="youtube"><span class="kb-primary">H</span><span class="kb-launcher-icon">▶️</span></div>
-        <div class="kb-key" data-launcher="twitter"><span class="kb-primary">J</span><span class="kb-launcher-icon">𝕏</span></div>
-        <div class="kb-key" data-launcher="messages"><span class="kb-primary">K</span><img class="kb-launcher-img" src="{{ '/images/apps/messages.png' | relative_url }}" alt="Messages"></div>
-        <div class="kb-key" data-launcher="linkedin"><span class="kb-primary">L</span><span class="kb-launcher-icon">in</span></div>
-        <div class="kb-key"><span class="kb-secondary">:</span><span class="kb-primary">;</span></div>
-        <div class="kb-key"><span class="kb-secondary">"</span><span class="kb-primary">'</span></div>
-        <div class="kb-key kb-key-return"><span class="kb-label">return</span></div>
-      </div>
-      <!-- Bottom Row -->
-      <div class="kb-row">
-        <div class="kb-key kb-key-shift-l"><span class="kb-label">shift</span></div>
-        <div class="kb-key" data-launcher="zoom"><span class="kb-primary">Z</span><span class="kb-launcher-icon">📹</span></div>
-        <div class="kb-key" data-launcher="slack"><span class="kb-primary">X</span><img class="kb-launcher-img" src="{{ '/images/apps/slack.png' | relative_url }}" alt="Slack"></div>
-        <div class="kb-key" data-launcher="discord"><span class="kb-primary">C</span><span class="kb-launcher-icon">🎮</span></div>
-        <div class="kb-key" data-launcher="vscode"><span class="kb-primary">V</span><img class="kb-launcher-img" src="{{ '/images/apps/code.png' | relative_url }}" alt="VS Code"></div>
-        <div class="kb-key"><span class="kb-primary">B</span></div>
-        <div class="kb-key" data-launcher="notes"><span class="kb-primary">N</span><img class="kb-launcher-img" src="{{ '/images/apps/notes.png' | relative_url }}" alt="Notes"></div>
-        <div class="kb-key"><span class="kb-primary">M</span></div>
-        <div class="kb-key"><span class="kb-secondary">&lt;</span><span class="kb-primary">,</span></div>
-        <div class="kb-key"><span class="kb-secondary">&gt;</span><span class="kb-primary">.</span></div>
-        <div class="kb-key"><span class="kb-secondary">?</span><span class="kb-primary">/</span></div>
-        <div class="kb-key kb-key-shift-r"><span class="kb-label">shift</span></div>
-      </div>
-      <!-- Modifier Row with inverted-T arrow keys -->
-      <div class="kb-row kb-row-mods">
-        <div class="kb-key kb-key-fn-mod">
-          <svg class="kb-sf-icon kb-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M12 3c-3 3-3 15 0 18M12 3c3 3 3 15 0 18"/></svg>
-          <span class="kb-mod-label">fn</span>
-        </div>
-        <div class="kb-key kb-key-ctrl"><span class="kb-mod-symbol">⌃</span></div>
-        <div class="kb-key kb-key-opt"><span class="kb-mod-symbol">⌥</span></div>
-        <div class="kb-key kb-key-cmd"><span class="kb-mod-symbol">⌘</span></div>
-        <div class="kb-key kb-key-space"></div>
-        <div class="kb-key kb-key-cmd"><span class="kb-mod-symbol">⌘</span></div>
-        <div class="kb-key kb-key-opt"><span class="kb-mod-symbol">⌥</span></div>
-        <!-- Inverted T arrow cluster -->
-        <div class="kb-arrow-cluster">
-          <div class="kb-arrow-row-top">
-            <div class="kb-key kb-key-arrow"><span class="kb-arrow-icon">↑</span></div>
-          </div>
-          <div class="kb-arrow-row-bottom">
-            <div class="kb-key kb-key-arrow"><span class="kb-arrow-icon">←</span></div>
-            <div class="kb-key kb-key-arrow"><span class="kb-arrow-icon">↓</span></div>
-            <div class="kb-key kb-key-arrow"><span class="kb-arrow-icon">→</span></div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="keyboard-hero-fade"></div>
-  </div>
-</section>
+
 
 <!-- Dojo Easter Egg Overlay -->
 <div class="dojo-overlay" id="dojo-overlay">
