@@ -3796,26 +3796,28 @@ a.button:active {
 /* --- Explained Two Ways Section (Tabbed Visualization) --- */
 
 .explained-section {
-    padding: 4rem 0;
+    padding: var(--spacing-2xl) var(--spacing-lg);
     max-width: 1200px;
     margin: 0 auto;
 }
 
 .explained-header {
     text-align: center;
-    margin-bottom: 48px;
+    margin-bottom: var(--spacing-2xl);
 }
 
 .explained-header h2 {
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
-    color: #fff;
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 600;
+    margin-bottom: var(--spacing-sm);
+    color: var(--color-text);
 }
 
 .explained-header .subtitle {
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 1.1rem;
-    margin-bottom: 24px;
+    color: var(--color-text-secondary);
+    font-size: clamp(1rem, 2.5vw, 1.25rem);
+    margin-bottom: var(--spacing-lg);
 }
 
 /* Segmented Control */
