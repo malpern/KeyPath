@@ -1332,7 +1332,6 @@
         const appIcon = cinemaSection.querySelector('.cinema-app-icon');
         const appName = cinemaSection.querySelector('.cinema-app-name');
         const tocItems = cinemaSection.querySelectorAll('.cinema-toc-item');
-        const replayBtn = cinemaSection.querySelector('.cinema-replay-btn');
 
         const examples = [
             {
@@ -1521,22 +1520,12 @@
             });
         }
 
-        // Show/hide replay button
-        function showReplayBtn() {
-            if (replayBtn) replayBtn.classList.add('visible');
-        }
-
-        function hideReplayBtn() {
-            if (replayBtn) replayBtn.classList.remove('visible');
-        }
-
         async function playExample(index) {
             if (isAnimating) return;
             isAnimating = true;
 
             // Update TOC highlighting
             updateToc(index);
-            hideReplayBtn();
 
             const example = examples[index];
 
@@ -1548,14 +1537,9 @@
 
             isAnimating = false;
 
-            // Next example or show replay button at end
-            currentIndex = currentIndex + 1;
-            if (currentIndex < 5) {
-                playExample(currentIndex);
-            } else {
-                // All examples done - show replay button
-                showReplayBtn();
-            }
+            // Loop to next example
+            currentIndex = (currentIndex + 1) % 5;
+            playExample(currentIndex);
         }
 
         function sleep(ms) {
@@ -1571,16 +1555,6 @@
                 }
             });
         });
-
-        // Replay button click handler
-        if (replayBtn) {
-            replayBtn.addEventListener('click', () => {
-                if (!isAnimating) {
-                    currentIndex = 0;
-                    setTimeout(() => playExample(currentIndex), 300);
-                }
-            });
-        }
 
         // Start when section is visible
         const cinemaObserver = new IntersectionObserver((entries) => {

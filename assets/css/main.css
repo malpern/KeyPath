@@ -527,7 +527,6 @@ body.sidebar-open .sidebar {
 
 .kanata-landing-hero {
     position: relative;
-    min-height: 85vh;
     display: grid;
     grid-template-columns: 1fr 1fr;
     align-items: center;
@@ -536,7 +535,7 @@ body.sidebar-open .sidebar {
 
     /* Full-bleed: touch all edges */
     margin: calc(var(--spacing-2xl) * -1) calc(var(--spacing-lg) * -1) 0;
-    padding: var(--spacing-3xl) var(--spacing-2xl);
+    padding: var(--spacing-2xl) var(--spacing-2xl);
 
     /* Base dark background */
     background: radial-gradient(ellipse 40% 40% at 100% 20%, rgba(255, 255, 255, 0.03), transparent);
@@ -569,11 +568,10 @@ body.sidebar-open .sidebar {
    =========================================== */
 
 .kanata-landing-video-section {
-    min-height: 80vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: var(--spacing-3xl) var(--spacing-lg);
+    padding: var(--spacing-2xl) var(--spacing-lg);
     margin: 0 calc(var(--spacing-lg) * -1);
     background: linear-gradient(180deg, var(--color-background) 0%, var(--color-background-secondary) 50%, var(--color-background) 100%);
 }
@@ -631,11 +629,10 @@ body.sidebar-open .sidebar {
    =========================================== */
 
 .kanata-fullscreen-section {
-    min-height: 80vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: var(--spacing-3xl) var(--spacing-lg);
+    padding: var(--spacing-2xl) var(--spacing-lg);
     margin: 0 calc(var(--spacing-lg) * -1);
     text-align: center;
 }
@@ -1502,12 +1499,11 @@ body.sidebar-open .sidebar {
    RULES FULLSCREEN SECTION
    ===================================================== */
 .rules-fullscreen {
-    min-height: 85vh;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: var(--spacing-3xl) var(--spacing-lg);
+    padding: var(--spacing-2xl) var(--spacing-lg);
     background: var(--color-background);
 }
 
@@ -1623,12 +1619,11 @@ body.sidebar-open .sidebar {
    KEYBOARDS FULLSCREEN SECTION
    ===================================================== */
 .keyboards-fullscreen {
-    min-height: 85vh;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: var(--spacing-3xl) 0;
+    padding: var(--spacing-2xl) 0;
     background: var(--color-background);
     overflow: hidden;
 }
@@ -1666,12 +1661,11 @@ body.sidebar-open .sidebar {
    LAYOUTS FULLSCREEN SECTION
    ===================================================== */
 .layouts-fullscreen {
-    min-height: 85vh;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: var(--spacing-3xl) var(--spacing-lg);
+    padding: var(--spacing-2xl) var(--spacing-lg);
     background: var(--color-background);
 }
 
@@ -2177,12 +2171,11 @@ body.sidebar-open .sidebar {
 
 /* Existing Kanata users - Full Screen */
 .kanata-existing-fullscreen {
-    min-height: 60vh;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: var(--spacing-3xl) var(--spacing-lg);
+    padding: var(--spacing-2xl) var(--spacing-lg);
     background: var(--color-background);
 }
 
@@ -2468,7 +2461,7 @@ body.sidebar-open .sidebar {
         grid-template-columns: 1fr;
         text-align: center;
         min-height: auto;
-        padding: var(--spacing-3xl) var(--spacing-lg);
+        padding: var(--spacing-2xl) var(--spacing-lg);
         gap: var(--spacing-xl);
     }
 
@@ -5852,12 +5845,11 @@ a.button:active {
    ========================================================================== */
 
 .hrm-section {
-    min-height: 85vh;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: var(--spacing-3xl) var(--spacing-lg);
+    padding: var(--spacing-2xl) var(--spacing-lg);
     background: var(--color-background);
 }
 
