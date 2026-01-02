@@ -1151,6 +1151,11 @@ html {
 }
 
 @media (max-width: 768px) {
+    .cinema-action-row {
+        gap: var(--spacing-md);
+        flex-wrap: wrap;
+    }
+
     .cinema-key {
         width: 64px;
         height: 64px;
@@ -1158,8 +1163,43 @@ html {
     }
 
     .cinema-app-icon {
-        width: 72px;
-        height: 72px;
+        width: 64px;
+        height: 64px;
+    }
+
+    .cinema-result-name {
+        font-size: 1.5rem;
+    }
+
+    .cinema-arrow {
+        font-size: 1.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .cinema-action-row {
+        gap: var(--spacing-sm);
+        transform: scale(0.85);
+        transform-origin: center center;
+    }
+
+    .cinema-key {
+        width: 56px;
+        height: 56px;
+        font-size: 1.1rem;
+    }
+
+    .cinema-app-icon {
+        width: 56px;
+        height: 56px;
+    }
+
+    .cinema-result-name {
+        font-size: 1.25rem;
+    }
+
+    .cinema-arrow {
+        font-size: 1.25rem;
     }
 }
 
@@ -2685,7 +2725,7 @@ li {
     width: 100vw;
     margin-left: calc(-50vw + 50%);
     overflow: hidden;
-    background: var(--color-background-secondary);
+    background: #0a0a0a; /* Very dark to match keyboard */
     margin-bottom: 0;
     padding-top: var(--spacing-2xl);
     padding-bottom: 0;
@@ -2698,27 +2738,27 @@ li {
     padding: 0 var(--spacing-lg);
 }
 
-/* CSS Keyboard Container */
+/* CSS Keyboard Container - matches app's LiveKeyboardOverlayView */
+/* Always uses dark theme to match the app */
 .css-keyboard {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
     padding: 20px 24px 40px;
-    background: linear-gradient(180deg, #2a2a2a 0%, var(--color-background-secondary) 100%);
+    background: #0d0d0d;
     border-radius: 16px 16px 0 0;
+    border: 1px solid rgba(255, 255, 255, 0.06);
     box-shadow:
-        0 -4px 20px rgba(0, 0, 0, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        0 -4px 20px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.03);
     /* Fade effect - dimmed by default */
-    opacity: 0.5;
-    filter: brightness(0.7);
-    transition: opacity 0.6s ease, filter 0.6s ease;
+    opacity: 0.6;
+    transition: opacity 0.6s ease;
 }
 
 /* Full illumination on hover */
 .keyboard-hero-section:hover .css-keyboard {
     opacity: 1;
-    filter: brightness(1);
 }
 
 /* Keyboard Rows */
@@ -2737,7 +2777,7 @@ li {
     gap: 5px;
 }
 
-/* Base Key Styles */
+/* Base Key Styles - matches app's OverlayKeycapView with GMKColorway.default */
 .kb-key {
     display: flex;
     flex-direction: column;
@@ -2745,12 +2785,12 @@ li {
     justify-content: center;
     width: 54px;
     height: 54px;
-    background: linear-gradient(180deg, #3a3a3c 0%, #2c2c2e 100%);
-    border: 1px solid #48484a;
-    border-radius: 8px;
+    background: #1a1a1a;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
     box-shadow:
-        0 2px 4px rgba(0, 0, 0, 0.3),
+        0 2px 4px rgba(0, 0, 0, 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.05);
     transition: all 0.15s ease;
     cursor: pointer;
@@ -2758,24 +2798,24 @@ li {
 }
 
 .kb-key:hover {
-    background: linear-gradient(180deg, #48484a 0%, #3a3a3c 100%);
+    background: #1c1c1c; /* slightly brighter than alphaBase */
     transform: translateY(-1px);
     box-shadow:
         0 4px 8px rgba(0, 0, 0, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-/* Key Labels */
+/* Key Labels - bright white text */
 .kb-primary {
     font-size: 18px;
     font-weight: 500;
-    color: #f5f5f7;
+    color: rgba(255, 255, 255, 0.9);
     line-height: 1;
 }
 
 .kb-secondary {
     font-size: 11px;
-    color: #98989d;
+    color: rgba(255, 255, 255, 0.4);
     line-height: 1;
     margin-bottom: 2px;
 }
@@ -2783,24 +2823,31 @@ li {
 .kb-label {
     font-size: 12px;
     font-weight: 500;
-    color: #98989d;
+    color: rgba(255, 255, 255, 0.5);
     text-transform: lowercase;
 }
 
 .kb-icon {
     font-size: 16px;
     line-height: 1;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.kb-fn-icon {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1;
 }
 
 .kb-fn-label {
     font-size: 9px;
-    color: #636366;
+    color: rgba(255, 255, 255, 0.4);
     margin-top: 2px;
 }
 
 .kb-mod-label {
     font-size: 10px;
-    color: #98989d;
+    color: rgba(255, 255, 255, 0.5);
     margin-top: 1px;
 }
 
@@ -2886,32 +2933,52 @@ li {
 
 /* SF Symbol Icon */
 .kb-sf-icon {
-    width: 16px;
-    height: 16px;
-    color: #98989d;
+    width: 14px;
+    height: 14px;
+    color: rgba(255, 255, 255, 0.7);
 }
 
-/* Arrow Keys - Individual half-height keys */
+.kb-globe {
+    width: 12px;
+    height: 12px;
+}
+
+/* Modifier symbols (⌃, ⌥, ⌘) */
+.kb-mod-symbol {
+    font-size: 18px;
+    font-weight: 300;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Arrow cluster - inverted T layout */
+.kb-arrow-cluster {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    margin-left: 8px;
+}
+
+.kb-arrow-row-top {
+    display: flex;
+    justify-content: center;
+}
+
+.kb-arrow-row-bottom {
+    display: flex;
+    gap: 2px;
+}
+
+/* Arrow Keys - half-height keys */
 .kb-key-arrow {
-    width: 40px;
-    height: 26px;
+    width: 38px;
+    height: 24px;
     padding: 0;
 }
 
-.kb-key-arrow-up {
-    margin-left: auto;
-    margin-bottom: -1px;
-}
-
-.kb-key-arrow-left,
-.kb-key-arrow-down,
-.kb-key-arrow-right {
-    margin-top: -1px;
-}
-
 .kb-arrow-icon {
-    font-size: 14px;
-    color: #98989d;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.9);
 }
 
 /* Key pressed/clicked state - blue glow */
@@ -2929,8 +2996,10 @@ li {
 .kb-key.kb-key-pressed .kb-secondary,
 .kb-key.kb-key-pressed .kb-label,
 .kb-key.kb-key-pressed .kb-icon,
+.kb-key.kb-key-pressed .kb-fn-icon,
 .kb-key.kb-key-pressed .kb-fn-label,
 .kb-key.kb-key-pressed .kb-mod-label,
+.kb-key.kb-key-pressed .kb-mod-symbol,
 .kb-key.kb-key-pressed .kb-arrow-icon,
 .kb-key.kb-key-pressed .kb-sf-icon {
     color: #ffffff !important;
@@ -2947,10 +3016,10 @@ li {
             inset 0 1px 0 rgba(255, 255, 255, 0.2);
     }
     100% {
-        background: linear-gradient(180deg, #3a3a3c 0%, #2c2c2e 100%);
-        border-color: #48484a;
+        background: #1a1a1a;
+        border-color: rgba(255, 255, 255, 0.15);
         box-shadow:
-            0 2px 4px rgba(0, 0, 0, 0.3),
+            0 2px 4px rgba(0, 0, 0, 0.4),
             inset 0 1px 0 rgba(255, 255, 255, 0.05);
     }
 }
@@ -2960,15 +3029,29 @@ li {
 }
 
 .kb-key.kb-key-fading .kb-primary,
+.kb-key.kb-key-fading .kb-icon,
+.kb-key.kb-key-fading .kb-mod-symbol,
+.kb-key.kb-key-fading .kb-arrow-icon {
+    transition: color 0.4s ease-out;
+    color: rgba(255, 255, 255, 0.9);
+}
+
 .kb-key.kb-key-fading .kb-secondary,
 .kb-key.kb-key-fading .kb-label,
-.kb-key.kb-key-fading .kb-icon,
-.kb-key.kb-key-fading .kb-fn-label,
 .kb-key.kb-key-fading .kb-mod-label,
-.kb-key.kb-key-fading .kb-arrow-icon,
 .kb-key.kb-key-fading .kb-sf-icon {
     transition: color 0.4s ease-out;
-    color: #98989d;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.kb-key.kb-key-fading .kb-fn-icon {
+    transition: color 0.4s ease-out;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.kb-key.kb-key-fading .kb-fn-label {
+    transition: color 0.4s ease-out;
+    color: rgba(255, 255, 255, 0.4);
 }
 
 /* Gradient fade at the bottom - hidden since backgrounds match */
@@ -6284,12 +6367,12 @@ a.button:active {
     background: #1C1C1E;
     border-radius: 8px;
     padding: 12px 20px;
-    min-width: 200px;
+    min-width: 240px;
     min-height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 10px;
     font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
     font-size: 20px;
     color: #34C759;
@@ -6377,6 +6460,8 @@ a.button:active {
     padding: 3px 8px;
     border-radius: 4px;
     border: 1px solid rgba(90, 200, 250, 0.3);
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .hrm-output.shortcut .hrm-output-badge {
@@ -6831,9 +6916,15 @@ a.button:active {
     }
 
     .hrm-output {
-        min-width: 200px;
-        font-size: 20px;
-        padding: 12px 20px;
+        min-width: 220px;
+        font-size: 18px;
+        padding: 10px 16px;
+        gap: 8px;
+    }
+
+    .hrm-output-badge {
+        font-size: 9px;
+        padding: 2px 6px;
     }
 
     .hrm-demo-mode {
@@ -6873,15 +6964,22 @@ a.button:active {
     }
 
     .hrm-output {
-        min-width: 180px;
+        min-width: 200px;
         min-height: 50px;
-        font-size: 22px;
-        padding: 14px 20px;
+        font-size: 18px;
+        padding: 12px 16px;
         border-radius: 10px;
+        gap: 6px;
+    }
+
+    .hrm-output-badge {
+        font-size: 8px;
+        padding: 2px 5px;
+        letter-spacing: 0.05em;
     }
 
     .hrm-output.holding .hrm-output-text {
-        font-size: 28px;
+        font-size: 24px;
     }
 
     .hrm-demo-mode {

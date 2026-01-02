@@ -1231,22 +1231,22 @@ content_class: content-full kanata-landing
 <section class="keyboard-hero-section">
   <div class="keyboard-hero-wrapper">
     <div class="css-keyboard">
-      <!-- Function Row -->
+      <!-- Function Row - simple text icons -->
       <div class="kb-row kb-row-fn">
         <div class="kb-key kb-key-fn kb-key-esc"><span class="kb-label">esc</span></div>
-        <div class="kb-key kb-key-fn"><span class="kb-icon">☀</span><span class="kb-fn-label">F1</span></div>
-        <div class="kb-key kb-key-fn"><span class="kb-icon">☀</span><span class="kb-fn-label">F2</span></div>
-        <div class="kb-key kb-key-fn"><span class="kb-icon">⌨</span><span class="kb-fn-label">F3</span></div>
-        <div class="kb-key kb-key-fn"><span class="kb-icon">🔍</span><span class="kb-fn-label">F4</span></div>
-        <div class="kb-key kb-key-fn"><span class="kb-icon">🎤</span><span class="kb-fn-label">F5</span></div>
-        <div class="kb-key kb-key-fn"><span class="kb-icon">🌙</span><span class="kb-fn-label">F6</span></div>
-        <div class="kb-key kb-key-fn"><span class="kb-icon">⏪</span><span class="kb-fn-label">F7</span></div>
-        <div class="kb-key kb-key-fn"><span class="kb-icon">⏯</span><span class="kb-fn-label">F8</span></div>
-        <div class="kb-key kb-key-fn"><span class="kb-icon">⏩</span><span class="kb-fn-label">F9</span></div>
-        <div class="kb-key kb-key-fn"><span class="kb-icon">🔇</span><span class="kb-fn-label">F10</span></div>
-        <div class="kb-key kb-key-fn"><span class="kb-icon">🔉</span><span class="kb-fn-label">F11</span></div>
-        <div class="kb-key kb-key-fn"><span class="kb-icon">🔊</span><span class="kb-fn-label">F12</span></div>
-        <div class="kb-key kb-key-fn kb-key-power"><span class="kb-icon">⏻</span></div>
+        <div class="kb-key kb-key-fn"><span class="kb-fn-icon">●</span><span class="kb-fn-label">F1</span></div>
+        <div class="kb-key kb-key-fn"><span class="kb-fn-icon">☀</span><span class="kb-fn-label">F2</span></div>
+        <div class="kb-key kb-key-fn"><span class="kb-fn-icon">▦</span><span class="kb-fn-label">F3</span></div>
+        <div class="kb-key kb-key-fn"><span class="kb-fn-icon">⌕</span><span class="kb-fn-label">F4</span></div>
+        <div class="kb-key kb-key-fn"><span class="kb-fn-icon">⏺</span><span class="kb-fn-label">F5</span></div>
+        <div class="kb-key kb-key-fn"><span class="kb-fn-icon">☾</span><span class="kb-fn-label">F6</span></div>
+        <div class="kb-key kb-key-fn"><span class="kb-fn-icon">◀◀</span><span class="kb-fn-label">F7</span></div>
+        <div class="kb-key kb-key-fn"><span class="kb-fn-icon">▐▐</span><span class="kb-fn-label">F8</span></div>
+        <div class="kb-key kb-key-fn"><span class="kb-fn-icon">▶▶</span><span class="kb-fn-label">F9</span></div>
+        <div class="kb-key kb-key-fn"><span class="kb-fn-icon">🔇</span><span class="kb-fn-label">F10</span></div>
+        <div class="kb-key kb-key-fn"><span class="kb-fn-icon">🔉</span><span class="kb-fn-label">F11</span></div>
+        <div class="kb-key kb-key-fn"><span class="kb-fn-icon">🔊</span><span class="kb-fn-label">F12</span></div>
+        <div class="kb-key kb-key-fn kb-key-power"><span class="kb-fn-icon">⏻</span></div>
       </div>
       <!-- Number Row -->
       <div class="kb-row">
@@ -1313,22 +1313,29 @@ content_class: content-full kanata-landing
         <div class="kb-key"><span class="kb-secondary">?</span><span class="kb-primary">/</span></div>
         <div class="kb-key kb-key-shift-r"><span class="kb-label">shift</span></div>
       </div>
-      <!-- Modifier Row -->
+      <!-- Modifier Row with inverted-T arrow keys -->
       <div class="kb-row kb-row-mods">
         <div class="kb-key kb-key-fn-mod">
-          <svg class="kb-sf-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 1.5c4.687 0 8.5 3.813 8.5 8.5s-3.813 8.5-8.5 8.5-8.5-3.813-8.5-8.5 3.813-8.5 8.5-8.5zm0 2a6.5 6.5 0 00-6.5 6.5h1.5a5 5 0 015-5v-1.5zm0 3a3.5 3.5 0 00-3.5 3.5h1.5a2 2 0 012-2v-1.5z"/></svg>
+          <svg class="kb-sf-icon kb-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M12 3c-3 3-3 15 0 18M12 3c3 3 3 15 0 18"/></svg>
           <span class="kb-mod-label">fn</span>
         </div>
-        <div class="kb-key kb-key-ctrl"><span class="kb-icon">⌃</span></div>
-        <div class="kb-key kb-key-opt"><span class="kb-icon">⌥</span></div>
-        <div class="kb-key kb-key-cmd"><span class="kb-icon">⌘</span></div>
+        <div class="kb-key kb-key-ctrl"><span class="kb-mod-symbol">⌃</span></div>
+        <div class="kb-key kb-key-opt"><span class="kb-mod-symbol">⌥</span></div>
+        <div class="kb-key kb-key-cmd"><span class="kb-mod-symbol">⌘</span></div>
         <div class="kb-key kb-key-space"></div>
-        <div class="kb-key kb-key-cmd"><span class="kb-icon">⌘</span></div>
-        <div class="kb-key kb-key-opt"><span class="kb-icon">⌥</span></div>
-        <div class="kb-key kb-key-arrow kb-key-arrow-up"><span class="kb-arrow-icon">↑</span></div>
-        <div class="kb-key kb-key-arrow kb-key-arrow-left"><span class="kb-arrow-icon">←</span></div>
-        <div class="kb-key kb-key-arrow kb-key-arrow-down"><span class="kb-arrow-icon">↓</span></div>
-        <div class="kb-key kb-key-arrow kb-key-arrow-right"><span class="kb-arrow-icon">→</span></div>
+        <div class="kb-key kb-key-cmd"><span class="kb-mod-symbol">⌘</span></div>
+        <div class="kb-key kb-key-opt"><span class="kb-mod-symbol">⌥</span></div>
+        <!-- Inverted T arrow cluster -->
+        <div class="kb-arrow-cluster">
+          <div class="kb-arrow-row-top">
+            <div class="kb-key kb-key-arrow"><span class="kb-arrow-icon">↑</span></div>
+          </div>
+          <div class="kb-arrow-row-bottom">
+            <div class="kb-key kb-key-arrow"><span class="kb-arrow-icon">←</span></div>
+            <div class="kb-key kb-key-arrow"><span class="kb-arrow-icon">↓</span></div>
+            <div class="kb-key kb-key-arrow"><span class="kb-arrow-icon">→</span></div>
+          </div>
+        </div>
       </div>
     </div>
     <div class="keyboard-hero-fade"></div>
