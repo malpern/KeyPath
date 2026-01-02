@@ -734,10 +734,14 @@ body.sidebar-open .sidebar {
     color: var(--color-text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    text-decoration: none;
+    border-bottom: none;
 }
 
 .cinema-toc-item.active .cinema-toc-label {
     color: var(--color-text);
+    text-decoration: none;
+    border-bottom: none;
 }
 
 @media (max-width: 640px) {
