@@ -1374,6 +1374,7 @@
 
         let currentIndex = 0;
         let isAnimating = false;
+        let shouldCancel = false;
 
         // Type text character by character (slowed down)
         async function typeText(text) {
@@ -1535,11 +1536,18 @@
 
             const example = examples[index];
 
-            // Run animation sequence
+            // Run animation sequence (check for cancellation between steps)
             await typeText(example.gesture);
+            if (shouldCancel) { isAnimating = false; return; }
+
             await showKeys(example);
+            if (shouldCancel) { isAnimating = false; return; }
+
             await showResult(example);
+            if (shouldCancel) { isAnimating = false; return; }
+
             await hideAll();
+            if (shouldCancel) { isAnimating = false; return; }
 
             isAnimating = false;
 
@@ -1549,16 +1557,43 @@
         }
 
         function sleep(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
+            return new Promise(resolve => {
+                const timeout = setTimeout(resolve, ms);
+                // Check if cancelled during sleep
+                if (shouldCancel) {
+                    clearTimeout(timeout);
+                    resolve();
+                }
+            });
+        }
+
+        // Jump to a specific example (can interrupt current animation)
+        function jumpToExample(index) {
+            shouldCancel = true;
+            currentIndex = index;
+
+            // Clear current state immediately
+            result.classList.remove('visible');
+            if (cinemaArrow) cinemaArrow.classList.remove('visible');
+            keysContainer.innerHTML = '';
+            gestureText.textContent = '';
+            cursor.style.display = 'none';
+
+            // Update TOC immediately
+            updateToc(index);
+
+            // Start new animation after brief delay
+            setTimeout(() => {
+                shouldCancel = false;
+                isAnimating = false;
+                playExample(index);
+            }, 100);
         }
 
         // Click on TOC items to jump to example
         tocItems.forEach((item, i) => {
             item.addEventListener('click', () => {
-                if (!isAnimating) {
-                    currentIndex = i;
-                    playExample(currentIndex);
-                }
+                jumpToExample(i);
             });
         });
 
