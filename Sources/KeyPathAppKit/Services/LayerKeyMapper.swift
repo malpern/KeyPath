@@ -374,26 +374,21 @@ actor LayerKeyMapper {
                 // This happens for keys that aren't defined in the config
                 mapping[keyCode] = .transparent(fallbackLabel: fallbackLabel)
             } else {
-                // Convert all outputs to display labels and combine
-                var displayParts: [String] = []
+                // Convert all outputs to display labels using labelForOutputKeys for Hyper/Meh detection
+                let outputSet = Set(keyMapping.outputs.map { $0.lowercased() })
+                let finalLabel = Self.labelForOutputKeys(outputSet, displayForKey: kanataKeyToDisplayLabel)
+                    ?? keyMapping.outputs.map { kanataKeyToDisplayLabel($0) }.joined()
+
+                // Find primary output key for dual highlighting
                 var primaryOutputKey: String?
                 var primaryOutputKeyCode: UInt16?
-
                 for output in keyMapping.outputs {
-                    let label = kanataKeyToDisplayLabel(output)
-                    // Skip empties (e.g., spacebar) so we don't render "sp"/blank artifacts
-                    if !label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        displayParts.append(label)
-                    }
-                    // Use the non-modifier key as the primary (for dual highlighting)
                     if !isModifierSymbol(output) {
                         primaryOutputKey = output
                         primaryOutputKeyCode = kanataKeyToKeyCode(output)
+                        break
                     }
                 }
-
-                let combinedLabel = displayParts.joined()
-                let finalLabel = combinedLabel.trimmingCharacters(in: .whitespacesAndNewlines)
                 // Special-case spacebar: ensure display label stays blank
                 let normalizedInput = keyMapping.input.lowercased()
                 let normalizedOutputs = keyMapping.outputs.map { $0.lowercased() }
