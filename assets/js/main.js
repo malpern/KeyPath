@@ -1817,10 +1817,19 @@
     const hyperKeys = document.querySelectorAll('.kb-key-hyper');
 
     if (launcherKeyboard && hyperKeys.length > 0) {
+        let manualHyperUsed = false;
+        let autoLauncherTriggered = false;
+
+        function openLauncher() {
+            launcherKeyboard.classList.add('launcher-active');
+            if (typeof wakeKeyboard === 'function') {
+                wakeKeyboard();
+            }
+        }
+
         function toggleLauncher() {
             launcherKeyboard.classList.toggle('launcher-active');
-            // Wake keyboard when launcher is active
-            if (launcherKeyboard.classList.contains('launcher-active')) {
+            if (launcherKeyboard.classList.contains('launcher-active') && typeof wakeKeyboard === 'function') {
                 wakeKeyboard();
             }
         }
@@ -1833,9 +1842,23 @@
         hyperKeys.forEach(key => {
             key.addEventListener('click', (e) => {
                 e.stopPropagation();
+                manualHyperUsed = true;
                 toggleLauncher();
             });
         });
+
+        // Auto-trigger launcher when keyboard is scrolled past mid-screen
+        const keyboardSection = document.querySelector('.keyboard-hero-section');
+        if (keyboardSection) {
+            window.addEventListener('scroll', () => {
+                if (manualHyperUsed || autoLauncherTriggered) return;
+                const rect = keyboardSection.getBoundingClientRect();
+                if (rect.top < window.innerHeight * 0.5 && rect.bottom > 0) {
+                    openLauncher();
+                    autoLauncherTriggered = true;
+                }
+            }, { passive: true });
+        }
 
         // ESC closes launcher
         document.addEventListener('keydown', (e) => {
