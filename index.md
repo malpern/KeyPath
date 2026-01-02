@@ -51,10 +51,7 @@ content_class: content-full kanata-landing
 
   <!-- LAUNCH ANYTHING SECTION - Cinematic Demo -->
   <section class="launch-cinema">
-    <h2 class="cinema-title">Launch anything with muscle memory</h2>
-    <p class="cinema-subtitle">
-      Turn "go to X" into muscle memory: any gesture can open an app, a URL, or a workflow.
-    </p>
+    <h2 class="cinema-title">5 Ways to Launch Anything</h2>
 
     <!-- Gesture TOC - highlights as each example plays -->
     <div class="cinema-toc">
