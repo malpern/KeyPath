@@ -6602,6 +6602,8 @@ a.button:active {
 
 .hrm-benefit {
     display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
     gap: var(--spacing-md);
     align-items: flex-start;
 }
@@ -6610,16 +6612,13 @@ a.button:active {
     flex-shrink: 0;
     width: 40px;
     height: 40px;
+    margin-top: 4px;
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-}
-
-.hrm-benefit-text {
-    padding-top: 8px;
 }
 
 .hrm-benefit-icon svg {
