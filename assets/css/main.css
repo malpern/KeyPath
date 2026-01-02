@@ -7400,7 +7400,7 @@ a.button:active {
     background: rgba(168, 85, 247, 0.25);
     opacity: 0;
     pointer-events: none;
-    animation: hyper-wave 2.6s ease-out infinite;
+    animation: hyper-wave 2.4s ease-out infinite;
 }
 
 .keyboard-hero-section:not(.hyper-pulse-stopped) .kb-key-hyper::after {
@@ -7443,17 +7443,17 @@ a.button:active {
     }
     40% {
         opacity: 0.75;
-        box-shadow:
-            0 0 15px 10px rgba(178, 108, 255, 0.8),
-            0 0 20px 26px rgba(168, 85, 247, 0.65),
-            0 0 30px 42px rgba(115, 65, 205, 0.45);
+    box-shadow:
+        0 0 30px 26px rgba(178, 108, 255, 0.9),
+        0 0 40px 44px rgba(168, 85, 247, 0.85),
+        0 0 60px 78px rgba(115, 65, 205, 0.65);
     }
     100% {
         opacity: 0;
-        box-shadow:
-            0 0 0 30px rgba(168, 85, 247, 0.2),
-            0 0 0 52px rgba(168, 85, 247, 0.1),
-            0 0 0 70px rgba(168, 85, 247, 0.05);
+    box-shadow:
+        0 0 0 60px rgba(168, 85, 247, 0.6),
+        0 0 0 110px rgba(168, 85, 247, 0.35),
+        0 0 0 160px rgba(115, 65, 205, 0.2);
     }
 }
 
