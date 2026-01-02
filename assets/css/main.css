@@ -4003,12 +4003,16 @@ a.button:active {
     font-size: 18px;
     color: #fff;
     margin: 0 0 4px 0;
+    text-decoration: none !important;
+    border-bottom: none !important;
 }
 
 .card-text p {
     font-size: 14px;
     color: rgba(255, 255, 255, 0.6);
     margin: 0;
+    text-decoration: none !important;
+    border-bottom: none !important;
 }
 
 /* Visualization Base */
@@ -4374,12 +4378,16 @@ a.button:active {
     font-size: 1rem;
     font-weight: 600;
     margin: 0 0 4px 0;
+    text-decoration: none !important;
+    border-bottom: none !important;
 }
 
 .pr-card-text p {
     color: rgba(255,255,255,0.5);
     font-size: 0.8rem;
     margin: 0;
+    text-decoration: none !important;
+    border-bottom: none !important;
 }
 
 /* Piano keys column */
