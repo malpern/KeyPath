@@ -1903,7 +1903,9 @@
 
         // Clicking a launcher key closes the launcher
         launcherKeyboard.querySelectorAll('.kb-key[data-launcher]').forEach(key => {
-            key.addEventListener('click', () => {
+            key.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!e.isTrusted) return;
                 if (launcherKeyboard.classList.contains('launcher-active')) {
                     triggerLaunchBurst();
                     key.classList.add('kb-key-launching', 'launcher-zooming');
