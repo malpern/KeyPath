@@ -1376,6 +1376,7 @@ private struct ScriptExecutionLogView: View {
                     dismiss()
                 }
                 .keyboardShortcut(.cancelAction)
+                .accessibilityIdentifier("settings-script-log-done")
             }
             .padding()
 
@@ -1727,6 +1728,7 @@ private struct AIUsageHistoryView: View {
                     dismiss()
                 }
                 .keyboardShortcut(.cancelAction)
+                .accessibilityIdentifier("settings-done")
                 .accessibilityIdentifier("ai-usage-done-button")
             }
             .padding()

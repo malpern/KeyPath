@@ -289,7 +289,7 @@ struct BrowserHistorySuggestionsView: View {
                                 SiteRow(
                                     site: site,
                                     isSelected: selectedSites.contains(site.id),
-                                    onToggle: {
+                                    onSelect: {
                                         if selectedSites.contains(site.id) {
                                             selectedSites.remove(site.id)
                                         } else {
@@ -419,7 +419,7 @@ struct BrowserHistorySuggestionsView: View {
 private struct SiteRow: View {
     let site: BrowserHistoryScanner.VisitedSite
     let isSelected: Bool
-    let onToggle: () -> Void
+    let onSelect: () -> Void
 
     @State private var favicon: NSImage?
 
@@ -428,10 +428,11 @@ private struct SiteRow: View {
             // Checkbox
             Toggle("", isOn: Binding(
                 get: { isSelected },
-                set: { _ in onToggle() }
+                set: { _ in onSelect() }
             ))
             .toggleStyle(.checkbox)
             .labelsHidden()
+            .accessibilityIdentifier("browser-history-toggle-\(site.domain)")
 
             // Favicon
             Group {
@@ -466,7 +467,7 @@ private struct SiteRow: View {
         )
         .contentShape(Rectangle())
         .onTapGesture {
-            onToggle()
+            onSelect()
         }
         .task {
             favicon = await FaviconLoader.shared.favicon(for: site.domain)

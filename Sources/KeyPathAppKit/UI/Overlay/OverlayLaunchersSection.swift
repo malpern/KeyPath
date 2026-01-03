@@ -44,7 +44,7 @@ struct OverlayLaunchersSection: View {
             // Add button pinned to bottom with minimal padding
             // Full width to match Base Layer button styling
             GeometryReader { geo in
-                addButton(width: geo.size.width)
+                launcherAddControl(width: geo.size.width)
                     .frame(maxWidth: .infinity, alignment: .center)
             }
             .frame(height: 28)
@@ -176,7 +176,7 @@ struct OverlayLaunchersSection: View {
     /// Add button styled to match Base Layer button
     /// - Parameter width: Explicit width for the button
     @ViewBuilder
-    private func addButton(width: CGFloat) -> some View {
+    private func launcherAddControl(width: CGFloat) -> some View {
         Button {
             showAddSheet = true
         } label: {
@@ -200,6 +200,7 @@ struct OverlayLaunchersSection: View {
             )
         }
         .buttonStyle(.plain) // Use plain style so our custom background shows
+        .accessibilityIdentifier("overlay-launcher-add")
     }
 }
 
@@ -432,6 +433,7 @@ private struct LauncherMappingRow: View {
                         .labelsHidden()
                         .controlSize(.small)
                         .frame(width: 16, height: 16)
+                        .accessibilityIdentifier("overlay-launcher-toggle-\(mapping.key)")
                 } else if let icon {
                     Image(nsImage: icon)
                         .resizable()
@@ -483,6 +485,7 @@ private struct LauncherMappingRow: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("overlay-launcher-delete-\(mapping.key)")
                 .help("Delete")
                 .background(
                     GeometryReader { geo in
@@ -561,6 +564,7 @@ private struct AddLauncherSheet: View {
                     Text("Website").tag(QuickLaunchMapping.TargetType.website)
                 }
                 .pickerStyle(.segmented)
+                .accessibilityIdentifier("overlay-launcher-add-type-picker")
 
                 if targetType == .app {
                     TextField("App Name", text: $targetName)
@@ -580,10 +584,12 @@ private struct AddLauncherSheet: View {
             HStack {
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
+                    .accessibilityIdentifier("overlay-launcher-add-cancel")
                 Spacer()
                 Button("Add") { save() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(validationError != nil)
+                    .accessibilityIdentifier("overlay-launcher-add-save")
             }
         }
         .padding()
@@ -653,6 +659,7 @@ private struct EditLauncherSheet: View {
                     Text("Website").tag(QuickLaunchMapping.TargetType.website)
                 }
                 .pickerStyle(.segmented)
+                .accessibilityIdentifier("overlay-launcher-edit-type-picker")
 
                 if targetType == .app {
                     TextField("App Name", text: $targetName)
@@ -671,12 +678,15 @@ private struct EditLauncherSheet: View {
 
             HStack {
                 Button("Delete", role: .destructive) { onDelete() }
+                    .accessibilityIdentifier("overlay-launcher-edit-delete")
                 Spacer()
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
+                    .accessibilityIdentifier("overlay-launcher-edit-cancel")
                 Button("Save") { save() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(validationError != nil)
+                    .accessibilityIdentifier("overlay-launcher-edit-save")
             }
         }
         .padding()

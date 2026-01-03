@@ -1060,16 +1060,19 @@ private struct MapperConflictDialog: View {
                     onKeepHold()
                 }
                 .buttonStyle(.bordered)
+                .accessibilityIdentifier("mapper-conflict-keep-hold")
 
                 Button("Keep Tap-Dance") {
                     onKeepTapDance()
                 }
                 .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("mapper-conflict-keep-tap-dance")
 
                 Button("Cancel") {
                     onCancel()
                 }
                 .buttonStyle(.bordered)
+                .accessibilityIdentifier("mapper-conflict-cancel")
             }
         }
         .padding(20)

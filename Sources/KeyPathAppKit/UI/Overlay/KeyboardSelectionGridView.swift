@@ -488,7 +488,9 @@ private struct KeyboardIllustrationCard: View {
             Button("Delete", role: .destructive) {
                 onDelete?()
             }
+            .accessibilityIdentifier("overlay-keyboard-layout-delete-confirm")
             Button("Cancel", role: .cancel) {}
+                .accessibilityIdentifier("overlay-keyboard-layout-delete-cancel")
         } message: {
             Text("Are you sure you want to delete \"\(layout.name)\"? This action cannot be undone.")
         }
