@@ -77,7 +77,7 @@ final class GlobalHotkeyService {
             return nil
         }
 
-        AppLogger.shared.log("⌨️ [GlobalHotkey] Started monitoring (⌥⌘K, ⌥⌘L)")
+        AppLogger.shared.log("⌨️ [GlobalHotkey] Started monitoring (⌥⌘K, ⌥⌘L, ⌥⌘D)")
     }
 
     /// Stop monitoring for the global hotkey.
@@ -121,6 +121,22 @@ final class GlobalHotkeyService {
         AppLogger.shared.log("👁️ [GlobalHotkey] Overlay restored to default size and centered")
     }
 
+    /// Show overlay, bring to front, and toggle the drawer
+    private func toggleDrawer() {
+        let overlay = LiveKeyboardOverlayController.shared
+
+        // Make sure overlay is visible and frontmost
+        if !overlay.isVisible {
+            overlay.isVisible = true
+        }
+        overlay.bringToFront()
+
+        // Toggle the drawer with visual button highlight
+        overlay.toggleDrawerWithHighlight()
+
+        AppLogger.shared.log("📦 [GlobalHotkey] Drawer toggled via hotkey")
+    }
+
     private func action(for event: NSEvent) -> GlobalHotkeyAction? {
         guard let match = GlobalHotkeyMatcher.match(
             keyCode: event.keyCode,
@@ -139,6 +155,8 @@ final class GlobalHotkeyService {
             toggleOverlayVisibility()
         case .resetOverlay:
             restoreOverlayToDefaultCentered()
+        case .toggleDrawer:
+            toggleDrawer()
         }
     }
 }
@@ -146,6 +164,7 @@ final class GlobalHotkeyService {
 enum GlobalHotkeyAction {
     case toggleOverlay
     case resetOverlay
+    case toggleDrawer
 }
 
 struct GlobalHotkeyDefinition {
@@ -160,7 +179,8 @@ enum GlobalHotkeyMatcher {
 
     static let hotkeys: [GlobalHotkeyDefinition] = [
         GlobalHotkeyDefinition(keyCode: 40, action: .toggleOverlay, label: "Option+Command+K"),
-        GlobalHotkeyDefinition(keyCode: 37, action: .resetOverlay, label: "Option+Command+L")
+        GlobalHotkeyDefinition(keyCode: 37, action: .resetOverlay, label: "Option+Command+L"),
+        GlobalHotkeyDefinition(keyCode: 2, action: .toggleDrawer, label: "Option+Command+D")
     ]
 
     static func match(keyCode: UInt16, modifiers: NSEvent.ModifierFlags) -> GlobalHotkeyDefinition? {

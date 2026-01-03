@@ -377,6 +377,11 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         AppLogger.shared.log("🚀 [OverlayController] Showing overlay for startup - size: \(Int(startupSize.width))x\(Int(startupSize.height)), position: centered bottom")
     }
 
+    /// Bring the overlay window to the front without changing visibility state
+    func bringToFront() {
+        window?.orderFrontRegardless()
+    }
+
     /// Show the overlay for a launcher activation while preserving size and position.
     func showForQuickLaunch() {
         if window == nil {
@@ -551,6 +556,18 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             AppLogger.shared.log("🔧 [OverlayController] Opening inspector...")
             openInspector(animated: true)
         }
+    }
+
+    /// Toggle the drawer with a brief visual highlight on the button (for hotkey feedback)
+    func toggleDrawerWithHighlight() {
+        // Briefly highlight the button to show visual feedback
+        uiState.drawerButtonHighlighted = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+            self?.uiState.drawerButtonHighlighted = false
+        }
+
+        // Toggle the drawer
+        toggleInspectorPanel()
     }
 
     /// Automatically hide the overlay once when Settings opens.
@@ -1256,6 +1273,9 @@ final class LiveKeyboardOverlayUIState: ObservableObject {
 
     // Health indicator state for startup validation display
     @Published var healthIndicatorState: HealthIndicatorState = .dismissed
+
+    /// Brief highlight of the drawer button when toggled via hotkey
+    @Published var drawerButtonHighlighted = false
 }
 
 enum InspectorPanelLayout {

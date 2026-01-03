@@ -113,6 +113,7 @@ struct LiveKeyboardOverlayView: View {
                     currentLayerName: viewModel.currentLayerName,
                     isLauncherMode: viewModel.isLauncherModeActive || (uiState.isInspectorOpen && inspectorSection == .launchers),
                     healthIndicatorState: uiState.healthIndicatorState,
+                    drawerButtonHighlighted: uiState.drawerButtonHighlighted,
                     onClose: { onClose?() },
                     onToggleInspector: { onToggleInspector?() },
                     onHealthTap: { onHealthIndicatorTap?() }
@@ -480,6 +481,8 @@ private struct OverlayDragHeader: View {
     let isLauncherMode: Bool
     /// Current system health indicator state
     let healthIndicatorState: HealthIndicatorState
+    /// Whether the drawer button should be visually highlighted (hotkey feedback)
+    let drawerButtonHighlighted: Bool
     let onClose: () -> Void
     let onToggleInspector: () -> Void
     /// Callback when health indicator is tapped (to launch wizard)
@@ -531,8 +534,10 @@ private struct OverlayDragHeader: View {
                 } label: {
                     Image(systemName: isInspectorOpen ? "xmark.circle" : "slider.horizontal.3")
                         .font(.system(size: buttonSize * 0.45, weight: .semibold))
-                        .foregroundStyle(headerIconColor)
+                        .foregroundStyle(drawerButtonHighlighted ? Color.accentColor : headerIconColor)
                         .frame(width: buttonSize, height: buttonSize)
+                        .scaleEffect(drawerButtonHighlighted ? 1.2 : 1.0)
+                        .animation(.easeInOut(duration: 0.1), value: drawerButtonHighlighted)
                 }
                 .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
                 .help(isInspectorOpen ? "Close Settings" : "Open Settings")
