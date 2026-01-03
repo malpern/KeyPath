@@ -190,6 +190,9 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
         // Debug: Log custom rules count when building state
         AppLogger.shared.log("📊 [RuntimeCoordinator] buildUIState: customRules.count = \(customRules.count)")
+        if let error = lastError {
+            AppLogger.shared.debug("🚨 [RuntimeCoordinator] buildUIState: lastError = \(error)")
+        }
 
         return KanataUIState(
             // Core Status
@@ -422,6 +425,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
             _ = await triggerConfigReload()
             notifyStateChanged()
             // Notify overlay to rebuild layer mapping
+            AppLogger.shared.debug("🔔 [RuntimeCoordinator] Posting kanataConfigChanged notification")
             NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
         }
         ruleCollectionsManager.onLayerChanged = { [weak self] layerName in
@@ -435,7 +439,9 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
             )
         }
         ruleCollectionsManager.onError = { [weak self] error in
+            AppLogger.shared.debug("🚨 [RuntimeCoordinator] onError callback received: \(error)")
             self?.lastError = error
+            AppLogger.shared.debug("🚨 [RuntimeCoordinator] lastError set, calling notifyStateChanged()")
             self?.notifyStateChanged()
         }
         ruleCollectionsManager.onWarning = { [weak self] warning in

@@ -71,6 +71,11 @@ final class StatePublisherService<State: Sendable> {
             return
         }
         let state = provider()
+        if stateChangeContinuation == nil {
+            AppLogger.shared.debug("🚨 [StatePublisher] notifyStateChanged: continuation is nil, state won't be published!")
+        } else {
+            AppLogger.shared.debug("🚨 [StatePublisher] notifyStateChanged: yielding state to continuation")
+        }
         stateChangeContinuation?.yield(state)
     }
 

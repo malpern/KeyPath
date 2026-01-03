@@ -106,7 +106,8 @@ class MainAppStateController: ObservableObject {
            let plist = try? PropertyListSerialization.propertyList(
                from: plistData, options: [], format: nil
            ) as? [String: Any],
-           let args = plist["ProgramArguments"] as? [String] {
+           let args = plist["ProgramArguments"] as? [String]
+        {
             let hasTCPPort = args.contains("--port")
             guard hasTCPPort else {
                 AppLogger.shared.warn(
@@ -137,7 +138,8 @@ class MainAppStateController: ObservableObject {
 
         // Optimization: Skip validation if recently completed (prevents redundant work on rapid restarts)
         if let lastTime = lastValidationTime,
-           Date().timeIntervalSince(lastTime) < validationCooldown {
+           Date().timeIntervalSince(lastTime) < validationCooldown
+        {
             let timeSince = Int(Date().timeIntervalSince(lastTime))
             AppLogger.shared.log(
                 "⏭️ [MainAppStateController] Skipping validation - completed \(timeSince)s ago (cooldown: \(Int(validationCooldown))s)"
@@ -252,6 +254,16 @@ class MainAppStateController: ObservableObject {
     private func performValidation() async {
         guard let validator else {
             AppLogger.shared.warn("⚠️ [MainAppStateController] Cannot validate - validator not configured")
+            validationState = .failed(blockingCount: 1, totalCount: 1)
+            issues = [WizardIssue(
+                identifier: .daemon,
+                severity: .critical,
+                category: .daemon,
+                title: "System check unavailable",
+                description: "KeyPath couldn't start its system validator. Try restarting the app.",
+                autoFixAction: nil,
+                userAction: "Quit and reopen KeyPath, then run the setup wizard."
+            )]
             return
         }
 

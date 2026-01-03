@@ -21,8 +21,28 @@ actor MockKanataUDPClient {
 
 @MainActor
 class ServiceHealthMonitorTests: XCTestCase {
-    lazy var processLifecycle: ProcessLifecycleManager = .init()
-    lazy var monitor: ServiceHealthMonitor = .init(processLifecycle: processLifecycle)
+    var processLifecycle: ProcessLifecycleManager!
+    var monitor: ServiceHealthMonitor!
+    private var previousSudoEnv: String?
+
+    override func setUp() {
+        super.setUp()
+        previousSudoEnv = ProcessInfo.processInfo.environment["KEYPATH_USE_SUDO"]
+        setenv("KEYPATH_USE_SUDO", "0", 1)
+        processLifecycle = ProcessLifecycleManager()
+        monitor = ServiceHealthMonitor(processLifecycle: processLifecycle)
+    }
+
+    override func tearDown() {
+        if let previousSudoEnv {
+            setenv("KEYPATH_USE_SUDO", previousSudoEnv, 1)
+        } else {
+            unsetenv("KEYPATH_USE_SUDO")
+        }
+        processLifecycle = nil
+        monitor = nil
+        super.tearDown()
+    }
 
     // MARK: - Health Check Tests
 
