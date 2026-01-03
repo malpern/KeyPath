@@ -1823,8 +1823,19 @@
     const hyperKeys = document.querySelectorAll('.kb-key-hyper');
 
     if (launcherKeyboard && hyperKeys.length > 0) {
+        let manualHyperUsed = false;
+        let autoLauncherTriggered = false;
+        let hasUserScrolled = false;
+
         // Start with the launcher layer hidden even if a cached build left it open.
         launcherKeyboard.classList.remove('launcher-active');
+
+        function openLauncher() {
+            launcherKeyboard.classList.add('launcher-active');
+            if (typeof wakeKeyboard === 'function') {
+                wakeKeyboard();
+            }
+        }
 
         function toggleLauncher() {
             launcherKeyboard.classList.toggle('launcher-active');
@@ -1841,6 +1852,7 @@
         hyperKeys.forEach(key => {
             key.addEventListener('pointerdown', (e) => {
                 e.stopPropagation();
+                manualHyperUsed = true;
                 if (typeof stopHyperPulse === 'function') {
                     stopHyperPulse();
                 }
@@ -1848,12 +1860,31 @@
 
             key.addEventListener('click', (e) => {
                 e.stopPropagation();
+                manualHyperUsed = true;
                 if (typeof stopHyperPulse === 'function') {
                     stopHyperPulse();
                 }
                 toggleLauncher();
             });
         });
+
+        if (keyboardSection) {
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 0) {
+                    hasUserScrolled = true;
+                }
+                if (!hasUserScrolled || manualHyperUsed || autoLauncherTriggered) return;
+                const rect = launcherKeyboard.getBoundingClientRect();
+                const midpoint = rect.top + rect.height / 2;
+                if (midpoint < window.innerHeight * 0.5 && rect.bottom > 0) {
+                    if (typeof stopHyperPulse === 'function') {
+                        stopHyperPulse();
+                    }
+                    openLauncher();
+                    autoLauncherTriggered = true;
+                }
+            }, { passive: true });
+        }
 
         // ESC closes launcher
         document.addEventListener('keydown', (e) => {
