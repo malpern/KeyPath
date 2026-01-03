@@ -1823,14 +1823,6 @@
     const hyperKeys = document.querySelectorAll('.kb-key-hyper');
 
     if (launcherKeyboard && hyperKeys.length > 0) {
-        let manualHyperUsed = false;
-
-        function openLauncher() {
-            launcherKeyboard.classList.add('launcher-active');
-            if (typeof wakeKeyboard === 'function') {
-                wakeKeyboard();
-            }
-        }
 
         function toggleLauncher() {
             launcherKeyboard.classList.toggle('launcher-active');
@@ -1847,7 +1839,6 @@
         hyperKeys.forEach(key => {
             key.addEventListener('pointerdown', (e) => {
                 e.stopPropagation();
-                manualHyperUsed = true;
                 if (typeof stopHyperPulse === 'function') {
                     stopHyperPulse();
                 }
@@ -1855,7 +1846,6 @@
 
             key.addEventListener('click', (e) => {
                 e.stopPropagation();
-                manualHyperUsed = true;
                 if (typeof stopHyperPulse === 'function') {
                     stopHyperPulse();
                 }
