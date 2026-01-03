@@ -1,5 +1,19 @@
 import Foundation
 
+/*
+ +---+---+---+---+---+---+---+---+
+ | K | E | Y | P | A | T | H | :)|
+ +---+---+---+---+---+---+---+---+
+ */
+
+/*
+    _  __          ____      __  __
+   | |/ /___  ____/ / /___ _/ /_/ /_
+   |   / __ \/ __  / / __ `/ __/ __/
+  /   / /_/ / /_/ / / /_/ / /_/ /_
+ /_/|_\____/\__,_/_/\__,_/\__/\__/
+ */
+
 /// Centralized constants for the KeyPath application.
 /// This ensures consistent path usage across the App, Helper, and Daemons.
 public enum KeyPathConstants {
