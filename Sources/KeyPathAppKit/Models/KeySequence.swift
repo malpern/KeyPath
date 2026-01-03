@@ -52,7 +52,7 @@ public struct KeyPress: Codable, Equatable, Sendable {
         self.keyCode = keyCode
     }
 
-    /// Display string with macOS symbols
+    /// Display string with macOS symbols (single letters uppercased)
     public var displayString: String {
         var result = ""
 
@@ -61,7 +61,9 @@ public struct KeyPress: Codable, Equatable, Sendable {
         if modifiers.contains(.shift) { result += "⇧" }
         if modifiers.contains(.command) { result += "⌘" }
 
-        result += baseKey
+        // Uppercase single letters for display
+        let displayKey = baseKey.count == 1 ? baseKey.uppercased() : baseKey
+        result += displayKey
         return result
     }
 
