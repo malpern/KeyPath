@@ -1377,17 +1377,28 @@
         let shouldCancel = false;
 
         // Type text character by character (slowed down)
+        function resetGestureText() {
+            if (gestureText) gestureText.textContent = '';
+            if (cursor) cursor.style.display = 'none';
+        }
+
         async function typeText(text) {
-            gestureText.textContent = '';
-            cursor.style.display = 'inline';
+            resetGestureText();
+            if (cursor) cursor.style.display = 'inline';
             for (let i = 0; i < text.length; i++) {
-                if (shouldCancel) return;
+                if (shouldCancel) {
+                    resetGestureText();
+                    return;
+                }
                 gestureText.textContent += text[i];
                 await sleep(70 + Math.random() * 40); // Slower typing
-                if (shouldCancel) return;
+                if (shouldCancel) {
+                    resetGestureText();
+                    return;
+                }
             }
             await sleep(400);
-            cursor.style.display = 'none';
+            if (cursor) cursor.style.display = 'none';
         }
 
         // Show keys based on type (slowed down)
