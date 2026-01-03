@@ -7426,6 +7426,8 @@ a.button:active {
 /* Keys with launcher mappings need relative positioning */
 .kb-key[data-launcher] {
     position: relative;
+    overflow: hidden;
+    border-radius: var(--kb-radius);
 }
 
 /* When launcher mode is active, show icons and hide letters */
