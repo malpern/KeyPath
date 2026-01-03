@@ -7408,14 +7408,15 @@ a.button:active {
 }
 
 .kb-launcher-icon {
-    font-size: 28px;
+    font-size: 24px;
     line-height: 1;
 }
 
 .kb-launcher-img {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 .kb-key[data-launcher] {
@@ -7425,23 +7426,13 @@ a.button:active {
 /* Keys with launcher mappings need relative positioning */
 .kb-key[data-launcher] {
     position: relative;
-    overflow: hidden;
-    border-radius: var(--kb-radius);
 }
 
-/* When launcher mode is active, move letters to top-left corner */
-.css-keyboard.launcher-active .kb-key[data-launcher] .kb-primary {
-    position: absolute;
-    top: 4px;
-    left: 6px;
-    font-size: 10px;
-    opacity: 0.6;
-    transform: none;
-    transition: all 0.2s ease;
-}
-
+/* When launcher mode is active, show icons and hide letters */
+.css-keyboard.launcher-active .kb-key[data-launcher] .kb-primary,
 .css-keyboard.launcher-active .kb-key[data-launcher] .kb-secondary {
-    display: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
 }
 
 .css-keyboard.launcher-active .kb-launcher-icon,
@@ -7461,15 +7452,15 @@ a.button:active {
     }
 }
 
-/* Launcher active keys get teal/cyan background like Swift app */
+/* Launcher active keys get a subtle purple glow */
 .css-keyboard.launcher-active .kb-key[data-launcher] {
     background: linear-gradient(180deg,
-        rgba(45, 112, 138, 0.7) 0%,
-        rgba(35, 90, 112, 0.8) 100%);
-    border-color: rgba(70, 150, 180, 0.5);
+        rgba(147, 51, 234, 0.15) 0%,
+        rgba(126, 34, 206, 0.2) 100%);
+    border-color: rgba(168, 85, 247, 0.3);
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.1),
-        inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+        0 0 12px rgba(168, 85, 247, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 /* Hyper key stays pressed while launcher is active */
@@ -7487,27 +7478,17 @@ a.button:active {
     opacity: 1 !important;
 }
 
-/* Remove glow effects when launcher is active */
-.css-keyboard.launcher-active .kb-primary,
-.css-keyboard.launcher-active .kb-secondary,
-.css-keyboard.launcher-active .kb-label {
-    text-shadow: none !important;
-}
-
 /* LinkedIn special styling */
 .kb-key[data-launcher="linkedin"] .kb-launcher-icon {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 700;
     color: #0A66C2;
     font-family: var(--font-text);
-    background: #fff;
-    padding: 4px 6px;
-    border-radius: 4px;
 }
 
 /* X/Twitter special styling */
 .kb-key[data-launcher="twitter"] .kb-launcher-icon {
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 900;
     color: #fff;
 }
