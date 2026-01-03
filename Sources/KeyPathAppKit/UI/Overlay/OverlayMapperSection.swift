@@ -21,6 +21,7 @@ struct OverlayMapperSection: View {
     @State private var isSystemActionPickerOpen = false
     @State private var isAppConditionPickerOpen = false
     @State private var cachedRunningApps: [NSRunningApplication] = []
+    @State private var isLoadingRunningApps = false
 
     var body: some View {
         VStack(spacing: 8) {
@@ -266,15 +267,23 @@ struct OverlayMapperSection: View {
         }
     }
 
-    /// Refresh the cached running apps list
+    /// Refresh the cached running apps list asynchronously
     private func refreshRunningApps() {
-        cachedRunningApps = NSWorkspace.shared.runningApplications
-            .filter { app in
-                app.activationPolicy == .regular &&
-                app.bundleIdentifier != Bundle.main.bundleIdentifier &&
-                app.localizedName != nil
+        isLoadingRunningApps = true
+        // Use Task to load apps off the main thread's blocking path
+        Task {
+            let apps = NSWorkspace.shared.runningApplications
+                .filter { app in
+                    app.activationPolicy == .regular &&
+                    app.bundleIdentifier != Bundle.main.bundleIdentifier &&
+                    app.localizedName != nil
+                }
+                .sorted { ($0.localizedName ?? "") < ($1.localizedName ?? "") }
+            await MainActor.run {
+                cachedRunningApps = apps
+                isLoadingRunningApps = false
             }
-            .sorted { ($0.localizedName ?? "") < ($1.localizedName ?? "") }
+        }
     }
 
     /// Popover content for app condition picker
@@ -338,8 +347,18 @@ struct OverlayMapperSection: View {
 
     @ViewBuilder
     private var runningAppsList: some View {
-        ForEach(cachedRunningApps, id: \.processIdentifier) { app in
-            runningAppButton(for: app)
+        if isLoadingRunningApps {
+            HStack {
+                Spacer()
+                ProgressView()
+                    .controlSize(.small)
+                    .padding(.vertical, 12)
+                Spacer()
+            }
+        } else {
+            ForEach(cachedRunningApps, id: \.processIdentifier) { app in
+                runningAppButton(for: app)
+            }
         }
     }
 
