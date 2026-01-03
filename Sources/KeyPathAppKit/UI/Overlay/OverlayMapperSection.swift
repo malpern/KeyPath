@@ -22,6 +22,7 @@ struct OverlayMapperSection: View {
     @State private var isAppConditionPickerOpen = false
     @State private var cachedRunningApps: [NSRunningApplication] = []
     @State private var isLoadingRunningApps = false
+    @State private var showingResetAllConfirmation = false
 
     var body: some View {
         VStack(spacing: 8) {
@@ -37,6 +38,9 @@ struct OverlayMapperSection: View {
             guard !shouldShowHealthGate, let kanataViewModel else { return }
             viewModel.configure(kanataManager: kanataViewModel.underlyingManager)
             viewModel.setLayer(kanataViewModel.currentLayerName)
+            // Initialize the default A→A mapping with proper inputSequence
+            // keyCode 0 = 'A' key on macOS
+            viewModel.setInputFromKeyClick(keyCode: 0, inputLabel: "a", outputLabel: "a")
             // Notify parent to highlight the A key
             onKeySelected?(viewModel.inputKeyCode)
         }
@@ -80,6 +84,18 @@ struct OverlayMapperSection: View {
             Task {
                 await viewModel.save(kanataManager: manager)
             }
+        }
+        .confirmationDialog(
+            "Reset Entire Keyboard?",
+            isPresented: $showingResetAllConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Reset All Mappings", role: .destructive) {
+                performResetAll()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will remove all custom key mappings and restore the keyboard to its default configuration. This cannot be undone.")
         }
     }
 
@@ -128,6 +144,11 @@ struct OverlayMapperSection: View {
                         Image(systemName: "arrow.right")
                             .font(.title3)
                             .foregroundColor(.secondary)
+                            .contentShape(Rectangle())
+                            .onTapGesture(count: 2) {
+                                // Double-tap arrow = reset all with confirmation
+                                showingResetAllConfirmation = true
+                            }
 
                         // Reset button - only show if modified, centered under arrow
                         if hasModifiedMapping {
@@ -142,7 +163,8 @@ struct OverlayMapperSection: View {
                             .help("Click to reset this key. Double-click to reset all.")
                             .accessibilityIdentifier("overlay-mapper-reset")
                             .onTapGesture(count: 2) {
-                                handleDoubleClickReset()
+                                // Double-click reset = reset all with confirmation
+                                showingResetAllConfirmation = true
                             }
                             .onTapGesture(count: 1) {
                                 handleResetTap()
@@ -432,17 +454,21 @@ struct OverlayMapperSection: View {
         .focusable(false)
     }
 
-    /// Handle single tap on reset - clears current mapping
+    /// Handle single tap on reset - clears current mapping with sound feedback
     private func handleResetTap() {
         viewModel.clear()
         onKeySelected?(nil)
+        // Play success sound for feedback
+        SoundPlayer.shared.playSuccessSound()
     }
 
-    /// Handle double-click on reset - resets entire keyboard to defaults
-    private func handleDoubleClickReset() {
+    /// Perform the actual reset of entire keyboard to defaults
+    private func performResetAll() {
         guard let manager = kanataViewModel?.underlyingManager else { return }
         Task {
             await viewModel.resetAllToDefaults(kanataManager: manager)
+            // Play success sound after reset completes
+            SoundPlayer.shared.playSuccessSound()
         }
         onKeySelected?(nil)
     }
