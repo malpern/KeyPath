@@ -131,7 +131,10 @@ struct LiveKeyboardOverlayView: View {
                             inspectorReveal: reveal,
                             inspectorLeadingGap: inspectorLeadingGap,
                             healthIndicatorState: uiState.healthIndicatorState,
-                            onHealthTap: { onHealthIndicatorTap?() }
+                            onHealthTap: { onHealthIndicatorTap?() },
+                            onKeySelected: { keyCode in
+                                viewModel.selectedKeyCode = keyCode
+                            }
                         )
 
                         InspectorMaskedHost(
@@ -179,6 +182,7 @@ struct LiveKeyboardOverlayView: View {
                             holdLabels: viewModel.holdLabels,
                             tapHoldIdleLabels: viewModel.tapHoldIdleLabels,
                             onKeyClick: onKeyClick,
+                            selectedKeyCode: viewModel.selectedKeyCode,
                             isLauncherMode: viewModel.isLauncherModeActive || (uiState.isInspectorOpen && inspectorSection == .launchers),
                             launcherMappings: viewModel.launcherMappings
                         )
@@ -257,11 +261,19 @@ struct LiveKeyboardOverlayView: View {
                 viewModel.loadLauncherMappings()
                 checkLauncherWelcome()
             }
+            // Clear selected key when leaving mapper section
+            if newSection != .mapper {
+                viewModel.selectedKeyCode = nil
+            }
         }
         .onChange(of: uiState.isInspectorOpen) { _, isOpen in
             // Load launcher mappings when opening inspector to launchers section
             if isOpen, inspectorSection == .launchers {
                 viewModel.loadLauncherMappings()
+            }
+            // Clear selected key when closing inspector
+            if !isOpen {
+                viewModel.selectedKeyCode = nil
             }
         }
         .onAppear {
@@ -311,8 +323,7 @@ struct LiveKeyboardOverlayView: View {
             // Load the launcher config to pass to welcome dialog
             let collections = await RuleCollectionStore.shared.loadCollections()
             if let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
-               let config = launcherCollection.configuration.launcherGridConfig
-            {
+               let config = launcherCollection.configuration.launcherGridConfig {
                 await MainActor.run {
                     pendingLauncherConfig = config
                     showLauncherWelcomeWindow()
@@ -427,7 +438,8 @@ extension LiveKeyboardOverlayView {
         inspectorReveal: CGFloat,
         inspectorLeadingGap: CGFloat,
         healthIndicatorState: HealthIndicatorState,
-        onHealthTap: @escaping () -> Void
+        onHealthTap: @escaping () -> Void,
+        onKeySelected: @escaping (UInt16?) -> Void
     ) -> AnyView {
         AnyView(
             OverlayInspectorPanel(
@@ -443,7 +455,8 @@ extension LiveKeyboardOverlayView {
                 onHealthTap: onHealthTap,
                 onKeymapChanged: onKeymapChanged,
                 isKeycapsEnabled: viewModel.isKeycapColorwayEnabled,
-                isSoundsEnabled: viewModel.isTypingSoundsEnabled
+                isSoundsEnabled: viewModel.isTypingSoundsEnabled,
+                onKeySelected: onKeySelected
             )
             .frame(width: inspectorTotalWidth, alignment: .trailing)
         )
@@ -926,6 +939,8 @@ struct OverlayInspectorPanel: View {
     var isKeycapsEnabled: Bool = false
     /// Whether typing sounds feature is enabled
     var isSoundsEnabled: Bool = false
+    /// Callback when a key is selected in the mapper drawer (keyCode or nil to clear)
+    var onKeySelected: ((UInt16?) -> Void)?
 
     @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
     @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var includePunctuationStore: String = "{}"
@@ -1108,7 +1123,8 @@ struct OverlayInspectorPanel: View {
                 kanataViewModel: kanataViewModel,
                 healthIndicatorState: healthIndicatorState,
                 onHealthTap: onHealthTap,
-                fadeAmount: fadeAmount
+                fadeAmount: fadeAmount,
+                onKeySelected: onKeySelected
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else if healthIndicatorState == .checking {
@@ -1117,7 +1133,8 @@ struct OverlayInspectorPanel: View {
                 kanataViewModel: kanataViewModel,
                 healthIndicatorState: healthIndicatorState,
                 onHealthTap: onHealthTap,
-                fadeAmount: fadeAmount
+                fadeAmount: fadeAmount,
+                onKeySelected: onKeySelected
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else if isMapperAvailable {
@@ -1126,7 +1143,8 @@ struct OverlayInspectorPanel: View {
                 kanataViewModel: kanataViewModel,
                 healthIndicatorState: healthIndicatorState,
                 onHealthTap: onHealthTap,
-                fadeAmount: fadeAmount
+                fadeAmount: fadeAmount,
+                onKeySelected: onKeySelected
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else {

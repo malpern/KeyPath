@@ -32,7 +32,7 @@ struct OverlayKeycapView: View {
     /// Hold label to display when tap-hold key is in hold state
     var holdLabel: String?
     /// Idle label to display for tap-hold inputs when not pressed
-    var tapHoldIdleLabel: String? = nil
+    var tapHoldIdleLabel: String?
     /// Callback when key is clicked (not dragged)
     var onKeyClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
     /// GMK colorway for keycap styling
@@ -43,6 +43,8 @@ struct OverlayKeycapView: View {
     var useFloatingLabels: Bool = false
     /// Whether to show scooped/dished home row keys (Kinesis style)
     var showScoopedHomeRow: Bool = false
+    /// Whether this key is selected in the mapper drawer (shows selection highlight)
+    var isSelected: Bool = false
 
     // MARK: - Launcher Mode
 
@@ -155,7 +157,7 @@ struct OverlayKeycapView: View {
             return false
         }
         // Prefer mapped labels (including modifier-only outputs like Hyper) when they differ from input.
-        if !info.displayLabel.isEmpty && info.displayLabel.lowercased() != inputKeyName {
+        if !info.displayLabel.isEmpty, info.displayLabel.lowercased() != inputKeyName {
             return false
         }
         if let outputKey = info.outputKey {
@@ -280,6 +282,14 @@ struct OverlayKeycapView: View {
                 RoundedRectangle(cornerRadius: cornerRadius)
                     .stroke(Color.accentColor, lineWidth: 2 * scale)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+
+            // Selection highlight (shows when key is selected in mapper drawer)
+            if isSelected {
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(Color.accentColor.opacity(0.8), lineWidth: 2.5 * scale)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .shadow(color: Color.accentColor.opacity(0.4), radius: 4 * scale)
             }
 
             // Glow layers for dark mode backlight effect
@@ -1456,8 +1466,7 @@ struct OverlayKeycapView: View {
             // Standard function key layout: SF symbol on top, F-key label below
             let sfSymbol: String? = {
                 if let info = layerKeyInfo,
-                   let outputSymbol = LabelMetadata.sfSymbol(forOutputLabel: info.displayLabel)
-                {
+                   let outputSymbol = LabelMetadata.sfSymbol(forOutputLabel: info.displayLabel) {
                     return outputSymbol
                 }
                 // Fall back to physical key code

@@ -56,8 +56,7 @@ final class SimpleModsWriterTests: XCTestCase {
         } catch let error as KeyPathError {
             // This is expected - the guard should catch invalid config
             if case let .configuration(configError) = error,
-               case let .invalidFormat(reason) = configError
-            {
+               case let .invalidFormat(reason) = configError {
                 XCTAssertTrue(reason.contains("empty") || reason.contains("invalid"),
                               "Error should indicate invalid config")
             }

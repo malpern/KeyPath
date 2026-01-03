@@ -43,6 +43,9 @@ class KeyboardVisualizationViewModel: ObservableObject {
     @Published var currentLayerName: String = "base"
     /// Whether the layer key mapping is being built (for loading indicator)
     @Published var isLoadingLayerMap: Bool = false
+    /// Key code of the currently selected key in the mapper drawer (nil when no selection)
+    /// Used to show a visual highlight on the key being edited
+    @Published var selectedKeyCode: UInt16?
     /// Key mapping for the current layer: keyCode -> LayerKeyInfo
     @Published var layerKeyMap: [UInt16: LayerKeyInfo] = [:]
     /// Hold labels for tap-hold keys that have transitioned to hold state
@@ -292,36 +295,36 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
     private static func singleKeyDisplayLabel(_ key: String) -> String? {
         switch key {
-        case "hyper": return "✦"
-        case "meh": return "◆"
-        case "esc", "escape": return "⎋"
-        case "caps", "capslock": return "⇪"
-        case "bspc", "backspace": return "⌫"
-        case "del", "delete": return "⌦"
-        case "tab": return "⇥"
-        case "ret", "enter", "return": return "↩"
-        case "lctl", "rctl", "ctrl", "control": return "⌃"
-        case "lalt", "ralt", "alt", "opt", "option": return "⌥"
-        case "lmet", "rmet", "cmd", "command": return "⌘"
-        case "lsft", "rsft", "shift": return "⇧"
-        case "space", "spc", "sp": return ""
+        case "hyper": "✦"
+        case "meh": "◆"
+        case "esc", "escape": "⎋"
+        case "caps", "capslock": "⇪"
+        case "bspc", "backspace": "⌫"
+        case "del", "delete": "⌦"
+        case "tab": "⇥"
+        case "ret", "enter", "return": "↩"
+        case "lctl", "rctl", "ctrl", "control": "⌃"
+        case "lalt", "ralt", "alt", "opt", "option": "⌥"
+        case "lmet", "rmet", "cmd", "command": "⌘"
+        case "lsft", "rsft", "shift": "⇧"
+        case "space", "spc", "sp": ""
         case let key where key.count == 1 && key.first?.isLetter == true:
-            return key.uppercased()
+            key.uppercased()
         case let key where key.count == 1 && key.first?.isNumber == true:
-            return key
-        case "grave", "grv": return "`"
-        case "minus", "min": return "-"
-        case "equal", "eql": return "="
-        case "leftbrace", "lbrc": return "["
-        case "rightbrace", "rbrc": return "]"
-        case "backslash", "bksl": return "\\"
-        case "semicolon", "scln": return ";"
-        case "apostrophe", "apos": return "'"
-        case "comma", "comm": return ","
-        case "dot", ".": return "."
-        case "slash", "/": return "/"
+            key
+        case "grave", "grv": "`"
+        case "minus", "min": "-"
+        case "equal", "eql": "="
+        case "leftbrace", "lbrc": "["
+        case "rightbrace", "rbrc": "]"
+        case "backslash", "bksl": "\\"
+        case "semicolon", "scln": ";"
+        case "apostrophe", "apos": "'"
+        case "comma", "comm": ","
+        case "dot", ".": "."
+        case "slash", "/": "/"
         default:
-            return key.isEmpty ? nil : key
+            key.isEmpty ? nil : key
         }
     }
 

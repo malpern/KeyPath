@@ -66,7 +66,7 @@ final class GlobalHotkeyService {
         // Local monitor for when KeyPath is focused
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             // Check synchronously if this is our hotkey
-            guard let self, let action = self.action(for: event) else { return event }
+            guard let self, let action = action(for: event) else { return event }
 
             // Trigger the action on main actor
             Task { @MainActor in
@@ -160,7 +160,7 @@ enum GlobalHotkeyMatcher {
 
     static let hotkeys: [GlobalHotkeyDefinition] = [
         GlobalHotkeyDefinition(keyCode: 40, action: .toggleOverlay, label: "Option+Command+K"),
-        GlobalHotkeyDefinition(keyCode: 37, action: .resetOverlay, label: "Option+Command+L"),
+        GlobalHotkeyDefinition(keyCode: 37, action: .resetOverlay, label: "Option+Command+L")
     ]
 
     static func match(keyCode: UInt16, modifiers: NSEvent.ModifierFlags) -> GlobalHotkeyDefinition? {

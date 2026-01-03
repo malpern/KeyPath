@@ -232,6 +232,34 @@ class MapperViewModel: ObservableObject {
         )
     }
 
+    /// Update input from a key click in the overlay (used by mapper drawer)
+    func setInputFromKeyClick(keyCode: UInt16, inputLabel: String, outputLabel: String) {
+        // Stop any active recording
+        stopRecording()
+
+        // Update input
+        self.inputKeyCode = keyCode
+        self.inputLabel = formatKeyForDisplay(inputLabel)
+        inputSequence = KeySequence(
+            keys: [KeyPress(baseKey: inputLabel, modifiers: [], keyCode: Int64(keyCode))],
+            captureMode: .single
+        )
+
+        // Update output to match current mapping
+        self.outputLabel = formatKeyForDisplay(outputLabel)
+        outputSequence = KeySequence(
+            keys: [KeyPress(baseKey: outputLabel, modifiers: [], keyCode: 0)],
+            captureMode: .single
+        )
+
+        // Clear any app/action selections since we're switching to a new key
+        selectedApp = nil
+        selectedSystemAction = nil
+        selectedURL = nil
+
+        AppLogger.shared.log("🖱️ [MapperViewModel] Input updated from key click: \(inputLabel) -> \(outputLabel)")
+    }
+
     /// Apply preset values from overlay click
     func applyPresets(
         input: String,
@@ -285,8 +313,7 @@ class MapperViewModel: ObservableObject {
             outputSequence = nil
             AppLogger.shared.log("🗺️ [MapperViewModel] Preset output is URL: \(urlIdentifier)")
         } else if let systemActionIdentifier,
-                  let systemAction = SystemActionInfo.find(byOutput: systemActionIdentifier)
-        {
+                  let systemAction = SystemActionInfo.find(byOutput: systemActionIdentifier) {
             // It's a system action/media key - set selectedSystemAction for SF Symbol rendering
             selectedSystemAction = systemAction
             outputLabel = systemAction.name
@@ -772,8 +799,7 @@ class MapperViewModel: ObservableObject {
             let info = mapping.info
 
             if let appIdentifier = info.appLaunchIdentifier,
-               let appInfo = appLaunchInfo(for: appIdentifier)
-            {
+               let appInfo = appLaunchInfo(for: appIdentifier) {
                 selectedApp = appInfo
                 outputLabel = appInfo.name
                 outputSequence = nil
@@ -790,8 +816,7 @@ class MapperViewModel: ObservableObject {
                 originalSystemActionIdentifier = nil
                 AppLogger.shared.log("🔍 [MapperViewModel] Key \(keyCode) is URL: \(url)")
             } else if let systemId = info.systemActionIdentifier,
-                      let systemAction = SystemActionInfo.find(byOutput: systemId) ?? SystemActionInfo.find(byOutput: info.displayLabel)
-            {
+                      let systemAction = SystemActionInfo.find(byOutput: systemId) ?? SystemActionInfo.find(byOutput: info.displayLabel) {
                 selectedSystemAction = systemAction
                 outputLabel = systemAction.name
                 outputSequence = nil
@@ -1017,8 +1042,7 @@ class MapperViewModel: ObservableObject {
             )
 
             if let appIdentifier = originalAppIdentifier,
-               let appInfo = appLaunchInfo(for: appIdentifier)
-            {
+               let appInfo = appLaunchInfo(for: appIdentifier) {
                 selectedApp = appInfo
                 outputLabel = appInfo.name
                 outputSequence = nil
@@ -1027,8 +1051,7 @@ class MapperViewModel: ObservableObject {
                 outputLabel = extractDomain(from: url)
                 outputSequence = nil
             } else if let systemActionId = originalSystemActionIdentifier,
-                      let systemAction = SystemActionInfo.find(byOutput: systemActionId)
-            {
+                      let systemAction = SystemActionInfo.find(byOutput: systemActionId) {
                 selectedSystemAction = systemAction
                 outputLabel = systemAction.name
                 outputSequence = nil

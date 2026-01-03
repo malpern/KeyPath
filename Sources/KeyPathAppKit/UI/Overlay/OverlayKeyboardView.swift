@@ -24,7 +24,7 @@ struct OverlayKeyboardView: View {
     var isLoadingLayerMap: Bool = false
     /// Key mapping for current layer: keyCode -> LayerKeyInfo
     var layerKeyMap: [UInt16: LayerKeyInfo] = [:]
-    /// Effective pressed key codes (includes remapped outputs for dual highlighting)
+    /// Physical key codes currently pressed (from Kanata TCP KeyInput, shows physical key not output)
     var effectivePressedKeyCodes: Set<UInt16> = []
     /// Key codes to emphasize (highlight with accent color for layer hints)
     var emphasizedKeyCodes: Set<UInt16> = []
@@ -36,6 +36,8 @@ struct OverlayKeyboardView: View {
     var tapHoldIdleLabels: [UInt16: String] = [:]
     /// Callback when a key is clicked (not dragged) - for opening Mapper
     var onKeyClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
+    /// Key code of currently selected key in mapper drawer (shows selection highlight)
+    var selectedKeyCode: UInt16?
 
     // MARK: - Launcher Mode
 
@@ -256,8 +258,7 @@ struct OverlayKeyboardView: View {
         // Normalize label to uppercase for consistent lookup (allLabels contains uppercase)
         let normalizedLabel = label.uppercased()
         if let keyCode = labelToKeyCode[normalizedLabel],
-           let key = layout.keys.first(where: { $0.keyCode == keyCode })
-        {
+           let key = layout.keys.first(where: { $0.keyCode == keyCode }) {
             let width = keyWidth(for: key, scale: scale)
             let height = keyHeight(for: key, scale: scale)
             let centerX = keyPositionX(for: key, scale: scale)
@@ -322,6 +323,8 @@ struct OverlayKeyboardView: View {
             useFloatingLabels: !reduceMotion && activeColorway.legendStyle == .standard,
             // Kinesis keyboards have scooped/dished home row keys
             showScoopedHomeRow: layout.id == "kinesis-360",
+            // Selection highlight for mapper drawer
+            isSelected: selectedKeyCode == key.keyCode,
             // Launcher mode state
             isLauncherMode: isLauncherMode,
             launcherMapping: launcherMapping

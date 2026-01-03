@@ -185,8 +185,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
                 // Clear one-shot override on the first non-modifier key press.
                 if let overrideLayer = self.oneShotLayerOverride,
-                   !Self.modifierKeys.contains(key.lowercased())
-                {
+                   !Self.modifierKeys.contains(key.lowercased()) {
                     AppLogger.shared.debug(
                         "🧭 [OverlayController] Clearing one-shot layer override '\(overrideLayer)' on key press: \(key)"
                     )
@@ -216,8 +215,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             updateLayerName(layerName)
         case .kanata:
             if let overrideLayer = oneShotLayerOverride,
-               normalized != overrideLayer
-            {
+               normalized != overrideLayer {
                 AppLogger.shared.debug(
                     "🧭 [OverlayController] Ignoring kanata layer '\(layerName)' while one-shot override '\(overrideLayer)' active"
                 )
@@ -577,8 +575,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         // Restore overlay if it was auto-hidden recently and user hasn't manually shown it
         if let hiddenAt = autoHiddenTimestamp,
            Date().timeIntervalSince(hiddenAt) < restoreWindowDuration,
-           !isVisible
-        {
+           !isVisible {
             isVisible = true
         }
     }
@@ -655,8 +652,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             }
 
             if let mapping = viewModel.launcherMappings[normalizedKey],
-               let message = Self.launcherActionMessage(for: mapping.target)
-            {
+               let message = Self.launcherActionMessage(for: mapping.target) {
                 AppLogger.shared.log("🖱️ [OverlayController] Launcher key clicked: \(normalizedKey) -> \(message)")
                 ActionDispatcher.shared.dispatch(message: message)
                 ActionDispatcher.shared.dispatch(message: "layer:base")
@@ -682,6 +678,25 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
         AppLogger.shared.log("🖱️ [OverlayController] Key clicked: \(key.label) (keyCode: \(key.keyCode)) -> \(outputKey) [layer: \(currentLayer)]")
 
+        // If inspector is open, update the drawer mapper instead of opening standalone window
+        if uiState.isInspectorOpen {
+            // Update selected key for visual highlight
+            viewModel.selectedKeyCode = key.keyCode
+
+            // Post notification for mapper drawer to update its input
+            NotificationCenter.default.post(
+                name: .mapperDrawerKeySelected,
+                object: nil,
+                userInfo: [
+                    "keyCode": key.keyCode,
+                    "inputKey": inputKey,
+                    "outputKey": outputKey,
+                    "layer": currentLayer
+                ]
+            )
+            return
+        }
+
         // Open Mapper with preset values, current layer, and input keyCode
         MapperWindowController.shared.showWindow(
             viewModel: kanataViewModel,
@@ -698,13 +713,13 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     private static func launcherActionMessage(for target: LauncherTarget) -> String? {
         switch target {
         case let .app(name, bundleId):
-            return "launch:\(bundleId ?? name)"
+            "launch:\(bundleId ?? name)"
         case let .url(urlString):
-            return "open:\(urlString)"
+            "open:\(urlString)"
         case let .folder(path, _):
-            return "folder:\(path)"
+            "folder:\(path)"
         case let .script(path, _):
-            return "script:\(path)"
+            "script:\(path)"
         }
     }
 

@@ -32,8 +32,7 @@ extension RuntimeCoordinator {
     }
 
     func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
-        -> String
-    {
+        -> String {
         try await configurationManager.backupFailedConfigAndApplySafe(
             failedConfig: failedConfig,
             mappings: mappings

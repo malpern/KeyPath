@@ -39,6 +39,11 @@ extension Notification.Name {
     // Rule collections
     static let ruleCollectionsChanged = Notification.Name("KeyPath.RuleCollections.Changed")
 
+    // Mapper drawer
+    /// Posted when a key is clicked and should be selected in the mapper drawer
+    /// userInfo: keyCode (UInt16), inputKey (String), outputKey (String), layer (String)
+    static let mapperDrawerKeySelected = Notification.Name("KeyPath.Mapper.DrawerKeySelected")
+
     // Uninstall flow
     static let keyPathUninstallCompleted = Notification.Name("KeyPath.Uninstall.Completed")
 
