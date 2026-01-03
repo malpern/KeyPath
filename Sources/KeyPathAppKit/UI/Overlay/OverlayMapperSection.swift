@@ -503,78 +503,68 @@ struct OverlayMapperSection: View {
         }
     }
 
+    // MARK: - System Action Groups
+
+    /// System actions grouped for the popover
+    private struct SystemActionGroup {
+        let title: String
+        let actions: [SystemActionInfo]
+    }
+
+    private var systemActionGroups: [SystemActionGroup] {
+        let all = SystemActionInfo.allActions
+        return [
+            SystemActionGroup(title: "System", actions: all.filter {
+                ["spotlight", "mission-control", "launchpad", "dnd", "notification-center", "dictation", "siri"].contains($0.id)
+            }),
+            SystemActionGroup(title: "Playback", actions: all.filter {
+                ["play-pause", "next-track", "prev-track"].contains($0.id)
+            }),
+            SystemActionGroup(title: "Volume", actions: all.filter {
+                ["mute", "volume-up", "volume-down"].contains($0.id)
+            }),
+            SystemActionGroup(title: "Display", actions: all.filter {
+                ["brightness-up", "brightness-down"].contains($0.id)
+            })
+        ]
+    }
+
     /// Popover content for system action picker
     private var systemActionPopover: some View {
-        VStack(spacing: 0) {
-            // "Keystroke" option (clear system action)
-            Button {
-                viewModel.selectedSystemAction = nil
-                isSystemActionPickerOpen = false
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: viewModel.selectedSystemAction == nil ? "checkmark" : "keyboard")
-                        .font(.title2)
-                        .frame(width: 28)
-                    Text("Keystroke")
-                        .font(.body)
-                    Spacer()
-                }
-                .foregroundStyle(.primary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(LayerPickerItemButtonStyle())
-            .focusable(false)
-
-            Divider().opacity(0.2).padding(.horizontal, 8)
-
-            // "System actions" section header (non-selectable)
-            HStack {
-                Text("System actions")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-
-            // System actions grid - 2 columns with large icons
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-                ForEach(SystemActionInfo.allActions) { action in
-                    Button {
-                        viewModel.selectedSystemAction = action
-                        viewModel.outputLabel = action.name
-                        isSystemActionPickerOpen = false
-                    } label: {
-                        VStack(spacing: 6) {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(viewModel.selectedSystemAction?.id == action.id ? Color.accentColor.opacity(0.2) : Color.primary.opacity(0.05))
-                                    .frame(width: 44, height: 44)
-                                Image(systemName: action.sfSymbol)
-                                    .font(.title2)
-                                    .foregroundStyle(viewModel.selectedSystemAction?.id == action.id ? Color.accentColor : .primary)
-                            }
-                            Text(action.name)
-                                .font(.caption)
-                                .lineLimit(1)
-                                .foregroundStyle(viewModel.selectedSystemAction?.id == action.id ? Color.accentColor : .secondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
-                        .contentShape(Rectangle())
+        ScrollView {
+            VStack(spacing: 0) {
+                // "Keystroke" option (clear system action)
+                Button {
+                    viewModel.selectedSystemAction = nil
+                    isSystemActionPickerOpen = false
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: viewModel.selectedSystemAction == nil ? "checkmark" : "keyboard")
+                            .font(.title2)
+                            .frame(width: 28)
+                        Text("Keystroke")
+                            .font(.body)
+                        Spacer()
                     }
-                    .buttonStyle(.plain)
-                    .focusable(false)
-                    .accessibilityIdentifier("system-action-\(action.id)")
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(LayerPickerItemButtonStyle())
+                .focusable(false)
+
+                Divider().opacity(0.2).padding(.horizontal, 8)
+
+                // Grouped system actions
+                ForEach(systemActionGroups, id: \.title) { group in
+                    systemActionGroupView(group)
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.bottom, 12)
+            .padding(.vertical, 6)
         }
-        .padding(.vertical, 6)
-        .frame(width: 280)
+        .frame(width: 320)
+        .frame(maxHeight: 400)
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(
@@ -582,6 +572,83 @@ struct OverlayMapperSection: View {
                 .strokeBorder(Color.primary.opacity(0.15), lineWidth: 0.5)
         )
         .padding(4)
+    }
+
+    @ViewBuilder
+    private func systemActionGroupView(_ group: SystemActionGroup) -> some View {
+        // Section header
+        HStack {
+            Text(group.title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 10)
+        .padding(.bottom, 4)
+
+        // 3-column grid
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {
+            ForEach(group.actions) { action in
+                systemActionButton(action)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.bottom, 4)
+    }
+
+    @ViewBuilder
+    private func systemActionButton(_ action: SystemActionInfo) -> some View {
+        let isSelected = viewModel.selectedSystemAction?.id == action.id
+        Button {
+            viewModel.selectedSystemAction = action
+            viewModel.outputLabel = action.name
+            isSystemActionPickerOpen = false
+        } label: {
+            VStack(spacing: 4) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(isSelected ? Color.accentColor.opacity(0.2) : Color.primary.opacity(0.05))
+                        .frame(width: 40, height: 40)
+                    Image(systemName: action.sfSymbol)
+                        .font(.title3)
+                        .foregroundStyle(isSelected ? Color.accentColor : .primary)
+                }
+                Text(action.name)
+                    .font(.system(size: 9))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .focusable(false)
+        .accessibilityIdentifier("system-action-\(action.id)")
+    }
+
+    /// Returns an SF Symbol icon for a layer name
+    private func iconForLayer(_ layer: String) -> String {
+        switch layer.lowercased() {
+        case "base":
+            return "keyboard"
+        case "nav", "navigation":
+            return "arrow.up.arrow.down.square"
+        case "num", "number", "numbers":
+            return "number.square"
+        case "sym", "symbol", "symbols":
+            return "textformat.abc"
+        case "fn", "function":
+            return "fn"
+        case "media":
+            return "play.rectangle"
+        case "mouse":
+            return "cursorarrow.click"
+        default:
+            return "square.stack.3d.up"
+        }
     }
 
     /// Layer switcher menu styled like the Add Shortcut button
@@ -625,28 +692,29 @@ struct OverlayMapperSection: View {
                 ForEach(Array(availableLayers.enumerated()), id: \.element) { index, layer in
                     let displayName = layer.lowercased() == "base" ? "Base Layer" : layer.capitalized
                     let isSelected = viewModel.currentLayer.lowercased() == layer.lowercased()
+                    let layerIcon = iconForLayer(layer)
 
                     Button {
                         viewModel.setLayer(layer)
                         isLayerPickerOpen = false
                     } label: {
-                        HStack(spacing: 8) {
+                        HStack(spacing: 10) {
+                            Image(systemName: layerIcon)
+                                .font(.body)
+                                .frame(width: 20)
+                                .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                            Text(displayName)
+                                .font(.body)
+                            Spacer()
                             if isSelected {
                                 Image(systemName: "checkmark")
-                                    .font(.caption.weight(.semibold))
-                            } else {
-                                // Invisible placeholder to maintain alignment
-                                Image(systemName: "checkmark")
-                                    .font(.caption.weight(.semibold))
-                                    .opacity(0)
+                                    .font(.body.weight(.semibold))
+                                    .foregroundStyle(Color.accentColor)
                             }
-                            Text(displayName)
-                                .font(.subheadline)
-                            Spacer()
                         }
                         .foregroundStyle(.primary)
                         .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 10)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(LayerPickerItemButtonStyle())
