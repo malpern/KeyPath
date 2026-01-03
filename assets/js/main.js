@@ -1824,8 +1824,6 @@
 
     if (launcherKeyboard && hyperKeys.length > 0) {
         let manualHyperUsed = false;
-        let autoLauncherTriggered = false;
-        let hasUserScrolled = false;
 
         function openLauncher() {
             launcherKeyboard.classList.add('launcher-active');
@@ -1864,25 +1862,6 @@
                 toggleLauncher();
             });
         });
-
-        // Auto-trigger launcher when keyboard midpoint passes screen center (after user scrolls)
-        if (keyboardSection) {
-            window.addEventListener('scroll', () => {
-                if (window.scrollY > 0) {
-                    hasUserScrolled = true;
-                }
-                if (!hasUserScrolled || manualHyperUsed || autoLauncherTriggered) return;
-                const rect = launcherKeyboard.getBoundingClientRect();
-                const midpoint = rect.top + rect.height / 2;
-                if (midpoint < window.innerHeight * 0.5 && rect.bottom > 0) {
-                    if (typeof stopHyperPulse === 'function') {
-                        stopHyperPulse();
-                    }
-                    openLauncher();
-                    autoLauncherTriggered = true;
-                }
-            }, { passive: true });
-        }
 
         // ESC closes launcher
         document.addEventListener('keydown', (e) => {
