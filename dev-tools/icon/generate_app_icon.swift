@@ -50,7 +50,8 @@ func makeIcon(size: CGFloat) -> NSImage {
 func writePNG(_ image: NSImage, to url: URL) throws {
     guard let tiff = image.tiffRepresentation,
           let rep = NSBitmapImageRep(data: tiff),
-          let data = rep.representation(using: .png, properties: [:]) else {
+          let data = rep.representation(using: .png, properties: [:])
+    else {
         throw NSError(domain: "IconGen", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to create PNG data"])
     }
     try data.write(to: url)

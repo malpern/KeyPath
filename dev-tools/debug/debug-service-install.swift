@@ -18,7 +18,7 @@ struct DebugServiceInstall {
         let plan = await engine.makePlan(for: .install, context: context)
 
         print("\n📋 Plan status: \(plan.status)")
-        plan.recipes.enumerated().forEach { idx, recipe in
+        for (idx, recipe) in plan.recipes.enumerated() {
             print("  \(idx + 1). [\(recipe.type)] \(recipe.id)")
         }
 

@@ -105,7 +105,7 @@ struct SectionView: View {
                 .font(.title)
                 .padding()
 
-            ForEach(0..<5) { i in
+            ForEach(0 ..< 5) { i in
                 Text("Item \(name)-\(i)")
                     .frame(maxWidth: .infinity)
                     .padding()

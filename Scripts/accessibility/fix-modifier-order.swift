@@ -99,7 +99,8 @@ func extractModifierName(_ text: String) -> String? {
     let pattern = #"^\s*\.([a-zA-Z]+)"#
     guard let regex = try? NSRegularExpression(pattern: pattern),
           let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
-          let range = Range(match.range(at: 1), in: text) else {
+          let range = Range(match.range(at: 1), in: text)
+    else {
         return nil
     }
     return String(text[range])
@@ -125,7 +126,7 @@ func analyzeModifierChain(lines: [String], startLine: Int) -> (modifiers: [Modif
         }
 
         // Check if this line starts a modifier
-        if trimmed.hasPrefix(".") && parenDepth == 0 && braceDepth == 0 {
+        if trimmed.hasPrefix("."), parenDepth == 0, braceDepth == 0 {
             if let name = extractModifierName(line) {
                 let priority = modifierPriority[name] ?? 5
                 modifiers.append(Modifier(
@@ -136,7 +137,7 @@ func analyzeModifierChain(lines: [String], startLine: Int) -> (modifiers: [Modif
                 ))
                 inModifierChain = true
             }
-        } else if inModifierChain && !trimmed.hasPrefix(".") && parenDepth == 0 && braceDepth == 0 {
+        } else if inModifierChain, !trimmed.hasPrefix("."), parenDepth == 0, braceDepth == 0 {
             // End of modifier chain
             break
         }
@@ -147,7 +148,7 @@ func analyzeModifierChain(lines: [String], startLine: Int) -> (modifiers: [Modif
     return (modifiers, currentLine)
 }
 
-func checkAndReportIssues(lines: [String], filename: String) -> [(line: Int, message: String)] {
+func checkAndReportIssues(lines: [String], filename _: String) -> [(line: Int, message: String)] {
     var issues: [(Int, String)] = []
     var i = 0
 
@@ -156,8 +157,8 @@ func checkAndReportIssues(lines: [String], filename: String) -> [(line: Int, mes
 
         // Look for view declarations that might have modifier chains
         if line.contains("Button") || line.contains("Toggle") || line.contains("Text(") ||
-           line.contains("Image(") || line.contains("VStack") || line.contains("HStack") {
-
+            line.contains("Image(") || line.contains("VStack") || line.contains("HStack")
+        {
             let (modifiers, endLine) = analyzeModifierChain(lines: lines, startLine: i + 1)
 
             if modifiers.count > 1 {

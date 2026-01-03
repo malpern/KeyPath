@@ -37,7 +37,8 @@ do {
     grep1.waitUntilExit()
 
     if let data = try (grep1.standardOutput as? Pipe)?.fileHandleForReading.readToEnd(),
-       let output = String(data: data, encoding: .utf8) {
+       let output = String(data: data, encoding: .utf8)
+    {
         print("FOUND 'Failed to restart' patterns:")
         print(output)
     }
@@ -58,7 +59,8 @@ do {
     grep2.waitUntilExit()
 
     if let data = try (grep2.standardOutput as? Pipe)?.fileHandleForReading.readToEnd(),
-       let output = String(data: data, encoding: .utf8) {
+       let output = String(data: data, encoding: .utf8)
+    {
         print("FOUND launchDaemonServicesUnhealthy mapping:")
         print(output)
     }
@@ -79,7 +81,8 @@ do {
     grep3.waitUntilExit()
 
     if let data = try (grep3.standardOutput as? Pipe)?.fileHandleForReading.readToEnd(),
-       let output = String(data: data, encoding: .utf8) {
+       let output = String(data: data, encoding: .utf8)
+    {
         print("FOUND toastManager.showError patterns:")
         print(output)
     }

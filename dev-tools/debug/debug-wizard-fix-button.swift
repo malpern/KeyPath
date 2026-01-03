@@ -57,7 +57,9 @@ print()
 
 // Create the full osascript command
 let osascriptCommand = """
-do shell script "\(escapedCommand)" with administrator privileges with prompt "KeyPath needs administrator access to install LaunchDaemon services, create configuration files, and start the keyboard services. This will be a single prompt."
+do shell script "\(
+    escapedCommand
+)" with administrator privileges with prompt "KeyPath needs administrator access to install LaunchDaemon services, create configuration files, and start the keyboard services. This will be a single prompt."
 """
 
 print("Full osascript command length: \(osascriptCommand.count) characters")

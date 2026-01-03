@@ -26,7 +26,7 @@ import ServiceManagement
 struct SMAppServicePOC {
     private static let logger = Logger(subsystem: "com.keypath.debug", category: "SMAppServicePOC")
 
-  static func main() {
+    static func main() {
         let args = Array(CommandLine.arguments.dropFirst())
 
         // Handle special options
@@ -37,8 +37,8 @@ struct SMAppServicePOC {
 
         guard let plistName = args.first(where: { !$0.hasPrefix("--") }) else {
             printUsage()
-      exit(2)
-    }
+            exit(2)
+        }
 
         let action = args.first(where: { !$0.hasPrefix("--") && $0 != plistName }) ?? "status"
         let verbose = args.contains("--verbose")
@@ -63,16 +63,16 @@ struct SMAppServicePOC {
             exit(1)
         }
 
-    let svc = SMAppService.daemon(plistName: plistName)
+        let svc = SMAppService.daemon(plistName: plistName)
 
-    switch action {
-    case "status":
+        switch action {
+        case "status":
             printStatus("SMAppService", svc: svc, verbose: verbose)
 
-    case "register":
+        case "register":
             testRegister(svc: svc, verbose: verbose)
 
-    case "unregister":
+        case "unregister":
             testUnregister(plistName: plistName, svc: svc, verbose: verbose)
 
         case "lifecycle":
@@ -152,7 +152,7 @@ struct SMAppServicePOC {
             if verbose {
                 logger.error("SMAppService register failed: \(error.localizedDescription, privacy: .public)")
                 print("💡 Check System Settings → Login Items for approval prompts")
-        }
+            }
         }
 
         printStatus("After register", svc: svc, verbose: verbose)
@@ -162,7 +162,7 @@ struct SMAppServicePOC {
         printStatus("Before unregister", svc: svc, verbose: verbose)
 
         guard #available(macOS 13, *) else {
-        print("⚠️ unregister requires macOS 13+")
+            print("⚠️ unregister requires macOS 13+")
             return
         }
 
@@ -195,8 +195,8 @@ struct SMAppServicePOC {
             print("✅ unregister() succeeded (took \(String(format: "%.3f", duration))s)")
             if verbose {
                 logger.info("SMAppService unregister succeeded in \(duration) seconds")
-    }
-  }
+            }
+        }
 
         printStatus("After unregister", svc: svc, verbose: verbose)
     }
@@ -295,7 +295,7 @@ struct SMAppServicePOC {
         guard let bundlePath = Bundle.main.bundlePath as String? else {
             print("❌ Could not determine app bundle path")
             exit(1)
-    }
+        }
 
         let launchDaemonsPath = "\(bundlePath)/Contents/Library/LaunchDaemons"
         let plistPath = "\(launchDaemonsPath)/\(testPlistName)"
@@ -324,5 +324,5 @@ struct SMAppServicePOC {
             print("❌ Failed to write plist: \(error)")
             exit(1)
         }
-  }
+    }
 }
