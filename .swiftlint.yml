@@ -4,7 +4,12 @@
 # Exclude build artifacts and generated code
 excluded:
   - .build
+  - .build-ci
+  - .worktrees
   - dist
+  - dev-tools
+  - Scripts
+  - ScrollTest
   - Tests/InstallationWizardTests.disabled
   - "*.generated.swift"
   - peekaboo  # Exclude nested peekaboo project
@@ -51,6 +56,9 @@ disabled_rules:
 
 # Custom reporter for CI
 reporter: "github-actions-logging"
+
+# Baseline to ignore existing violations
+baseline: .swiftlint-baseline.yml
 
 # Custom rules
 custom_rules:
