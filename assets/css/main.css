@@ -698,7 +698,7 @@ body.sidebar-open .sidebar {
 
 .cinema-title {
     font-family: var(--font-display);
-    font-size: clamp(2.5rem, 6vw, 3.5rem);
+    font-size: clamp(1.9rem, 3vw, 2.25rem);
     font-weight: 600;
     color: var(--color-text);
     margin: 0 0 var(--spacing-md) 0;
@@ -2758,6 +2758,29 @@ li {
     max-width: 1000px;
     margin: 0 auto;
     padding: 0 var(--spacing-lg);
+}
+
+.keyboard-hero-copy {
+    max-width: 680px;
+    margin: 0 auto var(--spacing-lg);
+    text-align: center;
+}
+
+.keyboard-hero-title {
+    margin: 0 0 var(--spacing-sm);
+    font-family: var(--font-display);
+    font-size: clamp(4rem, 9.5vw, 6rem);
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    color: #f5f5f7;
+    padding-bottom: 0.05em;
+}
+
+.keyboard-hero-subtitle {
+    margin: 0;
+    font-size: var(--font-size-base);
+    color: rgba(245, 245, 247, 0.75);
+    line-height: 1.6;
 }
 
 /* CSS Keyboard Container - matches app's LiveKeyboardOverlayView */

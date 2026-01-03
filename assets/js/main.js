@@ -1869,8 +1869,8 @@
         });
 
         if (keyboardSection) {
-            window.addEventListener('scroll', () => {
-                if (window.scrollY > 0) {
+            const evaluateAutoLauncher = () => {
+                if (!hasUserScrolled && window.scrollY > 0) {
                     hasUserScrolled = true;
                 }
                 if (!hasUserScrolled || manualHyperUsed || autoLauncherTriggered) return;
@@ -1883,7 +1883,19 @@
                     openLauncher();
                     autoLauncherTriggered = true;
                 }
+            };
+
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 0) {
+                    hasUserScrolled = true;
+                }
+                evaluateAutoLauncher();
             }, { passive: true });
+
+            window.addEventListener('resize', evaluateAutoLauncher);
+
+            // Evaluate once in case the keyboard starts in view after a refresh.
+            evaluateAutoLauncher();
         }
 
         // ESC closes launcher

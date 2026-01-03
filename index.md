@@ -72,7 +72,7 @@ content_class: content-full kanata-landing
   <section class="keyboard-hero-section">
     <div class="keyboard-hero-wrapper">
       <div class="keyboard-hero-copy">
-        <h2 class="keyboard-hero-title">Launch anything, all from home row</h2>
+        <h2 class="keyboard-hero-title">Launch Anything, All From Home Row</h2>
         <p class="keyboard-hero-subtitle">Turn shortcuts into muscle memory — bind any key, chord, or layer to open tools, dashboards, and files instantly.</p>
       </div>
       <div class="css-keyboard">
@@ -189,7 +189,7 @@ content_class: content-full kanata-landing
 
   <!-- LAUNCH ANYTHING SECTION - Cinematic Demo -->
   <section class="launch-cinema">
-    <h2 class="cinema-title">Do or launch anything with comfort &amp; speed</h2>
+    <h2 class="cinema-title">Total control, speed and comfort</h2>
     <p class="cinema-subtitle">Any of these gestures can open apps, URLs, or workflows.</p>
 
     <!-- Gesture TOC - highlights as each example plays -->
