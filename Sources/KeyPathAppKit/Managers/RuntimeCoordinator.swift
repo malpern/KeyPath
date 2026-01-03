@@ -701,6 +701,11 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         do {
             try await kanataService.start()
             await kanataService.refreshStatus()
+
+            // Start the app context service for per-app keymaps
+            // This monitors frontmost app and activates virtual keys via TCP
+            await AppContextService.shared.start()
+
             lastError = nil
             notifyStateChanged()
             return true
@@ -716,6 +721,10 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
     @discardableResult
     func stopKanata(reason: String = "Manual stop") async -> Bool {
         AppLogger.shared.log("🛑 [Service] Stopping Kanata (\(reason))")
+
+        // Stop the app context service first
+        await AppContextService.shared.stop()
+
         do {
             try await kanataService.stop()
             await kanataService.refreshStatus()
@@ -866,6 +875,11 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     func removeCustomRule(withID id: UUID) async {
         await ruleCollectionsCoordinator.removeCustomRule(withID: id)
+    }
+
+    /// Clear all custom rules without affecting rule collections
+    func clearAllCustomRules() async {
+        await ruleCollectionsCoordinator.clearAllCustomRules()
     }
 
     private func makeCustomRuleForSave(input: String, output: String) -> CustomRule {

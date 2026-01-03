@@ -2,6 +2,120 @@ import AppKit
 import KeyPathCore
 import SwiftUI
 
+// MARK: - App Keymap Integration
+
+/// Extension to integrate MapperViewModel with the per-app keymap system
+extension MapperViewModel {
+    /// Save a mapping that only applies when a specific app is active.
+    /// Uses AppKeymapStore and AppConfigGenerator for virtual key-based app detection.
+    func saveAppSpecificMapping(
+        inputKey: String,
+        outputAction: String,
+        appCondition: AppConditionInfo,
+        kanataManager: RuntimeCoordinator
+    ) async -> Bool {
+        AppLogger.shared.log("🎯 [MapperViewModel] Saving app-specific mapping: \(inputKey) → \(outputAction) [only in \(appCondition.displayName)]")
+
+        do {
+            // 1. Load existing keymaps
+            var existingKeymap = await AppKeymapStore.shared.getKeymap(bundleIdentifier: appCondition.bundleIdentifier)
+
+            // 2. Create or update the keymap
+            if existingKeymap == nil {
+                // Create new keymap for this app
+                existingKeymap = AppKeymap(
+                    bundleIdentifier: appCondition.bundleIdentifier,
+                    displayName: appCondition.displayName,
+                    overrides: []
+                )
+                AppLogger.shared.log("🎯 [MapperViewModel] Created new app keymap for \(appCondition.displayName)")
+            }
+
+            guard var keymap = existingKeymap else {
+                AppLogger.shared.error("❌ [MapperViewModel] Failed to create keymap")
+                return false
+            }
+
+            // 3. Add or update the override for this input key
+            let newOverride = AppKeyOverride(
+                inputKey: inputKey.lowercased(),
+                outputAction: outputAction,
+                description: "Created via Mapper"
+            )
+
+            // Remove existing override for same input key (if any)
+            keymap.overrides.removeAll { $0.inputKey.lowercased() == inputKey.lowercased() }
+            keymap.overrides.append(newOverride)
+
+            // 4. Save to store
+            try await AppKeymapStore.shared.upsertKeymap(keymap)
+
+            // 5. Regenerate the Kanata config file
+            try await AppConfigGenerator.regenerateFromStore()
+
+            // 6. Ensure the include line is in the main config
+            let migrationService = KanataConfigMigrationService()
+            let mainConfigPath = WizardSystemPaths.userConfigPath
+            if !migrationService.hasIncludeLine(configPath: mainConfigPath) {
+                do {
+                    try migrationService.prependIncludeLineIfMissing(to: mainConfigPath)
+                    AppLogger.shared.log("✅ [MapperViewModel] Added include line for keypath-apps.kbd")
+                } catch KanataConfigMigrationService.MigrationError.includeAlreadyPresent {
+                    // Already present, ignore
+                } catch {
+                    AppLogger.shared.warn("⚠️ [MapperViewModel] Could not add include line: \(error)")
+                    // Continue anyway - user may need to add it manually
+                }
+            }
+
+            // 7. Update AppContextService with the new bundle-to-VK mapping
+            await AppContextService.shared.reloadMappings()
+
+            // 8. Reload Kanata to pick up the new config
+            _ = await kanataManager.restartKanata(reason: "Per-app mapping saved")
+
+            AppLogger.shared.log("✅ [MapperViewModel] Saved app-specific mapping successfully")
+            return true
+        } catch {
+            AppLogger.shared.error("❌ [MapperViewModel] Failed to save app-specific mapping: \(error)")
+            return false
+        }
+    }
+
+    /// Remove an app-specific mapping
+    func removeAppSpecificMapping(
+        inputKey: String,
+        appCondition: AppConditionInfo
+    ) async {
+        AppLogger.shared.log("🗑️ [MapperViewModel] Removing app-specific mapping: \(inputKey) from \(appCondition.displayName)")
+
+        do {
+            guard var keymap = await AppKeymapStore.shared.getKeymap(bundleIdentifier: appCondition.bundleIdentifier) else {
+                return
+            }
+
+            // Remove the override for this input key
+            keymap.overrides.removeAll { $0.inputKey.lowercased() == inputKey.lowercased() }
+
+            if keymap.overrides.isEmpty {
+                // If no more overrides, remove the entire keymap
+                try await AppKeymapStore.shared.removeKeymap(bundleIdentifier: appCondition.bundleIdentifier)
+            } else {
+                // Update with remaining overrides
+                try await AppKeymapStore.shared.upsertKeymap(keymap)
+            }
+
+            // Regenerate config
+            try await AppConfigGenerator.regenerateFromStore()
+            await AppContextService.shared.reloadMappings()
+
+            AppLogger.shared.log("✅ [MapperViewModel] Removed app-specific mapping")
+        } catch {
+            AppLogger.shared.error("❌ [MapperViewModel] Failed to remove app-specific mapping: \(error)")
+        }
+    }
+}
+
 // MARK: - App Launch Info
 
 /// Info about a selected app for launch action
@@ -952,6 +1066,32 @@ class MapperViewModel: ObservableObject {
         isSaving = true
         statusMessage = nil
 
+        // Check if this is an app-specific mapping
+        if let appCondition = selectedAppCondition {
+            let inputKanata = convertSequenceToKanataFormat(inputSeq)
+            let outputKanata = convertSequenceToKanataFormat(outputSeq)
+
+            let success = await saveAppSpecificMapping(
+                inputKey: inputKanata,
+                outputAction: outputKanata,
+                appCondition: appCondition,
+                kanataManager: kanataManager
+            )
+
+            if success {
+                statusMessage = "✓ Saved"
+                statusIsError = false
+                AppLogger.shared.log("✅ [MapperViewModel] Saved app-specific mapping: \(inputSeq.displayString) → \(outputSeq.displayString) [only in \(appCondition.displayName)]")
+            } else {
+                statusMessage = "Failed to save app-specific rule"
+                statusIsError = true
+            }
+
+            isSaving = false
+            return
+        }
+
+        // Global mapping (no app condition)
         do {
             // Use the existing config generator for complex sequences
             let configGenerator = KanataConfigGenerator(kanataManager: kanataManager)
@@ -1078,31 +1218,66 @@ class MapperViewModel: ObservableObject {
         }
     }
 
-    /// Reset entire keyboard to default mappings (clears all custom rules and collections)
+    /// Revert to keystroke mode - clears any actions and resets output to match input
+    /// Used when switching from system action/app/URL back to plain keystroke
+    func revertToKeystroke() {
+        stopRecording()
+
+        // Clear all actions
+        selectedApp = nil
+        selectedSystemAction = nil
+        selectedURL = nil
+
+        // Reset output to match input (identity mapping: A→A)
+        outputLabel = inputLabel
+        outputSequence = inputSequence
+
+        // Delete the saved rule if we have one
+        if let manager = kanataManager {
+            if let ruleID = lastSavedRuleID {
+                Task {
+                    await manager.removeCustomRule(withID: ruleID)
+                    // Post notification to update keyboard
+                    NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
+                    AppLogger.shared.log("🧹 [MapperViewModel] Reverted to keystroke, deleted rule \(ruleID)")
+                }
+                lastSavedRuleID = nil
+            } else if let inputKanata = currentInputKanataString() {
+                // Try to delete by input key
+                let probeRule = manager.makeCustomRule(input: inputKanata, output: "xx")
+                Task {
+                    await manager.removeCustomRule(withID: probeRule.id)
+                    // Post notification to update keyboard
+                    NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
+                    AppLogger.shared.log("🧹 [MapperViewModel] Reverted to keystroke, deleted rule by input \(inputKanata)")
+                }
+            }
+        }
+
+        statusMessage = "✓ Reverted to keystroke"
+    }
+
+    /// Reset entire keyboard by clearing all custom rules (preserves rule collections)
     func resetAllToDefaults(kanataManager: RuntimeCoordinator) async {
         stopRecording()
 
-        do {
-            try await kanataManager.resetToDefaultConfig()
+        // Clear all custom rules but preserve rule collections
+        await kanataManager.clearAllCustomRules()
 
-            // Reset local state
-            reset()
-            lastSavedRuleID = nil
-            originalInputKey = nil
-            originalOutputKey = nil
-            originalLayer = nil
-            currentLayer = "base"
+        // Reset local state
+        reset()
+        lastSavedRuleID = nil
+        originalInputKey = nil
+        originalOutputKey = nil
+        originalLayer = nil
+        currentLayer = "base"
 
-            // Note: .kanataConfigChanged notification is posted by onRulesChanged callback
+        // Post notification to update keyboard
+        NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
 
-            statusMessage = "✓ Reset to defaults"
-            statusIsError = false
-            AppLogger.shared.log("🔄 [MapperViewModel] Reset entire keyboard to defaults")
-        } catch {
-            statusMessage = "Reset failed: \(error.localizedDescription)"
-            statusIsError = true
-            AppLogger.shared.error("❌ [MapperViewModel] Reset all failed: \(error)")
-        }
+        statusMessage = "✓ Custom rules cleared"
+        statusIsError = false
+        AppLogger.shared.log("🔄 [MapperViewModel] Cleared all custom rules (collections preserved)")
     }
 
     /// Open file picker to select an app for launch action
