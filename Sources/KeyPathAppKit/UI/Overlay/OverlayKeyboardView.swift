@@ -32,6 +32,8 @@ struct OverlayKeyboardView: View {
     var oneShotKeyCodes: Set<UInt16> = []
     /// Hold labels for tap-hold keys in hold state: keyCode -> display label
     var holdLabels: [UInt16: String] = [:]
+    /// Idle labels for tap-hold inputs (show tap output when not pressed)
+    var tapHoldIdleLabels: [UInt16: String] = [:]
     /// Callback when a key is clicked (not dragged) - for opening Mapper
     var onKeyClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
 
@@ -135,7 +137,7 @@ struct OverlayKeyboardView: View {
     /// Special labels that should always render in keycaps (not as floating labels)
     /// Matches the special labels set in OverlayKeycapView.hasSpecialLabel
     private static let specialLabels: Set<String> = [
-        "Home", "End", "PgUp", "PgDn", "Del", "␣", "Lyr", "Fn", "Mod",
+        "Home", "End", "PgUp", "PgDn", "Del", "␣", "Lyr", "Fn", "Mod", "✦", "◆",
         "↩", "⌫", "⇥", "⇪", "esc", "⎋",
         // Arrow symbols (both solid and outline variants)
         "◀", "▶", "▲", "▼", "←", "→", "↑", "↓",
@@ -254,7 +256,8 @@ struct OverlayKeyboardView: View {
         // Normalize label to uppercase for consistent lookup (allLabels contains uppercase)
         let normalizedLabel = label.uppercased()
         if let keyCode = labelToKeyCode[normalizedLabel],
-           let key = layout.keys.first(where: { $0.keyCode == keyCode }) {
+           let key = layout.keys.first(where: { $0.keyCode == keyCode })
+        {
             let width = keyWidth(for: key, scale: scale)
             let height = keyHeight(for: key, scale: scale)
             let centerX = keyPositionX(for: key, scale: scale)
@@ -308,6 +311,7 @@ struct OverlayKeyboardView: View {
             isEmphasized: emphasizedKeyCodes.contains(key.keyCode),
             isOneShot: oneShotKeyCodes.contains(key.keyCode),
             holdLabel: holdLabels[key.keyCode],
+            tapHoldIdleLabel: tapHoldIdleLabels[key.keyCode],
             onKeyClick: onKeyClick,
             colorway: activeColorway,
             // Pass layout width for rainbow gradient calculation

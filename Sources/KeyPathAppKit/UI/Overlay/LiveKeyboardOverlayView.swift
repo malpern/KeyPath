@@ -174,6 +174,7 @@ struct LiveKeyboardOverlayView: View {
                             emphasizedKeyCodes: viewModel.emphasizedKeyCodes,
                             oneShotKeyCodes: viewModel.oneShotHighlightedKeyCodes,
                             holdLabels: viewModel.holdLabels,
+                            tapHoldIdleLabels: viewModel.tapHoldIdleLabels,
                             onKeyClick: onKeyClick,
                             isLauncherMode: viewModel.isLauncherModeActive || (uiState.isInspectorOpen && inspectorSection == .launchers),
                             launcherMappings: viewModel.launcherMappings
@@ -306,7 +307,8 @@ struct LiveKeyboardOverlayView: View {
             // Load the launcher config to pass to welcome dialog
             let collections = await RuleCollectionStore.shared.loadCollections()
             if let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
-               let config = launcherCollection.configuration.launcherGridConfig {
+               let config = launcherCollection.configuration.launcherGridConfig
+            {
                 await MainActor.run {
                     pendingLauncherConfig = config
                     showLauncherWelcomeWindow()

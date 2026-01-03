@@ -48,6 +48,8 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Hold labels for tap-hold keys that have transitioned to hold state
     /// Maps keyCode -> hold display label (e.g., "✦" for Hyper)
     @Published var holdLabels: [UInt16: String] = [:]
+    /// Idle labels for tap-hold inputs (show tap output when not pressed)
+    @Published var tapHoldIdleLabels: [UInt16: String] = [:]
     /// Keys currently in a hold-active state (set when HoldActivated fires).
     /// Used to keep the key visually pressed even if tap-hold implementations
     /// emit spurious release/press events while held.
@@ -247,6 +249,79 @@ class KeyboardVisualizationViewModel: ObservableObject {
             let collections = await RuleCollectionStore.shared.loadCollections()
             isTypingSoundsEnabled = collections.first { $0.id == RuleCollectionIdentifier.typingSounds }?.isEnabled ?? false
             isKeycapColorwayEnabled = collections.first { $0.id == RuleCollectionIdentifier.keycapColorway }?.isEnabled ?? false
+            updateTapHoldIdleLabels(from: collections)
+        }
+    }
+
+    // MARK: - Tap-Hold Idle Labels
+
+    private func updateTapHoldIdleLabels(from collections: [RuleCollection]) {
+        var labels: [UInt16: String] = [:]
+        for collection in collections where collection.isEnabled {
+            guard case let .tapHoldPicker(config) = collection.configuration else { continue }
+            let output = config.selectedTapOutput ?? config.tapOptions.first?.output
+            guard let output, let keyCode = Self.kanataNameToKeyCode(config.inputKey) else { continue }
+            if let label = Self.tapHoldOutputDisplayLabel(output) {
+                labels[keyCode] = label
+            }
+        }
+        tapHoldIdleLabels = labels
+    }
+
+    private static func tapHoldOutputDisplayLabel(_ output: String) -> String? {
+        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let normalized = trimmed.lowercased()
+
+        // Handle multi-key outputs by treating them as modifier combos.
+        let parts = normalized
+            .split(whereSeparator: { $0 == " " || $0 == "+" })
+            .map(String.init)
+        if parts.count > 1 {
+            let partSet = Set(parts)
+            let hyperSet: Set<String> = ["lctl", "lmet", "lalt", "lsft"]
+            let mehSet: Set<String> = ["lctl", "lalt", "lsft"]
+            if partSet.isSuperset(of: hyperSet) { return "✦" }
+            if partSet.isSuperset(of: mehSet) { return "◆" }
+            let labels = parts.compactMap { singleKeyDisplayLabel($0) }
+            return labels.isEmpty ? nil : labels.joined()
+        }
+
+        return singleKeyDisplayLabel(normalized)
+    }
+
+    private static func singleKeyDisplayLabel(_ key: String) -> String? {
+        switch key {
+        case "hyper": return "✦"
+        case "meh": return "◆"
+        case "esc", "escape": return "⎋"
+        case "caps", "capslock": return "⇪"
+        case "bspc", "backspace": return "⌫"
+        case "del", "delete": return "⌦"
+        case "tab": return "⇥"
+        case "ret", "enter", "return": return "↩"
+        case "lctl", "rctl", "ctrl", "control": return "⌃"
+        case "lalt", "ralt", "alt", "opt", "option": return "⌥"
+        case "lmet", "rmet", "cmd", "command": return "⌘"
+        case "lsft", "rsft", "shift": return "⇧"
+        case "space", "spc", "sp": return ""
+        case let key where key.count == 1 && key.first?.isLetter == true:
+            return key.uppercased()
+        case let key where key.count == 1 && key.first?.isNumber == true:
+            return key
+        case "grave", "grv": return "`"
+        case "minus", "min": return "-"
+        case "equal", "eql": return "="
+        case "leftbrace", "lbrc": return "["
+        case "rightbrace", "rbrc": return "]"
+        case "backslash", "bksl": return "\\"
+        case "semicolon", "scln": return ";"
+        case "apostrophe", "apos": return "'"
+        case "comma", "comm": return ","
+        case "dot", ".": return "."
+        case "slash", "/": return "/"
+        default:
+            return key.isEmpty ? nil : key
         }
     }
 
@@ -831,8 +906,10 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
     /// Invalidate cached mappings (call when config changes)
     func invalidateLayerMappings() {
+        AppLogger.shared.debug("🔔 [KeyboardViz] invalidateLayerMappings called")
         Task {
             await layerKeyMapper.invalidateCache()
+            AppLogger.shared.debug("🔔 [KeyboardViz] Cache invalidated, rebuilding mapping...")
             rebuildLayerMapping()
         }
     }
@@ -1217,9 +1294,13 @@ class KeyboardVisualizationViewModel: ObservableObject {
             // so we delay removing from activeTapHoldSources to ensure suppression works.
             if isTapHoldSource {
                 let keyCodeToRemove = keyCode
-                Task { @MainActor [weak self] in
-                    try? await Task.sleep(for: .milliseconds(200))
-                    self?.activeTapHoldSources.remove(keyCodeToRemove)
+                if TestEnvironment.isRunningTests {
+                    activeTapHoldSources.remove(keyCodeToRemove)
+                } else {
+                    Task { @MainActor [weak self] in
+                        try? await Task.sleep(for: .milliseconds(200))
+                        self?.activeTapHoldSources.remove(keyCodeToRemove)
+                    }
                 }
             }
 

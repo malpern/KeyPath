@@ -31,6 +31,8 @@ struct OverlayKeycapView: View {
     var isOneShot: Bool = false
     /// Hold label to display when tap-hold key is in hold state
     var holdLabel: String?
+    /// Idle label to display for tap-hold inputs when not pressed
+    var tapHoldIdleLabel: String? = nil
     /// Callback when key is clicked (not dragged)
     var onKeyClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
     /// GMK colorway for keycap styling
@@ -112,6 +114,10 @@ struct OverlayKeycapView: View {
             return holdLabel
         }
 
+        if !isPressed, let tapHoldIdleLabel, shouldShowTapHoldIdleLabel {
+            return tapHoldIdleLabel
+        }
+
         guard let info = layerKeyInfo else {
             return baseLabel
         }
@@ -130,6 +136,11 @@ struct OverlayKeycapView: View {
         return info.displayLabel
     }
 
+    private var shouldShowTapHoldIdleLabel: Bool {
+        guard !isLauncherMode else { return false }
+        return currentLayerName.lowercased() == "base"
+    }
+
     /// Input key name (kanata/TCP) for identity mapping checks
     private var inputKeyName: String {
         OverlayKeyboardView.keyCodeToKanataName(key.keyCode).lowercased()
@@ -141,6 +152,10 @@ struct OverlayKeycapView: View {
         if info.isTransparent { return true }
         if info.isLayerSwitch { return false }
         if info.appLaunchIdentifier != nil || info.systemActionIdentifier != nil || info.urlIdentifier != nil {
+            return false
+        }
+        // Prefer mapped labels (including modifier-only outputs like Hyper) when they differ from input.
+        if !info.displayLabel.isEmpty && info.displayLabel.lowercased() != inputKeyName {
             return false
         }
         if let outputKey = info.outputKey {
@@ -1055,7 +1070,7 @@ struct OverlayKeycapView: View {
     /// but also check keymap label to ensure special keys render correctly.
     private var hasSpecialLabel: Bool {
         let specialLabels: Set<String> = [
-            "Home", "End", "PgUp", "PgDn", "Del", "␣", "Lyr", "Fn", "Mod",
+            "Home", "End", "PgUp", "PgDn", "Del", "␣", "Lyr", "Fn", "Mod", "✦", "◆",
             "↩", "⌫", "⇥", "⇪", "esc", "⎋",
             // Arrow symbols (both solid and outline variants)
             "◀", "▶", "▲", "▼", "←", "→", "↑", "↓",
@@ -1087,7 +1102,12 @@ struct OverlayKeycapView: View {
         // Check physical key label first (stable during transitions)
         // Also check keymap label to handle cases where keymap changes the label
         // (e.g., QWERTZ maps "/" key to "-", and "-" is special)
-        return specialLabels.contains(key.label) || specialLabels.contains(baseLabel)
+        if specialLabels.contains(key.label) || specialLabels.contains(baseLabel) {
+            return true
+        }
+
+        // Also treat mapped output labels (e.g., Hyper/Meh) as special so they render in keycaps
+        return specialLabels.contains(effectiveLabel)
     }
 
     /// Word labels for navigation/system keys (like ESC style)

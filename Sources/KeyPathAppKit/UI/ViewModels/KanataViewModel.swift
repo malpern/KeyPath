@@ -104,6 +104,9 @@ class KanataViewModel: ObservableObject {
         // Debug: Log custom rules count when updating UI with object identity
         AppLogger.shared.log("📊 [KanataViewModel] updateUI: customRules.count = \(state.customRules.count), vmID=\(ObjectIdentifier(self))")
 
+        if let error = state.lastError {
+            AppLogger.shared.debug("🚨 [KanataViewModel] updateUI: receiving lastError = \(error)")
+        }
         lastError = state.lastError
         keyMappings = state.keyMappings
         ruleCollections = state.ruleCollections
@@ -292,7 +295,8 @@ class KanataViewModel: ObservableObject {
     }
 
     func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
-        -> String {
+        -> String
+    {
         try await manager.backupFailedConfigAndApplySafe(failedConfig: failedConfig, mappings: mappings)
     }
 
