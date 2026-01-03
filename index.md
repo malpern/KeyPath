@@ -35,6 +35,22 @@ content_class: content-full kanata-landing
     </div>
   </section>
 
+  <style>
+    .keyboard-hero-section .css-keyboard .kb-launcher-icon,
+    .keyboard-hero-section .css-keyboard .kb-launcher-img {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+    }
+
+    .keyboard-hero-section .css-keyboard.launcher-active .kb-launcher-icon,
+    .keyboard-hero-section .css-keyboard.launcher-active .kb-launcher-img {
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+  </style>
+
   <!-- DEMO VIDEO SECTION -->
   <section class="kanata-landing-video-section">
     <div class="kanata-landing-video-container">

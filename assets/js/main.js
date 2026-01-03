@@ -1823,6 +1823,8 @@
     const hyperKeys = document.querySelectorAll('.kb-key-hyper');
 
     if (launcherKeyboard && hyperKeys.length > 0) {
+        // Start with the launcher layer hidden even if a cached build left it open.
+        launcherKeyboard.classList.remove('launcher-active');
 
         function toggleLauncher() {
             launcherKeyboard.classList.toggle('launcher-active');
