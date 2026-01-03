@@ -592,7 +592,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 NotificationCenter.default.post(
                     name: .kanataLayerChanged,
                     object: nil,
-                    userInfo: ["layerName": layerName]
+                    userInfo: ["layerName": layerName, "source": "push"]
                 )
 
                 AppLogger.shared.log("🔄 [App] Layer action dispatched: '\(layerName)'")

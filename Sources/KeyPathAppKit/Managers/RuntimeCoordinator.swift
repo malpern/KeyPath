@@ -435,7 +435,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
             NotificationCenter.default.post(
                 name: .kanataLayerChanged,
                 object: nil,
-                userInfo: ["layerName": layerName]
+                userInfo: ["layerName": layerName, "source": "kanata"]
             )
         }
         ruleCollectionsManager.onError = { [weak self] error in

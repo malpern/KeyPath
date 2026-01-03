@@ -127,9 +127,11 @@ public enum KanataBehaviorRenderer {
                         components.append("(on-release-fakekey kp-layer-\(layerName)-exit tap)")
                     case .tap:
                         // Tap mode: one-shot layer that deactivates after next key press
-                        // Using one-shot-press with 5 second timeout (deactivates on any key or timeout)
-                        components.append("(one-shot-press 5000 (layer-while-held \(layerName)))")
+                        // Using one-shot-press with 5 second timeout (deactivates on any key or timeout).
+                        // Ensure fakekey/modifier presses don't consume the one-shot activation.
                         components.append("(on-press-fakekey kp-layer-\(layerName)-enter tap)")
+                        components.append("(one-shot-pause-processing 10)")
+                        components.append("(one-shot-press 5000 (layer-while-held \(layerName)))")
                     }
                 }
                 return "(multi \(components.joined(separator: " ")))"

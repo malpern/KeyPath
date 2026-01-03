@@ -36,6 +36,9 @@ struct LiveKeyboardOverlayView: View {
     /// Japanese input mode detector for showing mode indicator
     @ObservedObject private var inputSourceDetector = InputSourceDetector.shared
 
+    /// Whether the mouse is currently hovering over the overlay (for focus indicator)
+    @State private var isOverlayHovered = false
+
     /// Launcher welcome dialog state (shown once per install/build)
     /// We store the build date when welcome was last shown, so it shows again on new installs
     @AppStorage("launcherWelcomeSeenForBuild") private var launcherWelcomeSeenForBuild: String = ""
@@ -276,7 +279,7 @@ struct LiveKeyboardOverlayView: View {
             inputSourceDetector.stopMonitoring()
         }
         .background(
-            glassBackground(cornerRadius: cornerRadius, fadeAmount: fadeAmount)
+            glassBackground(cornerRadius: cornerRadius, fadeAmount: fadeAmount, isHovered: isOverlayHovered)
         )
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .environmentObject(viewModel)
@@ -284,6 +287,7 @@ struct LiveKeyboardOverlayView: View {
         .padding(.leading, outerHorizontalPadding)
         .padding(.trailing, trailingOuterPadding)
         .onHover { hovering in
+            isOverlayHovered = hovering
             if hovering { viewModel.noteInteraction() }
         }
         .background(MouseMoveMonitor { viewModel.noteInteraction() })
@@ -370,13 +374,17 @@ extension LiveKeyboardOverlayView {
     }
 
     @ViewBuilder
-    func glassBackground(cornerRadius: CGFloat, fadeAmount: CGFloat) -> some View {
+    func glassBackground(cornerRadius: CGFloat, fadeAmount: CGFloat, isHovered: Bool) -> some View {
         // Simulated "liquid glass" backdrop: adaptive material + tint + softened shadows.
         let tint = isDark
             ? Color.white.opacity(0.12 - 0.07 * fadeAmount)
             : Color.black.opacity(0.08 - 0.04 * fadeAmount)
 
         let contactShadow = Color.black.opacity((isDark ? 0.12 : 0.08) * (1 - fadeAmount))
+
+        // Subtle focus border when hovering - very light so it's not distracting
+        let focusBorderOpacity = isHovered ? (isDark ? 0.25 : 0.35) : 0
+        let focusBorderColor = isDark ? Color.white : Color.black
 
         let baseShape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
 
@@ -386,6 +394,11 @@ extension LiveKeyboardOverlayView {
                 .overlay(
                     baseShape.stroke(Color.white.opacity(isDark ? 0.08 : 0.25), lineWidth: 0.5)
                 )
+                // Focus indicator border
+                .overlay(
+                    baseShape.stroke(focusBorderColor.opacity(focusBorderOpacity), lineWidth: 1)
+                )
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: isHovered)
         } else {
             baseShape
                 .fill(.ultraThinMaterial)
@@ -397,9 +410,14 @@ extension LiveKeyboardOverlayView {
                 .overlay(
                     baseShape.fill(Color(white: isDark ? 0.1 : 0.9).opacity(0.25 * fadeAmount))
                 )
+                // Focus indicator border - subtle inner glow effect
+                .overlay(
+                    baseShape.strokeBorder(focusBorderColor.opacity(focusBorderOpacity), lineWidth: 1)
+                )
                 // y >= radius ensures shadow only renders below (light from above)
                 .shadow(color: contactShadow, radius: 4, x: 0, y: 4)
                 .animation(reduceMotion ? nil : .easeOut(duration: 0.3), value: fadeAmount)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: isHovered)
         }
     }
 

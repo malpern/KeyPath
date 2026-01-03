@@ -161,6 +161,7 @@ public final class ActionDispatcher {
             }
             // Return success optimistically - the app will launch async
             // First URL in list is most likely to succeed (bundle ID match)
+            LiveKeyboardOverlayController.shared.noteLauncherActionDispatched()
             return .success
         }
 
@@ -253,6 +254,7 @@ public final class ActionDispatcher {
 
         AppLogger.shared.log("🌐 [ActionDispatcher] Opening URL: \(url)")
         NSWorkspace.shared.open(url)
+        LiveKeyboardOverlayController.shared.noteLauncherActionDispatched()
         return .success
     }
 
@@ -527,6 +529,7 @@ public final class ActionDispatcher {
         NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: expandedPath)
         AppLogger.shared.log("✅ [ActionDispatcher] Opened folder: \(url.path)")
 
+        LiveKeyboardOverlayController.shared.noteLauncherActionDispatched()
         return .success
     }
 
@@ -588,6 +591,7 @@ public final class ActionDispatcher {
             AppLogger.shared.log("🔐 [ActionDispatcher] Script needs user confirmation")
             if let handler = onScriptConfirmationNeeded {
                 handler(path, { [weak self] in
+                    LiveKeyboardOverlayController.shared.noteLauncherActionDispatched()
                     // User confirmed - execute the script
                     self?.executeScript(at: path)
                 }, {
@@ -602,6 +606,7 @@ public final class ActionDispatcher {
 
         case .allowed:
             // Execute directly
+            LiveKeyboardOverlayController.shared.noteLauncherActionDispatched()
             executeScript(at: expandedPath)
             return .success
         }

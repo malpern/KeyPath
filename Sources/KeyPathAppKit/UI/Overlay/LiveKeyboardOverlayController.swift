@@ -99,9 +99,23 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     /// Shared instance for app-wide access
     static let shared = LiveKeyboardOverlayController()
 
+    private enum LayerChangeSource: String {
+        case push
+        case kanata
+        case unknown
+    }
+
+    private var oneShotLayerOverride: String?
+    private var oneShotOverrideToken = UUID()
+    private var oneShotOverrideTask: Task<Void, Never>?
+    private var isLauncherSessionActive = false
+    private var shouldRestoreAppHidden = false
+    private var shouldRestoreOverlayHidden = false
+
     override private init() {
         super.init()
         setupLayerChangeObserver()
+        setupKeyInputObserver()
     }
 
     // MARK: - Layer State
@@ -135,10 +149,12 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             object: nil,
             queue: .main
         ) { [weak self] notification in
-            if let layerName = notification.userInfo?["layerName"] as? String {
-                Task { @MainActor in
-                    self?.updateLayerName(layerName)
-                }
+            guard let layerName = notification.userInfo?["layerName"] as? String else { return }
+            let sourceRaw = notification.userInfo?["source"] as? String
+            Task { @MainActor in
+                guard let self else { return }
+                let source = LayerChangeSource(rawValue: sourceRaw ?? "") ?? .unknown
+                self.handleLayerChange(layerName, source: source)
             }
         }
 
@@ -152,6 +168,155 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             Task { @MainActor in
                 self?.viewModel.invalidateLayerMappings()
             }
+        }
+    }
+
+    private func setupKeyInputObserver() {
+        NotificationCenter.default.addObserver(
+            forName: .kanataKeyInput,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            let key = notification.userInfo?["key"] as? String
+            let action = notification.userInfo?["action"] as? String
+            Task { @MainActor in
+                guard let self else { return }
+                guard let key, action == "press" else { return }
+
+                // Clear one-shot override on the first non-modifier key press.
+                if let overrideLayer = self.oneShotLayerOverride,
+                   !Self.modifierKeys.contains(key.lowercased())
+                {
+                    AppLogger.shared.debug(
+                        "🧭 [OverlayController] Clearing one-shot layer override '\(overrideLayer)' on key press: \(key)"
+                    )
+                    self.oneShotLayerOverride = nil
+                    self.oneShotOverrideTask?.cancel()
+                    self.oneShotOverrideTask = nil
+                }
+            }
+        }
+    }
+
+    private func handleLayerChange(_ layerName: String, source: LayerChangeSource) {
+        let normalized = layerName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        handleLauncherLayerTransition(normalizedLayer: normalized)
+
+        switch source {
+        case .push:
+            if normalized == "base" {
+                oneShotLayerOverride = nil
+                oneShotOverrideTask?.cancel()
+                oneShotOverrideTask = nil
+            } else {
+                oneShotLayerOverride = normalized
+                scheduleOneShotOverrideTimeout()
+            }
+            updateLayerName(layerName)
+        case .kanata:
+            if let overrideLayer = oneShotLayerOverride,
+               normalized != overrideLayer
+            {
+                AppLogger.shared.debug(
+                    "🧭 [OverlayController] Ignoring kanata layer '\(layerName)' while one-shot override '\(overrideLayer)' active"
+                )
+                return
+            }
+            updateLayerName(layerName)
+        case .unknown:
+            updateLayerName(layerName)
+        }
+    }
+
+    private static let modifierKeys: Set<String> = [
+        "leftshift",
+        "rightshift",
+        "leftalt",
+        "rightalt",
+        "leftctrl",
+        "rightctrl",
+        "leftmeta",
+        "rightmeta",
+        "capslock",
+        "fn"
+    ]
+
+    private func scheduleOneShotOverrideTimeout() {
+        oneShotOverrideTask?.cancel()
+        let token = UUID()
+        oneShotOverrideToken = token
+        oneShotOverrideTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: Self.oneShotTimeoutNanoseconds)
+            guard oneShotOverrideToken == token else { return }
+            if let overrideLayer = oneShotLayerOverride {
+                AppLogger.shared.debug(
+                    "🧭 [OverlayController] One-shot override '\(overrideLayer)' expired"
+                )
+                oneShotLayerOverride = nil
+            }
+        }
+    }
+
+    private static let oneShotTimeoutNanoseconds: UInt64 = 5_000_000_000
+
+    private func handleLauncherLayerTransition(normalizedLayer: String) {
+        if normalizedLayer == "launcher" {
+            handleLauncherLayerActivated()
+            return
+        }
+
+        if isLauncherSessionActive {
+            if shouldRestoreAppHidden || shouldRestoreOverlayHidden {
+                AppLogger.shared.debug(
+                    "🪟 [OverlayController] Launcher exited without action - clearing pending restore"
+                )
+            }
+            isLauncherSessionActive = false
+            shouldRestoreAppHidden = false
+            shouldRestoreOverlayHidden = false
+        }
+    }
+
+    private func handleLauncherLayerActivated() {
+        guard !isLauncherSessionActive else { return }
+        isLauncherSessionActive = true
+
+        let appWasHidden = NSApp.isHidden
+        let overlayWasHidden = !isVisible
+        shouldRestoreAppHidden = appWasHidden
+        shouldRestoreOverlayHidden = overlayWasHidden
+
+        guard appWasHidden || overlayWasHidden else { return }
+
+        AppLogger.shared.log(
+            "🪟 [OverlayController] Launcher activated while hidden (app=\(appWasHidden), overlay=\(overlayWasHidden)) - bringing to front"
+        )
+
+        if appWasHidden {
+            NSApp.unhide(nil)
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        showForQuickLaunch()
+    }
+
+    func noteLauncherActionDispatched() {
+        guard shouldRestoreAppHidden || shouldRestoreOverlayHidden else { return }
+        let restoreAppHidden = shouldRestoreAppHidden
+        let restoreOverlayHidden = shouldRestoreOverlayHidden
+        shouldRestoreAppHidden = false
+        shouldRestoreOverlayHidden = false
+        isLauncherSessionActive = false
+
+        AppLogger.shared.log(
+            "🪟 [OverlayController] Restoring hidden state after launcher action (app=\(restoreAppHidden), overlay=\(restoreOverlayHidden))"
+        )
+
+        if restoreOverlayHidden {
+            isVisible = false
+        }
+        if restoreAppHidden {
+            NSApp.hide(nil)
         }
     }
 
@@ -212,6 +377,23 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         window?.orderFront(nil)
 
         AppLogger.shared.log("🚀 [OverlayController] Showing overlay for startup - size: \(Int(startupSize.width))x\(Int(startupSize.height)), position: centered bottom")
+    }
+
+    /// Show the overlay for a launcher activation while preserving size and position.
+    func showForQuickLaunch() {
+        if window == nil {
+            createWindow()
+        }
+
+        viewModel.startCapturing()
+        viewModel.noteInteraction()
+
+        if let savedFrame = restoreWindowFrame(), let window {
+            window.setFrame(savedFrame, display: false)
+        }
+
+        window?.orderFront(nil)
+        AppLogger.shared.log("🚀 [OverlayController] Showing overlay for launcher activation")
     }
 
     /// Observe MainAppStateController for health state changes
@@ -462,6 +644,26 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         // Convert key code to kanata name for input label
         let inputKey = OverlayKeyboardView.keyCodeToKanataName(key.keyCode)
 
+        // In launcher mode, treat key clicks as immediate launch actions.
+        if viewModel.isLauncherModeActive {
+            let normalizedKey = inputKey.lowercased()
+
+            if normalizedKey == "esc" {
+                AppLogger.shared.log("🖱️ [OverlayController] Launcher cancel clicked (esc)")
+                ActionDispatcher.shared.dispatch(message: "layer:base")
+                return
+            }
+
+            if let mapping = viewModel.launcherMappings[normalizedKey],
+               let message = Self.launcherActionMessage(for: mapping.target)
+            {
+                AppLogger.shared.log("🖱️ [OverlayController] Launcher key clicked: \(normalizedKey) -> \(message)")
+                ActionDispatcher.shared.dispatch(message: message)
+                ActionDispatcher.shared.dispatch(message: "layer:base")
+                return
+            }
+        }
+
         // Get output from layer info
         // For simple key mappings, use outputKey (e.g., "left", "esc")
         // For complex actions (push-msg, app launch), outputKey is nil so use displayLabel
@@ -491,6 +693,19 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             systemActionIdentifier: layerInfo?.systemActionIdentifier,
             urlIdentifier: layerInfo?.urlIdentifier
         )
+    }
+
+    private static func launcherActionMessage(for target: LauncherTarget) -> String? {
+        switch target {
+        case let .app(name, bundleId):
+            return "launch:\(bundleId ?? name)"
+        case let .url(urlString):
+            return "open:\(urlString)"
+        case let .folder(path, _):
+            return "folder:\(path)"
+        case let .script(path, _):
+            return "script:\(path)"
+        }
     }
 
     private func saveWindowFrame() {
