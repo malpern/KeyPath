@@ -979,7 +979,9 @@ class MapperViewModel: ObservableObject {
             // Track the saved rule ID for potential clearing
             lastSavedRuleID = customRule.id
 
-            // Note: .kanataConfigChanged notification is posted by onRulesChanged callback
+            // Notify overlay to rebuild layer mapping (since saveGeneratedConfiguration
+            // doesn't go through onRulesChanged, we post the notification explicitly)
+            NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
 
             statusMessage = "✓ Saved"
             statusIsError = false
