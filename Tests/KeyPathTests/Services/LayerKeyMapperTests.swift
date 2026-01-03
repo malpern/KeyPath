@@ -3,13 +3,13 @@
 @testable import KeyPathAppKit
 
 final class LayerKeyMapperTests: XCTestCase {
-    /// Path to the real simulator binary in the installed app
-    private let simulatorPath = "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-simulator"
+    /// Path to the simulator binary (installed app or local build).
+    private lazy var simulatorPath: String? = Self.resolveSimulatorPath()
     private var previousSimulatorFlag: Bool?
 
     /// Check if simulator is available for integration tests
     private var simulatorAvailable: Bool {
-        FileManager.default.fileExists(atPath: simulatorPath)
+        simulatorPath != nil
     }
 
     override func setUp() {
@@ -28,7 +28,7 @@ final class LayerKeyMapperTests: XCTestCase {
     // MARK: - Simulator-based Tests
 
     func testSimpleRemap() async throws {
-        try XCTSkipUnless(simulatorAvailable, "Simulator binary not found at \(simulatorPath)")
+        let simulatorPath = try requireSimulatorPath()
 
         // Config with a simple remap: 1 -> 2
         let config = """
@@ -52,7 +52,7 @@ final class LayerKeyMapperTests: XCTestCase {
     }
 
     func testTapHoldAlias() async throws {
-        try XCTSkipUnless(simulatorAvailable, "Simulator binary not found at \(simulatorPath)")
+        let simulatorPath = try requireSimulatorPath()
 
         // Config with alias (tap-hold) - simulator needed to resolve this
         // Note: tap-hold with 200ms timeout may not resolve with a quick 50ms tap
@@ -81,7 +81,7 @@ final class LayerKeyMapperTests: XCTestCase {
     }
 
     func testMultipleRemaps() async throws {
-        try XCTSkipUnless(simulatorAvailable, "Simulator binary not found at \(simulatorPath)")
+        let simulatorPath = try requireSimulatorPath()
 
         let config = """
         (defcfg process-unmapped-keys yes)
@@ -108,7 +108,7 @@ final class LayerKeyMapperTests: XCTestCase {
     }
 
     func testUnchangedKeyNotRemapped() async throws {
-        try XCTSkipUnless(simulatorAvailable, "Simulator binary not found at \(simulatorPath)")
+        let simulatorPath = try requireSimulatorPath()
 
         // Config where key maps to itself (a->a)
         let config = """
@@ -196,5 +196,34 @@ final class LayerKeyMapperTests: XCTestCase {
         let configPath = tempDir.appendingPathComponent(name).path
         try content.write(toFile: configPath, atomically: true, encoding: .utf8)
         return configPath
+    }
+
+    private func requireSimulatorPath() throws -> String {
+        if let simulatorPath {
+            return simulatorPath
+        }
+
+        let candidates = Self.simulatorCandidatePaths.joined(separator: ", ")
+        throw XCTSkip("Simulator binary not found. Set KEYPATH_SIMULATOR_PATH or build via Scripts/build-kanata-simulator.sh. Tried: \(candidates)")
+    }
+
+    private static var simulatorCandidatePaths: [String] {
+        let cwd = FileManager.default.currentDirectoryPath
+        return [
+            "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-simulator",
+            "\(cwd)/dist/KeyPath.app/Contents/Library/KeyPath/kanata-simulator",
+            "\(cwd)/build/kanata-simulator"
+        ]
+    }
+
+    private static func resolveSimulatorPath() -> String? {
+        let fileManager = FileManager.default
+        if let env = ProcessInfo.processInfo.environment["KEYPATH_SIMULATOR_PATH"],
+           !env.isEmpty,
+           fileManager.fileExists(atPath: env) {
+            return env
+        }
+
+        return simulatorCandidatePaths.first { fileManager.fileExists(atPath: $0) }
     }
 }

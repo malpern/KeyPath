@@ -70,11 +70,11 @@ custom_rules:
     message: "Direct Process() usage detected. Use SubprocessRunner.shared.run() instead to prevent MainActor blocking."
     severity: warning
     excluded:
-      - "**/SubprocessRunner.swift"  # Allow Process() in SubprocessRunner itself
-      - "**/SubprocessRunnerFake.swift"  # Allow Process() in test fakes
-      - "**/*Test*.swift"  # Allow Process() in tests (they may need to test Process directly)
-      - "Sources/**/ProcessLifecycleManager.swift"  # Legacy lifecycle utility (monitored separately)
-      - "dev-tools/**"  # Allow Process() in dev tools
+      - ".*/SubprocessRunner\\.swift"  # Allow Process() in SubprocessRunner itself
+      - ".*/SubprocessRunnerFake\\.swift"  # Allow Process() in test fakes
+      - ".*/.*Test.*\\.swift"  # Allow Process() in tests (they may need to test Process directly)
+      - "Sources/.*/ProcessLifecycleManager\\.swift"  # Legacy lifecycle utility (monitored separately)
+      - "dev-tools/.*"  # Allow Process() in dev tools
 
   # Flag Button/Toggle/Picker without accessibilityIdentifier
   # All interactive UI elements must have accessibility identifiers for automation
@@ -84,7 +84,7 @@ custom_rules:
     message: "Interactive UI element (Button/Toggle/Picker) should have .accessibilityIdentifier() modifier. See ACCESSIBILITY_COVERAGE.md"
     severity: warning
     excluded:
-      - "**/*Test*.swift"  # Tests may not need identifiers
-      - "**/*Preview*.swift"  # Previews may not need identifiers
-      - "Sources/KeyPathAppKit/UI/Style/**"  # Style components
-      - "Sources/KeyPathAppKit/UI/Components/TitlebarHeaderAccessory.swift"  # System component
+      - ".*/.*Test.*\\.swift"  # Tests may not need identifiers
+      - ".*/.*Preview.*\\.swift"  # Previews may not need identifiers
+      - "Sources/KeyPathAppKit/UI/Style/.*"  # Style components
+      - "Sources/KeyPathAppKit/UI/Components/TitlebarHeaderAccessory\\.swift"  # System component
