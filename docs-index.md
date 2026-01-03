@@ -1,5 +1,5 @@
 ---
-layout: home
+layout: default
 title: KeyPath Documentation
 description: Complete guide to keyboard remapping on macOS with KeyPath
 ---
