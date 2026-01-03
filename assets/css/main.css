@@ -7505,9 +7505,7 @@ a.button:active {
 }
 
 .kb-key[data-launcher].launcher-zooming {
-    transition: transform 0.35s ease-out, opacity 0.35s ease-out;
-    transform-origin: center;
-    transform: scale(1);
+    position: relative;
 }
 
 .kb-key[data-launcher].launcher-zooming::after {
@@ -7523,7 +7521,7 @@ a.button:active {
 
 .kb-key[data-launcher].launcher-zooming .kb-launcher-icon,
 .kb-key[data-launcher].launcher-zooming .kb-launcher-img {
-    transform: scale(0.8);
+    animation: launcher-icon-zoom 0.8s ease-out forwards;
 }
 
 @keyframes launcher-pulse {
@@ -7538,6 +7536,21 @@ a.button:active {
     100% {
         opacity: 0;
         transform: scale(4);
+    }
+}
+
+@keyframes launcher-icon-zoom {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(2.8);
+        opacity: 0.85;
+    }
+    100% {
+        transform: scale(4);
+        opacity: 0;
     }
 }
 
