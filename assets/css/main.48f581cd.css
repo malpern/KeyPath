@@ -2039,6 +2039,20 @@ html {
     text-align: left;
 }
 
+.build-banner {
+    margin-top: var(--spacing-sm);
+    align-self: flex-start;
+    padding: 0.4rem 0.9rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.9);
+}
+
 /* Hero visual (right side) */
 .kanata-landing-hero-visual {
     display: flex;

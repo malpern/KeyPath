@@ -16,6 +16,9 @@ content_class: content-full kanata-landing
       <h1 class="kanata-landing-title hero-animate hero-animate-1">KeyPath</h1>
       <p class="kanata-landing-tagline hero-animate hero-animate-2">Turn your keyboard into a command center</p>
       <p class="kanata-landing-subtitle hero-animate hero-animate-3">Remap keys, launch apps, tile windows, and automate workflows — all without leaving the home row.</p>
+      <div class="build-banner hero-animate hero-animate-3">
+        Live gh-pages build: <strong>a7995ea2</strong> — yes, this page reflects the latest deploy.
+      </div>
 
       <div class="kanata-landing-actions hero-animate hero-animate-4">
         <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases/download/v1.0.0/KeyPath-1.0.0.zip">Download for macOS <span class="button-badge">Free</span></a>
