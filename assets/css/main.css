@@ -7396,15 +7396,23 @@ a.button:active {
    LAUNCHER LAYER ON KEYBOARD
    ============================================ */
 
+/* Keys with launcher mappings need relative positioning */
+.kb-key[data-launcher] {
+    cursor: url("../images/pointinghand.svg") 12 0, pointer;
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--kb-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 /* Hide launcher icons by default */
 .kb-launcher-icon,
 .kb-launcher-img {
     display: none;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
     z-index: 2;
+    position: relative;
 }
 
 .kb-launcher-icon {
@@ -7417,17 +7425,7 @@ a.button:active {
     height: 32px;
     border-radius: 6px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-}
-
-.kb-key[data-launcher] {
-    cursor: url("../images/pointinghand.svg") 12 0, pointer;
-}
-
-/* Keys with launcher mappings need relative positioning */
-.kb-key[data-launcher] {
-    position: relative;
-    overflow: hidden;
-    border-radius: var(--kb-radius);
+    object-fit: contain;
 }
 
 /* When launcher mode is active, show icons and hide letters */
@@ -7445,11 +7443,11 @@ a.button:active {
 
 @keyframes launcher-pop {
     0% {
-        transform: translate(-50%, -50%) scale(0.5);
+        transform: scale(0.5);
         opacity: 0;
     }
     100% {
-        transform: translate(-50%, -50%) scale(1);
+        transform: scale(1);
         opacity: 1;
     }
 }
