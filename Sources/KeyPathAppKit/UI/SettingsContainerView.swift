@@ -249,6 +249,7 @@ struct AdvancedSettingsTabView: View {
     @State private var showingHelperUninstallConfirm = false
     @State private var showingRemoveDuplicatesConfirm = false
     @State private var showingResetEverythingConfirmation = false
+    @State private var showingUninstallDialog = false
 
     @State private var settingsToastManager = WizardToastManager()
 
@@ -283,7 +284,7 @@ struct AdvancedSettingsTabView: View {
 
                     // Uninstall button (primary - Enter key triggers)
                     Button(role: .destructive) {
-                        NotificationCenter.default.post(name: NSNotification.Name("ShowUninstall"), object: nil)
+                        showingUninstallDialog = true
                     } label: {
                         Text("Uninstall")
                             .frame(minWidth: 100)
@@ -389,6 +390,10 @@ struct AdvancedSettingsTabView: View {
         .frame(maxHeight: 350)
         .settingsBackground()
         .withToasts(settingsToastManager)
+        .sheet(isPresented: $showingUninstallDialog) {
+            UninstallKeyPathDialog()
+                .environmentObject(kanataManager)
+        }
         .task {
             await refreshHelperStatus()
             duplicateAppCopies = HelperMaintenance.shared.detectDuplicateAppCopies()

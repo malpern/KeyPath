@@ -61,7 +61,7 @@ final class KanataConfigMigrationServiceTests: XCTestCase {
         )
 
         // Verify destination exists
-        let destPath = WizardSystemPaths.keyPathConfigPath
+        let destPath = WizardSystemPaths.userConfigPath
         XCTAssertTrue(FileManager.default.fileExists(atPath: destPath), "Config should be copied")
 
         // Verify content includes the include line
@@ -91,7 +91,7 @@ final class KanataConfigMigrationServiceTests: XCTestCase {
         )
 
         // Verify symlink exists
-        let destPath = WizardSystemPaths.keyPathConfigPath
+        let destPath = WizardSystemPaths.userConfigPath
         let attributes = try FileManager.default.attributesOfItem(atPath: destPath)
         XCTAssertNotNil(attributes[FileAttributeKey.type] as? FileAttributeType)
         if let type = attributes[FileAttributeKey.type] as? FileAttributeType {

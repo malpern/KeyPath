@@ -308,7 +308,10 @@ actor LayerKeyMapper {
         }
 
         // Check if this is a transparent key (input == output with no other keys)
-        let isTransparent = allPressedOutputs.count == 1 && allPressedOutputs[0] == simName.lowercased()
+        // Normalize both to handle simulator symbol aliases (e.g., "◀" for "left")
+        let normalizedInput = normalizeKeyName(simName.lowercased())
+        let normalizedOutput = allPressedOutputs.count == 1 ? normalizeKeyName(allPressedOutputs[0]) : nil
+        let isTransparent = normalizedOutput != nil && normalizedOutput == normalizedInput
 
         return RawSimulationResult(
             input: simName,
@@ -423,8 +426,16 @@ actor LayerKeyMapper {
             }
 
             if parsed.isTransparent {
-                // Key passes through unchanged
-                mapping[keyCode] = .transparent(fallbackLabel: fallbackLabel)
+                // Key passes through unchanged but still expose output key for highlighting.
+                let outputKey = parsed.outputs.first
+                let outputKeyCode = outputKey.flatMap(kanataKeyToKeyCode)
+                mapping[keyCode] = LayerKeyInfo(
+                    displayLabel: fallbackLabel,
+                    outputKey: outputKey,
+                    outputKeyCode: outputKeyCode,
+                    isTransparent: true,
+                    isLayerSwitch: false
+                )
             } else if parsed.outputs.allSatisfy({ $0.lowercased() == "xx" }) {
                 // Explicitly blocked key (XX) should render blank in the overlay
                 mapping[keyCode] = LayerKeyInfo(
@@ -769,6 +780,39 @@ actor LayerKeyMapper {
             true
         default:
             false
+        }
+    }
+
+    /// Normalize key names to canonical form for transparent key detection.
+    /// Maps simulator symbols and aliases to their base key names.
+    private func normalizeKeyName(_ key: String) -> String {
+        switch key.lowercased() {
+        // Arrow symbols from simulator
+        case "◀", "←": "left"
+        case "▶", "→": "right"
+        case "▲", "↑": "up"
+        case "▼", "↓": "down"
+        // Modifier aliases
+        case "‹◆", "◆›", "lmet", "rmet", "cmd", "lcmd", "command", "meta": "lmet"
+        case "‹⎇", "⎇›", "lalt", "ralt", "opt", "option": "lalt"
+        case "‹⇧", "⇧›", "lsft", "rsft", "lshift", "rshift", "shift": "lsft"
+        case "‹⎈", "⎈›", "lctl", "rctl", "lctrl", "rctrl", "ctrl", "control": "lctl"
+        // Special keys
+        case "ret", "return": "enter"
+        case "bspc": "backspace"
+        case "spc", "sp": "space"
+        case "esc": "escape"
+        case "caps": "capslock"
+        case "del": "delete"
+        // Tab and fn stay as-is
+        case "⇥": "tab"
+        case "↩": "enter"
+        case "⌫": "backspace"
+        case "⌦": "delete"
+        case "⎋": "escape"
+        case "⇪": "capslock"
+        default:
+            key.lowercased()
         }
     }
 

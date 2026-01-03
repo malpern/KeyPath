@@ -299,7 +299,7 @@ public struct KanataConfiguration: Sendable {
         var lines = [
             "#|",
             "================================================================================",
-            "PHYSICAL KEYBOARD LAYOUT (defsrc)",
+            "PHYSICAL KEYBOARD LAYOUT - DEFSRC",
             "================================================================================",
             "|#",
             "",
@@ -354,7 +354,8 @@ public struct KanataConfiguration: Sendable {
     // Note: renderDisabledCollections removed - disabled collections not written to config (ADR-025)
 
     private static func metadataLines(for collection: RuleCollection, indent: String, status: String)
-        -> [String] {
+        -> [String]
+    {
         [
             "\(indent);; === Collection: \(collection.name) (\(status)) ===",
             "\(indent);; UUID: \(collection.id.uuidString)",
@@ -609,7 +610,8 @@ public struct KanataConfiguration: Sendable {
 
             // For Vim collection: optionally block unmapped keys in navigation layer
             if collection.id == RuleCollectionIdentifier.vimNavigation,
-               collection.targetLayer != .base {
+               collection.targetLayer != .base
+            {
                 let mappedKeys = layerMappedKeys[collection.targetLayer] ?? Set(entries.map(\.sourceKey))
                 let activatorKey = collection.momentaryActivator.map { KanataKeyConverter.convertToKanataKey($0.input) } ?? ""
                 // Read user's selected physical layout from UserDefaults
@@ -936,8 +938,8 @@ public struct KanataConfiguration: Sendable {
             return []
         }
 
-        let tapOutput = config.selectedTapOutput ?? config.tapOptions.first?.output ?? "esc"
-        let holdOutput = config.selectedHoldOutput ?? config.holdOptions.first?.output ?? "XX"
+        let tapOutput = config.selectedTapOutput ?? config.tapOptions.first?.output ?? "hyper"
+        let holdOutput = config.selectedHoldOutput ?? config.holdOptions.first?.output ?? "hyper"
 
         // Create dual-role behavior: tap = tapOutput, hold = holdOutput
         let behavior = DualRoleBehavior(
@@ -974,20 +976,27 @@ public struct KanataConfiguration: Sendable {
 
     /// Generate key mappings from launcher grid configuration
     private static func generateLauncherGridMappings(from config: LauncherGridConfig) -> [KeyMapping] {
+        let isTapMode = config.hyperTriggerMode == .tap
+
         var mappings = config.mappings
             .filter(\.isEnabled)
             // In tap mode, ESC is reserved for canceling the one-shot, so filter it out
-            .filter { config.hyperTriggerMode != .tap || $0.key.lowercased() != "esc" }
+            .filter { !isTapMode || $0.key.lowercased() != "esc" }
             .map { mapping in
-                KeyMapping(
+                let output = if isTapMode {
+                    "(multi \(mapping.target.kanataOutput) (push-msg \"layer:base\"))"
+                } else {
+                    mapping.target.kanataOutput
+                }
+                return KeyMapping(
                     input: mapping.key,
-                    output: mapping.target.kanataOutput
+                    output: output
                 )
             }
 
         // In tap mode, add ESC → XX (no output) to cancel one-shot without side effects
-        if config.hyperTriggerMode == .tap {
-            mappings.append(KeyMapping(input: "esc", output: "XX"))
+        if isTapMode {
+            mappings.append(KeyMapping(input: "esc", output: "(multi XX (push-msg \"layer:base\"))"))
         }
 
         return mappings
@@ -1147,7 +1156,8 @@ public final class ConfigurationService: FileConfigurationProviding {
     }
 
     public func observe(_ onChange: @Sendable @escaping (Config) async -> Void)
-        -> ConfigurationObservationToken {
+        -> ConfigurationObservationToken
+    {
         var index = 0
         stateLock.lock()
         observers.append(onChange)
@@ -1573,7 +1583,8 @@ public final class ConfigurationService: FileConfigurationProviding {
     /// Backs up a failed config and applies safe default, returning backup path
     public func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping])
         async throws
-        -> String {
+        -> String
+    {
         AppLogger.shared.log("🛡️ [Config] Backing up failed config and applying safe default")
 
         // Create backup directory if it doesn't exist
@@ -1624,7 +1635,8 @@ public final class ConfigurationService: FileConfigurationProviding {
     /// Repair configuration using rule-based strategies (keeps output Kanata-compatible).
     public func repairConfiguration(config: String, errors: [String], mappings: [KeyMapping])
         async throws
-        -> String {
+        -> String
+    {
         AppLogger.shared.log("🔧 [Config] Performing rule-based repair for \(errors.count) errors")
 
         // Common repair strategies

@@ -19,7 +19,27 @@ struct RuleCollectionCatalog {
         // (e.g., launcher mappings, home row mods settings, etc.)
         // Only if the configuration type matches - otherwise use catalog default
         if existing.configuration.displayStyle == updated.configuration.displayStyle {
-            merged.configuration = existing.configuration
+            // For tapHoldPicker: preserve user's selections but use catalog's options
+            // This ensures removed options (like "None") don't persist
+            if case let .tapHoldPicker(existingConfig) = existing.configuration,
+               case let .tapHoldPicker(catalogConfig) = updated.configuration
+            {
+                var mergedConfig = catalogConfig
+                // Preserve user's selection only if it's still a valid option
+                if let selectedTap = existingConfig.selectedTapOutput,
+                   catalogConfig.tapOptions.contains(where: { $0.output == selectedTap })
+                {
+                    mergedConfig.selectedTapOutput = selectedTap
+                }
+                if let selectedHold = existingConfig.selectedHoldOutput,
+                   catalogConfig.holdOptions.contains(where: { $0.output == selectedHold })
+                {
+                    mergedConfig.selectedHoldOutput = selectedHold
+                }
+                merged.configuration = .tapHoldPicker(mergedConfig)
+            } else {
+                merged.configuration = existing.configuration
+            }
         }
         return merged
     }
@@ -331,11 +351,11 @@ struct RuleCollectionCatalog {
                 KeyMapping(
                     input: "caps",
                     output: "hyper",
-                    description: "Tap: Hyper, Hold: None",
+                    description: "Tap: Hyper, Hold: Hyper",
                     behavior: .dualRole(
                         DualRoleBehavior(
                             tapAction: "hyper",
-                            holdAction: "XX",
+                            holdAction: "hyper",
                             tapTimeout: 200,
                             holdTimeout: 200,
                             activateHoldOnOtherKey: false,
@@ -374,21 +394,9 @@ struct RuleCollectionCatalog {
                         label: "✦ Hyper",
                         description: "Tap for Hyper (⌃⌥⇧⌘) - useful when hold is something else",
                         icon: "bolt.circle"
-                    ),
-                    SingleKeyPreset(
-                        output: "XX",
-                        label: "None",
-                        description: "No tap action - hold only",
-                        icon: "minus.circle"
                     )
                 ],
                 holdOptions: [
-                    SingleKeyPreset(
-                        output: "XX",
-                        label: "None",
-                        description: "No hold action - tap only (recommended)",
-                        icon: "minus.circle"
-                    ),
                     SingleKeyPreset(
                         output: "hyper",
                         label: "✦ Hyper",
@@ -415,7 +423,7 @@ struct RuleCollectionCatalog {
                     )
                 ],
                 selectedTapOutput: "hyper",
-                selectedHoldOutput: "XX"
+                selectedHoldOutput: "hyper"
             ))
         )
     }

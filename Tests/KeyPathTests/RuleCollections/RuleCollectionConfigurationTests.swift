@@ -399,19 +399,22 @@ final class RuleCollectionConfigurationTests: XCTestCase {
         XCTAssertTrue(mapping.isEnabled)
     }
 
-    func testLauncherGridConfigDefaultMappingsIncludeFolders() {
+    func testLauncherGridConfigDefaultMappingsIncludeAppsAndURLs() {
         let config = LauncherGridConfig.defaultConfig
+        let appMappings = config.mappings.filter(\.target.isApp)
+        let urlMappings = config.mappings.filter(\.target.isURL)
         let folderMappings = config.mappings.filter(\.target.isFolder)
 
-        // Should have default folder mappings (F5-F8)
-        XCTAssertFalse(folderMappings.isEmpty, "Default config should include folder mappings")
+        XCTAssertFalse(appMappings.isEmpty, "Default config should include app mappings")
+        XCTAssertFalse(urlMappings.isEmpty, "Default config should include URL mappings")
+        XCTAssertTrue(folderMappings.isEmpty, "Default config should not include folder mappings")
 
-        // Check specific defaults
-        let downloadMapping = folderMappings.first { $0.key == "f5" }
-        XCTAssertNotNil(downloadMapping)
-        if case let .folder(path, name) = downloadMapping?.target {
-            XCTAssertEqual(path, "~/Downloads")
-            XCTAssertEqual(name, "Downloads")
+        // Spot-check a known default
+        let safariMapping = appMappings.first { $0.key == "s" }
+        XCTAssertNotNil(safariMapping)
+        if case let .app(name, bundleId) = safariMapping?.target {
+            XCTAssertEqual(name, "Safari")
+            XCTAssertEqual(bundleId, "com.apple.Safari")
         }
     }
 

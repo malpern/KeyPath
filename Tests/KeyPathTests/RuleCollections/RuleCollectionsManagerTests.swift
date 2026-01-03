@@ -131,10 +131,11 @@ final class RuleCollectionsManagerTests: XCTestCase {
         let (manager, _) = try await createTestManager()
         defer { TestEnvironment.forceTestMode = false }
 
-        var warningReceived: String?
-        var errorReceived: String?
-        manager.onWarning = { warningReceived = $0 }
-        manager.onError = { errorReceived = $0 }
+        var conflictContext: RuleConflictContext?
+        manager.onConflictResolution = { context in
+            conflictContext = context
+            return .keepNew
+        }
 
         // Create first custom rule mapping caps -> esc
         let rule1 = CustomRule(input: "caps", output: "esc", isEnabled: true)
@@ -145,15 +146,20 @@ final class RuleCollectionsManagerTests: XCTestCase {
         let rule2 = CustomRule(input: "caps", output: "tab", isEnabled: true)
         let saved2 = await manager.saveCustomRule(rule2)
 
-        // Should warn but still save
-        XCTAssertTrue(saved2, "Second rule should save despite conflict (warning-only)")
-        XCTAssertNotNil(warningReceived, "Warning should be received for conflict")
-        XCTAssertNil(errorReceived, "Error should NOT be received (warning-only behavior)")
-        XCTAssertTrue(warningReceived?.contains("conflicts") ?? false, "Warning message should mention conflict")
-        XCTAssertTrue(warningReceived?.contains("caps") ?? false, "Warning should mention the conflicting key")
+        // Should resolve via conflict handler and still save
+        XCTAssertTrue(saved2, "Second rule should save after conflict resolution")
+        XCTAssertNotNil(conflictContext, "Conflict resolution should be requested")
+        XCTAssertTrue(
+            conflictContext?.conflictingKeys.contains("caps") ?? false,
+            "Conflict should include the conflicting key"
+        )
 
-        // Both rules should exist
+        // Both rules should exist, but the original should be disabled
         XCTAssertEqual(manager.customRules.count, 2, "Both rules should be saved")
+        XCTAssertFalse(
+            manager.customRules.contains { $0.input == "caps" && $0.output == "esc" && $0.isEnabled },
+            "Original conflicting rule should be disabled"
+        )
     }
 
     @MainActor
@@ -161,8 +167,11 @@ final class RuleCollectionsManagerTests: XCTestCase {
         let (manager, _) = try await createTestManager()
         defer { TestEnvironment.forceTestMode = false }
 
-        var warningReceived: String?
-        manager.onWarning = { warningReceived = $0 }
+        var conflictContext: RuleConflictContext?
+        manager.onConflictResolution = { context in
+            conflictContext = context
+            return .keepNew
+        }
 
         // Enable Caps Lock remap collection (maps caps -> something)
         await manager.toggleCollection(id: RuleCollectionIdentifier.capsLockRemap, isEnabled: true)
@@ -172,10 +181,17 @@ final class RuleCollectionsManagerTests: XCTestCase {
         let rule = CustomRule(input: "caps", output: "esc", isEnabled: true)
         let saved = await manager.saveCustomRule(rule)
 
-        // Should warn but still save
-        XCTAssertTrue(saved, "Rule should save despite conflict with collection")
-        XCTAssertNotNil(warningReceived, "Warning should be received")
-        XCTAssertTrue(warningReceived?.contains("conflicts") ?? false)
+        // Should resolve via conflict handler and still save
+        XCTAssertTrue(saved, "Rule should save after conflict resolution")
+        XCTAssertNotNil(conflictContext, "Conflict resolution should be requested")
+        XCTAssertTrue(
+            conflictContext?.conflictingKeys.contains("caps") ?? false,
+            "Conflict should include the conflicting key"
+        )
+        XCTAssertFalse(
+            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.capsLockRemap && $0.isEnabled },
+            "Conflicting collection should be disabled"
+        )
     }
 
     @MainActor
@@ -183,8 +199,11 @@ final class RuleCollectionsManagerTests: XCTestCase {
         let (manager, _) = try await createTestManager()
         defer { TestEnvironment.forceTestMode = false }
 
-        var warningReceived: String?
-        manager.onWarning = { warningReceived = $0 }
+        var conflictContext: RuleConflictContext?
+        manager.onConflictResolution = { context in
+            conflictContext = context
+            return .keepNew
+        }
 
         // Create two rules with same input, both initially disabled
         var rule1 = CustomRule(input: "caps", output: "esc", isEnabled: false)
@@ -198,15 +217,16 @@ final class RuleCollectionsManagerTests: XCTestCase {
 
         // Enable first - no warning
         await manager.toggleCustomRule(id: rule1.id, isEnabled: true)
-        XCTAssertNil(warningReceived, "No warning for first enable")
+        XCTAssertNil(conflictContext, "No conflict for first enable")
 
         // Enable second - should warn
         await manager.toggleCustomRule(id: rule2.id, isEnabled: true)
-        XCTAssertNotNil(warningReceived, "Warning should be received for conflict")
+        XCTAssertNotNil(conflictContext, "Conflict resolution should be requested")
 
-        // Both should be enabled
+        // Only the new rule should be enabled
         let enabledRules = manager.customRules.filter(\.isEnabled)
-        XCTAssertEqual(enabledRules.count, 2, "Both rules should be enabled despite conflict")
+        XCTAssertEqual(enabledRules.count, 1, "Only one rule should remain enabled")
+        XCTAssertTrue(enabledRules.contains { $0.id == rule2.id }, "New rule should be enabled")
     }
 
     @MainActor
@@ -253,8 +273,11 @@ final class RuleCollectionsManagerTests: XCTestCase {
         let (manager, _) = try await createTestManager()
         defer { TestEnvironment.forceTestMode = false }
 
-        var warningMessage: String?
-        manager.onWarning = { warningMessage = $0 }
+        var conflictContext: RuleConflictContext?
+        manager.onConflictResolution = { context in
+            conflictContext = context
+            return .keepNew
+        }
 
         // Create conflicting rules
         let rule1 = CustomRule(input: "caps", output: "esc", isEnabled: true)
@@ -263,10 +286,9 @@ final class RuleCollectionsManagerTests: XCTestCase {
         let rule2 = CustomRule(input: "caps", output: "tab", isEnabled: true)
         await manager.saveCustomRule(rule2)
 
-        // Warning should contain the key name
-        XCTAssertNotNil(warningMessage)
-        XCTAssertTrue(warningMessage?.contains("caps") ?? false, "Warning should mention the conflicting key")
-        XCTAssertTrue(warningMessage?.contains("Last enabled rule wins") ?? false, "Warning should explain behavior")
+        // Conflict context should contain the key name
+        XCTAssertNotNil(conflictContext)
+        XCTAssertTrue(conflictContext?.conflictingKeys.contains("caps") ?? false, "Conflict should mention the key")
     }
 
     @MainActor

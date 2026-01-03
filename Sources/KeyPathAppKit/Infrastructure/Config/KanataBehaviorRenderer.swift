@@ -52,8 +52,12 @@ public enum KanataBehaviorRenderer {
     /// Render a dual-role (tap-hold) behavior.
     /// Chooses the appropriate Kanata variant based on flags.
     private static func renderDualRole(_ dr: DualRoleBehavior, hyperLinkedLayerInfos: [HyperLinkedLayerInfo]) -> String {
-        // TAP action should NOT include layer activation - only HOLD gets that
-        let tapAction = convertAction(dr.tapAction, hyperLinkedLayerInfos: [])
+        // Split linked layers by trigger mode so tap/hold behave as configured.
+        let tapLinkedLayers = hyperLinkedLayerInfos.filter { $0.triggerMode == .tap }
+
+        // Tap-mode layers should be available even when hyper is produced by a hold action
+        // (e.g., Caps Lock tap=Esc, hold=Hyper). Pass all linked layers to holdAction.
+        let tapAction = convertAction(dr.tapAction, hyperLinkedLayerInfos: tapLinkedLayers)
         let holdAction = convertAction(dr.holdAction, hyperLinkedLayerInfos: hyperLinkedLayerInfos)
         let tapTimeout = dr.tapTimeout
         let holdTimeout = dr.holdTimeout
@@ -119,13 +123,14 @@ public enum KanataBehaviorRenderer {
                     case .hold:
                         // Hold mode: layer stays active while hyper is held
                         components.append("(layer-while-held \(layerName))")
+                        components.append("(on-press-fakekey kp-layer-\(layerName)-enter tap)")
+                        components.append("(on-release-fakekey kp-layer-\(layerName)-exit tap)")
                     case .tap:
                         // Tap mode: one-shot layer that deactivates after next key press
                         // Using one-shot-press with 5 second timeout (deactivates on any key or timeout)
                         components.append("(one-shot-press 5000 (layer-while-held \(layerName)))")
+                        components.append("(on-press-fakekey kp-layer-\(layerName)-enter tap)")
                     }
-                    components.append("(on-press-fakekey kp-layer-\(layerName)-enter tap)")
-                    components.append("(on-release-fakekey kp-layer-\(layerName)-exit tap)")
                 }
                 return "(multi \(components.joined(separator: " ")))"
             }
