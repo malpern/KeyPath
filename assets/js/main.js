@@ -1891,30 +1891,12 @@
             }
         });
 
-        function triggerLaunchBurst() {
-            if (!keyboardSection) return;
-            keyboardSection.classList.remove('launch-burst');
-            void keyboardSection.offsetWidth;
-            keyboardSection.classList.add('launch-burst');
-            setTimeout(() => {
-                keyboardSection.classList.remove('launch-burst');
-            }, 900);
-        }
-
         // Clicking a launcher key closes the launcher
         launcherKeyboard.querySelectorAll('.kb-key[data-launcher]').forEach(key => {
             key.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (!e.isTrusted) return;
                 if (launcherKeyboard.classList.contains('launcher-active')) {
-                    triggerLaunchBurst();
-                    key.classList.add('kb-key-launching', 'launcher-zooming');
-                    setTimeout(() => {
-                        key.classList.remove('kb-key-launching');
-                    }, 600);
-                    setTimeout(() => {
-                        key.classList.remove('launcher-zooming');
-                    }, 900);
                     // Brief delay before closing to show the press
                     setTimeout(closeLauncher, 200);
                 }
