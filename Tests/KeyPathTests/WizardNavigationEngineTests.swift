@@ -226,6 +226,8 @@ class WizardNavigationEngineTests: XCTestCase {
         // Given: Navigation engine
         let expectedOrder: [WizardPage] = [
             .summary, // Overview
+            .kanataMigration, // Migrate existing Kanata configs
+            .stopExternalKanata, // Stop external Kanata before setup
             .helper, // Privileged helper installation comes early to avoid repeated prompts
             .fullDiskAccess, // Optional FDA for better diagnostics
             .conflicts, // Must resolve conflicts first
@@ -254,8 +256,8 @@ class WizardNavigationEngineTests: XCTestCase {
 
         // Then: Should return correct indices
         XCTAssertEqual(summaryIndex, 0, "Summary should be first (index 0)")
-        XCTAssertEqual(conflictsIndex, 3, "Conflicts should be at index 3")
-        XCTAssertEqual(serviceIndex, 8, "Service should be index 8 in the expanded flow")
+        XCTAssertEqual(conflictsIndex, 5, "Conflicts should be at index 5")
+        XCTAssertEqual(serviceIndex, 10, "Service should be index 10 in the expanded flow")
     }
 
     // MARK: - Blocking Page Tests

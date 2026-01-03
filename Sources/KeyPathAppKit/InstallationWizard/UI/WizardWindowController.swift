@@ -56,7 +56,17 @@ final class WizardWindowController {
             defer: false
         )
         window.title = "KeyPath Setup"
-        window.minSize = NSSize(width: 700, height: 500)
+        let minContentSize = NSSize(
+            width: WizardDesign.Layout.pageWidth,
+            height: WizardDesign.Layout.pageHeight
+        )
+        let maxContentSize = NSSize(
+            width: WizardDesign.Layout.pageWidth,
+            height: 720
+        )
+        window.contentMinSize = minContentSize
+        window.contentMaxSize = maxContentSize
+        window.minSize = NSSize(width: minContentSize.width, height: minContentSize.height)
         window.contentView = hostingView
         window.isReleasedWhenClosed = false
         let delegate = WizardWindowDelegate(controller: self)
@@ -67,6 +77,15 @@ final class WizardWindowController {
         window.setFrameAutosaveName("WizardWindow")
         if !window.setFrameUsingName("WizardWindow") {
             window.center()
+        }
+        if window.contentLayoutRect.size.height > maxContentSize.height
+            || window.contentLayoutRect.size.width > maxContentSize.width
+        {
+            window.setContentSize(maxContentSize)
+        } else if window.contentLayoutRect.size.height < minContentSize.height
+            || window.contentLayoutRect.size.width < minContentSize.width
+        {
+            window.setContentSize(minContentSize)
         }
 
         window.makeKeyAndOrderFront(nil)

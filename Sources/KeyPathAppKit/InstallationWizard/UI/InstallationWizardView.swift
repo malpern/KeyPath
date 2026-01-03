@@ -587,7 +587,8 @@ struct InstallationWizardView: View {
                     AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
                     navigationCoordinator.navigateToPage(.summary)
                 } else if let preferred = await preferredDetailPage(for: result.state, issues: filteredIssues),
-                          navigationCoordinator.currentPage != preferred {
+                          navigationCoordinator.currentPage != preferred
+                {
                     AppLogger.shared.log("🔍 [Wizard] Deterministic routing to \(preferred) (single blocker)")
                     navigationCoordinator.navigateToPage(preferred)
                 } else if navigationCoordinator.currentPage == .summary {
@@ -947,7 +948,8 @@ struct InstallationWizardView: View {
 
         // Short-circuit service installs when Login Items approval is pending
         if action == .installLaunchDaemonServices || action == .restartUnhealthyServices,
-           await KanataDaemonManager.shared.refreshManagementState() == .smappservicePending {
+           await KanataDaemonManager.shared.refreshManagementState() == .smappservicePending
+        {
             if !suppressToast {
                 await MainActor.run {
                     toastManager.showError(
@@ -1043,7 +1045,8 @@ struct InstallationWizardView: View {
                 )
                 AppLogger.shared.log("🔍 [Wizard] Post-fix health check: karabinerStatus=\(karabinerStatus)")
                 if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon ||
-                    action == .installCorrectVHIDDriver || action == .repairVHIDDaemonServices {
+                    action == .installCorrectVHIDDriver || action == .repairVHIDDaemonServices
+                {
                     let smStatePost = await KanataDaemonManager.shared.refreshManagementState()
                     // IMPORTANT: Run off MainActor to avoid blocking UI - detectConnectionHealth spawns pgrep subprocesses
                     let vhidHealthy = await Task.detached {
@@ -1209,7 +1212,8 @@ struct InstallationWizardView: View {
     }
 
     private func preferredDetailPage(for state: WizardSystemState, issues: [WizardIssue])
-        async -> WizardPage? {
+        async -> WizardPage?
+    {
         let page = await navigationCoordinator.navigationEngine.determineCurrentPage(
             for: state, issues: issues
         )
@@ -1229,7 +1233,8 @@ struct InstallationWizardView: View {
     }
 
     private func sanitizedIssues(from issues: [WizardIssue], for state: WizardSystemState)
-        -> [WizardIssue] {
+        -> [WizardIssue]
+    {
         guard shouldSuppressCommunicationIssues(for: state) else {
             return issues
         }
@@ -1268,7 +1273,8 @@ struct InstallationWizardView: View {
         } else if shouldAutoNavigate {
             Task {
                 if let preferred = await preferredDetailPage(for: result.state, issues: filteredIssues),
-                   navigationCoordinator.currentPage != preferred {
+                   navigationCoordinator.currentPage != preferred
+                {
                     AppLogger.shared.log("🔄 [Wizard] Deterministic routing to \(preferred) after refresh")
                     navigationCoordinator.navigateToPage(preferred)
                 }
@@ -1567,7 +1573,8 @@ struct InstallationWizardView: View {
 
     /// Get detailed error message for specific auto-fix failures
     private func getDetailedErrorMessage(for action: AutoFixAction, actionDescription: String)
-        async -> String {
+        async -> String
+    {
         AppLogger.shared.log("🔍 [ErrorMessage] getDetailedErrorMessage called for action: \(action)")
         AppLogger.shared.log("🔍 [ErrorMessage] Action description: \(actionDescription)")
 
@@ -1762,14 +1769,34 @@ extension WizardOperations {
         stateMachine: WizardStateMachine?,
         progressCallback: @escaping @Sendable (Double) -> Void = { _ in }
     ) -> AsyncOperation<SystemStateResult> {
-        AsyncOperation<SystemStateResult>(
+        enum StateDetectionError: Error {
+            case timeout
+        }
+
+        return AsyncOperation<SystemStateResult>(
             id: "state_detection",
             name: "System State Detection"
         ) { operationProgressCallback in
             // Forward progress from SystemValidator to the operation callback
             if let machine = stateMachine {
                 progressCallback(0.1)
-                await machine.refresh()
+                do {
+                    try await withThrowingTaskGroup(of: Void.self) { group in
+                        group.addTask { await machine.refresh() }
+                        group.addTask {
+                            try await Task.sleep(nanoseconds: 12_000_000_000)
+                            throw StateDetectionError.timeout
+                        }
+                        _ = try await group.next()
+                        group.cancelAll()
+                    }
+                } catch {
+                    AppLogger.shared.log("⚠️ [Wizard] State detection timed out: \(error)")
+                    progressCallback(1.0)
+                    operationProgressCallback(1.0)
+                    return timeoutResult()
+                }
+
                 progressCallback(1.0)
                 operationProgressCallback(1.0)
                 // Adapt snapshot on the main actor
@@ -1786,19 +1813,33 @@ extension WizardOperations {
                         )
                         return SystemContextAdapter.adapt(context)
                     } else {
-                        return SystemStateResult(
-                            state: .initializing, issues: [], autoFixActions: [], detectionTimestamp: Date()
-                        )
+                        return timeoutResult()
                     }
                 }
             } else {
                 progressCallback(1.0)
                 operationProgressCallback(1.0)
-                return SystemStateResult(
-                    state: .initializing, issues: [], autoFixActions: [], detectionTimestamp: Date()
-                )
+                return timeoutResult()
             }
         }
+    }
+
+    private static func timeoutResult() -> SystemStateResult {
+        let issue = WizardIssue(
+            identifier: .daemon,
+            severity: .warning,
+            category: .daemon,
+            title: "System check timed out",
+            description: "KeyPath couldn't finish checking system status. This can happen if the helper or services are unresponsive.",
+            autoFixAction: .restartUnhealthyServices,
+            userAction: "Try restarting KeyPath or click Restart Services."
+        )
+        return SystemStateResult(
+            state: .serviceNotRunning,
+            issues: [issue],
+            autoFixActions: [.restartUnhealthyServices],
+            detectionTimestamp: Date()
+        )
     }
 }
 

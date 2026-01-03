@@ -101,8 +101,7 @@ struct WizardHelperPage: View {
                 setupView
             }
         }
-        .frame(maxWidth: .infinity)
-        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(WizardDesign.Colors.wizardBackground)
         .wizardDetailPage()
         .task {
@@ -312,7 +311,8 @@ struct WizardHelperPage: View {
 
             // If approval is required, offer a quick link to System Settings
             if case let .error(message) = actionStatus,
-               message.localizedCaseInsensitiveContains("approval required") {
+               message.localizedCaseInsensitiveContains("approval required")
+            {
                 Button("Open System Settings → Login Items") {
                     openLoginItemsSettings()
                 }
@@ -352,11 +352,13 @@ struct WizardHelperPage: View {
     private var loginItemsScreenshot: NSImage? {
         let resourceName = "permissions-login-items"
         if let moduleURL = Bundle.module.url(forResource: resourceName, withExtension: "png"),
-           let image = NSImage(contentsOf: moduleURL) {
+           let image = NSImage(contentsOf: moduleURL)
+        {
             return image
         }
         if let mainURL = Bundle.main.url(forResource: resourceName, withExtension: "png"),
-           let image = NSImage(contentsOf: mainURL) {
+           let image = NSImage(contentsOf: mainURL)
+        {
             return image
         }
         return nil
@@ -483,7 +485,8 @@ struct WizardHelperPage: View {
 
         Task {
             if let next = await navigationCoordinator.getNextPage(for: systemState, issues: issues),
-               next != navigationCoordinator.currentPage {
+               next != navigationCoordinator.currentPage
+            {
                 navigationCoordinator.navigateToPage(next)
             } else {
                 navigationCoordinator.navigateToPage(.summary)
