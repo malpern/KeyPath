@@ -253,52 +253,95 @@ class MapperViewModel: ObservableObject {
     /// Selected app precondition - rule only applies when this app is frontmost
     @Published var selectedAppCondition: AppConditionInfo?
 
-    // Advanced behavior state
-    @Published var showAdvanced = false
-    @Published var holdAction: String = ""
-    @Published var doubleTapAction: String = ""
-    @Published var tappingTerm: Int = 200
-    @Published var isRecordingHold = false
-    @Published var isRecordingDoubleTap = false
+    // MARK: - Advanced Behavior (Delegated to AdvancedBehaviorManager)
 
-    // Hold behavior type
-    enum HoldBehaviorType: String, CaseIterable {
-        case basic = "Basic"
-        case triggerEarly = "Trigger early"
-        case quickTap = "Quick tap"
-        case customKeys = "Custom keys"
+    /// Manager for advanced key behaviors (hold, tap-dance, timing)
+    /// Views should access advanced behavior properties through this manager.
+    @Published var advancedBehavior = AdvancedBehaviorManager()
 
-        var description: String {
-            switch self {
-            case .basic:
-                "Hold activates after timeout"
-            case .triggerEarly:
-                "Hold activates when another key is pressed (home-row mods)"
-            case .quickTap:
-                "Fast taps always register as tap"
-            case .customKeys:
-                "Only specific keys trigger early tap"
-            }
-        }
+    // Legacy accessors for backward compatibility during migration
+    // These delegate to advancedBehavior and will be removed once views are updated
+    var showAdvanced: Bool {
+        get { advancedBehavior.showAdvanced }
+        set { advancedBehavior.showAdvanced = newValue }
     }
 
-    @Published var holdBehavior: HoldBehaviorType = .basic
-    @Published var customTapKeysText: String = ""
+    var holdAction: String {
+        get { advancedBehavior.holdAction }
+        set { advancedBehavior.holdAction = newValue }
+    }
 
-    // Tap-dance steps (Triple Tap, Quad Tap, etc.)
-    @Published var tapDanceSteps: [(label: String, action: String, isRecording: Bool)] = []
-    static let tapDanceLabels = ["Triple Tap", "Quad Tap", "Quint Tap", "Sext Tap", "Sept Tap"]
+    var doubleTapAction: String {
+        get { advancedBehavior.doubleTapAction }
+        set { advancedBehavior.doubleTapAction = newValue }
+    }
 
-    // Separate timing
-    @Published var showTimingAdvanced = false
-    @Published var tapTimeout: Int = 200
-    @Published var holdTimeout: Int = 200
+    var tappingTerm: Int {
+        get { advancedBehavior.tappingTerm }
+        set { advancedBehavior.tappingTerm = newValue }
+    }
 
-    // Conflict detection
-    @Published var showConflictDialog = false
-    enum ConflictType { case holdVsTapDance }
-    @Published var pendingConflictType: ConflictType?
-    @Published var pendingConflictField: String = "" // "hold" or "tapDance-N"
+    var isRecordingHold: Bool {
+        get { advancedBehavior.isRecordingHold }
+        set { advancedBehavior.isRecordingHold = newValue }
+    }
+
+    var isRecordingDoubleTap: Bool {
+        get { advancedBehavior.isRecordingDoubleTap }
+        set { advancedBehavior.isRecordingDoubleTap = newValue }
+    }
+
+    // Hold behavior type - use AdvancedBehaviorManager's type
+    typealias HoldBehaviorType = AdvancedBehaviorManager.HoldBehaviorType
+
+    var holdBehavior: HoldBehaviorType {
+        get { advancedBehavior.holdBehavior }
+        set { advancedBehavior.holdBehavior = newValue }
+    }
+
+    var customTapKeysText: String {
+        get { advancedBehavior.customTapKeysText }
+        set { advancedBehavior.customTapKeysText = newValue }
+    }
+
+    var tapDanceSteps: [(label: String, action: String, isRecording: Bool)] {
+        get { advancedBehavior.tapDanceSteps }
+        set { advancedBehavior.tapDanceSteps = newValue }
+    }
+
+    static let tapDanceLabels = AdvancedBehaviorManager.tapDanceLabels
+
+    var showTimingAdvanced: Bool {
+        get { advancedBehavior.showTimingAdvanced }
+        set { advancedBehavior.showTimingAdvanced = newValue }
+    }
+
+    var tapTimeout: Int {
+        get { advancedBehavior.tapTimeout }
+        set { advancedBehavior.tapTimeout = newValue }
+    }
+
+    var holdTimeout: Int {
+        get { advancedBehavior.holdTimeout }
+        set { advancedBehavior.holdTimeout = newValue }
+    }
+
+    var showConflictDialog: Bool {
+        get { advancedBehavior.showConflictDialog }
+        set { advancedBehavior.showConflictDialog = newValue }
+    }
+
+    typealias ConflictType = AdvancedBehaviorManager.ConflictType
+
+    var pendingConflictType: ConflictType? {
+        get { advancedBehavior.pendingConflictType }
+        set { advancedBehavior.pendingConflictType = newValue }
+    }
+
+    var pendingConflictField: String {
+        get { advancedBehavior.pendingConflictField }
+        set { advancedBehavior.pendingConflictField = newValue }
+    }
 
     /// Default KeySequence for A key - used as initial value so save works without capturing input first
     private static let defaultAKeySequence = KeySequence(
@@ -546,16 +589,12 @@ class MapperViewModel: ObservableObject {
 
     /// Add next tap-dance step (Triple Tap, Quad Tap, etc.)
     func addTapDanceStep() {
-        let index = tapDanceSteps.count
-        guard index < Self.tapDanceLabels.count else { return }
-        let label = Self.tapDanceLabels[index]
-        tapDanceSteps.append((label: label, action: "", isRecording: false))
+        advancedBehavior.addTapDanceStep()
     }
 
     /// Remove tap-dance step at index
     func removeTapDanceStep(at index: Int) {
-        guard index >= 0, index < tapDanceSteps.count else { return }
-        tapDanceSteps.remove(at: index)
+        advancedBehavior.removeTapDanceStep(at: index)
     }
 
     /// Toggle recording for tap-dance step at index
@@ -586,24 +625,17 @@ class MapperViewModel: ObservableObject {
 
     /// Clear tap-dance step action at index
     func clearTapDanceStep(at index: Int) {
-        guard index >= 0, index < tapDanceSteps.count else { return }
-        tapDanceSteps[index].action = ""
+        advancedBehavior.clearTapDanceStep(at: index)
     }
 
     // MARK: - Conflict Resolution
 
     /// Resolve conflict by keeping hold (clears all tap-dance actions)
     func resolveConflictKeepHold() {
-        doubleTapAction = ""
-        for i in tapDanceSteps.indices {
-            tapDanceSteps[i].action = ""
-        }
-        showConflictDialog = false
-
-        // If user was trying to record hold, start that recording now
+        // If user was trying to record hold, we need to start that recording after clearing
         let field = pendingConflictField
-        pendingConflictType = nil
-        pendingConflictField = ""
+
+        advancedBehavior.resolveConflictKeepHold()
 
         if field == "hold" {
             // Now safe to record hold
@@ -618,10 +650,7 @@ class MapperViewModel: ObservableObject {
 
     /// Resolve conflict by keeping tap-dance (clears hold action)
     func resolveConflictKeepTapDance() {
-        holdAction = ""
-        holdBehavior = .basic
-        customTapKeysText = ""
-        showConflictDialog = false
+        advancedBehavior.resolveConflictKeepTapDance()
 
         // Now start recording in the originally attempted field
         let field = pendingConflictField
@@ -637,8 +666,7 @@ class MapperViewModel: ObservableObject {
 
     /// Check if hold action has conflict with existing tap-dance
     func checkHoldConflict() -> Bool {
-        let hasTapDance = !doubleTapAction.isEmpty || tapDanceSteps.contains { !$0.action.isEmpty }
-        return hasTapDance
+        advancedBehavior.checkHoldConflict()
     }
 
     /// Simple single-key capture for hold/double-tap/tap-dance actions
@@ -671,11 +699,7 @@ class MapperViewModel: ObservableObject {
 
     /// Stop all recording states
     private func stopAllRecording() {
-        isRecordingHold = false
-        isRecordingDoubleTap = false
-        for i in tapDanceSteps.indices {
-            tapDanceSteps[i].isRecording = false
-        }
+        advancedBehavior.stopAllRecording()
     }
 
     /// Convert key event to kanata key name
