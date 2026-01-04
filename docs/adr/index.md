@@ -31,6 +31,7 @@ This section documents significant architectural decisions in KeyPath. Each ADR 
 | [ADR-025](/adr/adr-025-config-management) | Configuration Management - One-Way Write | Accepted |
 | [ADR-026](/adr/adr-026-validation-ordering) | System Validation Ordering | Accepted |
 | [ADR-027](/adr/adr-027-app-specific-keymaps) | App-Specific Keymaps via Virtual Keys | Accepted |
+| [ADR-028](/adr/adr-028-unified-sf-symbols) | Unified SF Symbol Resolution via SystemActionInfo | Accepted |
 
 ## Key Decisions Summary
 
@@ -48,6 +49,10 @@ This section documents significant architectural decisions in KeyPath. Each ADR 
 ### Testing
 - **ADR-019**: Use `TestEnvironment.isRunningTests` for side-effect guards.
 - **ADR-022**: Never call pgrep-spawning functions concurrently in TaskGroups.
+
+### UI & Icons
+- **ADR-024**: Key emphasis and custom icons via push-msg protocol.
+- **ADR-028**: `SystemActionInfo.allActions` is the single source of truth for SF symbols.
 
 ## Reading ADRs
 

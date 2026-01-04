@@ -75,40 +75,17 @@ final class IconResolverService {
 
     // MARK: - System Action Resolution
 
-    /// System action ID to SF Symbol mapping
-    /// Used for keys mapped to system actions like Spotlight, Mission Control, etc.
-    private static let systemActionSymbols: [String: String] = [
-        // Spotlight
-        "spotlight": "magnifyingglass",
-
-        // Mission Control / Spaces
-        "mission-control": "rectangle.3.group",
-        "missioncontrol": "rectangle.3.group",
-
-        // Launchpad
-        "launchpad": "square.grid.3x3",
-
-        // Do Not Disturb
-        "dnd": "moon.fill",
-        "do-not-disturb": "moon.fill",
-        "donotdisturb": "moon.fill",
-
-        // Notification Center
-        "notification-center": "bell.fill",
-        "notificationcenter": "bell.fill",
-
-        // Dictation
-        "dictation": "mic.fill",
-
-        // Siri
-        "siri": "waveform.circle.fill"
-    ]
-
-    /// Resolve SF Symbol name for a system action ID
-    /// - Parameter actionId: System action identifier (e.g., "spotlight", "mission-control")
-    /// - Returns: SF Symbol name, or nil if not a recognized system action
+    /// Resolve SF Symbol name for a system action or media key ID
+    /// Uses SystemActionInfo as the single source of truth for all icons
+    /// - Parameter actionId: System action identifier (e.g., "spotlight", "brightness-up", "play-pause")
+    /// - Returns: SF Symbol name, or nil if not a recognized action
     func systemActionSymbol(for actionId: String) -> String? {
-        Self.systemActionSymbols[actionId.lowercased()]
+        // Use SystemActionInfo as the single source of truth
+        // This handles both push-msg system actions AND media keys
+        if let action = SystemActionInfo.find(byOutput: actionId) {
+            return action.sfSymbol
+        }
+        return nil
     }
 
     // MARK: - URL Favicon Resolution

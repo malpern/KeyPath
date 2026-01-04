@@ -162,6 +162,48 @@ class KeyboardVisualizationViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Remap Output Suppression
+
+    /// Maps input keyCode -> output keyCode for simple remaps.
+    /// Built from layerKeyMap when mappings change.
+    /// Example: A->B mapping would have [0: 11] (keyCode 0=A maps to keyCode 11=B)
+    private var remapOutputMap: [UInt16: UInt16] = [:]
+
+    /// Output keyCodes to suppress from currently-pressed remapped keys.
+    /// When A->B is mapped and A is pressed, B should not light up separately.
+    private var suppressedRemapOutputKeyCodes: Set<UInt16> {
+        activeRemapSourceKeyCodes.reduce(into: Set<UInt16>()) { result, inputKeyCode in
+            if let outputKeyCode = remapOutputMap[inputKeyCode] {
+                result.insert(outputKeyCode)
+            }
+        }
+    }
+
+    /// Recently released remap source keys kept briefly to suppress delayed outputs.
+    private var recentRemapSourceKeyCodes: Set<UInt16> = []
+    /// Pending tasks to clear remap sources from temporary suppression.
+    private var remapSourceClearTasks: [UInt16: Task<Void, Never>] = [:]
+
+    /// Remap sources that should participate in suppression (pressed + recent releases).
+    private var activeRemapSourceKeyCodes: Set<UInt16> {
+        tcpPressedKeyCodes.union(recentRemapSourceKeyCodes)
+    }
+
+    private func shouldSuppressKeyHighlight(_ keyCode: UInt16, source: String = "unknown") -> Bool {
+        let tapHoldSuppressed = suppressedOutputKeyCodes.contains(keyCode)
+        let remapSuppressed = suppressedRemapOutputKeyCodes.contains(keyCode)
+        let recentTapSuppressed = recentTapOutputs.contains(keyCode)
+        let shouldSuppress = tapHoldSuppressed || remapSuppressed || recentTapSuppressed
+
+        if FeatureFlags.keyboardSuppressionDebugEnabled, shouldSuppress {
+            AppLogger.shared.debug(
+                "🧯 [KeyboardViz] Suppressed keyCode=\(keyCode) source=\(source) tapHold=\(tapHoldSuppressed) remap=\(remapSuppressed) recentTap=\(recentTapSuppressed) remapSources=\(activeRemapSourceKeyCodes)"
+            )
+        }
+
+        return shouldSuppress
+    }
+
     /// Key input notification observer
     private var keyInputObserver: Any?
     /// Hold activated notification observer
@@ -174,6 +216,14 @@ class KeyboardVisualizationViewModel: ObservableObject {
     private var ruleCollectionsObserver: Any?
     /// One-shot activated notification observer
     private var oneShotObserver: Any?
+
+    /// Most recent CGEvent input timestamp (used to infer fallback state)
+    private var lastCGEventAt: Date?
+    /// Most recent TCP KeyInput timestamp (used to infer fallback state)
+    private var lastTcpKeyInputAt: Date?
+    /// Whether the overlay is currently relying on CGEvent-only input.
+    @Published var isTcpFallbackActive: Bool = false
+    private let tcpFallbackTimeout: TimeInterval = 1.0
 
     // MARK: - Key Emphasis
 
@@ -305,6 +355,12 @@ class KeyboardVisualizationViewModel: ObservableObject {
         recentTapOutputs.removeAll()
         tapOutputClearTasks.values.forEach { $0.cancel() }
         tapOutputClearTasks.removeAll()
+        recentRemapSourceKeyCodes.removeAll()
+        remapSourceClearTasks.values.forEach { $0.cancel() }
+        remapSourceClearTasks.removeAll()
+        lastCGEventAt = nil
+        lastTcpKeyInputAt = nil
+        isTcpFallbackActive = false
 
         if let source = runLoopSource {
             CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, .commonModes)
@@ -442,13 +498,17 @@ class KeyboardVisualizationViewModel: ObservableObject {
         let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
 
         Task { @MainActor in
-            // Check if this output key should be suppressed (tap-hold source still active)
-            let shouldSuppressCGEvent = suppressedOutputKeyCodes.contains(keyCode)
+            lastCGEventAt = Date()
+            updateTcpFallbackState()
+            // Check if this output key should be suppressed (tap-hold or simple remap)
+            let shouldSuppressCGEvent = shouldSuppressKeyHighlight(keyCode, source: "cgevent")
 
             switch type {
             case .keyDown:
-                // Suppress tap-hold output keys (e.g., don't play sound for esc when caps tap emits it)
-                if shouldSuppressCGEvent { return }
+                // Suppress output keys (e.g., don't light up B when A->B is pressed)
+                if shouldSuppressCGEvent {
+                    return
+                }
                 cancelKeyFadeOut(keyCode)
                 pressedKeyCodes.insert(keyCode)
                 TypingSoundsManager.shared.playKeydown()
@@ -474,28 +534,47 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Handle modifier key state changes from flagsChanged events
     private func handleFlagsChanged(event: CGEvent, keyCode: UInt16) {
         let flags = event.flags
+        let shouldSuppress = shouldSuppressKeyHighlight(keyCode, source: "flags")
 
         // Update only the modifier key that triggered this flagsChanged event so previously-held
         // modifiers stay pressed (e.g., holding ⌘ while pressing ⌥).
         switch keyCode {
         case 57: // Caps Lock
-            updateModifierState(keyCode: 57, isPressed: flags.contains(.maskAlphaShift))
+            if !shouldSuppress {
+                updateModifierState(keyCode: 57, isPressed: flags.contains(.maskAlphaShift))
+            }
         case 56: // Left Shift
-            updateModifierState(keyCode: 56, isPressed: flags.contains(.maskShift))
+            if !shouldSuppress {
+                updateModifierState(keyCode: 56, isPressed: flags.contains(.maskShift))
+            }
         case 60: // Right Shift
-            updateModifierState(keyCode: 60, isPressed: flags.contains(.maskShift))
+            if !shouldSuppress {
+                updateModifierState(keyCode: 60, isPressed: flags.contains(.maskShift))
+            }
         case 59: // Left Control
-            updateModifierState(keyCode: 59, isPressed: flags.contains(.maskControl))
+            if !shouldSuppress {
+                updateModifierState(keyCode: 59, isPressed: flags.contains(.maskControl))
+            }
         case 55: // Left Command
-            updateModifierState(keyCode: 55, isPressed: flags.contains(.maskCommand))
+            if !shouldSuppress {
+                updateModifierState(keyCode: 55, isPressed: flags.contains(.maskCommand))
+            }
         case 54: // Right Command
-            updateModifierState(keyCode: 54, isPressed: flags.contains(.maskCommand))
+            if !shouldSuppress {
+                updateModifierState(keyCode: 54, isPressed: flags.contains(.maskCommand))
+            }
         case 58: // Left Option
-            updateModifierState(keyCode: 58, isPressed: flags.contains(.maskAlternate))
+            if !shouldSuppress {
+                updateModifierState(keyCode: 58, isPressed: flags.contains(.maskAlternate))
+            }
         case 61: // Right Option
-            updateModifierState(keyCode: 61, isPressed: flags.contains(.maskAlternate))
+            if !shouldSuppress {
+                updateModifierState(keyCode: 61, isPressed: flags.contains(.maskAlternate))
+            }
         case 63: // Fn key
-            updateModifierState(keyCode: 63, isPressed: flags.contains(.maskSecondaryFn))
+            if !shouldSuppress {
+                updateModifierState(keyCode: 63, isPressed: flags.contains(.maskSecondaryFn))
+            }
         default:
             break
         }
@@ -515,6 +594,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
             guard let self else { return }
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(idlePollInterval))
+                updateTcpFallbackState()
 
                 // Don't fade while holding a momentary layer key (non-base layer active)
                 let isOnMomentaryLayer = currentLayerName.lowercased() != "base"
@@ -545,6 +625,15 @@ class KeyboardVisualizationViewModel: ObservableObject {
         }
     }
 
+    private func updateTcpFallbackState(now: Date = Date()) {
+        let cgRecent = lastCGEventAt.map { now.timeIntervalSince($0) <= tcpFallbackTimeout } ?? false
+        let tcpRecent = lastTcpKeyInputAt.map { now.timeIntervalSince($0) <= tcpFallbackTimeout } ?? false
+        let fallbackActive = cgRecent && !tcpRecent
+        if fallbackActive != isTcpFallbackActive {
+            isTcpFallbackActive = fallbackActive
+        }
+    }
+
     /// Reset idle timer and un-fade if necessary.
     func noteInteraction() {
         lastInteraction = Date()
@@ -569,6 +658,10 @@ class KeyboardVisualizationViewModel: ObservableObject {
     func updateLayer(_ layerName: String) {
         let wasLauncherMode = isLauncherModeActive
         currentLayerName = layerName
+
+        // Clear tap-hold sources on layer change to prevent stale suppressions
+        // (e.g., user switches layers while holding a tap-hold key)
+        activeTapHoldSources.removeAll()
 
         // Load/clear launcher mappings when entering/exiting launcher mode
         let isNowLauncherMode = isLauncherModeActive
@@ -689,15 +782,9 @@ class KeyboardVisualizationViewModel: ObservableObject {
                 await MainActor.run {
                     self.objectWillChange.send()
                     self.layerKeyMap = mapping
+                    self.remapOutputMap = self.buildRemapOutputMap(from: mapping)
                     self.isLoadingLayerMap = false
-                    AppLogger.shared.info("🗺️ [KeyboardViz] Updated layerKeyMap with \(mapping.count) entries, objectWillChange sent")
-                    // Debug: Log what keyCode 0 (A key) maps to
-                    if let aKeyInfo = mapping[0] {
-                        AppLogger.shared
-                            .info("🔍 [KeyboardViz] keyCode 0 (A) -> displayLabel='\(aKeyInfo.displayLabel)', outputKey=\(aKeyInfo.outputKey ?? "nil"), isTransparent=\(aKeyInfo.isTransparent)")
-                    } else {
-                        AppLogger.shared.info("🔍 [KeyboardViz] keyCode 0 (A) -> NOT IN MAPPING")
-                    }
+                    AppLogger.shared.info("🗺️ [KeyboardViz] Updated layerKeyMap with \(mapping.count) entries, remapOutputMap with \(self.remapOutputMap.count) remaps")
                 }
 
                 AppLogger.shared.info("🗺️ [KeyboardViz] Built layer mapping for '\(currentLayerName)': \(mapping.count) keys")
@@ -713,6 +800,24 @@ class KeyboardVisualizationViewModel: ObservableObject {
                 }
             }
         }
+    }
+
+    /// Build a map from input keyCode -> output keyCode for simple remaps.
+    /// Used to suppress output key highlighting when the input key is pressed.
+    /// - Parameter mapping: The layer key mapping to extract remap info from
+    /// - Returns: Dictionary mapping input keyCodes to their output keyCodes
+    private func buildRemapOutputMap(from mapping: [UInt16: LayerKeyInfo]) -> [UInt16: UInt16] {
+        var result: [UInt16: UInt16] = [:]
+        for (inputKeyCode, info) in mapping {
+            guard let outputKeyCode = info.outputKeyCode,
+                  outputKeyCode != inputKeyCode, // Only actual remaps (A->B, not A->A)
+                  !info.isTransparent // Transparent keys pass through, not remaps
+            else {
+                continue
+            }
+            result[inputKeyCode] = outputKeyCode
+        }
+        return result
     }
 
     /// Augment layer mapping with push-msg actions from custom rules and rule collections
@@ -736,8 +841,20 @@ class KeyboardVisualizationViewModel: ObservableObject {
         for collection in ruleCollections where collection.isEnabled {
             for keyMapping in collection.mappings {
                 let input = keyMapping.input.lowercased()
+                // First try push-msg pattern (apps, system actions, URLs)
                 if let info = Self.extractPushMsgInfo(from: keyMapping.output, description: keyMapping.description) {
                     actionByInput[input] = info
+                } else {
+                    // Simple key remap
+                    let outputKey = keyMapping.output.lowercased()
+                    if let outputKeyCode = Self.kanataNameToKeyCode(outputKey) {
+                        let displayLabel = outputKey.count == 1 ? outputKey.uppercased() : outputKey.capitalized
+                        actionByInput[input] = .mapped(
+                            displayLabel: displayLabel,
+                            outputKey: outputKey,
+                            outputKeyCode: outputKeyCode
+                        )
+                    }
                 }
             }
         }
@@ -745,12 +862,33 @@ class KeyboardVisualizationViewModel: ObservableObject {
         // Then, process custom rules (higher priority - overrides collections)
         for rule in customRules where rule.isEnabled {
             let input = rule.input.lowercased()
+            // First try push-msg pattern (apps, system actions, URLs)
             if let info = Self.extractPushMsgInfo(from: rule.output, description: rule.notes) {
                 actionByInput[input] = info
+            } else {
+                // Simple key remap (e.g., "a" -> "b") or media key (e.g., "brup", "volu")
+                let outputKey = rule.output.lowercased()
+
+                // Check if this is a known system action/media key (brup, volu, pp, etc.)
+                // If so, create a systemAction LayerKeyInfo so the SF Symbol renders correctly
+                if let systemAction = SystemActionInfo.find(byOutput: outputKey) {
+                    actionByInput[input] = .systemAction(
+                        action: systemAction.id,
+                        description: systemAction.name
+                    )
+                } else if let outputKeyCode = Self.kanataNameToKeyCode(outputKey) {
+                    // Regular key remap (e.g., "a" -> "b")
+                    let displayLabel = outputKey.count == 1 ? outputKey.uppercased() : outputKey.capitalized
+                    actionByInput[input] = .mapped(
+                        displayLabel: displayLabel,
+                        outputKey: outputKey,
+                        outputKeyCode: outputKeyCode
+                    )
+                }
             }
         }
 
-        AppLogger.shared.info("🗺️ [KeyboardViz] Found \(actionByInput.count) push-msg actions")
+        AppLogger.shared.info("🗺️ [KeyboardViz] Found \(actionByInput.count) actions (push-msg + simple remaps)")
 
         // Update mapping entries
         for (keyCode, _) in mapping {
@@ -835,6 +973,22 @@ class KeyboardVisualizationViewModel: ObservableObject {
         }
     }
 
+    /// Get a human-readable label for media/function keys (returns nil if not a recognized media key)
+    /// These labels match what LabelMetadata.sfSymbol(forOutputLabel:) expects for icon lookup
+    nonisolated static func mediaKeyDisplayLabel(_ kanataKey: String) -> String? {
+        switch kanataKey.lowercased() {
+        case "brup": "Brightness Up"
+        case "brdn", "brdown": "Brightness Down"
+        case "volu": "Volume Up"
+        case "vold", "voldwn": "Volume Down"
+        case "mute": "Mute"
+        case "pp": "Play/Pause"
+        case "next": "Next Track"
+        case "prev": "Previous Track"
+        default: nil
+        }
+    }
+
     /// Extract app identifier from a push-msg launch output string
     /// - Parameter output: The kanata output string (e.g., "(push-msg \"launch:Safari\")")
     /// - Returns: The app identifier if this is a launch action, nil otherwise
@@ -867,7 +1021,8 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
     /// Invalidate cached mappings (call when config changes)
     func invalidateLayerMappings() {
-        AppLogger.shared.info("🔔 [KeyboardViz] invalidateLayerMappings called - will rebuild layer mapping")
+        AppLogger.shared.info("🔔 [KeyboardViz] invalidateLayerMappings called - will rebuild layer mapping for '\(currentLayerName)'")
+        AppLogger.shared.info("🔔 [KeyboardViz] Current layerKeyMap has \(layerKeyMap.count) entries, keyCode 0 = '\(layerKeyMap[0]?.displayLabel ?? "nil")'")
         Task {
             await layerKeyMapper.invalidateCache()
             AppLogger.shared.info("🔔 [KeyboardViz] Cache invalidated, now calling rebuildLayerMapping()")
@@ -1202,6 +1357,8 @@ class KeyboardVisualizationViewModel: ObservableObject {
         }
 
         noteInteraction()
+        lastTcpKeyInputAt = Date()
+        updateTcpFallbackState()
 
         // Clear one-shot modifiers on key press (not on release)
         // One-shot modifiers apply to the next key press and are consumed
@@ -1219,9 +1376,18 @@ class KeyboardVisualizationViewModel: ObservableObject {
         let isTapHoldSource = dynamicTapHoldOutputMap[keyCode] != nil
             || Self.fallbackTapHoldOutputMap[keyCode] != nil
 
-        // Check if this key should be suppressed (output of active tap-hold source)
-        let shouldSuppress = suppressedOutputKeyCodes.contains(keyCode)
-            || recentTapOutputs.contains(keyCode)
+        // Check if this key should be suppressed (output of active tap-hold source or simple remap)
+        let shouldSuppress = shouldSuppressKeyHighlight(keyCode, source: "tcp")
+        let isRemapSuppressed = FeatureFlags.keyboardSuppressionDebugEnabled
+            ? suppressedRemapOutputKeyCodes.contains(keyCode)
+            : false
+
+        if FeatureFlags.keyboardSuppressionDebugEnabled,
+           let mappedOutput = remapOutputMap.first(where: { $0.value == keyCode }) {
+            AppLogger.shared.debug(
+                "🔄 [KeyboardViz] KeyInput \(key)(\(keyCode)): isRemapOutput=true, sourceKey=\(mappedOutput.key), tcpPressed=\(tcpPressedKeyCodes), remapSources=\(activeRemapSourceKeyCodes), suppressedRemapOutputs=\(suppressedRemapOutputKeyCodes), isRemapSuppressed=\(isRemapSuppressed)"
+            )
+        }
 
         switch action {
         case "press", "repeat":
@@ -1231,9 +1397,14 @@ class KeyboardVisualizationViewModel: ObservableObject {
                 AppLogger.shared.debug("⌨️ [KeyboardViz] Tap-hold source activated: \(key) (\(keyCode))")
             }
 
+            if remapOutputMap[keyCode] != nil {
+                recentRemapSourceKeyCodes.remove(keyCode)
+                remapSourceClearTasks[keyCode]?.cancel()
+                remapSourceClearTasks.removeValue(forKey: keyCode)
+            }
+
             // Suppress output keys of active tap-hold sources (e.g., don't light up ESC when caps is pressed)
             if shouldSuppress {
-                AppLogger.shared.debug("⌨️ [KeyboardViz] Suppressing output key: \(key) (\(keyCode))")
                 return
             }
             cancelKeyFadeOut(keyCode) // Cancel any ongoing fade-out
@@ -1248,7 +1419,6 @@ class KeyboardVisualizationViewModel: ObservableObject {
                     work.cancel()
                 }
             }
-            AppLogger.shared.debug("⌨️ [KeyboardViz] TCP KeyPress: \(key) -> keyCode \(keyCode)")
         case "release":
             // Keep tap-hold source active briefly after release to catch the output keystroke.
             // The output (e.g., esc from caps tap) arrives AFTER the source key is released,
@@ -1265,9 +1435,26 @@ class KeyboardVisualizationViewModel: ObservableObject {
                 }
             }
 
+            if remapOutputMap[keyCode] != nil {
+                let keyCodeToSuppress = keyCode
+                recentRemapSourceKeyCodes.insert(keyCodeToSuppress)
+                remapSourceClearTasks[keyCodeToSuppress]?.cancel()
+                remapSourceClearTasks[keyCodeToSuppress] = Task { @MainActor [weak self] in
+                    try? await Task.sleep(for: .milliseconds(150))
+                    self?.recentRemapSourceKeyCodes.remove(keyCodeToSuppress)
+                    self?.remapSourceClearTasks.removeValue(forKey: keyCodeToSuppress)
+                }
+            }
+
             // If this was a suppressed key, just ignore the release too
+            // But still clear any lingering hold state to prevent visual artifacts
             if shouldSuppress {
-                AppLogger.shared.debug("⌨️ [KeyboardViz] Suppressing output key release: \(key) (\(keyCode))")
+                holdActiveKeyCodes.remove(keyCode)
+                holdLabels.removeValue(forKey: keyCode)
+                holdLabelCache.removeValue(forKey: keyCode)
+                holdClearWorkItems[keyCode]?.cancel()
+                holdClearWorkItems.removeValue(forKey: keyCode)
+                AppLogger.shared.debug("⌨️ [KeyboardViz] Suppressing output key release: \(key) (\(keyCode)), cleared hold state")
                 return
             }
 

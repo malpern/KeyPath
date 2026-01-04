@@ -458,18 +458,14 @@ private struct AppLaunchChip: View {
 private struct SystemActionChip: View {
     let actionIdentifier: String
 
-    /// Map system action IDs to SF Symbol icons and display names
+    /// Get action info from SystemActionInfo (single source of truth)
     private var actionInfo: (icon: String, name: String) {
-        switch actionIdentifier.lowercased() {
-        case "spotlight": ("magnifyingglass", "Spotlight")
-        case "mission-control", "missioncontrol": ("rectangle.3.group", "Mission Control")
-        case "launchpad": ("square.grid.3x3", "Launchpad")
-        case "dnd", "do-not-disturb", "donotdisturb": ("moon.fill", "Do Not Disturb")
-        case "notification-center", "notificationcenter": ("bell.fill", "Notification Center")
-        case "dictation": ("mic.fill", "Dictation")
-        case "siri": ("waveform.circle.fill", "Siri")
-        default: ("gearshape.fill", actionIdentifier.capitalized)
+        // Use SystemActionInfo as the single source of truth
+        if let action = SystemActionInfo.find(byOutput: actionIdentifier) {
+            return (action.sfSymbol, action.name)
         }
+        // Fallback for unknown actions
+        return ("gearshape.fill", actionIdentifier.capitalized)
     }
 
     var body: some View {
