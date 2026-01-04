@@ -49,4 +49,7 @@ extension Notification.Name {
 
     // Diagnostics
     static let verboseLoggingChanged = Notification.Name("KeyPath.Diagnostics.VerboseLoggingChanged")
+
+    // Activity Logging
+    static let activityLoggingChanged = Notification.Name("KeyPath.ActivityLogging.Changed")
 }

@@ -809,6 +809,15 @@ final class RuleCollectionsManager {
         await regenerateConfigFromCollections()
     }
 
+    /// Clear all custom rules (without affecting rule collections)
+    func clearAllCustomRules() async {
+        let count = customRules.count
+        AppLogger.shared.log("🧹 [CustomRules] Clearing all \(count) custom rules")
+        customRules.removeAll()
+        await regenerateConfigFromCollections()
+        AppLogger.shared.log("✅ [CustomRules] All custom rules cleared")
+    }
+
     /// Create or update a custom rule for the given input/output
     func makeCustomRule(input: String, output: String) -> CustomRule {
         if let existing = customRules.first(where: {

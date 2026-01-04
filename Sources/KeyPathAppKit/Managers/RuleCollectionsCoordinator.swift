@@ -154,6 +154,13 @@ final class RuleCollectionsCoordinator {
         notifyStateChanged()
     }
 
+    /// Clear all custom rules (without affecting rule collections)
+    func clearAllCustomRules() async {
+        await ruleCollectionsManager.clearAllCustomRules()
+        applyMappings(ruleCollectionsManager.enabledMappings())
+        notifyStateChanged()
+    }
+
     /// Create a custom rule for saving
     func makeCustomRule(input: String, output: String) -> CustomRule {
         ruleCollectionsManager.makeCustomRule(input: input, output: output)

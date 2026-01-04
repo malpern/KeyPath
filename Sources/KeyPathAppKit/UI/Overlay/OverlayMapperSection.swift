@@ -21,7 +21,6 @@ struct OverlayMapperSection: View {
     @State private var isSystemActionPickerOpen = false
     @State private var isAppConditionPickerOpen = false
     @State private var cachedRunningApps: [NSRunningApplication] = []
-    @State private var isLoadingRunningApps = false
     @State private var showingResetAllConfirmation = false
 
     var body: some View {
@@ -43,6 +42,8 @@ struct OverlayMapperSection: View {
             viewModel.setInputFromKeyClick(keyCode: 0, inputLabel: "a", outputLabel: "a")
             // Notify parent to highlight the A key
             onKeySelected?(viewModel.inputKeyCode)
+            // Pre-load running apps for instant popover display
+            preloadRunningApps()
         }
         .onDisappear {
             viewModel.stopKeyCapture()
@@ -86,16 +87,16 @@ struct OverlayMapperSection: View {
             }
         }
         .confirmationDialog(
-            "Reset Entire Keyboard?",
+            "Clear Custom Rules?",
             isPresented: $showingResetAllConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Reset All Mappings", role: .destructive) {
+            Button("Clear Custom Rules", role: .destructive) {
                 performResetAll()
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This will remove all custom key mappings and restore the keyboard to its default configuration. This cannot be undone.")
+            Text("This will remove all custom key mappings (like A→B). Your enabled rule collections (Home Row Mods, etc.) will be preserved.")
         }
     }
 
@@ -105,10 +106,10 @@ struct OverlayMapperSection: View {
     private var hasModifiedMapping: Bool {
         // Show reset if input != output or has an action assigned
         viewModel.inputLabel.lowercased() != viewModel.outputLabel.lowercased() ||
-        viewModel.selectedApp != nil ||
-        viewModel.selectedSystemAction != nil ||
-        viewModel.selectedURL != nil ||
-        viewModel.selectedAppCondition != nil
+            viewModel.selectedApp != nil ||
+            viewModel.selectedSystemAction != nil ||
+            viewModel.selectedURL != nil ||
+            viewModel.selectedAppCondition != nil
     }
 
     private var mapperContent: some View {
@@ -250,7 +251,9 @@ struct OverlayMapperSection: View {
         let displayText = viewModel.selectedAppCondition?.displayName ?? "Everywhere"
 
         return Button {
-            isAppConditionPickerOpen.toggle()
+            // Start loading apps immediately BEFORE opening popover
+            refreshRunningApps()
+            isAppConditionPickerOpen = true
         } label: {
             HStack(spacing: 4) {
                 if let app = viewModel.selectedAppCondition {
@@ -282,30 +285,27 @@ struct OverlayMapperSection: View {
         .popover(isPresented: $isAppConditionPickerOpen, arrowEdge: .bottom) {
             appConditionPopover
         }
-        .onChange(of: isAppConditionPickerOpen) { _, isOpen in
-            if isOpen {
-                refreshRunningApps()
-            }
-        }
     }
 
-    /// Refresh the cached running apps list asynchronously
+    /// Pre-load running apps when view appears for instant popover display
+    private func preloadRunningApps() {
+        cachedRunningApps = fetchRunningAppsSynchronously()
+    }
+
+    /// Refresh the cached running apps list - synchronous since NSWorkspace is fast
     private func refreshRunningApps() {
-        isLoadingRunningApps = true
-        // Use Task to load apps off the main thread's blocking path
-        Task {
-            let apps = NSWorkspace.shared.runningApplications
-                .filter { app in
-                    app.activationPolicy == .regular &&
+        cachedRunningApps = fetchRunningAppsSynchronously()
+    }
+
+    /// Fetch running apps synchronously (NSWorkspace.runningApplications is a fast cached call)
+    private func fetchRunningAppsSynchronously() -> [NSRunningApplication] {
+        NSWorkspace.shared.runningApplications
+            .filter { app in
+                app.activationPolicy == .regular &&
                     app.bundleIdentifier != Bundle.main.bundleIdentifier &&
                     app.localizedName != nil
-                }
-                .sorted { ($0.localizedName ?? "") < ($1.localizedName ?? "") }
-            await MainActor.run {
-                cachedRunningApps = apps
-                isLoadingRunningApps = false
             }
-        }
+            .sorted { ($0.localizedName ?? "") < ($1.localizedName ?? "") }
     }
 
     /// Popover content for app condition picker
@@ -369,14 +369,15 @@ struct OverlayMapperSection: View {
 
     @ViewBuilder
     private var runningAppsList: some View {
-        if isLoadingRunningApps {
+        if cachedRunningApps.isEmpty {
             HStack {
                 Spacer()
-                ProgressView()
-                    .controlSize(.small)
-                    .padding(.vertical, 12)
+                Text("No apps running")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Spacer()
             }
+            .padding(.vertical, 12)
         } else {
             ForEach(cachedRunningApps, id: \.processIdentifier) { app in
                 runningAppButton(for: app)
@@ -557,17 +558,25 @@ struct OverlayMapperSection: View {
 
     /// Popover content for system action picker
     private var systemActionPopover: some View {
-        ScrollView {
+        let isKeystrokeSelected = viewModel.selectedSystemAction == nil
+        let isSystemActionSelected = viewModel.selectedSystemAction != nil
+
+        return ScrollView {
             VStack(spacing: 0) {
-                // "Keystroke" option (clear system action)
+                // "Keystroke" option with checkmark
                 Button {
-                    viewModel.selectedSystemAction = nil
+                    // Revert to keystroke - deletes rule and resets output to match input
+                    viewModel.revertToKeystroke()
                     isSystemActionPickerOpen = false
                 } label: {
                     HStack(spacing: 10) {
-                        Image(systemName: viewModel.selectedSystemAction == nil ? "checkmark" : "keyboard")
-                            .font(.title2)
-                            .frame(width: 28)
+                        Image(systemName: isKeystrokeSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.title3)
+                            .foregroundStyle(isKeystrokeSelected ? Color.accentColor : .secondary)
+                            .frame(width: 24)
+                        Image(systemName: "keyboard")
+                            .font(.body)
+                            .frame(width: 20)
                         Text("Keystroke")
                             .font(.body)
                         Spacer()
@@ -582,7 +591,29 @@ struct OverlayMapperSection: View {
 
                 Divider().opacity(0.2).padding(.horizontal, 8)
 
-                // Grouped system actions
+                // "System Action" header with checkmark (not a button, just indicator)
+                HStack(spacing: 10) {
+                    Image(systemName: isSystemActionSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundStyle(isSystemActionSelected ? Color.accentColor : .secondary)
+                        .frame(width: 24)
+                    Image(systemName: "gearshape")
+                        .font(.body)
+                        .frame(width: 20)
+                    Text("System Action")
+                        .font(.body)
+                    Spacer()
+                    if let action = viewModel.selectedSystemAction {
+                        Text(action.name)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+
+                // Grouped system actions grid
                 ForEach(systemActionGroups, id: \.title) { group in
                     systemActionGroupView(group)
                 }
@@ -659,21 +690,21 @@ struct OverlayMapperSection: View {
     private func iconForLayer(_ layer: String) -> String {
         switch layer.lowercased() {
         case "base":
-            return "keyboard"
+            "keyboard"
         case "nav", "navigation":
-            return "arrow.up.arrow.down.square"
+            "arrow.up.arrow.down.square"
         case "num", "number", "numbers":
-            return "number.square"
+            "number.square"
         case "sym", "symbol", "symbols":
-            return "textformat.abc"
+            "textformat.abc"
         case "fn", "function":
-            return "fn"
+            "fn"
         case "media":
-            return "play.rectangle"
+            "play.rectangle"
         case "mouse":
-            return "cursorarrow.click"
+            "cursorarrow.click"
         default:
-            return "square.stack.3d.up"
+            "square.stack.3d.up"
         }
     }
 

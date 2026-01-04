@@ -253,11 +253,6 @@ struct AdvancedSettingsTabView: View {
 
     @State private var settingsToastManager = WizardToastManager()
 
-    // Feature flag states
-    @State private var captureListenOnlyEnabled = FeatureFlags.captureListenOnlyEnabled
-    @State private var useSMAppServiceForDaemon = FeatureFlags.useSMAppServiceForDaemon
-    @State private var simulatorAndVirtualKeysEnabled = FeatureFlags.simulatorAndVirtualKeysEnabled
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Hero Section with Uninstall
@@ -356,15 +351,6 @@ struct AdvancedSettingsTabView: View {
                         .accessibilityIdentifier("settings-reset-everything-button")
                         .accessibilityLabel("Reset Everything")
                     }
-
-                    // Feature Flags
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Feature Flags")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-
-                        featureFlagsSection
-                    }
                 }
 
                 Spacer()
@@ -397,10 +383,6 @@ struct AdvancedSettingsTabView: View {
         .task {
             await refreshHelperStatus()
             duplicateAppCopies = HelperMaintenance.shared.detectDuplicateAppCopies()
-            // Sync feature flag states
-            captureListenOnlyEnabled = FeatureFlags.captureListenOnlyEnabled
-            useSMAppServiceForDaemon = FeatureFlags.useSMAppServiceForDaemon
-            simulatorAndVirtualKeysEnabled = FeatureFlags.simulatorAndVirtualKeysEnabled
         }
         .alert("Uninstall Privileged Helper?", isPresented: $showingHelperUninstallConfirm) {
             Button("Cancel", role: .cancel) {}
@@ -482,68 +464,6 @@ struct AdvancedSettingsTabView: View {
             .accessibilityLabel("Remove Extra Copies")
         }
         .padding(.vertical, 8)
-    }
-
-    @ViewBuilder
-    private var featureFlagsSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            featureFlagToggle(
-                title: "Simulator + Virtual Keys",
-                description: "Overlay labels via simulator",
-                isOn: $simulatorAndVirtualKeysEnabled,
-                onChange: { FeatureFlags.setSimulatorAndVirtualKeysEnabled($0) },
-                identifier: "feature-flag-simulator"
-            )
-
-            featureFlagToggle(
-                title: "Listen-Only Event Tap",
-                description: "CGEvent tap only listens",
-                isOn: $captureListenOnlyEnabled,
-                onChange: { FeatureFlags.setCaptureListenOnlyEnabled($0) },
-                identifier: "feature-flag-listen-only"
-            )
-
-            featureFlagToggle(
-                title: "SMAppService for Daemon",
-                description: "Modern daemon registration",
-                isOn: $useSMAppServiceForDaemon,
-                onChange: { FeatureFlags.setUseSMAppServiceForDaemon($0) },
-                identifier: "feature-flag-smappservice"
-            )
-        }
-    }
-
-    @ViewBuilder
-    private func featureFlagToggle(
-        title: String,
-        description: String,
-        isOn: Binding<Bool>,
-        onChange: @escaping (Bool) -> Void,
-        identifier: String
-    ) -> some View {
-        HStack(spacing: 8) {
-            Toggle("", isOn: Binding(
-                get: { isOn.wrappedValue },
-                set: { newValue in
-                    isOn.wrappedValue = newValue
-                    onChange(newValue)
-                }
-            ))
-            .toggleStyle(.switch)
-            .labelsHidden()
-            .controlSize(.mini)
-            .accessibilityIdentifier(identifier)
-            .accessibilityLabel(title)
-
-            VStack(alignment: .leading, spacing: 0) {
-                Text(title)
-                    .font(.caption)
-                    .fontWeight(.medium)
-                Text(description)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
-        }
     }
 
     // MARK: - Actions

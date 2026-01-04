@@ -9,8 +9,17 @@ import SwiftUI
 private enum GeneralSettingsSection: String, CaseIterable, Identifiable {
     case settings = "Settings"
     case virtualKeys = "Virtual Keys"
+    case experimental = "Experimental"
 
     var id: String { rawValue }
+
+    /// Sections to show based on feature flags
+    static var visibleSections: [GeneralSettingsSection] {
+        if FeatureFlags.simulatorAndVirtualKeysEnabled {
+            return allCases
+        }
+        return allCases.filter { $0 != .virtualKeys }
+    }
 }
 
 struct GeneralSettingsTabView: View {
@@ -24,19 +33,17 @@ struct GeneralSettingsTabView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Segmented control for section switching
-            if FeatureFlags.simulatorAndVirtualKeysEnabled {
-                Picker("Section", selection: $selectedSection) {
-                    ForEach(GeneralSettingsSection.allCases) { section in
-                        Text(section.rawValue).tag(section)
-                    }
+            Picker("Section", selection: $selectedSection) {
+                ForEach(GeneralSettingsSection.visibleSections) { section in
+                    Text(section.rawValue).tag(section)
                 }
-                .pickerStyle(.segmented)
-                .controlSize(.large)
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 12)
-                .accessibilityIdentifier("settings-general-section-picker")
             }
+            .pickerStyle(.segmented)
+            .controlSize(.large)
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 12)
+            .accessibilityIdentifier("settings-general-section-picker")
 
             // Content based on selected section
             Group {
@@ -49,6 +56,8 @@ struct GeneralSettingsTabView: View {
                             .padding(.horizontal, 20)
                             .padding(.top, 8)
                     }
+                case .experimental:
+                    ExperimentalSettingsSection()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -231,52 +240,7 @@ struct GeneralSettingsTabView: View {
                             .help("Reset the keyboard overlay to its default size and position")
                             .accessibilityIdentifier("settings-reset-overlay-size-button")
                             .accessibilityLabel("Reset Overlay Size")
-
-                            Toggle(isOn: Binding(
-                                get: { UserDefaults.standard.bool(forKey: LayoutPreferences.qmkSearchEnabledKey) },
-                                set: { UserDefaults.standard.set($0, forKey: LayoutPreferences.qmkSearchEnabledKey) }
-                            )) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("QMK Keyboard Search")
-                                        .font(.body)
-                                    Text("Search and import layouts from the QMK keyboard database")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            .toggleStyle(.switch)
-                            .accessibilityIdentifier("settings-qmk-search-toggle")
-                            .accessibilityLabel("Enable QMK keyboard search")
                         }
-
-                        // Global Hotkey
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Global Hotkey")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-
-                            Toggle(isOn: Binding(
-                                get: { GlobalHotkeyService.shared.isEnabled },
-                                set: { GlobalHotkeyService.shared.isEnabled = $0 }
-                            )) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("⌥⌘K to show/hide, ⌥⌘L to reset & center")
-                                        .font(.body)
-                                    Text("Press Option+Command+K to toggle all KeyPath windows, Option+Command+L to restore the overlay size")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            .toggleStyle(.switch)
-                            .accessibilityIdentifier("settings-global-hotkey-toggle")
-                            .accessibilityLabel("Global hotkey to show/hide KeyPath")
-                        }
-
-                        // Script Execution (Quick Launcher)
-                        ScriptExecutionSettingsSection()
-
-                        // AI Config Generation
-                        AIConfigGenerationSettingsSection()
                     }
 
                     Spacer()
@@ -1285,40 +1249,53 @@ private struct StatusDetailRow: View {
 // MARK: - Script Execution Settings Section
 
 /// Settings section for Script Execution in Quick Launcher
-private struct ScriptExecutionSettingsSection: View {
+struct ScriptExecutionSettingsSection: View {
     @ObservedObject private var securityService = ScriptSecurityService.shared
     @State private var showingExecutionLog = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Script Execution")
-                .font(.headline)
-                .foregroundColor(.secondary)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "terminal")
+                    .foregroundColor(.green)
+                    .font(.body)
+                Text("Script Execution")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+            }
 
-            Toggle(isOn: $securityService.isScriptExecutionEnabled) {
+            HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Allow script execution in Quick Launcher")
                         .font(.body)
+                        .fontWeight(.medium)
                     Text("Scripts can run commands on your system. Only enable for trusted scripts.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
+                Spacer()
+                Toggle("", isOn: $securityService.isScriptExecutionEnabled)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
             }
-            .toggleStyle(.switch)
             .accessibilityIdentifier("settings-script-execution-toggle")
             .accessibilityLabel("Allow script execution")
 
             if securityService.isScriptExecutionEnabled {
-                Toggle(isOn: $securityService.bypassFirstRunDialog) {
+                HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Skip confirmation dialog")
                             .font(.body)
+                            .fontWeight(.medium)
                         Text("⚠️ Scripts will run immediately without warning")
                             .font(.caption)
                             .foregroundColor(.orange)
                     }
+                    Spacer()
+                    Toggle("", isOn: $securityService.bypassFirstRunDialog)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
                 }
-                .toggleStyle(.switch)
                 .padding(.leading, 24)
                 .accessibilityIdentifier("settings-script-bypass-dialog-toggle")
                 .accessibilityLabel("Skip script confirmation dialog")
@@ -1464,196 +1441,143 @@ private struct ScriptExecutionLogView: View {
 // MARK: - AI Config Generation Settings Section
 
 /// Settings section for AI-powered config generation
-private struct AIConfigGenerationSettingsSection: View {
+struct AIConfigGenerationSettingsSection: View {
     @State private var hasAPIKey: Bool = KeychainService.shared.hasClaudeAPIKey
     @State private var hasAPIKeyFromEnv: Bool = KeychainService.shared.hasClaudeAPIKeyFromEnvironment
     @State private var hasAPIKeyInKeychain: Bool = KeychainService.shared.hasClaudeAPIKeyInKeychain
     @State private var apiKeyInput: String = ""
     @State private var isValidating: Bool = false
     @State private var validationError: String?
-    @State private var showingCostInfo: Bool = false
-    @State private var showingUsageHistory: Bool = false
+    @State private var isAddingKey: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("AI Config Generation")
-                .font(.headline)
-                .foregroundColor(.secondary)
-
-            // Status indicator
-            HStack(spacing: 8) {
-                Image(systemName: hasAPIKey ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                    .foregroundColor(hasAPIKey ? .green : .orange)
-                Text(statusText)
-                    .font(.body)
-            }
-            .accessibilityIdentifier("settings-ai-status-indicator")
-
-            // Description
-            Text("Optional: Use Claude AI to generate complex key mappings (sequences, chords, macros). Without an API key, KeyPath uses basic generation for simple mappings only.")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            // Show different UI based on key source
-            if hasAPIKeyFromEnv {
-                // Developer workflow - env var is set
-                HStack(spacing: 6) {
-                    Image(systemName: "terminal.fill")
-                        .foregroundColor(.blue)
-                        .font(.caption)
-                    Text("Using ANTHROPIC_API_KEY environment variable")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .accessibilityIdentifier("settings-ai-env-note")
-            } else if !hasAPIKeyInKeychain {
-                // No key - show input
-                HStack {
-                    SecureField("sk-ant-...", text: $apiKeyInput)
-                        .textFieldStyle(.roundedBorder)
-                        .disabled(isValidating)
-                        .accessibilityIdentifier("settings-ai-api-key-field")
-
-                    if isValidating {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        Button("Save") {
-                            Task {
-                                await saveAPIKey()
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
-                        .disabled(apiKeyInput.isEmpty)
-                        .accessibilityIdentifier("settings-ai-save-key-button")
-                    }
-                }
-
-                if let error = validationError {
-                    Text(error)
-                        .font(.caption)
-                        .foregroundColor(.red)
-                        .accessibilityIdentifier("settings-ai-error-message")
-                }
-            } else {
-                // Key in Keychain
-                HStack {
-                    Text("API key stored securely in Keychain")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-
-                    Spacer()
-
-                    Button("Remove") {
-                        removeAPIKey()
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .accessibilityIdentifier("settings-ai-remove-key-button")
-                }
-            }
-
-            // Security note (only show when not using env var)
-            if !hasAPIKeyFromEnv {
-                HStack(spacing: 6) {
-                    Image(systemName: "lock.shield.fill")
-                        .foregroundColor(.green)
-                        .font(.caption)
-                    Text("Stored securely in macOS Keychain")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .accessibilityIdentifier("settings-ai-security-note")
-            }
-
-            // Biometric auth toggle
-            Toggle(isOn: Binding(
-                get: { BiometricAuthService.shared.isEnabled },
-                set: { BiometricAuthService.shared.isEnabled = $0 }
-            )) {
+        VStack(alignment: .leading, spacing: 12) {
+            // API Key status row
+            HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Require \(BiometricAuthService.shared.biometricTypeName) before AI generation")
+                    Text("Claude API Key")
                         .font(.body)
-                    Text("Asked once per session to confirm API usage")
+                        .fontWeight(.medium)
+                    Text(statusDescription)
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
+                Spacer()
+                statusButton
             }
-            .toggleStyle(.switch)
-            .accessibilityIdentifier("settings-ai-biometric-toggle")
-            .accessibilityLabel("Require biometric authentication")
+            .accessibilityIdentifier("settings-ai-api-key-row")
 
-            // Cost information
-            DisclosureGroup(isExpanded: $showingCostInfo) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("• Rough estimate: ~$0.01-0.03 per complex mapping")
-                    Text("• Costs vary - check Anthropic's pricing page")
-                    Text("• Simple mappings are always free (no API call)")
-                    Text("• We don't track costs - check your Anthropic dashboard")
-                }
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .padding(.top, 4)
-            } label: {
-                Text("Cost Information")
-                    .font(.subheadline)
-            }
-            .accessibilityIdentifier("settings-ai-cost-disclosure")
-
-            // Links
-            HStack(spacing: 16) {
-                Link("Get API Key →", destination: URL(string: "https://console.anthropic.com/settings/keys")!)
-                    .font(.caption)
-                    .accessibilityIdentifier("settings-ai-get-key-link")
-
-                Link("View Pricing →", destination: URL(string: "https://www.anthropic.com/pricing")!)
-                    .font(.caption)
-                    .accessibilityIdentifier("settings-ai-pricing-link")
-
-                Link("Usage Dashboard →", destination: URL(string: "https://console.anthropic.com/")!)
-                    .font(.caption)
-                    .accessibilityIdentifier("settings-ai-dashboard-link")
+            // API key input (shown when adding)
+            if isAddingKey {
+                apiKeyInputView
             }
 
-            // Usage history
+            // Biometric auth toggle (only show if key is configured)
             if hasAPIKey {
-                Button("View Usage History") {
-                    showingUsageHistory = true
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Require \(BiometricAuthService.shared.biometricTypeName)")
+                            .font(.body)
+                            .fontWeight(.medium)
+                        Text("Confirm before using API")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { BiometricAuthService.shared.isEnabled },
+                        set: { BiometricAuthService.shared.isEnabled = $0 }
+                    ))
+                    .toggleStyle(.switch)
+                    .labelsHidden()
                 }
-                .buttonStyle(.link)
-                .font(.caption)
-                .accessibilityIdentifier("settings-ai-usage-history-button")
+                .accessibilityIdentifier("settings-ai-biometric-toggle")
+                .accessibilityLabel("Require biometric authentication")
             }
-
-            // Reset dialog preference
-            if AIKeyRequiredDialog.hasBeenDismissed {
-                Button("Reset \"Don't show again\" for API key dialog") {
-                    AIKeyRequiredDialog.resetDismissedState()
-                }
-                .buttonStyle(.link)
-                .font(.caption)
-                .foregroundColor(.orange)
-                .accessibilityIdentifier("settings-ai-reset-dialog-button")
-            }
-        }
-        .sheet(isPresented: $showingUsageHistory) {
-            AIUsageHistoryView()
         }
         .onAppear {
             refreshStatus()
         }
     }
 
-    private var statusText: String {
+    private var statusDescription: String {
         if hasAPIKeyFromEnv {
-            "API Key Configured (Environment)"
+            "Using environment variable"
         } else if hasAPIKeyInKeychain {
-            "API Key Configured"
+            "Stored in Keychain"
         } else {
-            "API Key Not Configured"
+            "Optional for complex mappings"
         }
+    }
+
+    @ViewBuilder
+    private var statusButton: some View {
+        if hasAPIKeyFromEnv {
+            // Environment variable - just show indicator
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(.green)
+        } else if hasAPIKeyInKeychain {
+            // Has key - show remove button
+            Button("Remove") {
+                removeAPIKey()
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .accessibilityIdentifier("settings-ai-remove-key-button")
+        } else if isAddingKey {
+            // Adding key - show cancel
+            Button("Cancel") {
+                isAddingKey = false
+                apiKeyInput = ""
+                validationError = nil
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+        } else {
+            // No key - show add button
+            Button("Add Key") {
+                isAddingKey = true
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .accessibilityIdentifier("settings-ai-add-key-button")
+        }
+    }
+
+    @ViewBuilder
+    private var apiKeyInputView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                SecureField("sk-ant-...", text: $apiKeyInput)
+                    .textFieldStyle(.roundedBorder)
+                    .disabled(isValidating)
+                    .accessibilityIdentifier("settings-ai-api-key-field")
+
+                if isValidating {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Button("Save") {
+                        Task { await saveAPIKey() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .disabled(apiKeyInput.isEmpty)
+                    .accessibilityIdentifier("settings-ai-save-key-button")
+                }
+            }
+
+            if let error = validationError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundColor(.red)
+            }
+
+            Link("Get API Key from Anthropic →", destination: URL(string: "https://console.anthropic.com/settings/keys")!)
+                .font(.caption)
+                .accessibilityIdentifier("settings-ai-get-key-link")
+        }
+        .padding(.leading, 16)
     }
 
     private func refreshStatus() {
@@ -1663,13 +1587,12 @@ private struct AIConfigGenerationSettingsSection: View {
     }
 
     private func saveAPIKey() async {
-        assert(!apiKeyInput.isEmpty, "Should not call saveAPIKey with empty input")
+        guard !apiKeyInput.isEmpty else { return }
 
         isValidating = true
         validationError = nil
 
-        let validator = APIKeyValidator.shared
-        let result = await validator.validate(apiKeyInput)
+        let result = await APIKeyValidator.shared.validate(apiKeyInput)
 
         isValidating = false
 
@@ -1677,8 +1600,8 @@ private struct AIConfigGenerationSettingsSection: View {
             do {
                 try KeychainService.shared.storeClaudeAPIKey(apiKeyInput)
                 apiKeyInput = ""
+                isAddingKey = false
                 refreshStatus()
-                AppLogger.shared.log("✅ [Settings] API key saved successfully")
             } catch {
                 validationError = "Failed to save: \(error.localizedDescription)"
             }
@@ -1688,13 +1611,8 @@ private struct AIConfigGenerationSettingsSection: View {
     }
 
     private func removeAPIKey() {
-        do {
-            try KeychainService.shared.deleteClaudeAPIKey()
-            refreshStatus()
-            AppLogger.shared.log("✅ [Settings] API key removed")
-        } catch {
-            AppLogger.shared.log("❌ [Settings] Failed to remove API key: \(error)")
-        }
+        try? KeychainService.shared.deleteClaudeAPIKey()
+        refreshStatus()
     }
 }
 

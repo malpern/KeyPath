@@ -49,6 +49,9 @@ public class KeyboardCapture: ObservableObject {
     /// Reference to RuntimeCoordinator to check if Kanata is running (to avoid tap conflicts)
     private weak var kanataManager: RuntimeCoordinator?
 
+    /// Activity observer for logging keyboard shortcuts
+    private weak var activityObserver: KeyboardActivityObserver?
+
     // Fast process probe to reduce race with manager.isRunning updates
     private func fastProbeKanataRunning(timeout: TimeInterval = 0.25) -> Bool {
         let task = Process()
@@ -94,6 +97,15 @@ public class KeyboardCapture: ObservableObject {
     public func disableEventRouter() {
         useEventRouter = false
         AppLogger.shared.log("📋 [KeyboardCapture] Event router integration disabled")
+    }
+
+    // MARK: - Activity Logging
+
+    /// Set the activity observer for logging keyboard shortcuts
+    public func setActivityObserver(_ observer: KeyboardActivityObserver?) {
+        activityObserver = observer
+        AppLogger.shared.log(
+            "📊 [KeyboardCapture] Activity observer \(observer != nil ? "enabled" : "disabled")")
     }
 
     // Emergency stop sequence detection
@@ -448,6 +460,10 @@ public class KeyboardCapture: ObservableObject {
             timestamp: now,
             keyCode: keyCode
         )
+
+        // Notify activity observer (for logging keyboard shortcuts)
+        // This happens before dedup so all shortcuts are captured
+        activityObserver?.didReceiveKeyEvent(keyPress)
 
         // De-dup identical events arriving within a small window
         if let last = lastCapturedKey, let lastAt = lastCaptureAt {

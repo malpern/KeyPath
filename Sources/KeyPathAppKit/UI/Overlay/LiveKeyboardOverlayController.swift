@@ -164,7 +164,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            AppLogger.shared.debug("🔔 [OverlayController] Received kanataConfigChanged notification")
+            AppLogger.shared.info("🔔 [OverlayController] Received kanataConfigChanged notification - invalidating layer mappings")
             Task { @MainActor in
                 self?.viewModel.invalidateLayerMappings()
             }

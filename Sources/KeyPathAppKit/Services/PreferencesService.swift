@@ -91,6 +91,30 @@ final class PreferencesService: @unchecked Sendable {
         }
     }
 
+    // MARK: - Activity Logging
+
+    /// Whether activity logging is enabled (requires double opt-in)
+    var activityLoggingEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(activityLoggingEnabled, forKey: Keys.activityLoggingEnabled)
+            AppLogger.shared.log("📊 [Preferences] activityLoggingEnabled = \(activityLoggingEnabled)")
+            // Post notification for ActivityLogger to start/stop
+            NotificationCenter.default.post(name: .activityLoggingChanged, object: nil)
+        }
+    }
+
+    /// Timestamp when user gave consent to activity logging (nil if never consented)
+    var activityLoggingConsentDate: Date? {
+        didSet {
+            if let date = activityLoggingConsentDate {
+                UserDefaults.standard.set(date.timeIntervalSince1970, forKey: Keys.activityLoggingConsentDate)
+            } else {
+                UserDefaults.standard.removeObject(forKey: Keys.activityLoggingConsentDate)
+            }
+            AppLogger.shared.log("📊 [Preferences] activityLoggingConsentDate = \(activityLoggingConsentDate?.description ?? "nil")")
+        }
+    }
+
     // MARK: - Keys
 
     private enum Keys {
@@ -100,6 +124,8 @@ final class PreferencesService: @unchecked Sendable {
         static let applyMappingsDuringRecording = "KeyPath.Recording.ApplyMappingsDuringRecording"
         static let isSequenceMode = "KeyPath.Recording.IsSequenceMode"
         static let verboseKanataLogging = "KeyPath.Diagnostics.VerboseKanataLogging"
+        static let activityLoggingEnabled = "KeyPath.ActivityLogging.Enabled"
+        static let activityLoggingConsentDate = "KeyPath.ActivityLogging.ConsentDate"
     }
 
     // MARK: - Defaults
@@ -111,6 +137,7 @@ final class PreferencesService: @unchecked Sendable {
         static let applyMappingsDuringRecording = true
         static let isSequenceMode = true
         static let verboseKanataLogging = false // Off by default to avoid log spam
+        static let activityLoggingEnabled = false // Requires explicit opt-in
     }
 
     // MARK: - Initialization
@@ -143,8 +170,19 @@ final class PreferencesService: @unchecked Sendable {
             UserDefaults.standard.object(forKey: Keys.verboseKanataLogging) as? Bool
                 ?? Defaults.verboseKanataLogging
 
+        // Activity logging preferences
+        activityLoggingEnabled =
+            UserDefaults.standard.object(forKey: Keys.activityLoggingEnabled) as? Bool
+                ?? Defaults.activityLoggingEnabled
+
+        if let consentTimestamp = UserDefaults.standard.object(forKey: Keys.activityLoggingConsentDate) as? TimeInterval {
+            activityLoggingConsentDate = Date(timeIntervalSince1970: consentTimestamp)
+        } else {
+            activityLoggingConsentDate = nil
+        }
+
         AppLogger.shared.log(
-            "🔧 [PreferencesService] Initialized - Protocol: \(communicationProtocol.rawValue), TCP port: \(tcpServerPort), Verbose logging: \(verboseKanataLogging)"
+            "🔧 [PreferencesService] Initialized - Protocol: \(communicationProtocol.rawValue), TCP port: \(tcpServerPort), Verbose logging: \(verboseKanataLogging), Activity logging: \(activityLoggingEnabled)"
         )
     }
 
