@@ -257,6 +257,7 @@ class MapperViewModel: ObservableObject {
     private var outputSequence: KeySequence? = MapperViewModel.defaultAKeySequence
     private var keyboardCapture: KeyboardCapture?
     private var kanataManager: RuntimeCoordinator?
+    private var rulesManager: RuleCollectionsManager? { kanataManager?.rulesManager }
     private var finalizeTimer: Timer?
     /// ID of the last saved custom rule (for clearing/deleting)
     private var lastSavedRuleID: UUID?
@@ -300,7 +301,14 @@ class MapperViewModel: ObservableObject {
     }
 
     /// Update input from a key click in the overlay (used by mapper drawer)
-    func setInputFromKeyClick(keyCode: UInt16, inputLabel: String, outputLabel: String) {
+    func setInputFromKeyClick(
+        keyCode: UInt16,
+        inputLabel: String,
+        outputLabel: String,
+        appIdentifier: String? = nil,
+        systemActionIdentifier: String? = nil,
+        urlIdentifier: String? = nil
+    ) {
         // Stop any active recording
         stopRecording()
 
@@ -312,19 +320,36 @@ class MapperViewModel: ObservableObject {
             captureMode: .single
         )
 
-        // Update output to match current mapping
-        self.outputLabel = formatKeyForDisplay(outputLabel)
-        outputSequence = KeySequence(
-            keys: [KeyPress(baseKey: outputLabel, modifiers: [], keyCode: 0)],
-            captureMode: .single
-        )
-
-        // Clear any app/action selections since we're switching to a new key
+        // Clear previous selections first
         selectedApp = nil
         selectedSystemAction = nil
         selectedURL = nil
 
-        AppLogger.shared.log("🖱️ [MapperViewModel] Input updated from key click: \(inputLabel) -> \(outputLabel)")
+        // Set output based on action type
+        if let appId = appIdentifier, let appInfo = appLaunchInfo(for: appId) {
+            selectedApp = appInfo
+            self.outputLabel = appInfo.name
+            outputSequence = nil
+            AppLogger.shared.log("🖱️ [MapperViewModel] Key click - app launch: \(inputLabel) -> \(appInfo.name)")
+        } else if let urlId = urlIdentifier {
+            selectedURL = urlId
+            self.outputLabel = extractDomain(from: urlId)
+            outputSequence = nil
+            AppLogger.shared.log("🖱️ [MapperViewModel] Key click - URL: \(inputLabel) -> \(urlId)")
+        } else if let systemId = systemActionIdentifier, let systemAction = SystemActionInfo.find(byOutput: systemId) {
+            selectedSystemAction = systemAction
+            self.outputLabel = systemAction.name
+            outputSequence = nil
+            AppLogger.shared.log("🖱️ [MapperViewModel] Key click - system action: \(inputLabel) -> \(systemAction.name)")
+        } else {
+            // Regular key mapping
+            self.outputLabel = formatKeyForDisplay(outputLabel)
+            outputSequence = KeySequence(
+                keys: [KeyPress(baseKey: outputLabel, modifiers: [], keyCode: 0)],
+                captureMode: .single
+            )
+            AppLogger.shared.log("🖱️ [MapperViewModel] Key click - key mapping: \(inputLabel) -> \(outputLabel)")
+        }
     }
 
     /// Apply preset values from overlay click
@@ -380,8 +405,7 @@ class MapperViewModel: ObservableObject {
             outputSequence = nil
             AppLogger.shared.log("🗺️ [MapperViewModel] Preset output is URL: \(urlIdentifier)")
         } else if let systemActionIdentifier,
-                  let systemAction = SystemActionInfo.find(byOutput: systemActionIdentifier)
-        {
+                  let systemAction = SystemActionInfo.find(byOutput: systemActionIdentifier) {
             // It's a system action/media key - set selectedSystemAction for SF Symbol rendering
             selectedSystemAction = systemAction
             outputLabel = systemAction.name
@@ -797,8 +821,7 @@ class MapperViewModel: ObservableObject {
             let info = mapping.info
 
             if let appIdentifier = info.appLaunchIdentifier,
-               let appInfo = appLaunchInfo(for: appIdentifier)
-            {
+               let appInfo = appLaunchInfo(for: appIdentifier) {
                 selectedApp = appInfo
                 outputLabel = appInfo.name
                 outputSequence = nil
@@ -815,8 +838,7 @@ class MapperViewModel: ObservableObject {
                 originalSystemActionIdentifier = nil
                 AppLogger.shared.log("🔍 [MapperViewModel] Key \(keyCode) is URL: \(url)")
             } else if let systemId = info.systemActionIdentifier,
-                      let systemAction = SystemActionInfo.find(byOutput: systemId) ?? SystemActionInfo.find(byOutput: info.displayLabel)
-            {
+                      let systemAction = SystemActionInfo.find(byOutput: systemId) ?? SystemActionInfo.find(byOutput: info.displayLabel) {
                 selectedSystemAction = systemAction
                 outputLabel = systemAction.name
                 outputSequence = nil
@@ -1010,18 +1032,27 @@ class MapperViewModel: ObservableObject {
             customRule.notes = "Created via Mapper [\(currentLayer) layer]"
             customRule.targetLayer = targetLayer
 
-            _ = await kanataManager.saveCustomRule(customRule, skipReload: true)
+            let customRuleSaved = await kanataManager.saveCustomRule(customRule, skipReload: true)
+            AppLogger.shared.log("💾 [MapperViewModel] saveCustomRule returned: \(customRuleSaved)")
 
-            // Track the saved rule ID for potential clearing
-            lastSavedRuleID = customRule.id
+            if customRuleSaved {
+                // Track the saved rule ID for potential clearing
+                lastSavedRuleID = customRule.id
 
-            // Notify overlay to rebuild layer mapping (since saveGeneratedConfiguration
-            // doesn't go through onRulesChanged, we post the notification explicitly)
-            NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
+                // Notify overlay to rebuild layer mapping (since saveGeneratedConfiguration
+                // doesn't go through onRulesChanged, we post the notification explicitly)
+                AppLogger.shared.info("🔔 [MapperViewModel] Posting kanataConfigChanged notification (input='\(inputKanata)', output='\(outputKanata)', layer='\(targetLayer)')")
+                NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
 
-            statusMessage = "✓ Saved"
-            statusIsError = false
-            AppLogger.shared.log("✅ [MapperViewModel] Saved mapping: \(inputSeq.displayString) → \(outputSeq.displayString) [layer: \(currentLayer)] (ruleID: \(customRule.id))")
+                statusMessage = "✓ Saved"
+                statusIsError = false
+                AppLogger.shared.log("✅ [MapperViewModel] Saved mapping: \(inputSeq.displayString) → \(outputSeq.displayString) [layer: \(currentLayer)] (ruleID: \(customRule.id))")
+            } else {
+                // Custom rule save failed (validation or conflict)
+                statusMessage = "Rule save failed"
+                statusIsError = true
+                AppLogger.shared.error("❌ [MapperViewModel] saveCustomRule returned false for input='\(inputKanata)', output='\(outputKanata)'")
+            }
         } catch {
             statusMessage = "Failed: \(error.localizedDescription)"
             statusIsError = true
@@ -1081,8 +1112,7 @@ class MapperViewModel: ObservableObject {
             )
 
             if let appIdentifier = originalAppIdentifier,
-               let appInfo = appLaunchInfo(for: appIdentifier)
-            {
+               let appInfo = appLaunchInfo(for: appIdentifier) {
                 selectedApp = appInfo
                 outputLabel = appInfo.name
                 outputSequence = nil
@@ -1091,8 +1121,7 @@ class MapperViewModel: ObservableObject {
                 outputLabel = extractDomain(from: url)
                 outputSequence = nil
             } else if let systemActionId = originalSystemActionIdentifier,
-                      let systemAction = SystemActionInfo.find(byOutput: systemActionId)
-            {
+                      let systemAction = SystemActionInfo.find(byOutput: systemActionId) {
                 selectedSystemAction = systemAction
                 outputLabel = systemAction.name
                 outputSequence = nil
@@ -1280,16 +1309,29 @@ class MapperViewModel: ObservableObject {
     private static let systemLayers: Set<String> = ["base", "nav", "navigation"]
 
     /// Get list of available layers (system + custom)
+    /// Discovers layers from rule collections and custom rules
     func getAvailableLayers() -> [String] {
-        // Start with system layers
-        var layers = ["base", "nav"]
+        guard let rulesManager else { return ["base", "nav"] }
 
-        // Add any custom layers from stored rules
-        // For now, just return system layers - custom layer discovery would require
-        // scanning the config or maintaining a layer registry
-        // TODO(#72): Integrate with RuntimeCoordinator to get actual layers from Kanata
+        var layers = Set<String>(["base", "nav"])
 
-        return layers.sorted()
+        // Add layers from enabled rule collections
+        for collection in rulesManager.ruleCollections where collection.isEnabled {
+            layers.insert(collection.targetLayer.kanataName)
+        }
+
+        // Add layers from enabled custom rules
+        for rule in rulesManager.customRules where rule.isEnabled {
+            layers.insert(rule.targetLayer.kanataName)
+        }
+
+        // Sort with system layers first, then alphabetically
+        return layers.sorted { lhs, rhs in
+            let lhsSystem = Self.systemLayers.contains(lhs.lowercased())
+            let rhsSystem = Self.systemLayers.contains(rhs.lowercased())
+            if lhsSystem != rhsSystem { return lhsSystem }
+            return lhs < rhs
+        }
     }
 
     /// Check if a layer is a system layer (cannot be deleted)
@@ -1297,35 +1339,80 @@ class MapperViewModel: ObservableObject {
         Self.systemLayers.contains(layer.lowercased())
     }
 
-    /// Create a new layer
+    /// Create a new layer with persistence and Leader key activator
     func createLayer(_ name: String) {
         guard !name.isEmpty else { return }
+
+        // Sanitize the layer name
         let sanitizedName = name.lowercased()
             .replacingOccurrences(of: " ", with: "_")
             .filter { $0.isLetter || $0.isNumber || $0 == "_" }
 
         guard !sanitizedName.isEmpty else { return }
 
-        AppLogger.shared.log("📚 [MapperViewModel] Created new layer: \(sanitizedName)")
+        // Check for duplicates
+        let existingLayers = getAvailableLayers()
+        if existingLayers.contains(where: { $0.lowercased() == sanitizedName }) {
+            AppLogger.shared.warn("⚠️ [MapperViewModel] Layer already exists: \(sanitizedName)")
+            setLayer(sanitizedName)
+            return
+        }
+
+        // Create a RuleCollection for this layer with Leader key activator
+        // Activator: first letter of layer name, from nav layer (Leader → letter)
+        let activatorKey = String(sanitizedName.prefix(1))
+        let targetLayer = RuleCollectionLayer.custom(sanitizedName)
+
+        let collection = RuleCollection(
+            id: UUID(),
+            name: sanitizedName.capitalized,
+            summary: "Custom layer: \(sanitizedName)",
+            category: .custom,
+            mappings: [],
+            isEnabled: true,
+            icon: "square.stack.3d.up",
+            tags: ["custom-layer"],
+            targetLayer: targetLayer,
+            momentaryActivator: MomentaryActivator(
+                input: activatorKey,
+                targetLayer: targetLayer,
+                sourceLayer: .navigation
+            ),
+            activationHint: "Leader → \(activatorKey.uppercased())",
+            configuration: .list
+        )
+
+        // Persist via rulesManager
+        if let rulesManager {
+            Task {
+                await rulesManager.addCollection(collection)
+                AppLogger.shared.log("📚 [MapperViewModel] Created new layer: \(sanitizedName) (Leader → \(activatorKey.uppercased()))")
+            }
+        }
 
         // Switch to the new layer
         setLayer(sanitizedName)
     }
 
-    /// Delete a layer (only non-system layers)
+    /// Delete a layer and all associated rules (only non-system layers)
     func deleteLayer(_ layer: String) {
         guard !isSystemLayer(layer) else {
             AppLogger.shared.warn("⚠️ [MapperViewModel] Cannot delete system layer: \(layer)")
             return
         }
 
-        // If we're on this layer, switch to base
+        // If we're on this layer, switch to base first
         if currentLayer.lowercased() == layer.lowercased() {
             setLayer("base")
         }
 
-        // TODO(#73): Delete rules associated with this layer
-        AppLogger.shared.log("🗑️ [MapperViewModel] Deleted layer: \(layer)")
+        // Remove all collections and rules for this layer
+        if let rulesManager {
+            Task {
+                await rulesManager.removeLayer(layer)
+                AppLogger.shared.log("🗑️ [MapperViewModel] Deleted layer: \(layer)")
+            }
+        }
     }
 
     /// Save a mapping that launches an app

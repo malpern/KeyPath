@@ -445,6 +445,45 @@ final class RuleCollectionsManager {
         await regenerateConfigFromCollections()
     }
 
+    /// Remove a rule collection by ID
+    func removeCollection(id: UUID) async {
+        ruleCollections.removeAll { $0.id == id }
+        refreshLayerIndicatorState()
+        await regenerateConfigFromCollections()
+        AppLogger.shared.log("🗑️ [RuleCollections] Removed collection: \(id)")
+    }
+
+    /// Remove all collections and custom rules for a specific layer
+    func removeLayer(_ layerName: String) async {
+        let normalizedName = layerName.lowercased()
+
+        // Remove collections targeting this layer
+        let collectionCount = ruleCollections.count
+        ruleCollections.removeAll { collection in
+            collection.targetLayer.kanataName.lowercased() == normalizedName
+        }
+        let removedCollections = collectionCount - ruleCollections.count
+
+        // Remove custom rules targeting this layer
+        let ruleCount = customRules.count
+        customRules.removeAll { rule in
+            rule.targetLayer.kanataName.lowercased() == normalizedName
+        }
+        let removedRules = ruleCount - customRules.count
+
+        // Persist custom rules to disk
+        do {
+            try await customRulesStore.saveRules(customRules)
+        } catch {
+            AppLogger.shared.error("❌ [RuleCollections] Failed to persist custom rules after layer removal: \(error)")
+        }
+
+        refreshLayerIndicatorState()
+        await regenerateConfigFromCollections()
+
+        AppLogger.shared.log("🗑️ [RuleCollections] Removed layer '\(layerName)': \(removedCollections) collections, \(removedRules) rules")
+    }
+
     /// Update a single-key picker collection's selected output and regenerate its mapping
     func updateCollectionOutput(id: UUID, output: String) async {
         guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
@@ -837,6 +876,11 @@ final class RuleCollectionsManager {
         }
     }
 
+    /// Get existing custom rule for the given input key, if any
+    func getCustomRule(forInput input: String) -> CustomRule? {
+        customRules.first { $0.input.caseInsensitiveCompare(input) == .orderedSame }
+    }
+
     // MARK: - Keymap Layout Management
 
     /// Set the active keyboard layout and regenerate the config.
@@ -1031,6 +1075,7 @@ final class RuleCollectionsManager {
             onBeforeSave?()
 
             AppLogger.shared.log("🔄 [RuleCollections] Calling configurationService.saveConfiguration...")
+            AppLogger.shared.log("🔄 [RuleCollections] Custom rules to save: \(customRules.map { "'\($0.input)' → '\($0.output)'" }.joined(separator: ", "))")
             // IMPORTANT: Save config FIRST (validates before writing)
             // Only persist to stores AFTER config is successfully written
             // This prevents store/config mismatch if validation fails
