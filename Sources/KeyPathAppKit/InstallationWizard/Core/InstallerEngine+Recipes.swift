@@ -212,7 +212,7 @@ extension InstallerEngine {
     /// Order recipes respecting dependencies
     func orderRecipes(_ recipes: [ServiceRecipe]) -> [ServiceRecipe] {
         // Simple topological sort - for now, just return in order
-        // TODO: Implement proper dependency resolution if needed
+        // TODO(#75): Implement proper dependency resolution if needed
         recipes
     }
 

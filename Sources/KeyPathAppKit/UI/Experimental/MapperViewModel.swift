@@ -1287,7 +1287,7 @@ class MapperViewModel: ObservableObject {
         // Add any custom layers from stored rules
         // For now, just return system layers - custom layer discovery would require
         // scanning the config or maintaining a layer registry
-        // TODO: Integrate with RuntimeCoordinator to get actual layers from Kanata
+        // TODO(#72): Integrate with RuntimeCoordinator to get actual layers from Kanata
 
         return layers.sorted()
     }
@@ -1324,7 +1324,7 @@ class MapperViewModel: ObservableObject {
             setLayer("base")
         }
 
-        // TODO: Delete rules associated with this layer
+        // TODO(#73): Delete rules associated with this layer
         AppLogger.shared.log("🗑️ [MapperViewModel] Deleted layer: \(layer)")
     }
 

@@ -1011,7 +1011,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
         if message.hasPrefix("icon:") {
             let iconName = String(message.dropFirst(5)) // Remove "icon:" prefix
             AppLogger.shared.info("🎨 [KeyboardViz] Icon message: \(iconName)")
-            // TODO: Associate icon with most recently pressed key
+            // TODO(#74): Associate icon with most recently pressed key
             // For now, just log - need key context to apply icon
             return
         }
