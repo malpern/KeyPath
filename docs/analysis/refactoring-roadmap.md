@@ -100,29 +100,36 @@ The key recording logic is tightly coupled to UI state and requires more extensi
 
 ---
 
-## Phase 3: ConfigurationService Decomposition (Pending)
+## Phase 3: ConfigurationService Decomposition ✅ PARTIAL
 
-### Current State
-`ConfigurationService.swift` - 2,155 lines handling I/O, parsing, validation, generation
+### Results
 
-### Target Architecture
+| Metric | Before | After | Change |
+|--------|--------|-------|--------|
+| ConfigurationService.swift | 2,155 lines | 1,113 lines | **-1,042 lines (-48%)** |
 
-```
-ConfigurationRepository (facade, ~200 lines)
-├── ConfigurationFileService (~300 lines)
-│   └── Pure I/O: read, write, backup, restore
-├── ConfigurationParser (~400 lines)
-│   └── Parse .kbd files, extract rules
-├── ConfigurationValidator (~200 lines)
-│   └── Validate configurations, detect conflicts
-└── ConfigurationGenerator (~400 lines)
-    └── Generate Kanata config from rules
-```
+### Extracted: KanataConfigurationGenerator ✅
 
-### Benefits
-- Testable in isolation (mock file system)
-- Clear separation of concerns
-- Easier to add new config formats
+**Created:** `Sources/KeyPathAppKit/Infrastructure/Config/KanataConfigurationGenerator.swift` (1,052 lines)
+
+Contains:
+- `KanataConfiguration` struct with `generateFromCollections()`
+- All rendering helpers (defsrc, deflayer, defalias, defchordsv2)
+- Block builders for collections
+- Multi-line action formatting
+- Layer and chord mapping generation
+
+### Remaining (Deferred)
+
+The following extractions were deferred due to tight coupling with ConfigurationService internals:
+- ConfigurationValidator - validation depends on file paths, subprocess runners
+- ConfigurationFileService - I/O methods interleaved with state management
+- ConfigurationParser - parsing coupled with configuration loading
+
+### Benefits Achieved
+- Generation logic now testable in isolation
+- ConfigurationService focused on service orchestration
+- Clear separation of config generation from service management
 
 ---
 
@@ -196,7 +203,7 @@ Use `TaskGroup` or `withTaskCancellationHandler` patterns.
 |-------|--------|------|--------------|
 | Phase 1 | ✅ Complete | Low | None |
 | Phase 2 | ✅ Complete | Medium | Phase 1 |
-| Phase 3 | 🔜 Pending | Medium | None |
+| Phase 3 | ✅ Partial | Medium | None |
 | Phase 4 | 🔜 Pending | Higher | Phases 1-2 |
 | Phase 5 | 🔜 Pending | Medium | All above |
 | Phase 6 | 🔜 Pending | Low | None |
@@ -215,9 +222,10 @@ Use `TaskGroup` or `withTaskCancellationHandler` patterns.
 
 ---
 
-## Commits (Phase 1 & 2)
+## Commits (Phases 1-3)
 
 ```
+47421e9e Refactor: Extract KanataConfiguration to separate file
 fb269698 Refactor: Extract KeyMappingFormatter utility
 65738b40 Refactor: Extract AppConditionManager from MapperViewModel
 6b5fa297 Refactor: Extract Mapper action types to separate file
@@ -241,8 +249,5 @@ edfbbed9 Add activity logging infrastructure and refactoring roadmap
 - `Sources/KeyPathAppKit/UI/Experimental/Mapper/AppConditionManager.swift`
 - `Sources/KeyPathAppKit/UI/Experimental/Mapper/KeyMappingFormatter.swift`
 
-### Phase 3 (Planned)
-- `Sources/KeyPathAppKit/Infrastructure/Config/ConfigurationFileService.swift`
-- `Sources/KeyPathAppKit/Infrastructure/Config/ConfigurationParser.swift`
-- `Sources/KeyPathAppKit/Infrastructure/Config/ConfigurationValidator.swift`
-- `Sources/KeyPathAppKit/Infrastructure/Config/ConfigurationGenerator.swift`
+### Phase 3 - Config Generation
+- `Sources/KeyPathAppKit/Infrastructure/Config/KanataConfigurationGenerator.swift`
