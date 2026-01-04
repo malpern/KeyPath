@@ -1523,51 +1523,19 @@ class MapperViewModel: ObservableObject {
 
     /// Extract domain from URL for display purposes
     private func extractDomain(from url: String) -> String {
-        let cleaned = url
-            .replacingOccurrences(of: "https://", with: "")
-            .replacingOccurrences(of: "http://", with: "")
-        return cleaned.components(separatedBy: "/").first ?? url
+        KeyMappingFormatter.extractDomain(from: url)
     }
+
+    // MARK: - Kanata Format Conversion (Delegated to KeyMappingFormatter)
 
     /// Convert layer name string to RuleCollectionLayer
     private func layerFromString(_ name: String) -> RuleCollectionLayer {
-        let lowercased = name.lowercased()
-        switch lowercased {
-        case "base": return .base
-        case "nav", "navigation": return .navigation
-        default: return .custom(name)
-        }
+        KeyMappingFormatter.layerFromString(name)
     }
 
     /// Convert KeySequence to kanata format string
     private func convertSequenceToKanataFormat(_ sequence: KeySequence) -> String {
-        let keyStrings = sequence.keys.map { keyPress -> String in
-            var result = keyPress.baseKey.lowercased()
-
-            // Handle special key names
-            let keyMap: [String: String] = [
-                "space": "spc",
-                "return": "ret",
-                "enter": "ret",
-                "escape": "esc",
-                "backspace": "bspc",
-                "delete": "del"
-            ]
-
-            if let mapped = keyMap[result] {
-                result = mapped
-            }
-
-            // Add modifiers
-            if keyPress.modifiers.contains(.control) { result = "C-" + result }
-            if keyPress.modifiers.contains(.option) { result = "A-" + result }
-            if keyPress.modifiers.contains(.shift) { result = "S-" + result }
-            if keyPress.modifiers.contains(.command) { result = "M-" + result }
-
-            return result
-        }
-
-        return keyStrings.joined(separator: " ")
+        KeyMappingFormatter.toKanataFormat(sequence)
     }
 
     /// Best-effort input kanata string for rule removal
