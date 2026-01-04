@@ -147,8 +147,16 @@ class MapperViewModel: ObservableObject {
     /// Default to 0 (A key) so the default state shows the A key selected
     @Published var inputKeyCode: UInt16? = 0
 
-    /// Selected app precondition - rule only applies when this app is frontmost
-    @Published var selectedAppCondition: AppConditionInfo?
+    // MARK: - App Condition (Delegated to AppConditionManager)
+
+    /// Manager for app condition (precondition) selection
+    @Published var appConditionManager = AppConditionManager()
+
+    /// Legacy accessor for selectedAppCondition
+    var selectedAppCondition: AppConditionInfo? {
+        get { appConditionManager.selectedAppCondition }
+        set { appConditionManager.selectedAppCondition = newValue }
+    }
 
     // MARK: - Advanced Behavior (Delegated to AdvancedBehaviorManager)
 
@@ -1249,81 +1257,21 @@ class MapperViewModel: ObservableObject {
         }
     }
 
-    // MARK: - App Condition (Precondition)
+    // MARK: - App Condition (Precondition) - Delegated to AppConditionManager
 
     /// Get list of currently running apps for the condition picker
     func getRunningApps() -> [AppConditionInfo] {
-        let workspace = NSWorkspace.shared
-        let runningApps = workspace.runningApplications
-
-        return runningApps.compactMap { app -> AppConditionInfo? in
-            // Only include regular apps (not background agents, daemons, etc.)
-            guard app.activationPolicy == .regular,
-                  let bundleId = app.bundleIdentifier,
-                  let name = app.localizedName
-            else {
-                return nil
-            }
-
-            // Get app icon
-            let icon = app.icon ?? NSWorkspace.shared.icon(forFileType: "app")
-            icon.size = NSSize(width: 24, height: 24)
-
-            return AppConditionInfo(
-                bundleIdentifier: bundleId,
-                displayName: name,
-                icon: icon
-            )
-        }
-        .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+        appConditionManager.getRunningApps()
     }
 
     /// Open file picker to select an app for the condition (precondition)
     func pickAppCondition() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
-        panel.allowedContentTypes = [.application]
-        panel.directoryURL = URL(fileURLWithPath: "/Applications")
-        panel.message = "Select an application for this rule's condition"
-        panel.prompt = "Select"
-
-        panel.begin { [weak self] response in
-            guard response == .OK, let url = panel.url else { return }
-
-            Task { @MainActor in
-                self?.handleSelectedAppCondition(at: url)
-            }
-        }
-    }
-
-    /// Process the selected app condition
-    private func handleSelectedAppCondition(at url: URL) {
-        let appName = url.deletingPathExtension().lastPathComponent
-        let bundle = Bundle(url: url)
-        guard let bundleId = bundle?.bundleIdentifier else {
-            AppLogger.shared.warn("⚠️ [MapperViewModel] Selected app has no bundle identifier: \(url)")
-            return
-        }
-
-        let icon = NSWorkspace.shared.icon(forFile: url.path)
-        icon.size = NSSize(width: 24, height: 24)
-
-        let conditionInfo = AppConditionInfo(
-            bundleIdentifier: bundleId,
-            displayName: appName,
-            icon: icon
-        )
-
-        selectedAppCondition = conditionInfo
-        AppLogger.shared.log("🎯 [MapperViewModel] Selected app condition: \(appName) (\(bundleId))")
+        appConditionManager.pickAppCondition()
     }
 
     /// Clear the app condition
     func clearAppCondition() {
-        selectedAppCondition = nil
-        AppLogger.shared.log("🎯 [MapperViewModel] Cleared app condition")
+        appConditionManager.clearAppCondition()
     }
 
     // MARK: - Layer Management
