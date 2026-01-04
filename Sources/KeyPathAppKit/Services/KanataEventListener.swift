@@ -561,6 +561,15 @@ actor KanataEventListener {
                     if let handler = actionURIHandler {
                         await handler(actionURI)
                     }
+
+                    // Record for activity logging
+                    await MainActor.run {
+                        ActivityLogger.shared.recordKeyPathAction(
+                            action: actionURI.action,
+                            target: actionURI.pathComponents.first,
+                            uri: messageString
+                        )
+                    }
                 } else {
                     // Not a keypath:// URI - report as unknown
                     AppLogger.shared.log("⚠️ [EventListener] Unknown message format: \(messageString)")
@@ -573,11 +582,13 @@ actor KanataEventListener {
         }
 
         // Handle KeyInput events (physical key press/release from Kanata)
-        // Format from Kanata: {"KeyInput":{"key":"h","action":"press","t":12345}}
+        // Format from Kanata: {"KeyInput":{"key":"h","action":"Press","t":12345}}
+        // Note: Kanata sends capitalized action names (Press/Release/Repeat)
         if let keyInput = json["KeyInput"] as? [String: Any],
            let key = keyInput["key"] as? String,
            let actionStr = keyInput["action"] as? String {
-            if let action = KanataKeyAction(rawValue: actionStr) {
+            // Lowercase the action to match our enum (Kanata sends "Press", we expect "press")
+            if let action = KanataKeyAction(rawValue: actionStr.lowercased()) {
                 AppLogger.shared.info("⌨️ [EventListener] KeyInput: \(key) \(action)")
                 if let handler = keyInputHandler {
                     await handler(key, action)
