@@ -376,6 +376,19 @@ actor LayerKeyMapper {
 
         // Process results
         for (keyCode, fallbackLabel, simName, result) in results {
+            // Debug: Log raw simulation result for A key (keyCode 0)
+            if keyCode == 0 {
+                if let result {
+                    let outputEvents = result.events.compactMap { event -> String? in
+                        if case let .output(_, action, key) = event, action == .press { return key }
+                        return nil
+                    }
+                    AppLogger.shared.info("🔍 [LayerKeyMapper] keyCode 0 (a) simulation: outputs=\(outputEvents)")
+                } else {
+                    AppLogger.shared.info("🔍 [LayerKeyMapper] keyCode 0 (a) simulation: FAILED (nil result)")
+                }
+            }
+
             guard let result else {
                 // Simulation failed - use physical label
                 mapping[keyCode] = LayerKeyInfo(

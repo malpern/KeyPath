@@ -300,8 +300,13 @@ class MapperViewModel: ObservableObject {
     @Published var pendingConflictType: ConflictType?
     @Published var pendingConflictField: String = "" // "hold" or "tapDance-N"
 
-    private var inputSequence: KeySequence?
-    private var outputSequence: KeySequence?
+    /// Default KeySequence for A key - used as initial value so save works without capturing input first
+    private static let defaultAKeySequence = KeySequence(
+        keys: [KeyPress(baseKey: "a", modifiers: [], keyCode: 0)],
+        captureMode: .single
+    )
+    private var inputSequence: KeySequence? = MapperViewModel.defaultAKeySequence
+    private var outputSequence: KeySequence? = MapperViewModel.defaultAKeySequence
     private var keyboardCapture: KeyboardCapture?
     private var kanataManager: RuntimeCoordinator?
     private var finalizeTimer: Timer?
@@ -352,7 +357,7 @@ class MapperViewModel: ObservableObject {
         stopRecording()
 
         // Update input
-        self.inputKeyCode = keyCode
+        inputKeyCode = keyCode
         self.inputLabel = formatKeyForDisplay(inputLabel)
         inputSequence = KeySequence(
             keys: [KeyPress(baseKey: inputLabel, modifiers: [], keyCode: Int64(keyCode))],
@@ -1063,6 +1068,16 @@ class MapperViewModel: ObservableObject {
             return
         }
 
+        // Skip identity mappings (A→A) - no point in saving a rule that does nothing
+        // Also skip if user hasn't changed anything from defaults
+        let inputKey = convertSequenceToKanataFormat(inputSeq).lowercased()
+        let outputKey = convertSequenceToKanataFormat(outputSeq).lowercased()
+        if inputKey == outputKey, selectedApp == nil, selectedSystemAction == nil, selectedURL == nil {
+            statusMessage = "Nothing to save - input and output are the same"
+            statusIsError = true
+            return
+        }
+
         isSaving = true
         statusMessage = nil
 
@@ -1138,9 +1153,10 @@ class MapperViewModel: ObservableObject {
     private func reset() {
         inputLabel = "A"
         outputLabel = "A"
-        inputSequence = nil
-        outputSequence = nil
         inputKeyCode = 0 // Default to A key
+        // Reset to default A key sequences so save works without capturing input first
+        inputSequence = Self.defaultAKeySequence
+        outputSequence = Self.defaultAKeySequence
         selectedApp = nil
         selectedSystemAction = nil
         selectedURL = nil

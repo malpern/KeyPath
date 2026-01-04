@@ -73,6 +73,22 @@ struct LiveKeyboardOverlayView: View {
         )
     }
 
+    /// Hash of layerKeyMap to force SwiftUI to recreate keyboard view when mappings change
+    private var layerKeyMapHash: Int {
+        var hasher = Hasher()
+        // Include count and a few key values in hash for efficiency
+        hasher.combine(viewModel.layerKeyMap.count)
+        hasher.combine(viewModel.currentLayerName)
+        // Sample a few keys to detect changes (full iteration would be slow)
+        for keyCode: UInt16 in [0, 1, 2, 3, 4, 5] { // A through G
+            if let info = viewModel.layerKeyMap[keyCode] {
+                hasher.combine(info.displayLabel)
+                hasher.combine(info.outputKey)
+            }
+        }
+        return hasher.finalize()
+    }
+
     var body: some View {
         let cornerRadius: CGFloat = 10 // Fixed corner radius for glass container
         let fadeAmount: CGFloat = viewModel.fadeAmount
@@ -187,6 +203,9 @@ struct LiveKeyboardOverlayView: View {
                             isLauncherMode: viewModel.isLauncherModeActive || (uiState.isInspectorOpen && inspectorSection == .launchers),
                             launcherMappings: viewModel.launcherMappings
                         )
+                        // Force SwiftUI to recreate keyboard when layerKeyMap changes
+                        // This ensures key labels update after config changes
+                        .id(layerKeyMapHash)
                         .environmentObject(viewModel)
                         .environmentObject(keyboardMouseState)
                         .onHover { hovering in

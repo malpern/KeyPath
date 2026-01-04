@@ -736,10 +736,19 @@ class KeyboardVisualizationViewModel: ObservableObject {
                     ruleCollections: ruleCollections
                 )
 
-                // Update on main actor
+                // Update on main actor with explicit objectWillChange to ensure SwiftUI notices
                 await MainActor.run {
+                    self.objectWillChange.send()
                     self.layerKeyMap = mapping
                     self.isLoadingLayerMap = false
+                    AppLogger.shared.info("🗺️ [KeyboardViz] Updated layerKeyMap with \(mapping.count) entries, objectWillChange sent")
+                    // Debug: Log what keyCode 0 (A key) maps to
+                    if let aKeyInfo = mapping[0] {
+                        AppLogger.shared
+                            .info("🔍 [KeyboardViz] keyCode 0 (A) -> displayLabel='\(aKeyInfo.displayLabel)', outputKey=\(aKeyInfo.outputKey ?? "nil"), isTransparent=\(aKeyInfo.isTransparent)")
+                    } else {
+                        AppLogger.shared.info("🔍 [KeyboardViz] keyCode 0 (A) -> NOT IN MAPPING")
+                    }
                 }
 
                 AppLogger.shared.info("🗺️ [KeyboardViz] Built layer mapping for '\(currentLayerName)': \(mapping.count) keys")
@@ -909,10 +918,10 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
     /// Invalidate cached mappings (call when config changes)
     func invalidateLayerMappings() {
-        AppLogger.shared.debug("🔔 [KeyboardViz] invalidateLayerMappings called")
+        AppLogger.shared.info("🔔 [KeyboardViz] invalidateLayerMappings called - will rebuild layer mapping")
         Task {
             await layerKeyMapper.invalidateCache()
-            AppLogger.shared.debug("🔔 [KeyboardViz] Cache invalidated, rebuilding mapping...")
+            AppLogger.shared.info("🔔 [KeyboardViz] Cache invalidated, now calling rebuildLayerMapping()")
             rebuildLayerMapping()
         }
     }
