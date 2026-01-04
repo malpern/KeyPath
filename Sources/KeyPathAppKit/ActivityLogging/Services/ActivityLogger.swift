@@ -29,7 +29,7 @@ public final class ActivityLogger: ObservableObject, KeyboardActivityObserver {
     private let flushInterval: TimeInterval = 30.0
 
     private var flushTimer: Timer?
-    private var workspaceObservers: [NSObjectProtocol] = []
+    private let workspaceObservers = NotificationObserverManager()
 
     // MARK: - Initialization
 
@@ -184,46 +184,40 @@ public final class ActivityLogger: ObservableObject, KeyboardActivityObserver {
 
     private func startObservers() {
         // Observe app activations (switches)
-        let activateObserver = NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.didActivateApplicationNotification,
-            object: nil,
-            queue: .main
+        workspaceObservers.observe(
+            NSWorkspace.didActivateApplicationNotification,
+            center: NSWorkspace.shared.notificationCenter
         ) { [weak self] notification in
             guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else {
                 return
             }
-            self?.recordAppSwitch(
-                bundleIdentifier: app.bundleIdentifier ?? "unknown",
-                appName: app.localizedName ?? "Unknown"
-            )
+            let bundleId = app.bundleIdentifier ?? "unknown"
+            let appName = app.localizedName ?? "Unknown"
+            Task { @MainActor [weak self] in
+                self?.recordAppSwitch(bundleIdentifier: bundleId, appName: appName)
+            }
         }
-        workspaceObservers.append(activateObserver)
 
         // Observe app launches
-        let launchObserver = NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.didLaunchApplicationNotification,
-            object: nil,
-            queue: .main
+        workspaceObservers.observe(
+            NSWorkspace.didLaunchApplicationNotification,
+            center: NSWorkspace.shared.notificationCenter
         ) { [weak self] notification in
             guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else {
                 return
             }
-            self?.recordAppLaunch(
-                bundleIdentifier: app.bundleIdentifier ?? "unknown",
-                appName: app.localizedName ?? "Unknown"
-            )
+            let bundleId = app.bundleIdentifier ?? "unknown"
+            let appName = app.localizedName ?? "Unknown"
+            Task { @MainActor [weak self] in
+                self?.recordAppLaunch(bundleIdentifier: bundleId, appName: appName)
+            }
         }
-        workspaceObservers.append(launchObserver)
 
         AppLogger.shared.log("📊 [ActivityLogger] Started workspace observers")
     }
 
     private func stopObservers() {
-        for observer in workspaceObservers {
-            NSWorkspace.shared.notificationCenter.removeObserver(observer)
-        }
         workspaceObservers.removeAll()
-
         AppLogger.shared.log("📊 [ActivityLogger] Stopped workspace observers")
     }
 

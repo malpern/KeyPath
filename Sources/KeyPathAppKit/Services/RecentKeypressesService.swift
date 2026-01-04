@@ -51,25 +51,16 @@ final class RecentKeypressesService: ObservableObject {
     /// Whether recording is enabled
     @Published var isRecording: Bool = true
 
-    private nonisolated(unsafe) var observers: [NSObjectProtocol] = []
+    private let observers = NotificationObserverManager()
 
     private init() {
         setupObservers()
     }
 
-    deinit {
-        observers.forEach { NotificationCenter.default.removeObserver($0) }
-    }
-
     private func setupObservers() {
         // Listen for key input events
-        let keyObserver = NotificationCenter.default.addObserver(
-            forName: .kanataKeyInput,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
+        observers.observe(.kanataKeyInput) { [weak self] notification in
             guard let self else { return }
-            // Extract data from notification before crossing actor boundary
             let userInfo = notification.userInfo
             let key = userInfo?["key"] as? String
             let action = userInfo?["action"] as? String
@@ -78,16 +69,10 @@ final class RecentKeypressesService: ObservableObject {
                 addEvent(key: key, action: action)
             }
         }
-        observers.append(keyObserver)
 
         // Listen for layer changes
-        let layerObserver = NotificationCenter.default.addObserver(
-            forName: .kanataLayerChanged,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
+        observers.observe(.kanataLayerChanged) { [weak self] notification in
             guard let self else { return }
-            // Extract data from notification before crossing actor boundary
             let userInfo = notification.userInfo
             let layerName = userInfo?["layerName"] as? String
             Task { @MainActor [weak self] in
@@ -95,7 +80,6 @@ final class RecentKeypressesService: ObservableObject {
                 currentLayer = layerName
             }
         }
-        observers.append(layerObserver)
     }
 
     private func addEvent(key: String, action: String) {

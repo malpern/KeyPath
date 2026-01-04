@@ -41,7 +41,7 @@ public final class AppContextService: ObservableObject {
 
     private var tcpClient: KanataTCPClient?
     private var cancellables = Set<AnyCancellable>()
-    private var workspaceObserver: NSObjectProtocol?
+    private let workspaceObservers = NotificationObserverManager()
 
     /// Cache of bundle ID → virtual key name mappings
     private var bundleToVKMapping: [String: String] = [:]
@@ -92,11 +92,8 @@ public final class AppContextService: ObservableObject {
 
         AppLogger.shared.log("🛑 [AppContextService] Stopping app context monitoring")
 
-        // Remove workspace observer
-        if let observer = workspaceObserver {
-            NSWorkspace.shared.notificationCenter.removeObserver(observer)
-            workspaceObserver = nil
-        }
+        // Remove workspace observers
+        workspaceObservers.removeAll()
 
         // Release current virtual key if any (await to ensure it completes)
         await releaseCurrentVirtualKey()
@@ -125,12 +122,9 @@ public final class AppContextService: ObservableObject {
     // MARK: - Private Methods
 
     private func setupWorkspaceObserver() {
-        let center = NSWorkspace.shared.notificationCenter
-
-        workspaceObserver = center.addObserver(
-            forName: NSWorkspace.didActivateApplicationNotification,
-            object: nil,
-            queue: .main
+        workspaceObservers.observe(
+            NSWorkspace.didActivateApplicationNotification,
+            center: NSWorkspace.shared.notificationCenter
         ) { [weak self] notification in
             guard let self else { return }
             guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else {
