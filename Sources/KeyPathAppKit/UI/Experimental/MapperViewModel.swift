@@ -432,7 +432,8 @@ class MapperViewModel: ObservableObject {
             outputSequence = nil
             AppLogger.shared.log("🗺️ [MapperViewModel] Preset output is URL: \(urlIdentifier)")
         } else if let systemActionIdentifier,
-                  let systemAction = SystemActionInfo.find(byOutput: systemActionIdentifier) {
+                  let systemAction = SystemActionInfo.find(byOutput: systemActionIdentifier)
+        {
             // It's a system action/media key - set selectedSystemAction for SF Symbol rendering
             selectedSystemAction = systemAction
             outputLabel = systemAction.name
@@ -465,61 +466,10 @@ class MapperViewModel: ObservableObject {
     }
 
     /// Format a kanata key name for display (e.g., "leftmeta" -> "⌘")
+    /// Uses the centralized KeyDisplayFormatter utility.
     private func formatKeyForDisplay(_ key: String) -> String {
-        // Log what we're trying to format for debugging
         AppLogger.shared.log("🔤 [MapperViewModel] formatKeyForDisplay input: '\(key)'")
-
-        let displayMap: [String: String] = [
-            "leftmeta": "⌘",
-            "rightmeta": "⌘",
-            "leftalt": "⌥",
-            "rightalt": "⌥",
-            "leftshift": "⇧",
-            "rightshift": "⇧",
-            "leftctrl": "⌃",
-            "rightctrl": "⌃",
-            "capslock": "⇪",
-            // Space key - use bottom bracket symbol to match input
-            "space": "⎵",
-            "spc": "⎵",
-            "sp": "⎵", // Convert SP abbreviation to match input symbol
-            "⎵": "⎵", // Pass through bottom bracket
-            "enter": "↩",
-            "tab": "tab",
-            "⭾": "tab", // Simulator returns U+2B7E for unmapped tab
-            "backspace": "⌫",
-            "esc": "⎋",
-            // Arrow keys - match overlay symbols exactly
-            "left": "←",
-            "right": "→",
-            "up": "↑",
-            "down": "↓",
-            "←": "←", // Pass through left arrow
-            "→": "→", // Pass through right arrow
-            "↑": "↑", // Pass through up arrow
-            "↓": "↓", // Pass through down arrow
-            "arrowleft": "←",
-            "arrowright": "→",
-            "arrowup": "↑",
-            "arrowdown": "↓",
-            "⬅": "←", // Black leftwards arrow
-            "➡": "→", // Black rightwards arrow
-            "⬆": "↑", // Black upwards arrow
-            "⬇": "↓", // Black downwards arrow
-            "⇦": "←", // Leftwards white arrow
-            "⇨": "→", // Rightwards white arrow
-            "⇩": "↓", // Downwards white arrow
-            // Function/Globe key - map all possible representations
-            "fn": "🌐",
-            "🌐": "🌐", // Globe symbol (pass through)
-            "function": "🌐",
-            "k4": "🌐", // Kanata internal representation
-            "64": "🌐", // Key code for fn key
-            "k4 64": "🌐", // Combined format
-            "k464": "🌐" // No-space format
-        ]
-
-        let result = displayMap[key.lowercased()] ?? key.uppercased()
+        let result = KeyDisplayFormatter.format(key)
         AppLogger.shared.log("🔤 [MapperViewModel] formatKeyForDisplay output: '\(result)'")
         return result
     }
@@ -918,7 +868,8 @@ class MapperViewModel: ObservableObject {
             let info = mapping.info
 
             if let appIdentifier = info.appLaunchIdentifier,
-               let appInfo = appLaunchInfo(for: appIdentifier) {
+               let appInfo = appLaunchInfo(for: appIdentifier)
+            {
                 selectedApp = appInfo
                 outputLabel = appInfo.name
                 outputSequence = nil
@@ -935,7 +886,8 @@ class MapperViewModel: ObservableObject {
                 originalSystemActionIdentifier = nil
                 AppLogger.shared.log("🔍 [MapperViewModel] Key \(keyCode) is URL: \(url)")
             } else if let systemId = info.systemActionIdentifier,
-                      let systemAction = SystemActionInfo.find(byOutput: systemId) ?? SystemActionInfo.find(byOutput: info.displayLabel) {
+                      let systemAction = SystemActionInfo.find(byOutput: systemId) ?? SystemActionInfo.find(byOutput: info.displayLabel)
+            {
                 selectedSystemAction = systemAction
                 outputLabel = systemAction.name
                 outputSequence = nil
@@ -1200,7 +1152,8 @@ class MapperViewModel: ObservableObject {
             )
 
             if let appIdentifier = originalAppIdentifier,
-               let appInfo = appLaunchInfo(for: appIdentifier) {
+               let appInfo = appLaunchInfo(for: appIdentifier)
+            {
                 selectedApp = appInfo
                 outputLabel = appInfo.name
                 outputSequence = nil
@@ -1209,7 +1162,8 @@ class MapperViewModel: ObservableObject {
                 outputLabel = extractDomain(from: url)
                 outputSequence = nil
             } else if let systemActionId = originalSystemActionIdentifier,
-                      let systemAction = SystemActionInfo.find(byOutput: systemActionId) {
+                      let systemAction = SystemActionInfo.find(byOutput: systemActionId)
+            {
                 selectedSystemAction = systemAction
                 outputLabel = systemAction.name
                 outputSequence = nil

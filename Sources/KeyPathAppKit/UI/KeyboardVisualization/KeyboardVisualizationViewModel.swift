@@ -271,61 +271,10 @@ class KeyboardVisualizationViewModel: ObservableObject {
         tapHoldIdleLabels = labels
     }
 
+    /// Get display label for tap-hold output.
+    /// Uses the centralized KeyDisplayFormatter utility.
     private static func tapHoldOutputDisplayLabel(_ output: String) -> String? {
-        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        let normalized = trimmed.lowercased()
-
-        // Handle multi-key outputs by treating them as modifier combos.
-        let parts = normalized
-            .split(whereSeparator: { $0 == " " || $0 == "+" })
-            .map(String.init)
-        if parts.count > 1 {
-            let partSet = Set(parts)
-            let hyperSet: Set<String> = ["lctl", "lmet", "lalt", "lsft"]
-            let mehSet: Set<String> = ["lctl", "lalt", "lsft"]
-            if partSet.isSuperset(of: hyperSet) { return "✦" }
-            if partSet.isSuperset(of: mehSet) { return "◆" }
-            let labels = parts.compactMap { singleKeyDisplayLabel($0) }
-            return labels.isEmpty ? nil : labels.joined()
-        }
-
-        return singleKeyDisplayLabel(normalized)
-    }
-
-    private static func singleKeyDisplayLabel(_ key: String) -> String? {
-        switch key {
-        case "hyper": "✦"
-        case "meh": "◆"
-        case "esc", "escape": "⎋"
-        case "caps", "capslock": "⇪"
-        case "bspc", "backspace": "⌫"
-        case "del", "delete": "⌦"
-        case "tab": "⇥"
-        case "ret", "enter", "return": "↩"
-        case "lctl", "rctl", "ctrl", "control": "⌃"
-        case "lalt", "ralt", "alt", "opt", "option": "⌥"
-        case "lmet", "rmet", "cmd", "command": "⌘"
-        case "lsft", "rsft", "shift": "⇧"
-        case "space", "spc", "sp": ""
-        case let key where key.count == 1 && key.first?.isLetter == true:
-            key.uppercased()
-        case let key where key.count == 1 && key.first?.isNumber == true:
-            key
-        case "grave", "grv": "`"
-        case "minus", "min": "-"
-        case "equal", "eql": "="
-        case "leftbrace", "lbrc": "["
-        case "rightbrace", "rbrc": "]"
-        case "backslash", "bksl": "\\"
-        case "semicolon", "scln": ";"
-        case "apostrophe", "apos": "'"
-        case "comma", "comm": ","
-        case "dot", ".": "."
-        case "slash", "/": "/"
-        default:
-            key.isEmpty ? nil : key
-        }
+        KeyDisplayFormatter.tapHoldLabel(for: output)
     }
 
     /// Pre-load all icons for launcher mode and layer-based app launches
