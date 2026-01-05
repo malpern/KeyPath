@@ -1,10 +1,7 @@
-import ApplicationServices
 import Foundation
-import IOKit.hidsystem
 import KeyPathCore
 import KeyPathDaemonLifecycle
 import Network
-import SwiftUI
 
 // KanataConfiguration struct and generation logic moved to KanataConfigurationGenerator.swift
 
@@ -111,8 +108,7 @@ public final class ConfigurationService: FileConfigurationProviding {
     }
 
     public func observe(_ onChange: @Sendable @escaping (Config) async -> Void)
-        -> ConfigurationObservationToken
-    {
+        -> ConfigurationObservationToken {
         var index = 0
         stateLock.lock()
         observers.append(onChange)
@@ -209,7 +205,13 @@ public final class ConfigurationService: FileConfigurationProviding {
         customRules: [CustomRule] = []
     ) async throws {
         // Custom rules come first so they take priority over preset collections
-        let allCollections = customRules.asRuleCollections() + ruleCollections
+        let customRuleCollections = customRules.asRuleCollections()
+        AppLogger.shared.log("🔧 [ConfigService] Converting \(customRules.count) custom rules to \(customRuleCollections.count) collections")
+        for (i, coll) in customRuleCollections.enumerated() {
+            let mappingStrs = coll.mappings.map { "'\($0.input)' → '\($0.output)'" }.joined(separator: ", ")
+            AppLogger.shared.log("🔧 [ConfigService]   Custom collection \(i): '\(coll.name)' (enabled: \(coll.isEnabled), layer: \(coll.targetLayer)) mappings: [\(mappingStrs)]")
+        }
+        let allCollections = customRuleCollections + ruleCollections
 
         // DETECT CONFLICTS BEFORE DEDUPLICATION
         // This catches cases where multiple collections map the same key
@@ -538,8 +540,7 @@ public final class ConfigurationService: FileConfigurationProviding {
     /// Backs up a failed config and applies safe default, returning backup path
     public func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping])
         async throws
-        -> String
-    {
+        -> String {
         AppLogger.shared.log("🛡️ [Config] Backing up failed config and applying safe default")
 
         // Create backup directory if it doesn't exist
@@ -590,8 +591,7 @@ public final class ConfigurationService: FileConfigurationProviding {
     /// Repair configuration using rule-based strategies (keeps output Kanata-compatible).
     public func repairConfiguration(config: String, errors: [String], mappings: [KeyMapping])
         async throws
-        -> String
-    {
+        -> String {
         AppLogger.shared.log("🔧 [Config] Performing rule-based repair for \(errors.count) errors")
 
         // Common repair strategies

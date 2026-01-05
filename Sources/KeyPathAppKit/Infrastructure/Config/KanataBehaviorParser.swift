@@ -82,8 +82,8 @@ public enum KanataBehaviorParser {
         // Expected: tapTimeout holdTimeout tapAction holdAction [keys]
         guard tokens.count >= 4 else { return nil }
 
-        guard let tapTimeout = Int(tokens[0]),
-              let holdTimeout = Int(tokens[1])
+        guard let tapTimeout = parseTimeout(tokens[0], slot: .tap),
+              let holdTimeout = parseTimeout(tokens[1], slot: .hold)
         else {
             return nil
         }
@@ -116,6 +116,29 @@ public enum KanataBehaviorParser {
             customTapKeys: customTapKeys
         )
     }
+
+    private enum TimeoutSlot {
+        case tap
+        case hold
+    }
+
+    private static func parseTimeout(_ token: String, slot: TimeoutSlot) -> Int? {
+        if let value = Int(token) {
+            return value
+        }
+
+        switch slot {
+        case .tap where token == "$tap-timeout":
+            return defaultTapTimeout
+        case .hold where token == "$hold-timeout":
+            return defaultHoldTimeout
+        default:
+            return nil
+        }
+    }
+
+    private static let defaultTapTimeout = 200
+    private static let defaultHoldTimeout = 200
 
     // MARK: - Tap-Dance Parsing
 

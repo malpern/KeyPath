@@ -13,6 +13,8 @@ struct OverlayMapperSection: View {
     var fadeAmount: CGFloat = 0
     /// Callback when a key is selected (to highlight on keyboard)
     var onKeySelected: ((UInt16?) -> Void)?
+    /// Layer key map for looking up actual mappings (passed from overlay view)
+    var layerKeyMap: [UInt16: LayerKeyInfo] = [:]
 
     @StateObject private var viewModel = MapperViewModel()
     @State private var isLayerPickerOpen = false
@@ -37,9 +39,23 @@ struct OverlayMapperSection: View {
             guard !shouldShowHealthGate, let kanataViewModel else { return }
             viewModel.configure(kanataManager: kanataViewModel.underlyingManager)
             viewModel.setLayer(kanataViewModel.currentLayerName)
-            // Initialize the default A→A mapping with proper inputSequence
-            // keyCode 0 = 'A' key on macOS
-            viewModel.setInputFromKeyClick(keyCode: 0, inputLabel: "a", outputLabel: "a")
+            // Initialize with actual mapping for A key (keyCode 0)
+            // Look up from layerKeyMap to get current remapping, if any
+            let defaultKeyCode: UInt16 = 0 // 'A' key on macOS
+            let layerInfo = layerKeyMap[defaultKeyCode]
+            let inputLabel = "a"
+            let outputLabel = layerInfo?.displayLabel.lowercased() ?? "a"
+            let appId = layerInfo?.appLaunchIdentifier
+            let systemId = layerInfo?.systemActionIdentifier
+            let urlId = layerInfo?.urlIdentifier
+            viewModel.setInputFromKeyClick(
+                keyCode: defaultKeyCode,
+                inputLabel: inputLabel,
+                outputLabel: outputLabel,
+                appIdentifier: appId,
+                systemActionIdentifier: systemId,
+                urlIdentifier: urlId
+            )
             // Notify parent to highlight the A key
             onKeySelected?(viewModel.inputKeyCode)
             // Pre-load running apps for instant popover display
@@ -63,8 +79,20 @@ struct OverlayMapperSection: View {
                   let outputKey = notification.userInfo?["outputKey"] as? String
             else { return }
 
+            // Extract optional action identifiers
+            let appId = notification.userInfo?["appIdentifier"] as? String
+            let systemId = notification.userInfo?["systemActionIdentifier"] as? String
+            let urlId = notification.userInfo?["urlIdentifier"] as? String
+
             // Update the mapper's input to the clicked key
-            viewModel.setInputFromKeyClick(keyCode: keyCode, inputLabel: inputKey, outputLabel: outputKey)
+            viewModel.setInputFromKeyClick(
+                keyCode: keyCode,
+                inputLabel: inputKey,
+                outputLabel: outputKey,
+                appIdentifier: appId,
+                systemActionIdentifier: systemId,
+                urlIdentifier: urlId
+            )
         }
         // Auto-save when output recording finishes and there's a valid mapping
         .onChange(of: viewModel.isRecordingOutput) { wasRecording, isRecording in
@@ -268,16 +296,15 @@ struct OverlayMapperSection: View {
             }
             .font(.caption2)
             .foregroundStyle(hasCondition ? .primary : .secondary)
-            .opacity(hasCondition ? 1.0 : 0.6)
             .padding(.horizontal, 6)
             .padding(.vertical, 3)
             .background(
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(hasCondition ? Color.accentColor.opacity(0.15) : Color.clear)
+                    .fill(hasCondition ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.04))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 4)
-                    .strokeBorder(hasCondition ? Color.accentColor.opacity(0.3) : Color.primary.opacity(0.15), lineWidth: 0.5)
+                    .strokeBorder(hasCondition ? Color.accentColor.opacity(0.3) : Color.primary.opacity(0.2), lineWidth: 0.5)
             )
         }
         .buttonStyle(.plain)
@@ -511,16 +538,15 @@ struct OverlayMapperSection: View {
             }
             .font(.caption2)
             .foregroundStyle(hasAction ? .primary : .secondary)
-            .opacity(hasAction ? 1.0 : 0.6)
             .padding(.horizontal, 6)
             .padding(.vertical, 3)
             .background(
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(hasAction ? Color.accentColor.opacity(0.15) : Color.clear)
+                    .fill(hasAction ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.04))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 4)
-                    .strokeBorder(hasAction ? Color.accentColor.opacity(0.3) : Color.primary.opacity(0.15), lineWidth: 0.5)
+                    .strokeBorder(hasAction ? Color.accentColor.opacity(0.3) : Color.primary.opacity(0.2), lineWidth: 0.5)
             )
         }
         .buttonStyle(.plain)
@@ -658,8 +684,8 @@ struct OverlayMapperSection: View {
     private func systemActionButton(_ action: SystemActionInfo) -> some View {
         let isSelected = viewModel.selectedSystemAction?.id == action.id
         Button {
-            viewModel.selectedSystemAction = action
-            viewModel.outputLabel = action.name
+            // Use the proper method which handles auto-save
+            viewModel.selectSystemAction(action)
             isSystemActionPickerOpen = false
         } label: {
             VStack(spacing: 4) {

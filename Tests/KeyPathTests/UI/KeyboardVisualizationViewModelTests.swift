@@ -100,6 +100,29 @@ final class KeyboardVisualizationViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.holdLabels[57])
     }
 
+    func testTcpFallbackActivatesOnCGEventWithoutTcp() async {
+        let viewModel = KeyboardVisualizationViewModel()
+
+        viewModel.simulateFlagsChanged(flags: [.maskCommand], keyCode: 55)
+        await Task.yield()
+        await Task.yield()
+
+        XCTAssertTrue(viewModel.isTcpFallbackActive)
+    }
+
+    func testTcpFallbackClearsWhenTcpInputArrives() async {
+        let viewModel = KeyboardVisualizationViewModel()
+
+        viewModel.simulateFlagsChanged(flags: [.maskCommand], keyCode: 55)
+        await Task.yield()
+        await Task.yield()
+
+        viewModel.simulateTcpKeyInput(key: "a", action: "press")
+        await Task.yield()
+
+        XCTAssertFalse(viewModel.isTcpFallbackActive)
+    }
+
     // MARK: - Push-Msg Extraction Tests
 
     func testExtractPushMsgInfoLaunch() {

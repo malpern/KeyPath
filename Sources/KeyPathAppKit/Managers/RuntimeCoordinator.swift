@@ -458,9 +458,8 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         ruleCollectionsManager.onConflictResolution = { [weak self] context in
             await self?.promptForConflictResolution(context)
         }
-        ruleCollectionsManager.onActionURI = { actionURI in
-            ActionDispatcher.shared.dispatch(actionURI)
-        }
+        // Note: onActionURI callback not needed - RuleCollectionsManager.handleActionURI()
+        // already dispatches to ActionDispatcher. Setting this would cause double dispatch.
         ruleCollectionsManager.onBeforeSave = { [weak self] in
             // Suppress file watcher to prevent double-reload when we save internally
             self?.configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal rule change")
@@ -891,6 +890,11 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
     /// This prevents duplicate keys in the generated Kanata config.
     func makeCustomRule(input: String, output: String) -> CustomRule {
         ruleCollectionsCoordinator.makeCustomRule(input: input, output: output)
+    }
+
+    /// Get existing custom rule for the given input key, if any
+    func getCustomRule(forInput input: String) -> CustomRule? {
+        ruleCollectionsCoordinator.getCustomRule(forInput: input)
     }
 
     func saveConfiguration(input: String, output: String) async throws {

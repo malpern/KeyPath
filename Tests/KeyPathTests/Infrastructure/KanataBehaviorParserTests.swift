@@ -248,7 +248,7 @@ struct KanataBehaviorParserTests {
         let rendered = KanataBehaviorRenderer.render(mapping)
 
         // Verify it expanded
-        #expect(rendered == "(tap-hold 200 200 esc (multi lctl lmet lalt lsft))")
+        #expect(rendered == "(tap-hold $tap-timeout $hold-timeout esc (multi lctl lmet lalt lsft))")
 
         // Parse it back
         let parsed = KanataBehaviorParser.parse(rendered)

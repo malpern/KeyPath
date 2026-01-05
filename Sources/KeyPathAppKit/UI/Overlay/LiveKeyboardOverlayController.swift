@@ -701,15 +701,26 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             viewModel.selectedKeyCode = key.keyCode
 
             // Post notification for mapper drawer to update its input
+            var userInfo: [String: Any] = [
+                "keyCode": key.keyCode,
+                "inputKey": inputKey,
+                "outputKey": outputKey,
+                "layer": currentLayer
+            ]
+            // Include action identifiers if present
+            if let appId = layerInfo?.appLaunchIdentifier {
+                userInfo["appIdentifier"] = appId
+            }
+            if let systemId = layerInfo?.systemActionIdentifier {
+                userInfo["systemActionIdentifier"] = systemId
+            }
+            if let urlId = layerInfo?.urlIdentifier {
+                userInfo["urlIdentifier"] = urlId
+            }
             NotificationCenter.default.post(
                 name: .mapperDrawerKeySelected,
                 object: nil,
-                userInfo: [
-                    "keyCode": key.keyCode,
-                    "inputKey": inputKey,
-                    "outputKey": outputKey,
-                    "layer": currentLayer
-                ]
+                userInfo: userInfo
             )
             return
         }

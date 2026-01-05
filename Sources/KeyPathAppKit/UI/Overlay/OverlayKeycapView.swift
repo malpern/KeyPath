@@ -105,6 +105,14 @@ struct OverlayKeycapView: View {
         // If there's a nav overlay symbol, render it (arrow only, letter handled by floating label)
         if navOverlaySymbol != nil { return true }
 
+        // If key is remapped to a different output, render the label directly
+        // (floating labels only exist for base layout characters like A-Z, not for mapped outputs)
+        if let info = layerKeyInfo,
+           !info.displayLabel.isEmpty,
+           info.displayLabel.uppercased() != baseLabel.uppercased() {
+            return true
+        }
+
         // Otherwise, content is Color.clear (floating labels handle it)
         return false
     }
@@ -861,10 +869,17 @@ struct OverlayKeycapView: View {
                     .font(.system(size: 16 * scale, weight: .semibold))
                     .foregroundStyle(Color.white.opacity(0.9))
             } else if !info.displayLabel.isEmpty {
-                // Other mapped action - show the label
-                Text(info.displayLabel.uppercased())
-                    .font(.system(size: 10 * scale, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(0.9))
+                // Check for SF symbol (media keys, system actions)
+                if let sfSymbol = LabelMetadata.sfSymbol(forOutputLabel: info.displayLabel) {
+                    Image(systemName: sfSymbol)
+                        .font(.system(size: 14 * scale, weight: .medium))
+                        .foregroundStyle(Color.white.opacity(0.9))
+                } else {
+                    // Other mapped action - show the label as text
+                    Text(info.displayLabel.uppercased())
+                        .font(.system(size: 10 * scale, weight: .medium))
+                        .foregroundStyle(Color.white.opacity(0.9))
+                }
             }
         }
     }
@@ -1167,12 +1182,19 @@ struct OverlayKeycapView: View {
         nil
     }
 
+    /// Whether this key is remapped to a different output (displayLabel != baseLabel)
+    private var isRemappedKey: Bool {
+        guard let info = layerKeyInfo else { return false }
+        return !info.displayLabel.isEmpty && info.displayLabel.uppercased() != baseLabel.uppercased()
+    }
+
     @ViewBuilder
     private var centeredContent: some View {
         // When floating labels are enabled, they handle standard alpha/numeric content
         // (letters, numbers, punctuation with shift symbols).
         // Special keys (Home, PgUp, Del, Space, etc.) always render their own labels.
-        if useFloatingLabels, !hasSpecialLabel {
+        // EXCEPTION: Remapped keys must render their mapped label directly (no floating label exists for mapped output)
+        if useFloatingLabels, !hasSpecialLabel, !isRemappedKey {
             if let navSymbol = navOverlaySymbol {
                 // Layer mapping shows arrow - display arrow only, floating label shows base letter
                 navOverlayArrowOnly(arrow: navSymbol)
@@ -1206,6 +1228,12 @@ struct OverlayKeycapView: View {
                 // Note: This path is only reached when useFloatingLabels is false OR hasSpecialLabel is true
                 // When useFloatingLabels is true, floating labels handle dual symbols
                 dualSymbolContent(main: effectiveLabel, shift: shiftSymbol)
+            } else if let sfSymbol = LabelMetadata.sfSymbol(forOutputLabel: effectiveLabel) {
+                // Media key / system action mapped to this key - show SF Symbol
+                Image(systemName: sfSymbol)
+                    .font(.system(size: 14 * scale, weight: .medium))
+                    .foregroundStyle(foregroundColor)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 // For special keys, prefer key.label if effectiveLabel is empty
                 // Numpad keys just show their number/symbol centered

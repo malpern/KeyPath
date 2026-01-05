@@ -1,10 +1,7 @@
-import ApplicationServices
 import Foundation
-import IOKit.hidsystem
 import KeyPathCore
 import KeyPathDaemonLifecycle
 import Network
-import SwiftUI
 
 // MARK: - Kanata Configuration Model
 
@@ -354,8 +351,7 @@ public struct KanataConfiguration: Sendable {
     // Note: renderDisabledCollections removed - disabled collections not written to config (ADR-025)
 
     private static func metadataLines(for collection: RuleCollection, indent: String, status: String)
-        -> [String]
-    {
+        -> [String] {
         [
             "\(indent);; === Collection: \(collection.name) (\(status)) ===",
             "\(indent);; UUID: \(collection.id.uuidString)",
@@ -610,8 +606,7 @@ public struct KanataConfiguration: Sendable {
 
             // For Vim collection: optionally block unmapped keys in navigation layer
             if collection.id == RuleCollectionIdentifier.vimNavigation,
-               collection.targetLayer != .base
-            {
+               collection.targetLayer != .base {
                 let mappedKeys = layerMappedKeys[collection.targetLayer] ?? Set(entries.map(\.sourceKey))
                 let activatorKey = collection.momentaryActivator.map { KanataKeyConverter.convertToKanataKey($0.input) } ?? ""
                 // Read user's selected physical layout from UserDefaults

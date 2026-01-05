@@ -358,9 +358,10 @@ public final class ActionDispatcher {
 
         switch action.lowercased() {
         case "mission-control", "missioncontrol", "expose":
-            // Mission Control - open the app
+            // Mission Control - open the expose launcher app
             let workspace = NSWorkspace.shared
             if let appURL = workspace.urlForApplication(withBundleIdentifier: "com.apple.exposelauncher") {
+                AppLogger.shared.log("🚀 [ActionDispatcher] Launching Mission Control via exposelauncher")
                 workspace.openApplication(at: appURL, configuration: NSWorkspace.OpenConfiguration()) { _, error in
                     if let error {
                         AppLogger.shared.log("⚠️ [ActionDispatcher] Mission Control failed: \(error)")
@@ -421,16 +422,44 @@ public final class ActionDispatcher {
             return .failed("system", NSError(domain: "ActionDispatcher", code: 3))
 
         case "notification-center", "notificationcenter", "notifications":
-            // Notification Center - click the clock/date in menu bar
-            let script = """
-            tell application "System Events"
-                tell process "Control Center"
-                    click menu bar item "Clock" of menu bar 1
-                end tell
-            end tell
-            """
-            runAppleScript(script)
-            return .success
+            // Notification Center - click the date/time area in menu bar (rightmost)
+            // Save mouse position, reveal menu bar if hidden, click, restore position
+            if let mainScreen = NSScreen.main {
+                let screenFrame = mainScreen.frame
+                let clickX = screenFrame.maxX - 50 // 50px from right edge
+
+                // Save original mouse position
+                let originalPosition = NSEvent.mouseLocation
+                // Convert from bottom-left origin (AppKit) to top-left origin (CGEvent)
+                let originalCGPoint = CGPoint(x: originalPosition.x, y: screenFrame.height - originalPosition.y)
+
+                // First, move mouse to top of screen to reveal hidden menu bar
+                let topPoint = CGPoint(x: clickX, y: 0)
+                if let moveEvent = CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: topPoint, mouseButton: .left) {
+                    moveEvent.post(tap: .cghidEventTap)
+                }
+
+                // Wait briefly for menu bar to appear, click, then restore position
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    let clickPoint = CGPoint(x: clickX, y: 12) // Menu bar height
+                    if let mouseDown = CGEvent(mouseEventSource: nil, mouseType: .leftMouseDown, mouseCursorPosition: clickPoint, mouseButton: .left),
+                       let mouseUp = CGEvent(mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: clickPoint, mouseButton: .left) {
+                        mouseDown.post(tap: .cghidEventTap)
+                        mouseUp.post(tap: .cghidEventTap)
+
+                        // Restore original mouse position after click registers
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            if let restoreEvent = CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: originalCGPoint, mouseButton: .left) {
+                                restoreEvent.post(tap: .cghidEventTap)
+                            }
+                        }
+                        AppLogger.shared.log("🔔 [ActionDispatcher] Notification Center triggered, mouse restored")
+                    }
+                }
+                return .success
+            }
+            onError?("Could not click Notification Center")
+            return .failed("system", NSError(domain: "ActionDispatcher", code: 3))
 
         case "siri":
             // Siri - use the Siri app or hold Option+Space

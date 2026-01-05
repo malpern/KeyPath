@@ -33,7 +33,7 @@ struct KanataBehaviorRendererTests {
             ))
         )
         let result = KanataBehaviorRenderer.render(mapping)
-        #expect(result == "(tap-hold 200 200 a lctl)")
+        #expect(result == "(tap-hold $tap-timeout $hold-timeout a lctl)")
     }
 
     @Test("tap-hold with custom timeouts")
@@ -64,7 +64,7 @@ struct KanataBehaviorRendererTests {
             ))
         )
         let result = KanataBehaviorRenderer.render(mapping)
-        #expect(result == "(tap-hold-press 200 200 f lmet)")
+        #expect(result == "(tap-hold-press $tap-timeout $hold-timeout f lmet)")
     }
 
     @Test("tap-hold-release variant when quickTap is true")
@@ -79,7 +79,7 @@ struct KanataBehaviorRendererTests {
             ))
         )
         let result = KanataBehaviorRenderer.render(mapping)
-        #expect(result == "(tap-hold-release 200 200 j rsft)")
+        #expect(result == "(tap-hold-release $tap-timeout $hold-timeout j rsft)")
     }
 
     @Test("Home row mod factory produces tap-hold-press")
@@ -91,7 +91,7 @@ struct KanataBehaviorRendererTests {
         )
         let result = KanataBehaviorRenderer.render(mapping)
         // homeRowMod sets activateHoldOnOtherKey=true, so tap-hold-press
-        #expect(result == "(tap-hold-press 200 200 d lsft)")
+        #expect(result == "(tap-hold-press $tap-timeout $hold-timeout d lsft)")
     }
 
     @Test("Both flags set: activateHoldOnOtherKey takes precedence")
@@ -108,7 +108,7 @@ struct KanataBehaviorRendererTests {
         )
         let result = KanataBehaviorRenderer.render(mapping)
         // activateHoldOnOtherKey takes precedence over quickTap
-        #expect(result == "(tap-hold-press 200 200 a lctl)")
+        #expect(result == "(tap-hold-press $tap-timeout $hold-timeout a lctl)")
     }
 
     @Test("Custom tap keys renders tap-hold-release-keys")
@@ -123,7 +123,7 @@ struct KanataBehaviorRendererTests {
             ))
         )
         let result = KanataBehaviorRenderer.render(mapping)
-        #expect(result == "(tap-hold-release-keys 200 200 a lctl (s d f))")
+        #expect(result == "(tap-hold-release-keys $tap-timeout $hold-timeout a lctl (s d f))")
     }
 
     @Test("Custom tap keys with flags: flags take precedence")
@@ -140,7 +140,7 @@ struct KanataBehaviorRendererTests {
         )
         let result = KanataBehaviorRenderer.render(mapping)
         // activateHoldOnOtherKey takes precedence over customTapKeys
-        #expect(result == "(tap-hold-press 200 200 a lctl)")
+        #expect(result == "(tap-hold-press $tap-timeout $hold-timeout a lctl)")
     }
 
     // MARK: - Tap Dance
@@ -202,7 +202,7 @@ struct KanataBehaviorRendererTests {
         )
         let result = KanataBehaviorRenderer.render(mapping)
         // "escape" -> "esc", "command" -> "lmet"
-        #expect(result == "(tap-hold 200 200 esc lmet)")
+        #expect(result == "(tap-hold $tap-timeout $hold-timeout esc lmet)")
     }
 
     // MARK: - Integration: CustomRule → KeyMapping → Kanata
@@ -219,7 +219,7 @@ struct KanataBehaviorRendererTests {
         let mapping = rule.asKeyMapping()
         let result = KanataBehaviorRenderer.render(mapping)
 
-        #expect(result == "(tap-hold-press 200 200 a lctl)")
+        #expect(result == "(tap-hold-press $tap-timeout $hold-timeout a lctl)")
     }
 
     @Test("CustomRule with tapDance behavior renders correctly")
@@ -263,7 +263,7 @@ struct KanataBehaviorRendererTests {
             ))
         )
         let result = KanataBehaviorRenderer.render(mapping)
-        #expect(result == "(tap-hold 200 200 esc (multi lctl lmet lalt lsft))")
+        #expect(result == "(tap-hold $tap-timeout $hold-timeout esc (multi lctl lmet lalt lsft))")
     }
 
     @Test("Meh keyword expands to multi modifier without Cmd")
@@ -277,7 +277,7 @@ struct KanataBehaviorRendererTests {
             ))
         )
         let result = KanataBehaviorRenderer.render(mapping)
-        #expect(result == "(tap-hold 200 200 esc (multi lctl lalt lsft))")
+        #expect(result == "(tap-hold $tap-timeout $hold-timeout esc (multi lctl lalt lsft))")
     }
 
     @Test("Hyper keyword is case insensitive")
@@ -291,7 +291,7 @@ struct KanataBehaviorRendererTests {
             ))
         )
         let result = KanataBehaviorRenderer.render(mapping)
-        #expect(result == "(tap-hold 200 200 esc (multi lctl lmet lalt lsft))")
+        #expect(result == "(tap-hold $tap-timeout $hold-timeout esc (multi lctl lmet lalt lsft))")
     }
 
     // MARK: - Multi-key Actions
@@ -307,7 +307,7 @@ struct KanataBehaviorRendererTests {
             ))
         )
         let result = KanataBehaviorRenderer.render(mapping)
-        #expect(result == "(tap-hold 200 200 a (multi lctl lmet))")
+        #expect(result == "(tap-hold $tap-timeout $hold-timeout a (multi lctl lmet))")
     }
 
     @Test("Multi-key tap action in tap-dance")

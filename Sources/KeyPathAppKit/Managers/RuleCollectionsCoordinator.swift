@@ -166,6 +166,11 @@ final class RuleCollectionsCoordinator {
         ruleCollectionsManager.makeCustomRule(input: input, output: output)
     }
 
+    /// Get existing custom rule for the given input key, if any
+    func getCustomRule(forInput input: String) -> CustomRule? {
+        ruleCollectionsManager.getCustomRule(forInput: input)
+    }
+
     // MARK: - Read-Only Access
 
     /// Get enabled mappings from all collections

@@ -86,7 +86,11 @@ struct LiveKeyboardOverlayView: View {
                 hasher.combine(info.outputKey)
             }
         }
-        return hasher.finalize()
+        let hash = hasher.finalize()
+        // Debug: Log hash calculation (INFO level to see in normal logs)
+        let keyCode0Label = viewModel.layerKeyMap[0]?.displayLabel ?? "nil"
+        AppLogger.shared.info("🔢 [OverlayView] layerKeyMapHash computed: \(hash), keyCode0='\(keyCode0Label)', count=\(viewModel.layerKeyMap.count)")
+        return hash
     }
 
     var body: some View {
@@ -128,6 +132,7 @@ struct LiveKeyboardOverlayView: View {
                     inputModeIndicator: inputSourceDetector.modeIndicator,
                     currentLayerName: viewModel.currentLayerName,
                     isLauncherMode: viewModel.isLauncherModeActive || (uiState.isInspectorOpen && inspectorSection == .launchers),
+                    isTcpFallbackActive: viewModel.isTcpFallbackActive,
                     healthIndicatorState: uiState.healthIndicatorState,
                     drawerButtonHighlighted: uiState.drawerButtonHighlighted,
                     onClose: { onClose?() },
@@ -476,7 +481,8 @@ extension LiveKeyboardOverlayView {
                 onKeymapChanged: onKeymapChanged,
                 isKeycapsEnabled: viewModel.isKeycapColorwayEnabled,
                 isSoundsEnabled: viewModel.isTypingSoundsEnabled,
-                onKeySelected: onKeySelected
+                onKeySelected: onKeySelected,
+                layerKeyMap: viewModel.layerKeyMap
             )
             .frame(width: inspectorTotalWidth, alignment: .trailing)
         )
@@ -498,6 +504,8 @@ private struct OverlayDragHeader: View {
     let currentLayerName: String
     /// Whether launcher mode is active (drawer open with Quick Launch selected)
     let isLauncherMode: Bool
+    /// Whether overlay is in TCP fallback mode (CGEvent-only input)
+    let isTcpFallbackActive: Bool
     /// Current system health indicator state
     let healthIndicatorState: HealthIndicatorState
     /// Whether the drawer button should be visually highlighted (hotkey feedback)
@@ -636,6 +644,10 @@ private struct OverlayDragHeader: View {
                 )
             } else {
                 HStack(spacing: 6) {
+                    if isTcpFallbackActive {
+                        tcpFallbackPill(indicatorCornerRadius: indicatorCornerRadius)
+                    }
+
                     if let inputModeIndicator {
                         inputModePill(
                             indicator: inputModeIndicator,
@@ -696,6 +708,25 @@ private struct OverlayDragHeader: View {
         .help("Current layer: \(layerDisplayName)")
         .accessibilityIdentifier("overlay-layer-indicator")
         .accessibilityLabel("Current layer: \(layerDisplayName)")
+    }
+
+    private func tcpFallbackPill(indicatorCornerRadius: CGFloat) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 9, weight: .medium))
+            Text("TCP Fallback")
+                .font(.system(size: 10, weight: .semibold))
+        }
+        .foregroundStyle(headerIconColor)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(
+            RoundedRectangle(cornerRadius: indicatorCornerRadius)
+                .fill(Color.white.opacity(isDark ? 0.1 : 0.15))
+        )
+        .help("Overlay is using CGEvent fallback input")
+        .accessibilityIdentifier("overlay-tcp-fallback-indicator")
+        .accessibilityLabel("Overlay is using CGEvent fallback input")
     }
 
     private func moveWindow(deltaX: CGFloat, deltaY: CGFloat) {
@@ -965,6 +996,8 @@ struct OverlayInspectorPanel: View {
     var isSoundsEnabled: Bool = false
     /// Callback when a key is selected in the mapper drawer (keyCode or nil to clear)
     var onKeySelected: ((UInt16?) -> Void)?
+    /// Layer key map for looking up actual mappings (passed from parent view)
+    var layerKeyMap: [UInt16: LayerKeyInfo] = [:]
 
     @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
     @AppStorage(KeymapPreferences.includePunctuationStoreKey) private var includePunctuationStore: String = "{}"
@@ -1148,7 +1181,8 @@ struct OverlayInspectorPanel: View {
                 healthIndicatorState: healthIndicatorState,
                 onHealthTap: onHealthTap,
                 fadeAmount: fadeAmount,
-                onKeySelected: onKeySelected
+                onKeySelected: onKeySelected,
+                layerKeyMap: layerKeyMap
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else if healthIndicatorState == .checking {
@@ -1158,7 +1192,8 @@ struct OverlayInspectorPanel: View {
                 healthIndicatorState: healthIndicatorState,
                 onHealthTap: onHealthTap,
                 fadeAmount: fadeAmount,
-                onKeySelected: onKeySelected
+                onKeySelected: onKeySelected,
+                layerKeyMap: layerKeyMap
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else if isMapperAvailable {
@@ -1168,7 +1203,8 @@ struct OverlayInspectorPanel: View {
                 healthIndicatorState: healthIndicatorState,
                 onHealthTap: onHealthTap,
                 fadeAmount: fadeAmount,
-                onKeySelected: onKeySelected
+                onKeySelected: onKeySelected,
+                layerKeyMap: layerKeyMap
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else {

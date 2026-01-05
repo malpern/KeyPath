@@ -59,6 +59,7 @@ extension FeatureFlags {
     private static let simulatorAndVirtualKeysEnabledKey = "SIMULATOR_AND_VIRTUAL_KEYS_ENABLED"
     private static let useJustInTimePermissionRequestsKey = "USE_JIT_PERMISSION_REQUESTS"
     private static let allowOptionalWizardKey = "ALLOW_OPTIONAL_WIZARD"
+    private static let keyboardSuppressionDebugEnabledKey = "KEYBOARD_SUPPRESSION_DEBUG_ENABLED"
 
     // MARK: - Active Feature Flags
 
@@ -99,6 +100,18 @@ extension FeatureFlags {
 
     static func setSimulatorAndVirtualKeysEnabled(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: simulatorAndVirtualKeysEnabledKey)
+    }
+
+    /// Verbose logging for keyboard suppression decisions (default OFF).
+    static var keyboardSuppressionDebugEnabled: Bool {
+        if UserDefaults.standard.object(forKey: keyboardSuppressionDebugEnabledKey) == nil {
+            return false
+        }
+        return UserDefaults.standard.bool(forKey: keyboardSuppressionDebugEnabledKey)
+    }
+
+    static func setKeyboardSuppressionDebugEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: keyboardSuppressionDebugEnabledKey)
     }
 
     // MARK: - Future Implementation (not yet built)
