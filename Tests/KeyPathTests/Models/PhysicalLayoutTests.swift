@@ -176,7 +176,7 @@ struct PhysicalLayoutTests {
     @Test func findCornixLayout() {
         let layout = PhysicalLayout.find(id: "cornix")
         #expect(layout != nil, "Should find Cornix layout")
-        #expect(layout?.name == "Cornix")
+        #expect(layout?.name == "Cornix LP Split Wireless")
     }
 
     @Test func ansi40LayoutHasKeys() {
