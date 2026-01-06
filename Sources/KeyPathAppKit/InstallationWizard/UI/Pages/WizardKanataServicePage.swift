@@ -282,7 +282,13 @@ struct WizardKanataServicePage: View {
         case .stopped:
             derivedStatus = .stopped
         case let .failed(reason):
-            derivedStatus = .failed(error: reason)
+            // Try to get more detailed config error from stderr log
+            let stderrPath = "/var/log/com.keypath.kanata.stderr.log"
+            if let configError = extractConfigError(from: stderrPath) {
+                derivedStatus = .failed(error: configError)
+            } else {
+                derivedStatus = .failed(error: reason)
+            }
         case .maintenance:
             derivedStatus = .starting
         case .requiresApproval:
@@ -321,7 +327,14 @@ struct WizardKanataServicePage: View {
     }
 
     private func checkForCrash() {
-        // Check log file for recent error indicators
+        // First check stderr log for config parsing errors (more detailed)
+        let stderrPath = "/var/log/com.keypath.kanata.stderr.log"
+        if let configError = extractConfigError(from: stderrPath) {
+            serviceStatus = .failed(error: configError)
+            return
+        }
+
+        // Fall back to stdout log for other errors
         let logPath = WizardSystemPaths.kanataLogFile
 
         if let logData = try? String(contentsOfFile: logPath, encoding: .utf8) {
@@ -338,6 +351,76 @@ struct WizardKanataServicePage: View {
 
         // No error detected, just not running
         serviceStatus = .stopped
+    }
+
+    /// Extract config parsing error from kanata stderr log
+    /// Returns a user-friendly error message if a recent config error is found
+    private func extractConfigError(from stderrPath: String) -> String? {
+        guard let logData = try? String(contentsOfFile: stderrPath, encoding: .utf8) else {
+            return nil
+        }
+
+        let lines = logData.components(separatedBy: .newlines)
+        let recentLines = Array(lines.suffix(100)) // Check last 100 lines for config errors
+
+        // Look for config error patterns
+        var foundConfigError = false
+        var errorFile: String?
+        var errorLine: String?
+        var helpMessage: String?
+
+        for line in recentLines.reversed() {
+            // Check for "Error in configuration" marker
+            if line.contains("Error in configuration") {
+                foundConfigError = true
+            }
+
+            // Extract file and line info: ╭─[keypath-apps.kbd:14:1]
+            if foundConfigError, errorFile == nil,
+               let match = line.range(of: #"\[([^\]]+\.kbd):(\d+)"#, options: .regularExpression) {
+                let matchStr = String(line[match])
+                // Extract filename and line number
+                let parts = matchStr.dropFirst().dropLast().split(separator: ":")
+                if parts.count >= 2 {
+                    errorFile = String(parts[0])
+                    errorLine = String(parts[1])
+                }
+            }
+
+            // Extract the help message which contains the actual error
+            if foundConfigError, helpMessage == nil, line.contains("help:") {
+                if let helpRange = line.range(of: "help:") {
+                    helpMessage = String(line[helpRange.upperBound...]).trimmingCharacters(in: .whitespaces)
+                }
+            }
+
+            // Extract "failed to parse file" as fallback
+            if line.contains("failed to parse file") {
+                foundConfigError = true
+            }
+
+            // If we have all the info we need, build the message
+            if foundConfigError, helpMessage != nil {
+                break
+            }
+        }
+
+        // Build user-friendly message
+        if foundConfigError {
+            var message = "Config error"
+            if let file = errorFile {
+                message += " in \(file)"
+                if let lineNum = errorLine {
+                    message += " line \(lineNum)"
+                }
+            }
+            if let help = helpMessage {
+                message += ": \(help)"
+            }
+            return message
+        }
+
+        return nil
     }
 
     private func navigateToNextStep() {
