@@ -50,6 +50,9 @@ struct SimulatorView: View {
             .onAppear {
                 isKeyboardFocused = true
                 viewModel.startKeyMonitoring()
+                Task {
+                    await viewModel.loadAvailableApps()
+                }
             }
             .onDisappear {
                 viewModel.stopKeyMonitoring()
@@ -73,6 +76,9 @@ struct SimulatorView: View {
 
                 Spacer()
 
+                // App context picker
+                appContextPicker
+
                 // Delay stepper
                 delayControl
             }
@@ -94,6 +100,25 @@ struct SimulatorView: View {
             .padding(.bottom, 8)
         }
         .background(Color(NSColor.controlBackgroundColor))
+    }
+
+    private var appContextPicker: some View {
+        HStack(spacing: 4) {
+            Text("Simulate as:")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            Picker("", selection: $viewModel.selectedAppBundleId) {
+                Text("Any App").tag(nil as String?)
+                ForEach(viewModel.availableApps, id: \.bundleId) { app in
+                    Text(app.displayName).tag(app.bundleId as String?)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 120)
+            .accessibilityIdentifier("simulator-app-picker")
+            .accessibilityLabel("Select app context for simulation")
+        }
     }
 
     private var delayControl: some View {

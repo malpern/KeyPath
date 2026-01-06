@@ -56,7 +56,19 @@ public struct KanataConfiguration: Sendable {
 
         let defvarBlock = renderDefvarBlock()
         let sourceBlock = renderDefsrcBlock(blocks)
-        let baseLayerBlock = renderLayerBlock(name: RuleCollectionLayer.base.kanataName, blocks: blocks) { $0.baseOutput }
+
+        // Load app-specific keys to use @kp-{key} aliases in base layer
+        let appSpecificKeys = loadAppSpecificKeys()
+
+        let baseLayerBlock = renderLayerBlock(name: RuleCollectionLayer.base.kanataName, blocks: blocks) { entry in
+            // If this key has app-specific overrides, use the alias instead of the plain key
+            // This enables the switch expression in keypath-apps.kbd to intercept the key
+            let keyName = entry.sourceKey.lowercased()
+            if appSpecificKeys.contains(keyName) {
+                return appSpecificAliasName(for: keyName)
+            }
+            return entry.baseOutput
+        }
         let additionalLayerBlocks = extraLayers.map { layer in
             renderLayerBlock(name: layer.kanataName, blocks: blocks) { entry in
                 entry.layerOutputs[layer] ?? "_"
@@ -66,7 +78,19 @@ public struct KanataConfiguration: Sendable {
         let aliasBlock = renderAliasBlock(aliasDefinitions)
         let chordsBlock = renderChordsBlock(chordMappings)
 
-        return [header, safetyNotes, defvarBlock, sourceBlock, baseLayerBlock, additionalLayerBlocks, fakeKeysBlock, aliasBlock, chordsBlock]
+        // Include keypath-apps.kbd if there are app-specific keys
+        // This must come after defcfg but before any layer that uses @kp-* aliases
+        let appIncludeBlock: String
+        if !appSpecificKeys.isEmpty {
+            appIncludeBlock = """
+            ;; App-specific keymaps (virtual keys and switch expressions)
+            (include keypath-apps.kbd)
+            """
+        } else {
+            appIncludeBlock = ""
+        }
+
+        return [header, safetyNotes, appIncludeBlock, defvarBlock, sourceBlock, baseLayerBlock, additionalLayerBlocks, fakeKeysBlock, aliasBlock, chordsBlock]
             .filter { !$0.isEmpty }
             .joined(separator: "\n")
     }
@@ -1045,5 +1069,66 @@ public struct KanataConfiguration: Sendable {
     private struct AliasDefinition {
         let aliasName: String
         let definition: String
+    }
+
+    // MARK: - App-Specific Key Support
+
+    /// Load the set of input keys that have app-specific overrides.
+    /// These keys should use @kp-{key} aliases in the base layer to enable per-app behavior.
+    private static func loadAppSpecificKeys() -> Set<String> {
+        let path = (WizardSystemPaths.userConfigDirectory as NSString)
+            .appendingPathComponent("AppKeymaps.json")
+
+        AppLogger.shared.log("🔍 [ConfigGen] loadAppSpecificKeys: checking path \(path)")
+
+        guard FileManager.default.fileExists(atPath: path) else {
+            AppLogger.shared.log("⚠️ [ConfigGen] loadAppSpecificKeys: file does not exist")
+            return []
+        }
+
+        guard let data = FileManager.default.contents(atPath: path) else {
+            AppLogger.shared.log("⚠️ [ConfigGen] loadAppSpecificKeys: could not read file contents")
+            return []
+        }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601  // Match AppKeymapStore's encoding
+
+        guard let keymaps = try? decoder.decode([AppKeymap].self, from: data) else {
+            AppLogger.shared.log("⚠️ [ConfigGen] loadAppSpecificKeys: JSON decode failed")
+            return []
+        }
+
+        AppLogger.shared.log("🔍 [ConfigGen] loadAppSpecificKeys: found \(keymaps.count) keymaps")
+
+        // Collect all input keys from enabled keymaps
+        var keys = Set<String>()
+        for keymap in keymaps where keymap.mapping.isEnabled {
+            for override in keymap.overrides {
+                keys.insert(override.inputKey.lowercased())
+            }
+        }
+
+        AppLogger.shared.log("🔍 [ConfigGen] loadAppSpecificKeys: returning \(keys.count) keys: \(keys)")
+        return keys
+    }
+
+    /// Convert a key name to its app-specific alias format (kp-{key}).
+    /// Uses the same sanitization as AppConfigGenerator.
+    private static func appSpecificAliasName(for key: String) -> String {
+        let sanitized = key.lowercased()
+            .replacingOccurrences(of: " ", with: "-")
+            .filter { $0.isLetter || $0.isNumber || $0 == "-" }
+
+        guard !sanitized.isEmpty else {
+            let hash = key.unicodeScalars.reduce(0) { $0 + Int($1.value) }
+            return "@kp-key-\(String(format: "%04x", hash % 65521))"
+        }
+
+        if let first = sanitized.first, !first.isLetter {
+            return "@kp-key-\(sanitized)"
+        }
+
+        return "@kp-\(sanitized)"
     }
 }

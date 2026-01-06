@@ -1,6 +1,58 @@
 import Foundation
 import KeyPathCore
 
+// MARK: - Error Types
+
+/// Errors that can occur during app config generation
+public enum AppConfigError: LocalizedError, Equatable {
+    /// Generated config failed Kanata validation
+    case validationFailed(errors: [String])
+    /// Failed to write config file
+    case writeFailed(path: String, underlying: String)
+    /// No ConfigurationService available for validation
+    case validationUnavailable
+
+    public var errorDescription: String? {
+        switch self {
+        case let .validationFailed(errors):
+            return "App config validation failed: \(errors.joined(separator: "; "))"
+        case let .writeFailed(path, underlying):
+            return "Failed to write app config to \(path): \(underlying)"
+        case .validationUnavailable:
+            return "Config validation service unavailable"
+        }
+    }
+
+    /// User-facing message for UI display
+    public var userFacingMessage: String {
+        switch self {
+        case let .validationFailed(errors):
+            if errors.isEmpty {
+                return "Config validation failed"
+            }
+            return errors.first ?? "Config validation failed"
+        case let .writeFailed(path, _):
+            return "Could not save config to \(path)"
+        case .validationUnavailable:
+            return "Validation service unavailable"
+        }
+    }
+}
+
+// MARK: - Kanata Keywords (Compile-Time Safety)
+
+/// Type-safe constants for Kanata keywords to prevent typos like "nop" vs "XX"
+public enum KanataKeyword {
+    /// Blocked key - no output (use instead of invalid "nop")
+    public static let blocked = "XX"
+    /// Transparent - pass through to lower layer
+    public static let transparent = "_"
+    /// Switch expression keyword
+    public static let switchExpr = "switch"
+    /// Input virtual key condition
+    public static let inputVirtual = "input virtual"
+}
+
 /// Generates Kanata configuration for app-specific keymaps.
 ///
 /// Outputs: `keypath-apps.kbd`
@@ -17,16 +69,16 @@ import KeyPathCore
 /// ;; DO NOT EDIT - Regenerated when app keymaps change
 ///
 /// (defvirtualkeys
-///   vk_safari nop
-///   vk_vs_code nop
+///   vk_safari XX
+///   vk_vs_code XX
 /// )
 ///
 /// (defalias
-///   kp-j (switch ((input virtual vk_safari)) down
-///                ((input virtual vk_vs_code)) down
-///                () j)
-///   kp-k (switch ((input virtual vk_safari)) up
-///                () k)
+///   kp-j (switch ((input virtual vk_safari)) down break
+///                ((input virtual vk_vs_code)) down break
+///                () j break)
+///   kp-k (switch ((input virtual vk_safari)) up break
+///                () k break)
 /// )
 /// ```
 public enum AppConfigGenerator {
@@ -71,8 +123,12 @@ public enum AppConfigGenerator {
     /// Generate and write the app config file to disk.
     ///
     /// - Parameter keymaps: The app keymaps to generate config for.
-    /// - Throws: If the file cannot be written.
-    public static func generateAndSave(from keymaps: [AppKeymap]) throws {
+    /// - Parameter configService: Configuration service for validation (uses shared instance if nil)
+    /// - Throws: `AppConfigError` if validation fails or file cannot be written.
+    public static func generateAndSave(
+        from keymaps: [AppKeymap],
+        configService: ConfigurationService? = nil
+    ) async throws {
         let content = generate(from: keymaps)
         let path = appConfigPath
 
@@ -84,20 +140,74 @@ public enum AppConfigGenerator {
             attributes: nil
         )
 
-        // Write file
-        try content.write(toFile: path, atomically: true, encoding: .utf8)
+        // VALIDATE BEFORE WRITING - prevent broken configs from being saved
+        // This is the key fix: we validate generated configs just like we validate user configs
+        //
+        // NOTE: keypath-apps.kbd is an INCLUDE file, not a standalone config.
+        // Kanata requires defsrc/deflayer for validation, so we wrap the content
+        // in a minimal valid config context for validation purposes only.
+        let service: ConfigurationService
+        if let provided = configService {
+            service = provided
+        } else {
+            service = await ConfigurationService(configDirectory: WizardSystemPaths.userConfigDirectory)
+        }
+        AppLogger.shared.log("🔍 [AppConfigGenerator] Validating generated config before save...")
+
+        // Wrap content in minimal valid config for validation (include files need context)
+        let validationWrapper = wrapForValidation(content)
+        let validation = await service.validateConfiguration(validationWrapper)
+
+        if !validation.isValid {
+            AppLogger.shared.error(
+                "❌ [AppConfigGenerator] Validation failed with \(validation.errors.count) errors: \(validation.errors)"
+            )
+            throw AppConfigError.validationFailed(errors: validation.errors)
+        }
+
+        AppLogger.shared.log("✅ [AppConfigGenerator] Validation passed, writing config...")
+
+        // Write validated file
+        do {
+            try content.write(toFile: path, atomically: true, encoding: .utf8)
+        } catch {
+            throw AppConfigError.writeFailed(path: path, underlying: error.localizedDescription)
+        }
 
         AppLogger.shared.log("💾 [AppConfigGenerator] Saved app config to \(path)")
         AppLogger.shared.log("💾 [AppConfigGenerator] Content:\n\(content.prefix(500))...")
     }
 
     /// Load keymaps from store and regenerate the config file.
+    /// - Throws: `AppConfigError` if validation fails or file cannot be written.
     public static func regenerateFromStore() async throws {
         let keymaps = await AppKeymapStore.shared.loadKeymaps()
-        try generateAndSave(from: keymaps)
+        try await generateAndSave(from: keymaps)
     }
 
     // MARK: - Private Helpers
+
+    /// Wrap app config content in a minimal valid Kanata config for validation.
+    ///
+    /// Since keypath-apps.kbd is an include file (not standalone), Kanata's --check
+    /// requires defsrc/deflayer context. This wrapper provides that context for
+    /// validation only - the actual file written is just the app config content.
+    private static func wrapForValidation(_ content: String) -> String {
+        """
+        ;; Validation wrapper - provides minimal context for include file validation
+        (defcfg
+          process-unmapped-keys yes
+        )
+
+        (defsrc a b c d e f g h i j k l m n o p q r s t u v w x y z)
+
+        (deflayer base a b c d e f g h i j k l m n o p q r s t u v w x y z)
+
+        ;; === BEGIN APP CONFIG CONTENT ===
+        \(content)
+        ;; === END APP CONFIG CONTENT ===
+        """
+    }
 
     private static func generateEmptyConfig() -> String {
         """
@@ -140,7 +250,8 @@ public enum AppConfigGenerator {
         for keymap in keymaps {
             let vkName = keymap.mapping.virtualKeyName
             let appName = keymap.mapping.displayName
-            lines.append("  \(vkName) nop  ;; \(appName)")
+            // Use KanataKeyword.blocked for type-safety (prevents "nop" typo bug)
+            lines.append("  \(vkName) \(KanataKeyword.blocked)  ;; \(appName)")
         }
 
         lines.append(")")
@@ -190,11 +301,13 @@ public enum AppConfigGenerator {
 
     /// Generate a switch expression for a key with app-specific overrides.
     ///
+    /// Kanata switch requires triples: <condition> <action> <break|fallthrough>
+    ///
     /// Example output:
     /// ```
-    /// (switch ((input virtual vk_safari)) down
-    ///         ((input virtual vk_vs_code)) pgdn
-    ///         () j)
+    /// (switch ((input virtual vk_safari)) down break
+    ///         ((input virtual vk_vs_code)) pgdn break
+    ///         () j break)
     /// ```
     private static func generateSwitchExpression(
         inputKey: String,
@@ -202,16 +315,16 @@ public enum AppConfigGenerator {
     ) -> String {
         var parts = ["(switch"]
 
-        // Add each app-specific case
+        // Add each app-specific case (Kanata switch requires: condition action break/fallthrough)
         for (keymap, override) in overrides {
             let vkName = keymap.mapping.virtualKeyName
             let output = escapeOutputAction(override.outputAction)
-            parts.append("((input virtual \(vkName))) \(output)")
+            parts.append("((\(KanataKeyword.inputVirtual) \(vkName))) \(output) break")
         }
 
         // Default case: pass through the original key
         let safeInputKey = escapeOutputAction(inputKey)
-        parts.append("() \(safeInputKey))")
+        parts.append("() \(safeInputKey) break)")
 
         // Format based on number of cases
         if overrides.count == 1 {
@@ -223,9 +336,9 @@ public enum AppConfigGenerator {
             for (keymap, override) in overrides {
                 let vkName = keymap.mapping.virtualKeyName
                 let output = escapeOutputAction(override.outputAction)
-                formatted += "            ((input virtual \(vkName))) \(output)\n"
+                formatted += "            ((\(KanataKeyword.inputVirtual) \(vkName))) \(output) break\n"
             }
-            formatted += "            () \(safeInputKey))"
+            formatted += "            () \(safeInputKey) break)"
             return formatted
         }
     }
@@ -304,5 +417,30 @@ public extension AppConfigGenerator {
             try FileManager.default.removeItem(atPath: path)
             AppLogger.shared.log("🗑️ [AppConfigGenerator] Deleted app config at \(path)")
         }
+    }
+
+    /// Regenerate the main Kanata config to use @kp-* aliases for app-specific keys.
+    /// This must be called after saving app-specific mappings so the base layer
+    /// uses the switch expression aliases instead of plain keys.
+    static func regenerateMainConfig() async throws {
+        AppLogger.shared.log("🔄 [AppConfigGenerator] Regenerating main config to use app-specific aliases...")
+
+        // Load current rule collections
+        let ruleCollectionStore = RuleCollectionStore()
+        let ruleCollections = await ruleCollectionStore.loadCollections()
+
+        // Load current custom rules
+        let customRulesStore = CustomRulesStore()
+        let customRules = await customRulesStore.loadRules()
+
+        // Regenerate and save the main config via ConfigurationService
+        // This will pick up the app-specific keys and use @kp-* aliases
+        let configService = await ConfigurationService(configDirectory: WizardSystemPaths.userConfigDirectory)
+        try await configService.saveConfiguration(
+            ruleCollections: ruleCollections,
+            customRules: customRules
+        )
+
+        AppLogger.shared.log("✅ [AppConfigGenerator] Main config regenerated with app-specific aliases")
     }
 }

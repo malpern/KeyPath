@@ -367,19 +367,6 @@ actor KanataTCPClient {
         let request_id: UInt64?
     }
 
-    struct TcpValidationItem: Codable, Sendable {
-        let code: String
-        let message: String
-        let line: UInt32?
-        let column: UInt32?
-    }
-
-    struct TcpValidationResult: Codable, Sendable {
-        let warnings: [TcpValidationItem]
-        let errors: [TcpValidationItem]
-        let request_id: UInt64?
-    }
-
     // MARK: - Handshake / Status
 
     /// Perform Hello handshake and cache capabilities
@@ -482,83 +469,6 @@ actor KanataTCPClient {
                 closeConnection()
             }
             return false
-        }
-    }
-
-    /// Validate configuration via TCP (Phase 2)
-    /// Note: Kanata's Validate command returns TWO lines:
-    ///   Line 1: {"status":"Ok"} - acknowledges command received
-    ///   Line 2: {"ValidationResult": {...}} - validation details
-    func validateConfig(_ configContent: String) async -> TCPValidationResult {
-        AppLogger.shared.debug("📝 [TCP] Config validation requested (\(configContent.count) bytes)")
-        do {
-            // Note: Kanata v1.10 doesn't advertise "validate" capability but does support it
-            // Skip capability check and just attempt the command
-
-            let requestId = generateRequestId()
-            let payload: [String: Any] = [
-                "Validate": [
-                    "config": configContent,
-                    "request_id": requestId
-                ]
-            ]
-            let requestData = try JSONSerialization.data(withJSONObject: payload)
-
-            // Read first line (status response)
-            let firstLine = try await send(requestData)
-            let firstLineStr = String(data: firstLine, encoding: .utf8) ?? ""
-            AppLogger.shared.debug("📝 [TCP] Validation status: \(firstLineStr)")
-
-            // Check if first line indicates error
-            if let json = try? JSONSerialization.jsonObject(with: firstLine) as? [String: Any],
-               let status = json["status"] as? String,
-               status.lowercased() == "error" {
-                let errorMsg = json["msg"] as? String ?? "Validation request failed"
-                return .failure(errors: [errorMsg])
-            }
-
-            // Read second line (ValidationResult) with timeout
-            let connection = try await ensureConnectionCore()
-            let secondLine: Data
-            do {
-                secondLine = try await withTimeout(seconds: 5.0) {
-                    try await self.readUntilNewline(on: connection)
-                }
-                AppLogger.shared.debug("📝 [TCP] Validation result received (\(secondLine.count) bytes)")
-            } catch {
-                AppLogger.shared.warn("⚠️ [TCP] Timeout waiting for validation result, falling back to CLI")
-                return .networkError("Validation timeout - server did not respond")
-            }
-
-            // Parse ValidationResult from second line
-            if let vr = try extractMessage(
-                named: "ValidationResult", into: TcpValidationResult.self, from: secondLine
-            ) {
-                if vr.errors.isEmpty {
-                    AppLogger.shared.info("✅ [TCP] Validation succeeded")
-                    return .success
-                } else {
-                    let msgs = vr.errors.map { item in
-                        var ctx = item.message
-                        if let line = item.line { ctx += " (line \(line))" }
-                        return ctx
-                    }
-                    AppLogger.shared.warn("⚠️ [TCP] Validation failed with \(msgs.count) error(s)")
-                    return .failure(errors: msgs)
-                }
-            }
-
-            let raw = String(data: secondLine, encoding: .utf8) ?? ""
-            AppLogger.shared.error("❌ [TCP] Unexpected validation result format: \(raw)")
-            return .failure(errors: ["Unexpected validation result format: \(raw)"])
-        } catch {
-            AppLogger.shared.error("❌ [TCP] Validate error: \(error)")
-            // FIX #3: Close connection on error so next call gets fresh connection
-            if shouldRetry(error) {
-                AppLogger.shared.debug("🌐 [TCP] Closing connection after validation error")
-                closeConnection()
-            }
-            return .networkError(error.localizedDescription)
         }
     }
 
@@ -1132,12 +1042,6 @@ actor KanataTCPClient {
 }
 
 // MARK: - Result Types
-
-enum TCPValidationResult {
-    case success
-    case failure(errors: [String])
-    case networkError(String)
-}
 
 enum TCPReloadResult {
     case success(response: String)

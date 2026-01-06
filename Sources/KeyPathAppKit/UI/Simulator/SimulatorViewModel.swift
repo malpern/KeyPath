@@ -22,6 +22,14 @@ final class SimulatorViewModel: ObservableObject {
     /// Currently pressed key codes (from physical keyboard)
     @Published var pressedKeyCodes: Set<UInt16> = []
 
+    // MARK: - App Context (for app-specific mappings)
+
+    /// Selected app bundle ID for simulation (nil = no app context)
+    @Published var selectedAppBundleId: String?
+
+    /// Available apps with app-specific keymaps
+    @Published var availableApps: [(bundleId: String, displayName: String)] = []
+
     // MARK: - Output State
 
     /// Latest simulation result
@@ -48,6 +56,24 @@ final class SimulatorViewModel: ObservableObject {
 
     init(service: SimulatorService = SimulatorService()) {
         self.service = service
+    }
+
+    // MARK: - App Context Loading
+
+    /// Load available apps that have app-specific keymaps
+    func loadAvailableApps() async {
+        let keymaps = await AppKeymapStore.shared.loadKeymaps()
+        availableApps = keymaps
+            .filter { $0.mapping.isEnabled && !$0.overrides.isEmpty }
+            .map { ($0.mapping.bundleIdentifier, $0.mapping.displayName) }
+            .sorted { $0.displayName < $1.displayName }
+    }
+
+    /// Get the virtual key name for the selected app (if any)
+    func virtualKeyForSelectedApp() async -> String? {
+        guard let bundleId = selectedAppBundleId else { return nil }
+        let keymaps = await AppKeymapStore.shared.loadKeymaps()
+        return keymaps.first { $0.mapping.bundleIdentifier == bundleId }?.mapping.virtualKeyName
     }
 
     // MARK: - Actions
@@ -137,8 +163,18 @@ final class SimulatorViewModel: ObservableObject {
         error = nil
 
         do {
-            result = try await service.simulate(
-                taps: queuedTaps,
+            // Generate base sim content from taps
+            var simContent = await service.generateSimContent(from: queuedTaps)
+
+            // If an app is selected, prepend virtual key activation
+            if let virtualKey = await virtualKeyForSelectedApp() {
+                // Activate the app's virtual key before the actual key sequence
+                // Virtual key stays "pressed" to simulate the app being frontmost
+                simContent = "d:\(virtualKey) " + simContent
+            }
+
+            result = try await service.simulateRaw(
+                simContent: simContent,
                 configPath: configPath
             )
         } catch {

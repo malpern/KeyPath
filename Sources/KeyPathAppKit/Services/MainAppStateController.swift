@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import KeyPathCore
 import KeyPathDaemonLifecycle
@@ -55,11 +56,21 @@ class MainAppStateController: ObservableObject {
     private let validationCooldown: TimeInterval = 30.0 // Skip validation if completed within last 30 seconds
     private enum ValidationError: Error { case timeout }
 
+    // MARK: - Service Health Monitoring (Fix for stale overlay state)
+
+    private var cancellables = Set<AnyCancellable>()
+    private var lastKnownServiceHealthy: Bool?
+    private var periodicRefreshTask: Task<Void, Never>?
+
     // MARK: - Initialization
 
     init() {
         AppLogger.shared.log("🎯 [MainAppStateController] Initialized (Phase 3)")
     }
+
+    // NOTE: No deinit needed - this is a singleton that lives for the app's lifetime.
+    // Cleanup would be impossible anyway since deinit is nonisolated and can't access
+    // MainActor-isolated properties like cancellables.
 
     /// Configure with RuntimeCoordinator (called after init)
     func configure(with kanataManager: RuntimeCoordinator) {
@@ -76,6 +87,10 @@ class MainAppStateController: ObservableObject {
 
         // Check for orphaned installation (leftover files from manual deletion)
         OrphanDetector.shared.checkForOrphans()
+
+        // Start service health monitoring to fix stale overlay state
+        subscribeToServiceHealth()
+        startPeriodicRefresh()
     }
 
     // MARK: - TCP Configuration Check
@@ -122,6 +137,59 @@ class MainAppStateController: ObservableObject {
         // All checks passed
         AppLogger.shared.info("✅ [MainAppStateController] TCP configuration verified: plist has --port")
         return true
+    }
+
+    // MARK: - Service Health Monitoring
+
+    /// Subscribe to KanataService state changes to trigger revalidation when service health changes.
+    /// This fixes the "System Not Ready" stale state bug where the overlay shows stale state.
+    private func subscribeToServiceHealth() {
+        guard let kanataManager else { return }
+
+        kanataManager.kanataService.$state
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] newState in
+                guard let self else { return }
+
+                // ServiceState: .running(pid:), .stopped, .failed, .maintenance, .requiresApproval, .unknown
+                let isHealthy: Bool
+                if case .running = newState { isHealthy = true } else { isHealthy = false }
+                let wasHealthy = self.lastKnownServiceHealthy
+
+                // Only revalidate on health transitions (not every 2s poll)
+                if wasHealthy != isHealthy {
+                    self.lastKnownServiceHealthy = isHealthy
+                    AppLogger.shared.log(
+                        "🔄 [MainAppStateController] Service health changed: \(wasHealthy.map { String($0) } ?? "nil") → \(isHealthy)"
+                    )
+                    Task { @MainActor in
+                        await self.revalidate()
+                    }
+                }
+            }
+            .store(in: &cancellables)
+
+        AppLogger.shared.log("🔄 [MainAppStateController] Subscribed to KanataService health changes")
+    }
+
+    /// Start periodic background refresh (60s) as a fallback for cases where service state
+    /// doesn't change but validation becomes stale.
+    private func startPeriodicRefresh() {
+        periodicRefreshTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 60_000_000_000) // 60 seconds
+                guard let self, !Task.isCancelled else { break }
+
+                // Only refresh if validation is stale (>30s since last check)
+                if let lastTime = self.lastValidationTime,
+                   Date().timeIntervalSince(lastTime) > 30 {
+                    AppLogger.shared.log("🔄 [MainAppStateController] Periodic refresh triggered (stale state)")
+                    await self.revalidate()
+                }
+            }
+        }
+
+        AppLogger.shared.log("🔄 [MainAppStateController] Started periodic health refresh (60s)")
     }
 
     // MARK: - Validation Methods

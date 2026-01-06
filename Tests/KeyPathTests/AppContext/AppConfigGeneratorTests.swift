@@ -40,7 +40,9 @@ final class AppConfigGeneratorTests: XCTestCase {
         let content = AppConfigGenerator.generate(from: [keymap])
 
         XCTAssertTrue(content.contains("(defvirtualkeys"))
-        XCTAssertTrue(content.contains("vk_safari nop"))
+        // Uses XX (blocked key), NOT "nop" which is invalid Kanata
+        XCTAssertTrue(content.contains("vk_safari XX"), "Should use XX (blocked), not nop")
+        XCTAssertFalse(content.contains(" nop"), "Should NOT contain 'nop' - it's invalid Kanata")
     }
 
     func testGenerate_MultipleApps_CreatesAllVirtualKeys() {
@@ -59,8 +61,28 @@ final class AppConfigGeneratorTests: XCTestCase {
 
         let content = AppConfigGenerator.generate(from: keymaps)
 
-        XCTAssertTrue(content.contains("vk_safari nop"))
-        XCTAssertTrue(content.contains("vk_vs_code nop"))
+        // Uses XX (blocked key), NOT "nop" which is invalid Kanata
+        XCTAssertTrue(content.contains("vk_safari XX"), "Should use XX (blocked), not nop")
+        XCTAssertTrue(content.contains("vk_vs_code XX"), "Should use XX (blocked), not nop")
+        XCTAssertFalse(content.contains(" nop"), "Should NOT contain 'nop' - it's invalid Kanata")
+    }
+
+    // MARK: - Kanata Keyword Safety
+
+    func testGenerate_UsesKanataKeywordConstant() {
+        // Verifies that generated config uses KanataKeyword.blocked constant
+        // This is a compile-time safety feature to prevent typos like "nop"
+        let keymap = AppKeymap(
+            bundleIdentifier: "com.test.app",
+            displayName: "Test App",
+            overrides: []
+        )
+
+        let content = AppConfigGenerator.generate(from: [keymap])
+
+        // The config should use the constant value, which is "XX"
+        XCTAssertTrue(content.contains(KanataKeyword.blocked))
+        XCTAssertFalse(content.contains(" nop"))
     }
 
     // MARK: - Alias Block
@@ -243,5 +265,67 @@ final class AppConfigGeneratorTests: XCTestCase {
         // Should be in alphabetical order
         XCTAssertTrue(aPos! < mPos!)
         XCTAssertTrue(mPos! < zPos!)
+    }
+
+    // MARK: - AppConfigError Tests
+
+    func testAppConfigError_ValidationFailed_HasUserFacingMessage() {
+        let error = AppConfigError.validationFailed(errors: ["Unknown key: nop"])
+
+        XCTAssertEqual(error.userFacingMessage, "Unknown key: nop")
+        XCTAssertTrue(error.errorDescription?.contains("validation failed") ?? false)
+    }
+
+    func testAppConfigError_ValidationFailed_EmptyErrors_HasFallbackMessage() {
+        let error = AppConfigError.validationFailed(errors: [])
+
+        XCTAssertEqual(error.userFacingMessage, "Config validation failed")
+    }
+
+    func testAppConfigError_WriteFailed_HasUserFacingMessage() {
+        let error = AppConfigError.writeFailed(path: "/tmp/test.kbd", underlying: "Permission denied")
+
+        XCTAssertTrue(error.userFacingMessage.contains("/tmp/test.kbd"))
+        XCTAssertTrue(error.errorDescription?.contains("Permission denied") ?? false)
+    }
+
+    func testAppConfigError_Equatable() {
+        let error1 = AppConfigError.validationFailed(errors: ["test"])
+        let error2 = AppConfigError.validationFailed(errors: ["test"])
+        let error3 = AppConfigError.validationFailed(errors: ["different"])
+
+        XCTAssertEqual(error1, error2)
+        XCTAssertNotEqual(error1, error3)
+    }
+
+    // MARK: - Regression Tests for Bug Fixes
+
+    /// Regression test: Ensure we never generate "nop" which crashed Kanata
+    /// Bug: AppConfigGenerator was using "nop" instead of "XX" for virtual keys
+    /// Fix: Use KanataKeyword.blocked constant which is "XX"
+    func testGenerate_NeverContainsNop_RegressionTest() {
+        // Create multiple keymaps with various configurations
+        let keymaps = [
+            AppKeymap(bundleIdentifier: "com.apple.Safari", displayName: "Safari", overrides: []),
+            AppKeymap(bundleIdentifier: "com.microsoft.VSCode", displayName: "VS Code", overrides: [
+                AppKeyOverride(inputKey: "j", outputAction: "down")
+            ]),
+            AppKeymap(bundleIdentifier: "com.openai.ChatGPT", displayName: "ChatGPT", overrides: [
+                AppKeyOverride(inputKey: "a", outputAction: "b"),
+                AppKeyOverride(inputKey: "k", outputAction: "up")
+            ])
+        ]
+
+        let content = AppConfigGenerator.generate(from: keymaps)
+
+        // CRITICAL: The word "nop" should NEVER appear in generated config
+        // because it's not a valid Kanata keyword and will crash Kanata
+        XCTAssertFalse(
+            content.contains(" nop"),
+            "Generated config must NEVER contain 'nop' - it's invalid Kanata and crashes the service"
+        )
+
+        // Verify we're using the correct keyword instead
+        XCTAssertTrue(content.contains(" XX"), "Should use XX (blocked key) instead of nop")
     }
 }

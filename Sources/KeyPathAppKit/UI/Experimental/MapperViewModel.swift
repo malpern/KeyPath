@@ -8,6 +8,8 @@ import SwiftUI
 extension MapperViewModel {
     /// Save a mapping that only applies when a specific app is active.
     /// Uses AppKeymapStore and AppConfigGenerator for virtual key-based app detection.
+    ///
+    /// - Returns: `true` if successful, `false` if failed. On failure, `statusMessage` is set with details.
     func saveAppSpecificMapping(
         inputKey: String,
         outputAction: String,
@@ -33,6 +35,8 @@ extension MapperViewModel {
 
             guard var keymap = existingKeymap else {
                 AppLogger.shared.error("❌ [MapperViewModel] Failed to create keymap")
+                statusMessage = "Failed to create keymap"
+                statusIsError = true
                 return false
             }
 
@@ -50,8 +54,13 @@ extension MapperViewModel {
             // 4. Save to store
             try await AppKeymapStore.shared.upsertKeymap(keymap)
 
-            // 5. Regenerate the Kanata config file
+            // 5. Regenerate the app-specific config file (keypath-apps.kbd)
             try await AppConfigGenerator.regenerateFromStore()
+
+            // 5.1. Regenerate the MAIN config to use @kp-* aliases for app-specific keys
+            // Without this, the base layer uses plain 'a' instead of '@kp-a',
+            // and the switch expression in keypath-apps.kbd is never reached.
+            try await AppConfigGenerator.regenerateMainConfig()
 
             // 6. Ensure the include line is in the main config
             let migrationService = KanataConfigMigrationService()
@@ -76,8 +85,17 @@ extension MapperViewModel {
 
             AppLogger.shared.log("✅ [MapperViewModel] Saved app-specific mapping successfully")
             return true
+        } catch let error as AppConfigError {
+            // Surface validation errors with specific details to the UI
+            AppLogger.shared.error("❌ [MapperViewModel] App config error: \(error.userFacingMessage)")
+            statusMessage = error.userFacingMessage
+            statusIsError = true
+            return false
         } catch {
+            // Generic error - still surface to UI
             AppLogger.shared.error("❌ [MapperViewModel] Failed to save app-specific mapping: \(error)")
+            statusMessage = "Failed to save: \(error.localizedDescription)"
+            statusIsError = true
             return false
         }
     }
@@ -856,8 +874,13 @@ class MapperViewModel: ObservableObject {
                 originalSystemActionIdentifier = nil
                 originalURL = nil
             } else {
+                // Fallback: use displayLabel as the output key
                 outputLabel = info.displayLabel
-                outputSequence = nil
+                let outputKey = info.displayLabel.lowercased()
+                outputSequence = KeySequence(
+                    keys: [KeyPress(baseKey: outputKey, modifiers: [], keyCode: 0)],
+                    captureMode: .single
+                )
                 originalAppIdentifier = nil
                 originalSystemActionIdentifier = nil
                 originalURL = nil

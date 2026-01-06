@@ -337,7 +337,10 @@ public final class ConfigurationService: FileConfigurationProviding {
         }
     }
 
-    /// Validate configuration content using TCP if available, else CLI
+    /// Validate configuration content using CLI (kanata --check)
+    ///
+    /// Note: TCP validation was removed because our Kanata fork doesn't support
+    /// the Validate command over TCP. CLI validation is more thorough anyway.
     public func validateConfiguration(_ config: String) async -> (isValid: Bool, errors: [String]) {
         AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION START ==========")
         AppLogger.shared.log("🔍 [Validation] Config size: \(config.count) characters")
@@ -349,83 +352,10 @@ public final class ConfigurationService: FileConfigurationProviding {
             return result
         }
 
-        // If the service isn't managed/approved yet, skip TCP to avoid long timeouts
-        let managementState = await KanataDaemonManager.shared.refreshManagementState()
-        let tcpCapableStates: Set<KanataDaemonManager.ServiceManagementState> = [
-            .smappserviceActive, .legacyActive, .conflicted
-        ]
-        if !tcpCapableStates.contains(managementState) {
-            AppLogger.shared.log(
-                "🌐 [Validation] TCP validation skipped (service state=\(managementState)); using CLI"
-            )
-            let cliResult = await validateConfigWithCLI(config)
-            AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
-            return cliResult
-        }
-
-        // Give the service a brief warmup after (re)install before attempting TCP
-        if managementState == .smappserviceActive {
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
-        }
-
-        // Skip TCP if Kanata service isn't healthy yet (avoid connection-refused storm)
-        let daemonStatus = await InstallerEngine().getServiceStatus()
-        if !daemonStatus.kanataServiceHealthy {
-            AppLogger.shared.log(
-                "🌐 [Validation] TCP validation skipped (kanata not healthy yet); using CLI"
-            )
-            let cliResult = await validateConfigWithCLI(config)
-            AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
-            return cliResult
-        }
-
-        // Try TCP validation first
-        let tcpPort = PreferencesService.shared.tcpServerPort
-        let tcpClient = KanataTCPClient(port: tcpPort)
-
-        let tcpResult = await tcpClient.validateConfig(config)
-
-        // FIX #1: Explicitly close connection to prevent file descriptor leak
-        await tcpClient.cancelInflightAndCloseConnection()
-
-        switch tcpResult {
-        case .success:
-            AppLogger.shared.log("🌐 [Validation] TCP validation PASSED")
-            AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
-            return (true, [])
-        case let .failure(errors):
-            AppLogger.shared.log("🌐 [Validation] TCP validation FAILED with \(errors.count) errors")
-            if shouldFallbackToCLIForTCPParseErrors(errors) {
-                AppLogger.shared.log(
-                    "🌐 [Validation] TCP error requires CLI fallback; using CLI validation"
-                )
-                let cliResult = await validateConfigWithCLI(config)
-                AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
-                // Use CLI result entirely - TCP error was a protocol issue, not config issue
-                return cliResult
-            }
-            AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
-            return (false, errors)
-        case .networkError:
-            AppLogger.shared.log("🌐 [Validation] TCP validation unavailable, falling back to CLI")
-            let cliResult = await validateConfigWithCLI(config)
-            AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
-            return cliResult
-        }
-    }
-
-    private func shouldFallbackToCLIForTCPParseErrors(_ errors: [String]) -> Bool {
-        // Config parse errors that need CLI for better error messages
-        let parseErrorNeedles = ["error in configuration", "config_parse", "parse error"]
-        // Protocol errors indicate Kanata doesn't support the Validate command
-        let protocolErrorNeedles = ["unknown variant", "failed to deserialize command"]
-
-        return errors.contains { error in
-            let lowercased = error.lowercased()
-            let isParseError = parseErrorNeedles.contains { lowercased.contains($0) }
-            let isProtocolError = protocolErrorNeedles.contains { lowercased.contains($0) }
-            return isParseError || isProtocolError
-        }
+        // Use CLI validation (kanata --check)
+        let cliResult = await validateConfigWithCLI(config)
+        AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
+        return cliResult
     }
 
     /// Validate configuration via CLI (kanata --check)

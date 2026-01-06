@@ -64,7 +64,7 @@ enum WizardDesign {
         static let pageWidth: CGFloat = 700
 
         /// Standard wizard page height (shorter to allow scrolling lists)
-        static let pageHeight: CGFloat = 540
+        static let pageHeight: CGFloat = 270
 
         /// Maximum content width for readability
         static let maxContentWidth: CGFloat = 400

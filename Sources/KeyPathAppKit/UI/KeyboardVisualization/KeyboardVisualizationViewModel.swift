@@ -1,5 +1,6 @@
 import AppKit
 import Carbon
+import Combine
 import Foundation
 import KeyPathCore
 import SwiftUI
@@ -216,6 +217,10 @@ class KeyboardVisualizationViewModel: ObservableObject {
     private var ruleCollectionsObserver: Any?
     /// One-shot activated notification observer
     private var oneShotObserver: Any?
+    /// App context change subscription (for app-specific key overrides)
+    private var appContextCancellable: AnyCancellable?
+    /// Current app's bundle identifier for overlay updates
+    private var currentAppBundleId: String?
 
     /// Most recent CGEvent input timestamp (used to infer fallback state)
     private var lastCGEventAt: Date?
@@ -290,6 +295,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
         setupMessagePushObserver() // Listen for icon/emphasis push messages
         setupRuleCollectionsObserver() // Listen for collection toggle changes
         setupOneShotObserver() // Listen for one-shot modifier activations
+        setupAppContextObserver() // Listen for app changes (app-specific key overrides)
         startIdleMonitor()
         rebuildLayerMapping() // Build initial layer mapping
         loadFeatureCollectionStates() // Load optional feature collection states
@@ -778,6 +784,9 @@ class KeyboardVisualizationViewModel: ObservableObject {
                     ruleCollections: ruleCollections
                 )
 
+                // Apply app-specific overrides for the current frontmost app
+                mapping = await self.applyAppSpecificOverrides(to: mapping)
+
                 // Update on main actor with explicit objectWillChange to ensure SwiftUI notices
                 await MainActor.run {
                     self.objectWillChange.send()
@@ -1139,6 +1148,92 @@ class KeyboardVisualizationViewModel: ObservableObject {
             }
         }
         AppLogger.shared.debug("⌨️ [KeyboardViz] One-shot observer registered")
+    }
+
+    /// Set up subscription for app context changes (app-specific key overrides)
+    private func setupAppContextObserver() {
+        appContextCancellable = AppContextService.shared.$currentBundleIdentifier
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] bundleId in
+                guard let self else { return }
+                Task { @MainActor in
+                    await self.handleAppContextChange(bundleId: bundleId)
+                }
+            }
+        AppLogger.shared.debug("⌨️ [KeyboardViz] App context observer registered")
+    }
+
+    /// Handle app context change - apply app-specific key overrides to layerKeyMap
+    private func handleAppContextChange(bundleId: String?) async {
+        // Skip if app hasn't actually changed
+        guard bundleId != currentAppBundleId else { return }
+        currentAppBundleId = bundleId
+
+        AppLogger.shared.info("🔄 [KeyboardViz] App context changed: \(bundleId ?? "nil")")
+
+        // Rebuild layer mapping to include/exclude app-specific overrides
+        rebuildLayerMapping()
+    }
+
+    /// Apply app-specific overrides to the layer key map.
+    /// Returns a new map with overrides applied for the current app.
+    private func applyAppSpecificOverrides(to baseMap: [UInt16: LayerKeyInfo]) async -> [UInt16: LayerKeyInfo] {
+        guard let bundleId = currentAppBundleId else { return baseMap }
+
+        // Load app keymaps
+        let keymaps = await AppKeymapStore.shared.loadKeymaps()
+
+        // Find the keymap for the current app
+        guard let appKeymap = keymaps.first(where: {
+            $0.mapping.bundleIdentifier == bundleId && $0.mapping.isEnabled
+        }) else {
+            return baseMap
+        }
+
+        // Apply overrides
+        var modifiedMap = baseMap
+        for override in appKeymap.overrides {
+            // Find the keyCode for this input key
+            guard let keyCode = Self.kanataNameToKeyCode(override.inputKey) else {
+                AppLogger.shared.debug("⚠️ [KeyboardViz] Unknown key for override: \(override.inputKey)")
+                continue
+            }
+
+            // Create a new LayerKeyInfo with the override output
+            let displayLabel = formatOutputForDisplay(override.outputAction)
+            let newInfo = LayerKeyInfo.mapped(
+                displayLabel: displayLabel,
+                outputKey: override.outputAction,
+                outputKeyCode: Self.kanataNameToKeyCode(override.outputAction)
+            )
+
+            modifiedMap[keyCode] = newInfo
+            AppLogger.shared.info("🔄 [KeyboardViz] Applied app override: \(override.inputKey) → \(override.outputAction) (keyCode \(keyCode))")
+        }
+
+        return modifiedMap
+    }
+
+    /// Format an output action for display on the keycap
+    private func formatOutputForDisplay(_ output: String) -> String {
+        // Simple case: single key name
+        let trimmed = output.trimmingCharacters(in: .whitespaces)
+
+        // If it's a single letter, uppercase it
+        if trimmed.count == 1 {
+            return trimmed.uppercased()
+        }
+
+        // For complex actions, show abbreviated form
+        if trimmed.hasPrefix("(") {
+            // Extract action type for common macros
+            if trimmed.contains("macro") { return "⌘M" }
+            if trimmed.contains("tap-hold") { return "⇥" }
+            return "..."
+        }
+
+        // For known key names, uppercase them
+        return trimmed.uppercased()
     }
 
     /// Handle one-shot modifier activation
