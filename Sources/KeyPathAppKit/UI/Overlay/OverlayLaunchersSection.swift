@@ -8,6 +8,8 @@ struct OverlayLaunchersSection: View {
     let isDark: Bool
     /// Fade amount for monochrome/opacity transition (0 = full color, 1 = faded)
     var fadeAmount: CGFloat = 0
+    /// Callback when hovering a mapping row - passes key for keyboard highlighting
+    var onMappingHover: ((String?) -> Void)?
 
     @StateObject private var store = LauncherStore()
     @State private var showAddSheet = false
@@ -153,16 +155,14 @@ struct OverlayLaunchersSection: View {
                         }
                     },
                     onPoofAt: { screenPoint in
-                        // Play the native macOS "poof" animation at the delete location
-                        NSAnimationEffect.disappearingItemDefault.show(
-                            centeredAt: screenPoint,
-                            size: .zero // Use default size
-                        )
+                        // Play a delete affordance at the delete location
+                        playDeletePoof(at: screenPoint)
                         // Then delete with a quick fade
                         withAnimation(.easeOut(duration: 0.1)) {
                             store.deleteMapping(mapping.id)
                         }
-                    }
+                    },
+                    onHoverChange: onMappingHover
                 )
                 .transition(.asymmetric(
                     insertion: .opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.8)),
@@ -171,6 +171,25 @@ struct OverlayLaunchersSection: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: store.sortedMappings.map(\.id))
+    }
+
+    private func playDeletePoof(at screenPoint: NSPoint) {
+        if #available(macOS 14.0, *) {
+            NSCursor.disappearingItem.push()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                NSCursor.pop()
+            }
+        } else {
+            legacyPoof(at: screenPoint)
+        }
+    }
+
+    @available(macOS, deprecated: 14.0)
+    private func legacyPoof(at screenPoint: NSPoint) {
+        NSAnimationEffect.disappearingItemDefault.show(
+            centeredAt: screenPoint,
+            size: .zero // Use default size
+        )
     }
 
     /// Add button styled to match Base Layer button
@@ -412,6 +431,8 @@ private struct LauncherMappingRow: View {
     var onDelete: (() -> Void)?
     /// Called with screen coordinates to trigger native poof animation
     var onPoofAt: ((NSPoint) -> Void)?
+    /// Callback when hovering this row - passes key for keyboard highlighting
+    var onHoverChange: ((String?) -> Void)?
 
     @State private var icon: NSImage?
     @State private var isHovering = false
@@ -519,7 +540,11 @@ private struct LauncherMappingRow: View {
             RoundedRectangle(cornerRadius: 4)
                 .fill(isHovering ? Color.white.opacity(0.06) : Color.clear)
         )
-        .onHover { isHovering = $0 }
+        .onHover { hovering in
+            isHovering = hovering
+            // Notify parent for keyboard highlighting
+            onHoverChange?(hovering ? mapping.key : nil)
+        }
         .onTapGesture { onTap() }
         .task {
             await loadIcon()

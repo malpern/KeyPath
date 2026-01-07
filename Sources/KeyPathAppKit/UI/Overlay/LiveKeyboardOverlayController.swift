@@ -116,6 +116,107 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         super.init()
         setupLayerChangeObserver()
         setupKeyInputObserver()
+        setupOpenOverlayWithMapperObserver()
+    }
+
+    private func setupOpenOverlayWithMapperObserver() {
+        NotificationCenter.default.addObserver(
+            forName: .openOverlayWithMapper,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.openWithMapperTab()
+            }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: .openOverlayWithMapperPreset,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            // Extract sendable values before entering Task to avoid data race
+            let inputKey = notification.userInfo?["inputKey"] as? String
+            let outputKey = notification.userInfo?["outputKey"] as? String
+            let appBundleId = notification.userInfo?["appBundleId"] as? String
+            let appDisplayName = notification.userInfo?["appDisplayName"] as? String
+            Task { @MainActor in
+                self?.openWithMapperTabAndPreset(
+                    inputKey: inputKey,
+                    outputKey: outputKey,
+                    appBundleId: appBundleId,
+                    appDisplayName: appDisplayName
+                )
+            }
+        }
+    }
+
+    /// Opens the overlay centered on screen with drawer open and mapper tab selected
+    @MainActor
+    func openWithMapperTab() {
+        // Close settings window if open
+        for window in NSApp.windows where window.title == "KeyPath Settings" {
+            window.close()
+        }
+
+        // Center the window on screen
+        resetWindowFrame()
+
+        // Show the overlay
+        showWindow()
+
+        // Open inspector with mapper tab
+        openInspector(animated: true)
+
+        // Post notification for view to switch to mapper tab
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            NotificationCenter.default.post(name: .switchToMapperTab, object: nil)
+        }
+    }
+
+    /// Opens the overlay centered on screen with drawer open, mapper tab selected, and preset values
+    @MainActor
+    func openWithMapperTabAndPreset(
+        inputKey: String?,
+        outputKey: String?,
+        appBundleId: String?,
+        appDisplayName: String?
+    ) {
+        // Close settings window if open
+        for window in NSApp.windows where window.title == "KeyPath Settings" {
+            window.close()
+        }
+
+        // Center the window on screen
+        resetWindowFrame()
+
+        // Show the overlay
+        showWindow()
+
+        // Open inspector with mapper tab
+        openInspector(animated: true)
+
+        // Post notification for view to switch to mapper tab with preset values
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            var notificationUserInfo: [String: Any] = [:]
+            if let inputKey {
+                notificationUserInfo["inputKey"] = inputKey
+            }
+            if let outputKey {
+                notificationUserInfo["outputKey"] = outputKey
+            }
+            if let appBundleId {
+                notificationUserInfo["appBundleId"] = appBundleId
+            }
+            if let appDisplayName {
+                notificationUserInfo["appDisplayName"] = appDisplayName
+            }
+            NotificationCenter.default.post(
+                name: .switchToMapperTab,
+                object: nil,
+                userInfo: notificationUserInfo.isEmpty ? nil : notificationUserInfo
+            )
+        }
     }
 
     // MARK: - Layer State
@@ -539,7 +640,6 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
                     // Do this synchronously (no animation) to prevent keyboard movement before drawer opens
                     AppLogger.shared.log("📐 [OverlayController] Auto-resizing window from \(window.frame.height.rounded())pt to \(minInspectorHeight)pt for inspector")
                     var newFrame = window.frame
-                    let heightDelta = minInspectorHeight - newFrame.height
                     newFrame.size.height = minInspectorHeight
                     // Adjust width to maintain aspect ratio
                     let keyboardHeight = minInspectorHeight - OverlayLayoutMetrics.verticalChrome
@@ -643,14 +743,14 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         }
     }
 
-    /// Handle click on a key in the overlay - opens Mapper with preset values
+    /// Handle click on a key in the overlay - selects the key in the drawer mapper (when visible)
     private func handleKeyClick(key: PhysicalKey, layerInfo: LayerKeyInfo?) {
         if key.layoutRole == .touchId {
             toggleInspectorPanel()
             return
         }
 
-        guard let kanataViewModel else {
+        guard kanataViewModel != nil else {
             AppLogger.shared.log("⚠️ [OverlayController] Cannot open Mapper - KanataViewModel not configured")
             return
         }
@@ -695,46 +795,36 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
         AppLogger.shared.log("🖱️ [OverlayController] Key clicked: \(key.label) (keyCode: \(key.keyCode)) -> \(outputKey) [layer: \(currentLayer)]")
 
-        // If inspector is open, update the drawer mapper instead of opening standalone window
-        if uiState.isInspectorOpen {
-            // Update selected key for visual highlight
-            viewModel.selectedKeyCode = key.keyCode
-
-            // Post notification for mapper drawer to update its input
-            var userInfo: [String: Any] = [
-                "keyCode": key.keyCode,
-                "inputKey": inputKey,
-                "outputKey": outputKey,
-                "layer": currentLayer
-            ]
-            // Include action identifiers if present
-            if let appId = layerInfo?.appLaunchIdentifier {
-                userInfo["appIdentifier"] = appId
-            }
-            if let systemId = layerInfo?.systemActionIdentifier {
-                userInfo["systemActionIdentifier"] = systemId
-            }
-            if let urlId = layerInfo?.urlIdentifier {
-                userInfo["urlIdentifier"] = urlId
-            }
-            NotificationCenter.default.post(
-                name: .mapperDrawerKeySelected,
-                object: nil,
-                userInfo: userInfo
-            )
+        let inspectorVisible = uiState.isInspectorOpen || uiState.isInspectorAnimating || uiState.inspectorReveal > 0
+        guard inspectorVisible else {
+            AppLogger.shared.log("🖱️ [OverlayController] Key click ignored (drawer not visible)")
             return
         }
 
-        // Open Mapper with preset values, current layer, and input keyCode
-        MapperWindowController.shared.showWindow(
-            viewModel: kanataViewModel,
-            presetInput: inputKey,
-            presetOutput: outputKey,
-            layer: currentLayer,
-            inputKeyCode: key.keyCode,
-            appIdentifier: layerInfo?.appLaunchIdentifier,
-            systemActionIdentifier: layerInfo?.systemActionIdentifier,
-            urlIdentifier: layerInfo?.urlIdentifier
+        // Update selected key for visual highlight
+        viewModel.selectedKeyCode = key.keyCode
+
+        // Post notification for mapper drawer to update its input
+        var userInfo: [String: Any] = [
+            "keyCode": key.keyCode,
+            "inputKey": inputKey,
+            "outputKey": outputKey,
+            "layer": currentLayer
+        ]
+        // Include action identifiers if present
+        if let appId = layerInfo?.appLaunchIdentifier {
+            userInfo["appIdentifier"] = appId
+        }
+        if let systemId = layerInfo?.systemActionIdentifier {
+            userInfo["systemActionIdentifier"] = systemId
+        }
+        if let urlId = layerInfo?.urlIdentifier {
+            userInfo["urlIdentifier"] = urlId
+        }
+        NotificationCenter.default.post(
+            name: .mapperDrawerKeySelected,
+            object: nil,
+            userInfo: userInfo
         )
     }
 
@@ -1053,23 +1143,24 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         let startTime = CACurrentMediaTime()
         let startReveal = uiState.inspectorReveal
         inspectorAnimationTimer?.invalidate()
-        inspectorAnimationTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] timer in
+        inspectorAnimationTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
             guard let self else {
-                timer.invalidate()
                 return
             }
-            let elapsed = CACurrentMediaTime() - startTime
-            let progress = min(1.0, elapsed / inspectorAnimationDuration)
-            uiState.inspectorReveal = OverlayInspectorMath.revealValue(
-                start: startReveal,
-                target: targetReveal,
-                elapsed: elapsed,
-                duration: inspectorAnimationDuration
-            )
+            Task { @MainActor in
+                let elapsed = CACurrentMediaTime() - startTime
+                let progress = min(1.0, elapsed / inspectorAnimationDuration)
+                uiState.inspectorReveal = OverlayInspectorMath.revealValue(
+                    start: startReveal,
+                    target: targetReveal,
+                    elapsed: elapsed,
+                    duration: inspectorAnimationDuration
+                )
 
-            if progress >= 1.0 {
-                timer.invalidate()
-                inspectorAnimationTimer = nil
+                if progress >= 1.0 {
+                    inspectorAnimationTimer?.invalidate()
+                    inspectorAnimationTimer = nil
+                }
             }
         }
     }
@@ -1168,7 +1259,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         uiState.$keyboardAspectRatio
             .removeDuplicates()
             .sink { [weak self] newAspectRatio in
-                guard let self, let window, !self.isUserResizing else { return }
+                guard let self, !self.isUserResizing else { return }
                 resizeWindowForNewAspectRatio(newAspectRatio)
             }
             .store(in: &cancellables)
@@ -1180,7 +1271,6 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
         let verticalChrome = OverlayLayoutMetrics.verticalChrome
         let currentFrame = window.frame
-        let currentKeyboardHeight = currentFrame.height - verticalChrome
 
         // Calculate new keyboard width based on new aspect ratio
         // Calculate horizontal chrome (padding + inspector if open)

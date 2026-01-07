@@ -45,6 +45,10 @@ struct OverlayKeycapView: View {
     var showScoopedHomeRow: Bool = false
     /// Whether this key is selected in the mapper drawer (shows selection highlight)
     var isSelected: Bool = false
+    /// Whether this key is being hovered in the rules/launcher list (shows secondary highlight)
+    var isHoveredByRule: Bool = false
+    /// Whether the inspector/drawer is visible (determines click vs drag behavior)
+    var isInspectorVisible: Bool = false
 
     // MARK: - Launcher Mode
 
@@ -184,11 +188,8 @@ struct OverlayKeycapView: View {
         LabelMetadata.forLabel(effectiveLabel)
     }
 
-    /// State for hover-to-click behavior
+    /// Whether mouse is hovering over this key
     @State private var isHovering = false
-    @State private var isClickable = false // True after dwell
-    @State private var hoverTask: Task<Void, Never>?
-    @State private var didDragBeyondThreshold = false
 
     /// Cached app icon for launch actions
     @State private var appIcon: NSImage?
@@ -240,14 +241,6 @@ struct OverlayKeycapView: View {
         0.5 + keyAnimationVariation * 0.35
     }
 
-    /// Shared state for tracking mouse interaction with keyboard (for refined click delay)
-    @EnvironmentObject private var keyboardMouseState: KeyboardMouseState
-
-    /// Dwell time before key becomes clickable (300ms)
-    private let clickableDwellTime: TimeInterval = 0.3
-    /// Drag distance threshold to treat gesture as window move (not a click)
-    private let dragThreshold: CGFloat = 4
-
     /// Whether this key has an app launch action
     private var hasAppLaunch: Bool {
         layerKeyInfo?.appLaunchIdentifier != nil
@@ -285,8 +278,8 @@ struct OverlayKeycapView: View {
 
             // Home row color accent for Kinesis (different keycap color)
 
-            // Hover highlight outline (shows when clickable)
-            if isClickable {
+            // Hover highlight outline (shows when drawer is open and hovering)
+            if isInspectorVisible && isHovering {
                 RoundedRectangle(cornerRadius: cornerRadius)
                     .stroke(Color.accentColor, lineWidth: 2 * scale)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -298,6 +291,13 @@ struct OverlayKeycapView: View {
                     .stroke(Color.accentColor.opacity(0.8), lineWidth: 2.5 * scale)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .shadow(color: Color.accentColor.opacity(0.4), radius: 4 * scale)
+            }
+
+            // Rule hover highlight (shows when hovering a rule in the Custom Rules or Launcher tabs)
+            if isHoveredByRule && !isSelected {
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(Color.accentColor.opacity(0.6), lineWidth: 2 * scale)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
             // Glow layers for dark mode backlight effect
@@ -325,7 +325,7 @@ struct OverlayKeycapView: View {
         .offset(y: isPressed && fadeAmount < 1 ? 0.75 * scale : 0)
         .animation(.spring(response: 0.15, dampingFraction: 0.6), value: isPressed)
         .animation(.easeOut(duration: 0.3), value: fadeAmount)
-        .animation(.easeInOut(duration: 0.15), value: isClickable)
+        .animation(.easeInOut(duration: 0.15), value: isHovering)
         // Choreographed transition for launcher mode (label → color → icon)
         // Near-instant transition: labels instant, icons get 50ms fade
         .onChange(of: isLauncherMode) { _, newValue in
@@ -340,53 +340,22 @@ struct OverlayKeycapView: View {
             iconVisible = isLauncherMode
         }
         .animation(nil, value: currentLayerName)
-        // Hover detection with dwell time (must be before contentShape for hit testing)
+        .allowsHitTesting(isInspectorVisible || key.layoutRole == .touchId)
+        // Hover detection (must be before contentShape for hit testing)
         .contentShape(Rectangle())
-        .onHover { hovering in
-            isHovering = hovering
-            if hovering {
-                // If user has already clicked a key, make instantly clickable
-                // Otherwise, apply 300ms dwell delay
-                if keyboardMouseState.hasClickedAnyKey {
-                    isClickable = true
-                } else {
-                    // Start dwell timer for first hover
-                    hoverTask = Task { @MainActor in
-                        try? await Task.sleep(for: .milliseconds(Int(clickableDwellTime * 1000)))
-                        if !Task.isCancelled, isHovering {
-                            isClickable = true
-                        }
-                    }
-                }
-            } else {
-                // Cancel timer and reset clickable state
-                hoverTask?.cancel()
-                hoverTask = nil
-                isClickable = false
-                didDragBeyondThreshold = false
-            }
-        }
-        // Gesture that only activates when clickable, otherwise passes through
+        .onHover { isHovering = $0 }
+        // Click behavior based on drawer state:
+        // - Drawer CLOSED: only Touch ID key captures clicks (opens drawer), all other keys pass through for window drag
+        // - Drawer OPEN: all keys capture clicks for mapping
+        // The `including:` parameter completely disables the gesture when .none, allowing window drag to work
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
-                .onChanged { value in
-                    let distance = hypot(value.translation.width, value.translation.height)
-                    if distance > dragThreshold {
-                        didDragBeyondThreshold = true
-                    }
-                }
                 .onEnded { _ in
-                    guard isClickable, !didDragBeyondThreshold, let onKeyClick else {
-                        didDragBeyondThreshold = false
-                        return
-                    }
-                    // Record that a key has been clicked (subsequent clicks will be instant)
-                    keyboardMouseState.recordClick()
+                    guard let onKeyClick else { return }
                     onKeyClick(key, layerKeyInfo)
-                    didDragBeyondThreshold = false
                 },
-            // When not clickable, let gestures pass through for window repositioning
-            including: isClickable ? .all : .none
+            // Only capture gestures when drawer is open OR this is the Touch ID key
+            including: (isInspectorVisible || key.layoutRole == .touchId) ? .all : .none
         )
         .onAppear {
             loadAppIconIfNeeded()

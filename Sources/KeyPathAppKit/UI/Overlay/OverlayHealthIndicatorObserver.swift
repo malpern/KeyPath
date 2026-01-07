@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import KeyPathCore
 import KeyPathWizardCore
 
 @MainActor
@@ -35,7 +36,11 @@ final class OverlayHealthIndicatorObserver {
         validationStatePublisher: AnyPublisher<MainAppStateController.ValidationState?, Never>,
         issuesPublisher: AnyPublisher<[WizardIssue], Never>
     ) {
-        guard !isObserving else { return }
+        AppLogger.shared.log("🔔 [HealthObserver] start() called - isObserving=\(isObserving)")
+        guard !isObserving else {
+            AppLogger.shared.log("🔔 [HealthObserver] start() - already observing, skipping")
+            return
+        }
         isObserving = true
 
         cancellable = Publishers.CombineLatest(
@@ -49,8 +54,20 @@ final class OverlayHealthIndicatorObserver {
     }
 
     private func handle(state: MainAppStateController.ValidationState?, issues: [WizardIssue]) {
+        AppLogger.shared.log("🔔 [HealthObserver] handle() called - state=\(String(describing: state)), issues=\(issues.count), currentState=\(currentState)")
+
         dismissTask?.cancel()
         dismissTask = nil
+
+        // Only count blocking issues (critical/error severity, excluding conflicts which are resolvable)
+        let blockingIssues = issues.filter { issue in
+            switch issue.category {
+            case .conflicts:
+                return false // Conflicts are resolvable, not blocking
+            case .permissions, .installation, .systemRequirements, .backgroundServices, .daemon:
+                return issue.severity == .critical || issue.severity == .error
+            }
+        }
 
         switch state {
         case nil, .checking:
@@ -63,17 +80,18 @@ final class OverlayHealthIndicatorObserver {
                 // Already showing checking or unhealthy - update immediately
                 setState(.checking)
             }
-        case .success where issues.isEmpty:
+        case .success:
             // Cancel any pending "checking" state since we're now healthy
+            // Note: We trust .success state regardless of non-blocking issues
             checkingDebounceTask?.cancel()
             checkingDebounceTask = nil
             setState(.healthy)
             scheduleDismiss()
-        default:
+        case .failed:
             // Cancel any pending "checking" state
             checkingDebounceTask?.cancel()
             checkingDebounceTask = nil
-            setState(.unhealthy(issueCount: issues.count))
+            setState(.unhealthy(issueCount: blockingIssues.count))
         }
     }
 
@@ -104,6 +122,7 @@ final class OverlayHealthIndicatorObserver {
     }
 
     private func setState(_ state: HealthIndicatorState) {
+        AppLogger.shared.log("🔔 [HealthObserver] setState: \(currentState) -> \(state)")
         currentState = state
         onStateChange(state)
     }

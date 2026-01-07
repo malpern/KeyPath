@@ -84,6 +84,10 @@ struct OverlayMapperSection: View {
             let systemId = notification.userInfo?["systemActionIdentifier"] as? String
             let urlId = notification.userInfo?["urlIdentifier"] as? String
 
+            // Extract app condition info (for editing app-specific rules)
+            let appBundleId = notification.userInfo?["appBundleId"] as? String
+            let appDisplayName = notification.userInfo?["appDisplayName"] as? String
+
             // Update the mapper's input to the clicked key
             viewModel.setInputFromKeyClick(
                 keyCode: keyCode,
@@ -93,6 +97,58 @@ struct OverlayMapperSection: View {
                 systemActionIdentifier: systemId,
                 urlIdentifier: urlId
             )
+
+            // If app condition is provided, set it for app-specific rule editing
+            if let bundleId = appBundleId, let displayName = appDisplayName {
+                // Load the app icon (or use fallback)
+                let icon: NSImage
+                if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
+                    icon = NSWorkspace.shared.icon(forFile: appURL.path)
+                    icon.size = NSSize(width: 24, height: 24)
+                } else {
+                    icon = NSImage(systemSymbolName: "app.fill", accessibilityDescription: nil)
+                        ?? NSImage()
+                }
+                viewModel.selectedAppCondition = AppConditionInfo(
+                    bundleIdentifier: bundleId,
+                    displayName: displayName,
+                    icon: icon
+                )
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openMapperAppConditionPicker)) { _ in
+            // Open the app condition picker when requested (e.g., from "New Rule" button in App Rules tab)
+            guard !shouldShowHealthGate else { return }
+            refreshRunningApps()
+            // Small delay to allow tab switch animation to complete
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                isAppConditionPickerOpen = true
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .mapperSetAppCondition)) { notification in
+            // Set app condition directly (from "+" button on app card in App Rules tab)
+            guard !shouldShowHealthGate else { return }
+            guard let bundleId = notification.userInfo?["bundleId"] as? String,
+                  let displayName = notification.userInfo?["displayName"] as? String
+            else { return }
+
+            // Load app icon
+            let icon: NSImage
+            if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
+                icon = NSWorkspace.shared.icon(forFile: appURL.path)
+                icon.size = NSSize(width: 24, height: 24)
+            } else {
+                icon = NSImage(systemSymbolName: "app.fill", accessibilityDescription: nil) ?? NSImage()
+            }
+
+            viewModel.selectedAppCondition = AppConditionInfo(
+                bundleIdentifier: bundleId,
+                displayName: displayName,
+                icon: icon
+            )
+
+            // Reset input/output for new rule
+            viewModel.resetForNewMapping()
         }
         // Auto-save when output recording finishes and there's a valid mapping
         .onChange(of: viewModel.isRecordingOutput) { wasRecording, isRecording in
@@ -115,16 +171,16 @@ struct OverlayMapperSection: View {
             }
         }
         .confirmationDialog(
-            "Clear Custom Rules?",
+            "Reset All Mappings?",
             isPresented: $showingResetAllConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Clear Custom Rules", role: .destructive) {
+            Button("Reset All", role: .destructive) {
                 performResetAll()
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This will remove all custom key mappings (like A→B). Your enabled rule collections (Home Row Mods, etc.) will be preserved.")
+            Text("This will remove ALL custom key mappings including app-specific rules. Your enabled rule collections (Home Row Mods, etc.) will be preserved.")
         }
     }
 
@@ -174,8 +230,8 @@ struct OverlayMapperSection: View {
                             .font(.title3)
                             .foregroundColor(.secondary)
                             .contentShape(Rectangle())
-                            .onTapGesture(count: 2) {
-                                // Double-tap arrow = reset all with confirmation
+                            .onTapGesture(count: 3) {
+                                // Triple-tap arrow = reset all with confirmation
                                 showingResetAllConfirmation = true
                             }
 
@@ -189,10 +245,10 @@ struct OverlayMapperSection: View {
                                     .foregroundStyle(.secondary)
                             }
                             .buttonStyle(.plain)
-                            .help("Click to reset this key. Double-click to reset all.")
+                            .help("Click to reset this key. Triple-click to reset all.")
                             .accessibilityIdentifier("overlay-mapper-reset")
-                            .onTapGesture(count: 2) {
-                                // Double-click reset = reset all with confirmation
+                            .onTapGesture(count: 3) {
+                                // Triple-click reset = reset all with confirmation
                                 showingResetAllConfirmation = true
                             }
                             .onTapGesture(count: 1) {
@@ -490,11 +546,30 @@ struct OverlayMapperSection: View {
         SoundPlayer.shared.playSuccessSound()
     }
 
-    /// Perform the actual reset of entire keyboard to defaults
+    /// Perform the actual reset of entire keyboard to defaults, including app-specific rules
     private func performResetAll() {
         guard let manager = kanataViewModel?.underlyingManager else { return }
         Task {
+            // Reset custom key mappings on all layers
             await viewModel.resetAllToDefaults(kanataManager: manager)
+
+            // Also delete ALL app-specific rules
+            do {
+                let keymaps = await AppKeymapStore.shared.loadKeymaps()
+                for keymap in keymaps {
+                    try await AppKeymapStore.shared.removeKeymap(bundleIdentifier: keymap.mapping.bundleIdentifier)
+                }
+
+                // Regenerate config and restart Kanata if we deleted any app rules
+                if !keymaps.isEmpty {
+                    try await AppConfigGenerator.regenerateFromStore()
+                    await AppContextService.shared.reloadMappings()
+                    _ = await manager.restartKanata(reason: "All app rules reset")
+                }
+            } catch {
+                AppLogger.shared.log("⚠️ [OverlayMapper] Failed to clear app rules: \(error)")
+            }
+
             // Play success sound after reset completes
             SoundPlayer.shared.playSuccessSound()
         }

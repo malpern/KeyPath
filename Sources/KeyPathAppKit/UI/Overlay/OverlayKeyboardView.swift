@@ -34,10 +34,12 @@ struct OverlayKeyboardView: View {
     var holdLabels: [UInt16: String] = [:]
     /// Idle labels for tap-hold inputs (show tap output when not pressed)
     var tapHoldIdleLabels: [UInt16: String] = [:]
-    /// Callback when a key is clicked (not dragged) - for opening Mapper
+    /// Callback when a key is clicked (not dragged) - selects key in drawer mapper when visible
     var onKeyClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
     /// Key code of currently selected key in mapper drawer (shows selection highlight)
     var selectedKeyCode: UInt16?
+    /// Key code being hovered in rules/launcher tabs (for secondary highlight)
+    var hoveredRuleKeyCode: UInt16?
 
     // MARK: - Launcher Mode
 
@@ -45,6 +47,8 @@ struct OverlayKeyboardView: View {
     var isLauncherMode: Bool = false
     /// Launcher mappings: key name -> LauncherMapping
     var launcherMappings: [String: LauncherMapping] = [:]
+    /// Whether the inspector/drawer is visible (determines click vs drag behavior)
+    var isInspectorVisible: Bool = false
 
     // MARK: - Layer Mode (Vim/Nav)
 
@@ -344,6 +348,10 @@ struct OverlayKeyboardView: View {
             showScoopedHomeRow: layout.id == "kinesis-360",
             // Selection highlight for mapper drawer
             isSelected: selectedKeyCode == key.keyCode,
+            // Rule hover highlight (from Custom Rules or Launcher tabs)
+            isHoveredByRule: hoveredRuleKeyCode == key.keyCode,
+            // Inspector/drawer state for click vs drag behavior
+            isInspectorVisible: isInspectorVisible,
             // Launcher mode state
             isLauncherMode: isLauncherMode,
             launcherMapping: launcherMapping
@@ -633,6 +641,7 @@ private struct FloatingKeymapLabel: View {
         .rotationEffect(rotation)
         .opacity(isVisible ? 1.0 : 0.0)
         .position(x: targetFrame.midX, y: targetFrame.midY)
+        .allowsHitTesting(false)
         // Only animate position during layout changes, not resize
         .animation(isLayoutChange() ? positionAnimation : nil, value: targetFrame)
         // Animate visibility changes unless disabled (e.g., launcher mode toggle)

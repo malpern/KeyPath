@@ -471,7 +471,7 @@ private struct KeyboardIllustrationCard: View {
         // No scale "pop" animation on selection - keeps drawer stable
         // Selection ring and shadow changes provide sufficient visual feedback
         .contextMenu {
-            if isCustom, let onDelete {
+            if isCustom, onDelete != nil {
                 Button(role: .destructive) {
                     showDeleteConfirmation = true
                 } label: {
