@@ -61,7 +61,7 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
 // This matches the Summary order shown in WizardSystemStatusOverview.
 // NOTE: Helper is FIRST (after summary) because it's required for privileged operations
 public extension WizardPage {
-    nonisolated(unsafe) static let orderedPages: [WizardPage] = [
+    static let orderedPages: [WizardPage] = [
         .summary,
         .kanataMigration,
         .stopExternalKanata,

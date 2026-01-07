@@ -47,6 +47,8 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Key code of the currently selected key in the mapper drawer (nil when no selection)
     /// Used to show a visual highlight on the key being edited
     @Published var selectedKeyCode: UInt16?
+    /// Key code being hovered in rules/launcher tabs (for secondary highlight)
+    @Published var hoveredRuleKeyCode: UInt16?
     /// Key mapping for the current layer: keyCode -> LayerKeyInfo
     @Published var layerKeyMap: [UInt16: LayerKeyInfo] = [:]
     /// Hold labels for tap-hold keys that have transitioned to hold state
@@ -785,7 +787,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
                 )
 
                 // Apply app-specific overrides for the current frontmost app
-                mapping = await self.applyAppSpecificOverrides(to: mapping)
+                mapping = await applyAppSpecificOverrides(to: mapping)
 
                 // Update on main actor with explicit objectWillChange to ensure SwiftUI notices
                 await MainActor.run {

@@ -83,15 +83,7 @@ actor QMKImportService {
             throw QMKImportError.invalidJSON("Failed to parse JSON: \(error.localizedDescription)")
         }
 
-        // Select layout variant
-        let layoutDef: QMKLayoutParser.QMKLayoutDefinition
-        if let variant = layoutVariant, let selectedLayout = info.layouts[variant] {
-            layoutDef = selectedLayout
-        } else if let defaultLayout = info.layouts["default_transform"] {
-            layoutDef = defaultLayout
-        } else if let firstLayout = info.layouts.values.first {
-            layoutDef = firstLayout
-        } else {
+        guard !info.layouts.isEmpty else {
             throw QMKImportError.noLayoutFound("No layout definitions found in JSON")
         }
 
@@ -105,7 +97,7 @@ actor QMKImportService {
 
         // Generate ID only for new imports (when sourceURL is provided)
         // For reloads from storage, pass nil and let the caller set the ID
-        let idOverride: String? = if let sourceURL {
+        let idOverride: String? = if sourceURL != nil {
             "custom-\(UUID().uuidString)"
         } else {
             nil // Will use JSON's ID or generate in QMKLayoutParser
@@ -185,7 +177,7 @@ actor QMKImportService {
             // Re-parse the layout from stored JSON, preserving the stored ID
             do {
                 // Pass nil for sourceURL so we can set the ID explicitly
-                var layout = try parseQMKData(
+                let layout = try parseQMKData(
                     storedLayout.layoutJSON,
                     sourceURL: nil,
                     layoutVariant: storedLayout.layoutVariant,

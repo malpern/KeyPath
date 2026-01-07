@@ -1083,7 +1083,7 @@ private struct PermissionStatusRow: View {
 
                 Spacer()
 
-                if let status {
+                if status != nil {
                     Image(systemName: trailingIcon)
                         .foregroundColor(trailingColor)
                         .font(.body)

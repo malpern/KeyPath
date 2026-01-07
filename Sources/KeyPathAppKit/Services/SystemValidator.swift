@@ -192,7 +192,9 @@ class SystemValidator {
             var healthResult: HealthStatus?
 
             // Add all tasks to group with progress tracking
+            // Log at TASK START (before any async work) to detect scheduling issues
             group.addTask {
+                AppLogger.shared.log("🚀 [SystemValidator] Task 1 (Helper) STARTED")
                 let start = helperStart
                 let result = await self.checkHelper()
                 let duration = Date().timeIntervalSince(start)
@@ -202,6 +204,7 @@ class SystemValidator {
                 return .helper(result)
             }
             group.addTask {
+                AppLogger.shared.log("🚀 [SystemValidator] Task 2 (Permissions) STARTED")
                 let start = permissionsStart
                 let result = await self.checkPermissions()
                 let duration = Date().timeIntervalSince(start)
@@ -211,6 +214,7 @@ class SystemValidator {
                 return .permissions(result)
             }
             group.addTask {
+                AppLogger.shared.log("🚀 [SystemValidator] Task 3 (Components) STARTED")
                 let start = componentsStart
                 let result = await self.checkComponents()
                 let duration = Date().timeIntervalSince(start)
@@ -220,6 +224,7 @@ class SystemValidator {
                 return .components(result)
             }
             group.addTask {
+                AppLogger.shared.log("🚀 [SystemValidator] Task 4 (Conflicts) STARTED")
                 let start = conflictsStart
                 let result = await self.checkConflicts()
                 let duration = Date().timeIntervalSince(start)
@@ -229,6 +234,7 @@ class SystemValidator {
                 return .conflicts(result)
             }
             group.addTask {
+                AppLogger.shared.log("🚀 [SystemValidator] Task 5 (Health) STARTED")
                 let start = healthStart
                 let result = await self.checkHealth()
                 let duration = Date().timeIntervalSince(start)
@@ -237,6 +243,7 @@ class SystemValidator {
                 updateProgress(5)
                 return .health(result)
             }
+            AppLogger.shared.log("📋 [SystemValidator] All 5 tasks added to TaskGroup")
 
             // Collect results as they complete
             for await result in group {

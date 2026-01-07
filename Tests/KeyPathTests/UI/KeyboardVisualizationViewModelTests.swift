@@ -461,4 +461,78 @@ final class KeyboardVisualizationViewModelTests: XCTestCase {
 
         XCTAssertTrue(viewModel.launcherMappings.isEmpty, "Launcher mappings should be cleared when exiting launcher mode")
     }
+
+    // MARK: - Hovered Rule Key Code Tests
+
+    func testHoveredRuleKeyCodeIsNilByDefault() {
+        let viewModel = KeyboardVisualizationViewModel()
+        XCTAssertNil(viewModel.hoveredRuleKeyCode, "hoveredRuleKeyCode should be nil by default")
+    }
+
+    func testHoveredRuleKeyCodeCanBeSet() {
+        let viewModel = KeyboardVisualizationViewModel()
+
+        viewModel.hoveredRuleKeyCode = 38  // j key
+        XCTAssertEqual(viewModel.hoveredRuleKeyCode, 38)
+
+        viewModel.hoveredRuleKeyCode = nil
+        XCTAssertNil(viewModel.hoveredRuleKeyCode)
+    }
+
+    // MARK: - LogicalKeymap Reverse Lookup Tests
+
+    func testKeyCodeForQwertyLabel_homeRowKeys() {
+        // Test home row keys (ASDFGHJKL;)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "a"), 0)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "s"), 1)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "d"), 2)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "f"), 3)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "g"), 5)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "h"), 4)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "j"), 38)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "k"), 40)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "l"), 37)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: ";"), 41)
+    }
+
+    func testKeyCodeForQwertyLabel_topRowKeys() {
+        // Test top row keys (QWERTYUIOP)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "q"), 12)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "w"), 13)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "e"), 14)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "r"), 15)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "t"), 17)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "y"), 16)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "u"), 32)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "i"), 34)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "o"), 31)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "p"), 35)
+    }
+
+    func testKeyCodeForQwertyLabel_bottomRowKeys() {
+        // Test bottom row keys (ZXCVBNM,./)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "z"), 6)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "x"), 7)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "c"), 8)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "v"), 9)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "b"), 11)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "n"), 45)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "m"), 46)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: ","), 43)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "."), 47)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "/"), 44)
+    }
+
+    func testKeyCodeForQwertyLabel_caseInsensitive() {
+        // Should work with uppercase letters
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "A"), 0)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "J"), 38)
+        XCTAssertEqual(LogicalKeymap.keyCode(forQwertyLabel: "Z"), 6)
+    }
+
+    func testKeyCodeForQwertyLabel_unknownKeyReturnsNil() {
+        XCTAssertNil(LogicalKeymap.keyCode(forQwertyLabel: "unknown"))
+        XCTAssertNil(LogicalKeymap.keyCode(forQwertyLabel: ""))
+        XCTAssertNil(LogicalKeymap.keyCode(forQwertyLabel: "space"))
+    }
 }

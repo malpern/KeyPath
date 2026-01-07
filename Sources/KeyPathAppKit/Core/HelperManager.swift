@@ -801,9 +801,13 @@ actor HelperManager {
     }
 
     func downloadAndInstallCorrectVHIDDriver() async throws {
-        try await executeXPCCall("downloadAndInstallCorrectVHIDDriver") { proxy, reply in
-            proxy.downloadAndInstallCorrectVHIDDriver(reply: reply)
+        let bundledPkgPath = WizardSystemPaths.bundledVHIDDriverPkgPath
+        guard WizardSystemPaths.bundledVHIDDriverPkgExists else {
+            throw HelperManagerError.operationFailed(
+                "Bundled VHID driver package not found at: \(bundledPkgPath)"
+            )
         }
+        try await installBundledVHIDDriver(pkgPath: bundledPkgPath)
     }
 
     func installBundledVHIDDriver(pkgPath: String) async throws {
