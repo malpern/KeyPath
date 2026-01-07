@@ -333,7 +333,7 @@ private struct GlobalKeyChip: View {
             ),
             onEdit: { _ in },
             onDelete: { _ in },
-            onAddRule: { }
+            onAddRule: {}
         )
 
         AppRuleCard(
@@ -349,7 +349,7 @@ private struct GlobalKeyChip: View {
             ),
             onEdit: { _ in },
             onDelete: { _ in },
-            onAddRule: { }
+            onAddRule: {}
         )
     }
     .padding()

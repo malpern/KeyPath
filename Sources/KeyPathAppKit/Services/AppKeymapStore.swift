@@ -183,6 +183,14 @@ actor AppKeymapStore {
         return result
     }
 
+    /// Get all apps that have a mapping for a specific input key
+    func getAppsWithMapping(forInputKey inputKey: String) -> [AppKeymap] {
+        let lowercased = inputKey.lowercased()
+        return loadKeymaps().filter { keymap in
+            keymap.overrides.contains { $0.inputKey.lowercased() == lowercased }
+        }
+    }
+
     /// Invalidate the cache (call after external modifications)
     func invalidateCache() {
         cachedKeymaps = nil

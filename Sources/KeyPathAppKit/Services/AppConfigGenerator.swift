@@ -373,11 +373,12 @@ public enum AppConfigGenerator {
 
     /// Escape special characters in Kanata output actions.
     /// Wraps complex actions in parentheses if needed.
+    /// Sequences of multiple keys are wrapped in (macro ...).
     static func escapeOutputAction(_ action: String) -> String {
         let trimmed = action.trimmingCharacters(in: .whitespaces)
 
         // Already wrapped in parens - assume it's a valid expression
-        if trimmed.hasPrefix("(") && trimmed.hasSuffix(")") {
+        if trimmed.hasPrefix("("), trimmed.hasSuffix(")") {
             return trimmed
         }
 
@@ -386,10 +387,11 @@ public enum AppConfigGenerator {
             return trimmed
         }
 
-        // Simple key name - check for special characters
-        if trimmed.contains(" ") || trimmed.contains("(") || trimmed.contains(")") {
-            // Likely needs to be wrapped or is malformed
-            AppLogger.shared.warn("⚠️ [AppConfigGenerator] Potentially malformed action: \(trimmed)")
+        // Check if this is a sequence of multiple keys (space-separated)
+        let parts = trimmed.split(separator: " ")
+        if parts.count > 1 {
+            // Multiple keys = wrap in macro
+            return "(macro \(trimmed))"
         }
 
         return trimmed

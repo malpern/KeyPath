@@ -168,6 +168,8 @@ class MapperViewModel: ObservableObject {
     /// Key code of the captured input (for overlay-style rendering)
     /// Default to 0 (A key) so the default state shows the A key selected
     @Published var inputKeyCode: UInt16? = 0
+    /// Apps that have a mapping for the currently selected input key
+    @Published var appsWithCurrentKeyMapping: [AppKeymap] = []
 
     // MARK: - App Condition (Delegated to AppConditionManager)
 
@@ -342,10 +344,11 @@ class MapperViewModel: ObservableObject {
             captureMode: .single
         )
 
-        // Clear previous selections first
+        // Clear previous selections first (including app condition - revert to "Everywhere")
         selectedApp = nil
         selectedSystemAction = nil
         selectedURL = nil
+        selectedAppCondition = nil
 
         // Set output based on action type
         if let appId = appIdentifier, let appInfo = appLaunchInfo(for: appId) {
@@ -372,6 +375,19 @@ class MapperViewModel: ObservableObject {
             )
             AppLogger.shared.log("🖱️ [MapperViewModel] Key click - key mapping: \(inputLabel) -> \(outputLabel)")
         }
+
+        // Update list of apps that have mappings for this key
+        Task { await updateAppsWithMapping() }
+    }
+
+    /// Update the list of apps that have a mapping for the currently selected input key
+    func updateAppsWithMapping() async {
+        guard let keyCode = inputKeyCode else {
+            appsWithCurrentKeyMapping = []
+            return
+        }
+        let inputKey = OverlayKeyboardView.keyCodeToKanataName(keyCode)
+        appsWithCurrentKeyMapping = await AppKeymapStore.shared.getAppsWithMapping(forInputKey: inputKey)
     }
 
     /// Apply preset values from overlay click

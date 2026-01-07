@@ -53,6 +53,19 @@ final class OverlayHealthIndicatorObserver {
         }
     }
 
+    /// Force a refresh of the health state from current MainAppStateController values.
+    /// Call this when showing the overlay to ensure UI reflects current state,
+    /// especially when Combine subscription is already active (won't re-emit current value).
+    ///
+    /// This fixes the "System Not Ready" stale state bug where `showForStartup()` is called
+    /// multiple times but the observer guard prevents re-subscription, leaving the UI stuck.
+    func refresh() {
+        let state = MainAppStateController.shared.validationState
+        let issues = MainAppStateController.shared.issues
+        AppLogger.shared.log("🔔 [HealthObserver] refresh() called - forcing state re-evaluation")
+        handle(state: state, issues: issues)
+    }
+
     private func handle(state: MainAppStateController.ValidationState?, issues: [WizardIssue]) {
         AppLogger.shared.log("🔔 [HealthObserver] handle() called - state=\(String(describing: state)), issues=\(issues.count), currentState=\(currentState)")
 
@@ -63,9 +76,9 @@ final class OverlayHealthIndicatorObserver {
         let blockingIssues = issues.filter { issue in
             switch issue.category {
             case .conflicts:
-                return false // Conflicts are resolvable, not blocking
+                false // Conflicts are resolvable, not blocking
             case .permissions, .installation, .systemRequirements, .backgroundServices, .daemon:
-                return issue.severity == .critical || issue.severity == .error
+                issue.severity == .critical || issue.severity == .error
             }
         }
 

@@ -5,26 +5,27 @@
     --color-primary: #007AFF;
     --color-primary-dark: #0051D5;
     --color-primary-light: #5AC8FA;
-    
-    --color-background: #FFFFFF;
-    --color-background-secondary: #F5F5F7;
-    --color-background-tertiary: #FAFAFA;
-    
-    --color-text: #1D1D1F;
-    --color-text-secondary: #86868B;
+
+    /* Force dark mode colors */
+    --color-background: #000000;
+    --color-background-secondary: #1C1C1E;
+    --color-background-tertiary: #2C2C2E;
+
+    --color-text: #F5F5F7;
+    --color-text-secondary: #98989D;
     --color-text-tertiary: #6E6E73;
-    
-    --color-border: #D2D2D7;
-    --color-border-light: #E5E5EA;
-    
+
+    --color-border: #38383A;
+    --color-border-light: #2C2C2E;
+
     --color-success: #34C759;
     --color-warning: #FF9500;
     --color-error: #FF3B30;
-    
+
     /* Typography */
     --font-display: 'Source Serif 4', ui-serif, 'Iowan Old Style', 'Palatino', 'Times New Roman', serif;
     --font-text: 'Source Sans 3', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    
+
     --font-size-xs: 0.75rem;    /* 12px */
     --font-size-sm: 0.875rem;   /* 14px */
     --font-size-base: 1rem;     /* 16px */
@@ -34,7 +35,7 @@
     --font-size-3xl: 1.875rem;  /* 30px */
     --font-size-4xl: 2.25rem;   /* 36px */
     --font-size-5xl: 3rem;      /* 48px */
-    
+
     /* Spacing */
     --spacing-xs: 0.25rem;   /* 4px */
     --spacing-sm: 0.5rem;    /* 8px */
@@ -43,38 +44,22 @@
     --spacing-xl: 2rem;      /* 32px */
     --spacing-2xl: 3rem;     /* 48px */
     --spacing-3xl: 4rem;     /* 64px */
-    
+
     /* Layout */
     /* Slightly narrower overall measure for more "article" feel */
     --max-width: 1120px;
     --sidebar-width: 240px;
     --header-height: 64px;
-    
+
     /* Shadows */
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    
+
     /* Transitions */
     --transition-fast: 150ms ease;
     --transition-base: 250ms ease;
     --transition-slow: 350ms ease;
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-    :root {
-        --color-background: #000000;
-        --color-background-secondary: #1C1C1E;
-        --color-background-tertiary: #2C2C2E;
-        
-        --color-text: #F5F5F7;
-        --color-text-secondary: #98989D;
-        --color-text-tertiary: #6E6E73;
-        
-        --color-border: #38383A;
-        --color-border-light: #2C2C2E;
-    }
 }
 
 /* Reset & Base Styles */
@@ -136,16 +121,10 @@ a:hover {
     position: sticky;
     top: 0;
     z-index: 100;
-    background-color: rgba(255, 255, 255, 0.8);
+    background-color: rgba(0, 0, 0, 0.8);
     backdrop-filter: saturate(180%) blur(20px);
     border-bottom: 1px solid var(--color-border-light);
     height: var(--header-height);
-}
-
-@media (prefers-color-scheme: dark) {
-    .site-header {
-        background-color: rgba(0, 0, 0, 0.8);
-    }
 }
 
 .nav-container {

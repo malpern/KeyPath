@@ -36,6 +36,7 @@ struct LiveKeyboardOverlayView: View {
         get { InspectorSection(rawValue: inspectorSectionRaw) ?? .mapper }
         nonmutating set { inspectorSectionRaw = newValue.rawValue }
     }
+
     private var settingsSection: InspectorSection {
         get {
             let section = InspectorSection(rawValue: settingsSectionRaw) ?? .keycaps
@@ -43,6 +44,7 @@ struct LiveKeyboardOverlayView: View {
         }
         nonmutating set { settingsSectionRaw = newValue.rawValue }
     }
+
     /// Whether custom rules exist (for showing Custom Rules tab)
     @State private var hasCustomRules = false
     /// Cached app keymaps for Custom Rules tab content
@@ -101,27 +103,7 @@ struct LiveKeyboardOverlayView: View {
     }
 
     private var settingsShelfAnimation: Animation {
-        .spring(response: 0.45, dampingFraction: 0.74, blendDuration: 0.12)
-    }
-
-    /// Hash of layerKeyMap to force SwiftUI to recreate keyboard view when mappings change
-    private var layerKeyMapHash: Int {
-        var hasher = Hasher()
-        // Include count and a few key values in hash for efficiency
-        hasher.combine(viewModel.layerKeyMap.count)
-        hasher.combine(viewModel.currentLayerName)
-        // Sample a few keys to detect changes (full iteration would be slow)
-        for keyCode: UInt16 in [0, 1, 2, 3, 4, 5] { // A through G
-            if let info = viewModel.layerKeyMap[keyCode] {
-                hasher.combine(info.displayLabel)
-                hasher.combine(info.outputKey)
-            }
-        }
-        let hash = hasher.finalize()
-        // Debug: Log hash calculation (INFO level to see in normal logs)
-        let keyCode0Label = viewModel.layerKeyMap[0]?.displayLabel ?? "nil"
-        AppLogger.shared.info("🔢 [OverlayView] layerKeyMapHash computed: \(hash), keyCode0='\(keyCode0Label)', count=\(viewModel.layerKeyMap.count)")
-        return hash
+        .spring(response: 0.5, dampingFraction: 0.72, blendDuration: 0.12)
     }
 
     private func selectInspectorSection(_ section: InspectorSection) {
@@ -275,7 +257,7 @@ struct LiveKeyboardOverlayView: View {
                 viewModel.selectedKeyCode = nil
             }
             // Clear hovered rule key when leaving custom rules or launchers section
-            if newSection != .customRules && newSection != .launchers {
+            if newSection != .customRules, newSection != .launchers {
                 viewModel.hoveredRuleKeyCode = nil
             }
         })
@@ -329,8 +311,7 @@ struct LiveKeyboardOverlayView: View {
             // If preset values are provided, forward them to the mapper
             if let userInfo = notification.userInfo,
                let inputKey = userInfo["inputKey"] as? String,
-               let outputKey = userInfo["outputKey"] as? String
-            {
+               let outputKey = userInfo["outputKey"] as? String {
                 var mapperUserInfo: [String: Any] = [
                     "inputKey": inputKey,
                     "outputKey": outputKey,
@@ -338,8 +319,7 @@ struct LiveKeyboardOverlayView: View {
                 ]
                 // Include app condition if present (for app-specific rule editing)
                 if let appBundleId = userInfo["appBundleId"] as? String,
-                   let appDisplayName = userInfo["appDisplayName"] as? String
-                {
+                   let appDisplayName = userInfo["appDisplayName"] as? String {
                     mapperUserInfo["appBundleId"] = appBundleId
                     mapperUserInfo["appDisplayName"] = appDisplayName
                 }
@@ -552,9 +532,6 @@ struct LiveKeyboardOverlayView: View {
                     launcherMappings: viewModel.launcherMappings,
                     isInspectorVisible: inspectorVisible
                 )
-                // Force SwiftUI to recreate keyboard when layerKeyMap changes
-                // This ensures key labels update after config changes
-                .id(layerKeyMapHash)
                 .environmentObject(viewModel)
                 .frame(
                     width: fixedKeyboardWidth,
@@ -2135,6 +2112,22 @@ private struct PhysicalLayoutRow: View {
     }
 }
 
+private enum GearAnchorLocation: Hashable {
+    case main
+    case settings
+}
+
+private struct GearAnchorPreferenceKey: PreferenceKey {
+    static let defaultValue: [GearAnchorLocation: Anchor<CGRect>] = [:]
+
+    static func reduce(
+        value: inout [GearAnchorLocation: Anchor<CGRect>],
+        nextValue: () -> [GearAnchorLocation: Anchor<CGRect>]
+    ) {
+        value.merge(nextValue(), uniquingKeysWith: { $1 })
+    }
+}
+
 private struct InspectorPanelToolbar: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -2147,7 +2140,6 @@ private struct InspectorPanelToolbar: View {
     let isSettingsShelfActive: Bool
     let onToggleSettingsShelf: () -> Void
     private let buttonSize: CGFloat = 32
-    @Namespace private var gearNamespace
     @State private var isHoveringMapper = false
     @State private var isHoveringCustomRules = false
     @State private var isHoveringKeyboard = false
@@ -2156,21 +2148,158 @@ private struct InspectorPanelToolbar: View {
     @State private var isHoveringSounds = false
     @State private var isHoveringLaunchers = false
     @State private var isHoveringSettings = false
+    @State private var showMainTabs = true
+    @State private var showSettingsTabs = false
+    @State private var animationToken = 0
+    @State private var gearSpinDegrees: Double = 0
+    @State private var gearTravelDistance: CGFloat = 0
+    @State private var gearPositionX: CGFloat = 0
+    @State private var gearPositionY: CGFloat = 0
 
     var body: some View {
         ZStack(alignment: .leading) {
             mainTabsRow
             settingsTabsRow
         }
+        .overlayPreferenceValue(GearAnchorPreferenceKey.self) { anchors in
+            GeometryReader { proxy in
+                let mainFrame = anchors[.main].map { proxy[$0] }
+                let settingsFrame = anchors[.settings].map { proxy[$0] }
+                if let mainFrame, let settingsFrame {
+                    gearButton(isSelected: showSettingsTabs, rotationDegrees: gearRotationDegrees)
+                        .position(x: gearPositionX, y: gearPositionY)
+                        .zIndex(1)
+                        .onAppear {
+                            // Set initial position without animation
+                            let initialFrame = isSettingsShelfActive ? settingsFrame : mainFrame
+                            gearPositionX = initialFrame.midX
+                            gearPositionY = initialFrame.midY
+                            updateGearTravelDistance(mainFrame: mainFrame, settingsFrame: settingsFrame)
+                        }
+                        .onChange(of: mainFrame) { _, newValue in
+                            updateGearTravelDistance(mainFrame: newValue, settingsFrame: settingsFrame)
+                            if !isSettingsShelfActive {
+                                updateGearPosition(to: newValue)
+                            }
+                        }
+                        .onChange(of: settingsFrame) { _, newValue in
+                            updateGearTravelDistance(mainFrame: mainFrame, settingsFrame: newValue)
+                            if isSettingsShelfActive {
+                                updateGearPosition(to: newValue)
+                            }
+                        }
+                        .onChange(of: isSettingsShelfActive) { _, isActive in
+                            let targetFrame = isActive ? settingsFrame : mainFrame
+                            updateGearPosition(to: targetFrame)
+                        }
+                }
+            }
+        }
         .controlSize(.regular)
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .animation(settingsShelfAnimation, value: isSettingsShelfActive)
         // No background - transparent toolbar
+        .onAppear {
+            syncShelfVisibility()
+        }
+        .onChange(of: isSettingsShelfActive) { _, newValue in
+            animateShelfTransition(isActive: newValue)
+        }
     }
 
     private var mainTabsRow: some View {
         HStack(spacing: 8) {
+            mainTabsContent
+                .opacity(showMainTabs ? 1 : 0)
+                .allowsHitTesting(showMainTabs)
+                .accessibilityHidden(!showMainTabs)
+            gearAnchor(.main)
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    private var settingsTabsRow: some View {
+        HStack(spacing: 8) {
+            gearAnchor(.settings)
+            settingsTabsContent
+                .opacity(showSettingsTabs ? 1 : 0)
+                .allowsHitTesting(showSettingsTabs)
+                .accessibilityHidden(!showSettingsTabs)
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    private var gearSlideDuration: Double {
+        reduceMotion ? 0 : 2.8 // 60% faster than previous (4.5 / 1.6)
+    }
+
+    private var gearSpinDuration: Double {
+        reduceMotion ? 0 : 0.6 // 60% reduction from original (1.5 * 0.4)
+    }
+
+    private var tabFadeAnimation: Animation? {
+        reduceMotion ? nil : .easeInOut(duration: 0.16)
+    }
+
+    private var gearRotationDegrees: Double {
+        reduceMotion ? 0 : gearSpinDegrees
+    }
+
+    private func gearButton(isSelected: Bool, rotationDegrees: Double) -> some View {
+        Button(action: onToggleSettingsShelf) {
+            Image(systemName: "gearshape.fill")
+                .font(.system(size: buttonSize * 0.5, weight: .semibold))
+                .foregroundStyle(isSelected ? Color.accentColor : (isHoveringSettings ? .primary : .secondary))
+                .rotationEffect(.degrees(rotationDegrees))
+                .frame(width: buttonSize, height: buttonSize)
+                .background(gearBackground(isSelected: isSelected))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("inspector-tab-settings")
+        .accessibilityLabel(isSelected ? "Close settings shelf" : "Open settings shelf")
+        .help("Settings")
+        .onHover { isHoveringSettings = $0 }
+    }
+
+    private func gearBackground(isSelected: Bool) -> some View {
+        let selectedFill = Color.accentColor.opacity(isDark ? 0.38 : 0.26)
+        let hoverFill = (isDark ? Color.white : Color.black).opacity(isDark ? 0.08 : 0.08)
+        return RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(isSelected ? selectedFill : (isHoveringSettings ? hoverFill : Color.clear))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(isSelected ? Color.accentColor.opacity(isDark ? 0.9 : 0.7) : Color.clear, lineWidth: 1.5)
+            )
+    }
+
+    private func toolbarButton(
+        systemImage: String,
+        isSelected: Bool,
+        isHovering: Bool,
+        onHover: @escaping (Bool) -> Void,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: buttonSize * 0.5, weight: .semibold))
+                .foregroundStyle(isSelected ? Color.accentColor : (isHovering ? .primary : .secondary))
+                .frame(width: buttonSize, height: buttonSize)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .accessibilityIdentifier("overlay-toolbar-button-\(systemImage)")
+        .accessibilityLabel("Toolbar button \(systemImage)")
+        .onHover(perform: onHover)
+    }
+
+    private var isMapperTabEnabled: Bool {
+        if healthIndicatorState == .checking { return true }
+        if case .unhealthy = healthIndicatorState { return true }
+        return isMapperAvailable
+    }
+
+    private var mainTabsContent: some View {
+        Group {
             // Mapper first (leftmost)
             toolbarButton(
                 systemImage: "arrow.right.arrow.left",
@@ -2213,21 +2342,11 @@ private struct InspectorPanelToolbar: View {
             .accessibilityIdentifier("inspector-tab-launchers")
             .accessibilityLabel("Quick Launcher")
             .help("Quick Launcher")
-
-            gearButton(isSelected: isSettingsShelfActive)
-                .matchedGeometryEffect(id: "settings-gear", in: gearNamespace)
         }
-        .frame(maxWidth: .infinity, alignment: .center)
-        .opacity(isSettingsShelfActive ? 0 : 1)
-        .allowsHitTesting(!isSettingsShelfActive)
-        .accessibilityHidden(isSettingsShelfActive)
     }
 
-    private var settingsTabsRow: some View {
-        HStack(spacing: 8) {
-            gearButton(isSelected: isSettingsShelfActive)
-                .matchedGeometryEffect(id: "settings-gear", in: gearNamespace)
-
+    private var settingsTabsContent: some View {
+        Group {
             toolbarButton(
                 systemImage: "swatchpalette.fill",
                 isSelected: selectedSection == .keycaps,
@@ -2276,62 +2395,85 @@ private struct InspectorPanelToolbar: View {
             .accessibilityLabel("Physical Layout")
             .help("Physical Layout")
         }
-        .frame(maxWidth: .infinity, alignment: .center)
-        .opacity(isSettingsShelfActive ? 1 : 0)
-        .allowsHitTesting(isSettingsShelfActive)
-        .accessibilityHidden(!isSettingsShelfActive)
     }
 
-    private var settingsShelfAnimation: Animation? {
-        reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.74, blendDuration: 0.12)
+    private func gearAnchor(_ location: GearAnchorLocation) -> some View {
+        Color.clear
+            .frame(width: buttonSize, height: buttonSize)
+            .anchorPreference(key: GearAnchorPreferenceKey.self, value: .bounds) { [location: $0] }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 
-    private func gearButton(isSelected: Bool) -> some View {
-        Button(action: onToggleSettingsShelf) {
-            Image(systemName: "gearshape.fill")
-                .font(.system(size: buttonSize * 0.5, weight: .semibold))
-                .foregroundStyle(isSelected ? Color.accentColor : (isHoveringSettings ? .primary : .secondary))
-                .frame(width: buttonSize, height: buttonSize)
-                .background(gearBackground(isSelected: isSelected))
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    private func syncShelfVisibility() {
+        showMainTabs = !isSettingsShelfActive
+        showSettingsTabs = isSettingsShelfActive
+    }
+
+    private func animateShelfTransition(isActive: Bool) {
+        animationToken += 1
+        let currentToken = animationToken
+        if reduceMotion {
+            showMainTabs = !isActive
+            showSettingsTabs = isActive
+            return
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("inspector-tab-settings")
-        .accessibilityLabel(isSelected ? "Close settings shelf" : "Open settings shelf")
-        .help("Settings")
-        .onHover { isHoveringSettings = $0 }
-    }
 
-    private func gearBackground(isSelected: Bool) -> some View {
-        let selectedFill = Color.accentColor.opacity(isDark ? 0.25 : 0.18)
-        let hoverFill = (isDark ? Color.white : Color.black).opacity(isDark ? 0.08 : 0.08)
-        return RoundedRectangle(cornerRadius: 8, style: .continuous)
-            .fill(isSelected ? selectedFill : (isHoveringSettings ? hoverFill : Color.clear))
-    }
+        let spinAmount = Double(gearTravelDistance) * gearRotationPerPoint
+        let fadeAnimation = tabFadeAnimation
 
-    private func toolbarButton(
-        systemImage: String,
-        isSelected: Bool,
-        isHovering: Bool,
-        onHover: @escaping (Bool) -> Void,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: buttonSize * 0.5, weight: .semibold))
-                .foregroundStyle(isSelected ? Color.accentColor : (isHovering ? .primary : .secondary))
-                .frame(width: buttonSize, height: buttonSize)
+        if isActive {
+            withAnimation(fadeAnimation) {
+                showMainTabs = false
+            }
+            withAnimation(.easeInOut(duration: gearSpinDuration)) {
+                gearSpinDegrees -= spinAmount
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + gearSlideDuration) {
+                guard animationToken == currentToken else { return }
+                withAnimation(fadeAnimation) {
+                    showSettingsTabs = true
+                }
+            }
+        } else {
+            withAnimation(fadeAnimation) {
+                showSettingsTabs = false
+            }
+            withAnimation(.easeInOut(duration: gearSpinDuration)) {
+                gearSpinDegrees += spinAmount
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + gearSlideDuration) {
+                guard animationToken == currentToken else { return }
+                withAnimation(fadeAnimation) {
+                    showMainTabs = true
+                }
+            }
         }
-        .buttonStyle(PlainButtonStyle())
-        .accessibilityIdentifier("overlay-toolbar-button-\(systemImage)")
-        .accessibilityLabel("Toolbar button \(systemImage)")
-        .onHover(perform: onHover)
     }
 
-    private var isMapperTabEnabled: Bool {
-        if healthIndicatorState == .checking { return true }
-        if case .unhealthy = healthIndicatorState { return true }
-        return isMapperAvailable
+    private var gearRotationPerPoint: Double {
+        let circumference = Double.pi * Double(buttonSize)
+        guard circumference > 0 else { return 0 }
+        return 360.0 / circumference
+    }
+
+    private func updateGearTravelDistance(mainFrame: CGRect, settingsFrame: CGRect) {
+        let distance = abs(settingsFrame.midX - mainFrame.midX)
+        if abs(distance - gearTravelDistance) > 0.5 {
+            gearTravelDistance = distance
+        }
+    }
+
+    private func updateGearPosition(to frame: CGRect) {
+        if reduceMotion {
+            gearPositionX = frame.midX
+            gearPositionY = frame.midY
+        } else {
+            withAnimation(.spring(response: gearSlideDuration, dampingFraction: 0.85)) {
+                gearPositionX = frame.midX
+                gearPositionY = frame.midY
+            }
+        }
     }
 }
 
@@ -2381,9 +2523,9 @@ extension InspectorSection {
     var isSettingsShelf: Bool {
         switch self {
         case .keycaps, .sounds, .keyboard, .layout:
-            return true
+            true
         case .mapper, .customRules, .launchers:
-            return false
+            false
         }
     }
 }

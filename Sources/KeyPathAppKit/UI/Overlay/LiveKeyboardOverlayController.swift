@@ -441,9 +441,13 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     /// Show overlay for app startup with 30% larger size, centered at bottom with margin.
     /// Also starts health state observation to show validation progress.
     func showForStartup() {
-        // Start health observation first so indicator shows immediately
-        uiState.healthIndicatorState = .checking
+        // Start health observation and refresh state from current values.
+        // Don't manually set .checking - let the observer determine state based on
+        // MainAppStateController's current validation state. This fixes the bug where
+        // calling showForStartup() multiple times would leave UI stuck in .checking
+        // because the observer guard prevents re-subscription and Combine doesn't re-emit.
         observeHealthState()
+        healthObserver?.refresh()
 
         // Create window if needed
         if window == nil {
@@ -710,6 +714,11 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             window.setFrame(savedFrame, display: false)
         }
         window?.orderFront(nil)
+
+        // Ensure health state reflects current MainAppStateController values.
+        // This is a belt-and-suspenders fix for stale "System Not Ready" state.
+        observeHealthState()
+        healthObserver?.refresh()
     }
 
     private func hideWindow() {

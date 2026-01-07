@@ -472,7 +472,7 @@ final class KeyboardVisualizationViewModelTests: XCTestCase {
     func testHoveredRuleKeyCodeCanBeSet() {
         let viewModel = KeyboardVisualizationViewModel()
 
-        viewModel.hoveredRuleKeyCode = 38  // j key
+        viewModel.hoveredRuleKeyCode = 38 // j key
         XCTAssertEqual(viewModel.hoveredRuleKeyCode, 38)
 
         viewModel.hoveredRuleKeyCode = nil

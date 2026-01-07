@@ -191,6 +191,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             menu.addItem(featureItem)
         }
 
+        // App-specific mappings for frontmost app
+        addAppSpecificSection()
+
         addFooterItems()
     }
 
@@ -271,6 +274,98 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
     }
 
+    /// Adds app-specific mappings section for the frontmost app
+    private func addAppSpecificSection() {
+        // Get frontmost app (excluding KeyPath itself)
+        guard let frontApp = NSWorkspace.shared.frontmostApplication,
+              let bundleId = frontApp.bundleIdentifier,
+              bundleId != Bundle.main.bundleIdentifier,
+              let appName = frontApp.localizedName
+        else {
+            return
+        }
+
+        // Get app icon (scaled to menu size)
+        let appIcon: NSImage
+        if let icon = frontApp.icon {
+            appIcon = icon
+            appIcon.size = NSSize(width: 16, height: 16)
+        } else {
+            appIcon = NSImage(systemSymbolName: "app.fill", accessibilityDescription: appName)
+                ?? NSImage()
+        }
+
+        menu.addItem(.separator())
+
+        // Use synchronous approach to get cached keymap data for menu building
+        let keymap = getAppKeymapSync(bundleIdentifier: bundleId)
+
+        if let keymap, !keymap.overrides.isEmpty {
+            // Header for app-specific mappings
+            let headerItem = NSMenuItem(
+                title: "\(appName) Mappings",
+                action: nil,
+                keyEquivalent: ""
+            )
+            headerItem.isEnabled = false
+            headerItem.image = appIcon
+            menu.addItem(headerItem)
+
+            // Show up to 5 mappings
+            for override in keymap.overrides.prefix(5) {
+                let mappingItem = NSMenuItem(
+                    title: "  \(override.inputKey) → \(KeyDisplayFormatter.format(override.outputAction))",
+                    action: #selector(handleAppMappingClick),
+                    keyEquivalent: ""
+                )
+                mappingItem.target = self
+                mappingItem.indentationLevel = 1
+                mappingItem.representedObject = bundleId
+                menu.addItem(mappingItem)
+            }
+
+            // Show "and X more..." if there are more
+            if keymap.overrides.count > 5 {
+                let moreItem = NSMenuItem(
+                    title: "  and \(keymap.overrides.count - 5) more...",
+                    action: #selector(handleAppMappingClick),
+                    keyEquivalent: ""
+                )
+                moreItem.target = self
+                moreItem.indentationLevel = 1
+                moreItem.representedObject = bundleId
+                menu.addItem(moreItem)
+            }
+        }
+
+        // "Add [App] rule..." action
+        let createItem = NSMenuItem(
+            title: "Add \(appName) rule...",
+            action: #selector(handleCreateAppMapping),
+            keyEquivalent: ""
+        )
+        createItem.target = self
+        createItem.image = appIcon
+        createItem.representedObject = (bundleId, appName, frontApp.icon)
+        menu.addItem(createItem)
+    }
+
+    /// Synchronously get app keymap (for menu building)
+    private func getAppKeymapSync(bundleIdentifier: String) -> AppKeymap? {
+        // Use a semaphore to wait for the async result
+        var result: AppKeymap?
+        let semaphore = DispatchSemaphore(value: 0)
+
+        Task {
+            result = await AppKeymapStore.shared.getKeymap(bundleIdentifier: bundleIdentifier)
+            semaphore.signal()
+        }
+
+        // Wait with a short timeout to avoid blocking UI
+        _ = semaphore.wait(timeout: .now() + 0.1)
+        return result
+    }
+
     // MARK: - Actions
 
     @objc
@@ -303,6 +398,54 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     @objc
     private func handleQuit() {
         quitHandler()
+    }
+
+    @objc
+    private func handleAppMappingClick(_ sender: NSMenuItem) {
+        // Open the overlay with the mapper drawer to show/edit app mappings
+        guard let bundleId = sender.representedObject as? String else { return }
+
+        // Get app name for the notification
+        let appName = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId)
+            .flatMap { Bundle(url: $0)?.infoDictionary?["CFBundleName"] as? String }
+            ?? bundleId
+
+        // Open overlay and set the app condition
+        LiveKeyboardOverlayController.shared.showForQuickLaunch()
+
+        // Post notification to set app condition in mapper (use existing notification)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            NotificationCenter.default.post(
+                name: .mapperSetAppCondition,
+                object: nil,
+                userInfo: [
+                    "bundleId": bundleId,
+                    "displayName": appName
+                ]
+            )
+        }
+    }
+
+    @objc
+    private func handleCreateAppMapping(_ sender: NSMenuItem) {
+        // Open the overlay with mapper drawer pre-configured for the app
+        guard let info = sender.representedObject as? (String, String, NSImage?) else { return }
+        let (bundleId, appName, _) = info
+
+        // Open overlay
+        LiveKeyboardOverlayController.shared.showForQuickLaunch()
+
+        // Post notification to open mapper with app condition pre-set (use existing notification)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            NotificationCenter.default.post(
+                name: .mapperSetAppCondition,
+                object: nil,
+                userInfo: [
+                    "bundleId": bundleId,
+                    "displayName": appName
+                ]
+            )
+        }
     }
 
     // MARK: - Issue Category Mapping

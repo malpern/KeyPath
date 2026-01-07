@@ -67,6 +67,9 @@ struct OverlayKeyboardView: View {
     @State private var initialRenderComplete: Bool = false
     /// Previous keymap ID for detecting changes (used for wobble trigger)
     @State private var previousKeymapId: String = ""
+    /// Whether we're in a keymap transition window (bypasses remap gating for animation)
+    /// Enables floating labels during keymap switches (QWERTY → Dvorak) even though they're technically remaps
+    @State private var isKeymapTransitioning: Bool = false
 
     /// Cached label-to-keyCode mapping (recomputed when layout/keymap changes)
     @State private var cachedLabelToKeyCode: [String: UInt16] = [:]
@@ -172,7 +175,14 @@ struct OverlayKeyboardView: View {
     /// Check if a label's key has been remapped to a different output
     /// (e.g., "A" -> "B" mapping means we should hide the floating "A" label)
     /// The keycap will show the mapped output instead via layerKeyInfo
+    /// During keymap transitions, always returns false to allow floating label animation
     private func isRemappedLabel(_ label: String) -> Bool {
+        // During keymap transition window, bypass remap gating to allow animation
+        // (keymap switches like QWERTY → Dvorak are implemented as remaps)
+        if isKeymapTransitioning {
+            return false
+        }
+
         let normalizedLabel = label.uppercased()
         guard let keyCode = labelToKeyCode[normalizedLabel],
               let layerInfo = layerKeyMap[keyCode]
@@ -253,6 +263,14 @@ struct OverlayKeyboardView: View {
             previousKeymapId = newValue
             // Rebuild labelToKeyCode cache when keymap changes
             cachedLabelToKeyCode = rebuildLabelToKeyCodeCache()
+
+            // Activate keymap transition window to enable floating label animation
+            // during keymap switches (QWERTY → Dvorak, etc.)
+            isKeymapTransitioning = true
+            // Deactivate after 600ms (enough time for wobble animation to complete)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                isKeymapTransitioning = false
+            }
         }
         .onChange(of: includeKeymapPunctuation) { _, _ in
             // Rebuild labelToKeyCode cache when punctuation toggle changes
@@ -354,7 +372,9 @@ struct OverlayKeyboardView: View {
             isInspectorVisible: isInspectorVisible,
             // Launcher mode state
             isLauncherMode: isLauncherMode,
-            launcherMapping: launcherMapping
+            launcherMapping: launcherMapping,
+            // Keymap transition flag (bypasses remap gating for animation)
+            isKeymapTransitioning: isKeymapTransitioning
         )
         .frame(
             width: keyWidth(for: key, scale: scale),

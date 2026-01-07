@@ -56,6 +56,8 @@ struct OverlayKeycapView: View {
     var isLauncherMode: Bool = false
     /// Launcher mapping for this key (nil = no mapping)
     var launcherMapping: LauncherMapping?
+    /// Whether we're in a keymap transition window (bypasses remap gating for animation)
+    var isKeymapTransitioning: Bool = false
 
     /// Whether this key has a launcher mapping
     private var hasLauncherMapping: Bool {
@@ -279,7 +281,7 @@ struct OverlayKeycapView: View {
             // Home row color accent for Kinesis (different keycap color)
 
             // Hover highlight outline (shows when drawer is open and hovering)
-            if isInspectorVisible && isHovering {
+            if isInspectorVisible, isHovering {
                 RoundedRectangle(cornerRadius: cornerRadius)
                     .stroke(Color.accentColor, lineWidth: 2 * scale)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -294,7 +296,7 @@ struct OverlayKeycapView: View {
             }
 
             // Rule hover highlight (shows when hovering a rule in the Custom Rules or Launcher tabs)
-            if isHoveredByRule && !isSelected {
+            if isHoveredByRule, !isSelected {
                 RoundedRectangle(cornerRadius: cornerRadius)
                     .stroke(Color.accentColor.opacity(0.6), lineWidth: 2 * scale)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -343,7 +345,17 @@ struct OverlayKeycapView: View {
         .allowsHitTesting(isInspectorVisible || key.layoutRole == .touchId)
         // Hover detection (must be before contentShape for hit testing)
         .contentShape(Rectangle())
-        .onHover { isHovering = $0 }
+        .onHover { hovering in
+            isHovering = hovering
+            // Show pointer cursor for Touch ID key when drawer is closed (indicates clickable)
+            if key.layoutRole == .touchId, !isInspectorVisible {
+                if hovering {
+                    NSCursor.pointingHand.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
+        }
         // Click behavior based on drawer state:
         // - Drawer CLOSED: only Touch ID key captures clicks (opens drawer), all other keys pass through for window drag
         // - Drawer OPEN: all keys capture clicks for mapping
@@ -1152,7 +1164,15 @@ struct OverlayKeycapView: View {
     }
 
     /// Whether this key is remapped to a different output (displayLabel != baseLabel)
+    /// During keymap transitions, always returns false to allow keycaps to render Color.clear
+    /// so floating labels can animate
     private var isRemappedKey: Bool {
+        // During keymap transition window, bypass remap gating to allow animation
+        // (keymap switches like QWERTY → Dvorak are implemented as remaps)
+        if isKeymapTransitioning {
+            return false
+        }
+
         guard let info = layerKeyInfo else { return false }
         return !info.displayLabel.isEmpty && info.displayLabel.uppercased() != baseLabel.uppercased()
     }

@@ -74,7 +74,7 @@ actor QMKImportService {
 
     /// Parse QMK JSON data and convert to PhysicalLayout
     /// - Parameter idOverride: If nil, QMKLayoutParser will generate an ID from the JSON
-    private func parseQMKData(_ data: Data, sourceURL: String?, layoutVariant: String?, keyMappingType: KeyMappingType) throws -> PhysicalLayout {
+    private func parseQMKData(_ data: Data, sourceURL: String?, layoutVariant _: String?, keyMappingType: KeyMappingType) throws -> PhysicalLayout {
         // Decode QMK keyboard info
         let info: QMKLayoutParser.QMKKeyboardInfo
         do {

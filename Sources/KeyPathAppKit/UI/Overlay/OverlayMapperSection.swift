@@ -208,7 +208,7 @@ struct OverlayMapperSection: View {
                 let scale = min(1, availableWidth / baseWidth)
 
                 HStack(alignment: .top, spacing: spacing) {
-                    // Input column: Label -> Keycap -> Dropdown
+                    // Input column: Label -> Keycap -> Dropdown -> App indicators
                     VStack(spacing: 4) {
                         Text("In")
                             .font(.caption)
@@ -220,6 +220,7 @@ struct OverlayMapperSection: View {
                             onTap: { viewModel.toggleInputRecording() }
                         )
                         appConditionDropdown
+                        appMappingIndicators
                     }
                     .frame(width: keycapWidth)
 
@@ -412,6 +413,82 @@ struct OverlayMapperSection: View {
                 .strokeBorder(Color.primary.opacity(0.15), lineWidth: 0.5)
         )
         .padding(4)
+    }
+
+    // MARK: - App-Specific Mapping Indicators
+
+    /// Shows small app icons for apps that have mappings for the currently selected key
+    /// Uses a fixed height to prevent layout shifting
+    @ViewBuilder
+    private var appMappingIndicators: some View {
+        // Fixed height container to prevent layout shifts
+        ZStack(alignment: .topLeading) {
+            // Invisible spacer to reserve height (one row of 16px icons + padding)
+            Color.clear.frame(height: 20)
+
+            if !viewModel.appsWithCurrentKeyMapping.isEmpty,
+               let keyCode = viewModel.inputKeyCode {
+                let inputKey = OverlayKeyboardView.keyCodeToKanataName(keyCode)
+                FlowLayout(spacing: 4) {
+                    ForEach(viewModel.appsWithCurrentKeyMapping) { appKeymap in
+                        appMappingIcon(for: appKeymap, inputKey: inputKey)
+                    }
+                }
+            }
+        }
+        .padding(.top, 4)
+    }
+
+    /// Individual app icon button for the mapping indicators
+    private func appMappingIcon(for appKeymap: AppKeymap, inputKey: String) -> some View {
+        let bundleId = appKeymap.mapping.bundleIdentifier
+        let displayName = appKeymap.mapping.displayName
+        let mapping = appKeymap.overrides.first { $0.inputKey.lowercased() == inputKey.lowercased() }
+        let output = mapping?.outputAction ?? "?"
+        let tooltip = "\(displayName): \(inputKey) → \(output)"
+
+        return Button {
+            selectAppFromIndicator(appKeymap)
+        } label: {
+            if let icon = AppIconResolver.icon(forBundleIdentifier: bundleId) {
+                Image(nsImage: icon)
+                    .resizable()
+                    .frame(width: 16, height: 16)
+            } else {
+                Image(systemName: "app.fill")
+                    .resizable()
+                    .frame(width: 16, height: 16)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .buttonStyle(.plain)
+        .help(tooltip)
+        .accessibilityIdentifier("app-mapping-indicator-\(bundleId)")
+    }
+
+    /// Handle tap on an app mapping indicator - switches to that app's context
+    private func selectAppFromIndicator(_ appKeymap: AppKeymap) {
+        let bundleId = appKeymap.mapping.bundleIdentifier
+        let displayName = appKeymap.mapping.displayName
+
+        // Get icon using existing resolver
+        let icon = AppIconResolver.icon(forBundleIdentifier: bundleId)
+            ?? NSImage(systemSymbolName: "app.fill", accessibilityDescription: displayName)!
+
+        // Create AppConditionInfo and set on view model
+        viewModel.selectedAppCondition = AppConditionInfo(
+            bundleIdentifier: bundleId,
+            displayName: displayName,
+            icon: icon
+        )
+
+        // Find the override for this input key and update output display
+        if let keyCode = viewModel.inputKeyCode {
+            let inputKey = OverlayKeyboardView.keyCodeToKanataName(keyCode)
+            if let override = appKeymap.overrides.first(where: { $0.inputKey.lowercased() == inputKey.lowercased() }) {
+                viewModel.outputLabel = KeyDisplayFormatter.format(override.outputAction)
+            }
+        }
     }
 
     @ViewBuilder
