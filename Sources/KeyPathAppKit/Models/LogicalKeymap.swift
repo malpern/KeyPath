@@ -189,6 +189,30 @@ struct LogicalKeymap: Identifiable {
     private static let homeRowKeyCodes: [UInt16] = [0, 1, 2, 3, 5, 4, 38, 40, 37, 41]
     private static let bottomRowKeyCodes: [UInt16] = [6, 7, 8, 9, 11, 45, 46, 43, 47, 44]
 
+    /// Reverse lookup: get keyCode from QWERTY label (e.g., "a" -> 0, "j" -> 38)
+    /// Used for rule hover highlighting.
+    static func keyCode(forQwertyLabel label: String) -> UInt16? {
+        qwertyLabelToKeyCode[label.lowercased()]
+    }
+
+    /// Pre-computed reverse lookup table for QWERTY labels
+    private static let qwertyLabelToKeyCode: [String: UInt16] = {
+        var map: [String: UInt16] = [:]
+        let topLabels = ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"]
+        let homeLabels = ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"]
+        let bottomLabels = ["z", "x", "c", "v", "b", "n", "m", ",", ".", "/"]
+        for (code, label) in zip(topRowKeyCodes, topLabels) {
+            map[label] = code
+        }
+        for (code, label) in zip(homeRowKeyCodes, homeLabels) {
+            map[label] = code
+        }
+        for (code, label) in zip(bottomRowKeyCodes, bottomLabels) {
+            map[label] = code
+        }
+        return map
+    }()
+
     private static func buildCoreMap(
         top: [String],
         home: [String],

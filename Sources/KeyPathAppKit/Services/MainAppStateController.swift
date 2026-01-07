@@ -152,13 +152,12 @@ class MainAppStateController: ObservableObject {
                 guard let self else { return }
 
                 // ServiceState: .running(pid:), .stopped, .failed, .maintenance, .requiresApproval, .unknown
-                let isHealthy: Bool
-                if case .running = newState { isHealthy = true } else { isHealthy = false }
-                let wasHealthy = self.lastKnownServiceHealthy
+                let isHealthy = if case .running = newState { true } else { false }
+                let wasHealthy = lastKnownServiceHealthy
 
                 // Only revalidate on health transitions (not every 2s poll)
                 if wasHealthy != isHealthy {
-                    self.lastKnownServiceHealthy = isHealthy
+                    lastKnownServiceHealthy = isHealthy
                     AppLogger.shared.log(
                         "🔄 [MainAppStateController] Service health changed: \(wasHealthy.map { String($0) } ?? "nil") → \(isHealthy)"
                     )
@@ -181,10 +180,10 @@ class MainAppStateController: ObservableObject {
                 guard let self, !Task.isCancelled else { break }
 
                 // Only refresh if validation is stale (>30s since last check)
-                if let lastTime = self.lastValidationTime,
+                if let lastTime = lastValidationTime,
                    Date().timeIntervalSince(lastTime) > 30 {
                     AppLogger.shared.log("🔄 [MainAppStateController] Periodic refresh triggered (stale state)")
-                    await self.revalidate()
+                    await revalidate()
                 }
             }
         }

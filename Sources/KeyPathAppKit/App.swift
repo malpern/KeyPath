@@ -216,7 +216,7 @@ public struct KeyPathApp: App {
                 .keyboardShortcut("i", modifiers: [.command, .shift])
 
                 Button("Mapper") {
-                    MapperWindowController.shared.showWindow(viewModel: viewModel)
+                    NotificationCenter.default.post(name: .openOverlayWithMapper, object: nil)
                 }
                 .keyboardShortcut("m", modifiers: [.command, .shift])
 

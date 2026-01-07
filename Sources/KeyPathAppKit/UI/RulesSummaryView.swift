@@ -76,8 +76,6 @@ struct RulesTabView: View {
     @State private var showingResetConfirmation = false
     @State private var showingNewRuleSheet = false
     @State private var settingsToastManager = WizardToastManager()
-    @State private var isPresentingNewRule = false
-    @State private var editingRule: CustomRule?
     @State private var createButtonHovered = false
     /// Stable sort order captured when view appears (enabled collections first)
     @State private var stableSortOrder: [UUID] = []
@@ -86,7 +84,18 @@ struct RulesTabView: View {
     /// Track pending toggle states for immediate UI feedback
     @State private var pendingToggles: [UUID: Bool] = [:]
     @State private var homeRowModsEditState: HomeRowModsEditState?
+    @State private var appKeymaps: [AppKeymap] = []
     private let catalog = RuleCollectionCatalog()
+
+    /// Total count of custom rules (everywhere + app-specific)
+    private var totalCustomRulesCount: Int {
+        kanataManager.customRules.count + appKeymaps.flatMap(\.overrides).count
+    }
+
+    /// Whether there are any custom rules (everywhere or app-specific)
+    private var hasAnyCustomRules: Bool {
+        !kanataManager.customRules.isEmpty || !appKeymaps.isEmpty
+    }
 
     // Show all catalog collections, merging with existing state
     private var allCollections: [RuleCollection] {
@@ -204,7 +213,8 @@ struct RulesTabView: View {
             // Top Action Bar
             HStack(spacing: 12) {
                 Button {
-                    isPresentingNewRule = true
+                    // Close settings and open overlay with mapper tab
+                    NotificationCenter.default.post(name: .openOverlayWithMapper, object: nil)
                 } label: {
                     Label("Create Rule", systemImage: "plus.circle.fill")
                 }
@@ -247,10 +257,11 @@ struct RulesTabView: View {
                             collectionId: "custom-rules",
                             name: customRulesTitle,
                             icon: "square.and.pencil",
-                            count: kanataManager.customRules.count,
+                            count: totalCustomRulesCount,
                             isEnabled: kanataManager.customRules.isEmpty
                                 || kanataManager.customRules.allSatisfy(\.isEnabled),
                             mappings: kanataManager.customRules.map { ($0.input, $0.output, nil, nil, $0.title.isEmpty ? nil : $0.title, false, $0.isEnabled, $0.id, $0.behavior) },
+                            appKeymaps: appKeymaps,
                             onToggle: { isOn in
                                 Task {
                                     for rule in kanataManager.customRules {
@@ -259,22 +270,48 @@ struct RulesTabView: View {
                                 }
                             },
                             onEditMapping: { id in
+                                // Open overlay with mapper tab and preset values for editing
                                 if let rule = kanataManager.customRules.first(where: { $0.id == id }) {
-                                    editingRule = rule
+                                    NotificationCenter.default.post(
+                                        name: .openOverlayWithMapperPreset,
+                                        object: nil,
+                                        userInfo: ["inputKey": rule.input, "outputKey": rule.output]
+                                    )
                                 }
                             },
                             onDeleteMapping: { id in
                                 Task { await kanataManager.removeCustomRule(id) }
                             },
-                            showZeroState: kanataManager.customRules.isEmpty,
-                            onCreateFirstRule: { isPresentingNewRule = true },
+                            onDeleteAppRule: { keymap, override in
+                                deleteAppRule(keymap: keymap, override: override)
+                            },
+                            onEditAppRule: { keymap, override in
+                                // Open overlay with mapper tab and preset values for editing app-specific rule
+                                NotificationCenter.default.post(
+                                    name: .openOverlayWithMapperPreset,
+                                    object: nil,
+                                    userInfo: [
+                                        "inputKey": override.inputKey,
+                                        "outputKey": override.outputAction,
+                                        "appBundleId": keymap.mapping.bundleIdentifier,
+                                        "appDisplayName": keymap.mapping.displayName
+                                    ]
+                                )
+                            },
+                            showZeroState: !hasAnyCustomRules,
+                            onCreateFirstRule: {
+                                // Close settings and open overlay with mapper tab
+                                NotificationCenter.default.post(name: .openOverlayWithMapper, object: nil)
+                            },
                             description: "Remap any key combination or sequence",
-                            defaultExpanded: !kanataManager.customRules.isEmpty,
+                            defaultExpanded: false,
                             scrollID: "custom-rules",
                             scrollProxy: scrollProxy
                         )
-                        // Force SwiftUI to re-render when customRules changes (count OR content)
-                        .id("custom-rules-\(kanataManager.customRules.map { "\($0.id)-\($0.input.hashValue)-\($0.output.hashValue)-\($0.title.hashValue)" }.joined())")
+                        // Force SwiftUI to re-render when customRules or appKeymaps change
+                        .id(
+                            "custom-rules-\(kanataManager.customRules.map { "\($0.id)-\($0.input.hashValue)-\($0.output.hashValue)-\($0.title.hashValue)" }.joined())-\(appKeymaps.map(\.id.uuidString).joined())"
+                        )
                         .padding(.vertical, 4)
 
                         // Collection Rows (sorted: enabled first, order stable during session)
@@ -309,14 +346,11 @@ struct RulesTabView: View {
             if stableSortOrder.isEmpty {
                 stableSortOrder = computeSortOrder()
             }
+            // Load app-specific keymaps
+            loadAppKeymaps()
         }
-        .sheet(isPresented: $isPresentingNewRule) {
-            CustomRuleEditorView(
-                rule: nil,
-                existingRules: kanataManager.customRules
-            ) { newRule in
-                _ = Task { await kanataManager.saveCustomRule(newRule) }
-            }
+        .onReceive(NotificationCenter.default.publisher(for: .appKeymapsDidChange)) { _ in
+            loadAppKeymaps()
         }
         .sheet(item: $homeRowModsEditState) { editState in
             HomeRowModsModalView(
@@ -335,14 +369,6 @@ struct RulesTabView: View {
                 },
                 initialSelectedKey: editState.selectedKey
             )
-        }
-        .sheet(item: $editingRule) { rule in
-            CustomRuleEditorView(
-                rule: rule,
-                existingRules: kanataManager.customRules
-            ) { updatedRule in
-                _ = Task { await kanataManager.saveCustomRule(updatedRule) }
-            }
         }
         .sheet(isPresented: $kanataManager.showRuleConflictDialog) {
             if let context = kanataManager.pendingRuleConflict {
@@ -591,6 +617,38 @@ struct RulesTabView: View {
             }
         }
     }
+
+    // MARK: - App Keymaps Helpers
+
+    private func loadAppKeymaps() {
+        Task {
+            let keymaps = await AppKeymapStore.shared.loadKeymaps()
+            await MainActor.run {
+                appKeymaps = keymaps.sorted { $0.mapping.displayName < $1.mapping.displayName }
+            }
+        }
+    }
+
+    private func deleteAppRule(keymap: AppKeymap, override: AppKeyOverride) {
+        Task {
+            var updatedKeymap = keymap
+            updatedKeymap.overrides.removeAll { $0.id == override.id }
+
+            do {
+                if updatedKeymap.overrides.isEmpty {
+                    try await AppKeymapStore.shared.removeKeymap(bundleIdentifier: keymap.mapping.bundleIdentifier)
+                } else {
+                    try await AppKeymapStore.shared.upsertKeymap(updatedKeymap)
+                }
+
+                try await AppConfigGenerator.regenerateFromStore()
+                await AppContextService.shared.reloadMappings()
+                _ = await kanataManager.underlyingManager.restartKanata(reason: "App rule deleted from Settings")
+            } catch {
+                AppLogger.shared.log("⚠️ [RulesTabView] Failed to delete app rule: \(error)")
+            }
+        }
+    }
 }
 
 // MARK: - Expandable Collection Row
@@ -602,9 +660,12 @@ private struct ExpandableCollectionRow: View {
     let count: Int
     let isEnabled: Bool
     let mappings: [(input: String, output: String, shiftedOutput: String?, ctrlOutput: String?, description: String?, sectionBreak: Bool, enabled: Bool, id: UUID, behavior: MappingBehavior?)]
+    var appKeymaps: [AppKeymap] = []
     let onToggle: (Bool) -> Void
     let onEditMapping: ((UUID) -> Void)?
     let onDeleteMapping: ((UUID) -> Void)?
+    var onDeleteAppRule: ((AppKeymap, AppKeyOverride) -> Void)?
+    var onEditAppRule: ((AppKeymap, AppKeyOverride) -> Void)?
     var showZeroState: Bool = false
     var onCreateFirstRule: (() -> Void)?
     var description: String?
@@ -801,8 +862,8 @@ private struct ExpandableCollectionRow: View {
         if isExpanded {
             // Inset back plane container for expanded content
             InsetBackPlane {
-                if showZeroState, mappings.isEmpty, let onCreate = onCreateFirstRule {
-                    // Zero State - only show if BOTH showZeroState is true AND mappings is actually empty
+                if showZeroState, mappings.isEmpty, appKeymaps.isEmpty, let onCreate = onCreateFirstRule {
+                    // Zero State - only show if BOTH showZeroState is true AND all mappings are actually empty
                     VStack(spacing: 12) {
                         Text("No rules yet")
                             .font(.subheadline)
@@ -1006,6 +1067,14 @@ private struct ExpandableCollectionRow: View {
                 } else {
                     // List view for standard collections and custom rules
                     VStack(spacing: 6) {
+                        // Section: "Everywhere" rules (if we have app-specific rules too, show header)
+                        if !mappings.isEmpty, !appKeymaps.isEmpty {
+                            RulesSectionHeaderCompact(
+                                title: "Everywhere",
+                                systemImage: "globe"
+                            )
+                        }
+
                         ForEach(mappings, id: \.id) { mapping in
                             MappingRowView(
                                 mapping: mapping,
@@ -1015,6 +1084,26 @@ private struct ExpandableCollectionRow: View {
                                 onDeleteMapping: onDeleteMapping,
                                 prettyKeyName: prettyKeyName
                             )
+                        }
+
+                        // Section: App-specific rules
+                        ForEach(appKeymaps) { keymap in
+                            AppRulesSectionHeaderCompact(keymap: keymap)
+                                .padding(.top, mappings.isEmpty ? 0 : 8)
+
+                            ForEach(keymap.overrides) { override in
+                                AppRuleRowCompact(
+                                    keymap: keymap,
+                                    override: override,
+                                    onEdit: {
+                                        onEditAppRule?(keymap, override)
+                                    },
+                                    onDelete: {
+                                        onDeleteAppRule?(keymap, override)
+                                    },
+                                    prettyKeyName: prettyKeyName
+                                )
+                            }
                         }
                     }
                     .padding(.top, 8)
@@ -3566,6 +3655,159 @@ private struct AppLaunchChip: View {
         } else {
             // Use filename without extension
             appName = url.deletingPathExtension().lastPathComponent
+        }
+    }
+}
+
+// MARK: - Rules Section Headers for Custom Rules
+
+/// Compact section header for rule groups (e.g., "Everywhere")
+private struct RulesSectionHeaderCompact: View {
+    let title: String
+    let systemImage: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: systemImage)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Spacer()
+        }
+        .padding(.bottom, 4)
+    }
+}
+
+/// Compact section header for app-specific rules with app icon
+private struct AppRulesSectionHeaderCompact: View {
+    let keymap: AppKeymap
+
+    @State private var appIcon: NSImage?
+
+    var body: some View {
+        HStack(spacing: 6) {
+            // App icon
+            if let icon = appIcon {
+                Image(nsImage: icon)
+                    .resizable()
+                    .frame(width: 14, height: 14)
+            } else {
+                Image(systemName: "app.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 14, height: 14)
+            }
+
+            Text(keymap.mapping.displayName)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Spacer()
+        }
+        .padding(.bottom, 4)
+        .onAppear {
+            loadAppIcon()
+        }
+    }
+
+    private func loadAppIcon() {
+        if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: keymap.mapping.bundleIdentifier) {
+            let icon = NSWorkspace.shared.icon(forFile: appURL.path)
+            icon.size = NSSize(width: 28, height: 28)
+            appIcon = icon
+        }
+    }
+}
+
+/// Compact row for displaying an app-specific rule override
+private struct AppRuleRowCompact: View {
+    let keymap: AppKeymap
+    let override: AppKeyOverride
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+    let prettyKeyName: (String) -> String
+
+    @State private var isHovered = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                // Mapping content
+                HStack(spacing: 8) {
+                    // Input key
+                    Text(prettyKeyName(override.inputKey))
+                        .font(.body.monospaced().weight(.semibold))
+                        .foregroundColor(KeycapStyle.textColor)
+                        .modifier(KeycapStyle())
+
+                    Image(systemName: "arrow.right")
+                        .font(.body.weight(.medium))
+                        .foregroundColor(.secondary)
+
+                    // Output key
+                    Text(prettyKeyName(override.outputAction))
+                        .font(.body.monospaced().weight(.semibold))
+                        .foregroundColor(KeycapStyle.textColor)
+                        .modifier(KeycapStyle())
+
+                    Spacer(minLength: 0)
+                }
+
+                Spacer()
+
+                // Action buttons - subtle icons that appear on hover (matching MappingRowView)
+                HStack(spacing: 4) {
+                    Button {
+                        onEdit()
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.secondary.opacity(isHovered ? 1 : 0.5))
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        onDelete()
+                    } label: {
+                        Image(systemName: "trash")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.secondary.opacity(isHovered ? 1 : 0.5))
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    // Spacer for alignment
+                    Spacer()
+                        .frame(width: 0)
+                }
+            }
+        }
+        .padding(.leading, 48)
+        .padding(.trailing, 12)
+        .padding(.vertical, 4)
+        .padding(.horizontal, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isHovered ? Color.primary.opacity(0.03) : Color.clear)
+        )
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            isHovered = hovering
+            if hovering {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
+        .onTapGesture {
+            onEdit()
         }
     }
 }

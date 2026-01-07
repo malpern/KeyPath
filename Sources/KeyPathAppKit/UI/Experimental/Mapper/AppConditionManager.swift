@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import KeyPathCore
+import UniformTypeIdentifiers
 
 /// Manages app condition (precondition) selection for per-app key mappings.
 ///
@@ -37,7 +38,12 @@ public final class AppConditionManager: ObservableObject {
             }
 
             // Get app icon
-            let icon = app.icon ?? NSWorkspace.shared.icon(forFileType: "app")
+            let fallbackIcon: NSImage = if #available(macOS 12.0, *) {
+                NSWorkspace.shared.icon(for: .application)
+            } else {
+                NSWorkspace.shared.icon(forFileType: "app")
+            }
+            let icon = app.icon ?? fallbackIcon
             icon.size = NSSize(width: 24, height: 24)
 
             return AppConditionInfo(

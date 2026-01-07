@@ -15,11 +15,11 @@ public enum AppConfigError: LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case let .validationFailed(errors):
-            return "App config validation failed: \(errors.joined(separator: "; "))"
+            "App config validation failed: \(errors.joined(separator: "; "))"
         case let .writeFailed(path, underlying):
-            return "Failed to write app config to \(path): \(underlying)"
+            "Failed to write app config to \(path): \(underlying)"
         case .validationUnavailable:
-            return "Config validation service unavailable"
+            "Config validation service unavailable"
         }
     }
 
@@ -146,11 +146,10 @@ public enum AppConfigGenerator {
         // NOTE: keypath-apps.kbd is an INCLUDE file, not a standalone config.
         // Kanata requires defsrc/deflayer for validation, so we wrap the content
         // in a minimal valid config context for validation purposes only.
-        let service: ConfigurationService
-        if let provided = configService {
-            service = provided
+        let service: ConfigurationService = if let provided = configService {
+            provided
         } else {
-            service = await ConfigurationService(configDirectory: WizardSystemPaths.userConfigDirectory)
+            await ConfigurationService(configDirectory: WizardSystemPaths.userConfigDirectory)
         }
         AppLogger.shared.log("🔍 [AppConfigGenerator] Validating generated config before save...")
 

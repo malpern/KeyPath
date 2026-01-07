@@ -1,6 +1,27 @@
 import Foundation
 import KeyPathCore
 
+// MARK: - Notifications
+
+public extension Notification.Name {
+    /// Posted when app keymaps are added, updated, or removed
+    static let appKeymapsDidChange = Notification.Name("appKeymapsDidChange")
+    /// Posted when user should navigate to App Rules tab in drawer
+    static let switchToAppRulesTab = Notification.Name("switchToAppRulesTab")
+    /// Posted when Mapper should open the app condition picker (for "New Rule" from App Rules tab)
+    static let openMapperAppConditionPicker = Notification.Name("openMapperAppConditionPicker")
+    /// Posted when overlay should open with mapper tab selected (from Settings)
+    static let openOverlayWithMapper = Notification.Name("openOverlayWithMapper")
+    /// Posted when overlay view should switch to mapper tab
+    static let switchToMapperTab = Notification.Name("switchToMapperTab")
+    /// Posted when overlay should open with mapper tab and preset values for editing
+    /// UserInfo: inputKey (String), outputKey (String), optionally appBundleId (String)
+    static let openOverlayWithMapperPreset = Notification.Name("openOverlayWithMapperPreset")
+    /// Posted to set the app condition on the mapper (for adding a rule to a specific app)
+    /// UserInfo: bundleId (String), displayName (String)
+    static let mapperSetAppCondition = Notification.Name("mapperSetAppCondition")
+}
+
 /// Persists app-specific keymaps to disk.
 ///
 /// File location: `~/.config/keypath/AppKeymaps.json`
@@ -120,6 +141,7 @@ actor AppKeymapStore {
         }
 
         try saveKeymaps(keymaps)
+        postChangeNotification()
     }
 
     /// Remove an app keymap by bundle identifier
@@ -131,6 +153,14 @@ actor AppKeymapStore {
         if keymaps.count < countBefore {
             try saveKeymaps(keymaps)
             AppLogger.shared.log("🗑️ [AppKeymapStore] Removed keymap for \(bundleIdentifier)")
+            postChangeNotification()
+        }
+    }
+
+    /// Post notification on main thread that keymaps have changed
+    private func postChangeNotification() {
+        Task { @MainActor in
+            NotificationCenter.default.post(name: .appKeymapsDidChange, object: nil)
         }
     }
 

@@ -80,14 +80,13 @@ public struct KanataConfiguration: Sendable {
 
         // Include keypath-apps.kbd if there are app-specific keys
         // This must come after defcfg but before any layer that uses @kp-* aliases
-        let appIncludeBlock: String
-        if !appSpecificKeys.isEmpty {
-            appIncludeBlock = """
+        let appIncludeBlock = if !appSpecificKeys.isEmpty {
+            """
             ;; App-specific keymaps (virtual keys and switch expressions)
             (include keypath-apps.kbd)
             """
         } else {
-            appIncludeBlock = ""
+            ""
         }
 
         return [header, safetyNotes, appIncludeBlock, defvarBlock, sourceBlock, baseLayerBlock, additionalLayerBlocks, fakeKeysBlock, aliasBlock, chordsBlock]
@@ -1092,7 +1091,7 @@ public struct KanataConfiguration: Sendable {
         }
 
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601  // Match AppKeymapStore's encoding
+        decoder.dateDecodingStrategy = .iso8601 // Match AppKeymapStore's encoding
 
         guard let keymaps = try? decoder.decode([AppKeymap].self, from: data) else {
             AppLogger.shared.log("⚠️ [ConfigGen] loadAppSpecificKeys: JSON decode failed")

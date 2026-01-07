@@ -7,6 +7,8 @@ struct CustomRulesView: View {
     @State private var isPresentingNewRule = false
     @State private var editingRule: CustomRule?
     @State private var pendingDeleteRule: CustomRule?
+    @State private var appKeymaps: [AppKeymap] = []
+    @State private var pendingDeleteAppRule: (keymap: AppKeymap, override: AppKeyOverride)?
 
     private var sortedRules: [CustomRule] {
         let rules = kanataManager.customRules
@@ -21,6 +23,11 @@ struct CustomRulesView: View {
             }
             return lhs.isEnabled && !rhs.isEnabled
         }
+    }
+
+    /// Whether there are any rules to display (either custom rules or app-specific)
+    private var hasAnyRules: Bool {
+        !sortedRules.isEmpty || !appKeymaps.isEmpty
     }
 
     var body: some View {
@@ -48,7 +55,7 @@ struct CustomRulesView: View {
 
             Divider()
 
-            if sortedRules.isEmpty {
+            if !hasAnyRules {
                 VStack(spacing: 20) {
                     VStack(spacing: 12) {
                         Image(systemName: "square.and.pencil")
@@ -80,26 +87,62 @@ struct CustomRulesView: View {
                 .padding(40)
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 12) {
-                        ForEach(sortedRules) { rule in
-                            CustomRuleRow(
-                                rule: rule,
-                                onToggle: { isOn in
-                                    _ = Task { await kanataManager.toggleCustomRule(rule.id, enabled: isOn) }
-                                },
-                                onEdit: {
-                                    editingRule = rule
-                                },
-                                onDelete: {
-                                    pendingDeleteRule = rule
-                                }
+                    LazyVStack(spacing: 16) {
+                        // MARK: - Everywhere Section
+
+                        if !sortedRules.isEmpty {
+                            RulesSectionHeader(
+                                title: "Everywhere",
+                                systemImage: "globe",
+                                subtitle: "These rules apply in all apps"
                             )
                             .padding(.horizontal, 16)
+
+                            ForEach(sortedRules) { rule in
+                                CustomRuleRow(
+                                    rule: rule,
+                                    onToggle: { isOn in
+                                        _ = Task { await kanataManager.toggleCustomRule(rule.id, enabled: isOn) }
+                                    },
+                                    onEdit: {
+                                        editingRule = rule
+                                    },
+                                    onDelete: {
+                                        pendingDeleteRule = rule
+                                    }
+                                )
+                                .padding(.horizontal, 16)
+                            }
+                        }
+
+                        // MARK: - App-Specific Sections
+
+                        ForEach(appKeymaps) { keymap in
+                            AppRulesSectionHeader(keymap: keymap)
+                                .padding(.horizontal, 16)
+                                .padding(.top, sortedRules.isEmpty ? 0 : 8)
+
+                            ForEach(keymap.overrides) { override in
+                                AppRuleRow(
+                                    keymap: keymap,
+                                    override: override,
+                                    onDelete: {
+                                        pendingDeleteAppRule = (keymap, override)
+                                    }
+                                )
+                                .padding(.horizontal, 16)
+                            }
                         }
                     }
                     .padding(.vertical, 12)
                 }
             }
+        }
+        .onAppear {
+            loadAppKeymaps()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .appKeymapsDidChange)) { _ in
+            loadAppKeymaps()
         }
         .sheet(isPresented: $isPresentingNewRule) {
             CustomRuleEditorView(
@@ -146,7 +189,59 @@ struct CustomRulesView: View {
         } message: {
             Text("This removes the rule from Custom Rules but leaves preset collections untouched.")
         }
+        .alert(
+            "Delete app rule?",
+            isPresented: Binding(
+                get: { pendingDeleteAppRule != nil },
+                set: { if !$0 { pendingDeleteAppRule = nil } }
+            )
+        ) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                if let pending = pendingDeleteAppRule {
+                    deleteAppRule(keymap: pending.keymap, override: pending.override)
+                }
+                pendingDeleteAppRule = nil
+            }
+        } message: {
+            if let pending = pendingDeleteAppRule {
+                Text("Delete \(pending.override.inputKey) → \(pending.override.outputAction) from \(pending.keymap.mapping.displayName)?")
+            }
+        }
         .settingsBackground()
+    }
+
+    // MARK: - Helper Methods
+
+    private func loadAppKeymaps() {
+        Task {
+            let keymaps = await AppKeymapStore.shared.loadKeymaps()
+            await MainActor.run {
+                appKeymaps = keymaps.sorted { $0.mapping.displayName < $1.mapping.displayName }
+            }
+        }
+    }
+
+    private func deleteAppRule(keymap: AppKeymap, override: AppKeyOverride) {
+        Task {
+            var updatedKeymap = keymap
+            updatedKeymap.overrides.removeAll { $0.id == override.id }
+
+            do {
+                if updatedKeymap.overrides.isEmpty {
+                    try await AppKeymapStore.shared.removeKeymap(bundleIdentifier: keymap.mapping.bundleIdentifier)
+                } else {
+                    try await AppKeymapStore.shared.upsertKeymap(updatedKeymap)
+                }
+
+                try await AppConfigGenerator.regenerateFromStore()
+                await AppContextService.shared.reloadMappings()
+
+                _ = await kanataManager.underlyingManager.restartKanata(reason: "App rule deleted from Settings")
+            } catch {
+                AppLogger.shared.log("⚠️ [CustomRulesView] Failed to delete app rule: \(error)")
+            }
+        }
     }
 }
 
@@ -491,5 +586,137 @@ private struct SystemActionChip: View {
             RoundedRectangle(cornerRadius: 6)
                 .strokeBorder(Color.accentColor.opacity(0.3), lineWidth: 0.5)
         )
+    }
+}
+
+// MARK: - Section Headers
+
+/// Section header for rule groups (e.g., "Everywhere")
+private struct RulesSectionHeader: View {
+    let title: String
+    let systemImage: String
+    let subtitle: String?
+
+    init(title: String, systemImage: String, subtitle: String? = nil) {
+        self.title = title
+        self.systemImage = systemImage
+        self.subtitle = subtitle
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.secondary)
+
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+
+                Spacer()
+            }
+
+            if let subtitle {
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.top, 8)
+        .padding(.bottom, 4)
+    }
+}
+
+/// Section header for app-specific rules with app icon
+private struct AppRulesSectionHeader: View {
+    let keymap: AppKeymap
+
+    @State private var appIcon: NSImage?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                // App icon
+                if let icon = appIcon {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .frame(width: 20, height: 20)
+                } else {
+                    Image(systemName: "app.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 20, height: 20)
+                }
+
+                Text(keymap.mapping.displayName)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+
+                Spacer()
+            }
+
+            Text("Only applies when \(keymap.mapping.displayName) is active")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.top, 8)
+        .padding(.bottom, 4)
+        .onAppear {
+            loadAppIcon()
+        }
+    }
+
+    private func loadAppIcon() {
+        if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: keymap.mapping.bundleIdentifier) {
+            let icon = NSWorkspace.shared.icon(forFile: appURL.path)
+            icon.size = NSSize(width: 40, height: 40)
+            appIcon = icon
+        }
+    }
+}
+
+// MARK: - App Rule Row
+
+/// A row displaying an app-specific rule override
+private struct AppRuleRow: View {
+    let keymap: AppKeymap
+    let override: AppKeyOverride
+    let onDelete: () -> Void
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            // Key mapping display
+            HStack(spacing: 8) {
+                KeyCapChip(text: override.inputKey.uppercased())
+
+                Text("→")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                KeyCapChip(text: override.outputAction.uppercased())
+            }
+
+            Spacer()
+
+            // Delete button
+            Button(role: .destructive) {
+                onDelete()
+            } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.red.opacity(0.8))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("app-rule-delete-\(override.id)")
+            .accessibilityLabel("Delete rule \(override.inputKey) to \(override.outputAction)")
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(NSColor.windowBackgroundColor))
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("app-rule-row-\(override.id)")
     }
 }

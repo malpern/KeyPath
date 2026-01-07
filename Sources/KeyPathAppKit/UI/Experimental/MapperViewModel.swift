@@ -84,6 +84,10 @@ extension MapperViewModel {
             _ = await kanataManager.restartKanata(reason: "Per-app mapping saved")
 
             AppLogger.shared.log("✅ [MapperViewModel] Saved app-specific mapping successfully")
+
+            // Navigate to App Rules tab in drawer to show the saved rule
+            NotificationCenter.default.post(name: .switchToAppRulesTab, object: nil)
+
             return true
         } catch let error as AppConfigError {
             // Surface validation errors with specific details to the UI
@@ -1022,6 +1026,7 @@ class MapperViewModel: ObservableObject {
             if success {
                 statusMessage = "✓ Saved"
                 statusIsError = false
+                SoundPlayer.shared.playSuccessSound()
                 AppLogger.shared.log("✅ [MapperViewModel] Saved app-specific mapping: \(inputSeq.displayString) → \(outputSeq.displayString) [only in \(appCondition.displayName)]")
             } else {
                 statusMessage = "Failed to save app-specific rule"
@@ -1096,6 +1101,21 @@ class MapperViewModel: ObservableObject {
         selectedSystemAction = nil
         selectedURL = nil
         selectedAppCondition = nil
+        statusMessage = nil
+    }
+
+    /// Reset for a new mapping but preserve selectedAppCondition
+    /// Used when adding a new rule to a specific app
+    func resetForNewMapping() {
+        inputLabel = "A"
+        outputLabel = "A"
+        inputKeyCode = 0 // Default to A key
+        inputSequence = Self.defaultAKeySequence
+        outputSequence = Self.defaultAKeySequence
+        selectedApp = nil
+        selectedSystemAction = nil
+        selectedURL = nil
+        // Keep selectedAppCondition - don't reset it
         statusMessage = nil
     }
 
