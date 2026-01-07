@@ -63,12 +63,21 @@ final class OverlayHealthIndicatorObserver {
     /// - Precondition: MainAppStateController must be configured before calling this method.
     func refresh() {
         // INVARIANT: MainAppStateController must be configured before overlay observes it.
-        // If this assertion fires, configure() is being called too late in the startup sequence.
+        // If this check fails, configure() is being called too late in the startup sequence.
         // See: App.swift init() where configure() must happen before showForStartup().
-        assert(
-            MainAppStateController.shared.isConfigured,
-            "MainAppStateController.configure() must be called before overlay health observation starts"
-        )
+        guard MainAppStateController.shared.isConfigured else {
+            // Log error in all builds (including Release) so we can detect this in production
+            AppLogger.shared.error(
+                "🚨 [HealthObserver] INITIALIZATION ORDER BUG: MainAppStateController.configure() was not called before overlay health observation. This will cause stale 'System Not Ready' state."
+            )
+            // In debug builds, crash to catch this during development
+            assertionFailure(
+                "MainAppStateController.configure() must be called before overlay health observation starts"
+            )
+            // In release builds, show checking state and return (graceful degradation)
+            setState(.checking)
+            return
+        }
 
         let state = MainAppStateController.shared.validationState
         let issues = MainAppStateController.shared.issues

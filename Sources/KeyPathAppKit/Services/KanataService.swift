@@ -399,6 +399,11 @@ public final class KanataService: ObservableObject {
         let oldState = state
         state = newStatus
 
+        // Log service failures for crash analysis
+        if case let .failed(reason) = newStatus {
+            logServiceFailure(from: oldState, reason: reason)
+        }
+
         // Track PID for crash loop detection
         if case let .running(pid) = newStatus {
             Task {
@@ -415,6 +420,46 @@ public final class KanataService: ObservableObject {
                 publishStatus(status)
             }
         }
+    }
+
+    /// Log service state failures to persistent crash log for later analysis
+    private func logServiceFailure(from oldState: ServiceState, reason: String) {
+        let crashLogDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Logs/KeyPath")
+        let crashLogPath = crashLogDir.appendingPathComponent("crashes.log")
+
+        // Ensure directory exists
+        try? FileManager.default.createDirectory(at: crashLogDir, withIntermediateDirectories: true)
+
+        // Format crash entry
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let timestamp = formatter.string(from: Date())
+
+        let entry = """
+        [\(timestamp)] [SERVICE_FAILURE] Kanata service failed
+        Previous state: \(oldState.description)
+        Reason: \(reason)
+        ---
+
+        """
+
+        // Append to log file
+        if let data = entry.data(using: .utf8) {
+            if FileManager.default.fileExists(atPath: crashLogPath.path) {
+                if let handle = try? FileHandle(forWritingTo: crashLogPath) {
+                    try? handle.seekToEnd()
+                    try? handle.write(contentsOf: data)
+                    try? handle.close()
+                }
+            } else {
+                try? data.write(to: crashLogPath)
+            }
+        }
+
+        AppLogger.shared.error(
+            "💥 [CrashLog] Logged service failure: \(oldState.description) -> failed(\(reason))"
+        )
     }
 
     /// Handle detected crash loop by stopping the service and notifying user

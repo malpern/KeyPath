@@ -94,7 +94,77 @@ class MainAppStateController: ObservableObject {
 
         // Start service health monitoring to fix stale overlay state
         subscribeToServiceHealth()
+        subscribeToErrorDetection()
         startPeriodicRefresh()
+    }
+
+    /// Subscribe to KanataErrorMonitor crash detection to trigger immediate revalidation.
+    /// This ensures crashes are detected even if service state hasn't transitioned yet.
+    private func subscribeToErrorDetection() {
+        NotificationCenter.default.publisher(for: .kanataErrorDetected)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] notification in
+                guard let self else { return }
+
+                // Log crash for later analysis
+                if let error = notification.object as? KanataError {
+                    logCrashEvent(error)
+
+                    // Critical errors should bypass cooldown and revalidate immediately
+                    if error.severity == .critical {
+                        AppLogger.shared.error(
+                            "🚨 [MainAppStateController] Critical error detected - triggering immediate revalidation"
+                        )
+                        Task { @MainActor in
+                            await self.revalidate()
+                        }
+                    }
+                }
+            }
+            .store(in: &cancellables)
+
+        AppLogger.shared.log("🔔 [MainAppStateController] Subscribed to crash/error detection")
+    }
+
+    /// Log crash events to persistent storage for later analysis.
+    /// Crashes are logged to ~/Library/Logs/KeyPath/crashes.log
+    private func logCrashEvent(_ error: KanataError) {
+        let crashLogDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Logs/KeyPath")
+        let crashLogPath = crashLogDir.appendingPathComponent("crashes.log")
+
+        // Ensure directory exists
+        try? FileManager.default.createDirectory(at: crashLogDir, withIntermediateDirectories: true)
+
+        // Format crash entry
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let timestamp = formatter.string(from: error.timestamp)
+
+        let entry = """
+        [\(timestamp)] [\(error.severity.rawValue.uppercased())] \(error.message)
+        Pattern: \(error.pattern ?? "unknown")
+        Raw: \(error.rawLine)
+        ---
+
+        """
+
+        // Append to log file
+        if let data = entry.data(using: .utf8) {
+            if FileManager.default.fileExists(atPath: crashLogPath.path) {
+                if let handle = try? FileHandle(forWritingTo: crashLogPath) {
+                    try? handle.seekToEnd()
+                    try? handle.write(contentsOf: data)
+                    try? handle.close()
+                }
+            } else {
+                try? data.write(to: crashLogPath)
+            }
+        }
+
+        AppLogger.shared.error(
+            "💥 [CrashLog] Logged crash event: \(error.severity.rawValue) - \(error.message)"
+        )
     }
 
     // MARK: - TCP Configuration Check
