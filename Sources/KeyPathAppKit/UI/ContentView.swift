@@ -189,7 +189,8 @@ struct ContentView: View {
     private var saveButtonSection: some View {
         // Save button - only visible when input OR output has content
         if recordingCoordinator.capturedInputSequence() != nil
-            || recordingCoordinator.capturedOutputSequence() != nil {
+            || recordingCoordinator.capturedOutputSequence() != nil
+        {
             HStack {
                 Spacer()
                 Button(
@@ -883,7 +884,8 @@ struct ContentView: View {
 
         // If Kanata is not running but we're recording, stop recording first (resumes Kanata)
         if !serviceState.isRunning,
-           recordingCoordinator.isInputRecording() || recordingCoordinator.isOutputRecording() {
+           recordingCoordinator.isInputRecording() || recordingCoordinator.isOutputRecording()
+        {
             AppLogger.shared.log("🔄 [ContentView] Kanata paused during recording - resuming before save")
             await MainActor.run {
                 recordingCoordinator.stopAllRecording()
@@ -932,7 +934,8 @@ struct ContentView: View {
             let reasonLower = reason.lowercased()
             if reasonLower.contains("tcp"),
                reasonLower.contains("required") || reasonLower.contains("unresponsive")
-               || reasonLower.contains("failed") || reasonLower.contains("reload") {
+               || reasonLower.contains("failed") || reasonLower.contains("reload")
+            {
                 // TCP connectivity issues - open wizard directly to Communication page
                 showStatusMessage(message: "⚠️ Service connection failed - opening setup wizard...")
                 Task { @MainActor in

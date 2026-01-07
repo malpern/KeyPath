@@ -295,7 +295,8 @@ class KanataViewModel: ObservableObject {
     }
 
     func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
-        -> String {
+        -> String
+    {
         try await manager.backupFailedConfigAndApplySafe(failedConfig: failedConfig, mappings: mappings)
     }
 

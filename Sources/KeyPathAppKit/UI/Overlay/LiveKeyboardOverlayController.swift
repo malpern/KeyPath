@@ -286,7 +286,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
                 // Clear one-shot override on the first non-modifier key press.
                 if let overrideLayer = self.oneShotLayerOverride,
-                   !Self.modifierKeys.contains(key.lowercased()) {
+                   !Self.modifierKeys.contains(key.lowercased())
+                {
                     AppLogger.shared.debug(
                         "🧭 [OverlayController] Clearing one-shot layer override '\(overrideLayer)' on key press: \(key)"
                     )
@@ -316,7 +317,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             updateLayerName(layerName)
         case .kanata:
             if let overrideLayer = oneShotLayerOverride,
-               normalized != overrideLayer {
+               normalized != overrideLayer
+            {
                 AppLogger.shared.debug(
                     "🧭 [OverlayController] Ignoring kanata layer '\(layerName)' while one-shot override '\(overrideLayer)' active"
                 )
@@ -696,7 +698,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         // Restore overlay if it was auto-hidden recently and user hasn't manually shown it
         if let hiddenAt = autoHiddenTimestamp,
            Date().timeIntervalSince(hiddenAt) < restoreWindowDuration,
-           !isVisible {
+           !isVisible
+        {
             isVisible = true
         }
     }
@@ -778,7 +781,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             }
 
             if let mapping = viewModel.launcherMappings[normalizedKey],
-               let message = Self.launcherActionMessage(for: mapping.target) {
+               let message = Self.launcherActionMessage(for: mapping.target)
+            {
                 AppLogger.shared.log("🖱️ [OverlayController] Launcher key clicked: \(normalizedKey) -> \(message)")
                 ActionDispatcher.shared.dispatch(message: message)
                 ActionDispatcher.shared.dispatch(message: "layer:base")

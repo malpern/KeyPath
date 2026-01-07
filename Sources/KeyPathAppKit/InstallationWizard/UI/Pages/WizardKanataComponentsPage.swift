@@ -161,7 +161,8 @@ struct WizardKanataComponentsPage: View {
 
             if let pendingId = pendingIssueFixId,
                let pendingAction = pendingIssueFixAction,
-               let pendingTitle = pendingIssueFixTitle {
+               let pendingTitle = pendingIssueFixTitle
+            {
                 pendingIssueFixId = nil
                 pendingIssueFixAction = nil
                 pendingIssueFixTitle = nil
@@ -410,7 +411,8 @@ struct WizardKanataComponentsPage: View {
 
         Task {
             if let nextPage = await navigationCoordinator.getNextPage(for: systemState, issues: issues),
-               nextPage != navigationCoordinator.currentPage {
+               nextPage != navigationCoordinator.currentPage
+            {
                 navigationCoordinator.navigateToPage(nextPage)
             } else {
                 navigationCoordinator.navigateToPage(.summary)

@@ -70,6 +70,21 @@ struct MainAppStateControllerTests {
         controller.configure(with: manager)
     }
 
+    @Test("isConfigured is false before configure() and true after")
+    func isConfiguredProperty() {
+        let controller = MainAppStateController()
+
+        // Before configure: should be false
+        #expect(controller.isConfigured == false)
+
+        // Configure
+        let manager = RuntimeCoordinator()
+        controller.configure(with: manager)
+
+        // After configure: should be true
+        #expect(controller.isConfigured == true)
+    }
+
     // MARK: - State Observation Tests
 
     @Test("ValidationState is observable")

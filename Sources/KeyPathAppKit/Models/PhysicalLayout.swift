@@ -203,7 +203,8 @@ struct PhysicalLayout: Identifiable {
         // Check cache freshness
         if let cached = _cachedCustomLayouts,
            let timestamp = _cacheTimestamp,
-           Date().timeIntervalSince(timestamp) < cacheTTL {
+           Date().timeIntervalSince(timestamp) < cacheTTL
+        {
             return cached
         }
 

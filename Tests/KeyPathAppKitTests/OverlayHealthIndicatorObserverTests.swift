@@ -212,3 +212,39 @@ private final class AsyncGate {
         continuation = nil
     }
 }
+
+// MARK: - Initialization Order Invariant Tests
+
+/// Tests documenting the initialization order requirement for health observation.
+/// See: ADR on MainAppStateController initialization timing.
+final class HealthObserverInitializationOrderTests: XCTestCase {
+    /// Documents that MainAppStateController.isConfigured must be true before refresh() is called.
+    /// The actual assertion in refresh() will crash if this invariant is violated.
+    /// This test verifies the CORRECT usage pattern.
+    @MainActor
+    func testRefreshRequiresConfiguredStateController() async {
+        // Set up a fresh state controller (simulating app startup)
+        let controller = MainAppStateController()
+
+        // BEFORE configure(): isConfigured should be false
+        // Calling refresh() here would trigger the assertion - DON'T DO THIS
+        XCTAssertFalse(controller.isConfigured, "Controller starts unconfigured")
+
+        // Configure the controller (this must happen in App.init before showForStartup)
+        let manager = RuntimeCoordinator()
+        controller.configure(with: manager)
+
+        // AFTER configure(): isConfigured should be true
+        // Now it's safe to call refresh()
+        XCTAssertTrue(controller.isConfigured, "Controller is configured after configure()")
+    }
+
+    /// Verifies that the shared singleton follows the same pattern.
+    /// In production, App.init() calls configure() before any UI shows.
+    @MainActor
+    func testSharedControllerConfigurationCheckExists() {
+        // The shared instance should have isConfigured property accessible
+        // (This test just verifies the API exists - actual configuration happens in App.init)
+        _ = MainAppStateController.shared.isConfigured
+    }
+}

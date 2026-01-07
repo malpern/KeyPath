@@ -79,10 +79,12 @@ final class WizardWindowController {
             window.center()
         }
         if window.contentLayoutRect.size.height > maxContentSize.height
-            || window.contentLayoutRect.size.width > maxContentSize.width {
+            || window.contentLayoutRect.size.width > maxContentSize.width
+        {
             window.setContentSize(maxContentSize)
         } else if window.contentLayoutRect.size.height < minContentSize.height
-            || window.contentLayoutRect.size.width < minContentSize.width {
+            || window.contentLayoutRect.size.width < minContentSize.width
+        {
             window.setContentSize(minContentSize)
         }
 

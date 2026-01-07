@@ -17,7 +17,8 @@ struct BuildInfo {
         if let url = Bundle.main.url(forResource: "BuildInfo", withExtension: "plist"),
            let data = try? Data(contentsOf: url),
            let dict = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil)
-           as? [String: Any] {
+           as? [String: Any]
+        {
             let version =
                 (dict["CFBundleShortVersionString"] as? String)
                     ?? (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "1.0.0"

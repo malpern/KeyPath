@@ -59,7 +59,17 @@ final class OverlayHealthIndicatorObserver {
     ///
     /// This fixes the "System Not Ready" stale state bug where `showForStartup()` is called
     /// multiple times but the observer guard prevents re-subscription, leaving the UI stuck.
+    ///
+    /// - Precondition: MainAppStateController must be configured before calling this method.
     func refresh() {
+        // INVARIANT: MainAppStateController must be configured before overlay observes it.
+        // If this assertion fires, configure() is being called too late in the startup sequence.
+        // See: App.swift init() where configure() must happen before showForStartup().
+        assert(
+            MainAppStateController.shared.isConfigured,
+            "MainAppStateController.configure() must be called before overlay health observation starts"
+        )
+
         let state = MainAppStateController.shared.validationState
         let issues = MainAppStateController.shared.issues
         AppLogger.shared.log("🔔 [HealthObserver] refresh() called - forcing state re-evaluation")

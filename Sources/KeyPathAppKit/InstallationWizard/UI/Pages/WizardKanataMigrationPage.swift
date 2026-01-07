@@ -247,7 +247,8 @@ struct WizardKanataMigrationPage: View {
     private func detectConfig() {
         // Priority 1: Running Kanata process (get config from args)
         if let runningInfo = WizardSystemPaths.detectRunningKanataProcess(),
-           !runningInfo.isKeyPathManaged {
+           !runningInfo.isKeyPathManaged
+        {
             runningKanataInfo = runningInfo
             if let configPath = runningInfo.configPath {
                 detectedConfig = .fromRunningProcess(path: configPath, pid: runningInfo.pid)

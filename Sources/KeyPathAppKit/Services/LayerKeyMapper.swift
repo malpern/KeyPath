@@ -663,7 +663,8 @@ actor LayerKeyMapper {
 
         // Spacebar output should render blank
         if normalizedSet.count == 1, let only = normalizedSet.first,
-           ["space", "spacebar", "spc", "sp"].contains(only) {
+           ["space", "spacebar", "spc", "sp"].contains(only)
+        {
             return ""
         }
 
@@ -878,7 +879,8 @@ actor LayerKeyMapper {
                 let pattern = #"push-msg\s+"open:([^"]+)""#
                 if let regex = try? NSRegularExpression(pattern: pattern),
                    let match = regex.firstMatch(in: candidate, range: NSRange(candidate.startIndex..., in: candidate)),
-                   let urlRange = Range(match.range(at: 1), in: candidate) {
+                   let urlRange = Range(match.range(at: 1), in: candidate)
+                {
                     return String(candidate[urlRange])
                 }
             }
@@ -893,7 +895,8 @@ actor LayerKeyMapper {
             for candidate in pushMsgCandidates(from: output) {
                 if let action = extractKeyPathAction(from: candidate),
                    action.action.lowercased() == "launch",
-                   let target = action.target {
+                   let target = action.target
+                {
                     return target
                 }
 
@@ -913,7 +916,8 @@ actor LayerKeyMapper {
             for candidate in pushMsgCandidates(from: output) {
                 if let action = extractKeyPathAction(from: candidate),
                    action.action.lowercased() == "system",
-                   let target = action.target {
+                   let target = action.target
+                {
                     return target
                 }
 
@@ -934,7 +938,8 @@ actor LayerKeyMapper {
         let pattern = #"push-msg\s+"([^"]+)""#
         if let regex = try? NSRegularExpression(pattern: pattern),
            let match = regex.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)),
-           let payloadRange = Range(match.range(at: 1), in: trimmed) {
+           let payloadRange = Range(match.range(at: 1), in: trimmed)
+        {
             candidates.append(String(trimmed[payloadRange]))
         }
 
