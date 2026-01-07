@@ -295,6 +295,10 @@ struct LiveKeyboardOverlayView: View {
         content = AnyView(content.onReceive(NotificationCenter.default.publisher(for: .appKeymapsDidChange)) { _ in
             loadCustomRulesState()
         })
+        // Also reload when global rules change (e.g., via mapper saving an "Everywhere" rule)
+        content = AnyView(content.onReceive(NotificationCenter.default.publisher(for: .ruleCollectionsChanged)) { _ in
+            loadCustomRulesState()
+        })
         content = AnyView(content.onReceive(NotificationCenter.default.publisher(for: .switchToAppRulesTab)) { _ in
             // Switch to Custom Rules tab after saving a rule
             loadCustomRulesState()
