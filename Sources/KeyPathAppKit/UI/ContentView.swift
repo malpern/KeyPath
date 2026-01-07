@@ -313,9 +313,10 @@ struct ContentView: View {
                     "🏗️ [ContentView] Using shared SimpleRuntimeCoordinator"
                 )
 
-                // 🎯 Phase 3/4: Configure state controller and recording coordinator with underlying RuntimeCoordinator
+                // 🎯 Phase 3/4: Configure recording coordinator with underlying RuntimeCoordinator
                 // Business logic components need the actual manager, not the ViewModel
-                stateController.configure(with: kanataManager.underlyingManager)
+                // NOTE: MainAppStateController.configure() is now called in App.init() to ensure
+                // it's ready before the overlay starts observing health state.
                 recordingCoordinator.configure(
                     kanataManager: kanataManager.underlyingManager,
                     statusHandler: { message in showStatusMessage(message: message) },

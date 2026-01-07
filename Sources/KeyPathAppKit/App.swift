@@ -44,6 +44,11 @@ public struct KeyPathApp: App {
         AppLogger.shared.debug(
             "🎯 [Phase 4] MVVM architecture initialized - ViewModel wrapping RuntimeCoordinator")
 
+        // Configure MainAppStateController early so it's ready when overlay starts observing.
+        // Previously this was called in ContentView.onAppear which happens AFTER showForStartup(),
+        // causing the health indicator to get stuck in "checking" state.
+        MainAppStateController.shared.configure(with: manager)
+
         // Set activation policy based on mode
         if isHeadlessMode {
             // Hide from dock in headless mode
