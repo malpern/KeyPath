@@ -40,6 +40,7 @@ public class KeyboardCapture: ObservableObject {
     private var lastCaptureAt: Date?
     private let dedupWindow: TimeInterval = 0.04 // 40ms
     private var currentTapLocation: CGEventTapLocation = .cgSessionEventTap
+    private var pressedModifierKeyCodes: Set<Int64> = []
 
     /// Event router for processing captured events through the event processing chain
     private var eventRouter: EventRouter?
@@ -330,6 +331,8 @@ public class KeyboardCapture: ObservableObject {
             NSEvent.removeMonitor(monitor)
             localMonitor = nil
         }
+
+        pressedModifierKeyCodes.removeAll()
     }
 
     private func setupEventTap(at location: CGEventTapLocation = .cgSessionEventTap) {
@@ -339,7 +342,7 @@ public class KeyboardCapture: ObservableObject {
                 "🧪 [KeyboardCapture] Test environment detected – skipping CGEvent tap setup")
             return
         }
-        let eventMask = (1 << CGEventType.keyDown.rawValue)
+        let eventMask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.flagsChanged.rawValue)
         let tapOptions: CGEventTapOptions = suppressEvents ? .defaultTap : .listenOnly
 
         eventTap = CGEvent.tapCreate(
@@ -347,7 +350,7 @@ public class KeyboardCapture: ObservableObject {
             place: .headInsertEventTap,
             options: tapOptions,
             eventsOfInterest: CGEventMask(eventMask),
-            callback: { tapProxy, _, event, refcon -> Unmanaged<CGEvent>? in
+            callback: { tapProxy, type, event, refcon -> Unmanaged<CGEvent>? in
                 guard let refcon else { return Unmanaged.passRetained(event) }
 
                 let capture = Unmanaged<KeyboardCapture>.fromOpaque(refcon).takeUnretainedValue()
@@ -363,13 +366,13 @@ public class KeyboardCapture: ObservableObject {
 
                     // Handle the routing result
                     if let processedEvent = result.processedEvent {
-                        capture.handleKeyEvent(processedEvent)
+                        capture.handleKeyEvent(processedEvent, type: processedEvent.type)
                     }
                     // Allow event to pass in listen-only mode; suppress otherwise
                     return capture.suppressEvents ? nil : Unmanaged.passUnretained(event)
                 } else {
                     // Legacy behavior - process directly
-                    capture.handleKeyEvent(event)
+                    capture.handleKeyEvent(event, type: event.type)
                     // Allow event to pass in listen-only mode; suppress otherwise
                     return capture.suppressEvents ? nil : Unmanaged.passUnretained(event)
                 }
@@ -514,7 +517,14 @@ public class KeyboardCapture: ObservableObject {
         return keyMap[keyName.lowercased()] ?? -1
     }
 
-    private func handleKeyEvent(_ event: CGEvent) {
+    private func handleKeyEvent(_ event: CGEvent, type: CGEventType) {
+        if type == .flagsChanged {
+            handleModifierEvent(event)
+            return
+        }
+
+        guard type == .keyDown else { return }
+
         // Ignore autorepeat frames
         if event.getIntegerValueField(.keyboardEventAutorepeat) == 1 {
             return
@@ -573,7 +583,65 @@ public class KeyboardCapture: ObservableObject {
         }
     }
 
+    private func handleModifierEvent(_ event: CGEvent) {
+        let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+        guard modifierForKeyCode(keyCode) != nil || keyCode == 57 else { return }
+
+        // flagsChanged fires for both press and release; only capture presses
+        if pressedModifierKeyCodes.contains(keyCode) {
+            pressedModifierKeyCodes.remove(keyCode)
+            return
+        }
+        pressedModifierKeyCodes.insert(keyCode)
+
+        let keyName = keyCodeToString(keyCode)
+        let now = Date()
+
+        AppLogger.shared.log(
+            "🎹 [KeyboardCapture] flagsChanged: \(keyName) code=\(keyCode) suppress=\(suppressEvents)")
+        anyEventSeen = true
+        noKeyBreadcrumbTimer?.invalidate()
+        noKeyBreadcrumbTimer = nil
+
+        let keyPress = KeyPress(
+            baseKey: keyName,
+            modifiers: [],
+            timestamp: now,
+            keyCode: keyCode
+        )
+
+        activityObserver?.didReceiveKeyEvent(keyPress)
+
+        if let last = lastCapturedKey, let lastAt = lastCaptureAt {
+            if last.baseKey == keyPress.baseKey,
+               now.timeIntervalSince(lastAt) <= dedupWindow {
+                AppLogger.shared.log("🎹 [KeyboardCapture] Deduped duplicate flagsChanged: \(keyName)")
+                return
+            }
+        }
+        lastCapturedKey = keyPress
+        lastCaptureAt = now
+
+        DispatchQueue.main.async {
+            if self.sequenceCallback == nil, let legacyCallback = self.captureCallback {
+                legacyCallback(keyName)
+
+                if !self.isContinuous {
+                    self.stopCapture()
+                } else {
+                    self.resetPauseTimer()
+                }
+                return
+            }
+
+            self.processKeyPress(keyPress)
+        }
+    }
+
     private func processKeyPress(_ keyPress: KeyPress) {
+        if !isModifierOnlyKeyPress(keyPress) {
+            removeModifierOnlyKeys(matching: keyPress.modifiers)
+        }
         let now = keyPress.timestamp
 
         switch captureMode {
@@ -619,6 +687,49 @@ public class KeyboardCapture: ObservableObject {
             sequenceTimer = Timer.scheduledTimer(withTimeInterval: sequenceTimeout, repeats: false) { _ in
                 Task { @MainActor in self.completeSequence() }
             }
+        }
+    }
+
+    private func isModifierOnlyKeyPress(_ keyPress: KeyPress) -> Bool {
+        keyPress.modifiers.isEmpty && modifierForKey(keyPress.baseKey) != nil
+    }
+
+    private func removeModifierOnlyKeys(matching modifiers: ModifierSet) {
+        guard modifiers.hasModifiers else { return }
+        capturedKeys.removeAll { keyPress in
+            guard keyPress.modifiers.isEmpty,
+                  let modifier = modifierForKey(keyPress.baseKey) else { return false }
+            return modifiers.contains(modifier)
+        }
+    }
+
+    private func modifierForKeyCode(_ keyCode: Int64) -> ModifierSet? {
+        switch keyCode {
+        case 56, 60: // left/right shift
+            return .shift
+        case 59, 62: // left/right control
+            return .control
+        case 58, 61: // left/right option
+            return .option
+        case 55, 54: // left/right command
+            return .command
+        default:
+            return nil
+        }
+    }
+
+    private func modifierForKey(_ baseKey: String) -> ModifierSet? {
+        switch baseKey.lowercased() {
+        case "lsft", "rsft":
+            return .shift
+        case "lctl", "rctl":
+            return .control
+        case "lalt", "ralt", "lopt", "ropt":
+            return .option
+        case "lmet", "rmet":
+            return .command
+        default:
+            return nil
         }
     }
 
