@@ -178,7 +178,7 @@ struct LiveKeyboardOverlayView: View {
                     inputModeIndicator: inputSourceDetector.modeIndicator,
                     currentLayerName: viewModel.currentLayerName,
                     isLauncherMode: viewModel.isLauncherModeActive || (uiState.isInspectorOpen && inspectorSection == .launchers),
-                    isTcpFallbackActive: viewModel.isTcpFallbackActive,
+                    isKanataConnected: viewModel.isKanataConnected,
                     healthIndicatorState: uiState.healthIndicatorState,
                     drawerButtonHighlighted: uiState.drawerButtonHighlighted,
                     onClose: { onClose?() },
@@ -953,8 +953,8 @@ private struct OverlayDragHeader: View {
     let currentLayerName: String
     /// Whether launcher mode is active (drawer open with Quick Launch selected)
     let isLauncherMode: Bool
-    /// Whether overlay is in TCP fallback mode (CGEvent-only input)
-    let isTcpFallbackActive: Bool
+    /// Whether Kanata TCP server is connected (receiving events)
+    let isKanataConnected: Bool
     /// Current system health indicator state
     let healthIndicatorState: HealthIndicatorState
     /// Whether the drawer button should be visually highlighted (hotkey feedback)
@@ -1093,8 +1093,8 @@ private struct OverlayDragHeader: View {
                 )
             } else {
                 HStack(spacing: 6) {
-                    if isTcpFallbackActive {
-                        tcpFallbackPill(indicatorCornerRadius: indicatorCornerRadius)
+                    if !isKanataConnected {
+                        kanataDisconnectedPill(indicatorCornerRadius: indicatorCornerRadius)
                     }
 
                     if let inputModeIndicator {
@@ -1159,23 +1159,23 @@ private struct OverlayDragHeader: View {
         .accessibilityLabel("Current layer: \(layerDisplayName)")
     }
 
-    private func tcpFallbackPill(indicatorCornerRadius: CGFloat) -> some View {
+    private func kanataDisconnectedPill(indicatorCornerRadius: CGFloat) -> some View {
         HStack(spacing: 4) {
-            Image(systemName: "exclamationmark.triangle.fill")
+            Image(systemName: "antenna.radiowaves.left.and.right.slash")
                 .font(.system(size: 9, weight: .medium))
-            Text("TCP Fallback")
+            Text("No TCP")
                 .font(.system(size: 10, weight: .semibold))
         }
-        .foregroundStyle(headerIconColor)
+        .foregroundStyle(Color.orange.opacity(0.9))
         .padding(.horizontal, 8)
         .padding(.vertical, 3)
         .background(
             RoundedRectangle(cornerRadius: indicatorCornerRadius)
-                .fill(Color.white.opacity(isDark ? 0.1 : 0.15))
+                .fill(Color.orange.opacity(isDark ? 0.15 : 0.2))
         )
-        .help("Overlay is using CGEvent fallback input")
-        .accessibilityIdentifier("overlay-tcp-fallback-indicator")
-        .accessibilityLabel("Overlay is using CGEvent fallback input")
+        .help("Not receiving events from Kanata")
+        .accessibilityIdentifier("overlay-kanata-disconnected-indicator")
+        .accessibilityLabel("Not connected to Kanata TCP server")
     }
 
     private func moveWindow(deltaX: CGFloat, deltaY: CGFloat) {

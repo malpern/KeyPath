@@ -51,7 +51,10 @@ final class KeyboardCaptureTests: XCTestCase {
             (36, "return"), (37, "l"), (38, "j"), (39, "'"), (40, "k"),
             (41, ";"), (42, "\\"), (43, ","), (44, "/"), (45, "n"),
             (46, "m"), (47, "."), (48, "tab"), (49, "space"), (50, "`"),
-            (51, "delete"), (53, "escape"), (58, "caps"), (59, "caps")
+            (51, "delete"), (53, "escape"),
+            // Modifier keys (corrected mapping)
+            (54, "rmet"), (55, "lmet"), (56, "lsft"), (57, "caps"),
+            (58, "lalt"), (59, "lctl"), (60, "rsft"), (61, "ralt"), (62, "rctl")
         ]
 
         for (keyCode, expected) in testCases {

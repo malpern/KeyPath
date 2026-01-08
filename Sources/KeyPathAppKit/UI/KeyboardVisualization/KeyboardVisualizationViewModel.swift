@@ -8,10 +8,8 @@ import SwiftUI
 /// ViewModel for keyboard visualization that tracks pressed keys
 @MainActor
 class KeyboardVisualizationViewModel: ObservableObject {
-    /// Key codes pressed according to CGEvent tap (post-Kanata transformed events)
+    /// Key codes currently pressed (from Kanata TCP KeyInput events)
     @Published var pressedKeyCodes: Set<UInt16> = []
-    /// Key codes pressed according to Kanata TCP KeyInput events (physical/raw input)
-    @Published var tcpPressedKeyCodes: Set<UInt16> = []
     @Published var layout: PhysicalLayout = .macBookUS
     /// Fade level for outline state (0 = fully visible, 1 = outline-only faded)
     @Published var fadeAmount: CGFloat = 0
@@ -89,6 +87,18 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Whether the Keycap Colorway collection is enabled
     @Published var isKeycapColorwayEnabled: Bool = false
 
+    // MARK: - TCP Connection State
+
+    /// Whether Kanata TCP server is responding (based on receiving events)
+    /// When false, overlay shows "not connected" indicator
+    @Published var isKanataConnected: Bool = false
+
+    /// Last time we received any TCP event (for connection timeout detection)
+    private var lastTcpEventTime: Date?
+
+    /// How long without events before we consider disconnected (seconds)
+    private let tcpConnectionTimeout: TimeInterval = 3.0
+
     // MARK: - One-Shot Modifier State
 
     /// Active one-shot modifiers (modifier key names like "lsft", "lctl")
@@ -148,7 +158,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
     ]
 
     /// Source keys that are currently pressed (for output suppression).
-    /// While a source key is in this set, its mapped output keys won't be added to tcpPressedKeyCodes.
+    /// While a source key is in this set, its mapped output keys won't be added to pressedKeyCodes.
     private var activeTapHoldSources: Set<UInt16> = []
 
     /// All output keyCodes that should be suppressed (computed from active sources)
@@ -189,7 +199,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
     /// Remap sources that should participate in suppression (pressed + recent releases).
     private var activeRemapSourceKeyCodes: Set<UInt16> {
-        tcpPressedKeyCodes.union(recentRemapSourceKeyCodes)
+        pressedKeyCodes.union(recentRemapSourceKeyCodes)
     }
 
     private func shouldSuppressKeyHighlight(_ keyCode: UInt16, source: String = "unknown") -> Bool {
@@ -224,14 +234,6 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Current app's bundle identifier for overlay updates
     private var currentAppBundleId: String?
 
-    /// Most recent CGEvent input timestamp (used to infer fallback state)
-    private var lastCGEventAt: Date?
-    /// Most recent TCP KeyInput timestamp (used to infer fallback state)
-    private var lastTcpKeyInputAt: Date?
-    /// Whether the overlay is currently relying on CGEvent-only input.
-    @Published var isTcpFallbackActive: Bool = false
-    private let tcpFallbackTimeout: TimeInterval = 1.0
-
     // MARK: - Key Emphasis
 
     /// HJKL key codes for nav layer auto-emphasis (computed once from key names)
@@ -252,7 +254,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// not the transformed output keys from CGEvent tap.
     var effectivePressedKeyCodes: Set<UInt16> {
         // Use TCP physical keys and any keys currently in an active hold state.
-        tcpPressedKeyCodes.union(holdActiveKeyCodes)
+        pressedKeyCodes.union(holdActiveKeyCodes)
     }
 
     /// Service for building layer key mappings
@@ -260,9 +262,6 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Task for building layer mapping
     private var layerMapTask: Task<Void, Never>?
 
-    // Event tap for listening to keyDown and keyUp events
-    private var eventTap: CFMachPort?
-    private var runLoopSource: CFRunLoopSource?
     private var isCapturing = false
     private var idleMonitorTask: Task<Void, Never>?
     private var lastInteraction: Date = .init()
@@ -280,17 +279,13 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
         // Skip in test environment
         if TestEnvironment.isRunningTests {
-            AppLogger.shared.debug("🧪 [KeyboardViz] Test environment - skipping event tap")
+            AppLogger.shared.debug("🧪 [KeyboardViz] Test environment - skipping TCP observers")
             return
         }
 
-        // Check permissions silently
-        guard AXIsProcessTrusted() else {
-            AppLogger.shared.warn("⚠️ [KeyboardViz] Accessibility permission required")
-            return
-        }
+        isCapturing = true
 
-        setupEventTap()
+        // TCP-based key detection (no CGEvent tap needed)
         setupKeyInputObserver() // Listen for TCP-based physical key events
         setupHoldActivatedObserver() // Listen for tap-hold state transitions
         setupTapActivatedObserver() // Listen for tap-hold tap triggers
@@ -302,6 +297,8 @@ class KeyboardVisualizationViewModel: ObservableObject {
         rebuildLayerMapping() // Build initial layer mapping
         loadFeatureCollectionStates() // Load optional feature collection states
         preloadAllIcons() // Pre-cache launcher and layer icons
+
+        AppLogger.shared.info("✅ [KeyboardViz] TCP-based key capture started")
     }
 
     /// Load enabled states for optional feature collections (Typing Sounds, Keycap Colorway)
@@ -355,7 +352,6 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
         isCapturing = false
         pressedKeyCodes.removeAll()
-        tcpPressedKeyCodes.removeAll()
         holdLabels.removeAll()
         holdLabelCache.removeAll()
         activeTapHoldSources.removeAll()
@@ -366,19 +362,6 @@ class KeyboardVisualizationViewModel: ObservableObject {
         recentRemapSourceKeyCodes.removeAll()
         remapSourceClearTasks.values.forEach { $0.cancel() }
         remapSourceClearTasks.removeAll()
-        lastCGEventAt = nil
-        lastTcpKeyInputAt = nil
-        isTcpFallbackActive = false
-
-        if let source = runLoopSource {
-            CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, .commonModes)
-            runLoopSource = nil
-        }
-
-        if let tap = eventTap {
-            CFMachPortInvalidate(tap)
-            eventTap = nil
-        }
 
         if let observer = keyInputObserver {
             NotificationCenter.default.removeObserver(observer)
@@ -455,145 +438,6 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
     // MARK: - Private Event Handling
 
-    private func setupEventTap() {
-        // Listen to keyDown, keyUp, and flagsChanged (for modifier keys like Caps Lock)
-        let eventMask = (1 << CGEventType.keyDown.rawValue)
-            | (1 << CGEventType.keyUp.rawValue)
-            | (1 << CGEventType.flagsChanged.rawValue)
-
-        eventTap = CGEvent.tapCreate(
-            tap: .cgSessionEventTap,
-            place: .headInsertEventTap,
-            options: .listenOnly, // Listen-only mode - don't interfere with other apps
-            eventsOfInterest: CGEventMask(eventMask),
-            callback: { _, type, event, refcon -> Unmanaged<CGEvent>? in
-                guard let refcon else {
-                    return Unmanaged.passUnretained(event)
-                }
-
-                let viewModel = Unmanaged<KeyboardVisualizationViewModel>.fromOpaque(refcon)
-                    .takeUnretainedValue()
-
-                viewModel.handleKeyEvent(event: event, type: type)
-
-                // Always pass event through (listen-only mode)
-                return Unmanaged.passUnretained(event)
-            },
-            userInfo: Unmanaged.passUnretained(self).toOpaque()
-        )
-
-        guard let eventTap else {
-            AppLogger.shared.error("❌ [KeyboardViz] Failed to create event tap")
-            return
-        }
-
-        runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
-        CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
-        CGEvent.tapEnable(tap: eventTap, enable: true)
-        isCapturing = true
-
-        AppLogger.shared.info("✅ [KeyboardViz] Event tap created (listen-only mode)")
-    }
-
-    private func handleKeyEvent(event: CGEvent, type: CGEventType) {
-        // Ignore autorepeat frames
-        if event.getIntegerValueField(.keyboardEventAutorepeat) == 1 {
-            return
-        }
-
-        noteInteraction()
-
-        let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
-
-        Task { @MainActor in
-            lastCGEventAt = Date()
-            updateTcpFallbackState()
-            // Check if this output key should be suppressed (tap-hold or simple remap)
-            let shouldSuppressCGEvent = shouldSuppressKeyHighlight(keyCode, source: "cgevent")
-
-            switch type {
-            case .keyDown:
-                // Suppress output keys (e.g., don't light up B when A->B is pressed)
-                if shouldSuppressCGEvent {
-                    return
-                }
-                cancelKeyFadeOut(keyCode)
-                pressedKeyCodes.insert(keyCode)
-                TypingSoundsManager.shared.playKeydown()
-                AppLogger.shared.debug("⌨️ [KeyboardViz] KeyDown: \(keyCode)")
-
-            case .keyUp:
-                if shouldSuppressCGEvent { return }
-                pressedKeyCodes.remove(keyCode)
-                startKeyFadeOut(keyCode) // Start fade-out animation
-                TypingSoundsManager.shared.playKeyup()
-                AppLogger.shared.debug("⌨️ [KeyboardViz] KeyUp: \(keyCode)")
-
-            case .flagsChanged:
-                // Handle modifier key presses (Caps Lock, Shift, Cmd, etc.)
-                handleFlagsChanged(event: event, keyCode: keyCode)
-
-            default:
-                break
-            }
-        }
-    }
-
-    /// Handle modifier key state changes from flagsChanged events
-    private func handleFlagsChanged(event: CGEvent, keyCode: UInt16) {
-        let flags = event.flags
-        let shouldSuppress = shouldSuppressKeyHighlight(keyCode, source: "flags")
-
-        // Update only the modifier key that triggered this flagsChanged event so previously-held
-        // modifiers stay pressed (e.g., holding ⌘ while pressing ⌥).
-        switch keyCode {
-        case 57: // Caps Lock
-            if !shouldSuppress {
-                updateModifierState(keyCode: 57, isPressed: flags.contains(.maskAlphaShift))
-            }
-        case 56: // Left Shift
-            if !shouldSuppress {
-                updateModifierState(keyCode: 56, isPressed: flags.contains(.maskShift))
-            }
-        case 60: // Right Shift
-            if !shouldSuppress {
-                updateModifierState(keyCode: 60, isPressed: flags.contains(.maskShift))
-            }
-        case 59: // Left Control
-            if !shouldSuppress {
-                updateModifierState(keyCode: 59, isPressed: flags.contains(.maskControl))
-            }
-        case 55: // Left Command
-            if !shouldSuppress {
-                updateModifierState(keyCode: 55, isPressed: flags.contains(.maskCommand))
-            }
-        case 54: // Right Command
-            if !shouldSuppress {
-                updateModifierState(keyCode: 54, isPressed: flags.contains(.maskCommand))
-            }
-        case 58: // Left Option
-            if !shouldSuppress {
-                updateModifierState(keyCode: 58, isPressed: flags.contains(.maskAlternate))
-            }
-        case 61: // Right Option
-            if !shouldSuppress {
-                updateModifierState(keyCode: 61, isPressed: flags.contains(.maskAlternate))
-            }
-        case 63: // Fn key
-            if !shouldSuppress {
-                updateModifierState(keyCode: 63, isPressed: flags.contains(.maskSecondaryFn))
-            }
-        default:
-            break
-        }
-
-        // Final reconciliation: if a modifier flag is absent, ensure both sides of that modifier
-        // are cleared so simultaneous releases don't leave a side stuck as "pressed".
-        reconcileModifierStates(flags: flags)
-
-        AppLogger.shared.debug("⌨️ [KeyboardViz] FlagsChanged: keyCode=\(keyCode), flags=\(flags.rawValue)")
-    }
-
     private func startIdleMonitor() {
         idleMonitorTask?.cancel()
         lastInteraction = Date()
@@ -602,7 +446,9 @@ class KeyboardVisualizationViewModel: ObservableObject {
             guard let self else { return }
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(idlePollInterval))
-                updateTcpFallbackState()
+
+                // Check TCP connection state (detects disconnection via timeout)
+                checkTcpConnectionState()
 
                 // Don't fade while holding a momentary layer key (non-base layer active)
                 let isOnMomentaryLayer = currentLayerName.lowercased() != "base"
@@ -633,20 +479,38 @@ class KeyboardVisualizationViewModel: ObservableObject {
         }
     }
 
-    private func updateTcpFallbackState(now: Date = Date()) {
-        let cgRecent = lastCGEventAt.map { now.timeIntervalSince($0) <= tcpFallbackTimeout } ?? false
-        let tcpRecent = lastTcpKeyInputAt.map { now.timeIntervalSince($0) <= tcpFallbackTimeout } ?? false
-        let fallbackActive = cgRecent && !tcpRecent
-        if fallbackActive != isTcpFallbackActive {
-            isTcpFallbackActive = fallbackActive
-        }
-    }
-
     /// Reset idle timer and un-fade if necessary.
     func noteInteraction() {
         lastInteraction = Date()
         if fadeAmount != 0 { fadeAmount = 0 }
         if deepFadeAmount != 0 { deepFadeAmount = 0 }
+    }
+
+    /// Track that we received a TCP event (for connection state indicator)
+    private func noteTcpEventReceived() {
+        lastTcpEventTime = Date()
+        if !isKanataConnected {
+            isKanataConnected = true
+            AppLogger.shared.log("🌐 [KeyboardViz] Kanata TCP connected (received event)")
+        }
+    }
+
+    /// Check TCP connection timeout (called from idle monitor)
+    private func checkTcpConnectionState() {
+        guard let lastEvent = lastTcpEventTime else {
+            // No events ever received - not connected
+            if isKanataConnected {
+                isKanataConnected = false
+                AppLogger.shared.log("🌐 [KeyboardViz] Kanata TCP disconnected (no events)")
+            }
+            return
+        }
+
+        let elapsed = Date().timeIntervalSince(lastEvent)
+        if elapsed > tcpConnectionTimeout, isKanataConnected {
+            isKanataConnected = false
+            AppLogger.shared.log("🌐 [KeyboardViz] Kanata TCP disconnected (timeout after \(String(format: "%.1f", elapsed))s)")
+        }
     }
 
     // MARK: - Layout Management
@@ -681,6 +545,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
         // Reset idle timer on any layer change (including returning to base)
         noteInteraction()
+        noteTcpEventReceived()
         rebuildLayerMapping()
     }
 
@@ -1241,6 +1106,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Handle one-shot modifier activation
     /// Adds modifier to active set - will be cleared on next key press
     private func handleOneShotActivated(modifiers: String) {
+        noteTcpEventReceived()
         // Parse comma-separated modifiers (e.g., "lsft" or "lsft,lctl")
         let mods = modifiers.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
         for mod in mods {
@@ -1259,6 +1125,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Handle a MessagePush event from Kanata (icon/emphasis commands)
     /// Format: "icon:arrow-left", "emphasis:h,j,k,l", "emphasis:clear"
     private func handleMessagePush(_ message: String) {
+        noteTcpEventReceived()
         // Parse icon messages: "icon:arrow-left"
         if message.hasPrefix("icon:") {
             let iconName = String(message.dropFirst(5)) // Remove "icon:" prefix
@@ -1301,6 +1168,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
     /// Handle a HoldActivated event from Kanata
     private func handleHoldActivated(key: String, action: String) {
+        noteTcpEventReceived()
         guard let keyCode = Self.kanataNameToKeyCode(key) else {
             AppLogger.shared.debug("⌨️ [KeyboardViz] Unknown kanata key name for hold: \(key)")
             return
@@ -1364,6 +1232,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Handle a TapActivated event from Kanata
     /// Populates the dynamic tap-hold output map for suppression
     private func handleTapActivated(key: String, action: String) {
+        noteTcpEventReceived()
         guard let sourceKeyCode = Self.kanataNameToKeyCode(key) else {
             AppLogger.shared.debug("👆 [KeyboardViz] Unknown kanata key name for tap: \(key)")
             return
@@ -1454,8 +1323,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
         }
 
         noteInteraction()
-        lastTcpKeyInputAt = Date()
-        updateTcpFallbackState()
+        noteTcpEventReceived()
 
         // Clear one-shot modifiers on key press (not on release)
         // One-shot modifiers apply to the next key press and are consumed
@@ -1483,7 +1351,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
            let mappedOutput = remapOutputMap.first(where: { $0.value == keyCode })
         {
             AppLogger.shared.debug(
-                "🔄 [KeyboardViz] KeyInput \(key)(\(keyCode)): isRemapOutput=true, sourceKey=\(mappedOutput.key), tcpPressed=\(tcpPressedKeyCodes), remapSources=\(activeRemapSourceKeyCodes), suppressedRemapOutputs=\(suppressedRemapOutputKeyCodes), isRemapSuppressed=\(isRemapSuppressed)"
+                "🔄 [KeyboardViz] KeyInput \(key)(\(keyCode)): isRemapOutput=true, sourceKey=\(mappedOutput.key), tcpPressed=\(pressedKeyCodes), remapSources=\(activeRemapSourceKeyCodes), suppressedRemapOutputs=\(suppressedRemapOutputKeyCodes), isRemapSuppressed=\(isRemapSuppressed)"
             )
         }
 
@@ -1506,7 +1374,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
                 return
             }
             cancelKeyFadeOut(keyCode) // Cancel any ongoing fade-out
-            tcpPressedKeyCodes.insert(keyCode)
+            pressedKeyCodes.insert(keyCode)
             // If a hold is already active for this key, keep it active and cancel any pending clear.
             if holdActiveKeyCodes.contains(keyCode) {
                 holdClearWorkItems[keyCode]?.cancel()
@@ -1556,7 +1424,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
                 return
             }
 
-            tcpPressedKeyCodes.remove(keyCode)
+            pressedKeyCodes.remove(keyCode)
             startKeyFadeOut(keyCode) // Start fade-out animation
             // Defer clearing hold state briefly to tolerate tap-hold-press sequences that emit rapid releases.
             let work = DispatchWorkItem { [weak self] in
@@ -1579,7 +1447,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
         if keyCode == 57 {
             AppLogger.shared.debug(
-                "🧪 [KeyboardViz] caps state: tcpPressed=\(tcpPressedKeyCodes.contains(57)) holdActive=\(holdActiveKeyCodes.contains(57)) holdLabel=\(holdLabels[57] ?? "nil")"
+                "🧪 [KeyboardViz] caps state: tcpPressed=\(pressedKeyCodes.contains(57)) holdActive=\(holdActiveKeyCodes.contains(57)) holdLabel=\(holdLabels[57] ?? "nil")"
             )
         }
     }
@@ -1661,50 +1529,5 @@ class KeyboardVisualizationViewModel: ObservableObject {
             "hangeul": 104, "hanja": 104
         ]
         return mapping[name.lowercased()]
-    }
-
-    /// Clear modifier keycodes when the corresponding flag is fully released.
-    private func reconcileModifierStates(flags: CGEventFlags) {
-        if !flags.contains(.maskCommand) {
-            pressedKeyCodes.remove(55) // Left Command
-            pressedKeyCodes.remove(54) // Right Command
-        }
-        if !flags.contains(.maskAlternate) {
-            pressedKeyCodes.remove(58) // Left Option
-            pressedKeyCodes.remove(61) // Right Option
-        }
-        if !flags.contains(.maskShift) {
-            pressedKeyCodes.remove(56) // Left Shift
-            pressedKeyCodes.remove(60) // Right Shift
-        }
-        if !flags.contains(.maskControl) {
-            pressedKeyCodes.remove(59) // Left Control
-            pressedKeyCodes.remove(62) // Right Control (defensive)
-        }
-        if !flags.contains(.maskAlphaShift) {
-            pressedKeyCodes.remove(57) // Caps Lock
-        }
-        if !flags.contains(.maskSecondaryFn) {
-            pressedKeyCodes.remove(63) // Fn key
-        }
-    }
-
-    #if DEBUG
-        /// Test helper to simulate a flagsChanged event without installing an event tap.
-        func simulateFlagsChanged(flags: CGEventFlags, keyCode: UInt16) {
-            guard let event = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: true) else {
-                return
-            }
-            event.flags = flags
-            handleKeyEvent(event: event, type: .flagsChanged)
-        }
-    #endif
-
-    private func updateModifierState(keyCode: UInt16, isPressed: Bool) {
-        if isPressed {
-            pressedKeyCodes.insert(keyCode)
-        } else {
-            pressedKeyCodes.remove(keyCode)
-        }
     }
 }

@@ -1378,5 +1378,33 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     // MARK: - AI Configuration Repair
 
-    // Logic moved to ConfigRepairService
+    /// Attempt to repair a broken config using the AI service
+    /// - Parameters:
+    ///   - config: The broken config content
+    ///   - errors: Validation error messages from Kanata
+    /// - Returns: Repaired config string if successful
+    /// - Throws: KeyPathError if repair fails or no API key configured
+    public func attemptAIRepair(config: String, errors: [String]) async throws -> String {
+        AppLogger.shared.log("🤖 [RuntimeCoordinator] Starting AI config repair")
+
+        // Check API key availability
+        guard KeychainService.shared.hasClaudeAPIKey else {
+            throw KeyPathError.configuration(.repairFailed(reason: "No Claude API key configured. Add one in Settings → Experimental → AI Config Generation."))
+        }
+
+        // Get current mappings for context (helps AI understand intent)
+        let mappings = keyMappings
+
+        AppLogger.shared.log("🤖 [RuntimeCoordinator] Calling AI service with \(errors.count) errors and \(mappings.count) mappings")
+
+        // Call AI service
+        let repairedConfig = try await configRepairService.repairConfig(
+            config: config,
+            errors: errors,
+            mappings: mappings
+        )
+
+        AppLogger.shared.log("✅ [RuntimeCoordinator] AI repair completed")
+        return repairedConfig
+    }
 }
