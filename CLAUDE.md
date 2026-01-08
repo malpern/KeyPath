@@ -167,6 +167,28 @@ poltergeist start    # Watch + auto-deploy on save (~2s)
 poltergeist stop     # Stop watching
 ```
 
+**IMPORTANT: Stop Poltergeist before running parallel agents!**
+
+Poltergeist watches for file changes and triggers builds. When multiple agents write files simultaneously, this causes SwiftPM lock contention (only one build at a time allowed).
+
+**Parallel Agent Workflow:**
+```bash
+# 1. Stop auto-build to prevent lock contention
+poltergeist stop
+
+# 2. Launch parallel agents (they edit code without building)
+# ... agents work simultaneously ...
+
+# 3. Manual verification after all agents complete
+swift build && swift test
+
+# 4. Commit & push
+git add -A && git commit && git push
+
+# 5. Resume auto-deploy for normal dev work
+poltergeist start
+```
+
 ## Test Commands
 
 ```bash
