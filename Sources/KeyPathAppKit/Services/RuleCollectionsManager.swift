@@ -1161,10 +1161,8 @@ final class RuleCollectionsManager {
             }
         }
 
-        if candidate.targetLayer == .base {
-            if let conflict = conflictWithCustomRules(candidateKeys) {
-                return conflict
-            }
+        if let conflict = conflictWithCustomRules(candidateKeys, layer: candidate.targetLayer) {
+            return conflict
         }
 
         return nil
@@ -1173,7 +1171,7 @@ final class RuleCollectionsManager {
     private func conflictInfo(for rule: CustomRule) -> RuleConflictInfo? {
         let normalizedKey = KanataKeyConverter.convertToKanataKey(rule.input)
 
-        for collection in ruleCollections where collection.isEnabled && collection.targetLayer == .base {
+        for collection in ruleCollections where collection.isEnabled && collection.targetLayer == rule.targetLayer {
             if normalizedKeys(for: collection).contains(normalizedKey) {
                 return RuleConflictInfo(source: .collection(collection), keys: [normalizedKey])
             }
@@ -1188,8 +1186,8 @@ final class RuleCollectionsManager {
         return nil
     }
 
-    private func conflictWithCustomRules(_ keys: Set<String>) -> RuleConflictInfo? {
-        for rule in customRules where rule.isEnabled {
+    private func conflictWithCustomRules(_ keys: Set<String>, layer: RuleCollectionLayer) -> RuleConflictInfo? {
+        for rule in customRules where rule.isEnabled && rule.targetLayer == layer {
             let normalized = KanataKeyConverter.convertToKanataKey(rule.input)
             if keys.contains(normalized) {
                 return RuleConflictInfo(source: .customRule(rule), keys: [normalized])

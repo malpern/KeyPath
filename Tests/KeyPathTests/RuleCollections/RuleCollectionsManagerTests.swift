@@ -195,6 +195,49 @@ final class RuleCollectionsManagerTests: XCTestCase {
     }
 
     @MainActor
+    func testCustomRuleConflictWithCollectionOnCustomLayer_WarnsButAllows() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        var conflictContext: RuleConflictContext?
+        manager.onConflictResolution = { context in
+            conflictContext = context
+            return .keepNew
+        }
+
+        let launcherCollection = RuleCollection(
+            id: UUID(),
+            name: "Quick Launcher",
+            summary: "Launcher layer mappings",
+            category: .productivity,
+            mappings: [KeyMapping(input: "a", output: "b")],
+            isEnabled: true,
+            targetLayer: .custom("launcher")
+        )
+
+        await manager.replaceCollections([launcherCollection])
+
+        let systemActionRule = CustomRule(
+            input: "a",
+            output: #"(push-msg "system:spotlight")"#,
+            isEnabled: true,
+            targetLayer: .custom("launcher")
+        )
+        let saved = await manager.saveCustomRule(systemActionRule)
+
+        XCTAssertTrue(saved, "Rule should save after conflict resolution on custom layer")
+        XCTAssertNotNil(conflictContext, "Conflict resolution should be requested")
+        XCTAssertTrue(
+            conflictContext?.conflictingKeys.contains("a") ?? false,
+            "Conflict should include the conflicting key"
+        )
+        XCTAssertFalse(
+            manager.ruleCollections.contains { $0.id == launcherCollection.id && $0.isEnabled },
+            "Conflicting collection should be disabled"
+        )
+    }
+
+    @MainActor
     func testToggleCustomRule_ConflictWarnsButEnables() async throws {
         let (manager, _) = try await createTestManager()
         defer { TestEnvironment.forceTestMode = false }
