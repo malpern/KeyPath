@@ -231,9 +231,9 @@ extension InstallerEngine {
     func orderRecipes(_ recipes: [ServiceRecipe]) -> [ServiceRecipe] {
         // Validate design assumption: no recipe should currently declare dependencies
         assert(
-            recipes.allSatisfy { $0.dependencies.isEmpty },
+            recipes.allSatisfy(\.dependencies.isEmpty),
             "Recipe declared dependencies but orderRecipes() does not implement dependency resolution. " +
-            "Either remove the dependencies or implement topological sort."
+                "Either remove the dependencies or implement topological sort."
         )
 
         // Return recipes in the order they were added (ActionDeterminer already provides correct ordering)
