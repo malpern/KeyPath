@@ -49,6 +49,8 @@ struct OverlayKeycapView: View {
     var isHoveredByRule: Bool = false
     /// Whether the inspector/drawer is visible (determines click vs drag behavior)
     var isInspectorVisible: Bool = false
+    /// Custom icon name set via push-msg (e.g., "arrow-left", "safari")
+    var customIcon: String?
 
     // MARK: - Launcher Mode
 
@@ -317,6 +319,14 @@ struct OverlayKeycapView: View {
 
             // Crisp content layer
             keyContent
+
+            // Custom icon overlay (from push-msg, takes precedence over other content)
+            if let iconName = customIcon {
+                Image(systemName: iconName)
+                    .font(.system(size: 20 * scale, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
+                    .shadow(color: .black.opacity(0.3), radius: 1 * scale)
+            }
 
             // Caps lock indicator (only for caps lock key)
             if key.label == "⇪" {
@@ -819,8 +829,15 @@ struct OverlayKeycapView: View {
     /// The action content to display in center for layer mode (arrows, icons, etc.)
     @ViewBuilder
     private var layerActionContent: some View {
-        // Check for app icon first
-        if let icon = appIcon {
+        // Check for custom icon from push-msg first (highest priority)
+        if let iconName = customIcon {
+            // Try as SF Symbol first
+            Image(systemName: iconName)
+                .font(.system(size: 18 * scale, weight: .medium))
+                .foregroundStyle(Color.accentColor.opacity(0.9))
+        }
+        // Check for app icon
+        else if let icon = appIcon {
             Image(nsImage: icon)
                 .resizable()
                 .aspectRatio(contentMode: .fit)

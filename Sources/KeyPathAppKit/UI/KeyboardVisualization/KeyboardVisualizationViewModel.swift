@@ -61,6 +61,10 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Custom icons for keys set via push-msg (keyCode -> icon name)
     /// Example: "arrow-left", "safari", "home"
     @Published var customIcons: [UInt16: String] = [:]
+    /// Most recently pressed key (for icon association)
+    private var lastPressedKeyCode: UInt16?
+    /// Icon clear tasks (keyCode -> task that clears the icon)
+    private var iconClearTasks: [UInt16: Task<Void, Never>] = [:]
     /// Keys emphasized via push-msg emphasis command
     /// Example: (push-msg "emphasis:h,j,k,l") sets HJKL as emphasized
     @Published var customEmphasisKeyCodes: Set<UInt16> = []
@@ -1129,9 +1133,29 @@ class KeyboardVisualizationViewModel: ObservableObject {
         // Parse icon messages: "icon:arrow-left"
         if message.hasPrefix("icon:") {
             let iconName = String(message.dropFirst(5)) // Remove "icon:" prefix
-            AppLogger.shared.info("🎨 [KeyboardViz] Icon message: \(iconName)")
-            // TODO(#74): Associate icon with most recently pressed key
-            // For now, just log - need key context to apply icon
+
+            // Associate icon with most recently pressed key
+            guard let keyCode = lastPressedKeyCode else {
+                AppLogger.shared.debug("🎨 [KeyboardViz] Icon message '\(iconName)' received but no key was pressed recently")
+                return
+            }
+
+            AppLogger.shared.info("🎨 [KeyboardViz] Associating icon '\(iconName)' with key \(keyCode)")
+
+            // Cancel any existing clear task for this key
+            iconClearTasks[keyCode]?.cancel()
+
+            // Set the icon
+            customIcons[keyCode] = iconName
+
+            // Clear the icon after 2 seconds
+            iconClearTasks[keyCode] = Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(2))
+                self?.customIcons.removeValue(forKey: keyCode)
+                self?.iconClearTasks.removeValue(forKey: keyCode)
+                AppLogger.shared.debug("🎨 [KeyboardViz] Cleared icon for key \(keyCode)")
+            }
+
             return
         }
 
@@ -1374,6 +1398,8 @@ class KeyboardVisualizationViewModel: ObservableObject {
             }
             cancelKeyFadeOut(keyCode) // Cancel any ongoing fade-out
             pressedKeyCodes.insert(keyCode)
+            // Track most recently pressed key for icon association
+            lastPressedKeyCode = keyCode
             // If a hold is already active for this key, keep it active and cancel any pending clear.
             if holdActiveKeyCodes.contains(keyCode) {
                 holdClearWorkItems[keyCode]?.cancel()

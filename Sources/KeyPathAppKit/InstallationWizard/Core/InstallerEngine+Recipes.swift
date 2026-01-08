@@ -210,10 +210,34 @@ extension InstallerEngine {
     // MARK: - Recipe Ordering
 
     /// Order recipes respecting dependencies
+    ///
+    /// Design Decision: Simple ordering is intentionally used instead of complex dependency resolution.
+    ///
+    /// **Why this works:**
+    /// 1. Recipes are designed to be order-independent or self-contained
+    /// 2. ActionDeterminer already adds recipes in roughly correct order
+    /// 3. No current recipes declare explicit dependencies (all use empty dependencies array)
+    /// 4. Service health checks after each recipe provide implicit ordering guarantees
+    ///
+    /// **When dependency resolution would be needed:**
+    /// - If recipes start declaring explicit dependencies via the `dependencies` field
+    /// - If recipes require complex inter-dependencies (e.g., A requires B AND C, B requires D)
+    /// - If we need to parallelize recipe execution while respecting constraints
+    ///
+    /// For now, this simple approach keeps the codebase maintainable and easier to understand.
+    /// If complex dependencies emerge, implement topological sort here.
+    ///
+    /// Related: Linear MAL-35, MAL-16 (duplicate issues resolved by documenting design)
     func orderRecipes(_ recipes: [ServiceRecipe]) -> [ServiceRecipe] {
-        // Simple topological sort - for now, just return in order
-        // TODO(#75): Implement proper dependency resolution if needed
-        recipes
+        // Validate design assumption: no recipe should currently declare dependencies
+        assert(
+            recipes.allSatisfy { $0.dependencies.isEmpty },
+            "Recipe declared dependencies but orderRecipes() does not implement dependency resolution. " +
+            "Either remove the dependencies or implement topological sort."
+        )
+
+        // Return recipes in the order they were added (ActionDeterminer already provides correct ordering)
+        return recipes
     }
 
     /// Map AutoFixAction to recipe ID

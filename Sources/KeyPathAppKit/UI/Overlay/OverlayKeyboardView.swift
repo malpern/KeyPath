@@ -34,6 +34,8 @@ struct OverlayKeyboardView: View {
     var holdLabels: [UInt16: String] = [:]
     /// Idle labels for tap-hold inputs (show tap output when not pressed)
     var tapHoldIdleLabels: [UInt16: String] = [:]
+    /// Custom icons for keys set via push-msg: keyCode -> icon name
+    var customIcons: [UInt16: String] = [:]
     /// Callback when a key is clicked (not dragged) - selects key in drawer mapper when visible
     var onKeyClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
     /// Key code of currently selected key in mapper drawer (shows selection highlight)
@@ -370,6 +372,8 @@ struct OverlayKeyboardView: View {
             isHoveredByRule: hoveredRuleKeyCode == key.keyCode,
             // Inspector/drawer state for click vs drag behavior
             isInspectorVisible: isInspectorVisible,
+            // Custom icon from push-msg
+            customIcon: customIcons[key.keyCode],
             // Launcher mode state
             isLauncherMode: isLauncherMode,
             launcherMapping: launcherMapping,
