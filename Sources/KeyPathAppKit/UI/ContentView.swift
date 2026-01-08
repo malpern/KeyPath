@@ -85,6 +85,9 @@ struct ContentView: View {
     @State private var showingValidationFailureModal = false
     @State private var validationFailureErrors: [String] = []
     @State private var validationFailureCopyText: String = ""
+    @State private var isAttemptingAIRepair = false
+    @State private var aiRepairError: String?
+    @State private var aiRepairBackupPath: String?
     @State private var lastKanataServiceIssuePresent = false
     @State private var hasSeenHealthyKanataService = false
     @State private var kanataServiceStoppedDetails = ""
@@ -557,6 +560,8 @@ struct ContentView: View {
             .sheet(isPresented: $showingValidationFailureModal, onDismiss: {
                 validationFailureErrors = []
                 validationFailureCopyText = ""
+                aiRepairError = nil
+                aiRepairBackupPath = nil
             }) {
                 ValidationFailureDialog(
                     errors: validationFailureErrors,
@@ -572,7 +577,11 @@ struct ContentView: View {
                     },
                     onDismiss: {
                         showingValidationFailureModal = false
-                    }
+                    },
+                    onRepairWithAI: KeychainService.shared.hasClaudeAPIKey ? { attemptAIConfigRepair() } : nil,
+                    isRepairing: $isAttemptingAIRepair,
+                    repairError: aiRepairError,
+                    backupPath: aiRepairBackupPath
                 )
                 .customizeSheetWindow()
             }
@@ -1007,6 +1016,63 @@ struct ContentView: View {
         pasteboard.setString(combined, forType: .string)
     }
 
+    /// Attempt to repair the config using AI
+    private func attemptAIConfigRepair() {
+        isAttemptingAIRepair = true
+        aiRepairError = nil
+        aiRepairBackupPath = nil
+
+        Task {
+            do {
+                // 1. Create backup FIRST - abort if this fails
+                let backupPath = try await kanataManager.underlyingManager.configurationService.backupConfigBeforeAIRepair()
+                await MainActor.run {
+                    aiRepairBackupPath = backupPath
+                }
+                AppLogger.shared.log("✅ [ContentView] Backup created at: \(backupPath)")
+
+                // 2. Get current broken config
+                let brokenConfig = try await kanataManager.underlyingManager.configurationService.readCurrentConfig()
+
+                // 3. Attempt AI repair
+                let repairedConfig = try await kanataManager.underlyingManager.attemptAIRepair(
+                    config: brokenConfig,
+                    errors: validationFailureErrors
+                )
+
+                // 4. Validate the repaired config before applying
+                let validation = await kanataManager.underlyingManager.configurationService.validateConfiguration(repairedConfig)
+
+                if validation.isValid {
+                    // 5. Save and reload
+                    try await kanataManager.underlyingManager.configurationService.saveRepairedConfig(repairedConfig)
+
+                    // 6. Restart service to apply
+                    _ = await kanataManager.restartKanata(reason: "AI config repair")
+
+                    // 7. Success! Close dialog and show toast
+                    await MainActor.run {
+                        showingValidationFailureModal = false
+                        isAttemptingAIRepair = false
+                        showStatusMessage(message: "✅ Config repaired! Backup: \(backupPath)")
+                    }
+                } else {
+                    // Repair didn't fully fix it - update errors and continue
+                    await MainActor.run {
+                        validationFailureErrors = validation.errors
+                        aiRepairError = "AI repair improved the config but \(validation.errors.count) error(s) remain"
+                        isAttemptingAIRepair = false
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    aiRepairError = error.localizedDescription
+                    isAttemptingAIRepair = false
+                }
+            }
+        }
+    }
+
     private func openCurrentConfigInEditor() {
         kanataManager.openFileInZed(kanataManager.configPath)
     }
@@ -1101,6 +1167,11 @@ private struct ValidationFailureDialog: View {
     let onOpenConfig: () -> Void
     let onOpenDiagnostics: () -> Void
     let onDismiss: () -> Void
+    // AI Repair support
+    let onRepairWithAI: (() -> Void)?
+    @Binding var isRepairing: Bool
+    var repairError: String?
+    var backupPath: String?
 
     private var normalizedErrors: [String] {
         errors.isEmpty
@@ -1155,6 +1226,61 @@ private struct ValidationFailureDialog: View {
             }
             .frame(minHeight: 180, maxHeight: 260)
 
+            // AI Repair status messages
+            if let repairError {
+                HStack(spacing: 10) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.orange)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Repair Failed")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.primary)
+                        Text(repairError)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.orange.opacity(0.1))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .strokeBorder(Color.orange.opacity(0.3), lineWidth: 1)
+                        )
+                )
+            }
+
+            if let backupPath {
+                HStack(spacing: 10) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.green)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Original Config Backed Up")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.primary)
+                        Text(backupPath)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    Spacer()
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.green.opacity(0.1))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .strokeBorder(Color.green.opacity(0.3), lineWidth: 1)
+                        )
+                )
+            }
+
             HStack(spacing: 8) {
                 Image(systemName: "doc.text")
                     .foregroundStyle(.secondary)
@@ -1179,6 +1305,28 @@ private struct ValidationFailureDialog: View {
                 }
                 .accessibilityIdentifier("validation-open-config-button")
                 .accessibilityLabel("Open Config in Zed")
+
+                // AI Repair button (only shown if API key is configured)
+                if let onRepairWithAI {
+                    Button {
+                        onRepairWithAI()
+                    } label: {
+                        if isRepairing {
+                            HStack(spacing: 4) {
+                                ProgressView()
+                                    .controlSize(.small)
+                                Text("Repairing...")
+                            }
+                        } else {
+                            Label("Repair with AI", systemImage: "wand.and.stars")
+                        }
+                    }
+                    .disabled(isRepairing)
+                    .help("Uses Claude AI to fix config errors. Your original config is backed up first.")
+                    .accessibilityIdentifier("validation-ai-repair-button")
+                    .accessibilityLabel("Repair with AI")
+                }
+
                 Spacer()
                 Button("Diagnostics") {
                     onOpenDiagnostics()

@@ -80,7 +80,7 @@ final class KeyboardVisualizationViewModelTCPCapitalizationTests: XCTestCase {
         await Task.yield()
 
         XCTAssertTrue(
-            viewModel.tcpPressedKeyCodes.contains(0),
+            viewModel.pressedKeyCodes.contains(0),
             "Key 'a' (keyCode 0) should be pressed"
         )
     }
@@ -92,14 +92,14 @@ final class KeyboardVisualizationViewModelTCPCapitalizationTests: XCTestCase {
         viewModel.simulateTcpKeyInput(key: "a", action: "press")
         await Task.yield()
 
-        XCTAssertTrue(viewModel.tcpPressedKeyCodes.contains(0))
+        XCTAssertTrue(viewModel.pressedKeyCodes.contains(0))
 
         // Release
         viewModel.simulateTcpKeyInput(key: "a", action: "release")
         await Task.yield()
 
         XCTAssertFalse(
-            viewModel.tcpPressedKeyCodes.contains(0),
+            viewModel.pressedKeyCodes.contains(0),
             "Key 'a' should be released"
         )
     }
@@ -112,7 +112,7 @@ final class KeyboardVisualizationViewModelTCPCapitalizationTests: XCTestCase {
         await Task.yield()
 
         XCTAssertTrue(
-            viewModel.tcpPressedKeyCodes.contains(57),
+            viewModel.pressedKeyCodes.contains(57),
             "Capslock (keyCode 57) should be pressed"
         )
 
@@ -121,7 +121,7 @@ final class KeyboardVisualizationViewModelTCPCapitalizationTests: XCTestCase {
         await Task.yield()
 
         XCTAssertFalse(
-            viewModel.tcpPressedKeyCodes.contains(57),
+            viewModel.pressedKeyCodes.contains(57),
             "Capslock should be released"
         )
     }
@@ -148,7 +148,7 @@ final class KeyboardVisualizationViewModelTCPCapitalizationTests: XCTestCase {
             await Task.yield()
 
             XCTAssertTrue(
-                viewModel.tcpPressedKeyCodes.contains(expectedKeyCode),
+                viewModel.pressedKeyCodes.contains(expectedKeyCode),
                 "\(key) (keyCode \(expectedKeyCode)) should be pressed"
             )
 
@@ -156,7 +156,7 @@ final class KeyboardVisualizationViewModelTCPCapitalizationTests: XCTestCase {
             await Task.yield()
 
             XCTAssertFalse(
-                viewModel.tcpPressedKeyCodes.contains(expectedKeyCode),
+                viewModel.pressedKeyCodes.contains(expectedKeyCode),
                 "\(key) should be released"
             )
         }

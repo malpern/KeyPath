@@ -564,6 +564,64 @@ public final class ConfigurationService: FileConfigurationProviding {
         return repairedConfig
     }
 
+    /// Read the current config file content as a string
+    public func readCurrentConfig() async throws -> String {
+        try await readFileAsync(path: configurationPath)
+    }
+
+    /// Create a timestamped backup of the current config before AI repair
+    /// Returns the backup file path for user reference
+    public func backupConfigBeforeAIRepair() async throws -> String {
+        AppLogger.shared.log("📦 [Config] Creating pre-AI-repair backup")
+
+        // Create backup directory if it doesn't exist
+        let backupDir = "\(configDirectory)/backups"
+        let backupDirURL = URL(fileURLWithPath: backupDir)
+        try FileManager.default.createDirectory(at: backupDirURL, withIntermediateDirectories: true)
+
+        // Create timestamped backup filename
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+        let timestamp = formatter.string(from: Date())
+
+        let backupPath = "\(backupDir)/pre-repair_\(timestamp).kbd"
+        let backupURL = URL(fileURLWithPath: backupPath)
+
+        // Read current config and write to backup
+        let currentContent = try await readFileAsync(path: configurationPath)
+        let backupContent = """
+        ;; PRE-AI-REPAIR BACKUP
+        ;; Original config before AI repair attempt
+        ;; Timestamp: \(timestamp)
+        ;; Original path: \(configurationPath)
+
+        \(currentContent)
+        """
+        try await writeFileURLAsync(string: backupContent, to: backupURL)
+
+        AppLogger.shared.log("💾 [Config] Pre-repair backup created: \(backupPath)")
+        return backupPath
+    }
+
+    /// Save a repaired config (from AI repair)
+    public func saveRepairedConfig(_ repairedContent: String) async throws {
+        AppLogger.shared.log("💾 [Config] Saving AI-repaired config")
+
+        let configURL = URL(fileURLWithPath: configurationPath)
+        try await writeFileURLAsync(string: repairedContent, to: configURL)
+
+        // Update current configuration
+        setCurrentConfiguration(
+            KanataConfiguration(
+                content: repairedContent,
+                keyMappings: [], // Will be re-parsed on next reload
+                lastModified: Date(),
+                path: configurationPath
+            ))
+
+        AppLogger.shared.log("✅ [Config] AI-repaired config saved")
+    }
+
     // MARK: - Private Methods
 
     private func handleFileChange() async {

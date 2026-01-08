@@ -20,10 +20,12 @@ public class KeyboardCapture: ObservableObject {
     private(set) var suppressEvents = true // default: suppress during raw capture (exposed for tests)
     private var pauseTimer: Timer?
     private let pauseDuration: TimeInterval = 2.0 // 2 seconds pause to auto-stop
-    private var noEventTimer: Timer?
-    private var receivedAnyEvent = false
     private var noKeyBreadcrumbTimer: Timer?
     private var anyEventSeen = false
+
+    // TCP-based capture for when Kanata is running
+    private var tcpKeyInputObserver: NSObjectProtocol?
+    private var isTcpCaptureMode = false
 
     // Enhanced sequence capture properties
     private var captureMode: CaptureMode = .single
@@ -164,21 +166,12 @@ public class KeyboardCapture: ObservableObject {
             return
         }
 
-        currentTapLocation = .cgSessionEventTap
-        setupEventTap(at: currentTapLocation)
-
-        // Fallback to HID listen-only if nothing arrives quickly in listen-only mode
-        if !suppressEvents {
-            noEventTimer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: false) { [weak self] _ in
-                Task { @MainActor in
-                    guard let self else { return }
-                    if !self.receivedAnyEvent {
-                        AppLogger.shared.log(
-                            "🎹 [KeyboardCapture] No events at session tap; switching to HID listen-only")
-                        self.reinstallTap(to: .cghidEventTap)
-                    }
-                }
-            }
+        // Use TCP-based capture when Kanata is running, otherwise CGEvent
+        if fastProbeKanataRunning() {
+            setupTcpCapture()
+        } else {
+            currentTapLocation = .cgSessionEventTap
+            setupEventTap(at: currentTapLocation)
         }
     }
 
@@ -187,20 +180,12 @@ public class KeyboardCapture: ObservableObject {
         isCapturing = true
         isContinuous = false
 
-        currentTapLocation = .cgSessionEventTap
-        setupEventTap(at: currentTapLocation)
-
-        if !suppressEvents {
-            noEventTimer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: false) { [weak self] _ in
-                Task { @MainActor in
-                    guard let self else { return }
-                    if !self.receivedAnyEvent {
-                        AppLogger.shared.log(
-                            "🎹 [KeyboardCapture] No events at session tap; switching to HID listen-only")
-                        self.reinstallTap(to: .cghidEventTap)
-                    }
-                }
-            }
+        // Use TCP-based capture when Kanata is running, otherwise CGEvent
+        if fastProbeKanataRunning() {
+            setupTcpCapture()
+        } else {
+            currentTapLocation = .cgSessionEventTap
+            setupEventTap(at: currentTapLocation)
         }
     }
 
@@ -238,7 +223,12 @@ public class KeyboardCapture: ObservableObject {
             return
         }
 
-        setupEventTap()
+        // Use TCP-based capture when Kanata is running, otherwise CGEvent
+        if fastProbeKanataRunning() {
+            setupTcpCapture()
+        } else {
+            setupEventTap()
+        }
     }
 
     /// Enhanced capture method that supports different capture modes
@@ -253,21 +243,12 @@ public class KeyboardCapture: ObservableObject {
         isContinuous = (mode == .sequence)
 
         // Trust the caller to have validated permissions before calling this method
-        // This avoids redundant checks and prevents UI blocking
-        // Determine capture mode. Prefer listen-only if the service is running to
-        // avoid competing intercepting taps. Re-check process table to reduce race risk.
-        var listenOnly = FeatureFlags.captureListenOnlyEnabled && fastProbeKanataRunning()
-        if FeatureFlags.captureListenOnlyEnabled, listenOnly == false {
-            // Fast secondary probe to reduce race conditions with UI state
-            if fastProbeKanataRunning() { listenOnly = true }
-        }
-        suppressEvents = !listenOnly
-        receivedAnyEvent = false
+        // Determine capture mode. Use TCP when Kanata is running to avoid tap conflicts.
+        let kanataRunning = fastProbeKanataRunning()
+        suppressEvents = !kanataRunning // Only suppress when not using TCP mode
         anyEventSeen = false
-        noEventTimer?.invalidate()
-        noEventTimer = nil
         AppLogger.shared.log(
-            "🎹 [KeyboardCapture] Starting \(mode) capture (tap=\(listenOnly ? "listenOnly" : "defaultTap/suppress"), kanataRunning=\(listenOnly))"
+            "🎹 [KeyboardCapture] Starting \(mode) capture (mode=\(kanataRunning ? "TCP" : "CGEvent"), kanataRunning=\(kanataRunning))"
         )
 
         // Install a local keyDown monitor to (a) prevent the audible beep in this app
@@ -291,12 +272,18 @@ public class KeyboardCapture: ObservableObject {
                 if self.isCapturing, !self.anyEventSeen {
                     AppLogger.shared
                         .log(
-                            "⏱️ [KeyboardCapture] No key events received after 1.0s (mode=\(self.captureMode), tap=\(self.suppressEvents ? "defaultTap" : "listenOnly"), location=\(self.currentTapLocation))"
+                            "⏱️ [KeyboardCapture] No key events received after 1.0s (mode=\(self.captureMode), captureMode=\(self.isTcpCaptureMode ? "TCP" : "CGEvent"))"
                         )
                 }
             }
         }
-        setupEventTap()
+
+        // Use TCP when Kanata is running to avoid tap conflicts
+        if kanataRunning {
+            setupTcpCapture()
+        } else {
+            setupEventTap()
+        }
     }
 
     func stopCapture() {
@@ -320,6 +307,14 @@ public class KeyboardCapture: ObservableObject {
         noKeyBreadcrumbTimer?.invalidate()
         noKeyBreadcrumbTimer = nil
 
+        // Clean up TCP capture mode
+        if let observer = tcpKeyInputObserver {
+            NotificationCenter.default.removeObserver(observer)
+            tcpKeyInputObserver = nil
+        }
+        isTcpCaptureMode = false
+
+        // Clean up CGEvent tap
         if let eventTap {
             CFMachPortInvalidate(eventTap)
             self.eventTap = nil
@@ -423,17 +418,101 @@ public class KeyboardCapture: ObservableObject {
             "✅ [KeyboardCapture] Event tap created (location=\(location), options=\(tapDesc))")
     }
 
-    private func reinstallTap(to newLocation: CGEventTapLocation) {
-        if let eventTap {
-            CFMachPortInvalidate(eventTap)
-            self.eventTap = nil
+    // MARK: - TCP-Based Capture (when Kanata is running)
+
+    /// Set up TCP-based key capture by subscribing to Kanata KeyInput notifications.
+    /// This avoids CGEvent tap conflicts when Kanata is running.
+    private func setupTcpCapture() {
+        isTcpCaptureMode = true
+
+        tcpKeyInputObserver = NotificationCenter.default.addObserver(
+            forName: .kanataKeyInput,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self else { return }
+            // Extract values from notification before crossing actor boundary
+            guard let userInfo = notification.userInfo,
+                  let keyName = userInfo["key"] as? String,
+                  let action = userInfo["action"] as? String,
+                  action == "press"
+            else { return }
+            Task { @MainActor in
+                // Check isCapturing on MainActor to avoid concurrency warning
+                guard self.isCapturing else { return }
+                self.handleTcpKeyInputValues(keyName: keyName, action: action)
+            }
         }
-        if let runLoopSource {
-            CFRunLoopRemoveSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
-            self.runLoopSource = nil
+
+        AppLogger.shared.info("✅ [KeyboardCapture] TCP-based capture started (subscribed to .kanataKeyInput)")
+    }
+
+    /// Handle extracted TCP KeyInput values and convert to a KeyPress
+    private func handleTcpKeyInputValues(keyName: String, action: String) {
+        guard isCapturing else { return }
+
+        anyEventSeen = true
+        noKeyBreadcrumbTimer?.invalidate()
+        noKeyBreadcrumbTimer = nil
+
+        AppLogger.shared.log("🎹 [KeyboardCapture] TCP keyInput: \(keyName) action=\(action)")
+
+        // Convert TCP key name to KeyPress
+        let keyPress = KeyPress(
+            baseKey: keyName,
+            modifiers: [], // TCP events don't include modifier state, but key name includes modifier keys
+            timestamp: Date(),
+            keyCode: tcpKeyNameToKeyCode(keyName)
+        )
+
+        // Notify activity observer
+        activityObserver?.didReceiveKeyEvent(keyPress)
+
+        // De-dup identical events
+        if let last = lastCapturedKey, let lastAt = lastCaptureAt {
+            if last.baseKey == keyPress.baseKey,
+               Date().timeIntervalSince(lastAt) <= dedupWindow
+            {
+                AppLogger.shared.log("🎹 [KeyboardCapture] Deduped duplicate TCP key: \(keyName)")
+                return
+            }
         }
-        currentTapLocation = newLocation
-        setupEventTap(at: newLocation)
+        lastCapturedKey = keyPress
+        lastCaptureAt = Date()
+
+        // Handle legacy callback if set
+        if sequenceCallback == nil, let legacyCallback = captureCallback {
+            legacyCallback(keyName)
+            if !isContinuous {
+                stopCapture()
+            } else {
+                resetPauseTimer()
+            }
+            return
+        }
+
+        // Handle sequence capture
+        processKeyPress(keyPress)
+    }
+
+    /// Convert a TCP key name to an approximate macOS key code
+    /// Note: This is best-effort since TCP key names don't map 1:1 to macOS codes
+    private func tcpKeyNameToKeyCode(_ keyName: String) -> Int64 {
+        // Common key name to keycode mapping (same as keyCodeToString but reversed)
+        let keyMap: [String: Int64] = [
+            "a": 0, "s": 1, "d": 2, "f": 3, "h": 4, "g": 5, "z": 6, "x": 7,
+            "c": 8, "v": 9, "b": 11, "q": 12, "w": 13, "e": 14, "r": 15,
+            "y": 16, "t": 17, "1": 18, "2": 19, "3": 20, "4": 21, "6": 22,
+            "5": 23, "=": 24, "9": 25, "7": 26, "-": 27, "8": 28, "0": 29,
+            "]": 30, "o": 31, "u": 32, "[": 33, "i": 34, "p": 35, "ret": 36,
+            "return": 36, "l": 37, "j": 38, "'": 39, "k": 40, ";": 41, "\\": 42,
+            ",": 43, "/": 44, "n": 45, "m": 46, ".": 47, "tab": 48, "spc": 49,
+            "space": 49, "`": 50, "bspc": 51, "delete": 51, "esc": 53, "escape": 53,
+            "caps": 57, "capslock": 57, "lsft": 56, "rsft": 60, "lctl": 59, "rctl": 62,
+            "lalt": 58, "ralt": 61, "lmet": 55, "rmet": 54, "lopt": 58, "ropt": 61,
+        ]
+
+        return keyMap[keyName.lowercased()] ?? -1
     }
 
     private func handleKeyEvent(_ event: CGEvent) {
@@ -584,7 +663,8 @@ public class KeyboardCapture: ObservableObject {
             30: "]", 31: "o", 32: "u", 33: "[", 34: "i", 35: "p", 36: "return",
             37: "l", 38: "j", 39: "'", 40: "k", 41: ";", 42: "\\", 43: ",",
             44: "/", 45: "n", 46: "m", 47: ".", 48: "tab", 49: "space",
-            50: "`", 51: "delete", 53: "escape", 58: "caps", 59: "caps"
+            50: "`", 51: "delete", 53: "escape", 54: "rmet", 55: "lmet",
+            56: "lsft", 57: "caps", 58: "lalt", 59: "lctl", 60: "rsft", 61: "ralt", 62: "rctl"
         ]
 
         if let keyName = keyMap[keyCode] {

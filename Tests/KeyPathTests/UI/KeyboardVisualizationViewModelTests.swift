@@ -4,83 +4,62 @@ import XCTest
 
 @MainActor
 final class KeyboardVisualizationViewModelTests: XCTestCase {
-    func testCommandAndOptionStayPressedTogether() async {
+    // MARK: - TCP-Based Key Press/Release Tests
+
+    func testTcpKeyPressAddsToPressed() async {
         let viewModel = KeyboardVisualizationViewModel()
 
-        viewModel.simulateFlagsChanged(flags: [.maskCommand], keyCode: 55)
+        viewModel.simulateTcpKeyInput(key: "lmet", action: "press")
         await Task.yield()
 
-        viewModel.simulateFlagsChanged(flags: [.maskCommand, .maskAlternate], keyCode: 58)
-        await Task.yield()
-
+        // lmet (left command) = keyCode 55
         XCTAssertTrue(viewModel.pressedKeyCodes.contains(55))
-        XCTAssertTrue(viewModel.pressedKeyCodes.contains(58))
     }
 
-    func testCommandClearsWhenFlagDrops() async {
+    func testTcpKeyReleaseRemovesFromPressed() async {
         let viewModel = KeyboardVisualizationViewModel()
 
-        viewModel.simulateFlagsChanged(flags: [.maskCommand], keyCode: 55)
+        viewModel.simulateTcpKeyInput(key: "lmet", action: "press")
         await Task.yield()
+        XCTAssertTrue(viewModel.pressedKeyCodes.contains(55))
 
-        viewModel.simulateFlagsChanged(flags: [], keyCode: 55)
+        viewModel.simulateTcpKeyInput(key: "lmet", action: "release")
         await Task.yield()
-
         XCTAssertFalse(viewModel.pressedKeyCodes.contains(55))
     }
 
-    func testOptionReleaseKeepsCommandPressed() async {
+    func testMultipleModifiersCanBePressed() async {
         let viewModel = KeyboardVisualizationViewModel()
 
-        viewModel.simulateFlagsChanged(flags: [.maskCommand], keyCode: 55)
+        // Press left command
+        viewModel.simulateTcpKeyInput(key: "lmet", action: "press")
         await Task.yield()
 
-        viewModel.simulateFlagsChanged(flags: [.maskCommand, .maskAlternate], keyCode: 58)
+        // Press left alt
+        viewModel.simulateTcpKeyInput(key: "lalt", action: "press")
         await Task.yield()
 
-        viewModel.simulateFlagsChanged(flags: [.maskCommand], keyCode: 58)
+        // Both should be pressed
+        XCTAssertTrue(viewModel.pressedKeyCodes.contains(55)) // lmet
+        XCTAssertTrue(viewModel.pressedKeyCodes.contains(58)) // lalt
+    }
+
+    func testReleaseOneModifierKeepsOther() async {
+        let viewModel = KeyboardVisualizationViewModel()
+
+        // Press both modifiers
+        viewModel.simulateTcpKeyInput(key: "lmet", action: "press")
+        await Task.yield()
+        viewModel.simulateTcpKeyInput(key: "lalt", action: "press")
         await Task.yield()
 
+        // Release only alt
+        viewModel.simulateTcpKeyInput(key: "lalt", action: "release")
+        await Task.yield()
+
+        // Command should still be pressed
         XCTAssertTrue(viewModel.pressedKeyCodes.contains(55))
         XCTAssertFalse(viewModel.pressedKeyCodes.contains(58))
-    }
-
-    func testSimultaneousCommandReleaseClearsBothSides() async {
-        let viewModel = KeyboardVisualizationViewModel()
-
-        // Press both command keys
-        viewModel.simulateFlagsChanged(flags: [.maskCommand], keyCode: 55)
-        await Task.yield()
-        viewModel.simulateFlagsChanged(flags: [.maskCommand], keyCode: 54)
-        await Task.yield()
-
-        XCTAssertTrue(viewModel.pressedKeyCodes.contains(55))
-        XCTAssertTrue(viewModel.pressedKeyCodes.contains(54))
-
-        // Release both – flags snapshot shows none pressed
-        viewModel.simulateFlagsChanged(flags: [], keyCode: 55)
-        await Task.yield()
-        viewModel.simulateFlagsChanged(flags: [], keyCode: 54)
-        await Task.yield()
-
-        XCTAssertFalse(viewModel.pressedKeyCodes.contains(55))
-        XCTAssertFalse(viewModel.pressedKeyCodes.contains(54))
-    }
-
-    func testZeroKeyCodeSnapshotClearsCommandsWhenFlagAbsent() async {
-        let viewModel = KeyboardVisualizationViewModel()
-
-        viewModel.simulateFlagsChanged(flags: [.maskCommand], keyCode: 55)
-        await Task.yield()
-        viewModel.simulateFlagsChanged(flags: [.maskCommand], keyCode: 54)
-        await Task.yield()
-
-        // System can emit keyCode 0 with flags cleared; ensure we reconcile both sides
-        viewModel.simulateFlagsChanged(flags: [], keyCode: 0)
-        await Task.yield()
-
-        XCTAssertFalse(viewModel.pressedKeyCodes.contains(55))
-        XCTAssertFalse(viewModel.pressedKeyCodes.contains(54))
     }
 
     func testHoldActivatedSetsLabelAndClearsOnRelease() async {
@@ -100,27 +79,60 @@ final class KeyboardVisualizationViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.holdLabels[57])
     }
 
-    func testTcpFallbackActivatesOnCGEventWithoutTcp() async {
+    func testKanataConnectedStateUpdatesOnTcpInput() async {
         let viewModel = KeyboardVisualizationViewModel()
 
-        viewModel.simulateFlagsChanged(flags: [.maskCommand], keyCode: 55)
-        await Task.yield()
-        await Task.yield()
+        // Initially not connected
+        XCTAssertFalse(viewModel.isKanataConnected)
 
-        XCTAssertTrue(viewModel.isTcpFallbackActive)
-    }
-
-    func testTcpFallbackClearsWhenTcpInputArrives() async {
-        let viewModel = KeyboardVisualizationViewModel()
-
-        viewModel.simulateFlagsChanged(flags: [.maskCommand], keyCode: 55)
-        await Task.yield()
-        await Task.yield()
-
+        // Simulate TCP input - should mark as connected
         viewModel.simulateTcpKeyInput(key: "a", action: "press")
         await Task.yield()
 
-        XCTAssertFalse(viewModel.isTcpFallbackActive)
+        XCTAssertTrue(viewModel.isKanataConnected)
+    }
+
+    func testKanataConnectedStateUpdatesOnLayerChange() async {
+        let viewModel = KeyboardVisualizationViewModel()
+
+        // Initially not connected
+        XCTAssertFalse(viewModel.isKanataConnected)
+
+        // Layer change also marks as connected
+        viewModel.updateLayer("nav")
+        await Task.yield()
+
+        XCTAssertTrue(viewModel.isKanataConnected)
+    }
+
+    func testCapslockKeyCodeMapping() async {
+        let viewModel = KeyboardVisualizationViewModel()
+
+        // caps/capslock should map to keyCode 57 (not 58)
+        viewModel.simulateTcpKeyInput(key: "caps", action: "press")
+        await Task.yield()
+
+        XCTAssertTrue(
+            viewModel.pressedKeyCodes.contains(57),
+            "caps should map to keyCode 57"
+        )
+        XCTAssertFalse(
+            viewModel.pressedKeyCodes.contains(58),
+            "caps should NOT map to keyCode 58 (that's lalt)"
+        )
+    }
+
+    func testCapslockAlternateNameMapping() async {
+        let viewModel = KeyboardVisualizationViewModel()
+
+        // 'capslock' should also map to keyCode 57
+        viewModel.simulateTcpKeyInput(key: "capslock", action: "press")
+        await Task.yield()
+
+        XCTAssertTrue(
+            viewModel.pressedKeyCodes.contains(57),
+            "capslock should map to keyCode 57"
+        )
     }
 
     // MARK: - Push-Msg Extraction Tests
@@ -259,9 +271,9 @@ final class KeyboardVisualizationViewModelTests: XCTestCase {
         viewModel.simulateTcpKeyInput(key: "caps", action: "press")
         await Task.yield()
 
-        // Capslock should be in tcpPressedKeyCodes
+        // Capslock should be in pressedKeyCodes
         XCTAssertTrue(
-            viewModel.tcpPressedKeyCodes.contains(57),
+            viewModel.pressedKeyCodes.contains(57),
             "Capslock (57) should be pressed"
         )
 
@@ -269,15 +281,15 @@ final class KeyboardVisualizationViewModelTests: XCTestCase {
         viewModel.simulateTcpKeyInput(key: "esc", action: "press")
         await Task.yield()
 
-        // ESC should NOT be in tcpPressedKeyCodes (suppressed)
+        // ESC should NOT be in pressedKeyCodes (suppressed)
         XCTAssertFalse(
-            viewModel.tcpPressedKeyCodes.contains(53),
+            viewModel.pressedKeyCodes.contains(53),
             "ESC (53) should be suppressed while capslock is pressed"
         )
 
         // Capslock should still be pressed
         XCTAssertTrue(
-            viewModel.tcpPressedKeyCodes.contains(57),
+            viewModel.pressedKeyCodes.contains(57),
             "Capslock should still be pressed"
         )
     }
@@ -289,9 +301,9 @@ final class KeyboardVisualizationViewModelTests: XCTestCase {
         viewModel.simulateTcpKeyInput(key: "esc", action: "press")
         await Task.yield()
 
-        // ESC should be in tcpPressedKeyCodes
+        // ESC should be in pressedKeyCodes
         XCTAssertTrue(
-            viewModel.tcpPressedKeyCodes.contains(53),
+            viewModel.pressedKeyCodes.contains(53),
             "ESC (53) should light up when pressed directly"
         )
     }
@@ -309,9 +321,9 @@ final class KeyboardVisualizationViewModelTests: XCTestCase {
         viewModel.simulateTcpKeyInput(key: "esc", action: "press")
         await Task.yield()
 
-        // ESC should be in tcpPressedKeyCodes
+        // ESC should be in pressedKeyCodes
         XCTAssertTrue(
-            viewModel.tcpPressedKeyCodes.contains(53),
+            viewModel.pressedKeyCodes.contains(53),
             "ESC (53) should light up after capslock is released"
         )
     }
@@ -351,11 +363,11 @@ final class KeyboardVisualizationViewModelTests: XCTestCase {
 
         // ESC should be suppressed because dynamic map now knows caps -> esc
         XCTAssertTrue(
-            viewModel.tcpPressedKeyCodes.contains(57),
+            viewModel.pressedKeyCodes.contains(57),
             "Capslock (57) should be pressed"
         )
         XCTAssertFalse(
-            viewModel.tcpPressedKeyCodes.contains(53),
+            viewModel.pressedKeyCodes.contains(53),
             "ESC (53) should be suppressed via dynamic map"
         )
     }
@@ -376,11 +388,11 @@ final class KeyboardVisualizationViewModelTests: XCTestCase {
 
         // Enter (36) should be suppressed because dynamic map now knows space -> enter
         XCTAssertTrue(
-            viewModel.tcpPressedKeyCodes.contains(49),
+            viewModel.pressedKeyCodes.contains(49),
             "Space (49) should be pressed"
         )
         XCTAssertFalse(
-            viewModel.tcpPressedKeyCodes.contains(36),
+            viewModel.pressedKeyCodes.contains(36),
             "Enter (36) should be suppressed via dynamic map"
         )
     }
@@ -396,7 +408,7 @@ final class KeyboardVisualizationViewModelTests: XCTestCase {
         viewModel.simulateTcpKeyInput(key: "a", action: "press")
         await Task.yield()
 
-        XCTAssertTrue(viewModel.tcpPressedKeyCodes.contains(0), "Key 'a' should be pressed")
+        XCTAssertTrue(viewModel.pressedKeyCodes.contains(0), "Key 'a' should be pressed")
     }
 
     func testTapActivatedWithUnknownKeyDoesNotCrash() async {
@@ -410,7 +422,7 @@ final class KeyboardVisualizationViewModelTests: XCTestCase {
         viewModel.simulateTcpKeyInput(key: "b", action: "press")
         await Task.yield()
 
-        XCTAssertTrue(viewModel.tcpPressedKeyCodes.contains(11), "Key 'b' should be pressed")
+        XCTAssertTrue(viewModel.pressedKeyCodes.contains(11), "Key 'b' should be pressed")
     }
 
     // MARK: - Launcher Mode Detection Tests
