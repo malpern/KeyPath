@@ -134,6 +134,33 @@ When the user says **"dd"**, immediately:
 1. Run `SKIP_NOTARIZE=1 ./Scripts/build.sh` to build, sign, and deploy to `/Applications`
 2. Respond with **"Eye eye Captain!"**
 
+## Linear Workspace Management
+
+KeyPath development uses Linear for issue tracking with two workspaces:
+- **Personal**: malpern@gmail.com (linear-personal MCP server)
+- **Smirkhealth**: micah@smirkhealth.com (linear-smirkhealth MCP server)
+
+### Switching Workspaces
+Use the `/linear-switch` skill to change workspaces:
+
+```bash
+/linear-switch personal      # Switch to Personal workspace
+/linear-switch smirkhealth   # Switch to Smirkhealth workspace
+/linear-switch status        # Check current workspace
+```
+
+**Note**: After switching, you must restart Claude Code by typing `/exit` and starting a new session for the change to take effect.
+
+### Manual Terminal Commands
+Alternatively, use these terminal commands directly:
+```bash
+linear-personal      # Activate Personal workspace
+linear-smirkhealth   # Activate Smirkhealth workspace
+linear-which         # Show current workspace
+```
+
+Full documentation: `~/.claude/LINEAR_SWITCHING.md`
+
 ### Poltergeist (Auto-Deploy)
 ```bash
 poltergeist start    # Watch + auto-deploy on save (~2s)

@@ -46,8 +46,7 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
         // 3. KeyPath config doesn't exist yet (user hasn't migrated)
         if !hasShownKanataMigrationPage,
            !WizardSystemPaths.userConfigExists,
-           !WizardSystemPaths.detectExistingKanataConfigs().isEmpty
-        {
+           !WizardSystemPaths.detectExistingKanataConfigs().isEmpty {
             AppLogger.shared.log(
                 "🔍 [NavigationEngine] → .kanataMigration (existing Kanata configs detected)")
             hasShownKanataMigrationPage = true
@@ -92,8 +91,7 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
         // If the target page is ahead of us in the flow and different from current, jump to it
         if let targetIndex = pageOrder.firstIndex(of: targetPage),
            targetIndex > currentIndex,
-           targetPage != current
-        {
+           targetPage != current {
             return targetPage
         }
 

@@ -1384,7 +1384,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
     ///   - errors: Validation error messages from Kanata
     /// - Returns: Repaired config string if successful
     /// - Throws: KeyPathError if repair fails or no API key configured
-    public func attemptAIRepair(config: String, errors: [String]) async throws -> String {
+    func attemptAIRepair(config: String, errors: [String]) async throws -> String {
         AppLogger.shared.log("🤖 [RuntimeCoordinator] Starting AI config repair")
 
         // Check API key availability

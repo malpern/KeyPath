@@ -90,7 +90,7 @@ public enum CGSPrivateAPI {
     ]
 
     /// Cache the availability check result
-    private nonisolated(unsafe) static var _isAvailable: Bool?
+    nonisolated(unsafe) static var _isAvailable: Bool?
 
     /// Whether all required CGS APIs are available.
     /// This checks for symbol presence using dlsym at runtime.
@@ -102,6 +102,12 @@ public enum CGSPrivateAPI {
         let result = checkAvailability()
         _isAvailable = result
         return result
+    }
+
+    /// Reset the availability cache to force a re-check.
+    /// Used by retry logic when APIs may become available after startup.
+    public static func resetCache() {
+        _isAvailable = nil
     }
 
     /// Detailed availability check with per-symbol results
@@ -186,7 +192,10 @@ public final class SpaceManager {
     private var currentSpaceID: CGSSpaceID = 0
 
     /// CGS connection ID (cached)
-    private let connectionID: CGSConnectionID
+    private var connectionID: CGSConnectionID = 0
+
+    /// Whether initialization was deferred due to API unavailability
+    private var initializationDeferred = false
 
     // MARK: - Initialization
 
@@ -196,8 +205,35 @@ public final class SpaceManager {
             connectionID = CGSMainConnectionID()
             refreshSpaces()
         } else {
-            connectionID = 0
-            AppLogger.shared.log("⚠️ [SpaceManager] Initialized in degraded mode - CGS APIs unavailable")
+            initializationDeferred = true
+            AppLogger.shared.log("⚠️ [SpaceManager] Initialized in degraded mode - CGS APIs unavailable at startup, will retry")
+        }
+    }
+
+    // MARK: - Retry Logic
+
+    /// Retry initialization if it was deferred. Called by WindowManager after app startup.
+    /// - Returns: true if APIs are now available, false otherwise
+    @discardableResult
+    public func retryInitialization() -> Bool {
+        guard initializationDeferred else {
+            // Already initialized successfully
+            return isAvailable
+        }
+
+        // Force re-check of API availability
+        CGSPrivateAPI.resetCache()
+        let nowAvailable = CGSPrivateAPI.isAvailable
+
+        if nowAvailable {
+            connectionID = CGSMainConnectionID()
+            refreshSpaces()
+            initializationDeferred = false
+            AppLogger.shared.log("✅ [SpaceManager] Retry successful - CGS APIs now available")
+            return true
+        } else {
+            AppLogger.shared.log("⚠️ [SpaceManager] Retry failed - CGS APIs still unavailable")
+            return false
         }
     }
 

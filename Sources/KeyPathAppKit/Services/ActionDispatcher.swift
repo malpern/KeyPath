@@ -443,8 +443,7 @@ public final class ActionDispatcher {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                     let clickPoint = CGPoint(x: clickX, y: 12) // Menu bar height
                     if let mouseDown = CGEvent(mouseEventSource: nil, mouseType: .leftMouseDown, mouseCursorPosition: clickPoint, mouseButton: .left),
-                       let mouseUp = CGEvent(mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: clickPoint, mouseButton: .left)
-                    {
+                       let mouseUp = CGEvent(mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: clickPoint, mouseButton: .left) {
                         mouseDown.post(tap: .cghidEventTap)
                         mouseUp.post(tap: .cghidEventTap)
 

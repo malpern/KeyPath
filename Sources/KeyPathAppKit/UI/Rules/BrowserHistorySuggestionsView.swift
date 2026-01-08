@@ -131,6 +131,46 @@ struct BrowserHistorySuggestionsView: View {
             .padding(.horizontal, 40)
 
             Spacer()
+
+            // FDA requirement notice
+            if !hasFullDiskAccess {
+                VStack(spacing: 12) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                        Text("Full Disk Access Required")
+                            .font(.headline)
+                            .foregroundColor(.orange)
+                    }
+
+                    Text("KeyPath needs Full Disk Access to read browser history databases (e.g., Safari History.db, Chrome History).")
+                        .font(.callout)
+                        .multilineTextAlignment(.center)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: 12) {
+                        Button("Open System Settings") {
+                            openFullDiskAccessSettings()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityIdentifier("browser-history-fda-settings-button")
+
+                        Button("Refresh") {
+                            Task {
+                                hasFullDiskAccess = await BrowserHistoryScanner.shared.hasFullDiskAccess()
+                            }
+                        }
+                        .accessibilityIdentifier("browser-history-fda-refresh-button")
+                    }
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.orange.opacity(0.1))
+                )
+                .padding(.horizontal, 40)
+            }
         }
         .padding()
     }
@@ -158,15 +198,25 @@ struct BrowserHistorySuggestionsView: View {
                     Text("Full Disk Access Required")
                         .font(.headline)
 
-                    Text("KeyPath needs Full Disk Access permission to read browser history databases.")
+                    Text("KeyPath needs Full Disk Access to read browser history databases. Grant the permission in System Settings, then click Refresh.")
                         .multilineTextAlignment(.center)
                         .foregroundColor(.secondary)
                         .padding(.horizontal, 20)
 
-                    Button("Open System Settings") {
-                        openFullDiskAccessSettings()
+                    HStack(spacing: 12) {
+                        Button("Open System Settings") {
+                            openFullDiskAccessSettings()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityIdentifier("browser-history-fda-settings-button")
+
+                        Button("Refresh") {
+                            Task {
+                                hasFullDiskAccess = await BrowserHistoryScanner.shared.hasFullDiskAccess()
+                            }
+                        }
+                        .accessibilityIdentifier("browser-history-fda-refresh-button")
                     }
-                    .buttonStyle(.borderedProminent)
                 }
                 .padding(.vertical, 20)
             }
@@ -249,7 +299,7 @@ struct BrowserHistorySuggestionsView: View {
     private var resultsStep: some View {
         VStack(spacing: 16) {
             if let error = errorMessage {
-                VStack(spacing: 12) {
+                VStack(spacing: 16) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 32))
                         .foregroundColor(.orange)
@@ -258,6 +308,40 @@ struct BrowserHistorySuggestionsView: View {
                     Text(error)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+
+                    // If FDA might be the issue, provide guidance
+                    if !hasFullDiskAccess || error.localizedLowercase.contains("permission") || error.localizedLowercase.contains("access") {
+                        VStack(spacing: 12) {
+                            Text("This may be a Full Disk Access issue")
+                                .font(.callout)
+                                .foregroundColor(.secondary)
+
+                            HStack(spacing: 12) {
+                                Button("Open System Settings") {
+                                    openFullDiskAccessSettings()
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .accessibilityIdentifier("browser-history-error-settings-button")
+
+                                Button("Try Again") {
+                                    Task {
+                                        hasFullDiskAccess = await BrowserHistoryScanner.shared.hasFullDiskAccess()
+                                        if hasFullDiskAccess {
+                                            startScan()
+                                        }
+                                    }
+                                }
+                                .accessibilityIdentifier("browser-history-error-retry-button")
+                            }
+                        }
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.orange.opacity(0.1))
+                        )
+                        .padding(.horizontal)
+                    }
                 }
                 .padding()
             } else if scannedSites.isEmpty {
@@ -379,6 +463,16 @@ struct BrowserHistorySuggestionsView: View {
 
         Task {
             do {
+                // Double-check FDA before scanning
+                let fdaGranted = await BrowserHistoryScanner.shared.hasFullDiskAccess()
+                await MainActor.run {
+                    hasFullDiskAccess = fdaGranted
+                }
+
+                guard fdaGranted else {
+                    throw BrowserHistoryScanner.ScanError.fullDiskAccessRequired
+                }
+
                 let sites = try await BrowserHistoryScanner.shared.scanHistory(
                     browsers: Array(selectedBrowsers),
                     limit: 20

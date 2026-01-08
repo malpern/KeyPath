@@ -349,8 +349,7 @@ struct WizardAccessibilityPage: View {
 
         // Fallback: Open System Settings > Privacy & Security > Accessibility
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-        {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             let ok = NSWorkspace.shared.open(url)
             if !ok {
                 // Fallback: open System Settings app if deep-link fails
@@ -367,8 +366,7 @@ struct WizardAccessibilityPage: View {
 
         Task {
             if let nextPage = await navigationCoordinator.getNextPage(for: systemState, issues: allIssues),
-               nextPage != navigationCoordinator.currentPage
-            {
+               nextPage != navigationCoordinator.currentPage {
                 navigationCoordinator.navigateToPage(nextPage)
             } else {
                 navigationCoordinator.navigateToPage(.summary)

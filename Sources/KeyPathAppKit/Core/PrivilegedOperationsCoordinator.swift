@@ -220,8 +220,7 @@ final class PrivilegedOperationsCoordinator {
 
         let now = Date()
         if let last = Self.lastServiceInstallAttempt,
-           now.timeIntervalSince(last) < Self.serviceInstallThrottle
-        {
+           now.timeIntervalSince(last) < Self.serviceInstallThrottle {
             let remaining = Self.serviceInstallThrottle - now.timeIntervalSince(last)
             AppLogger.shared.log(
                 "\(Self.serviceGuardLogPrefix) \(context): skipping auto-install (throttled, \(String(format: "%.1f", remaining))s remaining)"
@@ -436,15 +435,10 @@ final class PrivilegedOperationsCoordinator {
         do {
             try await HelperManager.shared.installLogRotation()
         } catch {
-            let msg: String = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
-            if msg.localizedCaseInsensitiveContains("not yet implemented") {
-                AppLogger.shared.log(
-                    "🚨 [PrivCoordinator] FALLBACK: helper installLogRotation not implemented. Using AppleScript/sudo path."
-                )
-                try await sudoInstallLogRotation()
-            } else {
-                throw error
-            }
+            AppLogger.shared.log(
+                "🚨 [PrivCoordinator] FALLBACK: helper installLogRotation failed: \(error.localizedDescription). Using AppleScript/sudo path."
+            )
+            try await sudoInstallLogRotation()
         }
     }
 
@@ -452,15 +446,10 @@ final class PrivilegedOperationsCoordinator {
         do {
             try await HelperManager.shared.repairVHIDDaemonServices()
         } catch {
-            let msg: String = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
-            if msg.localizedCaseInsensitiveContains("not yet implemented") {
-                AppLogger.shared.log(
-                    "🚨 [PrivCoordinator] FALLBACK: helper repairVHIDDaemonServices not implemented. Using AppleScript/sudo path."
-                )
-                try await sudoRepairVHIDServices()
-            } else {
-                throw error
-            }
+            AppLogger.shared.log(
+                "🚨 [PrivCoordinator] FALLBACK: helper repairVHIDDaemonServices failed: \(error.localizedDescription). Using AppleScript/sudo path."
+            )
+            try await sudoRepairVHIDServices()
         }
     }
 
@@ -942,8 +931,7 @@ final class PrivilegedOperationsCoordinator {
     private static func notifySMAppServiceApprovalRequired(context: String) {
         let now = Date()
         if let last = lastSMAppApprovalNotice,
-           now.timeIntervalSince(last) < smAppApprovalNoticeThrottle
-        {
+           now.timeIntervalSince(last) < smAppApprovalNoticeThrottle {
             return
         }
         lastSMAppApprovalNotice = now

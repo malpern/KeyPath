@@ -23,8 +23,7 @@ final class LayerSelectorTests: XCTestCase {
 
         // System layers should come before custom layers alphabetically
         if let baseIndex = layers.firstIndex(of: "base"),
-           let navIndex = layers.firstIndex(of: "nav")
-        {
+           let navIndex = layers.firstIndex(of: "nav") {
             // Both system layers should be at the beginning
             XCTAssertLessThan(baseIndex, 2)
             XCTAssertLessThan(navIndex, 2)

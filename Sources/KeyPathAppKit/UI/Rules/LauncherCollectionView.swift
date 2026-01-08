@@ -218,8 +218,7 @@ struct LauncherCollectionView: View {
         onConfigChanged(config)
         // Clear selection if deleted key was selected
         if let selected = selectedKey,
-           config.mappings.first(where: { $0.key.lowercased() == selected.lowercased() }) == nil
-        {
+           config.mappings.first(where: { $0.key.lowercased() == selected.lowercased() }) == nil {
             selectedKey = nil
         }
     }
@@ -259,12 +258,17 @@ private struct LauncherMappingEditor: View {
     @State private var scriptPath: String
     @State private var scriptName: String
     @State private var isEnabled: Bool
+    @State private var isScriptExecutionEnabled: Bool = ScriptSecurityService.shared.isScriptExecutionEnabled
 
     enum TargetType: String, CaseIterable {
         case app = "App"
         case website = "Website"
         case folder = "Folder"
         case script = "Script"
+
+        var requiresScriptExecution: Bool {
+            self == .script
+        }
     }
 
     init(
@@ -354,11 +358,39 @@ private struct LauncherMappingEditor: View {
                 // Target type
                 Picker("Type", selection: $targetType) {
                     ForEach(TargetType.allCases, id: \.self) { type in
-                        Text(type.rawValue).tag(type)
+                        Text(type.rawValue)
+                            .tag(type)
                     }
                 }
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("launcher-editor-type-picker")
+                .onChange(of: targetType) { oldValue, newValue in
+                    // Prevent switching to script type if execution is disabled
+                    if newValue.requiresScriptExecution, !isScriptExecutionEnabled {
+                        targetType = oldValue
+                    }
+                }
+
+                // Script execution disabled warning (shown when trying to select Script)
+                if !isScriptExecutionEnabled, targetType == .script {
+                    HStack(spacing: 8) {
+                        Image(systemName: "lock.shield.fill")
+                            .foregroundColor(.orange)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Script execution is disabled")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.orange)
+                            Button("Enable in Settings") {
+                                openSettings()
+                            }
+                            .buttonStyle(.link)
+                            .font(.caption)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                    .accessibilityIdentifier("launcher-editor-script-disabled-warning")
+                }
 
                 switch targetType {
                 case .app:
@@ -403,10 +435,12 @@ private struct LauncherMappingEditor: View {
                         TextField("Script Path", text: $scriptPath)
                             .textFieldStyle(.roundedBorder)
                             .accessibilityIdentifier("launcher-editor-script-path-field")
+                            .disabled(!isScriptExecutionEnabled)
                         Button("Browse...") {
                             browseForScript()
                         }
                         .accessibilityIdentifier("launcher-editor-script-browse-button")
+                        .disabled(!isScriptExecutionEnabled)
                     }
 
                     // Script path validation warning
@@ -423,18 +457,7 @@ private struct LauncherMappingEditor: View {
                     TextField("Display Name (optional)", text: $scriptName)
                         .textFieldStyle(.roundedBorder)
                         .accessibilityIdentifier("launcher-editor-script-name-field")
-
-                    // Script security warning
-                    if !ScriptSecurityService.shared.isScriptExecutionEnabled {
-                        HStack(spacing: 6) {
-                            Image(systemName: "lock.shield.fill")
-                                .foregroundColor(.secondary)
-                            Text("Script execution is disabled in Settings")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.top, 4)
-                    }
+                        .disabled(!isScriptExecutionEnabled)
                 }
 
                 Toggle("Enabled", isOn: $isEnabled)
@@ -465,6 +488,21 @@ private struct LauncherMappingEditor: View {
         }
         .padding()
         .frame(width: 320)
+        .onAppear {
+            // Sync state with security service
+            isScriptExecutionEnabled = ScriptSecurityService.shared.isScriptExecutionEnabled
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
+            // Update when settings change
+            let newValue = ScriptSecurityService.shared.isScriptExecutionEnabled
+            if isScriptExecutionEnabled != newValue {
+                isScriptExecutionEnabled = newValue
+                // If script execution is now disabled and we're editing a script, show warning
+                if !newValue, targetType == .script {
+                    // Keep on script tab to show warning, but prevent saving
+                }
+            }
+        }
     }
 
     private var isValid: Bool {
@@ -498,6 +536,9 @@ private struct LauncherMappingEditor: View {
         case .script:
             if scriptPath.isEmpty {
                 return "Script path is required"
+            }
+            if !isScriptExecutionEnabled {
+                return "Script execution is disabled in Settings"
             }
         }
 
@@ -563,6 +604,15 @@ private struct LauncherMappingEditor: View {
             isEnabled: isEnabled
         )
         onSave(result)
+    }
+
+    // MARK: - Navigation Methods
+
+    private func openSettings() {
+        // Open Settings window on General tab (where script execution toggle is)
+        NotificationCenter.default.post(name: .openSettingsGeneral, object: nil)
+        // Also open the settings window if it's not already open
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
     }
 
     // MARK: - Browse Methods

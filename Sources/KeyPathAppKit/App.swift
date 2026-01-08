@@ -83,6 +83,12 @@ public struct KeyPathApp: App {
 
             // Start global hotkey monitoring (Option+Command+K to show/hide, Option+Command+L to reset/center)
             GlobalHotkeyService.shared.startMonitoring()
+
+            // Initialize WindowManager with retry logic for CGS APIs
+            // Delay startup to give system time to initialize private APIs
+            try? await Task.sleep(nanoseconds: 2_000_000_000) // 2s delay
+            await WindowManager.shared.initializeWithRetry()
+            AppLogger.shared.info("🪟 [App] WindowManager initialization complete")
         }
     }
 
@@ -340,8 +346,7 @@ private func openPreferencesTab(_ notification: Notification.Name) {
         for item in appMenu.items {
             // Look for the "Settings..." menu item (standard name on macOS)
             if item.title.contains("Settings") || item.title.contains("Preferences"),
-               let action = item.action
-            {
+               let action = item.action {
                 AppLogger.shared.log("✅ [App] Found Settings menu item, triggering it")
                 NSApp.activate(ignoringOtherApps: true)
                 NSApp.sendAction(action, to: item.target, from: item)

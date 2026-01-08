@@ -55,6 +55,13 @@ public final class WindowManager {
     /// Track if we've shown the Space API unavailable warning (once per session)
     private var hasShownSpaceAPIWarning = false
 
+    /// Track retry attempts for CGS API initialization
+    private var retryAttempts = 0
+    private let maxRetryAttempts = 3
+
+    /// Track if initialization is in progress to avoid concurrent retries
+    private var isInitializing = false
+
     // MARK: - Initialization
 
     private init() {}
@@ -67,17 +74,53 @@ public final class WindowManager {
         SpaceManager.shared.isAvailable
     }
 
-    /// Check Space API availability and show one-time warning if unavailable.
-    /// Call this once at app startup.
-    public func checkSpaceAPIAvailability() {
-        guard !SpaceManager.shared.isAvailable else { return }
-        guard !hasShownSpaceAPIWarning else { return }
+    /// Initialize and check Space API availability with retry logic.
+    /// Call this after app has fully launched (e.g., 2-3 seconds after startup).
+    /// - Returns: true if APIs are available, false otherwise
+    @discardableResult
+    public func initializeWithRetry() async -> Bool {
+        guard !isInitializing else {
+            AppLogger.shared.log("⚠️ [WindowManager] Initialization already in progress")
+            return isSpaceMovementAvailable
+        }
 
+        isInitializing = true
+        defer { isInitializing = false }
+
+        // Try immediate initialization first
+        if SpaceManager.shared.isAvailable {
+            AppLogger.shared.log("✅ [WindowManager] Space APIs available immediately")
+            return true
+        }
+
+        AppLogger.shared.log("⚠️ [WindowManager] Space APIs unavailable at startup - starting retry sequence")
+
+        // Retry with exponential backoff
+        for attempt in 1 ... maxRetryAttempts {
+            let delaySeconds = Double(attempt) // 1s, 2s, 3s
+            AppLogger.shared.log("⏳ [WindowManager] Retry attempt \(attempt)/\(maxRetryAttempts) in \(delaySeconds)s")
+
+            try? await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
+
+            if SpaceManager.shared.retryInitialization() {
+                AppLogger.shared.log("✅ [WindowManager] Space APIs available after \(attempt) retry attempt(s)")
+                return true
+            }
+        }
+
+        // All retries failed - show warning
+        AppLogger.shared.log("❌ [WindowManager] Space APIs unavailable after \(maxRetryAttempts) retry attempts")
+        showSpaceAPIUnavailableWarning()
+        return false
+    }
+
+    /// Show one-time warning that Space APIs are unavailable
+    private func showSpaceAPIUnavailableWarning() {
+        guard !hasShownSpaceAPIWarning else { return }
         hasShownSpaceAPIWarning = true
 
-        AppLogger.shared.log("⚠️ [WindowManager] Space APIs unavailable at startup")
         UserNotificationService.shared.notifyActionError(
-            "Space Movement Unavailable: The required macOS APIs may have changed. Window-to-Space features are disabled."
+            "Space Movement Unavailable: The required macOS APIs are not available. Window-to-Space shortcuts will not work. This may happen after a macOS update."
         )
     }
 
@@ -92,28 +135,49 @@ public final class WindowManager {
 
         // Handle undo specially
         if position == .undo {
-            return undoLastMove()
+            let success = undoLastMove()
+            if !success {
+                notifyOperationFailed("No previous window position to restore")
+            }
+            return success
         }
 
         // Handle display switching
         if position == .nextDisplay {
-            return moveToNextDisplay()
+            let success = moveToNextDisplay()
+            if !success {
+                notifyOperationFailed("Unable to move window to next display. Make sure multiple displays are connected and the window can be moved.")
+            }
+            return success
         }
         if position == .previousDisplay {
-            return moveToPreviousDisplay()
+            let success = moveToPreviousDisplay()
+            if !success {
+                notifyOperationFailed("Unable to move window to previous display. Make sure multiple displays are connected and the window can be moved.")
+            }
+            return success
         }
 
         // Handle space switching
         if position == .nextSpace {
-            return moveToNextSpace()
+            let success = moveToNextSpace()
+            if !success, !hasShownSpaceAPIWarning {
+                // Space-specific error already shown in moveToNextSpace
+            }
+            return success
         }
         if position == .previousSpace {
-            return moveToPreviousSpace()
+            let success = moveToPreviousSpace()
+            if !success, !hasShownSpaceAPIWarning {
+                // Space-specific error already shown in moveToPreviousSpace
+            }
+            return success
         }
 
         // Get the focused window
         guard let (window, currentFrame) = getFocusedWindow() else {
             AppLogger.shared.log("⚠️ [WindowManager] No focused window found")
+            notifyOperationFailed("No window is currently focused. Click on a window first.")
             return false
         }
 
@@ -124,6 +188,7 @@ public final class WindowManager {
         // Get the screen containing the window
         guard let screen = screenContaining(frame: currentFrame) else {
             AppLogger.shared.log("⚠️ [WindowManager] Could not determine screen for window")
+            notifyOperationFailed("Unable to determine which display the window is on")
             return false
         }
 
@@ -132,7 +197,17 @@ public final class WindowManager {
         let targetFrame = calculateFrame(for: position, in: visibleFrame, currentFrame: currentFrame)
 
         // Apply the new frame
-        return setWindowFrame(window, frame: targetFrame)
+        let success = setWindowFrame(window, frame: targetFrame)
+        if !success {
+            notifyOperationFailed("Unable to move window to \(position.rawValue). The window may not support resizing or moving.")
+        }
+        return success
+    }
+
+    /// Show user feedback when a window operation fails
+    private func notifyOperationFailed(_ message: String) {
+        AppLogger.shared.log("⚠️ [WindowManager] Operation failed: \(message)")
+        UserNotificationService.shared.notifyActionError(message)
     }
 
     // MARK: - Frame Calculations
@@ -441,8 +516,7 @@ public final class WindowManager {
             // Check if window center is within this screen's frame
             // Account for coordinate system differences
             if screenFrame.contains(windowCenter) ||
-                isWindowOnScreen(frame: frame, screen: screen)
-            {
+                isWindowOnScreen(frame: frame, screen: screen) {
                 return screen
             }
         }

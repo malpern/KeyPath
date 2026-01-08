@@ -185,8 +185,7 @@ actor QMKKeyboardDatabase {
         // Check cache for additional keyboards
         if let cached = cachedKeyboardList,
            let timestamp = cacheTimestamp,
-           Date().timeIntervalSince(timestamp) < cacheTTL
-        {
+           Date().timeIntervalSince(timestamp) < cacheTTL {
             // Add network keyboards that aren't in bundle
             let additional = cached.filter { !bundledIds.contains($0.id) }
             keyboards.append(contentsOf: additional)

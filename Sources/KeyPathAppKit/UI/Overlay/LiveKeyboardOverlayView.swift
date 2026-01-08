@@ -315,8 +315,7 @@ struct LiveKeyboardOverlayView: View {
             // If preset values are provided, forward them to the mapper
             if let userInfo = notification.userInfo,
                let inputKey = userInfo["inputKey"] as? String,
-               let outputKey = userInfo["outputKey"] as? String
-            {
+               let outputKey = userInfo["outputKey"] as? String {
                 var mapperUserInfo: [String: Any] = [
                     "inputKey": inputKey,
                     "outputKey": outputKey,
@@ -324,8 +323,7 @@ struct LiveKeyboardOverlayView: View {
                 ]
                 // Include app condition if present (for app-specific rule editing)
                 if let appBundleId = userInfo["appBundleId"] as? String,
-                   let appDisplayName = userInfo["appDisplayName"] as? String
-                {
+                   let appDisplayName = userInfo["appDisplayName"] as? String {
                     mapperUserInfo["appBundleId"] = appBundleId
                     mapperUserInfo["appDisplayName"] = appDisplayName
                 }
@@ -680,8 +678,7 @@ struct LiveKeyboardOverlayView: View {
             // Load the launcher config to pass to welcome dialog
             let collections = await RuleCollectionStore.shared.loadCollections()
             if let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
-               let config = launcherCollection.configuration.launcherGridConfig
-            {
+               let config = launcherCollection.configuration.launcherGridConfig {
                 await MainActor.run {
                     pendingLauncherConfig = config
                     showLauncherWelcomeWindow()

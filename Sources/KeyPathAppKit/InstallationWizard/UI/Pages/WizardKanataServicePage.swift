@@ -377,8 +377,7 @@ struct WizardKanataServicePage: View {
 
             // Extract file and line info: ╭─[keypath-apps.kbd:14:1]
             if foundConfigError, errorFile == nil,
-               let match = line.range(of: #"\[([^\]]+\.kbd):(\d+)"#, options: .regularExpression)
-            {
+               let match = line.range(of: #"\[([^\]]+\.kbd):(\d+)"#, options: .regularExpression) {
                 let matchStr = String(line[match])
                 // Extract filename and line number
                 let parts = matchStr.dropFirst().dropLast().split(separator: ":")
@@ -432,8 +431,7 @@ struct WizardKanataServicePage: View {
 
         Task {
             if let nextPage = await navigationCoordinator.getNextPage(for: systemState, issues: issues),
-               nextPage != navigationCoordinator.currentPage
-            {
+               nextPage != navigationCoordinator.currentPage {
                 navigationCoordinator.navigateToPage(nextPage)
             } else {
                 navigationCoordinator.navigateToPage(.summary)
@@ -442,8 +440,7 @@ struct WizardKanataServicePage: View {
     }
 
     private var primaryCTAConfiguration:
-        (label: String, action: () -> Void, disabled: Bool)?
-    {
+        (label: String, action: () -> Void, disabled: Bool)? {
         switch serviceStatus {
         case .running:
             nil

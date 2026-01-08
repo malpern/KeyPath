@@ -471,8 +471,7 @@ public class KeyboardCapture: ObservableObject {
         // De-dup identical events
         if let last = lastCapturedKey, let lastAt = lastCaptureAt {
             if last.baseKey == keyPress.baseKey,
-               Date().timeIntervalSince(lastAt) <= dedupWindow
-            {
+               Date().timeIntervalSince(lastAt) <= dedupWindow {
                 AppLogger.shared.log("🎹 [KeyboardCapture] Deduped duplicate TCP key: \(keyName)")
                 return
             }
@@ -509,7 +508,7 @@ public class KeyboardCapture: ObservableObject {
             ",": 43, "/": 44, "n": 45, "m": 46, ".": 47, "tab": 48, "spc": 49,
             "space": 49, "`": 50, "bspc": 51, "delete": 51, "esc": 53, "escape": 53,
             "caps": 57, "capslock": 57, "lsft": 56, "rsft": 60, "lctl": 59, "rctl": 62,
-            "lalt": 58, "ralt": 61, "lmet": 55, "rmet": 54, "lopt": 58, "ropt": 61,
+            "lalt": 58, "ralt": 61, "lmet": 55, "rmet": 54, "lopt": 58, "ropt": 61
         ]
 
         return keyMap[keyName.lowercased()] ?? -1
@@ -548,8 +547,7 @@ public class KeyboardCapture: ObservableObject {
         if let last = lastCapturedKey, let lastAt = lastCaptureAt {
             if last.baseKey == keyPress.baseKey,
                last.modifiers == keyPress.modifiers,
-               now.timeIntervalSince(lastAt) <= dedupWindow
-            {
+               now.timeIntervalSince(lastAt) <= dedupWindow {
                 AppLogger.shared.log("🎹 [KeyboardCapture] Deduped duplicate keyDown: \(keyName)")
                 return
             }
@@ -683,8 +681,7 @@ public class KeyboardCapture: ObservableObject {
     // Public method to explicitly request permissions (for use in wizard)
     func requestPermissionsExplicitly() {
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-        {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
         }
     }
@@ -784,8 +781,7 @@ public class KeyboardCapture: ObservableObject {
             // Check if all three keys are pressed simultaneously
             if pressedKeys.contains(leftControlKey),
                pressedKeys.contains(spaceKey),
-               pressedKeys.contains(escapeKey)
-            {
+               pressedKeys.contains(escapeKey) {
                 AppLogger.shared.log("🚨 [Emergency] Kanata emergency stop sequence detected!")
 
                 DispatchQueue.main.async {

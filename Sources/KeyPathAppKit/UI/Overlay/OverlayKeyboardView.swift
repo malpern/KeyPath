@@ -299,8 +299,7 @@ struct OverlayKeyboardView: View {
         // Normalize label to uppercase for consistent lookup (allLabels contains uppercase)
         let normalizedLabel = label.uppercased()
         if let keyCode = labelToKeyCode[normalizedLabel],
-           let key = layout.keys.first(where: { $0.keyCode == keyCode })
-        {
+           let key = layout.keys.first(where: { $0.keyCode == keyCode }) {
             let width = keyWidth(for: key, scale: scale)
             let height = keyHeight(for: key, scale: scale)
             let centerX = keyPositionX(for: key, scale: scale)
