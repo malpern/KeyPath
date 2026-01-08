@@ -327,4 +327,156 @@ final class RuleCollectionsManagerTests: XCTestCase {
         XCTAssertNotNil(updated.first(where: { $0.id == first.id })?.momentaryActivator)
         XCTAssertNil(updated.first(where: { $0.id == second.id })?.momentaryActivator)
     }
+
+    // MARK: - Layer Deletion Tests
+
+    @MainActor
+    func testRemoveLayer_deletesCollectionsAndRules() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        // Create collections and rules on custom "window" layer
+        let windowCollection = RuleCollection(
+            id: UUID(),
+            name: "Window Nav",
+            summary: "Window navigation",
+            category: .custom,
+            mappings: [KeyMapping(input: "h", output: "left")],
+            isEnabled: true,
+            targetLayer: .custom("window")
+        )
+
+        let vimCollection = RuleCollection(
+            id: UUID(),
+            name: "Vim Nav",
+            summary: "Vim navigation",
+            category: .navigation,
+            mappings: [KeyMapping(input: "j", output: "down")],
+            isEnabled: true,
+            targetLayer: .custom("vim")
+        )
+
+        let baseCollection = RuleCollection(
+            id: UUID(),
+            name: "Base Nav",
+            summary: "Base layer nav",
+            category: .custom,
+            mappings: [KeyMapping(input: "k", output: "up")],
+            isEnabled: true,
+            targetLayer: .base
+        )
+
+        await manager.replaceCollections([windowCollection, vimCollection, baseCollection])
+
+        // Create custom rules on window layer
+        let windowRule1 = CustomRule(input: "a", output: "b", isEnabled: true, targetLayer: .custom("window"))
+        let windowRule2 = CustomRule(input: "c", output: "d", isEnabled: true, targetLayer: .custom("window"))
+        let vimRule = CustomRule(input: "e", output: "f", isEnabled: true, targetLayer: .custom("vim"))
+
+        await manager.saveCustomRule(windowRule1)
+        await manager.saveCustomRule(windowRule2)
+        await manager.saveCustomRule(vimRule)
+
+        // Verify initial state
+        XCTAssertEqual(manager.ruleCollections.count, 3)
+        XCTAssertEqual(manager.customRules.count, 3)
+
+        // Remove window layer
+        await manager.removeLayer("window")
+
+        // Verify collections targeting window layer are removed
+        XCTAssertEqual(manager.ruleCollections.count, 2)
+        XCTAssertFalse(manager.ruleCollections.contains { $0.targetLayer.kanataName == "window" })
+        XCTAssertTrue(manager.ruleCollections.contains { $0.name == "Vim Nav" })
+        XCTAssertTrue(manager.ruleCollections.contains { $0.name == "Base Nav" })
+
+        // Verify custom rules targeting window layer are removed
+        XCTAssertEqual(manager.customRules.count, 1)
+        XCTAssertFalse(manager.customRules.contains { $0.targetLayer.kanataName == "window" })
+        XCTAssertTrue(manager.customRules.contains { $0.input == "e" && $0.output == "f" })
+    }
+
+    @MainActor
+    func testRemoveLayer_persistsChangesToDisk() async throws {
+        let (manager, tempDir) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        // Create a custom rule on a custom layer
+        let customRule = CustomRule(input: "a", output: "b", isEnabled: true, targetLayer: .custom("test"))
+        await manager.saveCustomRule(customRule)
+
+        XCTAssertEqual(manager.customRules.count, 1)
+
+        // Remove the layer
+        await manager.removeLayer("test")
+
+        XCTAssertEqual(manager.customRules.count, 0)
+
+        // Create a new store and verify persistence
+        let customStore = CustomRulesStore(fileURL: tempDir.appendingPathComponent("CustomRules.json"))
+        let loadedRules = await customStore.loadRules()
+
+        XCTAssertEqual(loadedRules.count, 0, "Rules should be persisted to disk after layer removal")
+    }
+
+    @MainActor
+    func testRemoveLayer_caseInsensitive() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        // Create collection with lowercase layer name
+        let collection = RuleCollection(
+            id: UUID(),
+            name: "Test",
+            summary: "Test collection",
+            category: .custom,
+            mappings: [KeyMapping(input: "h", output: "left")],
+            isEnabled: true,
+            targetLayer: .custom("window")
+        )
+
+        await manager.replaceCollections([collection])
+        XCTAssertEqual(manager.ruleCollections.count, 1)
+
+        // Remove with different case
+        await manager.removeLayer("WINDOW")
+
+        XCTAssertEqual(manager.ruleCollections.count, 0, "Layer removal should be case-insensitive")
+    }
+
+    @MainActor
+    func testRemoveLayer_doesNotAffectOtherLayers() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        // Create collections on different layers
+        let collection1 = RuleCollection(
+            id: UUID(),
+            name: "Window",
+            summary: "Window layer",
+            category: .custom,
+            mappings: [KeyMapping(input: "h", output: "left")],
+            isEnabled: true,
+            targetLayer: .custom("window")
+        )
+
+        let collection2 = RuleCollection(
+            id: UUID(),
+            name: "Vim",
+            summary: "Vim layer",
+            category: .custom,
+            mappings: [KeyMapping(input: "j", output: "down")],
+            isEnabled: true,
+            targetLayer: .custom("vim")
+        )
+
+        await manager.replaceCollections([collection1, collection2])
+
+        // Remove window layer
+        await manager.removeLayer("window")
+
+        // Vim layer should remain
+        XCTAssertEqual(manager.ruleCollections.count, 1)
+        XCTAssertTrue(manager.ruleCollections.contains { $0.name == "Vim" })
+    }
 }
