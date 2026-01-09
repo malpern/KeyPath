@@ -144,7 +144,7 @@ public final class ConfigurationService: FileConfigurationProviding {
             let missing = referencedGroups.subtracting(knownGroups)
             if !missing.isEmpty {
                 AppLogger.shared.warn(
-                    "⚠️ [ConfigService] Chord group references missing definitions: \(missing.sorted().joined(separator: \", \"))"
+                    "⚠️ [ConfigService] Chord group references missing definitions: \(missing.sorted().joined(separator: ", "))"
                 )
             }
         }

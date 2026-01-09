@@ -14,10 +14,12 @@ enum KanataDefchordsParser {
 
             if currentGroup == nil {
                 guard trimmed.hasPrefix("(defchords") else { continue }
-                let tokens = KanataConfigTokenizer.tokenize(trimmed)
-                guard tokens.count >= 3 else { continue }
-                let name = tokens[1]
-                let timeoutToken = tokens[2].trimmingCharacters(in: CharacterSet(charactersIn: ")"))
+                let headerTokens = trimmed
+                    .split(whereSeparator: { $0.isWhitespace })
+                    .map(String.init)
+                guard headerTokens.count >= 3 else { continue }
+                let name = headerTokens[1]
+                let timeoutToken = headerTokens[2].trimmingCharacters(in: CharacterSet(charactersIn: ")"))
                 currentGroup = ChordGroupConfig(name: name, timeoutToken: timeoutToken, chords: [])
                 depth = parenDelta(in: noComment)
                 if depth <= 0, let group = currentGroup {
