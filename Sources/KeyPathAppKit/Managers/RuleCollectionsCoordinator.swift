@@ -118,6 +118,13 @@ final class RuleCollectionsCoordinator {
         notifyStateChanged()
     }
 
+    /// Update chord groups configuration
+    func updateChordGroupsConfig(id: UUID, config: ChordGroupsConfig) async {
+        await ruleCollectionsManager.updateChordGroupsConfig(id: id, config: config)
+        applyMappings(ruleCollectionsManager.enabledMappings())
+        notifyStateChanged()
+    }
+
     /// Update launcher grid configuration
     func updateLauncherConfig(id: UUID, config: LauncherGridConfig) async {
         await ruleCollectionsManager.updateLauncherConfig(id: id, config: config)

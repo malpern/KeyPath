@@ -281,6 +281,10 @@ class KanataViewModel: ObservableObject {
         await manager.updateHomeRowLayerTogglesConfig(collectionId: collectionId, config: config)
     }
 
+    func updateChordGroupsConfig(collectionId: UUID, config: ChordGroupsConfig) async {
+        await manager.updateChordGroupsConfig(collectionId: collectionId, config: config)
+    }
+
     func updateLauncherConfig(_ collectionId: UUID, config: LauncherGridConfig) async {
         await manager.updateLauncherConfig(collectionId: collectionId, config: config)
     }

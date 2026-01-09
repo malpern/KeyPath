@@ -56,6 +56,7 @@ struct RuleCollectionCatalog {
             deleteRemap,
             homeRowMods,
             homeRowLayerToggles,
+            chordGroups,
             numpadLayer,
             symbolLayer,
             launcher,
@@ -571,6 +572,21 @@ struct RuleCollectionCatalog {
             icon: "square.3.layers.3d",
             tags: ["home row", "layers", "productivity", "ergonomics"],
             configuration: .homeRowLayerToggles(HomeRowLayerTogglesConfig())
+        )
+    }
+
+    private var chordGroups: RuleCollection {
+        RuleCollection(
+            id: RuleCollectionIdentifier.chordGroups,
+            name: "Chord Groups",
+            summary: "Multi-key combinations (Ben Vallack style) for efficient navigation and editing",
+            category: .productivity,
+            mappings: [], // Generated from chordGroupsConfig
+            isEnabled: false,
+            isSystemDefault: false,
+            icon: "keyboard.badge.ellipsis",
+            tags: ["chords", "defchords", "ben vallack", "productivity", "combos"],
+            configuration: .chordGroups(ChordGroupsConfig())
         )
     }
 

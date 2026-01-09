@@ -35,6 +35,12 @@ struct HomeRowLayerTogglesEditState: Identifiable {
     let selectedKey: String?
 }
 
+/// State for chord groups editing modal
+struct ChordGroupsEditState: Identifiable {
+    let id = UUID()
+    let collection: RuleCollection
+}
+
 // MARK: - Toast View (shared with ContentView)
 
 private struct ToastView: View {
@@ -92,6 +98,7 @@ struct RulesTabView: View {
     @State private var pendingToggles: [UUID: Bool] = [:]
     @State private var homeRowModsEditState: HomeRowModsEditState?
     @State private var homeRowLayerTogglesEditState: HomeRowLayerTogglesEditState?
+    @State private var chordGroupsEditState: ChordGroupsEditState?
     @State private var appKeymaps: [AppKeymap] = []
     private let catalog = RuleCollectionCatalog()
 
@@ -207,6 +214,12 @@ struct RulesTabView: View {
             } : nil,
             onOpenHomeRowLayerTogglesModalWithKey: style == .homeRowLayerToggles ? { key in
                 homeRowLayerTogglesEditState = HomeRowLayerTogglesEditState(collection: collection, selectedKey: key)
+            } : nil,
+            onUpdateChordGroupsConfig: style == .chordGroups ? { config in
+                Task { await kanataManager.updateChordGroupsConfig(collectionId: collection.id, config: config) }
+            } : nil,
+            onOpenChordGroupsModal: style == .chordGroups ? {
+                chordGroupsEditState = ChordGroupsEditState(collection: collection)
             } : nil,
             onSelectLayerPreset: style == .layerPresetPicker ? { presetId in
                 Task { await kanataManager.updateCollectionLayerPreset(collection.id, presetId: presetId) }
@@ -403,6 +416,23 @@ struct RulesTabView: View {
                     homeRowLayerTogglesEditState = nil
                 },
                 initialSelectedKey: editState.selectedKey
+            )
+        }
+        .sheet(item: $chordGroupsEditState) { editState in
+            ChordGroupsModalView(
+                config: Binding(
+                    get: { editState.collection.configuration.chordGroupsConfig ?? ChordGroupsConfig() },
+                    set: { _ in }
+                ),
+                onSave: { newConfig in
+                    Task {
+                        await kanataManager.updateChordGroupsConfig(collectionId: editState.collection.id, config: newConfig)
+                    }
+                    chordGroupsEditState = nil
+                },
+                onCancel: {
+                    chordGroupsEditState = nil
+                }
             )
         }
         .sheet(isPresented: $kanataManager.showRuleConflictDialog) {
@@ -730,6 +760,10 @@ private struct ExpandableCollectionRow: View {
     var onOpenHomeRowLayerTogglesModal: (() -> Void)?
     /// For homeRowLayerToggles style: callback to open modal with a specific key selected
     var onOpenHomeRowLayerTogglesModalWithKey: ((String) -> Void)?
+    /// For chordGroups style: callback to update config
+    var onUpdateChordGroupsConfig: ((ChordGroupsConfig) -> Void)?
+    /// For chordGroups style: callback to open modal
+    var onOpenChordGroupsModal: (() -> Void)?
     /// For layerPresetPicker style: callback to select a layer preset
     var onSelectLayerPreset: ((String) -> Void)?
     /// For windowSnapping: callback to change key convention
@@ -1055,6 +1089,24 @@ private struct ExpandableCollectionRow: View {
                         .padding(.bottom, 12)
                         .padding(.horizontal, 16)
                     }
+                } else if displayStyle == .chordGroups, let coll = collection {
+                    // Chord Groups: Ben Vallack-style multi-key combinations
+                    let config = coll.configuration.chordGroupsConfig ?? ChordGroupsConfig()
+                    ChordGroupsCollectionView(
+                        config: Binding(
+                            get: { config },
+                            set: { _ in }
+                        ),
+                        onConfigChanged: { newConfig in
+                            onUpdateChordGroupsConfig?(newConfig)
+                        },
+                        onOpenModal: {
+                            onOpenChordGroupsModal?()
+                        }
+                    )
+                    .padding(.top, 8)
+                    .padding(.bottom, 12)
+                    .padding(.horizontal, 16)
                 } else if displayStyle == .table {
                     // Check for specialized collection views
                     if collection?.id == RuleCollectionIdentifier.numpadLayer {

@@ -694,6 +694,30 @@ final class RuleCollectionsManager {
         await regenerateConfigFromCollections()
     }
 
+    /// Update chord groups configuration
+    func updateChordGroupsConfig(id: UUID, config: ChordGroupsConfig) async {
+        guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
+            // Try to find in catalog and add it
+            let catalog = RuleCollectionCatalog()
+            if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
+                catalogCollection.configuration.updateChordGroupsConfig(config)
+                catalogCollection.isEnabled = true
+                ruleCollections.append(catalogCollection)
+                dedupeRuleCollectionsInPlace()
+                refreshLayerIndicatorState()
+                await regenerateConfigFromCollections()
+            }
+            return
+        }
+
+        ruleCollections[index].configuration.updateChordGroupsConfig(config)
+        ruleCollections[index].isEnabled = true
+
+        dedupeRuleCollectionsInPlace()
+        refreshLayerIndicatorState()
+        await regenerateConfigFromCollections()
+    }
+
     /// Update launcher grid configuration
     func updateLauncherConfig(id: UUID, config: LauncherGridConfig) async {
         guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {

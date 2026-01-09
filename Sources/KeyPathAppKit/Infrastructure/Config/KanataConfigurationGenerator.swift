@@ -46,6 +46,12 @@ public struct KanataConfiguration: Sendable {
         resolvedCollections = RuleCollectionDeduplicator.dedupe(resolvedCollections)
         let enabledCollections = resolvedCollections.filter(\.isEnabled)
         // Note: Disabled collections are NOT written to config (ADR-025: JSON stores are source of truth)
+
+        // Extract UI-authored chord groups config (MAL-37)
+        let uiChordGroupsConfig = enabledCollections
+            .compactMap { $0.configuration.chordGroupsConfig }
+            .first
+
         let (rawBlocks, aliasDefinitions, extraLayers, chordMappings) = buildCollectionBlocks(from: enabledCollections)
         let blocks = deduplicateBlocks(rawBlocks)
         let enabledNames = enabledCollections.map(\.name).joined(separator: ", ")
@@ -88,7 +94,8 @@ public struct KanataConfiguration: Sendable {
         let fakeKeysBlock = renderFakeKeysBlock(extraLayers)
         let aliasBlock = renderAliasBlock(aliasDefinitions)
         let chordsBlock = renderChordsBlock(chordMappings)
-        let chordGroupsBlock = renderChordGroupsBlock(chordGroups)
+        let preservedChordGroupsBlock = renderChordGroupsBlock(chordGroups)
+        let uiChordGroupsBlock = renderUIChordGroupsBlock(uiChordGroupsConfig)
 
         // Include keypath-apps.kbd if there are app-specific keys
         // This must come after defcfg but before any layer that uses @kp-* aliases
@@ -112,7 +119,8 @@ public struct KanataConfiguration: Sendable {
             fakeKeysBlock,
             aliasBlock,
             chordsBlock,
-            chordGroupsBlock
+            preservedChordGroupsBlock,
+            uiChordGroupsBlock
         ]
             .filter { !$0.isEmpty }
             .joined(separator: "\n")
@@ -337,7 +345,7 @@ public struct KanataConfiguration: Sendable {
         var lines = [
             "#|",
             "================================================================================",
-            "CHORD GROUPS (defchords)",
+            "CHORD GROUPS (defchords) - Preserved from manual config",
             "================================================================================",
             "|#",
             ""
@@ -349,6 +357,43 @@ public struct KanataConfiguration: Sendable {
                 let keys = chord.keys.joined(separator: " ")
                 lines.append("  (\(keys)) \(chord.action)")
             }
+            lines.append(")")
+            lines.append("")
+        }
+
+        if lines.last == "" { lines.removeLast() }
+        return lines.joined(separator: "\n") + "\n"
+    }
+
+    /// Render UI-authored chord groups block (MAL-37)
+    private static func renderUIChordGroupsBlock(_ config: ChordGroupsConfig?) -> String {
+        guard let config = config, !config.groups.isEmpty else { return "" }
+
+        var lines = [
+            "#|",
+            "================================================================================",
+            "CHORD GROUPS (defchords) - UI-Authored",
+            "================================================================================",
+            "|#",
+            ""
+        ]
+
+        for group in config.groups {
+            // Generate defchords block with timeout
+            lines.append("(defchords \(group.name) \(group.timeout)")
+
+            // Add fallback definitions for single keys (they pass through)
+            let participatingKeys = group.participatingKeys.sorted()
+            for key in participatingKeys {
+                lines.append("  (\(key)) \(key)")
+            }
+
+            // Add chord definitions
+            for chord in group.chords {
+                let keys = chord.keys.joined(separator: " ")
+                lines.append("  (\(keys)) \(chord.output)")
+            }
+
             lines.append(")")
             lines.append("")
         }
@@ -514,6 +559,8 @@ public struct KanataConfiguration: Sendable {
                 generateHomeRowModsMappings(from: config)
             case let .homeRowLayerToggles(config):
                 generateHomeRowLayerTogglesMappings(from: config)
+            case let .chordGroups(config):
+                generateChordGroupsMappings(from: config)
             case .tapHoldPicker:
                 generateTapHoldPickerMappings(from: collection)
             case .layerPresetPicker:
@@ -601,6 +648,8 @@ public struct KanataConfiguration: Sendable {
                 generateHomeRowModsMappings(from: config)
             case let .homeRowLayerToggles(config):
                 generateHomeRowLayerTogglesMappings(from: config)
+            case let .chordGroups(config):
+                generateChordGroupsMappings(from: config)
             case .tapHoldPicker:
                 generateTapHoldPickerMappings(from: collection)
             case .layerPresetPicker:
@@ -1038,6 +1087,31 @@ public struct KanataConfiguration: Sendable {
                 behavior: .dualRole(behavior)
             )
             mappings.append(mapping)
+        }
+
+        return mappings
+    }
+
+    /// Generate KeyMapping instances from ChordGroupsConfig
+    /// Each participating key maps to: (chord groupName key)
+    private static func generateChordGroupsMappings(from config: ChordGroupsConfig) -> [KeyMapping] {
+        var mappings: [KeyMapping] = []
+
+        // Process all groups
+        for group in config.groups {
+            // Get all keys that participate in this group
+            let participatingKeys = group.participatingKeys
+
+            // For each participating key, create a mapping: input → (chord groupName key)
+            for key in participatingKeys {
+                let output = "(chord \(group.name) \(key))"
+                let mapping = KeyMapping(
+                    input: key,
+                    output: output
+                    // behavior: nil (default) = simple remap
+                )
+                mappings.append(mapping)
+            }
         }
 
         return mappings
