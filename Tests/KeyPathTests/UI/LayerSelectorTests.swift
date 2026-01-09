@@ -60,6 +60,17 @@ final class LayerSelectorTests: XCTestCase {
         XCTAssertFalse(viewModel.isSystemLayer("test"))
     }
 
+    func testRefreshAvailableLayers_includesTcpLayers() async {
+        let manager = StubRuntimeCoordinator()
+        manager.stubLayerNames = ["VIM", "work"]
+
+        let viewModel = MapperViewModel()
+        viewModel.configure(kanataManager: manager)
+        await viewModel.refreshAvailableLayers()
+
+        XCTAssertEqual(viewModel.getAvailableLayers(), ["base", "nav", "vim", "work"])
+    }
+
     // MARK: - RuleCollectionLayer Tests
 
     func testRuleCollectionLayer_kanataName() {
@@ -181,5 +192,13 @@ final class LayerSelectorTests: XCTestCase {
             .filter { $0.isLetter || $0.isNumber || $0 == "_" }
 
         XCTAssertEqual(sanitized, "layer2")
+    }
+}
+
+private final class StubRuntimeCoordinator: RuntimeCoordinator {
+    var stubLayerNames: [String] = []
+
+    override func fetchLayerNamesFromKanata() async -> [String] {
+        stubLayerNames
     }
 }

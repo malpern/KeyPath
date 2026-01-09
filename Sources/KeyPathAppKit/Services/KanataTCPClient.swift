@@ -367,6 +367,11 @@ actor KanataTCPClient {
         let request_id: UInt64?
     }
 
+    struct TcpLayerNames: Codable, Sendable {
+        let names: [String]
+        let request_id: UInt64?
+    }
+
     // MARK: - Handshake / Status
 
     /// Perform Hello handshake and cache capabilities
@@ -441,6 +446,21 @@ actor KanataTCPClient {
                 named: "StatusInfo", into: TcpStatusInfo.self, from: responseData
             ) {
                 return status
+            }
+            throw KeyPathError.communication(.invalidResponse)
+        }
+    }
+
+    /// Request available layer names from Kanata
+    func requestLayerNames() async throws -> [String] {
+        try await withErrorRecovery {
+            let requestId = generateRequestId()
+            let requestData = try JSONEncoder().encode(["RequestLayerNames": ["request_id": requestId]])
+            let responseData = try await send(requestData)
+            if let response = try extractMessage(
+                named: "LayerNames", into: TcpLayerNames.self, from: responseData
+            ) {
+                return response.names
             }
             throw KeyPathError.communication(.invalidResponse)
         }

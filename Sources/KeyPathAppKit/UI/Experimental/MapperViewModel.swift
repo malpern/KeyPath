@@ -153,6 +153,7 @@ class MapperViewModel: ObservableObject {
     @Published var statusMessage: String?
     @Published var statusIsError = false
     @Published var currentLayer: String = "base"
+    @Published private(set) var availableLayers: [String] = ["base", "nav"]
     /// Selected app for launch action (nil = normal key output)
     @Published var selectedApp: AppLaunchInfo?
     /// Selected system action (nil = normal key output)
@@ -309,6 +310,9 @@ class MapperViewModel: ObservableObject {
 
     func configure(kanataManager: RuntimeCoordinator) {
         self.kanataManager = kanataManager
+        Task {
+            await refreshAvailableLayers()
+        }
     }
 
     /// Set the current layer
@@ -1367,21 +1371,41 @@ class MapperViewModel: ObservableObject {
     /// System layers that cannot be deleted
     private static let systemLayers: Set<String> = ["base", "nav", "navigation"]
 
-    /// Get list of available layers (system + custom)
-    /// Discovers layers from rule collections and custom rules
+    /// Get list of available layers (system + custom).
+    /// Uses cached layer names refreshed from Kanata + rule collections.
     func getAvailableLayers() -> [String] {
-        guard let rulesManager else { return ["base", "nav"] }
+        if availableLayers.isEmpty {
+            return buildAvailableLayers(additional: [])
+        }
+        return availableLayers
+    }
 
+    /// Refresh cached layer names using RuntimeCoordinator + local rule collections.
+    func refreshAvailableLayers() async {
+        let tcpLayers = await kanataManager?.fetchLayerNamesFromKanata() ?? []
+        let nextLayers = buildAvailableLayers(additional: tcpLayers)
+        await MainActor.run {
+            availableLayers = nextLayers
+        }
+    }
+
+    private func buildAvailableLayers(additional: [String]) -> [String] {
         var layers = Set<String>(["base", "nav"])
 
-        // Add layers from enabled rule collections
-        for collection in rulesManager.ruleCollections where collection.isEnabled {
-            layers.insert(collection.targetLayer.kanataName)
+        for layer in additional {
+            layers.insert(layer.lowercased())
         }
 
-        // Add layers from enabled custom rules
-        for rule in rulesManager.customRules where rule.isEnabled {
-            layers.insert(rule.targetLayer.kanataName)
+        if let rulesManager {
+            // Add layers from enabled rule collections
+            for collection in rulesManager.ruleCollections where collection.isEnabled {
+                layers.insert(collection.targetLayer.kanataName)
+            }
+
+            // Add layers from enabled custom rules
+            for rule in rulesManager.customRules where rule.isEnabled {
+                layers.insert(rule.targetLayer.kanataName)
+            }
         }
 
         // Sort with system layers first, then alphabetically
@@ -1446,6 +1470,7 @@ class MapperViewModel: ObservableObject {
             Task {
                 await rulesManager.addCollection(collection)
                 AppLogger.shared.log("📚 [MapperViewModel] Created new layer: \(sanitizedName) (Leader → \(activatorKey.uppercased()))")
+                await refreshAvailableLayers()
             }
         }
 
@@ -1470,6 +1495,7 @@ class MapperViewModel: ObservableObject {
             Task {
                 await rulesManager.removeLayer(layer)
                 AppLogger.shared.log("🗑️ [MapperViewModel] Deleted layer: \(layer)")
+                await refreshAvailableLayers()
             }
         }
     }

@@ -897,6 +897,29 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         ruleCollectionsCoordinator.getCustomRule(forInput: input)
     }
 
+    /// Fetch layer names reported by Kanata over TCP.
+    /// Falls back to empty list if the service is unavailable.
+    func fetchLayerNamesFromKanata() async -> [String] {
+        let port = PreferencesService.shared.tcpServerPort
+        let client = KanataTCPClient(port: port, timeout: 3.0)
+
+        let serverUp = await client.checkServerStatus()
+        guard serverUp else {
+            await client.cancelInflightAndCloseConnection()
+            return []
+        }
+
+        do {
+            let names = try await client.requestLayerNames()
+            await client.cancelInflightAndCloseConnection()
+            return names.map { $0.lowercased() }
+        } catch {
+            AppLogger.shared.warn("❌ [RuntimeCoordinator] Failed to fetch layer names: \(error)")
+            await client.cancelInflightAndCloseConnection()
+            return []
+        }
+    }
+
     func saveConfiguration(input: String, output: String) async throws {
         AppLogger.shared.log("💾 [RuntimeCoordinator] Saving configuration mapping")
 
