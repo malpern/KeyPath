@@ -18,7 +18,20 @@ public struct ChordGroupsConfig: Codable, Equatable, Sendable {
     }
 
     /// Detect conflicts across multiple chord groups.
-    /// Returns warnings for keys used by multiple groups (last group wins behavior).
+    ///
+    /// A conflict occurs when two or more groups use the same key in their chords.
+    /// In generated Kanata config, the first group will control that key.
+    ///
+    /// - Returns: Array of conflicts, one per conflicting key
+    ///
+    /// Example:
+    /// ```swift
+    /// let conflicts = config.detectCrossGroupConflicts()
+    /// for conflict in conflicts {
+    ///     print("Key '\(conflict.key)' used by: \(conflict.groups.map(\.name))")
+    ///     // Resolve by using different keys or merging groups
+    /// }
+    /// ```
     public func detectCrossGroupConflicts() -> [CrossGroupConflict] {
         var conflicts: [CrossGroupConflict] = []
 
@@ -42,35 +55,81 @@ public struct ChordGroupsConfig: Codable, Equatable, Sendable {
     }
 
     /// Whether this config has any cross-group conflicts.
+    /// Note: Recomputes on every call (O(n×m) where n=groups, m=keys).
+    /// Cache the result if calling frequently in UI render loops.
     public var hasCrossGroupConflicts: Bool {
         !detectCrossGroupConflicts().isEmpty
     }
 
+    /// Get groups that conflict with a specific group.
+    /// Returns groups that share keys with the specified group.
+    public func conflictingGroups(for groupID: UUID) -> [ChordGroup] {
+        guard let targetGroup = groups.first(where: { $0.id == groupID }) else { return [] }
+        let targetKeys = targetGroup.participatingKeys
+
+        return groups.filter { group in
+            group.id != groupID && !group.participatingKeys.isDisjoint(with: targetKeys)
+        }
+    }
+
+    /// Get keys that cause conflicts for a specific group.
+    /// Returns keys that are shared with other groups.
+    public func conflictingKeys(for groupID: UUID) -> Set<String> {
+        guard groups.contains(where: { $0.id == groupID }) else { return [] }
+        let conflicts = detectCrossGroupConflicts()
+
+        return Set(conflicts.compactMap { conflict -> String? in
+            if conflict.groups.contains(where: { $0.id == groupID }) {
+                return conflict.key
+            }
+            return nil
+        })
+    }
+
+    /// Check if adding a chord to a group would create cross-group conflicts.
+    /// Returns true if the chord's keys are already used by other groups.
+    public func wouldCreateConflict(chord: ChordDefinition, in groupID: UUID) -> Bool {
+        let chordKeys = Set(chord.keys)
+
+        for group in groups where group.id != groupID {
+            if !group.participatingKeys.isDisjoint(with: chordKeys) {
+                return true
+            }
+        }
+
+        return false
+    }
+
     /// Ben Vallack's navigation chord preset.
     /// Home row centric chords for efficient text navigation.
+    /// Uses stable UUIDs for equality checks across instances.
     public static var benVallackPreset: ChordGroupsConfig {
+        // Stable UUIDs for groups
+        let navGroupID = UUID(uuidString: "BA000000-0000-0000-0000-000000000001")!
+        let editGroupID = UUID(uuidString: "BA000000-0000-0000-0000-000000000002")!
+
         let navigationGroup = ChordGroup(
-            id: UUID(),
+            id: navGroupID,
             name: "Navigation",
             timeout: 250, // Fast - for experienced users
             chords: [
-                ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc", description: "Quick escape from modes"),
-                ChordDefinition(id: UUID(), keys: ["d", "f"], output: "enter", description: "Submit/confirm action"),
-                ChordDefinition(id: UUID(), keys: ["j", "k"], output: "up", description: "Move up one line"),
-                ChordDefinition(id: UUID(), keys: ["k", "l"], output: "down", description: "Move down one line")
+                ChordDefinition(id: UUID(uuidString: "BA000000-0000-0000-0001-000000000001")!, keys: ["s", "d"], output: "esc", description: "Quick escape from modes"),
+                ChordDefinition(id: UUID(uuidString: "BA000000-0000-0000-0001-000000000002")!, keys: ["d", "f"], output: "enter", description: "Submit/confirm action"),
+                ChordDefinition(id: UUID(uuidString: "BA000000-0000-0000-0001-000000000003")!, keys: ["j", "k"], output: "up", description: "Move up one line"),
+                ChordDefinition(id: UUID(uuidString: "BA000000-0000-0000-0001-000000000004")!, keys: ["k", "l"], output: "down", description: "Move down one line")
             ],
             description: "Ben Vallack's home row navigation chords",
             category: .navigation
         )
 
         let editingGroup = ChordGroup(
-            id: UUID(),
+            id: editGroupID,
             name: "Editing",
-            timeout: 300, // Moderate - slightly more deliberate
+            timeout: 400, // Moderate - aligns with editing category
             chords: [
-                ChordDefinition(id: UUID(), keys: ["a", "s"], output: "bspc", description: "Backspace - delete previous character"),
-                ChordDefinition(id: UUID(), keys: ["s", "d", "f"], output: "C-x", description: "Cut selection"),
-                ChordDefinition(id: UUID(), keys: ["e", "r"], output: "C-z", description: "Undo last action")
+                ChordDefinition(id: UUID(uuidString: "BA000000-0000-0000-0002-000000000001")!, keys: ["a", "s"], output: "bspc", description: "Backspace - delete previous character"),
+                ChordDefinition(id: UUID(uuidString: "BA000000-0000-0000-0002-000000000002")!, keys: ["s", "d", "f"], output: "C-x", description: "Cut selection"),
+                ChordDefinition(id: UUID(uuidString: "BA000000-0000-0000-0002-000000000003")!, keys: ["e", "r"], output: "C-z", description: "Undo last action")
             ],
             description: "Common editing operations",
             category: .editing
@@ -78,7 +137,7 @@ public struct ChordGroupsConfig: Codable, Equatable, Sendable {
 
         return ChordGroupsConfig(
             groups: [navigationGroup, editingGroup],
-            activeGroupID: navigationGroup.id,
+            activeGroupID: navGroupID,
             showAdvanced: false
         )
     }
@@ -105,12 +164,13 @@ public struct ChordGroup: Codable, Equatable, Sendable, Identifiable {
         precondition(!name.isEmpty, "ChordGroup name cannot be empty")
         precondition(!name.contains(" "), "ChordGroup name cannot contain spaces (use hyphens or underscores)")
         precondition(
-            name.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" },
-            "ChordGroup name must be alphanumeric with optional hyphens or underscores"
+            name.allSatisfy { ($0.isASCII && $0.isLetter) || $0.isNumber || $0 == "-" || $0 == "_" },
+            "ChordGroup name must be ASCII alphanumeric with optional hyphens or underscores"
         )
 
         // Validation for timeout (reasonable range)
-        precondition(timeout >= 50 && timeout <= 5000, "Timeout must be between 50-5000ms")
+        // Upper bound prevents unreasonably long timeouts that defeat the purpose of chords
+        precondition(timeout >= 50 && timeout <= 5000, "Timeout must be between 50-5000ms (reasonable range for chord detection)")
 
         self.id = id
         self.name = name
@@ -131,6 +191,8 @@ public struct ChordGroup: Codable, Equatable, Sendable, Identifiable {
     }
 
     /// Detect any conflicting chord definitions within this group.
+    /// Complexity: O(n²) where n = number of chords. Acceptable for typical groups (< 50 chords).
+    /// Optimize with HashMap if group exceeds 100 chords.
     public func detectConflicts() -> [ChordConflict] {
         var conflicts: [ChordConflict] = []
 
@@ -151,12 +213,15 @@ public struct ChordGroup: Codable, Equatable, Sendable, Identifiable {
                     ))
                 }
                 // Overlapping keys (subset/superset) = potential conflict
+                // Only flag if both are actual chords (2+ keys), not single-key fallbacks
                 else if keys1Set.isSubset(of: keys2Set) || keys2Set.isSubset(of: keys1Set) {
-                    conflicts.append(ChordConflict(
-                        chord1: chord1,
-                        chord2: chord2,
-                        type: .overlapping
-                    ))
+                    if chord1.isRecommendedCombo && chord2.isRecommendedCombo {
+                        conflicts.append(ChordConflict(
+                            chord1: chord1,
+                            chord2: chord2,
+                            type: .overlapping
+                        ))
+                    }
                 }
             }
         }
@@ -192,12 +257,30 @@ public struct ChordDefinition: Codable, Equatable, Sendable, Identifiable {
         self.description = description
     }
 
-    /// Whether this is a valid chord combo (2-3 keys recommended).
-    public var isValidCombo: Bool {
+    /// Whether this is a recommended chord combo (2-4 keys).
+    /// Single keys are valid but defeat the purpose of chords.
+    /// More than 4 keys becomes difficult to press simultaneously.
+    public var isRecommendedCombo: Bool {
         keys.count >= 2 && keys.count <= 4
     }
 
-    /// Check if output has basic syntax issues (unbalanced parens).
+    /// Check if output has basic syntax issues (unbalanced parentheses).
+    ///
+    /// Validates that the output string has balanced parentheses, catching common
+    /// Kanata syntax errors like `"(macro a"` or `")esc"`.
+    ///
+    /// Note: This only checks parenthesis balance, not full Kanata syntax validity.
+    /// Invalid Kanata keywords will still pass this check.
+    ///
+    /// - Returns: true if parentheses are balanced, false otherwise
+    ///
+    /// Examples:
+    /// ```swift
+    /// ChordDefinition(output: "esc").hasValidOutputSyntax // true
+    /// ChordDefinition(output: "(macro a b)").hasValidOutputSyntax // true
+    /// ChordDefinition(output: "(macro a").hasValidOutputSyntax // false (unbalanced)
+    /// ChordDefinition(output: "esc)").hasValidOutputSyntax // false (extra closing)
+    /// ```
     public var hasValidOutputSyntax: Bool {
         hasBalancedParentheses(output)
     }
@@ -217,7 +300,8 @@ public struct ChordDefinition: Codable, Equatable, Sendable, Identifiable {
         return depth == 0 // Should end balanced
     }
 
-    /// Ergonomic assessment of key combination.
+    /// Ergonomic assessment of key combination (assumes QWERTY layout).
+    /// Evaluates how easy the chord is to press based on hand position and key adjacency.
     public var ergonomicScore: ErgonomicScore {
         guard keys.count >= 2 else { return .poor }
 
@@ -325,13 +409,14 @@ public enum ChordCategory: String, Codable, Sendable, CaseIterable {
     }
 
     /// Suggested timeout for this category (in milliseconds).
+    /// Aligned with ChordSpeed presets for consistent UI experience.
     public var suggestedTimeout: Int {
         switch self {
-        case .navigation: return 250 // Fast navigation
-        case .editing: return 300    // Moderate editing
-        case .symbols: return 200    // Quick symbols
-        case .modifiers: return 400  // Deliberate modifiers
-        case .custom: return 300     // Default moderate
+        case .navigation: return 250 // Fast navigation (ChordSpeed.fast)
+        case .editing: return 400    // Moderate editing (ChordSpeed.moderate)
+        case .symbols: return 150    // Quick symbols (ChordSpeed.lightning)
+        case .modifiers: return 600  // Deliberate modifiers (ChordSpeed.deliberate)
+        case .custom: return 400     // Default moderate (ChordSpeed.moderate)
         }
     }
 }
@@ -366,6 +451,8 @@ public enum ChordSpeed: String, CaseIterable, Codable, Sendable {
     }
 
     /// Find the speed preset closest to a given timeout value.
+    /// In case of ties (equidistant from two presets), returns the first matching preset (faster one).
+    /// For example: nearest(to: 200) returns .lightning (150ms) rather than .fast (250ms).
     public static func nearest(to timeout: Int) -> ChordSpeed {
         ChordSpeed.allCases.min(by: { abs($0.milliseconds - timeout) < abs($1.milliseconds - timeout) }) ?? .moderate
     }
@@ -377,6 +464,12 @@ public struct ChordConflict: Identifiable, Sendable {
     public let chord1: ChordDefinition
     public let chord2: ChordDefinition
     public let type: ConflictType
+
+    public init(chord1: ChordDefinition, chord2: ChordDefinition, type: ConflictType) {
+        self.chord1 = chord1
+        self.chord2 = chord2
+        self.type = type
+    }
 
     public enum ConflictType: Sendable {
         case sameKeys      // Exact same keys, different outputs
@@ -405,9 +498,14 @@ public struct CrossGroupConflict: Identifiable, Sendable {
     public let key: String
     public let groups: [ChordGroup]
 
+    public init(key: String, groups: [ChordGroup]) {
+        self.key = key
+        self.groups = groups
+    }
+
     public var description: String {
         let groupNames = groups.map { $0.name }.joined(separator: ", ")
-        return "Key '\(key)' is used by multiple groups: \(groupNames). Last group in list will win."
+        return "Key '\(key)' is used by multiple groups: \(groupNames). First group in list will win."
     }
 
     /// Suggested resolution: which group should own this key?

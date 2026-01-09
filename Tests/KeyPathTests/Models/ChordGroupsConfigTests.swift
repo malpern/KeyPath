@@ -37,10 +37,31 @@ final class ChordGroupsConfigTests: XCTestCase {
         // Check editing group
         let editGroup = config.groups.first { $0.name == "Editing" }
         XCTAssertNotNil(editGroup, "Editing group should exist")
-        XCTAssertEqual(editGroup?.timeout, 300, "Editing should use moderate timeout")
+        XCTAssertEqual(editGroup?.timeout, 400, "Editing should use moderate timeout (400ms)")
 
         // Active group should be set to navigation
         XCTAssertEqual(config.activeGroupID, navGroup?.id)
+    }
+
+    func testBenVallackPresetStableIDs() {
+        // Issue #2: Preset should use stable UUIDs for equality checks
+        let preset1 = ChordGroupsConfig.benVallackPreset
+        let preset2 = ChordGroupsConfig.benVallackPreset
+
+        // Group IDs should be stable across calls
+        XCTAssertEqual(preset1.groups.count, preset2.groups.count)
+        for (group1, group2) in zip(preset1.groups, preset2.groups) {
+            XCTAssertEqual(group1.id, group2.id, "Group '\(group1.name)' should have stable ID")
+
+            // Chord IDs should also be stable
+            XCTAssertEqual(group1.chords.count, group2.chords.count)
+            for (chord1, chord2) in zip(group1.chords, group2.chords) {
+                XCTAssertEqual(chord1.id, chord2.id, "Chord in group '\(group1.name)' should have stable ID")
+            }
+        }
+
+        // Entire config should be equal
+        XCTAssertEqual(preset1, preset2, "Ben Vallack preset should be equal across calls")
     }
 
     // MARK: - Chord Group
@@ -141,23 +162,23 @@ final class ChordGroupsConfigTests: XCTestCase {
 
     // MARK: - Chord Definition
 
-    func testChordDefinitionValidCombo() {
+    func testChordDefinitionRecommendedCombo() {
         let twoKeys = ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc")
-        XCTAssertTrue(twoKeys.isValidCombo, "2 keys should be valid")
+        XCTAssertTrue(twoKeys.isRecommendedCombo, "2 keys is recommended")
 
         let threeKeys = ChordDefinition(id: UUID(), keys: ["s", "d", "f"], output: "C-x")
-        XCTAssertTrue(threeKeys.isValidCombo, "3 keys should be valid")
+        XCTAssertTrue(threeKeys.isRecommendedCombo, "3 keys is recommended")
 
         let fourKeys = ChordDefinition(id: UUID(), keys: ["a", "s", "d", "f"], output: "C-c")
-        XCTAssertTrue(fourKeys.isValidCombo, "4 keys should be valid")
+        XCTAssertTrue(fourKeys.isRecommendedCombo, "4 keys is recommended")
     }
 
-    func testChordDefinitionInvalidCombo() {
+    func testChordDefinitionNotRecommendedCombo() {
         let oneKey = ChordDefinition(id: UUID(), keys: ["s"], output: "esc")
-        XCTAssertFalse(oneKey.isValidCombo, "1 key should be invalid")
+        XCTAssertFalse(oneKey.isRecommendedCombo, "1 key is not recommended (defeats purpose)")
 
         let fiveKeys = ChordDefinition(id: UUID(), keys: ["a", "s", "d", "f", "g"], output: "C-c")
-        XCTAssertFalse(fiveKeys.isValidCombo, "5 keys should be invalid")
+        XCTAssertFalse(fiveKeys.isRecommendedCombo, "5 keys is not recommended (too difficult)")
     }
 
     func testChordDefinitionErgonomicScore() {
@@ -185,11 +206,11 @@ final class ChordGroupsConfigTests: XCTestCase {
     // MARK: - Chord Category
 
     func testChordCategorySuggestedTimeouts() {
-        XCTAssertEqual(ChordCategory.navigation.suggestedTimeout, 250)
-        XCTAssertEqual(ChordCategory.editing.suggestedTimeout, 300)
-        XCTAssertEqual(ChordCategory.symbols.suggestedTimeout, 200)
-        XCTAssertEqual(ChordCategory.modifiers.suggestedTimeout, 400)
-        XCTAssertEqual(ChordCategory.custom.suggestedTimeout, 300)
+        XCTAssertEqual(ChordCategory.navigation.suggestedTimeout, 250)  // Fast
+        XCTAssertEqual(ChordCategory.editing.suggestedTimeout, 400)     // Moderate
+        XCTAssertEqual(ChordCategory.symbols.suggestedTimeout, 150)     // Lightning
+        XCTAssertEqual(ChordCategory.modifiers.suggestedTimeout, 600)   // Deliberate
+        XCTAssertEqual(ChordCategory.custom.suggestedTimeout, 400)      // Moderate
     }
 
     func testChordCategoryDisplayNames() {

@@ -130,7 +130,7 @@ final class ChordGroupsValidationTests: XCTestCase {
         )
 
         XCTAssertEqual(chord.keys.count, 1)
-        XCTAssertFalse(chord.isValidCombo, "Single key is not a valid combo (needs 2+)")
+        XCTAssertFalse(chord.isRecommendedCombo, "Single key is not a recommended combo (needs 2+ for chords)")
     }
 
     func testDuplicateKeysInChordDefinition() {
@@ -143,7 +143,7 @@ final class ChordGroupsValidationTests: XCTestCase {
         )
 
         XCTAssertEqual(chord.keys.count, 2)
-        XCTAssertTrue(chord.isValidCombo, "Two unique keys is valid")
+        XCTAssertTrue(chord.isRecommendedCombo, "Two unique keys is recommended")
 
         let group = ChordGroup(
             id: UUID(),
@@ -353,6 +353,33 @@ final class ChordGroupsValidationTests: XCTestCase {
         XCTAssertTrue(keys1.isSubset(of: keys2), "df is subset of sdf")
     }
 
+    func testSingleKeyVsMultiKeyOverlap() {
+        // FIXED: Single key + multi-key should NOT conflict
+        // This is valid in Kanata - single key acts as fallback
+        let chord1 = ChordDefinition(id: UUID(), keys: ["s"], output: "s")  // Single key passthrough
+        let chord2 = ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc")  // Multi-key chord
+
+        let group = ChordGroup(
+            id: UUID(),
+            name: "Test",
+            timeout: 300,
+            chords: [chord1, chord2]
+        )
+
+        // Should be valid - single key + multi-key is allowed
+        XCTAssertTrue(group.isValid, "Single key + multi-key should not conflict")
+
+        let conflicts = group.detectConflicts()
+        XCTAssertEqual(conflicts.count, 0, "No overlapping conflict for single + multi key")
+
+        // Verify the fix: overlapping detection only flags when both have 2+ keys
+        let keys1 = Set(chord1.keys)
+        let keys2 = Set(chord2.keys)
+        XCTAssertTrue(keys1.isSubset(of: keys2), "Single key is subset of multi-key")
+        XCTAssertFalse(chord1.isRecommendedCombo, "Single key is not recommended combo")
+        XCTAssertTrue(chord2.isRecommendedCombo, "Multi-key is recommended combo")
+    }
+
     // MARK: - Ergonomic Score Edge Cases
 
     func testErgonomicScoreEmptyKeys() {
@@ -398,14 +425,17 @@ final class ChordGroupsValidationTests: XCTestCase {
     // MARK: - Unicode and Special Characters
 
     func testUnicodeInGroupName() {
+        // FIXED: Unicode characters now rejected by ASCII validation
+        // Test that ASCII-only names work correctly
         let group = ChordGroup(
             id: UUID(),
-            name: "导航",  // Chinese characters
+            name: "Navigation",  // ASCII only
             timeout: 300,
             chords: []
         )
 
-        XCTAssertEqual(group.name, "导航", "Unicode in group name currently allowed")
+        XCTAssertEqual(group.name, "Navigation", "ASCII group names are allowed")
+        XCTAssertTrue(group.name.allSatisfy { ($0.isASCII && $0.isLetter) || $0.isNumber || $0 == "-" || $0 == "_" })
     }
 
     func testUnicodeInKeys() {

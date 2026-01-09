@@ -410,4 +410,41 @@ final class ChordGroupsIntegrationTests: XCTestCase {
         // No syntax errors (manual inspection, but at least check basic structure)
         XCTAssertFalse(output.contains("(defchords  )")) // No empty defchords
     }
+
+    // MARK: - Cross-Group Conflict Resolution
+
+    func testCrossGroupConflictGeneration() {
+        // Verify first group wins behavior in generated config
+        let chord1 = ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc")
+        let chord2 = ChordDefinition(id: UUID(), keys: ["s", "d"], output: "bspc")
+
+        let group1 = ChordGroup(id: UUID(), name: "Navigation", timeout: 250, chords: [chord1])
+        let group2 = ChordGroup(id: UUID(), name: "Editing", timeout: 300, chords: [chord2])
+
+        let config = ChordGroupsConfig(groups: [group1, group2])
+        let collection = RuleCollection(
+            id: RuleCollectionIdentifier.chordGroups,
+            name: "Chord Groups",
+            summary: "Test",
+            category: .productivity,
+            mappings: [],
+            isEnabled: true,
+            configuration: .chordGroups(config)
+        )
+
+        let output = KanataConfiguration.generateFromCollections([collection])
+
+        // First group (Navigation) should win for 's' and 'd' keys
+        // Check that Navigation group's chord mappings appear
+        XCTAssertTrue(output.contains("(chord Navigation s)") || output.contains("chord Navigation s"))
+        XCTAssertTrue(output.contains("(chord Navigation d)") || output.contains("chord Navigation d"))
+
+        // Both groups should still be defined (just deduplicated in deflayer)
+        XCTAssertTrue(output.contains("(defchords Navigation 250"))
+        XCTAssertTrue(output.contains("(defchords Editing 300"))
+
+        // Both chords should exist in their respective defchords blocks
+        XCTAssertTrue(output.contains("(s d) esc"))
+        XCTAssertTrue(output.contains("(s d) bspc"))
+    }
 }
