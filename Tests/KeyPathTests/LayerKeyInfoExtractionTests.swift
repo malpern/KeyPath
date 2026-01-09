@@ -176,7 +176,6 @@ final class LayerKeyInfoExtractionTests: XCTestCase {
 
         let defaultKeyCode: UInt16 = 0
         let layerInfo = layerKeyMap[defaultKeyCode]
-        let inputLabel = "a"
         let outputLabel = layerInfo?.displayLabel.lowercased() ?? "a"
         let appId = layerInfo?.appLaunchIdentifier
         let systemId = layerInfo?.systemActionIdentifier
@@ -218,7 +217,6 @@ final class LayerKeyInfoExtractionTests: XCTestCase {
 
         let defaultKeyCode: UInt16 = 0
         let layerInfo = layerKeyMap[defaultKeyCode]
-        let inputLabel = "a"
         let outputLabel = layerInfo?.displayLabel.lowercased() ?? "a"
 
         XCTAssertNil(layerInfo, "No layer info for unmapped key")

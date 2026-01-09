@@ -183,13 +183,13 @@ final class AppKeymapStoreTests: XCTestCase {
     }
 
     func testGetEnabledKeymaps_FiltersDisabled() async throws {
-        var enabledKeymap = AppKeymap(
+        let enabledKeymap = AppKeymap(
             bundleIdentifier: "com.apple.Safari",
             displayName: "Safari",
             overrides: []
         )
 
-        var disabledMapping = AppKeyMapping(
+        let disabledMapping = AppKeyMapping(
             bundleIdentifier: "com.microsoft.VSCode",
             displayName: "VS Code",
             isEnabled: false

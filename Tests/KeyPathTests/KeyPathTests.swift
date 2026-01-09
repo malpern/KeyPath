@@ -258,6 +258,7 @@ final class KeyPathTests: XCTestCase {
         let manager = RuntimeCoordinator()
 
         // No sleep needed - initialization is deterministic
+        XCTAssertNotNil(manager)
 
         // Check that status was updated
         // // XCTAssertNotNil(manager.isRunning) // Property removed

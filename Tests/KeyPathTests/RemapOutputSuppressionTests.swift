@@ -126,8 +126,8 @@ final class RemapOutputSuppressionTests: XCTestCase {
 
     func testSuppressedRemapOutputKeyCodes_WhenInputPressed_SuppressesOutput() {
         // Given: A→B mapping, A (keyCode 0) is pressed
-        var remapOutputMap: [UInt16: UInt16] = [0: 11]
-        var tcpPressedKeyCodes: Set<UInt16> = [0] // A is pressed
+        let remapOutputMap: [UInt16: UInt16] = [0: 11]
+        let tcpPressedKeyCodes: Set<UInt16> = [0] // A is pressed
 
         // When: Calculate suppressed keyCodes
         let suppressed = calculateSuppressedRemapOutputKeyCodes(
@@ -141,8 +141,8 @@ final class RemapOutputSuppressionTests: XCTestCase {
 
     func testSuppressedRemapOutputKeyCodes_WhenInputNotPressed_NothingSuppressed() {
         // Given: A→B mapping, A is NOT pressed
-        var remapOutputMap: [UInt16: UInt16] = [0: 11]
-        var tcpPressedKeyCodes: Set<UInt16> = [] // Nothing pressed
+        let remapOutputMap: [UInt16: UInt16] = [0: 11]
+        let tcpPressedKeyCodes: Set<UInt16> = [] // Nothing pressed
 
         // When: Calculate suppressed keyCodes
         let suppressed = calculateSuppressedRemapOutputKeyCodes(
@@ -156,8 +156,8 @@ final class RemapOutputSuppressionTests: XCTestCase {
 
     func testSuppressedRemapOutputKeyCodes_MultipleInputsPressed() {
         // Given: A→B and S→D mappings, both A and S pressed
-        var remapOutputMap: [UInt16: UInt16] = [0: 11, 1: 2]
-        var tcpPressedKeyCodes: Set<UInt16> = [0, 1] // A and S pressed
+        let remapOutputMap: [UInt16: UInt16] = [0: 11, 1: 2]
+        let tcpPressedKeyCodes: Set<UInt16> = [0, 1] // A and S pressed
 
         // When: Calculate suppressed keyCodes
         let suppressed = calculateSuppressedRemapOutputKeyCodes(
@@ -173,8 +173,8 @@ final class RemapOutputSuppressionTests: XCTestCase {
 
     func testSuppressedRemapOutputKeyCodes_UnmappedKeyPressed_NothingSuppressed() {
         // Given: A→B mapping, Z (not remapped) is pressed
-        var remapOutputMap: [UInt16: UInt16] = [0: 11]
-        var tcpPressedKeyCodes: Set<UInt16> = [6] // Z pressed (keyCode 6)
+        let remapOutputMap: [UInt16: UInt16] = [0: 11]
+        let tcpPressedKeyCodes: Set<UInt16> = [6] // Z pressed (keyCode 6)
 
         // When: Calculate suppressed keyCodes
         let suppressed = calculateSuppressedRemapOutputKeyCodes(

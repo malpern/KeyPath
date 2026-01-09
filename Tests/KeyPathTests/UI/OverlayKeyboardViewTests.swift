@@ -2,6 +2,7 @@
 import KeyPathCore
 import XCTest
 
+@MainActor
 final class OverlayKeyboardViewTests: XCTestCase {
     // MARK: - keyCodeToKanataName Tests
 

@@ -141,7 +141,7 @@ final class QMKImportServiceTests: XCTestCase {
     }
 
     func testGetAvailableVariants() async throws {
-        let variants = try await service.getAvailableVariants(from: sampleQMKJSON)
+        let variants = try service.getAvailableVariants(from: sampleQMKJSON)
         XCTAssertEqual(variants.sorted(), ["ansi", "default_transform"])
     }
 

@@ -352,6 +352,8 @@ final class KeyboardCaptureTests: XCTestCase {
             let localCapture = KeyboardCapture()
             weakCapture = localCapture
 
+            XCTAssertNotNil(weakCapture, "Weak reference should be set inside scope")
+
             localCapture.startCapture { _ in }
             localCapture.stopCapture()
 
@@ -364,7 +366,7 @@ final class KeyboardCaptureTests: XCTestCase {
         // Object should be deallocated after going out of scope
         // Note: This may not always pass due to ARC optimizations in tests
         // but it's good to verify cleanup doesn't cause retain cycles
-        XCTAssertTrue(true, "Memory management test completed")
+        XCTAssertNil(weakCapture, "KeyboardCapture should be released after scope exit")
     }
 
     // MARK: - Error Handling Tests

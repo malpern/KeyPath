@@ -128,7 +128,7 @@ final class StatePublisherServiceTests: XCTestCase {
         // Single subscriber test
         Task {
             var initialReceived = false
-            for await state in publisher.stateChanges {
+            for await _ in publisher.stateChanges {
                 if !initialReceived {
                     initialReceived = true
                     continue // Skip initial state

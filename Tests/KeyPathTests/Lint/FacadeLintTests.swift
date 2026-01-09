@@ -56,7 +56,7 @@ private func findPattern(_ pattern: String, in directory: URL, allowList: [Strin
     for case let fileURL as URL in enumerator {
         guard fileURL.pathExtension == "swift" else { continue }
         if allowed.contains(fileURL.path) { continue }
-        guard let contents = try? String(contentsOf: fileURL) else { continue }
+        guard let contents = try? String(contentsOf: fileURL, encoding: .utf8) else { continue }
         let lines = contents.components(separatedBy: .newlines)
         for (idx, line) in lines.enumerated() where line.contains(pattern) {
             hits.append("\(fileURL.path):\(idx + 1): \(line.trimmingCharacters(in: .whitespaces))")

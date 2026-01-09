@@ -345,7 +345,6 @@ struct KeyPathErrorTests {
             _ = error.errorDescription
         }.value
 
-        // If this compiles, Sendable conformance is working correctly
-        #expect(true)
+        #expect(error.errorDescription?.isEmpty == false)
     }
 }

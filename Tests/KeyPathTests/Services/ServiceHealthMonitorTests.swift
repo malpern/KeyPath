@@ -25,15 +25,15 @@ class ServiceHealthMonitorTests: XCTestCase {
     var monitor: ServiceHealthMonitor!
     private var previousSudoEnv: String?
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         previousSudoEnv = ProcessInfo.processInfo.environment["KEYPATH_USE_SUDO"]
         setenv("KEYPATH_USE_SUDO", "0", 1)
         processLifecycle = ProcessLifecycleManager()
         monitor = ServiceHealthMonitor(processLifecycle: processLifecycle)
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         if let previousSudoEnv {
             setenv("KEYPATH_USE_SUDO", previousSudoEnv, 1)
         } else {
@@ -41,7 +41,7 @@ class ServiceHealthMonitorTests: XCTestCase {
         }
         processLifecycle = nil
         monitor = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Health Check Tests

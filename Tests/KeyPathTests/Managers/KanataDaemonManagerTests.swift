@@ -88,17 +88,9 @@ final class KanataDaemonManagerTests: XCTestCase {
         if #available(macOS 13, *) {
             // On macOS 13+, registration attempt should not immediately fail due to version
             // (it may fail for other reasons like missing plist, but not version)
-            do {
-                // Don't actually register - just verify the version check passes
-                let status = manager.getStatus()
-                XCTAssertNotNil(status, "Should be able to check status on macOS 13+")
-            } catch {
-                // If it throws, it should be for a reason other than macOS version
-                XCTAssertFalse(
-                    (error as? KanataDaemonError)?.localizedDescription.contains("macOS 13") ?? false,
-                    "Error should not be about macOS version on macOS 13+"
-                )
-            }
+            // Don't actually register - just verify the version check passes
+            let status = manager.getStatus()
+            XCTAssertNotNil(status, "Should be able to check status on macOS 13+")
         } else {
             // On older macOS, registration should fail with version error
             do {

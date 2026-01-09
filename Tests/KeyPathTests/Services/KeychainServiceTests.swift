@@ -5,7 +5,7 @@ final class KeychainServiceTests: XCTestCase {
     func testKeychainServiceSourceHasNoUDPLegacyReferences() throws {
         let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         let sourceURL = root.appendingPathComponent("Sources/KeyPathAppKit/Services/KeychainService.swift")
-        let contents = try String(contentsOf: sourceURL)
+        let contents = try String(contentsOf: sourceURL, encoding: .utf8)
 
         XCTAssertFalse(
             contents.localizedCaseInsensitiveContains("udp"),
