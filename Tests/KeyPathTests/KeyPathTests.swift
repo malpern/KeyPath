@@ -164,8 +164,9 @@ final class KeyPathTests: XCTestCase {
             (49, "space"),
             (51, "delete"),
             (53, "escape"),
-            (58, "caps"),
-            (59, "caps"),
+            (57, "caps"),
+            (58, "lalt"),
+            (59, "lctl"),
             (999, "key999") // Unknown key code
         ]
 
@@ -685,7 +686,9 @@ extension KeyboardCapture {
             30: "]", 31: "o", 32: "u", 33: "[", 34: "i", 35: "p", 36: "return",
             37: "l", 38: "j", 39: "'", 40: "k", 41: ";", 42: "\\", 43: ",",
             44: "/", 45: "n", 46: "m", 47: ".", 48: "tab", 49: "space",
-            50: "`", 51: "delete", 53: "escape", 58: "caps", 59: "caps"
+            50: "`", 51: "delete", 53: "escape", 54: "rmet", 55: "lmet",
+            56: "lsft", 57: "caps", 58: "lalt", 59: "lctl", 60: "rsft",
+            61: "ralt", 62: "rctl"
         ]
 
         if let keyName = keyMap[keyCode] {

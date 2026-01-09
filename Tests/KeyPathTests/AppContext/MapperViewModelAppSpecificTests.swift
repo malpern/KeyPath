@@ -175,8 +175,8 @@ final class MapperViewModelAppSpecificTests: XCTestCase {
         XCTAssertTrue(config.contains("defalias"), "Should have alias block")
         XCTAssertTrue(config.contains("kp-a"), "Should have alias for 'a' key")
         XCTAssertTrue(config.contains("(switch"), "Should have switch expression")
-        XCTAssertTrue(config.contains("((input virtual vk_bear)) b"), "Should map to 'b' when Bear active")
-        XCTAssertTrue(config.contains("() a)"), "Should pass through 'a' by default")
+        XCTAssertTrue(config.contains("((input virtual vk_bear)) b break"), "Should map to 'b' when Bear active")
+        XCTAssertTrue(config.contains("() a break)"), "Should pass through 'a' by default")
     }
 
     func testConfigGenerator_MultipleApps_CombinedSwitchExpression() async throws {
