@@ -99,8 +99,8 @@ final class AppConfigGeneratorTests: XCTestCase {
         XCTAssertTrue(content.contains("(defalias"))
         XCTAssertTrue(content.contains("kp-j"))
         XCTAssertTrue(content.contains("(switch"))
-        XCTAssertTrue(content.contains("((input virtual vk_safari)) down"))
-        XCTAssertTrue(content.contains("() j)")) // Default case
+        XCTAssertTrue(content.contains("((input virtual vk_safari)) down break"))
+        XCTAssertTrue(content.contains("() j break)")) // Default case
     }
 
     func testGenerate_MultipleOverridesForSameKey_CreatesCombinedSwitch() {
