@@ -322,11 +322,12 @@ final class ChordGroupsIntegrationTests: XCTestCase {
 
     // MARK: - Edge Cases
 
-    func testEmptyGroupNameHandled() {
-        // Edge case: empty group name (shouldn't happen in real usage, but test defensively)
+    func testMinimalGroupNameHandled() {
+        // FIXED: Empty group name now causes precondition failure
+        // Test valid minimum: single character name
         let group = ChordGroup(
             id: UUID(),
-            name: "",
+            name: "a",
             timeout: 300,
             chords: [
                 ChordDefinition(id: UUID(), keys: ["a", "b"], output: "esc")
@@ -345,9 +346,8 @@ final class ChordGroupsIntegrationTests: XCTestCase {
             )
         ]
 
-        // Should not crash
         let output = KanataConfiguration.generateFromCollections(collections)
-        XCTAssertTrue(output.contains("(defchords  300")) // Empty name
+        XCTAssertTrue(output.contains("(defchords a 300")) // Single char name is valid
     }
 
     func testGroupWithNoChords() {
