@@ -1290,18 +1290,18 @@ struct OverlayKeycapView: View {
         VStack(spacing: dualSymbolSpacing(for: main)) {
             Text(shift)
                 .font(.system(
-                    size: 9 * scale * shiftAdj.fontScale,
-                    weight: shiftAdj.fontWeight ?? .light
+                    size: 8.5 * scale * shiftAdj.fontScale,  // Reduced from 9 for better hierarchy
+                    weight: .light  // Force light weight for subtle shift symbol
                 ))
-                .foregroundStyle(foregroundColor.opacity(isSmallSize ? 0 : 0.6))
+                .foregroundStyle(foregroundColor.opacity(isSmallSize ? 0 : 0.65))  // Increased from 0.6 for visibility
 
             Text(main)
                 .font(.system(
-                    size: 12 * scale * mainAdj.fontScale,
+                    size: 12.5 * scale * mainAdj.fontScale,  // Increased from 12 for better prominence
                     weight: mainAdj.fontWeight ?? .medium
                 ))
                 .offset(y: mainAdj.verticalOffset * scale)
-                .foregroundStyle(foregroundColor)
+                .foregroundStyle(foregroundColor)  // Full opacity for main symbol
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -1643,7 +1643,8 @@ struct OverlayKeycapView: View {
     }
 
     private var keyStroke: Color {
-        // Show white stroke during global overlay fade only
+        // No persistent border - keys rely on shadows for separation
+        // (User preference: cleaner look without outlines)
         if isReleaseFading {
             Color.white.opacity(0)
         } else {
@@ -1652,6 +1653,7 @@ struct OverlayKeycapView: View {
     }
 
     private var strokeWidth: CGFloat {
+        // No persistent border stroke width
         isReleaseFading ? 0 : fadeAmount * scale
     }
 
@@ -1660,11 +1662,22 @@ struct OverlayKeycapView: View {
     }
 
     private var shadowRadius: CGFloat {
-        (isPressed ? 0.2 * scale : 0.5 * scale) * (1 - fadeAmount)
+        // Ensure minimum shadow even when pressed for grounding
+        let minRadius: CGFloat = 0.3 * scale
+        let normalRadius: CGFloat = 0.5 * scale
+        let pressedRadius: CGFloat = 0.2 * scale
+        let baseRadius = isPressed ? max(pressedRadius, minRadius) : normalRadius
+        // Reduce fade impact on shadow (was 1 - fadeAmount, now only 50% reduction)
+        return baseRadius * (1 - fadeAmount * 0.5)
     }
 
     private var shadowOffset: CGFloat {
-        (isPressed ? 0.2 * scale : 0.5 * scale) * (1 - fadeAmount)
+        // Match shadow radius logic for consistency
+        let minOffset: CGFloat = 0.3 * scale
+        let normalOffset: CGFloat = 0.5 * scale
+        let pressedOffset: CGFloat = 0.2 * scale
+        let baseOffset = isPressed ? max(pressedOffset, minOffset) : normalOffset
+        return baseOffset * (1 - fadeAmount * 0.5)
     }
 
     /// Whether this key is a modifier (shift, ctrl, opt, cmd, fn, etc.)
