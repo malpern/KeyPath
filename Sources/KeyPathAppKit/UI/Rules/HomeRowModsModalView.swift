@@ -178,19 +178,21 @@ struct HomeRowModsModalView: View {
                         }
                         .disabled(!localConfig.timing.quickTapEnabled)
 
-                        Toggle("Show per-key tap offsets", isOn: Binding(
+                        Toggle("Show per-key timing offsets", isOn: Binding(
                             get: { localConfig.showAdvanced },
                             set: { localConfig.showAdvanced = $0 }
                         ))
                         .toggleStyle(.checkbox)
                         .accessibilityIdentifier("home-row-mods-modal-show-advanced-toggle")
-                        .accessibilityLabel("Show per-key tap offsets")
+                        .accessibilityLabel("Show per-key timing offsets")
 
                         if localConfig.showAdvanced {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Per-key tap offsets (ms)")
+                            VStack(alignment: .leading, spacing: 12) {
+                                Divider().padding(.vertical, 4)
+                                
+                                Text("Per-Key Tap Offsets")
                                     .font(.subheadline)
-                                    .foregroundColor(.secondary)
+                                    .fontWeight(.bold)
 
                                 ForEach(chunks(of: HomeRowModsConfig.allKeys, size: 4), id: \.self) { row in
                                     HStack(spacing: 12) {
@@ -216,7 +218,49 @@ struct HomeRowModsModalView: View {
                                         Spacer()
                                     }
                                 }
-                                Text("Positive values extend the tap window for that key; leave blank/0 for default.")
+                                Text("Extends tap window for a key (e.g., `50` makes it easier to tap). Leave blank or `0` for default.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+
+                                Divider().padding(.vertical, 4)
+
+                                Text("Per-Key Hold Offsets")
+                                    .font(.subheadline)
+                                    .fontWeight(.bold)
+
+                                Picker("Hold Preset", selection: holdPresetBinding) {
+                                    Text("Standard").tag(HoldPreset.standard)
+                                    Text("Slow Pinkies").tag(HoldPreset.slowPinkies)
+                                    Text("Custom").tag(HoldPreset.custom)
+                                }
+                                .pickerStyle(.segmented)
+                                .padding(.bottom, 4)
+                                
+                                ForEach(chunks(of: HomeRowModsConfig.allKeys, size: 4), id: \.self) { row in
+                                    HStack(spacing: 12) {
+                                        ForEach(row, id: \.self) { key in
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                Text(key.uppercased())
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                                TextField("0", value: Binding(
+                                                    get: { localConfig.timing.holdOffsets[key] ?? 0 },
+                                                    set: { newValue in
+                                                        if newValue == 0 {
+                                                            localConfig.timing.holdOffsets.removeValue(forKey: key)
+                                                        } else {
+                                                            localConfig.timing.holdOffsets[key] = newValue
+                                                        }
+                                                    }
+                                                ), format: .number)
+                                                    .textFieldStyle(.roundedBorder)
+                                                    .frame(width: 70)
+                                            }
+                                        }
+                                        Spacer()
+                                    }
+                                }
+                                Text("Extends hold delay for a key (e.g., `50` makes it easier to hold). Leave blank or `0` for default.")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -379,6 +423,36 @@ struct HomeRowModsModalView: View {
         .buttonStyle(.plain)
         .accessibilityIdentifier("home-row-mods-modal-modifier-button-\(label.lowercased())")
         .accessibilityLabel("Select \(label) modifier")
+    }
+
+    private enum HoldPreset {
+        case standard, slowPinkies, custom
+    }
+
+    private var holdPresetBinding: Binding<HoldPreset> {
+        Binding(
+            get: {
+                if localConfig.timing.holdOffsets.isEmpty {
+                    return .standard
+                } else if localConfig.timing.holdOffsets == ["a": 50, ";": 50] {
+                    return .slowPinkies
+                } else {
+                    return .custom
+                }
+            },
+            set: { preset in
+                switch preset {
+                case .standard:
+                    localConfig.timing.holdOffsets = [:]
+                case .slowPinkies:
+                    localConfig.timing.holdOffsets = ["a": 50, ";": 50]
+                case .custom:
+                    // When user selects custom, we don't change the values,
+                    // allowing them to create their own custom configuration.
+                    break
+                }
+            }
+        )
     }
 }
 

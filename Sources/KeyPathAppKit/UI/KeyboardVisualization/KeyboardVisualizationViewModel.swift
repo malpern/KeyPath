@@ -223,6 +223,8 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
     /// Key input notification observer
     private var keyInputObserver: Any?
+    /// TCP heartbeat notification observer (layer polling)
+    private var tcpHeartbeatObserver: Any?
     /// Hold activated notification observer
     private var holdActivatedObserver: Any?
     /// Tap activated notification observer
@@ -291,6 +293,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
         // TCP-based key detection (no CGEvent tap needed)
         setupKeyInputObserver() // Listen for TCP-based physical key events
+        setupTcpHeartbeatObserver() // Listen for layer polling heartbeat
         setupHoldActivatedObserver() // Listen for tap-hold state transitions
         setupTapActivatedObserver() // Listen for tap-hold tap triggers
         setupMessagePushObserver() // Listen for icon/emphasis push messages
@@ -370,6 +373,11 @@ class KeyboardVisualizationViewModel: ObservableObject {
         if let observer = keyInputObserver {
             NotificationCenter.default.removeObserver(observer)
             keyInputObserver = nil
+        }
+
+        if let observer = tcpHeartbeatObserver {
+            NotificationCenter.default.removeObserver(observer)
+            tcpHeartbeatObserver = nil
         }
 
         if let observer = holdActivatedObserver {
@@ -929,6 +937,21 @@ class KeyboardVisualizationViewModel: ObservableObject {
             }
         }
         AppLogger.shared.debug("⌨️ [KeyboardViz] TCP key input observer registered")
+    }
+
+    /// Set up observer for Kanata TCP heartbeat events (layer polling)
+    private func setupTcpHeartbeatObserver() {
+        tcpHeartbeatObserver = NotificationCenter.default.addObserver(
+            forName: .kanataTcpHeartbeat,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in
+                self.noteTcpEventReceived()
+            }
+        }
+        AppLogger.shared.debug("⌨️ [KeyboardViz] TCP heartbeat observer registered")
     }
 
     /// Set up observer for Kanata TCP HoldActivated events (tap-hold transitions to hold)

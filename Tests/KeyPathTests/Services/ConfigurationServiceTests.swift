@@ -264,6 +264,39 @@ class ConfigurationServiceTests: XCTestCase {
         XCTAssertEqual(capsMapping?.output, "ctrl", "Should keep last mapping for caps")
     }
 
+    func testParseConfigurationFromString_DefchordsOutputs() throws {
+        let configContent = """
+        (defcfg
+          process-unmapped-keys yes
+        )
+
+        (defsrc
+          q w
+        )
+
+        (deflayer base
+          (chord base A) (chord base R)
+        )
+
+        (defchords base 500
+          (A) a
+          (R) r
+        )
+        """
+
+        let config = try configService.parseConfigurationFromString(configContent)
+
+        XCTAssertEqual(config.keyMappings.count, 2, "Should parse 2 mappings")
+        XCTAssertEqual(config.keyMappings[0].output, "(chord base A)")
+        XCTAssertEqual(config.keyMappings[1].output, "(chord base R)")
+
+        XCTAssertEqual(config.chordGroups.count, 1, "Should parse one chord group")
+        let group = config.chordGroups.first
+        XCTAssertEqual(group?.name, "base")
+        XCTAssertEqual(group?.timeoutToken, "500")
+        XCTAssertEqual(group?.chords.count, 2)
+    }
+
     // MARK: - Configuration Saving Tests
 
     func testSaveConfiguration_WithKeyMappings() async throws {
@@ -881,6 +914,32 @@ class ConfigurationServiceTests: XCTestCase {
             defsrcSection.contains("lsft rsft"),
             "Chord input 'lsft rsft' should NOT appear in defsrc - it's not a valid single key"
         )
+    }
+
+    func testChordGroupsGenerateDefchordsBlock() {
+        let collection = RuleCollection(
+            name: "Custom",
+            summary: "User mappings",
+            category: .custom,
+            mappings: [KeyMapping(input: "q", output: "(chord base A)")],
+            isEnabled: true,
+            isSystemDefault: false
+        )
+
+        let chordGroups = [
+            ChordGroupConfig(
+                name: "base",
+                timeoutToken: "500",
+                chords: [
+                    ChordGroupConfig.ChordDefinition(keys: ["A"], action: "esc")
+                ]
+            )
+        ]
+
+        let config = KanataConfiguration.generateFromCollections([collection], chordGroups: chordGroups)
+
+        XCTAssertTrue(config.contains("(defchords base 500"), "Config should include defchords block")
+        XCTAssertTrue(config.contains("(A) esc"), "Chord definition should be rendered")
     }
 
     /// Test that disabled chord collections don't generate defchordsv2

@@ -11,12 +11,20 @@ public struct KanataConfiguration: Sendable {
     public let keyMappings: [KeyMapping]
     public let lastModified: Date
     public let path: String
+    public let chordGroups: [ChordGroupConfig]
 
-    public init(content: String, keyMappings: [KeyMapping], lastModified: Date, path: String) {
+    public init(
+        content: String,
+        keyMappings: [KeyMapping],
+        lastModified: Date,
+        path: String,
+        chordGroups: [ChordGroupConfig] = []
+    ) {
         self.content = content
         self.keyMappings = keyMappings
         self.lastModified = lastModified
         self.path = path
+        self.chordGroups = chordGroups
     }
 
     /// Generate configuration content from key mappings (adds default system collections when absent).
@@ -27,7 +35,10 @@ public struct KanataConfiguration: Sendable {
 
     /// Generate configuration content from rule collections.
     /// Flattens enabled collections to `defsrc`/`deflayer` for backward compatibility with Kanata config format.
-    public static func generateFromCollections(_ collections: [RuleCollection]) -> String {
+    public static func generateFromCollections(
+        _ collections: [RuleCollection],
+        chordGroups: [ChordGroupConfig] = []
+    ) -> String {
         var resolvedCollections = collections.isEmpty ? defaultSystemCollections : collections
         if !resolvedCollections.contains(where: { $0.id == RuleCollectionIdentifier.macFunctionKeys }) {
             resolvedCollections.append(contentsOf: defaultSystemCollections)
@@ -77,6 +88,7 @@ public struct KanataConfiguration: Sendable {
         let fakeKeysBlock = renderFakeKeysBlock(extraLayers)
         let aliasBlock = renderAliasBlock(aliasDefinitions)
         let chordsBlock = renderChordsBlock(chordMappings)
+        let chordGroupsBlock = renderChordGroupsBlock(chordGroups)
 
         // Include keypath-apps.kbd if there are app-specific keys
         // This must come after defcfg but before any layer that uses @kp-* aliases
@@ -89,7 +101,19 @@ public struct KanataConfiguration: Sendable {
             ""
         }
 
-        return [header, safetyNotes, appIncludeBlock, defvarBlock, sourceBlock, baseLayerBlock, additionalLayerBlocks, fakeKeysBlock, aliasBlock, chordsBlock]
+        return [
+            header,
+            safetyNotes,
+            appIncludeBlock,
+            defvarBlock,
+            sourceBlock,
+            baseLayerBlock,
+            additionalLayerBlocks,
+            fakeKeysBlock,
+            aliasBlock,
+            chordsBlock,
+            chordGroupsBlock
+        ]
             .filter { !$0.isEmpty }
             .joined(separator: "\n")
     }
@@ -305,6 +329,31 @@ public struct KanataConfiguration: Sendable {
             lines.append("  (\(chord.inputKeys)) \(chord.output) $chord-timeout all-released ()")
         }
         lines.append(")")
+        return lines.joined(separator: "\n") + "\n"
+    }
+
+    private static func renderChordGroupsBlock(_ chordGroups: [ChordGroupConfig]) -> String {
+        guard !chordGroups.isEmpty else { return "" }
+        var lines = [
+            "#|",
+            "================================================================================",
+            "CHORD GROUPS (defchords)",
+            "================================================================================",
+            "|#",
+            ""
+        ]
+
+        for group in chordGroups {
+            lines.append("(defchords \(group.name) \(group.timeoutToken)")
+            for chord in group.chords {
+                let keys = chord.keys.joined(separator: " ")
+                lines.append("  (\(keys)) \(chord.action)")
+            }
+            lines.append(")")
+            lines.append("")
+        }
+
+        if lines.last == "" { lines.removeLast() }
         return lines.joined(separator: "\n") + "\n"
     }
 
@@ -926,7 +975,7 @@ public struct KanataConfiguration: Sendable {
                     + (config.timing.tapOffsets[key] ?? 0)
                     + (config.timing.quickTapEnabled ? config.timing.quickTapTermMs : 0)
             )
-            let holdTimeout = max(1, config.timing.holdDelay)
+            let holdTimeout = max(1, config.timing.holdDelay + (config.timing.holdOffsets[key] ?? 0))
 
             // Create dual-role behavior: tap = letter, hold = modifier
             let behavior = DualRoleBehavior(

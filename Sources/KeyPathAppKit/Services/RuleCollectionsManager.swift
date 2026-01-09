@@ -1038,6 +1038,9 @@ final class RuleCollectionsManager {
         let normalized = rawName.isEmpty ? RuleCollectionLayer.base.kanataName : rawName
         let display = normalized.capitalized
 
+        // Heartbeat: any layer poll result means TCP is alive, even if layer is unchanged.
+        NotificationCenter.default.post(name: .kanataTcpHeartbeat, object: nil)
+
         if currentLayerName == display { return }
 
         currentLayerName = display

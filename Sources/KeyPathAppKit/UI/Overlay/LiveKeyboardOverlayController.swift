@@ -1459,6 +1459,8 @@ extension Notification.Name {
     static let kanataLayerChanged = Notification.Name("KeyPath.KanataLayerChanged")
     /// Posted when the Kanata config changes (rules saved, etc.)
     static let kanataConfigChanged = Notification.Name("KeyPath.KanataConfigChanged")
+    /// Posted when a TCP message is received from Kanata (heartbeat for connection state)
+    static let kanataTcpHeartbeat = Notification.Name("KeyPath.KanataTcpHeartbeat")
     /// Posted when a physical key is pressed/released (userInfo["key"] = String, ["action"] = "press"/"release")
     static let kanataKeyInput = Notification.Name("KeyPath.KanataKeyInput")
     /// Posted when a tap-hold key transitions to hold state (userInfo["key"] = String, ["action"] = String)

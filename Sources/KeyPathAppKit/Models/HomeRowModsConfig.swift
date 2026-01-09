@@ -85,19 +85,23 @@ public struct TimingConfig: Codable, Equatable, Sendable {
     public var quickTapTermMs: Int
     /// Optional per-key tap offsets (ms). Positive values extend the tap window for that key.
     public var tapOffsets: [String: Int]
+    /// Optional per-key hold offsets (ms). Positive values extend the hold delay for that key.
+    public var holdOffsets: [String: Int]
 
     public init(
         tapWindow: Int = 200,
         holdDelay: Int = 150,
         quickTapEnabled: Bool = false,
         quickTapTermMs: Int = 0,
-        tapOffsets: [String: Int] = [:]
+        tapOffsets: [String: Int] = [:],
+        holdOffsets: [String: Int] = [:]
     ) {
         self.tapWindow = tapWindow
         self.holdDelay = holdDelay
         self.quickTapEnabled = quickTapEnabled
         self.quickTapTermMs = quickTapTermMs
         self.tapOffsets = tapOffsets
+        self.holdOffsets = holdOffsets
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -106,6 +110,7 @@ public struct TimingConfig: Codable, Equatable, Sendable {
         case quickTapEnabled
         case quickTapTermMs
         case tapOffsets
+        case holdOffsets
     }
 
     public init(from decoder: Decoder) throws {
@@ -115,6 +120,7 @@ public struct TimingConfig: Codable, Equatable, Sendable {
         quickTapEnabled = try container.decodeIfPresent(Bool.self, forKey: .quickTapEnabled) ?? false
         quickTapTermMs = try container.decodeIfPresent(Int.self, forKey: .quickTapTermMs) ?? 0
         tapOffsets = try container.decodeIfPresent([String: Int].self, forKey: .tapOffsets) ?? [:]
+        holdOffsets = try container.decodeIfPresent([String: Int].self, forKey: .holdOffsets) ?? [:]
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -124,6 +130,7 @@ public struct TimingConfig: Codable, Equatable, Sendable {
         try container.encode(quickTapEnabled, forKey: .quickTapEnabled)
         try container.encode(quickTapTermMs, forKey: .quickTapTermMs)
         try container.encode(tapOffsets, forKey: .tapOffsets)
+        try container.encode(holdOffsets, forKey: .holdOffsets)
     }
 
     public static let `default` = TimingConfig()

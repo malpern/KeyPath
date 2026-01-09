@@ -136,12 +136,25 @@ public final class ConfigurationService: FileConfigurationProviding {
 
         // Extract key mappings from content (simplified - could be enhanced)
         let keyMappings = extractKeyMappingsFromContent(content)
+        let chordGroups = KanataDefchordsParser.parseGroups(from: content)
+
+        if !chordGroups.isEmpty {
+            let knownGroups = Set(chordGroups.map(\.name))
+            let referencedGroups = KanataDefchordsParser.referencedChordGroups(in: keyMappings)
+            let missing = referencedGroups.subtracting(knownGroups)
+            if !missing.isEmpty {
+                AppLogger.shared.warn(
+                    "⚠️ [ConfigService] Chord group references missing definitions: \(missing.sorted().joined(separator: \", \"))"
+                )
+            }
+        }
 
         return KanataConfiguration(
             content: content,
             keyMappings: keyMappings,
             lastModified: lastModified,
-            path: configurationPath
+            path: configurationPath,
+            chordGroups: chordGroups
         )
     }
 
@@ -226,7 +239,11 @@ public final class ConfigurationService: FileConfigurationProviding {
 
         let combinedCollections = RuleCollectionDeduplicator.dedupe(allCollections)
         let mappings = combinedCollections.enabledMappings()
-        let configContent = KanataConfiguration.generateFromCollections(combinedCollections)
+        let preservedChordGroups = loadPreservedChordGroups()
+        let configContent = KanataConfiguration.generateFromCollections(
+            combinedCollections,
+            chordGroups: preservedChordGroups
+        )
 
         // VALIDATE BEFORE SAVING - prevent writing broken configs
         AppLogger.shared.log("🔍 [ConfigService] Validating config before save...")
@@ -247,7 +264,8 @@ public final class ConfigurationService: FileConfigurationProviding {
             content: configContent,
             keyMappings: mappings,
             lastModified: Date(),
-            path: configurationPath
+            path: configurationPath,
+            chordGroups: preservedChordGroups
         )
         setCurrentConfiguration(newConfig)
 
@@ -647,7 +665,8 @@ public final class ConfigurationService: FileConfigurationProviding {
         var layerKeys: [String] = []
 
         for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmed = KanataConfigTokenizer.stripInlineComment(line)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
 
             if trimmed.hasPrefix("(defsrc") {
                 inDefsrc = true
@@ -664,11 +683,9 @@ public final class ConfigurationService: FileConfigurationProviding {
             }
 
             if inDefsrc, !trimmed.isEmpty, !trimmed.hasPrefix(";") {
-                srcKeys.append(
-                    contentsOf: trimmed.components(separatedBy: .whitespaces).filter { !$0.isEmpty })
+                srcKeys.append(contentsOf: KanataConfigTokenizer.tokenize(trimmed))
             } else if inDeflayer, !trimmed.isEmpty, !trimmed.hasPrefix(";") {
-                layerKeys.append(
-                    contentsOf: trimmed.components(separatedBy: .whitespaces).filter { !$0.isEmpty })
+                layerKeys.append(contentsOf: KanataConfigTokenizer.tokenize(trimmed))
             }
         }
 
@@ -767,6 +784,20 @@ private extension ConfigurationService {
         stateLock.lock()
         defer { stateLock.unlock() }
         return currentConfiguration
+    }
+
+    func loadPreservedChordGroups() -> [ChordGroupConfig] {
+        if let current = withLockedCurrentConfig(), !current.chordGroups.isEmpty {
+            return current.chordGroups
+        }
+
+        guard FileManager.default.fileExists(atPath: configurationPath),
+              let content = try? String(contentsOfFile: configurationPath, encoding: .utf8)
+        else {
+            return []
+        }
+
+        return KanataDefchordsParser.parseGroups(from: content)
     }
 
     func setCurrentConfiguration(_ config: KanataConfiguration) {
