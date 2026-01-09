@@ -134,7 +134,11 @@ class MainAppStateController: ObservableObject {
         let crashLogPath = crashLogDir.appendingPathComponent("crashes.log")
 
         // Ensure directory exists
-        try? FileManager.default.createDirectory(at: crashLogDir, withIntermediateDirectories: true)
+        do {
+            try FileManager.default.createDirectory(at: crashLogDir, withIntermediateDirectories: true)
+        } catch {
+            AppLogger.shared.warn("⚠️ [MainAppStateController] Failed to create crash log directory: \(error.localizedDescription)")
+        }
 
         // Format crash entry
         let formatter = ISO8601DateFormatter()
@@ -151,14 +155,17 @@ class MainAppStateController: ObservableObject {
 
         // Append to log file
         if let data = entry.data(using: .utf8) {
-            if FileManager.default.fileExists(atPath: crashLogPath.path) {
-                if let handle = try? FileHandle(forWritingTo: crashLogPath) {
-                    try? handle.seekToEnd()
-                    try? handle.write(contentsOf: data)
-                    try? handle.close()
+            do {
+                if FileManager.default.fileExists(atPath: crashLogPath.path) {
+                    let handle = try FileHandle(forWritingTo: crashLogPath)
+                    try handle.seekToEnd()
+                    try handle.write(contentsOf: data)
+                    try handle.close()
+                } else {
+                    try data.write(to: crashLogPath)
                 }
-            } else {
-                try? data.write(to: crashLogPath)
+            } catch {
+                AppLogger.shared.warn("⚠️ [MainAppStateController] Failed to write crash log: \(error.localizedDescription)")
             }
         }
 
@@ -191,20 +198,24 @@ class MainAppStateController: ObservableObject {
         }
 
         // Verify plist has TCP port argument
-        if let plistData = try? Data(contentsOf: URL(fileURLWithPath: plistPath)),
-           let plist = try? PropertyListSerialization.propertyList(
-               from: plistData, options: [], format: nil
-           ) as? [String: Any],
-           let args = plist["ProgramArguments"] as? [String] {
+        do {
+            let plistData = try Data(contentsOf: URL(fileURLWithPath: plistPath))
+            guard let plist = try PropertyListSerialization.propertyList(
+                from: plistData, options: [], format: nil
+            ) as? [String: Any],
+            let args = plist["ProgramArguments"] as? [String] else {
+                AppLogger.shared.warn("⚠️ [MainAppStateController] Failed to parse plist structure")
+                return false
+            }
             let hasTCPPort = args.contains("--port")
             guard hasTCPPort else {
                 AppLogger.shared.warn(
                     "⚠️ [MainAppStateController] TCP check failed: Service missing --port argument")
                 return false
             }
-        } else {
+        } catch {
             AppLogger.shared.warn(
-                "⚠️ [MainAppStateController] TCP check failed: Can't read plist or parse arguments")
+                "⚠️ [MainAppStateController] Failed to read daemon plist at \(plistPath): \(error.localizedDescription)")
             return false
         }
 

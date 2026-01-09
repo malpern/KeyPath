@@ -1030,12 +1030,18 @@ struct StatusSettingsTabView: View {
         let plistPath = KanataDaemonManager.getActivePlistPath()
         guard FileManager.default.fileExists(atPath: plistPath) else { return false }
 
-        guard let plistData = try? Data(contentsOf: URL(fileURLWithPath: plistPath)),
-              let plist = try? PropertyListSerialization.propertyList(
-                  from: plistData, options: [], format: nil
-              ) as? [String: Any],
-              let args = plist["ProgramArguments"] as? [String]
-        else {
+        let args: [String]
+        do {
+            let plistData = try Data(contentsOf: URL(fileURLWithPath: plistPath))
+            guard let plist = try PropertyListSerialization.propertyList(
+                from: plistData, options: [], format: nil
+            ) as? [String: Any],
+            let programArgs = plist["ProgramArguments"] as? [String] else {
+                return false
+            }
+            args = programArgs
+        } catch {
+            AppLogger.shared.warn("⚠️ [SettingsView] Failed to read daemon plist: \(error.localizedDescription)")
             return false
         }
 
@@ -1611,7 +1617,11 @@ struct AIConfigGenerationSettingsSection: View {
     }
 
     private func removeAPIKey() {
-        try? KeychainService.shared.deleteClaudeAPIKey()
+        do {
+            try KeychainService.shared.deleteClaudeAPIKey()
+        } catch {
+            AppLogger.shared.warn("⚠️ [SettingsView] Failed to delete API key from keychain: \(error.localizedDescription)")
+        }
         refreshStatus()
     }
 }

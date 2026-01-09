@@ -176,7 +176,11 @@ class KanataViewModel: ObservableObject {
                     },
                     ValidationAlertAction(title: "Use Default Config", style: .destructive) { [weak self] in
                         Task {
-                            try? await self?.resetToDefaultConfig()
+                            do {
+                                try await self?.resetToDefaultConfig()
+                            } catch {
+                                AppLogger.shared.warn("⚠️ [KanataViewModel] Failed to reset to default config: \(error.localizedDescription)")
+                            }
                             self?.clearValidationError()
                         }
                     }

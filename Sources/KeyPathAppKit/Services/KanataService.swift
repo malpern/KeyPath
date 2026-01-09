@@ -429,7 +429,11 @@ public final class KanataService: ObservableObject {
         let crashLogPath = crashLogDir.appendingPathComponent("crashes.log")
 
         // Ensure directory exists
-        try? FileManager.default.createDirectory(at: crashLogDir, withIntermediateDirectories: true)
+        do {
+            try FileManager.default.createDirectory(at: crashLogDir, withIntermediateDirectories: true)
+        } catch {
+            AppLogger.shared.warn("⚠️ [KanataService] Failed to create crash log directory: \(error.localizedDescription)")
+        }
 
         // Format crash entry
         let formatter = ISO8601DateFormatter()
@@ -446,14 +450,17 @@ public final class KanataService: ObservableObject {
 
         // Append to log file
         if let data = entry.data(using: .utf8) {
-            if FileManager.default.fileExists(atPath: crashLogPath.path) {
-                if let handle = try? FileHandle(forWritingTo: crashLogPath) {
-                    try? handle.seekToEnd()
-                    try? handle.write(contentsOf: data)
-                    try? handle.close()
+            do {
+                if FileManager.default.fileExists(atPath: crashLogPath.path) {
+                    let handle = try FileHandle(forWritingTo: crashLogPath)
+                    try handle.seekToEnd()
+                    try handle.write(contentsOf: data)
+                    try handle.close()
+                } else {
+                    try data.write(to: crashLogPath)
                 }
-            } else {
-                try? data.write(to: crashLogPath)
+            } catch {
+                AppLogger.shared.warn("⚠️ [KanataService] Failed to write crash log: \(error.localizedDescription)")
             }
         }
 

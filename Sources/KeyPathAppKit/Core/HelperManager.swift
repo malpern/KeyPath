@@ -404,12 +404,16 @@ actor HelperManager {
             "/var/log/com.keypath.helper.stderr.log"
         ]
         for path in fileCandidates {
-            if FileManager.default.fileExists(atPath: path),
-               let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: path)) {
-                let data = try? handle.readToEnd()
-                let s = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
-                let lines = s.split(separator: "\n").map(String.init)
-                if !lines.isEmpty { return Array(lines.suffix(count)) }
+            if FileManager.default.fileExists(atPath: path) {
+                do {
+                    let handle = try FileHandle(forReadingFrom: URL(fileURLWithPath: path))
+                    let data = try handle.readToEnd()
+                    let s = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+                    let lines = s.split(separator: "\n").map(String.init)
+                    if !lines.isEmpty { return Array(lines.suffix(count)) }
+                } catch {
+                    AppLogger.shared.debug("⚠️ [HelperManager] Could not read log file at \(path): \(error.localizedDescription)")
+                }
             }
         }
         return []

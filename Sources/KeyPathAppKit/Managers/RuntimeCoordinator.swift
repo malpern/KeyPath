@@ -973,7 +973,11 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     private func captureRecentKanataErrorMessage() -> String? {
         let stderrPath = KeyPathConstants.Logs.kanataStderr
-        guard let contents = try? String(contentsOfFile: stderrPath, encoding: .utf8) else {
+        let contents: String
+        do {
+            contents = try String(contentsOfFile: stderrPath, encoding: .utf8)
+        } catch {
+            AppLogger.shared.debug("⚠️ [RuntimeCoordinator] Could not read stderr log at \(stderrPath): \(error.localizedDescription)")
             return nil
         }
 
@@ -999,7 +1003,11 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     /// Stop Kanata when the app is terminating (async version).
     func cleanup() async {
-        try? await kanataService.stop()
+        do {
+            try await kanataService.stop()
+        } catch {
+            AppLogger.shared.warn("⚠️ [RuntimeCoordinator] Failed to stop Kanata during cleanup: \(error.localizedDescription)")
+        }
     }
 
     /// Synchronous cleanup for app termination - blocks until process is killed
