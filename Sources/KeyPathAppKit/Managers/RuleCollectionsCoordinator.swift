@@ -111,6 +111,13 @@ final class RuleCollectionsCoordinator {
         notifyStateChanged()
     }
 
+    /// Update home row layer toggles configuration
+    func updateHomeRowLayerTogglesConfig(id: UUID, config: HomeRowLayerTogglesConfig) async {
+        await ruleCollectionsManager.updateHomeRowLayerTogglesConfig(id: id, config: config)
+        applyMappings(ruleCollectionsManager.enabledMappings())
+        notifyStateChanged()
+    }
+
     /// Update launcher grid configuration
     func updateLauncherConfig(id: UUID, config: LauncherGridConfig) async {
         await ruleCollectionsManager.updateLauncherConfig(id: id, config: config)

@@ -855,6 +855,10 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         await ruleCollectionsCoordinator.updateHomeRowModsConfig(id: collectionId, config: config)
     }
 
+    func updateHomeRowLayerTogglesConfig(collectionId: UUID, config: HomeRowLayerTogglesConfig) async {
+        await ruleCollectionsCoordinator.updateHomeRowLayerTogglesConfig(id: collectionId, config: config)
+    }
+
     func updateLauncherConfig(collectionId: UUID, config: LauncherGridConfig) async {
         await ruleCollectionsCoordinator.updateLauncherConfig(id: collectionId, config: config)
     }

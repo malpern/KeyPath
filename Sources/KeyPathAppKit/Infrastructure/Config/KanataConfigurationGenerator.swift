@@ -512,6 +512,8 @@ public struct KanataConfiguration: Sendable {
             switch collection.configuration {
             case let .homeRowMods(config):
                 generateHomeRowModsMappings(from: config)
+            case let .homeRowLayerToggles(config):
+                generateHomeRowLayerTogglesMappings(from: config)
             case .tapHoldPicker:
                 generateTapHoldPickerMappings(from: collection)
             case .layerPresetPicker:
@@ -597,6 +599,8 @@ public struct KanataConfiguration: Sendable {
             let effectiveMappings: [KeyMapping] = switch collection.configuration {
             case let .homeRowMods(config):
                 generateHomeRowModsMappings(from: config)
+            case let .homeRowLayerToggles(config):
+                generateHomeRowLayerTogglesMappings(from: config)
             case .tapHoldPicker:
                 generateTapHoldPickerMappings(from: collection)
             case .layerPresetPicker:
@@ -984,6 +988,46 @@ public struct KanataConfiguration: Sendable {
                 tapTimeout: tapTimeout,
                 holdTimeout: holdTimeout,
                 activateHoldOnOtherKey: true, // Best for home-row mods
+                quickTap: config.timing.quickTapEnabled,
+                customTapKeys: []
+            )
+
+            let mapping = KeyMapping(
+                input: key,
+                output: key, // Fallback, but behavior takes precedence
+                behavior: .dualRole(behavior)
+            )
+            mappings.append(mapping)
+        }
+
+        return mappings
+    }
+
+    /// Generate KeyMapping instances from HomeRowLayerTogglesConfig
+    private static func generateHomeRowLayerTogglesMappings(from config: HomeRowLayerTogglesConfig) -> [KeyMapping] {
+        var mappings: [KeyMapping] = []
+
+        for key in config.enabledKeys {
+            guard let layerName = config.layerAssignments[key] else { continue }
+
+            let tapTimeout = max(
+                1,
+                config.timing.tapWindow
+                    + (config.timing.tapOffsets[key] ?? 0)
+                    + (config.timing.quickTapEnabled ? config.timing.quickTapTermMs : 0)
+            )
+            let holdTimeout = max(1, config.timing.holdDelay + (config.timing.holdOffsets[key] ?? 0))
+
+            // Build hold action based on toggle mode
+            let holdAction = "(\(config.toggleMode.kanataAction) \(layerName))"
+
+            // Create dual-role behavior: tap = letter, hold = layer activation
+            let behavior = DualRoleBehavior(
+                tapAction: key,
+                holdAction: holdAction,
+                tapTimeout: tapTimeout,
+                holdTimeout: holdTimeout,
+                activateHoldOnOtherKey: true, // Activate layer on other key press
                 quickTap: config.timing.quickTapEnabled,
                 customTapKeys: []
             )

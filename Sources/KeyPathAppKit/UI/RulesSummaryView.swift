@@ -28,6 +28,13 @@ struct HomeRowModsEditState: Identifiable {
     let selectedKey: String?
 }
 
+/// State for home row layer toggles editing modal
+struct HomeRowLayerTogglesEditState: Identifiable {
+    let id = UUID()
+    let collection: RuleCollection
+    let selectedKey: String?
+}
+
 // MARK: - Toast View (shared with ContentView)
 
 private struct ToastView: View {
@@ -84,6 +91,7 @@ struct RulesTabView: View {
     /// Track pending toggle states for immediate UI feedback
     @State private var pendingToggles: [UUID: Bool] = [:]
     @State private var homeRowModsEditState: HomeRowModsEditState?
+    @State private var homeRowLayerTogglesEditState: HomeRowLayerTogglesEditState?
     @State private var appKeymaps: [AppKeymap] = []
     private let catalog = RuleCollectionCatalog()
 
@@ -190,6 +198,15 @@ struct RulesTabView: View {
             } : nil,
             onOpenHomeRowModsModalWithKey: style == .homeRowMods ? { key in
                 homeRowModsEditState = HomeRowModsEditState(collection: collection, selectedKey: key)
+            } : nil,
+            onUpdateHomeRowLayerTogglesConfig: style == .homeRowLayerToggles ? { config in
+                Task { await kanataManager.updateHomeRowLayerTogglesConfig(collectionId: collection.id, config: config) }
+            } : nil,
+            onOpenHomeRowLayerTogglesModal: style == .homeRowLayerToggles ? {
+                homeRowLayerTogglesEditState = HomeRowLayerTogglesEditState(collection: collection, selectedKey: nil)
+            } : nil,
+            onOpenHomeRowLayerTogglesModalWithKey: style == .homeRowLayerToggles ? { key in
+                homeRowLayerTogglesEditState = HomeRowLayerTogglesEditState(collection: collection, selectedKey: key)
             } : nil,
             onSelectLayerPreset: style == .layerPresetPicker ? { presetId in
                 Task { await kanataManager.updateCollectionLayerPreset(collection.id, presetId: presetId) }
@@ -366,6 +383,24 @@ struct RulesTabView: View {
                 },
                 onCancel: {
                     homeRowModsEditState = nil
+                },
+                initialSelectedKey: editState.selectedKey
+            )
+        }
+        .sheet(item: $homeRowLayerTogglesEditState) { editState in
+            HomeRowLayerTogglesModalView(
+                config: Binding(
+                    get: { editState.collection.configuration.homeRowLayerTogglesConfig ?? HomeRowLayerTogglesConfig() },
+                    set: { _ in }
+                ),
+                onSave: { newConfig in
+                    Task {
+                        await kanataManager.updateHomeRowLayerTogglesConfig(collectionId: editState.collection.id, config: newConfig)
+                    }
+                    homeRowLayerTogglesEditState = nil
+                },
+                onCancel: {
+                    homeRowLayerTogglesEditState = nil
                 },
                 initialSelectedKey: editState.selectedKey
             )
@@ -689,6 +724,12 @@ private struct ExpandableCollectionRow: View {
     var onOpenHomeRowModsModal: (() -> Void)?
     /// For homeRowMods style: callback to open modal with a specific key selected
     var onOpenHomeRowModsModalWithKey: ((String) -> Void)?
+    /// For homeRowLayerToggles style: callback to update config
+    var onUpdateHomeRowLayerTogglesConfig: ((HomeRowLayerTogglesConfig) -> Void)?
+    /// For homeRowLayerToggles style: callback to open modal
+    var onOpenHomeRowLayerTogglesModal: (() -> Void)?
+    /// For homeRowLayerToggles style: callback to open modal with a specific key selected
+    var onOpenHomeRowLayerTogglesModalWithKey: ((String) -> Void)?
     /// For layerPresetPicker style: callback to select a layer preset
     var onSelectLayerPreset: ((String) -> Void)?
     /// For windowSnapping: callback to change key convention

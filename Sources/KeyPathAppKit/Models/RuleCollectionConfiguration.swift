@@ -31,6 +31,9 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
     /// Home Row Mods: visual keyboard with interactive customization
     case homeRowMods(HomeRowModsConfig)
 
+    /// Home Row Layer Toggles: visual keyboard with layer assignments
+    case homeRowLayerToggles(HomeRowLayerTogglesConfig)
+
     /// Tap-hold picker: separate preset options for tap and hold actions
     case tapHoldPicker(TapHoldPickerConfig)
 
@@ -49,6 +52,7 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         case .table: .table
         case .singleKeyPicker: .singleKeyPicker
         case .homeRowMods: .homeRowMods
+        case .homeRowLayerToggles: .homeRowLayerToggles
         case .tapHoldPicker: .tapHoldPicker
         case .layerPresetPicker: .layerPresetPicker
         case .launcherGrid: .launcherGrid
@@ -70,6 +74,12 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
     /// Extract home row mods config if this is a `.homeRowMods` case
     public var homeRowModsConfig: HomeRowModsConfig? {
         if case let .homeRowMods(config) = self { return config }
+        return nil
+    }
+
+    /// Extract home row layer toggles config if this is a `.homeRowLayerToggles` case
+    public var homeRowLayerTogglesConfig: HomeRowLayerTogglesConfig? {
+        if case let .homeRowLayerToggles(config) = self { return config }
         return nil
     }
 
@@ -121,6 +131,13 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         }
     }
 
+    /// Update the home row layer toggles config
+    public mutating func updateHomeRowLayerTogglesConfig(_ newConfig: HomeRowLayerTogglesConfig) {
+        if case .homeRowLayerToggles = self {
+            self = .homeRowLayerToggles(newConfig)
+        }
+    }
+
     /// Update the selected preset for layer preset picker configuration
     public mutating func updateSelectedPreset(_ presetId: String) {
         if case let .layerPresetPicker(config) = self {
@@ -148,6 +165,7 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         case table
         case singleKeyPicker
         case homeRowMods
+        case homeRowLayerToggles
         case tapHoldPicker
         case layerPresetPicker
         case launcherGrid
@@ -168,6 +186,9 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         case .homeRowMods:
             let config = try HomeRowModsConfig(from: decoder)
             self = .homeRowMods(config)
+        case .homeRowLayerToggles:
+            let config = try HomeRowLayerTogglesConfig(from: decoder)
+            self = .homeRowLayerToggles(config)
         case .tapHoldPicker:
             let config = try TapHoldPickerConfig(from: decoder)
             self = .tapHoldPicker(config)
@@ -193,6 +214,9 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
             try config.encode(to: encoder)
         case let .homeRowMods(config):
             try container.encode(ConfigType.homeRowMods, forKey: .type)
+            try config.encode(to: encoder)
+        case let .homeRowLayerToggles(config):
+            try container.encode(ConfigType.homeRowLayerToggles, forKey: .type)
             try config.encode(to: encoder)
         case let .tapHoldPicker(config):
             try container.encode(ConfigType.tapHoldPicker, forKey: .type)

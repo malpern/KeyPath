@@ -55,6 +55,7 @@ struct RuleCollectionCatalog {
             escapeRemap,
             deleteRemap,
             homeRowMods,
+            homeRowLayerToggles,
             numpadLayer,
             symbolLayer,
             launcher,
@@ -555,6 +556,21 @@ struct RuleCollectionCatalog {
             icon: "keyboard",
             tags: ["home row", "modifiers", "productivity", "ergonomics"],
             configuration: .homeRowMods(HomeRowModsConfig())
+        )
+    }
+
+    private var homeRowLayerToggles: RuleCollection {
+        RuleCollection(
+            id: RuleCollectionIdentifier.homeRowLayerToggles,
+            name: "Home Row Layer Toggles",
+            summary: "Home row keys activate layers when held (tap=letter, hold=layer)",
+            category: .productivity,
+            mappings: [], // Generated from homeRowLayerTogglesConfig
+            isEnabled: false,
+            isSystemDefault: false,
+            icon: "square.3.layers.3d",
+            tags: ["home row", "layers", "productivity", "ergonomics"],
+            configuration: .homeRowLayerToggles(HomeRowLayerTogglesConfig())
         )
     }
 
