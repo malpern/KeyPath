@@ -182,7 +182,7 @@ final class ChordGroupsValidationTests: XCTestCase {
     }
 
     func testOutputWithUnbalancedParentheses() {
-        // Unbalanced parens could break Kanata syntax
+        // FIXED: Now detects unbalanced parentheses
         let invalidOutputs = [")", "(", "(()", "())", "esc)"]
 
         for output in invalidOutputs {
@@ -192,7 +192,22 @@ final class ChordGroupsValidationTests: XCTestCase {
                 output: output
             )
 
-            XCTAssertEqual(chord.output, output, "Unbalanced parens in output '\(output)' currently allowed")
+            XCTAssertFalse(chord.hasValidOutputSyntax, "Output '\(output)' should be invalid (unbalanced parens)")
+        }
+    }
+
+    func testOutputWithBalancedParentheses() {
+        // Valid outputs with balanced parens
+        let validOutputs = ["esc", "(macro a b)", "((nested))", "(multi (a) (b))"]
+
+        for output in validOutputs {
+            let chord = ChordDefinition(
+                id: UUID(),
+                keys: ["s", "d"],
+                output: output
+            )
+
+            XCTAssertTrue(chord.hasValidOutputSyntax, "Output '\(output)' should be valid (balanced parens)")
         }
     }
 
@@ -240,18 +255,21 @@ final class ChordGroupsValidationTests: XCTestCase {
 
         let config = ChordGroupsConfig(groups: [group1, group2])
 
-        // Both groups use "s" and "d" keys
-        // This will create duplicate KeyMappings:
-        //   s → (chord Navigation s)
-        //   s → (chord Editing s)  // Last wins!
-        // Currently no validation for this
+        // FIXED: Cross-group conflicts now detected
+        XCTAssertTrue(config.hasCrossGroupConflicts, "Should detect cross-group conflicts")
 
-        let group1Keys = group1.participatingKeys  // {s, d}
-        let group2Keys = group2.participatingKeys  // {s, d}
-        let overlap = group1Keys.intersection(group2Keys)
+        let conflicts = config.detectCrossGroupConflicts()
+        XCTAssertEqual(conflicts.count, 2, "Should detect conflicts for both 's' and 'd'")
 
-        XCTAssertFalse(overlap.isEmpty, "Groups have overlapping keys: \(overlap)")
-        XCTAssertEqual(overlap, ["s", "d"], "Both groups share s and d keys")
+        // Check that both keys are reported
+        let conflictKeys = Set(conflicts.map { $0.key })
+        XCTAssertEqual(conflictKeys, ["s", "d"])
+
+        // Check description format
+        let sConflict = conflicts.first { $0.key == "s" }
+        XCTAssertNotNil(sConflict)
+        XCTAssertTrue(sConflict!.description.contains("Navigation"))
+        XCTAssertTrue(sConflict!.description.contains("Editing"))
     }
 
     func testCrossGroupPartialKeyOverlap() {
@@ -275,12 +293,14 @@ final class ChordGroupsValidationTests: XCTestCase {
             ]
         )
 
-        let group1Keys = group1.participatingKeys  // {s, d, f}
-        let group2Keys = group2.participatingKeys  // {a, s, f, g}
-        let overlap = group1Keys.intersection(group2Keys)
+        let config = ChordGroupsConfig(groups: [group1, group2])
 
-        XCTAssertEqual(overlap, ["s", "f"], "Groups share s and f keys")
-        // This will cause last-wins behavior for s and f mappings
+        // FIXED: Partial overlaps now detected
+        XCTAssertTrue(config.hasCrossGroupConflicts, "Should detect partial key overlap")
+
+        let conflicts = config.detectCrossGroupConflicts()
+        let conflictKeys = Set(conflicts.map { $0.key })
+        XCTAssertEqual(conflictKeys, ["s", "f"], "Groups share s and f keys")
     }
 
     // MARK: - Overlapping Chord Prefixes
@@ -297,9 +317,11 @@ final class ChordGroupsValidationTests: XCTestCase {
             chords: [chord1, chord2]
         )
 
-        // Currently no conflict detection for overlapping prefixes
-        XCTAssertTrue(group.isValid, "Overlapping chords currently not detected as conflict")
-        XCTAssertEqual(group.detectConflicts().count, 0)
+        // FIXED: Overlapping chords now detected as conflicts
+        XCTAssertFalse(group.isValid, "Overlapping chords should be detected as conflict")
+        let conflicts = group.detectConflicts()
+        XCTAssertEqual(conflicts.count, 1, "Should detect one overlapping conflict")
+        XCTAssertEqual(conflicts.first?.type, .overlapping)
 
         // Verify that one is subset of the other
         let keys1 = Set(chord1.keys)
@@ -319,6 +341,12 @@ final class ChordGroupsValidationTests: XCTestCase {
             timeout: 300,
             chords: [chord1, chord2]
         )
+
+        // FIXED: Overlapping detected
+        XCTAssertFalse(group.isValid, "Overlapping chords should be invalid")
+        let conflicts = group.detectConflicts()
+        XCTAssertEqual(conflicts.count, 1)
+        XCTAssertEqual(conflicts.first?.type, .overlapping)
 
         let keys1 = Set(chord1.keys)
         let keys2 = Set(chord2.keys)

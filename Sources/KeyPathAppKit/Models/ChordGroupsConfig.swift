@@ -17,6 +17,35 @@ public struct ChordGroupsConfig: Codable, Equatable, Sendable {
         self.showAdvanced = showAdvanced
     }
 
+    /// Detect conflicts across multiple chord groups.
+    /// Returns warnings for keys used by multiple groups (last group wins behavior).
+    public func detectCrossGroupConflicts() -> [CrossGroupConflict] {
+        var conflicts: [CrossGroupConflict] = []
+
+        // Build map of key → groups using that key
+        var keyToGroups: [String: [ChordGroup]] = [:]
+        for group in groups {
+            for key in group.participatingKeys {
+                keyToGroups[key, default: []].append(group)
+            }
+        }
+
+        // Find keys used by multiple groups
+        for (key, groupsUsingKey) in keyToGroups where groupsUsingKey.count > 1 {
+            conflicts.append(CrossGroupConflict(
+                key: key,
+                groups: groupsUsingKey
+            ))
+        }
+
+        return conflicts
+    }
+
+    /// Whether this config has any cross-group conflicts.
+    public var hasCrossGroupConflicts: Bool {
+        !detectCrossGroupConflicts().isEmpty
+    }
+
     /// Ben Vallack's navigation chord preset.
     /// Home row centric chords for efficient text navigation.
     public static var benVallackPreset: ChordGroupsConfig {
@@ -110,12 +139,23 @@ public struct ChordGroup: Codable, Equatable, Sendable, Identifiable {
                 let chord1 = chords[i]
                 let chord2 = chords[j]
 
+                let keys1Set = Set(chord1.keys)
+                let keys2Set = Set(chord2.keys)
+
                 // Exact same keys with different outputs = conflict
-                if Set(chord1.keys) == Set(chord2.keys) {
+                if keys1Set == keys2Set {
                     conflicts.append(ChordConflict(
                         chord1: chord1,
                         chord2: chord2,
                         type: .sameKeys
+                    ))
+                }
+                // Overlapping keys (subset/superset) = potential conflict
+                else if keys1Set.isSubset(of: keys2Set) || keys2Set.isSubset(of: keys1Set) {
+                    conflicts.append(ChordConflict(
+                        chord1: chord1,
+                        chord2: chord2,
+                        type: .overlapping
                     ))
                 }
             }
@@ -155,6 +195,26 @@ public struct ChordDefinition: Codable, Equatable, Sendable, Identifiable {
     /// Whether this is a valid chord combo (2-3 keys recommended).
     public var isValidCombo: Bool {
         keys.count >= 2 && keys.count <= 4
+    }
+
+    /// Check if output has basic syntax issues (unbalanced parens).
+    public var hasValidOutputSyntax: Bool {
+        hasBalancedParentheses(output)
+    }
+
+    private func hasBalancedParentheses(_ string: String) -> Bool {
+        var depth = 0
+        for char in string {
+            if char == "(" {
+                depth += 1
+            } else if char == ")" {
+                depth -= 1
+                if depth < 0 {
+                    return false // More closing than opening
+                }
+            }
+        }
+        return depth == 0 // Should end balanced
     }
 
     /// Ergonomic assessment of key combination.
@@ -311,7 +371,7 @@ public enum ChordSpeed: String, CaseIterable, Codable, Sendable {
     }
 }
 
-/// Conflict between two chord definitions.
+/// Conflict between two chord definitions within a single group.
 public struct ChordConflict: Identifiable, Sendable {
     public let id = UUID()
     public let chord1: ChordDefinition
@@ -320,7 +380,7 @@ public struct ChordConflict: Identifiable, Sendable {
 
     public enum ConflictType: Sendable {
         case sameKeys      // Exact same keys, different outputs
-        case overlapping   // Overlapping key sets (future enhancement)
+        case overlapping   // Overlapping key sets
         case timeout       // Same keys, timing conflict (future enhancement)
     }
 
@@ -336,5 +396,22 @@ public struct ChordConflict: Identifiable, Sendable {
         case .timeout:
             return "Timing conflict between \(keys1) and \(keys2)"
         }
+    }
+}
+
+/// Conflict across multiple chord groups (key used by multiple groups).
+public struct CrossGroupConflict: Identifiable, Sendable {
+    public let id = UUID()
+    public let key: String
+    public let groups: [ChordGroup]
+
+    public var description: String {
+        let groupNames = groups.map { $0.name }.joined(separator: ", ")
+        return "Key '\(key)' is used by multiple groups: \(groupNames). Last group in list will win."
+    }
+
+    /// Suggested resolution: which group should own this key?
+    public var suggestion: String {
+        "Consider using different keys for each group, or merge groups if they serve similar purposes."
     }
 }
