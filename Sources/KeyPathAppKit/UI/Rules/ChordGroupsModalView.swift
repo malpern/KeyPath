@@ -227,7 +227,7 @@ struct ChordGroupsModalView: View {
                             get: { Double(group.timeout) },
                             set: { localConfig.groups[index].timeout = Int($0) }
                         ),
-                        in: 100...800,
+                        in: 100 ... 800,
                         step: 50
                     )
 
@@ -633,7 +633,7 @@ private struct ChordEditorDialog: View {
                     }
 
                     // Preview
-                    if !keys.isEmpty && !output.isEmpty {
+                    if !keys.isEmpty, !output.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Preview")
                                 .font(.headline)

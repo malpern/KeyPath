@@ -1290,18 +1290,18 @@ struct OverlayKeycapView: View {
         VStack(spacing: dualSymbolSpacing(for: main)) {
             Text(shift)
                 .font(.system(
-                    size: 8.5 * scale * shiftAdj.fontScale,  // Reduced from 9 for better hierarchy
-                    weight: .light  // Force light weight for subtle shift symbol
+                    size: 8.5 * scale * shiftAdj.fontScale, // Reduced from 9 for better hierarchy
+                    weight: .light // Force light weight for subtle shift symbol
                 ))
-                .foregroundStyle(foregroundColor.opacity(isSmallSize ? 0 : 0.65))  // Increased from 0.6 for visibility
+                .foregroundStyle(foregroundColor.opacity(isSmallSize ? 0 : 0.65)) // Increased from 0.6 for visibility
 
             Text(main)
                 .font(.system(
-                    size: 12.5 * scale * mainAdj.fontScale,  // Increased from 12 for better prominence
+                    size: 12.5 * scale * mainAdj.fontScale, // Increased from 12 for better prominence
                     weight: mainAdj.fontWeight ?? .medium
                 ))
                 .offset(y: mainAdj.verticalOffset * scale)
-                .foregroundStyle(foregroundColor)  // Full opacity for main symbol
+                .foregroundStyle(foregroundColor) // Full opacity for main symbol
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

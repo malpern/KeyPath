@@ -182,7 +182,7 @@ public struct ChordGroup: Codable, Equatable, Sendable, Identifiable {
 
     /// All keys that participate in this chord group.
     public var participatingKeys: Set<String> {
-        Set(chords.flatMap { $0.keys })
+        Set(chords.flatMap(\.keys))
     }
 
     /// Whether this group has no conflicts.
@@ -196,8 +196,8 @@ public struct ChordGroup: Codable, Equatable, Sendable, Identifiable {
     public func detectConflicts() -> [ChordConflict] {
         var conflicts: [ChordConflict] = []
 
-        for i in 0..<chords.count {
-            for j in (i+1)..<chords.count {
+        for i in 0 ..< chords.count {
+            for j in (i + 1) ..< chords.count {
                 let chord1 = chords[i]
                 let chord2 = chords[j]
 
@@ -215,7 +215,7 @@ public struct ChordGroup: Codable, Equatable, Sendable, Identifiable {
                 // Overlapping keys (subset/superset) = potential conflict
                 // Only flag if both are actual chords (2+ keys), not single-key fallbacks
                 else if keys1Set.isSubset(of: keys2Set) || keys2Set.isSubset(of: keys1Set) {
-                    if chord1.isRecommendedCombo && chord2.isRecommendedCombo {
+                    if chord1.isRecommendedCombo, chord2.isRecommendedCombo {
                         conflicts.append(ChordConflict(
                             chord1: chord1,
                             chord2: chord2,
@@ -314,12 +314,12 @@ public struct ChordDefinition: Codable, Equatable, Sendable, Identifiable {
         let sameHand = keySet.isSubset(of: leftHand) || keySet.isSubset(of: rightHand)
 
         // Adjacent keys on home row = best
-        if allHomeRow && areAdjacent(keys) {
+        if allHomeRow, areAdjacent(keys) {
             return .excellent
         }
 
         // Same hand, home row = good
-        if allHomeRow && sameHand {
+        if allHomeRow, sameHand {
             return .good
         }
 
@@ -342,8 +342,8 @@ public struct ChordDefinition: Codable, Equatable, Sendable, Identifiable {
         guard positions.count == keys.count else { return false }
 
         let sorted = positions.sorted()
-        for i in 0..<(sorted.count - 1) {
-            if sorted[i+1] - sorted[i] > 1 {
+        for i in 0 ..< (sorted.count - 1) {
+            if sorted[i + 1] - sorted[i] > 1 {
                 return false
             }
         }
@@ -354,28 +354,28 @@ public struct ChordDefinition: Codable, Equatable, Sendable, Identifiable {
 /// Ergonomic assessment of a chord combination.
 public enum ErgonomicScore: String, Codable, Sendable {
     case excellent = "Excellent" // Adjacent home row keys
-    case good = "Good"           // Same hand, home row
-    case moderate = "Moderate"   // Same hand, not home row
-    case fair = "Fair"           // Cross-hand
-    case poor = "Poor"           // Single key or awkward combo
+    case good = "Good" // Same hand, home row
+    case moderate = "Moderate" // Same hand, not home row
+    case fair = "Fair" // Cross-hand
+    case poor = "Poor" // Single key or awkward combo
 
     public var color: String {
         switch self {
-        case .excellent: return "green"
-        case .good: return "blue"
-        case .moderate: return "yellow"
-        case .fair: return "orange"
-        case .poor: return "red"
+        case .excellent: "green"
+        case .good: "blue"
+        case .moderate: "yellow"
+        case .fair: "orange"
+        case .poor: "red"
         }
     }
 
     public var icon: String {
         switch self {
-        case .excellent: return "hand.thumbsup.fill"
-        case .good: return "hand.thumbsup"
-        case .moderate: return "hand.raised"
-        case .fair: return "exclamationmark.triangle"
-        case .poor: return "xmark.circle"
+        case .excellent: "hand.thumbsup.fill"
+        case .good: "hand.thumbsup"
+        case .moderate: "hand.raised"
+        case .fair: "exclamationmark.triangle"
+        case .poor: "xmark.circle"
         }
     }
 }
@@ -390,21 +390,21 @@ public enum ChordCategory: String, Codable, Sendable, CaseIterable {
 
     public var displayName: String {
         switch self {
-        case .navigation: return "Navigation"
-        case .editing: return "Editing"
-        case .symbols: return "Symbols"
-        case .modifiers: return "Modifiers"
-        case .custom: return "Custom"
+        case .navigation: "Navigation"
+        case .editing: "Editing"
+        case .symbols: "Symbols"
+        case .modifiers: "Modifiers"
+        case .custom: "Custom"
         }
     }
 
     public var icon: String {
         switch self {
-        case .navigation: return "arrow.up.arrow.down"
-        case .editing: return "scissors"
-        case .symbols: return "textformat.abc"
-        case .modifiers: return "command"
-        case .custom: return "star"
+        case .navigation: "arrow.up.arrow.down"
+        case .editing: "scissors"
+        case .symbols: "textformat.abc"
+        case .modifiers: "command"
+        case .custom: "star"
         }
     }
 
@@ -412,11 +412,11 @@ public enum ChordCategory: String, Codable, Sendable, CaseIterable {
     /// Aligned with ChordSpeed presets for consistent UI experience.
     public var suggestedTimeout: Int {
         switch self {
-        case .navigation: return 250 // Fast navigation (ChordSpeed.fast)
-        case .editing: return 400    // Moderate editing (ChordSpeed.moderate)
-        case .symbols: return 150    // Quick symbols (ChordSpeed.lightning)
-        case .modifiers: return 600  // Deliberate modifiers (ChordSpeed.deliberate)
-        case .custom: return 400     // Default moderate (ChordSpeed.moderate)
+        case .navigation: 250 // Fast navigation (ChordSpeed.fast)
+        case .editing: 400 // Moderate editing (ChordSpeed.moderate)
+        case .symbols: 150 // Quick symbols (ChordSpeed.lightning)
+        case .modifiers: 600 // Deliberate modifiers (ChordSpeed.deliberate)
+        case .custom: 400 // Default moderate (ChordSpeed.moderate)
         }
     }
 }
@@ -430,23 +430,23 @@ public enum ChordSpeed: String, CaseIterable, Codable, Sendable {
 
     public var milliseconds: Int {
         switch self {
-        case .lightning: return 150
-        case .fast: return 250
-        case .moderate: return 400
-        case .deliberate: return 600
+        case .lightning: 150
+        case .fast: 250
+        case .moderate: 400
+        case .deliberate: 600
         }
     }
 
     public var description: String {
         switch self {
         case .lightning:
-            return "For experts (150ms) - requires precise timing"
+            "For experts (150ms) - requires precise timing"
         case .fast:
-            return "For experienced users (250ms) - Ben Vallack's preferred speed"
+            "For experienced users (250ms) - Ben Vallack's preferred speed"
         case .moderate:
-            return "Balanced (400ms) - good for learning"
+            "Balanced (400ms) - good for learning"
         case .deliberate:
-            return "Relaxed (600ms) - easiest to trigger reliably"
+            "Relaxed (600ms) - easiest to trigger reliably"
         }
     }
 
@@ -472,9 +472,9 @@ public struct ChordConflict: Identifiable, Sendable {
     }
 
     public enum ConflictType: Sendable {
-        case sameKeys      // Exact same keys, different outputs
-        case overlapping   // Overlapping key sets
-        case timeout       // Same keys, timing conflict (future enhancement)
+        case sameKeys // Exact same keys, different outputs
+        case overlapping // Overlapping key sets
+        case timeout // Same keys, timing conflict (future enhancement)
     }
 
     public var description: String {
@@ -504,7 +504,7 @@ public struct CrossGroupConflict: Identifiable, Sendable {
     }
 
     public var description: String {
-        let groupNames = groups.map { $0.name }.joined(separator: ", ")
+        let groupNames = groups.map(\.name).joined(separator: ", ")
         return "Key '\(key)' is used by multiple groups: \(groupNames). First group in list will win."
     }
 

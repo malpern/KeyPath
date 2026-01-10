@@ -22,6 +22,6 @@ public struct ChordGroupConfig: Codable, Equatable, Sendable {
     }
 
     public var keySet: Set<String> {
-        Set(chords.flatMap { $0.keys })
+        Set(chords.flatMap(\.keys))
     }
 }

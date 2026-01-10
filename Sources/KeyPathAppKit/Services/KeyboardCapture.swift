@@ -350,7 +350,7 @@ public class KeyboardCapture: ObservableObject {
             place: .headInsertEventTap,
             options: tapOptions,
             eventsOfInterest: CGEventMask(eventMask),
-            callback: { tapProxy, type, event, refcon -> Unmanaged<CGEvent>? in
+            callback: { tapProxy, _, event, refcon -> Unmanaged<CGEvent>? in
                 guard let refcon else { return Unmanaged.passRetained(event) }
 
                 let capture = Unmanaged<KeyboardCapture>.fromOpaque(refcon).takeUnretainedValue()
@@ -706,30 +706,30 @@ public class KeyboardCapture: ObservableObject {
     private func modifierForKeyCode(_ keyCode: Int64) -> ModifierSet? {
         switch keyCode {
         case 56, 60: // left/right shift
-            return .shift
+            .shift
         case 59, 62: // left/right control
-            return .control
+            .control
         case 58, 61: // left/right option
-            return .option
+            .option
         case 55, 54: // left/right command
-            return .command
+            .command
         default:
-            return nil
+            nil
         }
     }
 
     private func modifierForKey(_ baseKey: String) -> ModifierSet? {
         switch baseKey.lowercased() {
         case "lsft", "rsft":
-            return .shift
+            .shift
         case "lctl", "rctl":
-            return .control
+            .control
         case "lalt", "ralt", "lopt", "ropt":
-            return .option
+            .option
         case "lmet", "rmet":
-            return .command
+            .command
         default:
-            return nil
+            nil
         }
     }
 

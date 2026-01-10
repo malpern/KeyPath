@@ -9,6 +9,9 @@
 //
 
 import Foundation
+import os
+
+private let logger = Logger(subsystem: "com.keypath.KeyPath", category: "DefseqParser")
 
 /// Parses Kanata defseq blocks from config files (MAL-36 pattern)
 public enum KanataDefseqParser {
@@ -35,29 +38,37 @@ public enum KanataDefseqParser {
     ///   app-leader (space a))
     /// ```
     public static func parseSequences(from content: String) -> [ParsedSequence] {
+        logger.debug("🔍 [DefseqParser] Starting parse of \(content.count) character config")
         var sequences: [ParsedSequence] = []
 
         // Remove comments first
         let cleanedContent = removeComments(from: content)
+        logger.debug("🔍 [DefseqParser] After comment removal: \(cleanedContent.count) characters")
 
         // Pattern 1: Single sequence format
         // (defseq name (key1 key2))
         let singlePattern = #"\(defseq\s+([\w-]+)\s+\(([^)]+)\)\)"#
 
-        if let singleRegex = try? NSRegularExpression(pattern: singlePattern, options: []) {
-            let nsString = cleanedContent as NSString
-            let matches = singleRegex.matches(in: cleanedContent, range: NSRange(location: 0, length: nsString.length))
+        guard let singleRegex = try? NSRegularExpression(pattern: singlePattern, options: []) else {
+            assertionFailure("Failed to compile single defseq regex pattern")
+            logger.error("❌ [DefseqParser] Failed to compile single defseq regex pattern")
+            return []
+        }
 
-            for match in matches {
-                guard match.numberOfRanges == 3 else { continue }
+        let nsString = cleanedContent as NSString
+        let singleMatches = singleRegex.matches(in: cleanedContent, range: NSRange(location: 0, length: nsString.length))
+        logger.debug("🔍 [DefseqParser] Single-format pattern matched \(singleMatches.count) sequences")
 
-                let name = nsString.substring(with: match.range(at: 1))
-                let keysString = nsString.substring(with: match.range(at: 2))
-                let keys = keysString.split(separator: " ").map { String($0).trimmingCharacters(in: .whitespaces) }
+        for match in singleMatches {
+            guard match.numberOfRanges == 3 else { continue }
 
-                if !keys.isEmpty {
-                    sequences.append(ParsedSequence(name: name, keys: keys))
-                }
+            let name = nsString.substring(with: match.range(at: 1))
+            let keysString = nsString.substring(with: match.range(at: 2))
+            let keys = keysString.split(separator: " ").map { String($0).trimmingCharacters(in: .whitespaces) }
+
+            if !keys.isEmpty {
+                logger.debug("🔍 [DefseqParser] Found single-format sequence: \(name) -> \(keys.joined(separator: " "))")
+                sequences.append(ParsedSequence(name: name, keys: keys))
             }
         }
 
@@ -67,47 +78,61 @@ public enum KanataDefseqParser {
         //   name2 (key3 key4))
         let multiPattern = #"\(defseq\s+((?:[^\(\)]+\([^\)]+\)\s*)+)\)"#
 
-        if let multiRegex = try? NSRegularExpression(pattern: multiPattern, options: [.dotMatchesLineSeparators]) {
-            let nsString = cleanedContent as NSString
-            let matches = multiRegex.matches(in: cleanedContent, range: NSRange(location: 0, length: nsString.length))
+        guard let multiRegex = try? NSRegularExpression(pattern: multiPattern, options: [.dotMatchesLineSeparators]) else {
+            assertionFailure("Failed to compile multi defseq regex pattern")
+            logger.error("❌ [DefseqParser] Failed to compile multi defseq regex pattern")
+            return []
+        }
 
-            for match in matches {
-                guard match.numberOfRanges == 2 else { continue }
+        let multiMatches = multiRegex.matches(in: cleanedContent, range: NSRange(location: 0, length: nsString.length))
+        logger.debug("🔍 [DefseqParser] Multi-format pattern matched \(multiMatches.count) blocks")
 
-                let block = nsString.substring(with: match.range(at: 1))
+        for match in multiMatches {
+            guard match.numberOfRanges == 2 else { continue }
 
-                // Parse individual name (keys) pairs
-                let pairPattern = #"([\w-]+)\s+\(([^)]+)\)"#
-                if let pairRegex = try? NSRegularExpression(pattern: pairPattern, options: []) {
-                    let pairMatches = pairRegex.matches(in: block, range: NSRange(location: 0, length: (block as NSString).length))
+            let block = nsString.substring(with: match.range(at: 1))
 
-                    for pairMatch in pairMatches {
-                        guard pairMatch.numberOfRanges == 3 else { continue }
+            // Parse individual name (keys) pairs
+            let pairPattern = #"([\w-]+)\s+\(([^)]+)\)"#
+            guard let pairRegex = try? NSRegularExpression(pattern: pairPattern, options: []) else {
+                assertionFailure("Failed to compile pair regex pattern")
+                logger.error("❌ [DefseqParser] Failed to compile pair regex pattern")
+                continue
+            }
 
-                        let name = (block as NSString).substring(with: pairMatch.range(at: 1))
-                        let keysString = (block as NSString).substring(with: pairMatch.range(at: 2))
-                        let keys = keysString.split(separator: " ").map { String($0).trimmingCharacters(in: .whitespaces) }
+            let pairMatches = pairRegex.matches(in: block, range: NSRange(location: 0, length: (block as NSString).length))
+            logger.debug("🔍 [DefseqParser] Found \(pairMatches.count) pairs in multi-format block")
 
-                        if !keys.isEmpty {
-                            sequences.append(ParsedSequence(name: name, keys: keys))
-                        }
-                    }
+            for pairMatch in pairMatches {
+                guard pairMatch.numberOfRanges == 3 else { continue }
+
+                let name = (block as NSString).substring(with: pairMatch.range(at: 1))
+                let keysString = (block as NSString).substring(with: pairMatch.range(at: 2))
+                let keys = keysString.split(separator: " ").map { String($0).trimmingCharacters(in: .whitespaces) }
+
+                if !keys.isEmpty {
+                    logger.debug("🔍 [DefseqParser] Found multi-format sequence: \(name) -> \(keys.joined(separator: " "))")
+                    sequences.append(ParsedSequence(name: name, keys: keys))
                 }
             }
         }
 
         // Deduplicate sequences by name and keys (both patterns might match the same defseq)
+        logger.debug("🔍 [DefseqParser] Deduplicating \(sequences.count) raw sequences")
         var seen = Set<String>()
         var uniqueSequences: [ParsedSequence] = []
 
         for sequence in sequences {
-            let key = "\(sequence.name):\(sequence.keys.joined(separator:","))"
+            let key = "\(sequence.name):\(sequence.keys.joined(separator: ","))"
             if !seen.contains(key) {
                 seen.insert(key)
                 uniqueSequences.append(sequence)
+            } else {
+                logger.debug("🔍 [DefseqParser] Skipping duplicate: \(sequence.name)")
             }
         }
 
+        logger.debug("✅ [DefseqParser] Returning \(uniqueSequences.count) unique sequences")
         return uniqueSequences
     }
 

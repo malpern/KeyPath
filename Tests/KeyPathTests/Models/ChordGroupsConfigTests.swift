@@ -1,5 +1,5 @@
-import XCTest
 @testable import KeyPathAppKit
+import XCTest
 
 final class ChordGroupsConfigTests: XCTestCase {
     // MARK: - Default Initialization
@@ -206,11 +206,11 @@ final class ChordGroupsConfigTests: XCTestCase {
     // MARK: - Chord Category
 
     func testChordCategorySuggestedTimeouts() {
-        XCTAssertEqual(ChordCategory.navigation.suggestedTimeout, 250)  // Fast
-        XCTAssertEqual(ChordCategory.editing.suggestedTimeout, 400)     // Moderate
-        XCTAssertEqual(ChordCategory.symbols.suggestedTimeout, 150)     // Lightning
-        XCTAssertEqual(ChordCategory.modifiers.suggestedTimeout, 600)   // Deliberate
-        XCTAssertEqual(ChordCategory.custom.suggestedTimeout, 400)      // Moderate
+        XCTAssertEqual(ChordCategory.navigation.suggestedTimeout, 250) // Fast
+        XCTAssertEqual(ChordCategory.editing.suggestedTimeout, 400) // Moderate
+        XCTAssertEqual(ChordCategory.symbols.suggestedTimeout, 150) // Lightning
+        XCTAssertEqual(ChordCategory.modifiers.suggestedTimeout, 600) // Deliberate
+        XCTAssertEqual(ChordCategory.custom.suggestedTimeout, 400) // Moderate
     }
 
     func testChordCategoryDisplayNames() {

@@ -203,7 +203,8 @@ class MainAppStateController: ObservableObject {
             guard let plist = try PropertyListSerialization.propertyList(
                 from: plistData, options: [], format: nil
             ) as? [String: Any],
-            let args = plist["ProgramArguments"] as? [String] else {
+                let args = plist["ProgramArguments"] as? [String]
+            else {
                 AppLogger.shared.warn("⚠️ [MainAppStateController] Failed to parse plist structure")
                 return false
             }

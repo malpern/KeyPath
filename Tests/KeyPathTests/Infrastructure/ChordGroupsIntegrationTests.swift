@@ -1,11 +1,10 @@
-import XCTest
 @testable import KeyPathAppKit
 @testable import KeyPathCore
+import XCTest
 
 /// Integration tests for Chord Groups end-to-end workflow
 /// Tests the full flow: config creation → mapping generation → Kanata config rendering
 final class ChordGroupsIntegrationTests: XCTestCase {
-
     // MARK: - Basic Config Generation
 
     func testEmptyConfigGeneratesNoOutput() {

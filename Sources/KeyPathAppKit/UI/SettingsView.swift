@@ -1036,7 +1036,8 @@ struct StatusSettingsTabView: View {
             guard let plist = try PropertyListSerialization.propertyList(
                 from: plistData, options: [], format: nil
             ) as? [String: Any],
-            let programArgs = plist["ProgramArguments"] as? [String] else {
+                let programArgs = plist["ProgramArguments"] as? [String]
+            else {
                 return false
             }
             args = programArgs

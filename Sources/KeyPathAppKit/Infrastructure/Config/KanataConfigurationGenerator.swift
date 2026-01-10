@@ -53,7 +53,7 @@ public struct KanataConfiguration: Sendable {
 
         // Extract UI-authored chord groups config (MAL-37)
         let uiChordGroupsConfig = enabledCollections
-            .compactMap { $0.configuration.chordGroupsConfig }
+            .compactMap(\.configuration.chordGroupsConfig)
             .first
 
         let (rawBlocks, aliasDefinitions, extraLayers, chordMappings) = buildCollectionBlocks(from: enabledCollections)
@@ -128,8 +128,8 @@ public struct KanataConfiguration: Sendable {
             preservedChordGroupsBlock,
             uiChordGroupsBlock
         ]
-            .filter { !$0.isEmpty }
-            .joined(separator: "\n")
+        .filter { !$0.isEmpty }
+        .joined(separator: "\n")
     }
 
     private static let defaultEmptyConfig = generateFromCollections(defaultSystemCollections)
@@ -394,7 +394,7 @@ public struct KanataConfiguration: Sendable {
 
     /// Render UI-authored chord groups block (MAL-37)
     private static func renderUIChordGroupsBlock(_ config: ChordGroupsConfig?) -> String {
-        guard let config = config, !config.groups.isEmpty else { return "" }
+        guard let config, !config.groups.isEmpty else { return "" }
 
         var lines = [
             "#|",

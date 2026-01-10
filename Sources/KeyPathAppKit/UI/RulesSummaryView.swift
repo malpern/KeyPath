@@ -1182,6 +1182,8 @@ private struct ExpandableCollectionRow: View {
                             Label("Customize...", systemImage: "arrow.right.arrow.left.circle")
                         }
                         .buttonStyle(.bordered)
+                        .accessibilityIdentifier("sequences-customize-button")
+                        .accessibilityLabel("Customize sequences")
                     }
                     .padding(.top, 8)
                     .padding(.bottom, 12)

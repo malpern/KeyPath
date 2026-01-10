@@ -189,7 +189,7 @@ struct HomeRowModsModalView: View {
                         if localConfig.showAdvanced {
                             VStack(alignment: .leading, spacing: 12) {
                                 Divider().padding(.vertical, 4)
-                                
+
                                 Text("Per-Key Tap Offsets")
                                     .font(.subheadline)
                                     .fontWeight(.bold)
@@ -235,7 +235,7 @@ struct HomeRowModsModalView: View {
                                 }
                                 .pickerStyle(.segmented)
                                 .padding(.bottom, 4)
-                                
+
                                 ForEach(chunks(of: HomeRowModsConfig.allKeys, size: 4), id: \.self) { row in
                                     HStack(spacing: 12) {
                                         ForEach(row, id: \.self) { key in
@@ -433,11 +433,11 @@ struct HomeRowModsModalView: View {
         Binding(
             get: {
                 if localConfig.timing.holdOffsets.isEmpty {
-                    return .standard
+                    .standard
                 } else if localConfig.timing.holdOffsets == ["a": 50, ";": 50] {
-                    return .slowPinkies
+                    .slowPinkies
                 } else {
-                    return .custom
+                    .custom
                 }
             },
             set: { preset in

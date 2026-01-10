@@ -6,11 +6,10 @@
 //  MAL-45: Integration tests for sequences in RuleCollectionConfiguration
 //
 
-import XCTest
 @testable import KeyPathAppKit
+import XCTest
 
 final class RuleCollectionConfigurationSequencesTests: XCTestCase {
-
     // MARK: - Accessor Tests
 
     func testSequencesConfig_Accessor() {
@@ -110,7 +109,7 @@ final class RuleCollectionConfigurationSequencesTests: XCTestCase {
 
     func testMaxSequences() {
         // Test with many sequences
-        let sequences = (0..<100).map { i in
+        let sequences = (0 ..< 100).map { i in
             SequenceDefinition(
                 name: "seq\(i)",
                 keys: ["key\(i)"],

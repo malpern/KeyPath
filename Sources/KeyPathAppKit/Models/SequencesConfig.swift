@@ -13,7 +13,13 @@ import KeyPathCore
 public struct SequencesConfig: Codable, Equatable, Sendable {
     public var sequences: [SequenceDefinition]
     public var activeSequenceID: UUID?
-    public var globalTimeout: Int  // Milliseconds
+
+    /// Global timeout in milliseconds for all sequences.
+    /// Valid range: 300-2000ms (enforced by UI slider).
+    /// - 300ms: Fast (experienced users)
+    /// - 500ms: Moderate (default, recommended)
+    /// - 1000ms: Relaxed (learning mode)
+    public var globalTimeout: Int
 
     public init(
         sequences: [SequenceDefinition] = [],
@@ -23,6 +29,14 @@ public struct SequencesConfig: Codable, Equatable, Sendable {
         self.sequences = sequences
         self.activeSequenceID = activeSequenceID
         self.globalTimeout = globalTimeout
+    }
+
+    // MARK: - Validation
+
+    /// Validates whether the global timeout is within acceptable bounds.
+    /// Recommended range: 300-2000ms
+    public var isValidTimeout: Bool {
+        globalTimeout >= 300 && globalTimeout <= 2000
     }
 
     // MARK: - Preset Factory
@@ -45,8 +59,8 @@ public struct SequencesConfig: Codable, Equatable, Sendable {
     public func detectConflicts() -> [SequenceConflict] {
         var conflicts: [SequenceConflict] = []
 
-        for i in 0..<sequences.count {
-            for j in (i+1)..<sequences.count {
+        for i in 0 ..< sequences.count {
+            for j in (i + 1) ..< sequences.count {
                 let seq1 = sequences[i]
                 let seq2 = sequences[j]
 
@@ -83,7 +97,7 @@ public struct SequencesConfig: Codable, Equatable, Sendable {
 public struct SequenceDefinition: Codable, Equatable, Sendable, Identifiable {
     public let id: UUID
     public var name: String
-    public var keys: [String]  // e.g., ["space", "w"]
+    public var keys: [String] // e.g., ["space", "w"]
     public var action: SequenceAction
     public var description: String?
 
@@ -110,7 +124,7 @@ public struct SequenceDefinition: Codable, Equatable, Sendable, Identifiable {
 
     /// Human-readable key sequence (e.g., "Space → W")
     public var prettyKeys: String {
-        keys.map { $0.capitalized }.joined(separator: " → ")
+        keys.map(\.capitalized).joined(separator: " → ")
     }
 
     // MARK: - Presets
@@ -159,8 +173,8 @@ public enum SequenceAction: Codable, Equatable, Sendable {
     /// Human-readable action description
     public var displayName: String {
         switch self {
-        case .activateLayer(let layer):
-            return "Activate \(layer.displayName)"
+        case let .activateLayer(layer):
+            "Activate \(layer.displayName)"
         }
     }
 }
@@ -175,7 +189,7 @@ public struct SequenceConflict: Identifiable {
     public let type: ConflictType
 
     public enum ConflictType {
-        case sameKeys      // Exact same key sequence
+        case sameKeys // Exact same key sequence
         case prefixOverlap // One is prefix of another (timing conflict)
     }
 
@@ -183,9 +197,9 @@ public struct SequenceConflict: Identifiable {
     public var description: String {
         switch type {
         case .sameKeys:
-            return "'\(sequence1.name)' and '\(sequence2.name)' use the same keys: \(sequence1.prettyKeys)"
+            "'\(sequence1.name)' and '\(sequence2.name)' use the same keys: \(sequence1.prettyKeys)"
         case .prefixOverlap:
-            return "'\(sequence1.name)' overlaps with '\(sequence2.name)' - may cause timing issues"
+            "'\(sequence1.name)' overlaps with '\(sequence2.name)' - may cause timing issues"
         }
     }
 }
@@ -194,25 +208,25 @@ public struct SequenceConflict: Identifiable {
 
 /// Timeout presets for sequence completion
 public enum SequenceTimeout: Int, CaseIterable, Codable, Sendable {
-    case fast = 300        // Experienced users
-    case moderate = 500    // Default
-    case relaxed = 1000    // Learning mode
+    case fast = 300 // Experienced users
+    case moderate = 500 // Default
+    case relaxed = 1000 // Learning mode
 
     /// Display name (e.g., "Fast (300ms)")
     public var displayName: String {
         switch self {
-        case .fast: return "Fast (300ms)"
-        case .moderate: return "Moderate (500ms)"
-        case .relaxed: return "Relaxed (1000ms)"
+        case .fast: "Fast (300ms)"
+        case .moderate: "Moderate (500ms)"
+        case .relaxed: "Relaxed (1000ms)"
         }
     }
 
     /// Description of timeout behavior
     public var description: String {
         switch self {
-        case .fast: return "For experienced users - requires quick key presses"
-        case .moderate: return "Balanced timeout - works for most users"
-        case .relaxed: return "Longer timeout - ideal for learning sequences"
+        case .fast: "For experienced users - requires quick key presses"
+        case .moderate: "Balanced timeout - works for most users"
+        case .relaxed: "Longer timeout - ideal for learning sequences"
         }
     }
 }

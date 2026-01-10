@@ -36,8 +36,8 @@ struct SequencesModalView: View {
         onSave: @escaping (SequencesConfig) -> Void,
         onCancel: @escaping () -> Void
     ) {
-        self._config = config
-        self._localConfig = State(initialValue: config.wrappedValue)
+        _config = config
+        _localConfig = State(initialValue: config.wrappedValue)
         self.onSave = onSave
         self.onCancel = onCancel
     }
@@ -88,6 +88,8 @@ struct SequencesModalView: View {
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("sequences-modal-close-button")
+                .accessibilityLabel("Close sequences modal")
             }
             .padding()
 
@@ -114,24 +116,31 @@ struct SequencesModalView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
+                .accessibilityIdentifier("sequences-modal-add-button")
+                .accessibilityLabel("Add new sequence")
 
                 // Presets menu
                 Menu {
                     Button("Window Management") {
                         addPreset(.windowManagementPreset)
                     }
+                    .accessibilityIdentifier("sequences-modal-preset-window")
                     Button("App Launcher") {
                         addPreset(.appLauncherPreset)
                     }
+                    .accessibilityIdentifier("sequences-modal-preset-launcher")
                     Button("Navigation") {
                         addPreset(.navigationPreset)
                     }
+                    .accessibilityIdentifier("sequences-modal-preset-navigation")
                 } label: {
                     Label("Add Preset", systemImage: "star.circle")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
+                .accessibilityIdentifier("sequences-modal-preset-menu")
+                .accessibilityLabel("Add preset sequence")
             }
             .padding()
         }
@@ -168,6 +177,8 @@ struct SequencesModalView: View {
         }
         .buttonStyle(.plain)
         .padding(.horizontal, 8)
+        .accessibilityIdentifier("sequences-modal-row-\(sequence.id.uuidString)")
+        .accessibilityLabel("Sequence: \(sequence.name), keys: \(sequence.prettyKeys)")
     }
 
     // MARK: - Editor Panel
@@ -179,6 +190,8 @@ struct SequencesModalView: View {
                 TextField("Sequence Name", text: sequence.name)
                     .textFieldStyle(.plain)
                     .font(.title2)
+                    .accessibilityIdentifier("sequences-modal-name-field")
+                    .accessibilityLabel("Sequence name")
 
                 Spacer()
 
@@ -188,6 +201,8 @@ struct SequencesModalView: View {
                         .foregroundColor(.red)
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("sequences-modal-delete-button")
+                .accessibilityLabel("Delete sequence")
             }
 
             Divider()
@@ -222,6 +237,8 @@ struct SequencesModalView: View {
                 Spacer()
                 Button("Cancel", action: onCancel)
                     .keyboardShortcut(.cancelAction)
+                    .accessibilityIdentifier("sequences-modal-cancel-button")
+                    .accessibilityLabel("Cancel changes")
 
                 Button("Save") {
                     onSave(localConfig)
@@ -231,6 +248,8 @@ struct SequencesModalView: View {
                 .disabled(!sequence.wrappedValue.isValid || conflicts.contains(where: {
                     $0.sequence1.id == sequence.wrappedValue.id || $0.sequence2.id == sequence.wrappedValue.id
                 }))
+                .accessibilityIdentifier("sequences-modal-save-button")
+                .accessibilityLabel("Save sequences")
             }
             .padding()
         }
@@ -254,6 +273,8 @@ struct SequencesModalView: View {
                             detectConflicts()
                         }
                     ))
+                    .accessibilityIdentifier("sequences-modal-key-picker-\(index)")
+                    .accessibilityLabel("Key \(index + 1) in sequence")
 
                     if index < sequence.keys.wrappedValue.count - 1 {
                         Image(systemName: "arrow.right")
@@ -274,6 +295,8 @@ struct SequencesModalView: View {
                                 .font(.system(size: 14))
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("sequences-modal-remove-key-\(index)")
+                        .accessibilityLabel("Remove key \(index + 1)")
                     }
                 }
 
@@ -289,6 +312,8 @@ struct SequencesModalView: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
+                    .accessibilityIdentifier("sequences-modal-add-key-button")
+                    .accessibilityLabel("Add key to sequence")
                 }
             }
 
@@ -309,11 +334,13 @@ struct SequencesModalView: View {
                 Text("⚡ Activate Layer")
                     .font(.system(size: 13, weight: .medium))
 
-                if case .activateLayer(let layer) = sequence.action.wrappedValue {
+                if case let .activateLayer(layer) = sequence.action.wrappedValue {
                     LayerPicker(selection: Binding(
                         get: { layer },
                         set: { sequence.action.wrappedValue = .activateLayer($0) }
                     ))
+                    .accessibilityIdentifier("sequences-modal-layer-picker")
+                    .accessibilityLabel("Select layer to activate")
                 }
             }
             .padding()
@@ -337,6 +364,8 @@ struct SequencesModalView: View {
             .padding(4)
             .background(Color(nsColor: .textBackgroundColor))
             .cornerRadius(4)
+            .accessibilityIdentifier("sequences-modal-description-field")
+            .accessibilityLabel("Sequence description")
         }
     }
 
@@ -352,7 +381,9 @@ struct SequencesModalView: View {
                     Slider(value: Binding(
                         get: { Double(localConfig.globalTimeout) },
                         set: { localConfig.globalTimeout = Int($0) }
-                    ), in: 300...1000, step: 50)
+                    ), in: 300 ... 1000, step: 50)
+                        .accessibilityIdentifier("sequences-modal-timeout-slider")
+                        .accessibilityLabel("Global timeout: \(localConfig.globalTimeout) milliseconds")
 
                     Text("\(localConfig.globalTimeout)ms")
                         .font(.system(.body, design: .monospaced))
@@ -369,7 +400,7 @@ struct SequencesModalView: View {
     private var timeoutPreset: SequenceTimeout {
         switch localConfig.globalTimeout {
         case ..<400: .fast
-        case 400..<800: .moderate
+        case 400 ..< 800: .moderate
         default: .relaxed
         }
     }

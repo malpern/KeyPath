@@ -1,10 +1,9 @@
-import XCTest
 @testable import KeyPathAppKit
+import XCTest
 
 /// Tests for input validation and edge cases in Chord Groups
 /// Addresses gaps found in code review (MAL-37)
 final class ChordGroupsValidationTests: XCTestCase {
-
     // MARK: - Group Name Validation
 
     func testGroupNameWithSpacesIsInvalid() {
@@ -16,7 +15,7 @@ final class ChordGroupsValidationTests: XCTestCase {
         // Test valid alternative: use hyphens instead
         let group = ChordGroup(
             id: UUID(),
-            name: "My-Group",  // Valid with hyphen
+            name: "My-Group", // Valid with hyphen
             timeout: 300,
             chords: []
         )
@@ -69,7 +68,7 @@ final class ChordGroupsValidationTests: XCTestCase {
         let group = ChordGroup(
             id: UUID(),
             name: "Test",
-            timeout: 50,  // Minimum valid
+            timeout: 50, // Minimum valid
             chords: []
         )
 
@@ -95,7 +94,7 @@ final class ChordGroupsValidationTests: XCTestCase {
         let group = ChordGroup(
             id: UUID(),
             name: "Test",
-            timeout: 5000,  // Maximum valid
+            timeout: 5000, // Maximum valid
             chords: []
         )
 
@@ -125,7 +124,7 @@ final class ChordGroupsValidationTests: XCTestCase {
         // Test valid minimum: at least one key
         let chord = ChordDefinition(
             id: UUID(),
-            keys: ["s"],  // Minimum: 1 key
+            keys: ["s"], // Minimum: 1 key
             output: "esc"
         )
 
@@ -138,7 +137,7 @@ final class ChordGroupsValidationTests: XCTestCase {
         // Test valid alternative: unique keys only
         let chord = ChordDefinition(
             id: UUID(),
-            keys: ["s", "d"],  // All unique
+            keys: ["s", "d"], // All unique
             output: "esc"
         )
 
@@ -159,7 +158,7 @@ final class ChordGroupsValidationTests: XCTestCase {
         // Test valid alternative: all non-empty strings
         let chord = ChordDefinition(
             id: UUID(),
-            keys: ["s", "d"],  // No empty strings
+            keys: ["s", "d"], // No empty strings
             output: "esc"
         )
 
@@ -175,7 +174,7 @@ final class ChordGroupsValidationTests: XCTestCase {
         let chord = ChordDefinition(
             id: UUID(),
             keys: ["s", "d"],
-            output: "a"  // Minimum: single character
+            output: "a" // Minimum: single character
         )
 
         XCTAssertFalse(chord.output.isEmpty)
@@ -262,7 +261,7 @@ final class ChordGroupsValidationTests: XCTestCase {
         XCTAssertEqual(conflicts.count, 2, "Should detect conflicts for both 's' and 'd'")
 
         // Check that both keys are reported
-        let conflictKeys = Set(conflicts.map { $0.key })
+        let conflictKeys = Set(conflicts.map(\.key))
         XCTAssertEqual(conflictKeys, ["s", "d"])
 
         // Check description format
@@ -299,7 +298,7 @@ final class ChordGroupsValidationTests: XCTestCase {
         XCTAssertTrue(config.hasCrossGroupConflicts, "Should detect partial key overlap")
 
         let conflicts = config.detectCrossGroupConflicts()
-        let conflictKeys = Set(conflicts.map { $0.key })
+        let conflictKeys = Set(conflicts.map(\.key))
         XCTAssertEqual(conflictKeys, ["s", "f"], "Groups share s and f keys")
     }
 
@@ -356,8 +355,8 @@ final class ChordGroupsValidationTests: XCTestCase {
     func testSingleKeyVsMultiKeyOverlap() {
         // FIXED: Single key + multi-key should NOT conflict
         // This is valid in Kanata - single key acts as fallback
-        let chord1 = ChordDefinition(id: UUID(), keys: ["s"], output: "s")  // Single key passthrough
-        let chord2 = ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc")  // Multi-key chord
+        let chord1 = ChordDefinition(id: UUID(), keys: ["s"], output: "s") // Single key passthrough
+        let chord2 = ChordDefinition(id: UUID(), keys: ["s", "d"], output: "esc") // Multi-key chord
 
         let group = ChordGroup(
             id: UUID(),
@@ -429,7 +428,7 @@ final class ChordGroupsValidationTests: XCTestCase {
         // Test that ASCII-only names work correctly
         let group = ChordGroup(
             id: UUID(),
-            name: "Navigation",  // ASCII only
+            name: "Navigation", // ASCII only
             timeout: 300,
             chords: []
         )
@@ -442,7 +441,7 @@ final class ChordGroupsValidationTests: XCTestCase {
         // Kanata probably doesn't support Unicode key names
         let chord = ChordDefinition(
             id: UUID(),
-            keys: ["你", "好"],  // Chinese characters
+            keys: ["你", "好"], // Chinese characters
             output: "esc"
         )
 
@@ -454,7 +453,7 @@ final class ChordGroupsValidationTests: XCTestCase {
         let chord = ChordDefinition(
             id: UUID(),
             keys: ["s", "d"],
-            output: "(macro 你好)"  // Chinese in macro
+            output: "(macro 你好)" // Chinese in macro
         )
 
         XCTAssertEqual(chord.output, "(macro 你好)", "Unicode output currently allowed")

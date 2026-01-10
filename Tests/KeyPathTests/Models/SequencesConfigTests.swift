@@ -6,11 +6,10 @@
 //  MAL-45: Kanata Sequences (defseq) UI Support
 //
 
-import XCTest
 @testable import KeyPathAppKit
+import XCTest
 
 final class SequencesConfigTests: XCTestCase {
-
     // MARK: - Initialization Tests
 
     func testDefaultInit() {
@@ -31,7 +30,7 @@ final class SequencesConfigTests: XCTestCase {
         let windowSeq = config.sequences.first { $0.name == "Window Management" }
         XCTAssertNotNil(windowSeq, "Should have Window Management preset")
         XCTAssertEqual(windowSeq?.keys, ["space", "w"], "Window preset should have space → w keys")
-        if case .activateLayer(let layer) = windowSeq?.action {
+        if case let .activateLayer(layer) = windowSeq?.action {
             XCTAssertEqual(layer, .custom("window"), "Window preset should activate window layer")
         } else {
             XCTFail("Window preset should have activateLayer action")
@@ -70,7 +69,7 @@ final class SequencesConfigTests: XCTestCase {
             XCTAssertEqual(conflict.type, .sameKeys, "Conflict should be same keys type")
             XCTAssertTrue(
                 (conflict.sequence1.id == seq1.id && conflict.sequence2.id == seq2.id) ||
-                (conflict.sequence1.id == seq2.id && conflict.sequence2.id == seq1.id),
+                    (conflict.sequence1.id == seq2.id && conflict.sequence2.id == seq1.id),
                 "Conflict should reference both sequences"
             )
         }

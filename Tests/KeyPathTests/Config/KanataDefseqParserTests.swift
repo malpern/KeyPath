@@ -6,11 +6,10 @@
 //  MAL-45: Kanata Sequences (defseq) UI Support
 //
 
-import XCTest
 @testable import KeyPathCore
+import XCTest
 
 final class KanataDefseqParserTests: XCTestCase {
-
     // MARK: - Single Sequence Format Tests
 
     func testParseSingleSequence_Basic() {
