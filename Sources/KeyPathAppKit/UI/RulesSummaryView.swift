@@ -166,7 +166,9 @@ struct RulesTabView: View {
                 collection.id == RuleCollectionIdentifier.windowSnapping ||
                 collection.id == RuleCollectionIdentifier.macFunctionKeys
         )
-        let needsCollection = style == .singleKeyPicker || style == .homeRowMods || style == .tapHoldPicker || style == .layerPresetPicker || style == .launcherGrid || isSpecializedTable
+        let needsCollection = style == .singleKeyPicker || style == .homeRowMods || style == .tapHoldPicker || style == .layerPresetPicker || style == .launcherGrid || style == .chordGroups ||
+            style ==
+            .sequences || isSpecializedTable
 
         ExpandableCollectionRow(
             collectionId: collection.id.uuidString,
@@ -2061,7 +2063,8 @@ private struct OutputKeyboardWithAnimatedSymbols: View {
     /// Get the target frame for a symbol - either its mapped key position or the parking area
     private func targetFrameFor(_ symbol: String) -> CGRect {
         if let targetKey = symbolTargets[symbol],
-           let frame = keycapFrames[targetKey] {
+           let frame = keycapFrames[targetKey]
+        {
             return frame
         }
         return parkingFrame
@@ -2548,7 +2551,8 @@ private struct TapHoldPickerContent: View {
     /// Get display label for a custom value (system action or key)
     private func displayLabelFor(_ value: String) -> String {
         if let actionId = CustomRuleValidator.extractSystemActionId(from: value),
-           let action = CustomRuleValidator.systemAction(for: actionId) {
+           let action = CustomRuleValidator.systemAction(for: actionId)
+        {
             return action.name
         }
         return value
@@ -2557,7 +2561,8 @@ private struct TapHoldPickerContent: View {
     /// Get SF Symbol for a custom value if it's a system action
     private func sfSymbolFor(_ value: String) -> String? {
         if let actionId = CustomRuleValidator.extractSystemActionId(from: value),
-           let action = CustomRuleValidator.systemAction(for: actionId) {
+           let action = CustomRuleValidator.systemAction(for: actionId)
+        {
             return action.sfSymbol
         }
         return nil
@@ -2766,7 +2771,8 @@ private struct CustomKeyPopover: View {
     /// Display label for the current input (shows friendly name for system actions)
     private var displayLabel: String {
         if let actionId = CustomRuleValidator.extractSystemActionId(from: keyInput),
-           let action = CustomRuleValidator.systemAction(for: actionId) {
+           let action = CustomRuleValidator.systemAction(for: actionId)
+        {
             return action.name
         }
         return keyInput
@@ -3824,7 +3830,8 @@ private struct AppLaunchChip: View {
 
         // Get app name from bundle
         if let bundle = Bundle(url: url),
-           let name = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String {
+           let name = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String
+        {
             appName = name
         } else {
             // Use filename without extension
