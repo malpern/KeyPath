@@ -149,12 +149,16 @@ public final class ConfigurationService: FileConfigurationProviding {
             }
         }
 
+        // Parse sequences from config
+        let sequences = KanataDefseqParser.parseSequences(from: content)
+
         return KanataConfiguration(
             content: content,
             keyMappings: keyMappings,
             lastModified: lastModified,
             path: configurationPath,
-            chordGroups: chordGroups
+            chordGroups: chordGroups,
+            sequences: sequences
         )
     }
 
@@ -240,9 +244,11 @@ public final class ConfigurationService: FileConfigurationProviding {
         let combinedCollections = RuleCollectionDeduplicator.dedupe(allCollections)
         let mappings = combinedCollections.enabledMappings()
         let preservedChordGroups = loadPreservedChordGroups()
+        let preservedSequences = loadPreservedSequences()
         let configContent = KanataConfiguration.generateFromCollections(
             combinedCollections,
-            chordGroups: preservedChordGroups
+            chordGroups: preservedChordGroups,
+            sequences: preservedSequences
         )
 
         // VALIDATE BEFORE SAVING - prevent writing broken configs
@@ -265,7 +271,8 @@ public final class ConfigurationService: FileConfigurationProviding {
             keyMappings: mappings,
             lastModified: Date(),
             path: configurationPath,
-            chordGroups: preservedChordGroups
+            chordGroups: preservedChordGroups,
+            sequences: preservedSequences
         )
         setCurrentConfiguration(newConfig)
 
@@ -798,6 +805,20 @@ private extension ConfigurationService {
         }
 
         return KanataDefchordsParser.parseGroups(from: content)
+    }
+
+    func loadPreservedSequences() -> [KanataDefseqParser.ParsedSequence] {
+        if let current = withLockedCurrentConfig(), !current.sequences.isEmpty {
+            return current.sequences
+        }
+
+        guard FileManager.default.fileExists(atPath: configurationPath),
+              let content = try? String(contentsOfFile: configurationPath, encoding: .utf8)
+        else {
+            return []
+        }
+
+        return KanataDefseqParser.parseSequences(from: content)
     }
 
     func setCurrentConfiguration(_ config: KanataConfiguration) {

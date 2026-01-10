@@ -12,19 +12,22 @@ public struct KanataConfiguration: Sendable {
     public let lastModified: Date
     public let path: String
     public let chordGroups: [ChordGroupConfig]
+    public let sequences: [KanataDefseqParser.ParsedSequence]
 
     public init(
         content: String,
         keyMappings: [KeyMapping],
         lastModified: Date,
         path: String,
-        chordGroups: [ChordGroupConfig] = []
+        chordGroups: [ChordGroupConfig] = [],
+        sequences: [KanataDefseqParser.ParsedSequence] = []
     ) {
         self.content = content
         self.keyMappings = keyMappings
         self.lastModified = lastModified
         self.path = path
         self.chordGroups = chordGroups
+        self.sequences = sequences
     }
 
     /// Generate configuration content from key mappings (adds default system collections when absent).
@@ -37,7 +40,8 @@ public struct KanataConfiguration: Sendable {
     /// Flattens enabled collections to `defsrc`/`deflayer` for backward compatibility with Kanata config format.
     public static func generateFromCollections(
         _ collections: [RuleCollection],
-        chordGroups: [ChordGroupConfig] = []
+        chordGroups: [ChordGroupConfig] = [],
+        sequences: [KanataDefseqParser.ParsedSequence] = []
     ) -> String {
         var resolvedCollections = collections.isEmpty ? defaultSystemCollections : collections
         if !resolvedCollections.contains(where: { $0.id == RuleCollectionIdentifier.macFunctionKeys }) {
@@ -95,6 +99,7 @@ public struct KanataConfiguration: Sendable {
         let aliasBlock = renderAliasBlock(aliasDefinitions)
         let chordsBlock = renderChordsBlock(chordMappings)
         let preservedChordGroupsBlock = renderChordGroupsBlock(chordGroups)
+        let preservedSequencesBlock = renderSequencesBlock(sequences)
         let uiChordGroupsBlock = renderUIChordGroupsBlock(uiChordGroupsConfig)
 
         // Include keypath-apps.kbd if there are app-specific keys
@@ -119,6 +124,7 @@ public struct KanataConfiguration: Sendable {
             fakeKeysBlock,
             aliasBlock,
             chordsBlock,
+            preservedSequencesBlock,
             preservedChordGroupsBlock,
             uiChordGroupsBlock
         ]
@@ -362,6 +368,27 @@ public struct KanataConfiguration: Sendable {
         }
 
         if lines.last == "" { lines.removeLast() }
+        return lines.joined(separator: "\n") + "\n"
+    }
+
+    private static func renderSequencesBlock(_ sequences: [KanataDefseqParser.ParsedSequence]) -> String {
+        guard !sequences.isEmpty else { return "" }
+        var lines = [
+            "#|",
+            "================================================================================",
+            "SEQUENCES (defseq) - Preserved from manual config",
+            "================================================================================",
+            "|#",
+            "",
+            "(defseq"
+        ]
+
+        for sequence in sequences {
+            let keys = "(" + sequence.keys.joined(separator: " ") + ")"
+            lines.append("  \(sequence.name) \(keys)")
+        }
+
+        lines.append(")")
         return lines.joined(separator: "\n") + "\n"
     }
 
