@@ -42,7 +42,7 @@ public enum KanataDefseqParser {
 
         // Pattern 1: Single sequence format
         // (defseq name (key1 key2))
-        let singlePattern = #"\(defseq\s+(\w+)\s+\(([^)]+)\)\)"#
+        let singlePattern = #"\(defseq\s+([\w-]+)\s+\(([^)]+)\)\)"#
 
         if let singleRegex = try? NSRegularExpression(pattern: singlePattern, options: []) {
             let nsString = cleanedContent as NSString
@@ -77,7 +77,7 @@ public enum KanataDefseqParser {
                 let block = nsString.substring(with: match.range(at: 1))
 
                 // Parse individual name (keys) pairs
-                let pairPattern = #"(\w+)\s+\(([^)]+)\)"#
+                let pairPattern = #"([\w-]+)\s+\(([^)]+)\)"#
                 if let pairRegex = try? NSRegularExpression(pattern: pairPattern, options: []) {
                     let pairMatches = pairRegex.matches(in: block, range: NSRange(location: 0, length: (block as NSString).length))
 
@@ -96,7 +96,19 @@ public enum KanataDefseqParser {
             }
         }
 
-        return sequences
+        // Deduplicate sequences by name and keys (both patterns might match the same defseq)
+        var seen = Set<String>()
+        var uniqueSequences: [ParsedSequence] = []
+
+        for sequence in sequences {
+            let key = "\(sequence.name):\(sequence.keys.joined(separator:","))"
+            if !seen.contains(key) {
+                seen.insert(key)
+                uniqueSequences.append(sequence)
+            }
+        }
+
+        return uniqueSequences
     }
 
     /// Remove Lisp-style comments from content

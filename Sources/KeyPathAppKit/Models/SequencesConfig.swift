@@ -57,10 +57,8 @@ public struct SequencesConfig: Codable, Equatable, Sendable {
                         sequence2: seq2,
                         type: .sameKeys
                     ))
-                }
-
-                // Prefix overlap (one is prefix of another)
-                if seq1.keys.starts(with: seq2.keys) || seq2.keys.starts(with: seq1.keys) {
+                } else if seq1.keys.starts(with: seq2.keys) || seq2.keys.starts(with: seq1.keys) {
+                    // Prefix overlap (one is prefix of another) - only check if not identical
                     conflicts.append(SequenceConflict(
                         sequence1: seq1,
                         sequence2: seq2,
@@ -120,7 +118,7 @@ public struct SequenceDefinition: Codable, Equatable, Sendable, Identifiable {
     /// Preset: Window Management (Space → W)
     public static var windowManagementPreset: SequenceDefinition {
         SequenceDefinition(
-            id: UUID(uuidString: "SEQ00000-0000-0000-0000-000000000001")!,
+            id: UUID(uuidString: "5EEE0000-0000-0000-0000-000000000001")!,
             name: "Window Management",
             keys: ["space", "w"],
             action: .activateLayer(.custom("window")),
@@ -131,7 +129,7 @@ public struct SequenceDefinition: Codable, Equatable, Sendable, Identifiable {
     /// Preset: App Launcher (Space → A)
     public static var appLauncherPreset: SequenceDefinition {
         SequenceDefinition(
-            id: UUID(uuidString: "SEQ00000-0000-0000-0000-000000000002")!,
+            id: UUID(uuidString: "5EEE0000-0000-0000-0000-000000000002")!,
             name: "App Launcher",
             keys: ["space", "a"],
             action: .activateLayer(.custom("launcher")),
@@ -142,7 +140,7 @@ public struct SequenceDefinition: Codable, Equatable, Sendable, Identifiable {
     /// Preset: Navigation (Space → N)
     public static var navigationPreset: SequenceDefinition {
         SequenceDefinition(
-            id: UUID(uuidString: "SEQ00000-0000-0000-0000-000000000003")!,
+            id: UUID(uuidString: "5EEE0000-0000-0000-0000-000000000003")!,
             name: "Navigation",
             keys: ["space", "n"],
             action: .activateLayer(.navigation),
