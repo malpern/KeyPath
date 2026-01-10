@@ -1643,18 +1643,14 @@ struct OverlayKeycapView: View {
     }
 
     private var keyStroke: Color {
-        // No persistent border - keys rely on shadows for separation
-        // (User preference: cleaner look without outlines)
-        if isReleaseFading {
-            Color.white.opacity(0)
-        } else {
-            Color.white.opacity(0.35 * fadeAmount)
-        }
+        // No borders at any time - keys rely on shadows for separation
+        // (User preference: cleaner look without outlines, including during fade)
+        Color.white.opacity(0)
     }
 
     private var strokeWidth: CGFloat {
-        // No persistent border stroke width
-        isReleaseFading ? 0 : fadeAmount * scale
+        // No border stroke width at any time
+        0
     }
 
     private var shadowColor: Color {
