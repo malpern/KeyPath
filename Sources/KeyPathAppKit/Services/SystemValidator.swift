@@ -498,18 +498,48 @@ class SystemValidator {
     // MARK: - Health Checking
 
     private func checkHealth() async -> HealthStatus {
-        AppLogger.shared.log("🔍 [SystemValidator] Checking system health")
+        AppLogger.shared.log("🔍 [SystemValidator] checkHealth() ENTRY - Starting system health check")
+        let startTime = Date()
 
         // Check service status via ServiceHealthChecker (extracted from LaunchDaemonInstaller)
+        AppLogger.shared.log("🔍 [SystemValidator] checkHealth() - About to check Kanata service health...")
+        let kanataStart = Date()
         let kanataRunning = await ServiceHealthChecker.shared.isServiceHealthy(serviceID: "com.keypath.kanata")
+        let kanataDuration = Date().timeIntervalSince(kanataStart)
+        AppLogger.shared.log(
+            "🔍 [SystemValidator] checkHealth() - Kanata service check complete: \(kanataRunning) (took \(String(format: "%.3f", kanataDuration))s)"
+        )
+
         // Use launchctl-based check instead of unreliable pgrep
         // This aligns with the health check used in ServiceHealthChecker
+        AppLogger.shared.log(
+            "🔍 [SystemValidator] checkHealth() - About to check Karabiner daemon health...")
+        let karabinerStart = Date()
         let karabinerDaemonRunning = await ServiceHealthChecker.shared.isServiceHealthy(
             serviceID: "com.keypath.karabiner-vhiddaemon")
-        let vhidHealthy = await vhidDeviceManager.detectConnectionHealth()
-
+        let karabinerDuration = Date().timeIntervalSince(karabinerStart)
         AppLogger.shared.log(
-            "🔍 [SystemValidator] Health: kanata=\(kanataRunning), daemon=\(karabinerDaemonRunning) (launchctl), vhid=\(vhidHealthy)"
+            "🔍 [SystemValidator] checkHealth() - Karabiner daemon check complete: \(karabinerDaemonRunning) (took \(String(format: "%.3f", karabinerDuration))s)"
+        )
+
+        // ⚠️ FIX: Use ServiceHealthChecker instead of vhidDeviceManager.detectConnectionHealth()
+        // VHIDDeviceManager.detectConnectionHealth() uses pgrep with retries and can HANG in TaskGroups!
+        // Per ADR-022 and VHIDDeviceManager docs, use launchctl-based health check instead.
+        AppLogger.shared.log(
+            "🔍 [SystemValidator] checkHealth() - About to check VHID daemon health (via ServiceHealthChecker)..."
+        )
+        let vhidStart = Date()
+        let vhidHealthy = await ServiceHealthChecker.shared.isServiceHealthy(
+            serviceID: "com.keypath.karabiner-vhiddaemon"
+        )
+        let vhidDuration = Date().timeIntervalSince(vhidStart)
+        AppLogger.shared.log(
+            "🔍 [SystemValidator] checkHealth() - VHID daemon check complete: \(vhidHealthy) (took \(String(format: "%.3f", vhidDuration))s)"
+        )
+
+        let totalDuration = Date().timeIntervalSince(startTime)
+        AppLogger.shared.log(
+            "🔍 [SystemValidator] checkHealth() EXIT - Health: kanata=\(kanataRunning), daemon=\(karabinerDaemonRunning) (launchctl), vhid=\(vhidHealthy) (total: \(String(format: "%.3f", totalDuration))s)"
         )
 
         return HealthStatus(

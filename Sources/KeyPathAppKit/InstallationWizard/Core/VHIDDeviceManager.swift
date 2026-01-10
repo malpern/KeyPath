@@ -306,14 +306,26 @@ final class VHIDDeviceManager: @unchecked Sendable {
     /// If you need VHID health in a concurrent context, use ServiceHealthChecker.getServiceStatus()
     /// which provides vhidDaemonServiceHealthy via launchctl (no retries, no hangs).
     func detectConnectionHealth() async -> Bool {
+        AppLogger.shared.log("🔍 [VHIDManager] detectConnectionHealth() ENTRY - Starting VHID health check")
+        let startTime = Date()
+
+        AppLogger.shared.log("🔍 [VHIDManager] About to call detectRunning()...")
         let isRunning = await detectRunning()
-        // 🔍 DEBUG: Log the result to understand health check behavior
-        AppLogger.shared.log("🔍 [VHIDManager] detectConnectionHealth() -> isRunning=\(isRunning)")
+        let detectRunningDuration = Date().timeIntervalSince(startTime)
+
+        AppLogger.shared.log(
+            "🔍 [VHIDManager] detectRunning() returned: \(isRunning) (took \(String(format: "%.3f", detectRunningDuration))s)"
+        )
+
         if !isRunning {
             AppLogger.shared.log("🔍 [VHIDManager] Process health check failed - daemon not running")
         } else {
             AppLogger.shared.log("✅ [VHIDManager] Process health check passed - daemon is running")
         }
+
+        AppLogger.shared.log(
+            "🔍 [VHIDManager] detectConnectionHealth() EXIT - Returning \(isRunning) (total: \(String(format: "%.3f", detectRunningDuration))s)"
+        )
         return isRunning
     }
 

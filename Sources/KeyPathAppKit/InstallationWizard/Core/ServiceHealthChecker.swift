@@ -121,7 +121,10 @@ final class ServiceHealthChecker: @unchecked Sendable {
     /// - Parameter serviceID: The service identifier to check
     /// - Returns: `true` if the service is healthy
     nonisolated func isServiceHealthy(serviceID: String) async -> Bool {
-        AppLogger.shared.log("🔍 [ServiceHealthChecker] HEALTH CHECK (system/print) for: \(serviceID)")
+        AppLogger.shared.log(
+            "🔍 [ServiceHealthChecker] isServiceHealthy() ENTRY - HEALTH CHECK (system/print) for: \(serviceID)"
+        )
+        let startTime = Date()
 
         if TestEnvironment.shouldSkipAdminOperations {
             let plistPath = getPlistPath(for: serviceID)
@@ -131,8 +134,15 @@ final class ServiceHealthChecker: @unchecked Sendable {
             return exists
         }
 
+        AppLogger.shared.log(
+            "🔍 [ServiceHealthChecker] About to call SubprocessRunner.launchctl(\"print\", [\"system/\(serviceID)\"])..."
+        )
         do {
             let result = try await SubprocessRunner.shared.launchctl("print", ["system/\(serviceID)"])
+            let launchctlDuration = Date().timeIntervalSince(startTime)
+            AppLogger.shared.log(
+                "🔍 [ServiceHealthChecker] SubprocessRunner.launchctl() returned (took \(String(format: "%.3f", launchctlDuration))s, exitCode=\(result.exitCode))"
+            )
 
             guard result.exitCode == 0 else {
                 AppLogger.shared.log(
@@ -191,10 +201,16 @@ final class ServiceHealthChecker: @unchecked Sendable {
                     "    state=\(state ?? "nil"), pid=\(pid?.description ?? "nil"), lastExit=\(lastExit?.description ?? "nil"), oneShot=\(isOneShot), warmup=\(inWarmup), healthy=\(healthy)"
                 )
 
+            let totalDuration = Date().timeIntervalSince(startTime)
+            AppLogger.shared.log(
+                "🔍 [ServiceHealthChecker] isServiceHealthy() EXIT - Returning \(healthy) for \(serviceID) (total: \(String(format: "%.3f", totalDuration))s)"
+            )
             return healthy
         } catch {
+            let totalDuration = Date().timeIntervalSince(startTime)
             AppLogger.shared.log(
-                "❌ [ServiceHealthChecker] Error checking service health \(serviceID): \(error)")
+                "❌ [ServiceHealthChecker] isServiceHealthy() EXIT (ERROR) - Error checking service health \(serviceID): \(error) (total: \(String(format: "%.3f", totalDuration))s)"
+            )
             return false
         }
     }
