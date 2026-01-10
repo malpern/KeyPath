@@ -500,12 +500,22 @@ public final class ActionDispatcher {
             return .unknownAction(action)
         }
 
+        // Check permission first for better error message
+        guard WindowManager.shared.hasAccessibilityPermission else {
+            let message = "Window Management requires Accessibility permission. Enable in System Settings > Privacy & Security > Accessibility."
+            AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
+            onError?(message)
+            return .failed("window", NSError(domain: "ActionDispatcher", code: 5, userInfo: [
+                NSLocalizedDescriptionKey: message
+            ]))
+        }
+
         let success = WindowManager.shared.moveWindow(to: position)
 
         if success {
             return .success
         } else {
-            let message = "Window action '\(action)' failed. Is Accessibility enabled?"
+            let message = "Window action '\(action)' failed. The window may not support resizing or moving."
             onError?(message)
             return .failed("window", NSError(domain: "ActionDispatcher", code: 5, userInfo: [
                 NSLocalizedDescriptionKey: message

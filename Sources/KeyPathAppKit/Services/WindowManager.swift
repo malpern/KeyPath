@@ -68,6 +68,12 @@ public final class WindowManager {
 
     // MARK: - API Status
 
+    /// Whether Accessibility permission is granted.
+    /// Window management requires this permission to control other app windows.
+    public var hasAccessibilityPermission: Bool {
+        AXIsProcessTrusted()
+    }
+
     /// Whether Space movement features are available.
     /// Call this at startup to check and warn user if needed.
     public var isSpaceMovementAvailable: Bool {
@@ -132,6 +138,13 @@ public final class WindowManager {
     @discardableResult
     public func moveWindow(to position: WindowPosition) -> Bool {
         AppLogger.shared.log("🪟 [WindowManager] Moving window to: \(position.rawValue)")
+
+        // Check Accessibility permission first
+        guard hasAccessibilityPermission else {
+            AppLogger.shared.log("❌ [WindowManager] Accessibility permission not granted")
+            notifyAccessibilityPermissionRequired()
+            return false
+        }
 
         // Handle undo specially
         if position == .undo {
@@ -202,6 +215,13 @@ public final class WindowManager {
             notifyOperationFailed("Unable to move window to \(position.rawValue). The window may not support resizing or moving.")
         }
         return success
+    }
+
+    /// Show user feedback when Accessibility permission is required
+    private func notifyAccessibilityPermissionRequired() {
+        let message = "Window Management requires Accessibility permission. Enable in System Settings > Privacy & Security > Accessibility, then restart KeyPath."
+        AppLogger.shared.log("⚠️ [WindowManager] \(message)")
+        UserNotificationService.shared.notifyActionError(message)
     }
 
     /// Show user feedback when a window operation fails
