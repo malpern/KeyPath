@@ -561,6 +561,9 @@ public struct KanataConfiguration: Sendable {
                 generateHomeRowLayerTogglesMappings(from: config)
             case let .chordGroups(config):
                 generateChordGroupsMappings(from: config)
+            case .sequences:
+                // Sequences don't generate mappings - handled by defseq
+                collection.mappings
             case .tapHoldPicker:
                 generateTapHoldPickerMappings(from: collection)
             case .layerPresetPicker:
@@ -650,6 +653,9 @@ public struct KanataConfiguration: Sendable {
                 generateHomeRowLayerTogglesMappings(from: config)
             case let .chordGroups(config):
                 generateChordGroupsMappings(from: config)
+            case .sequences:
+                // Sequences don't generate mappings - handled by defseq
+                collection.mappings
             case .tapHoldPicker:
                 generateTapHoldPickerMappings(from: collection)
             case .layerPresetPicker:

@@ -161,6 +161,9 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
             case .chordGroups:
                 // This is a new type, use default config for legacy files
                 configuration = .chordGroups(ChordGroupsConfig())
+            case .sequences:
+                // This is a new type, use default config for legacy files
+                configuration = .sequences(SequencesConfig())
             case .tapHoldPicker:
                 let inputKey = try container.decodeIfPresent(String.self, forKey: .pickerInputKey) ?? ""
                 let tapHoldOptions = try container.decodeIfPresent(TapHoldPresetOptions.self, forKey: .tapHoldOptions)
@@ -334,6 +337,7 @@ public enum RuleCollectionIdentifier {
     public static let homeRowMods = UUID(uuidString: "B3E5F7A9-1C2D-4E5F-6A7B-8C9D0E1F2A3B")!
     public static let homeRowLayerToggles = UUID(uuidString: "C3F5E7A9-2D4E-5F6A-7B8C-9D0E1F2A3B4C")!
     public static let chordGroups = UUID(uuidString: "D4A6B8C0-3E5F-6A7B-8C9D-0E1F2A3B4C5D")!
+    public static let sequences = UUID(uuidString: "E5B7C9D1-4F2A-4B8C-9E3D-5A6F7C8D9E0F")!
     public static let backupCapsLock = UUID(uuidString: "C4D6E8F0-2A3B-5C7D-9E1F-3A5B7C9D1E3F")!
     public static let numpadLayer = UUID(uuidString: "D5E7F9A1-3B4C-6D8E-0F2A-4B6C8D0E2F4A")!
     public static let symbolLayer = UUID(uuidString: "E6F8A0B2-4C5D-7E9F-1A3B-5C7D9E1F3A5B")!
@@ -435,6 +439,8 @@ public enum RuleCollectionDisplayStyle: String, Codable, Sendable {
     case homeRowLayerToggles
     /// Chord Groups: Ben Vallack-style multi-key combinations (defchords)
     case chordGroups
+    /// Sequences: Leader key sequences that activate layers (defseq)
+    case sequences
     /// Tap-hold picker: separate preset options for tap and hold actions
     case tapHoldPicker
     /// Layer preset picker: choose from predefined layer configurations (e.g., Symbol Layer presets)

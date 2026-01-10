@@ -37,6 +37,9 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
     /// Chord Groups: Ben Vallack-style multi-key combinations (defchords)
     case chordGroups(ChordGroupsConfig)
 
+    /// Sequences: Leader key sequences that activate layers (defseq)
+    case sequences(SequencesConfig)
+
     /// Tap-hold picker: separate preset options for tap and hold actions
     case tapHoldPicker(TapHoldPickerConfig)
 
@@ -57,6 +60,7 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         case .homeRowMods: .homeRowMods
         case .homeRowLayerToggles: .homeRowLayerToggles
         case .chordGroups: .chordGroups
+        case .sequences: .sequences
         case .tapHoldPicker: .tapHoldPicker
         case .layerPresetPicker: .layerPresetPicker
         case .launcherGrid: .launcherGrid
@@ -90,6 +94,12 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
     /// Extract chord groups config if this is a `.chordGroups` case
     public var chordGroupsConfig: ChordGroupsConfig? {
         if case let .chordGroups(config) = self { return config }
+        return nil
+    }
+
+    /// Extract sequences config if this is a `.sequences` case
+    public var sequencesConfig: SequencesConfig? {
+        if case let .sequences(config) = self { return config }
         return nil
     }
 
@@ -155,6 +165,13 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         }
     }
 
+    /// Update the sequences config
+    public mutating func updateSequencesConfig(_ newConfig: SequencesConfig) {
+        if case .sequences = self {
+            self = .sequences(newConfig)
+        }
+    }
+
     /// Update the selected preset for layer preset picker configuration
     public mutating func updateSelectedPreset(_ presetId: String) {
         if case let .layerPresetPicker(config) = self {
@@ -184,6 +201,7 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         case homeRowMods
         case homeRowLayerToggles
         case chordGroups
+        case sequences
         case tapHoldPicker
         case layerPresetPicker
         case launcherGrid
@@ -210,6 +228,9 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         case .chordGroups:
             let config = try ChordGroupsConfig(from: decoder)
             self = .chordGroups(config)
+        case .sequences:
+            let config = try SequencesConfig(from: decoder)
+            self = .sequences(config)
         case .tapHoldPicker:
             let config = try TapHoldPickerConfig(from: decoder)
             self = .tapHoldPicker(config)
@@ -241,6 +262,9 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
             try config.encode(to: encoder)
         case let .chordGroups(config):
             try container.encode(ConfigType.chordGroups, forKey: .type)
+            try config.encode(to: encoder)
+        case let .sequences(config):
+            try container.encode(ConfigType.sequences, forKey: .type)
             try config.encode(to: encoder)
         case let .tapHoldPicker(config):
             try container.encode(ConfigType.tapHoldPicker, forKey: .type)
