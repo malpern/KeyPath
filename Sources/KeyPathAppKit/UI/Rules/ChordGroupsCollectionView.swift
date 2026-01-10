@@ -8,6 +8,7 @@ struct ChordGroupsCollectionView: View {
 
     @State private var showDetails = false
     @State private var selectedGroupID: UUID?
+    @State private var showPresetConfirmation = false
 
     init(
         config: Binding<ChordGroupsConfig>,
@@ -79,6 +80,21 @@ struct ChordGroupsCollectionView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: showDetails)
+        .alert("Load Ben Vallack Preset?", isPresented: $showPresetConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Load Preset") {
+                confirmLoadPreset()
+            }
+        } message: {
+            Text("""
+            This will load 2 chord groups with 7 total chords:
+
+            • Navigation (250ms): s+d → Esc, d+f → Enter, j+k → Up, k+l → Down
+            • Editing (400ms): a+s → Backspace, s+d+f → Cut, e+r → Undo
+
+            These are Ben Vallack's home row chord combinations for fast navigation and editing.
+            """)
+        }
     }
 
     // MARK: - Summary Section
@@ -296,8 +312,13 @@ struct ChordGroupsCollectionView: View {
     }
 
     private func loadBenVallackPreset() {
+        showPresetConfirmation = true
+    }
+
+    private func confirmLoadPreset() {
         config = ChordGroupsConfig.benVallackPreset
         selectedGroupID = config.activeGroupID
+        showDetails = true // Auto-expand to show the loaded groups
         updateConfig()
     }
 

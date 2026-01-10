@@ -436,7 +436,13 @@ struct RulesTabView: View {
         .sheet(item: $chordGroupsEditState) { editState in
             ChordGroupsModalView(
                 config: Binding(
-                    get: { editState.collection.configuration.chordGroupsConfig ?? ChordGroupsConfig() },
+                    get: {
+                        // Get the LATEST config from kanataManager, not the stale editState snapshot
+                        if let currentCollection = kanataManager.ruleCollections.first(where: { $0.id == editState.collection.id }) {
+                            return currentCollection.configuration.chordGroupsConfig ?? ChordGroupsConfig()
+                        }
+                        return editState.collection.configuration.chordGroupsConfig ?? ChordGroupsConfig()
+                    },
                     set: { _ in }
                 ),
                 onSave: { newConfig in
@@ -453,7 +459,13 @@ struct RulesTabView: View {
         .sheet(item: $sequencesEditState) { editState in
             SequencesModalView(
                 config: Binding(
-                    get: { editState.collection.configuration.sequencesConfig ?? SequencesConfig() },
+                    get: {
+                        // Get the LATEST config from kanataManager, not the stale editState snapshot
+                        if let currentCollection = kanataManager.ruleCollections.first(where: { $0.id == editState.collection.id }) {
+                            return currentCollection.configuration.sequencesConfig ?? SequencesConfig()
+                        }
+                        return editState.collection.configuration.sequencesConfig ?? SequencesConfig()
+                    },
                     set: { _ in }
                 ),
                 onSave: { newConfig in
