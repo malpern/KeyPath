@@ -41,6 +41,12 @@ struct ChordGroupsEditState: Identifiable {
     let collection: RuleCollection
 }
 
+/// State for sequences editing modal
+struct SequencesEditState: Identifiable {
+    let id = UUID()
+    let collection: RuleCollection
+}
+
 // MARK: - Toast View (shared with ContentView)
 
 private struct ToastView: View {
@@ -99,6 +105,7 @@ struct RulesTabView: View {
     @State private var homeRowModsEditState: HomeRowModsEditState?
     @State private var homeRowLayerTogglesEditState: HomeRowLayerTogglesEditState?
     @State private var chordGroupsEditState: ChordGroupsEditState?
+    @State private var sequencesEditState: SequencesEditState?
     @State private var appKeymaps: [AppKeymap] = []
     private let catalog = RuleCollectionCatalog()
 
@@ -220,6 +227,12 @@ struct RulesTabView: View {
             } : nil,
             onOpenChordGroupsModal: style == .chordGroups ? {
                 chordGroupsEditState = ChordGroupsEditState(collection: collection)
+            } : nil,
+            onUpdateSequencesConfig: style == .sequences ? { config in
+                Task { await kanataManager.updateSequencesConfig(collectionId: collection.id, config: config) }
+            } : nil,
+            onOpenSequencesModal: style == .sequences ? {
+                sequencesEditState = SequencesEditState(collection: collection)
             } : nil,
             onSelectLayerPreset: style == .layerPresetPicker ? { presetId in
                 Task { await kanataManager.updateCollectionLayerPreset(collection.id, presetId: presetId) }
@@ -432,6 +445,23 @@ struct RulesTabView: View {
                 },
                 onCancel: {
                     chordGroupsEditState = nil
+                }
+            )
+        }
+        .sheet(item: $sequencesEditState) { editState in
+            SequencesModalView(
+                config: Binding(
+                    get: { editState.collection.configuration.sequencesConfig ?? SequencesConfig() },
+                    set: { _ in }
+                ),
+                onSave: { newConfig in
+                    Task {
+                        await kanataManager.updateSequencesConfig(collectionId: editState.collection.id, config: newConfig)
+                    }
+                    sequencesEditState = nil
+                },
+                onCancel: {
+                    sequencesEditState = nil
                 }
             )
         }
@@ -764,6 +794,10 @@ private struct ExpandableCollectionRow: View {
     var onUpdateChordGroupsConfig: ((ChordGroupsConfig) -> Void)?
     /// For chordGroups style: callback to open modal
     var onOpenChordGroupsModal: (() -> Void)?
+    /// For sequences style: callback to update config
+    var onUpdateSequencesConfig: ((SequencesConfig) -> Void)?
+    /// For sequences style: callback to open modal
+    var onOpenSequencesModal: (() -> Void)?
     /// For layerPresetPicker style: callback to select a layer preset
     var onSelectLayerPreset: ((String) -> Void)?
     /// For windowSnapping: callback to change key convention
@@ -1104,6 +1138,51 @@ private struct ExpandableCollectionRow: View {
                             onOpenChordGroupsModal?()
                         }
                     )
+                    .padding(.top, 8)
+                    .padding(.bottom, 12)
+                    .padding(.horizontal, 16)
+                } else if displayStyle == .sequences, let coll = collection {
+                    // Sequences: Multi-key sequences that trigger layers
+                    let config = coll.configuration.sequencesConfig ?? SequencesConfig()
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Create multi-key sequences like 'Leader → w' to activate layers")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+
+                        if config.sequences.isEmpty {
+                            Text("No sequences configured yet")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        } else {
+                            VStack(alignment: .leading, spacing: 4) {
+                                ForEach(config.sequences.prefix(3)) { sequence in
+                                    HStack {
+                                        Text(sequence.prettyKeys)
+                                            .font(.caption)
+                                            .foregroundColor(.primary)
+                                        Image(systemName: "arrow.right")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        Text(sequence.action.displayName)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                if config.sequences.count > 3 {
+                                    Text("+ \(config.sequences.count - 3) more")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+
+                        Button(action: {
+                            onOpenSequencesModal?()
+                        }) {
+                            Label("Customize...", systemImage: "arrow.right.arrow.left.circle")
+                        }
+                        .buttonStyle(.bordered)
+                    }
                     .padding(.top, 8)
                     .padding(.bottom, 12)
                     .padding(.horizontal, 16)

@@ -718,6 +718,30 @@ final class RuleCollectionsManager {
         await regenerateConfigFromCollections()
     }
 
+    /// Update sequences configuration
+    func updateSequencesConfig(id: UUID, config: SequencesConfig) async {
+        guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
+            // Try to find in catalog and add it
+            let catalog = RuleCollectionCatalog()
+            if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
+                catalogCollection.configuration.updateSequencesConfig(config)
+                catalogCollection.isEnabled = true
+                ruleCollections.append(catalogCollection)
+                dedupeRuleCollectionsInPlace()
+                refreshLayerIndicatorState()
+                await regenerateConfigFromCollections()
+            }
+            return
+        }
+
+        ruleCollections[index].configuration.updateSequencesConfig(config)
+        ruleCollections[index].isEnabled = true
+
+        dedupeRuleCollectionsInPlace()
+        refreshLayerIndicatorState()
+        await regenerateConfigFromCollections()
+    }
+
     /// Update launcher grid configuration
     func updateLauncherConfig(id: UUID, config: LauncherGridConfig) async {
         guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {

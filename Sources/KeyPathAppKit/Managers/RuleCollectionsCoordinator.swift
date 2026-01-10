@@ -125,6 +125,13 @@ final class RuleCollectionsCoordinator {
         notifyStateChanged()
     }
 
+    /// Update sequences configuration
+    func updateSequencesConfig(id: UUID, config: SequencesConfig) async {
+        await ruleCollectionsManager.updateSequencesConfig(id: id, config: config)
+        applyMappings(ruleCollectionsManager.enabledMappings())
+        notifyStateChanged()
+    }
+
     /// Update launcher grid configuration
     func updateLauncherConfig(id: UUID, config: LauncherGridConfig) async {
         await ruleCollectionsManager.updateLauncherConfig(id: id, config: config)

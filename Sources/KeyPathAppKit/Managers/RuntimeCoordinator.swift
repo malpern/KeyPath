@@ -863,6 +863,10 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         await ruleCollectionsCoordinator.updateChordGroupsConfig(id: collectionId, config: config)
     }
 
+    func updateSequencesConfig(collectionId: UUID, config: SequencesConfig) async {
+        await ruleCollectionsCoordinator.updateSequencesConfig(id: collectionId, config: config)
+    }
+
     func updateLauncherConfig(collectionId: UUID, config: LauncherGridConfig) async {
         await ruleCollectionsCoordinator.updateLauncherConfig(id: collectionId, config: config)
     }

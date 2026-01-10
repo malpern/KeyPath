@@ -57,6 +57,7 @@ struct RuleCollectionCatalog {
             homeRowMods,
             homeRowLayerToggles,
             chordGroups,
+            sequences,
             numpadLayer,
             symbolLayer,
             launcher,
@@ -587,6 +588,21 @@ struct RuleCollectionCatalog {
             icon: "keyboard.badge.ellipsis",
             tags: ["chords", "defchords", "ben vallack", "productivity", "combos"],
             configuration: .chordGroups(ChordGroupsConfig())
+        )
+    }
+
+    private var sequences: RuleCollection {
+        RuleCollection(
+            id: RuleCollectionIdentifier.sequences,
+            name: "Sequences",
+            summary: "Create multi-key sequences like 'Leader → w' to activate layers",
+            category: .productivity,
+            mappings: [],
+            isEnabled: false,
+            isSystemDefault: false,
+            icon: "arrow.right.arrow.left.circle",
+            tags: ["sequences", "defseq", "leader", "multi-key"],
+            configuration: .sequences(SequencesConfig())
         )
     }
 
