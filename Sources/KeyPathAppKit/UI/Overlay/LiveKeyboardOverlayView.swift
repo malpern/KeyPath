@@ -991,14 +991,12 @@ private struct OverlayDragHeader: View {
             Spacer()
 
             // Controls aligned to the right side of the header
-            // Order: Status indicators (left) → [spacer] → Drawer → Close (far right)
+            // Order: Status indicators (left) → Drawer → Close (far right)
             HStack(spacing: 6) {
                 // 1. Status slot (leftmost of the right-aligned group):
                 // - Shows health indicator when not dismissed (including the "Ready" pill)
                 // - Otherwise shows Japanese input + layer pill
                 statusSlot(indicatorCornerRadius: indicatorCornerRadius)
-
-                Spacer()
 
                 // 2. Toggle inspector/drawer button
                 Button {
@@ -1033,7 +1031,6 @@ private struct OverlayDragHeader: View {
                 .accessibilityIdentifier("overlay-close-button")
                 .accessibilityLabel("Close keyboard overlay")
             }
-            .frame(width: maxControlsWidth, alignment: .leading)
             .padding(.trailing, 6)
             .animation(.easeOut(duration: 0.12), value: currentLayerName)
             .animation(.spring(response: 0.4, dampingFraction: 0.7), value: healthIndicatorState)
@@ -1107,13 +1104,16 @@ private struct OverlayDragHeader: View {
                             layerDisplayName: layerDisplayName,
                             indicatorCornerRadius: indicatorCornerRadius
                         )
+                        .id(layerDisplayName) // Force new view when layer changes
+                        .transition(.move(edge: .top))
+                        .animation(.easeOut(duration: 0.2), value: layerDisplayName)
                     }
                 }
-                .transition(.opacity.combined(with: .scale))
+                .transition(.opacity)
             }
         }
-        // Keep the slot leading-aligned so the status indicators are on the left of the controls.
-        .frame(maxWidth: .infinity, alignment: .leading)
+        // Don't expand to fill space - let Nav pill stay close to drawer button
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private func inputModePill(indicator: String, indicatorCornerRadius: CGFloat) -> some View {
@@ -1139,8 +1139,10 @@ private struct OverlayDragHeader: View {
     }
 
     private func layerPill(layerDisplayName: String, indicatorCornerRadius: CGFloat) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: "square.3.layers.3d")
+        let iconName = layerIconName(for: layerDisplayName)
+
+        return HStack(spacing: 4) {
+            Image(systemName: iconName)
                 .font(.system(size: 9, weight: .medium))
             Text(layerDisplayName)
                 .font(.system(size: 10, weight: .semibold, design: .monospaced))
@@ -1155,6 +1157,25 @@ private struct OverlayDragHeader: View {
         .help("Current layer: \(layerDisplayName)")
         .accessibilityIdentifier("overlay-layer-indicator")
         .accessibilityLabel("Current layer: \(layerDisplayName)")
+    }
+
+    private func layerIconName(for layerDisplayName: String) -> String {
+        let lower = layerDisplayName.lowercased()
+
+        switch lower {
+        case "nav", "navigation", "vim":
+            return "arrow.up.and.down.and.arrow.left.and.right"
+        case "window", "window-mgmt":
+            return "macwindow"
+        case "numpad", "num":
+            return "number"
+        case "sym", "symbol":
+            return "character"
+        case "launcher", "quick launcher":
+            return "app.badge"
+        default:
+            return "square.3.layers.3d"
+        }
     }
 
     private func kanataDisconnectedPill(indicatorCornerRadius: CGFloat) -> some View {

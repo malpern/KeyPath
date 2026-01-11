@@ -541,24 +541,31 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Update the current layer and rebuild key mapping
     func updateLayer(_ layerName: String) {
         let wasLauncherMode = isLauncherModeActive
-        currentLayerName = layerName
+
+        // IMPORTANT: Don't update currentLayerName yet - wait until mapping is ready
+        // This prevents UI flash where old mapping shows with new layer name
+        let targetLayerName = layerName
 
         // Clear tap-hold sources on layer change to prevent stale suppressions
         // (e.g., user switches layers while holding a tap-hold key)
         activeTapHoldSources.removeAll()
 
+        // Check if we'll be entering/exiting launcher mode
+        let willBeLauncherMode = targetLayerName.lowercased() == Self.launcherLayerName
+
         // Load/clear launcher mappings when entering/exiting launcher mode
-        let isNowLauncherMode = isLauncherModeActive
-        if isNowLauncherMode, !wasLauncherMode {
+        if willBeLauncherMode, !wasLauncherMode {
             loadLauncherMappings()
-        } else if !isNowLauncherMode, wasLauncherMode {
+        } else if !willBeLauncherMode, wasLauncherMode {
             launcherMappings.removeAll()
         }
 
         // Reset idle timer on any layer change (including returning to base)
         noteInteraction()
         noteTcpEventReceived()
-        rebuildLayerMapping()
+
+        // Build mapping first, then update layer name atomically when ready
+        rebuildLayerMappingForLayer(targetLayerName)
     }
 
     /// Load launcher mappings from the Quick Launcher rule collection
@@ -626,6 +633,12 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
     /// Rebuild the key mapping for the current layer
     func rebuildLayerMapping() {
+        rebuildLayerMappingForLayer(currentLayerName)
+    }
+
+    /// Rebuild the key mapping for a specific layer
+    /// Updates both the layer name and mapping atomically to prevent UI flash
+    private func rebuildLayerMappingForLayer(_ targetLayerName: String) {
         // Cancel any in-flight mapping task
         layerMapTask?.cancel()
 
@@ -636,7 +649,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
         }
 
         isLoadingLayerMap = true
-        AppLogger.shared.info("🗺️ [KeyboardViz] Starting layer mapping build for '\(currentLayerName)'...")
+        AppLogger.shared.info("🗺️ [KeyboardViz] Starting layer mapping build for '\(targetLayerName)'...")
 
         layerMapTask = Task { [weak self] in
             guard let self else { return }
@@ -645,37 +658,47 @@ class KeyboardVisualizationViewModel: ObservableObject {
                 let configPath = WizardSystemPaths.userConfigPath
                 AppLogger.shared.debug("🗺️ [KeyboardViz] Using config: \(configPath)")
 
-                // Build mapping for current layer
+                // Build mapping for target layer
                 var mapping = try await layerKeyMapper.getMapping(
-                    for: currentLayerName,
+                    for: targetLayerName,
                     configPath: configPath,
                     layout: layout
                 )
 
+                // DEBUG: Log what simulator returned
+                AppLogger.shared.info("🗺️ [KeyboardViz] Simulator returned \(mapping.count) entries for '\(targetLayerName)'")
+                for (keyCode, info) in mapping.prefix(20) {
+                    AppLogger.shared.debug("  [\(targetLayerName)] keyCode \(keyCode) -> '\(info.displayLabel)'")
+                }
+
                 // Augment mapping with push-msg actions from custom rules and rule collections
-                // Include base layer so app/system/URL icons display for remapped keys
+                // Only include actions targeting this specific layer
                 let customRules = await CustomRulesStore.shared.loadRules()
                 let ruleCollections = await RuleCollectionStore.shared.loadCollections()
-                AppLogger.shared.info("🗺️ [KeyboardViz] Augmenting '\(currentLayerName)' with \(customRules.count) custom rules and \(ruleCollections.count) collections")
+                AppLogger.shared.info("🗺️ [KeyboardViz] Augmenting '\(targetLayerName)' with \(customRules.count) custom rules and \(ruleCollections.count) collections")
                 mapping = augmentWithPushMsgActions(
                     mapping: mapping,
                     customRules: customRules,
-                    ruleCollections: ruleCollections
+                    ruleCollections: ruleCollections,
+                    currentLayerName: targetLayerName
                 )
 
                 // Apply app-specific overrides for the current frontmost app
                 mapping = await applyAppSpecificOverrides(to: mapping)
 
-                // Update on main actor with explicit objectWillChange to ensure SwiftUI notices
+                // Update layer name and mapping atomically to prevent UI flash
+                // This ensures the UI never shows mismatched layer name + old mapping
                 await MainActor.run {
                     self.objectWillChange.send()
+                    self.currentLayerName = targetLayerName
                     self.layerKeyMap = mapping
                     self.remapOutputMap = self.buildRemapOutputMap(from: mapping)
                     self.isLoadingLayerMap = false
-                    AppLogger.shared.info("🗺️ [KeyboardViz] Updated layerKeyMap with \(mapping.count) entries, remapOutputMap with \(self.remapOutputMap.count) remaps")
+                    AppLogger.shared
+                        .info("🗺️ [KeyboardViz] Updated currentLayerName to '\(targetLayerName)' and layerKeyMap with \(mapping.count) entries, remapOutputMap with \(self.remapOutputMap.count) remaps")
                 }
 
-                AppLogger.shared.info("🗺️ [KeyboardViz] Built layer mapping for '\(currentLayerName)': \(mapping.count) keys")
+                AppLogger.shared.info("🗺️ [KeyboardViz] Built layer mapping for '\(targetLayerName)': \(mapping.count) keys")
 
                 // Log a few sample mappings for debugging
                 for (keyCode, info) in mapping.prefix(5) {
@@ -714,11 +737,13 @@ class KeyboardVisualizationViewModel: ObservableObject {
     ///   - mapping: The base layer key mapping from the simulator
     ///   - customRules: Custom rules to check for push-msg patterns
     ///   - ruleCollections: Preset rule collections to check for push-msg patterns
+    ///   - currentLayerName: The layer name to filter collections/rules by (only include matching layers)
     /// - Returns: Mapping with action info added where applicable
     private func augmentWithPushMsgActions(
         mapping: [UInt16: LayerKeyInfo],
         customRules: [CustomRule],
-        ruleCollections: [RuleCollection]
+        ruleCollections: [RuleCollection],
+        currentLayerName: String
     ) -> [UInt16: LayerKeyInfo] {
         var augmented = mapping
 
@@ -726,7 +751,21 @@ class KeyboardVisualizationViewModel: ObservableObject {
         var actionByInput: [String: LayerKeyInfo] = [:]
 
         // First, process rule collections (lower priority - can be overridden by custom rules)
+        // Only process collections that target the current layer or base layer
         for collection in ruleCollections where collection.isEnabled {
+            // Check if this collection targets the current layer
+            let collectionLayerName = collection.targetLayer.kanataName.lowercased()
+            let currentLayer = currentLayerName.lowercased()
+
+            // Only include mappings from collections targeting this layer
+            // Exception: base layer gets base-layer collections only
+            guard collectionLayerName == currentLayer else {
+                AppLogger.shared.debug("🗺️ [KeyboardViz] Skipping collection '\(collection.name)' (targets '\(collectionLayerName)', current layer '\(currentLayer)')")
+                continue
+            }
+
+            AppLogger.shared.debug("🗺️ [KeyboardViz] Including collection '\(collection.name)' (\(collection.mappings.count) mappings)")
+
             for keyMapping in collection.mappings {
                 let input = keyMapping.input.lowercased()
                 // First try push-msg pattern (apps, system actions, URLs)
@@ -749,6 +788,15 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
         // Then, process custom rules (higher priority - overrides collections)
         for rule in customRules where rule.isEnabled {
+            // Check if this rule targets the current layer
+            let ruleLayerName = rule.targetLayer.kanataName.lowercased()
+            let currentLayer = currentLayerName.lowercased()
+
+            // Only include rules targeting this layer
+            guard ruleLayerName == currentLayer else {
+                continue
+            }
+
             let input = rule.input.lowercased()
             // First try push-msg pattern (apps, system actions, URLs)
             if let info = Self.extractPushMsgInfo(from: rule.output, description: rule.notes) {
@@ -779,9 +827,17 @@ class KeyboardVisualizationViewModel: ObservableObject {
         AppLogger.shared.info("🗺️ [KeyboardViz] Found \(actionByInput.count) actions (push-msg + simple remaps)")
 
         // Update mapping entries
-        for (keyCode, _) in mapping {
+        // IMPORTANT: Only augment keys that are NOT transparent (XX)
+        // Transparent keys should pass through without showing action labels
+        for (keyCode, originalInfo) in mapping {
             let keyName = OverlayKeyboardView.keyCodeToKanataName(keyCode).lowercased()
             if let info = actionByInput[keyName] {
+                // Skip augmentation if the original key is transparent (XX)
+                // Transparent keys should not show action labels from collections/rules
+                if originalInfo.isTransparent {
+                    AppLogger.shared.debug("🗺️ [KeyboardViz] Skipping augmentation for transparent key \(keyName)(\(keyCode))")
+                    continue
+                }
                 augmented[keyCode] = info
                 AppLogger.shared.debug("🗺️ [KeyboardViz] Key \(keyName)(\(keyCode)) -> '\(info.displayLabel)'")
             }

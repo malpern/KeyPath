@@ -419,6 +419,14 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         }
     }
 
+    private func bringOverlayToFront() {
+        if !isVisible {
+            isVisible = true
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        window?.makeKeyAndOrderFront(nil)
+    }
+
     /// Restore overlay state from previous session
     /// Only restores if system status is healthy (Kanata running)
     func restoreState() {

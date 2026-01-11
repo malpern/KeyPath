@@ -76,6 +76,11 @@ struct OverlayKeycapView: View {
     /// Whether this key has a meaningful layer mapping (not transparent/identity)
     private var hasLayerMapping: Bool {
         guard let info = layerKeyInfo else { return false }
+        // Bottom row modifier keys (fn, ctrl, opt, cmd) should never show as mapped in layer modes
+        // They are fundamental modifiers that should look consistent across all layers
+        if key.layoutRole == .narrowModifier {
+            return false
+        }
         // Has a mapping if it's not transparent and has actual content
         if info.isTransparent { return false }
         if info.isLayerSwitch { return true }
@@ -528,8 +533,12 @@ struct OverlayKeycapView: View {
     /// Standard key content routing (used for .standard legend style)
     @ViewBuilder
     private var standardKeyContent: some View {
+        // TouchID/Power key: ALWAYS show drawer icon regardless of mode
+        if key.keyCode == 0xFFFF {
+            touchIdContent
+        }
         // Launcher mode: ALL keys use launcher styling (icons for mapped, labels for unmapped)
-        if isLauncherMode {
+        else if isLauncherMode {
             launcherModeContent
         }
         // Layer mode (Vim/Nav): ALL keys use layer styling (action in center, label in top-left)
@@ -795,33 +804,62 @@ struct OverlayKeycapView: View {
         let isArrowKey = key.layoutRole == .arrow
 
         if hasLayerMapping {
-            // Mapped key: action in center, key letter in top-left (except arrows)
-            ZStack(alignment: .topLeading) {
-                // Centered action content
-                layerActionContent
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Special case: fn key should always show globe + "fn" even when mapped
+            if key.label == "fn" {
+                fnKeyContent
+            } else {
+                // Mapped key: action in center, key letter in top-left (except arrows)
+                ZStack(alignment: .topLeading) {
+                    // Centered action content
+                    layerActionContent
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                // Key letter in top-left corner (skip for arrow keys to avoid dual arrows)
-                if !isArrowKey {
-                    Text(layerKeyLabel.uppercased())
-                        .font(.system(size: 8 * scale, weight: .medium, design: .rounded))
-                        .foregroundStyle(Color.white.opacity(0.7))
-                        .padding(3 * scale)
+                    // Key letter in top-left corner (skip for arrow keys to avoid dual arrows)
+                    if !isArrowKey {
+                        Text(layerKeyLabel.uppercased())
+                            .font(.system(size: 8 * scale, weight: .medium, design: .rounded))
+                            .foregroundStyle(Color.white.opacity(0.7))
+                            .padding(3 * scale)
+                    }
                 }
             }
         } else {
-            // Unmapped key in layer mode: small label in top-left (skip for arrows)
+            // Unmapped key in layer mode: small label in top-left (skip for arrows and bottom row modifiers)
             if isArrowKey {
                 // Arrow keys: just show centered arrow
                 arrowContent
+            } else if key.layoutRole == .narrowModifier {
+                // Bottom row modifiers (fn, ctrl, opt, cmd): render same as base layer
+                narrowModifierContent
             } else {
-                ZStack(alignment: .topLeading) {
-                    Text(layerKeyLabel.uppercased())
+                // In Nav layer, convert symbols to text labels (except modifier keys)
+                let displayLabel: String = {
+                    if currentLayerName.lowercased() == "nav" {
+                        // Keep modifier symbols (⌃, ⌥, ⌘) as-is, convert others to text
+                        let modifierSymbols: Set<String> = ["⌃", "⌥", "⌘", "fn"]
+                        if modifierSymbols.contains(layerKeyLabel) {
+                            return layerKeyLabel
+                        }
+                        let physicalMetadata = LabelMetadata.forLabel(layerKeyLabel)
+                        return physicalMetadata.wordLabel ?? layerKeyLabel
+                    }
+                    return layerKeyLabel
+                }()
+
+                // Keep letter keys uppercase, but word labels (tab, shift, etc.) lowercase
+                let finalLabel = displayLabel.count > 2 ? displayLabel : displayLabel.uppercased()
+
+                // Caps lock (hyper key) shows ✦ at bottom to avoid overlapping with indicator light
+                let isCapsLock = key.keyCode == 57
+                let alignment: Alignment = isCapsLock ? .bottomLeading : .topLeading
+
+                ZStack(alignment: alignment) {
+                    Text(finalLabel)
                         .font(.system(size: 8 * scale, weight: .medium, design: .rounded))
                         .foregroundStyle(Color.white.opacity(0.5))
                         .padding(3 * scale)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
             }
         }
     }
@@ -867,18 +905,196 @@ struct OverlayKeycapView: View {
                     .font(.system(size: 16 * scale, weight: .semibold))
                     .foregroundStyle(Color.white.opacity(0.9))
             } else if !info.displayLabel.isEmpty {
+                // Skip SF symbols for modifier/special keys - keep text labels
+                let skipSymbolConversion = isModifierOrSpecialKey(info.displayLabel)
+
+                // Check for action-specific SF Symbol (window management, etc.)
+                // But skip if it's a modifier/special key
+                if !skipSymbolConversion, let actionSymbol = sfSymbolForAction(info.displayLabel) {
+                    Image(systemName: actionSymbol)
+                        .font(.system(size: 14 * scale, weight: .medium))
+                        .foregroundStyle(Color.white.opacity(0.9))
+                        .help(info.displayLabel) // Tooltip on hover
+                }
                 // Check for SF symbol (media keys, system actions)
-                if let sfSymbol = LabelMetadata.sfSymbol(forOutputLabel: info.displayLabel) {
+                else if !skipSymbolConversion, let sfSymbol = LabelMetadata.sfSymbol(forOutputLabel: info.displayLabel) {
                     Image(systemName: sfSymbol)
                         .font(.system(size: 14 * scale, weight: .medium))
                         .foregroundStyle(Color.white.opacity(0.9))
+                        .help(info.displayLabel) // Tooltip on hover
                 } else {
-                    // Other mapped action - show the label as text
-                    Text(info.displayLabel.uppercased())
-                        .font(.system(size: 10 * scale, weight: .medium))
-                        .foregroundStyle(Color.white.opacity(0.9))
+                    // No SF Symbol - use dynamic text with wrapping
+                    dynamicTextLabel(info.displayLabel)
+                        .help(info.displayLabel) // Tooltip on hover
                 }
             }
+        }
+    }
+
+    /// Check if a label represents a modifier or special key that should keep text labels
+    /// instead of being converted to SF symbols
+    private func isModifierOrSpecialKey(_ label: String) -> Bool {
+        let lower = label.lowercased()
+        let modifierKeys: Set<String> = [
+            "shift", "lshift", "rshift", "leftshift", "rightshift",
+            "control", "ctrl", "lctrl", "rctrl", "leftcontrol", "rightcontrol",
+            "option", "opt", "alt", "lalt", "ralt", "leftoption", "rightoption",
+            "command", "cmd", "meta", "lmet", "rmet", "leftcommand", "rightcommand",
+            "hyper", "meh",
+            "capslock", "caps",
+            "return", "enter", "ret",
+            "escape", "esc",
+            "tab",
+            "space", "spc",
+            "backspace", "bspc",
+            "delete", "del",
+            "fn", "function"
+        ]
+        return modifierKeys.contains(lower)
+    }
+
+    /// Map action descriptions to SF Symbols
+    /// Returns SF Symbol name if a good match exists for the action
+    private func sfSymbolForAction(_ action: String) -> String? {
+        let lower = action.lowercased()
+
+        // Window management - snapping to halves
+        if lower.contains("left") && lower.contains("half") {
+            return "rectangle.lefthalf.filled"
+        }
+        if lower.contains("right") && lower.contains("half") {
+            return "rectangle.righthalf.filled"
+        }
+        if lower.contains("top") && lower.contains("half") {
+            return "rectangle.tophalf.filled"
+        }
+        if lower.contains("bottom") && lower.contains("half") {
+            return "rectangle.bottomhalf.filled"
+        }
+
+        // Window management - corners
+        if lower.contains("top") && lower.contains("left") && lower.contains("corner") {
+            return "arrow.up.left"
+        }
+        if lower.contains("top") && lower.contains("right") && lower.contains("corner") {
+            return "arrow.up.right"
+        }
+        if lower.contains("bottom") && lower.contains("left") && lower.contains("corner") {
+            return "arrow.down.left"
+        }
+        if lower.contains("bottom") && lower.contains("right") && lower.contains("corner") {
+            return "arrow.down.right"
+        }
+
+        // Window management - maximize/fullscreen
+        if lower.contains("maximize") || lower.contains("fullscreen") || lower.contains("full screen") {
+            return "arrow.up.left.and.arrow.down.right"
+        }
+        if lower.contains("restore") {
+            return "arrow.down.right.and.arrow.up.left"
+        }
+        if lower.contains("center") && !lower.contains("align") {
+            return "circle.grid.cross"
+        }
+
+        // Window management - display/monitor movement
+        if lower.contains("next display") || lower.contains("display right") || lower.contains("move right display") {
+            return "arrow.right.to.line"
+        }
+        if lower.contains("previous display") || lower.contains("display left") || lower.contains("move left display") {
+            return "arrow.left.to.line"
+        }
+
+        // Window management - space/desktop movement
+        if lower.contains("next space") || lower.contains("space right") {
+            return "arrow.right.square"
+        }
+        if lower.contains("previous space") || lower.contains("space left") {
+            return "arrow.left.square"
+        }
+
+        // Window management - thirds
+        if lower.contains("left third") || lower.contains("left 1/3") {
+            return "rectangle.leadinghalf.filled"
+        }
+        if lower.contains("center third") || lower.contains("middle third") {
+            return "rectangle.center.inset.filled"
+        }
+        if lower.contains("right third") || lower.contains("right 1/3") {
+            return "rectangle.trailinghalf.filled"
+        }
+
+        // Window management - two-thirds
+        if lower.contains("left two thirds") || lower.contains("left 2/3") {
+            return "rectangle.leadingthird.inset.filled"
+        }
+        if lower.contains("right two thirds") || lower.contains("right 2/3") {
+            return "rectangle.trailingthird.inset.filled"
+        }
+
+        // Navigation - directional (when not already arrows)
+        if lower == "up" || lower == "move up" {
+            return "arrow.up"
+        }
+        if lower == "down" || lower == "move down" {
+            return "arrow.down"
+        }
+        if lower == "left" || lower == "move left" {
+            return "arrow.left"
+        }
+        if lower == "right" || lower == "move right" {
+            return "arrow.right"
+        }
+
+        // Common text editing actions
+        if lower.contains("yank") || lower.contains("copy") {
+            return "doc.on.doc"
+        }
+        if lower.contains("paste") {
+            return "doc.on.clipboard"
+        }
+        if lower.contains("delete") || lower.contains("remove") {
+            return "trash"
+        }
+        if lower.contains("undo") {
+            return "arrow.uturn.backward"
+        }
+        if lower.contains("redo") {
+            return "arrow.uturn.forward"
+        }
+        if lower.contains("save") {
+            return "square.and.arrow.down"
+        }
+
+        // Search/Find
+        if lower.contains("search") || lower.contains("find") {
+            return "magnifyingglass"
+        }
+
+        // No good SF Symbol match
+        return nil
+    }
+
+    /// Render text label with dynamic sizing and multi-line wrapping
+    @ViewBuilder
+    private func dynamicTextLabel(_ text: String) -> some View {
+        GeometryReader { geometry in
+            let availableWidth = geometry.size.width - 4 * scale
+            let availableHeight = geometry.size.height - 4 * scale
+            let preferredSize: CGFloat = 10 * scale
+            let mediumSize: CGFloat = 8 * scale
+            let smallSize: CGFloat = 6 * scale
+            let estimatedWidth = CGFloat(text.count) * preferredSize * 0.6
+            let fontSize = estimatedWidth <= availableWidth ? preferredSize : (estimatedWidth <= availableWidth * 1.5 ? mediumSize : smallSize)
+
+            Text(text.uppercased())
+                .font(.system(size: fontSize, weight: .medium))
+                .foregroundStyle(Color.white.opacity(0.9))
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .minimumScaleFactor(0.5)
+                .frame(maxWidth: availableWidth, maxHeight: availableHeight)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -1362,6 +1578,10 @@ struct OverlayKeycapView: View {
             if let holdLabel {
                 return holdLabel
             }
+            // In Nav layer, always use text labels (not symbols) for unmapped keys
+            if currentLayerName.lowercased() == "nav" {
+                return physicalMetadata.wordLabel ?? key.label
+            }
             return metadata.wordLabel ?? physicalMetadata.wordLabel ?? key.label
         }()
         let isRight = key.isRightSideKey
@@ -1547,7 +1767,7 @@ struct OverlayKeycapView: View {
                 .modifier(PulseAnimation())
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            // Large centered sidebar icon
+            // Always show drawer icon (sidebar.right opens the inspector drawer)
             Image(systemName: "sidebar.right")
                 .font(.system(size: 12 * scale, weight: .regular))
                 .foregroundStyle(foregroundColor)
@@ -1643,18 +1863,14 @@ struct OverlayKeycapView: View {
     }
 
     private var keyStroke: Color {
-        // No persistent border - keys rely on shadows for separation
-        // (User preference: cleaner look without outlines)
-        if isReleaseFading {
-            Color.white.opacity(0)
-        } else {
-            Color.white.opacity(0.35 * fadeAmount)
-        }
+        // No borders at any time - keys rely on shadows for separation
+        // (User preference: cleaner look without outlines, including during fade)
+        Color.white.opacity(0)
     }
 
     private var strokeWidth: CGFloat {
-        // No persistent border stroke width
-        isReleaseFading ? 0 : fadeAmount * scale
+        // No border stroke width at any time
+        0
     }
 
     private var shadowColor: Color {

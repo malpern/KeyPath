@@ -403,14 +403,20 @@ actor LayerKeyMapper {
 
             // Parse events to extract outputs
             guard let parsed = parseRawSimulationEvents(simName: simName, events: result.events) else {
-                // No outputs found - use physical label
+                // No outputs found
+                // On non-base layers: this means the key is transparent (XX)
+                // On base layer: use physical label (shouldn't happen, but handle gracefully)
+                let isTransparent = startLayer.lowercased() != "base"
                 mapping[keyCode] = LayerKeyInfo(
                     displayLabel: fallbackLabel,
                     outputKey: nil,
                     outputKeyCode: nil,
-                    isTransparent: false,
+                    isTransparent: isTransparent,
                     isLayerSwitch: false
                 )
+                if isTransparent {
+                    AppLogger.shared.debug("🔍 [LayerKeyMapper] \(simName)(\(keyCode)) is transparent (XX) on '\(startLayer)'")
+                }
                 continue
             }
 

@@ -125,10 +125,6 @@ struct SequencesModalView: View {
                         addPreset(.windowManagementPreset)
                     }
                     .accessibilityIdentifier("sequences-modal-preset-window")
-                    Button("App Launcher") {
-                        addPreset(.appLauncherPreset)
-                    }
-                    .accessibilityIdentifier("sequences-modal-preset-launcher")
                     Button("Navigation") {
                         addPreset(.navigationPreset)
                     }
