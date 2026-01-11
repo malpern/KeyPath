@@ -76,6 +76,11 @@ struct OverlayKeycapView: View {
     /// Whether this key has a meaningful layer mapping (not transparent/identity)
     private var hasLayerMapping: Bool {
         guard let info = layerKeyInfo else { return false }
+        // Bottom row modifier keys (fn, ctrl, opt, cmd) should never show as mapped in layer modes
+        // They are fundamental modifiers that should look consistent across all layers
+        if key.layoutRole == .narrowModifier {
+            return false
+        }
         // Has a mapping if it's not transparent and has actual content
         if info.isTransparent { return false }
         if info.isLayerSwitch { return true }
@@ -332,7 +337,6 @@ struct OverlayKeycapView: View {
             if key.label == "⇪" {
                 capsLockIndicator
             }
-
         }
         .scaleEffect(isPressed ? 0.95 : 1.0)
         .offset(y: isPressed && fadeAmount < 1 ? 0.75 * scale : 0)
@@ -529,8 +533,12 @@ struct OverlayKeycapView: View {
     /// Standard key content routing (used for .standard legend style)
     @ViewBuilder
     private var standardKeyContent: some View {
+        // TouchID/Power key: ALWAYS show drawer icon regardless of mode
+        if key.keyCode == 0xFFFF {
+            touchIdContent
+        }
         // Launcher mode: ALL keys use launcher styling (icons for mapped, labels for unmapped)
-        if isLauncherMode {
+        else if isLauncherMode {
             launcherModeContent
         }
         // Layer mode (Vim/Nav): ALL keys use layer styling (action in center, label in top-left)
@@ -796,33 +804,62 @@ struct OverlayKeycapView: View {
         let isArrowKey = key.layoutRole == .arrow
 
         if hasLayerMapping {
-            // Mapped key: action in center, key letter in top-left (except arrows)
-            ZStack(alignment: .topLeading) {
-                // Centered action content
-                layerActionContent
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Special case: fn key should always show globe + "fn" even when mapped
+            if key.label == "fn" {
+                fnKeyContent
+            } else {
+                // Mapped key: action in center, key letter in top-left (except arrows)
+                ZStack(alignment: .topLeading) {
+                    // Centered action content
+                    layerActionContent
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                // Key letter in top-left corner (skip for arrow keys to avoid dual arrows)
-                if !isArrowKey {
-                    Text(layerKeyLabel.uppercased())
-                        .font(.system(size: 8 * scale, weight: .medium, design: .rounded))
-                        .foregroundStyle(Color.white.opacity(0.7))
-                        .padding(3 * scale)
+                    // Key letter in top-left corner (skip for arrow keys to avoid dual arrows)
+                    if !isArrowKey {
+                        Text(layerKeyLabel.uppercased())
+                            .font(.system(size: 8 * scale, weight: .medium, design: .rounded))
+                            .foregroundStyle(Color.white.opacity(0.7))
+                            .padding(3 * scale)
+                    }
                 }
             }
         } else {
-            // Unmapped key in layer mode: small label in top-left (skip for arrows)
+            // Unmapped key in layer mode: small label in top-left (skip for arrows and bottom row modifiers)
             if isArrowKey {
                 // Arrow keys: just show centered arrow
                 arrowContent
+            } else if key.layoutRole == .narrowModifier {
+                // Bottom row modifiers (fn, ctrl, opt, cmd): render same as base layer
+                narrowModifierContent
             } else {
-                ZStack(alignment: .topLeading) {
-                    Text(layerKeyLabel.uppercased())
+                // In Nav layer, convert symbols to text labels (except modifier keys)
+                let displayLabel: String = {
+                    if currentLayerName.lowercased() == "nav" {
+                        // Keep modifier symbols (⌃, ⌥, ⌘) as-is, convert others to text
+                        let modifierSymbols: Set<String> = ["⌃", "⌥", "⌘", "fn"]
+                        if modifierSymbols.contains(layerKeyLabel) {
+                            return layerKeyLabel
+                        }
+                        let physicalMetadata = LabelMetadata.forLabel(layerKeyLabel)
+                        return physicalMetadata.wordLabel ?? layerKeyLabel
+                    }
+                    return layerKeyLabel
+                }()
+
+                // Keep letter keys uppercase, but word labels (tab, shift, etc.) lowercase
+                let finalLabel = displayLabel.count > 2 ? displayLabel : displayLabel.uppercased()
+
+                // Caps lock (hyper key) shows ✦ at bottom to avoid overlapping with indicator light
+                let isCapsLock = key.keyCode == 57
+                let alignment: Alignment = isCapsLock ? .bottomLeading : .topLeading
+
+                ZStack(alignment: alignment) {
+                    Text(finalLabel)
                         .font(.system(size: 8 * scale, weight: .medium, design: .rounded))
                         .foregroundStyle(Color.white.opacity(0.5))
                         .padding(3 * scale)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
             }
         }
     }
@@ -868,16 +905,20 @@ struct OverlayKeycapView: View {
                     .font(.system(size: 16 * scale, weight: .semibold))
                     .foregroundStyle(Color.white.opacity(0.9))
             } else if !info.displayLabel.isEmpty {
-                // Check for SF symbol (media keys, system actions)
-                if let sfSymbol = LabelMetadata.sfSymbol(forOutputLabel: info.displayLabel) {
-                    Image(systemName: sfSymbol)
+                // Skip SF symbols for modifier/special keys - keep text labels
+                let skipSymbolConversion = isModifierOrSpecialKey(info.displayLabel)
+
+                // Check for action-specific SF Symbol (window management, etc.)
+                // But skip if it's a modifier/special key
+                if !skipSymbolConversion, let actionSymbol = sfSymbolForAction(info.displayLabel) {
+                    Image(systemName: actionSymbol)
                         .font(.system(size: 14 * scale, weight: .medium))
                         .foregroundStyle(Color.white.opacity(0.9))
                         .help(info.displayLabel) // Tooltip on hover
                 }
-                // Check for action-specific SF Symbol (window management, etc.)
-                else if let actionSymbol = sfSymbolForAction(info.displayLabel) {
-                    Image(systemName: actionSymbol)
+                // Check for SF symbol (media keys, system actions)
+                else if !skipSymbolConversion, let sfSymbol = LabelMetadata.sfSymbol(forOutputLabel: info.displayLabel) {
+                    Image(systemName: sfSymbol)
                         .font(.system(size: 14 * scale, weight: .medium))
                         .foregroundStyle(Color.white.opacity(0.9))
                         .help(info.displayLabel) // Tooltip on hover
@@ -888,6 +929,28 @@ struct OverlayKeycapView: View {
                 }
             }
         }
+    }
+
+    /// Check if a label represents a modifier or special key that should keep text labels
+    /// instead of being converted to SF symbols
+    private func isModifierOrSpecialKey(_ label: String) -> Bool {
+        let lower = label.lowercased()
+        let modifierKeys: Set<String> = [
+            "shift", "lshift", "rshift", "leftshift", "rightshift",
+            "control", "ctrl", "lctrl", "rctrl", "leftcontrol", "rightcontrol",
+            "option", "opt", "alt", "lalt", "ralt", "leftoption", "rightoption",
+            "command", "cmd", "meta", "lmet", "rmet", "leftcommand", "rightcommand",
+            "hyper", "meh",
+            "capslock", "caps",
+            "return", "enter", "ret",
+            "escape", "esc",
+            "tab",
+            "space", "spc",
+            "backspace", "bspc",
+            "delete", "del",
+            "fn", "function"
+        ]
+        return modifierKeys.contains(lower)
     }
 
     /// Map action descriptions to SF Symbols
@@ -1515,6 +1578,10 @@ struct OverlayKeycapView: View {
             if let holdLabel {
                 return holdLabel
             }
+            // In Nav layer, always use text labels (not symbols) for unmapped keys
+            if currentLayerName.lowercased() == "nav" {
+                return physicalMetadata.wordLabel ?? key.label
+            }
             return metadata.wordLabel ?? physicalMetadata.wordLabel ?? key.label
         }()
         let isRight = key.isRightSideKey
@@ -1700,7 +1767,7 @@ struct OverlayKeycapView: View {
                 .modifier(PulseAnimation())
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            // Large centered sidebar icon
+            // Always show drawer icon (sidebar.right opens the inspector drawer)
             Image(systemName: "sidebar.right")
                 .font(.system(size: 12 * scale, weight: .regular))
                 .foregroundStyle(foregroundColor)
