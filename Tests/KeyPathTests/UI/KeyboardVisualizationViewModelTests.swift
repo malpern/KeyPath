@@ -547,4 +547,5 @@ final class KeyboardVisualizationViewModelTests: XCTestCase {
         XCTAssertNil(LogicalKeymap.keyCode(forQwertyLabel: ""))
         XCTAssertNil(LogicalKeymap.keyCode(forQwertyLabel: "space"))
     }
+
 }

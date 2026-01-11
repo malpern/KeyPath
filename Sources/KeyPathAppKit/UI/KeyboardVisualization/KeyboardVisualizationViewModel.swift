@@ -652,15 +652,22 @@ class KeyboardVisualizationViewModel: ObservableObject {
                     layout: layout
                 )
 
+                // DEBUG: Log what simulator returned
+                AppLogger.shared.info("🗺️ [KeyboardViz] Simulator returned \(mapping.count) entries for '\(currentLayerName)'")
+                for (keyCode, info) in mapping.prefix(20) {
+                    AppLogger.shared.debug("  [\(currentLayerName)] keyCode \(keyCode) -> '\(info.displayLabel)'")
+                }
+
                 // Augment mapping with push-msg actions from custom rules and rule collections
-                // Include base layer so app/system/URL icons display for remapped keys
+                // Only include actions targeting this specific layer
                 let customRules = await CustomRulesStore.shared.loadRules()
                 let ruleCollections = await RuleCollectionStore.shared.loadCollections()
                 AppLogger.shared.info("🗺️ [KeyboardViz] Augmenting '\(currentLayerName)' with \(customRules.count) custom rules and \(ruleCollections.count) collections")
                 mapping = augmentWithPushMsgActions(
                     mapping: mapping,
                     customRules: customRules,
-                    ruleCollections: ruleCollections
+                    ruleCollections: ruleCollections,
+                    currentLayerName: currentLayerName
                 )
 
                 // Apply app-specific overrides for the current frontmost app
@@ -714,11 +721,13 @@ class KeyboardVisualizationViewModel: ObservableObject {
     ///   - mapping: The base layer key mapping from the simulator
     ///   - customRules: Custom rules to check for push-msg patterns
     ///   - ruleCollections: Preset rule collections to check for push-msg patterns
+    ///   - currentLayerName: The layer name to filter collections/rules by (only include matching layers)
     /// - Returns: Mapping with action info added where applicable
     private func augmentWithPushMsgActions(
         mapping: [UInt16: LayerKeyInfo],
         customRules: [CustomRule],
-        ruleCollections: [RuleCollection]
+        ruleCollections: [RuleCollection],
+        currentLayerName: String
     ) -> [UInt16: LayerKeyInfo] {
         var augmented = mapping
 
@@ -726,7 +735,21 @@ class KeyboardVisualizationViewModel: ObservableObject {
         var actionByInput: [String: LayerKeyInfo] = [:]
 
         // First, process rule collections (lower priority - can be overridden by custom rules)
+        // Only process collections that target the current layer or base layer
         for collection in ruleCollections where collection.isEnabled {
+            // Check if this collection targets the current layer
+            let collectionLayerName = collection.targetLayer.kanataName.lowercased()
+            let currentLayer = currentLayerName.lowercased()
+
+            // Only include mappings from collections targeting this layer
+            // Exception: base layer gets base-layer collections only
+            guard collectionLayerName == currentLayer else {
+                AppLogger.shared.debug("🗺️ [KeyboardViz] Skipping collection '\(collection.name)' (targets '\(collectionLayerName)', current layer '\(currentLayer)')")
+                continue
+            }
+
+            AppLogger.shared.debug("🗺️ [KeyboardViz] Including collection '\(collection.name)' (\(collection.mappings.count) mappings)")
+
             for keyMapping in collection.mappings {
                 let input = keyMapping.input.lowercased()
                 // First try push-msg pattern (apps, system actions, URLs)
@@ -749,6 +772,15 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
         // Then, process custom rules (higher priority - overrides collections)
         for rule in customRules where rule.isEnabled {
+            // Check if this rule targets the current layer
+            let ruleLayerName = rule.targetLayer.kanataName.lowercased()
+            let currentLayer = currentLayerName.lowercased()
+
+            // Only include rules targeting this layer
+            guard ruleLayerName == currentLayer else {
+                continue
+            }
+
             let input = rule.input.lowercased()
             // First try push-msg pattern (apps, system actions, URLs)
             if let info = Self.extractPushMsgInfo(from: rule.output, description: rule.notes) {

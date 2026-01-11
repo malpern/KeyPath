@@ -332,6 +332,7 @@ struct OverlayKeycapView: View {
             if key.label == "⇪" {
                 capsLockIndicator
             }
+
         }
         .scaleEffect(isPressed ? 0.95 : 1.0)
         .offset(y: isPressed && fadeAmount < 1 ? 0.75 * scale : 0)
@@ -872,13 +873,165 @@ struct OverlayKeycapView: View {
                     Image(systemName: sfSymbol)
                         .font(.system(size: 14 * scale, weight: .medium))
                         .foregroundStyle(Color.white.opacity(0.9))
-                } else {
-                    // Other mapped action - show the label as text
-                    Text(info.displayLabel.uppercased())
-                        .font(.system(size: 10 * scale, weight: .medium))
+                        .help(info.displayLabel) // Tooltip on hover
+                }
+                // Check for action-specific SF Symbol (window management, etc.)
+                else if let actionSymbol = sfSymbolForAction(info.displayLabel) {
+                    Image(systemName: actionSymbol)
+                        .font(.system(size: 14 * scale, weight: .medium))
                         .foregroundStyle(Color.white.opacity(0.9))
+                        .help(info.displayLabel) // Tooltip on hover
+                } else {
+                    // No SF Symbol - use dynamic text with wrapping
+                    dynamicTextLabel(info.displayLabel)
+                        .help(info.displayLabel) // Tooltip on hover
                 }
             }
+        }
+    }
+
+    /// Map action descriptions to SF Symbols
+    /// Returns SF Symbol name if a good match exists for the action
+    private func sfSymbolForAction(_ action: String) -> String? {
+        let lower = action.lowercased()
+
+        // Window management - snapping to halves
+        if lower.contains("left") && lower.contains("half") {
+            return "rectangle.lefthalf.filled"
+        }
+        if lower.contains("right") && lower.contains("half") {
+            return "rectangle.righthalf.filled"
+        }
+        if lower.contains("top") && lower.contains("half") {
+            return "rectangle.tophalf.filled"
+        }
+        if lower.contains("bottom") && lower.contains("half") {
+            return "rectangle.bottomhalf.filled"
+        }
+
+        // Window management - corners
+        if lower.contains("top") && lower.contains("left") && lower.contains("corner") {
+            return "arrow.up.left"
+        }
+        if lower.contains("top") && lower.contains("right") && lower.contains("corner") {
+            return "arrow.up.right"
+        }
+        if lower.contains("bottom") && lower.contains("left") && lower.contains("corner") {
+            return "arrow.down.left"
+        }
+        if lower.contains("bottom") && lower.contains("right") && lower.contains("corner") {
+            return "arrow.down.right"
+        }
+
+        // Window management - maximize/fullscreen
+        if lower.contains("maximize") || lower.contains("fullscreen") || lower.contains("full screen") {
+            return "arrow.up.left.and.arrow.down.right"
+        }
+        if lower.contains("restore") {
+            return "arrow.down.right.and.arrow.up.left"
+        }
+        if lower.contains("center") && !lower.contains("align") {
+            return "circle.grid.cross"
+        }
+
+        // Window management - display/monitor movement
+        if lower.contains("next display") || lower.contains("display right") || lower.contains("move right display") {
+            return "arrow.right.to.line"
+        }
+        if lower.contains("previous display") || lower.contains("display left") || lower.contains("move left display") {
+            return "arrow.left.to.line"
+        }
+
+        // Window management - space/desktop movement
+        if lower.contains("next space") || lower.contains("space right") {
+            return "arrow.right.square"
+        }
+        if lower.contains("previous space") || lower.contains("space left") {
+            return "arrow.left.square"
+        }
+
+        // Window management - thirds
+        if lower.contains("left third") || lower.contains("left 1/3") {
+            return "rectangle.leadinghalf.filled"
+        }
+        if lower.contains("center third") || lower.contains("middle third") {
+            return "rectangle.center.inset.filled"
+        }
+        if lower.contains("right third") || lower.contains("right 1/3") {
+            return "rectangle.trailinghalf.filled"
+        }
+
+        // Window management - two-thirds
+        if lower.contains("left two thirds") || lower.contains("left 2/3") {
+            return "rectangle.leadingthird.inset.filled"
+        }
+        if lower.contains("right two thirds") || lower.contains("right 2/3") {
+            return "rectangle.trailingthird.inset.filled"
+        }
+
+        // Navigation - directional (when not already arrows)
+        if lower == "up" || lower == "move up" {
+            return "arrow.up"
+        }
+        if lower == "down" || lower == "move down" {
+            return "arrow.down"
+        }
+        if lower == "left" || lower == "move left" {
+            return "arrow.left"
+        }
+        if lower == "right" || lower == "move right" {
+            return "arrow.right"
+        }
+
+        // Common text editing actions
+        if lower.contains("yank") || lower.contains("copy") {
+            return "doc.on.doc"
+        }
+        if lower.contains("paste") {
+            return "doc.on.clipboard"
+        }
+        if lower.contains("delete") || lower.contains("remove") {
+            return "trash"
+        }
+        if lower.contains("undo") {
+            return "arrow.uturn.backward"
+        }
+        if lower.contains("redo") {
+            return "arrow.uturn.forward"
+        }
+        if lower.contains("save") {
+            return "square.and.arrow.down"
+        }
+
+        // Search/Find
+        if lower.contains("search") || lower.contains("find") {
+            return "magnifyingglass"
+        }
+
+        // No good SF Symbol match
+        return nil
+    }
+
+    /// Render text label with dynamic sizing and multi-line wrapping
+    @ViewBuilder
+    private func dynamicTextLabel(_ text: String) -> some View {
+        GeometryReader { geometry in
+            let availableWidth = geometry.size.width - 4 * scale
+            let availableHeight = geometry.size.height - 4 * scale
+            let preferredSize: CGFloat = 10 * scale
+            let mediumSize: CGFloat = 8 * scale
+            let smallSize: CGFloat = 6 * scale
+            let estimatedWidth = CGFloat(text.count) * preferredSize * 0.6
+            let fontSize = estimatedWidth <= availableWidth ? preferredSize : (estimatedWidth <= availableWidth * 1.5 ? mediumSize : smallSize)
+
+            Text(text.uppercased())
+                .font(.system(size: fontSize, weight: .medium))
+                .foregroundStyle(Color.white.opacity(0.9))
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .minimumScaleFactor(0.5)
+                .frame(maxWidth: availableWidth, maxHeight: availableHeight)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 

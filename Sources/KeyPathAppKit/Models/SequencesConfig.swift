@@ -41,12 +41,11 @@ public struct SequencesConfig: Codable, Equatable, Sendable {
 
     // MARK: - Preset Factory
 
-    /// Default preset sequences (Window Management, App Launcher, Navigation)
+    /// Default preset sequences (Window Management, Navigation)
     public static var defaultPresets: SequencesConfig {
         SequencesConfig(
             sequences: [
                 .windowManagementPreset,
-                .appLauncherPreset,
                 .navigationPreset
             ],
             globalTimeout: 500
@@ -137,17 +136,6 @@ public struct SequenceDefinition: Codable, Equatable, Sendable, Identifiable {
             keys: ["space", "w"],
             action: .activateLayer(.custom("window")),
             description: "Activate window snapping layer"
-        )
-    }
-
-    /// Preset: App Launcher (Space → A)
-    public static var appLauncherPreset: SequenceDefinition {
-        SequenceDefinition(
-            id: UUID(uuidString: "5EEE0000-0000-0000-0000-000000000002")!,
-            name: "App Launcher",
-            keys: ["space", "a"],
-            action: .activateLayer(.custom("launcher")),
-            description: "Activate app quick launch layer"
         )
     }
 
