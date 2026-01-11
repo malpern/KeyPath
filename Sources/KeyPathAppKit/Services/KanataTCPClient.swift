@@ -917,7 +917,7 @@ actor KanataTCPClient {
                         do {
                             var responseData: Data
                             var attempts = 0
-                            let maxDrainAttempts = 10 // Prevent infinite loop
+                            let maxDrainAttempts = 50 // Prevent infinite loop - increased for high load scenarios
 
                             // If we sent a request_id, match responses by request_id
                             // Otherwise fall back to old broadcast draining behavior
@@ -953,10 +953,14 @@ actor KanataTCPClient {
                                         }
                                     } else {
                                         // We sent request_id but response doesn't have one
-                                        // This might be an old server - accept it as the response
-                                        AppLogger.shared.debug(
-                                            "⚠️ [TCP] Response missing request_id (old server?), accepting anyway")
-                                        break
+                                        // This is likely a broadcast that slipped through - skip it
+                                        // Modern Kanata versions support request_id, so rejecting is safer
+                                        if let msgStr = String(data: responseData, encoding: .utf8) {
+                                            AppLogger.shared.warn(
+                                                "⚠️ [TCP] Response missing request_id when we sent \(sentId) - likely broadcast, skipping: \(msgStr.prefix(100))"
+                                            )
+                                        }
+                                        continue  // Skip and read next line
                                     }
                                 }
 

@@ -90,6 +90,22 @@ final class RecentKeypressesService: ObservableObject {
             layer: currentLayer
         )
 
+        // DEDUPLICATION: Check last 10 events for duplicate (key, action, layer) within window
+        // This prevents TCP duplicates while allowing legitimate double letters like "tt" in "letter"
+        let deduplicationWindow: TimeInterval = 0.1  // 100ms
+        let now = event.timestamp
+
+        if let duplicate = events.prefix(10).first(where: { recent in
+            recent.key == event.key &&
+            recent.action == event.action &&
+            recent.layer == event.layer &&
+            now.timeIntervalSince(recent.timestamp) < deduplicationWindow
+        }) {
+            let millisDiff = Int(now.timeIntervalSince(duplicate.timestamp) * 1000)
+            AppLogger.shared.debug("🚫 [Keypresses] Skipping duplicate: \(key) \(action) within \(millisDiff)ms")
+            return
+        }
+
         events.insert(event, at: 0)
 
         // Trim to max size
