@@ -811,9 +811,17 @@ class KeyboardVisualizationViewModel: ObservableObject {
         AppLogger.shared.info("🗺️ [KeyboardViz] Found \(actionByInput.count) actions (push-msg + simple remaps)")
 
         // Update mapping entries
-        for (keyCode, _) in mapping {
+        // IMPORTANT: Only augment keys that are NOT transparent (XX)
+        // Transparent keys should pass through without showing action labels
+        for (keyCode, originalInfo) in mapping {
             let keyName = OverlayKeyboardView.keyCodeToKanataName(keyCode).lowercased()
             if let info = actionByInput[keyName] {
+                // Skip augmentation if the original key is transparent (XX)
+                // Transparent keys should not show action labels from collections/rules
+                if originalInfo.isTransparent {
+                    AppLogger.shared.debug("🗺️ [KeyboardViz] Skipping augmentation for transparent key \(keyName)(\(keyCode))")
+                    continue
+                }
                 augmented[keyCode] = info
                 AppLogger.shared.debug("🗺️ [KeyboardViz] Key \(keyName)(\(keyCode)) -> '\(info.displayLabel)'")
             }
