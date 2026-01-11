@@ -1292,13 +1292,10 @@ public struct KanataConfiguration: Sendable {
         var remainingKey = key
         var modifiers: [String] = []
 
-        // Extract all modifier prefixes
-        for (prefix, modKey) in modifierMap {
-            if remainingKey.hasPrefix(prefix) {
-                modifiers.append(contentsOf: modKey.split(separator: " ").map(String.init))
-                remainingKey = String(remainingKey.dropFirst(prefix.count))
-                break // Only match one combined prefix
-            }
+        // Extract all modifier prefixes (only match first one)
+        if let (prefix, modKey) = modifierMap.first(where: { remainingKey.hasPrefix($0.key) }) {
+            modifiers.append(contentsOf: modKey.split(separator: " ").map(String.init))
+            remainingKey = String(remainingKey.dropFirst(prefix.count))
         }
 
         if modifiers.isEmpty {
