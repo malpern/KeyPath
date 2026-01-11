@@ -22,6 +22,8 @@ struct LayerKeyInfo: Equatable, Sendable {
     /// URL identifier for web URL mapping (e.g., "github.com", "https://example.com")
     /// When set, overlay should show favicon instead of text
     let urlIdentifier: String?
+    /// Which collection this key belongs to (for color-coding in overlay)
+    let collectionId: UUID?
 
     init(
         displayLabel: String,
@@ -31,7 +33,8 @@ struct LayerKeyInfo: Equatable, Sendable {
         isLayerSwitch: Bool,
         appLaunchIdentifier: String? = nil,
         systemActionIdentifier: String? = nil,
-        urlIdentifier: String? = nil
+        urlIdentifier: String? = nil,
+        collectionId: UUID? = nil
     ) {
         self.displayLabel = displayLabel
         self.outputKey = outputKey
@@ -41,38 +44,42 @@ struct LayerKeyInfo: Equatable, Sendable {
         self.appLaunchIdentifier = appLaunchIdentifier
         self.systemActionIdentifier = systemActionIdentifier
         self.urlIdentifier = urlIdentifier
+        self.collectionId = collectionId
     }
 
     /// Creates info for a normal key mapping
-    static func mapped(displayLabel: String, outputKey: String, outputKeyCode: UInt16?) -> LayerKeyInfo {
+    static func mapped(displayLabel: String, outputKey: String, outputKeyCode: UInt16?, collectionId: UUID? = nil) -> LayerKeyInfo {
         LayerKeyInfo(
             displayLabel: displayLabel,
             outputKey: outputKey,
             outputKeyCode: outputKeyCode,
             isTransparent: false,
-            isLayerSwitch: false
+            isLayerSwitch: false,
+            collectionId: collectionId
         )
     }
 
     /// Creates info for a transparent key
-    static func transparent(fallbackLabel: String) -> LayerKeyInfo {
+    static func transparent(fallbackLabel: String, collectionId: UUID? = nil) -> LayerKeyInfo {
         LayerKeyInfo(
             displayLabel: fallbackLabel,
             outputKey: nil,
             outputKeyCode: nil,
             isTransparent: true,
-            isLayerSwitch: false
+            isLayerSwitch: false,
+            collectionId: collectionId
         )
     }
 
     /// Creates info for a layer switch key
-    static func layerSwitch(displayLabel: String) -> LayerKeyInfo {
+    static func layerSwitch(displayLabel: String, collectionId: UUID? = nil) -> LayerKeyInfo {
         LayerKeyInfo(
             displayLabel: displayLabel,
             outputKey: nil,
             outputKeyCode: nil,
             isTransparent: false,
-            isLayerSwitch: true
+            isLayerSwitch: true,
+            collectionId: collectionId
         )
     }
 
@@ -80,14 +87,15 @@ struct LayerKeyInfo: Equatable, Sendable {
     /// - Parameter appIdentifier: The app name or bundle ID
     /// - Note: displayLabel is set to the app identifier for consumers that need text
     ///         (like Mapper), while appLaunchIdentifier enables icon rendering
-    static func appLaunch(appIdentifier: String) -> LayerKeyInfo {
+    static func appLaunch(appIdentifier: String, collectionId: UUID? = nil) -> LayerKeyInfo {
         LayerKeyInfo(
             displayLabel: appIdentifier, // Use app name as display label
             outputKey: nil,
             outputKeyCode: nil,
             isTransparent: false,
             isLayerSwitch: false,
-            appLaunchIdentifier: appIdentifier
+            appLaunchIdentifier: appIdentifier,
+            collectionId: collectionId
         )
     }
 
@@ -95,7 +103,7 @@ struct LayerKeyInfo: Equatable, Sendable {
     /// - Parameters:
     ///   - action: The system action name (e.g., "dnd", "spotlight")
     ///   - description: Human-readable description for display
-    static func systemAction(action: String, description: String) -> LayerKeyInfo {
+    static func systemAction(action: String, description: String, collectionId: UUID? = nil) -> LayerKeyInfo {
         LayerKeyInfo(
             displayLabel: description,
             outputKey: nil,
@@ -103,20 +111,22 @@ struct LayerKeyInfo: Equatable, Sendable {
             isTransparent: false,
             isLayerSwitch: false,
             appLaunchIdentifier: nil,
-            systemActionIdentifier: action
+            systemActionIdentifier: action,
+            collectionId: collectionId
         )
     }
 
     /// Creates info for a generic push-msg action
     /// - Parameter message: The message content for display
-    static func pushMsg(message: String) -> LayerKeyInfo {
+    static func pushMsg(message: String, collectionId: UUID? = nil) -> LayerKeyInfo {
         LayerKeyInfo(
             displayLabel: message,
             outputKey: nil,
             outputKeyCode: nil,
             isTransparent: false,
             isLayerSwitch: false,
-            appLaunchIdentifier: nil
+            appLaunchIdentifier: nil,
+            collectionId: collectionId
         )
     }
 
@@ -124,7 +134,7 @@ struct LayerKeyInfo: Equatable, Sendable {
     /// - Parameter url: The URL to open (e.g., "github.com", "https://example.com")
     /// - Note: displayLabel is set to the domain for text display,
     ///         while urlIdentifier enables favicon rendering
-    static func webURL(url: String) -> LayerKeyInfo {
+    static func webURL(url: String, collectionId: UUID? = nil) -> LayerKeyInfo {
         let displayDomain = extractDomain(from: url)
         return LayerKeyInfo(
             displayLabel: displayDomain,
@@ -134,7 +144,8 @@ struct LayerKeyInfo: Equatable, Sendable {
             isLayerSwitch: false,
             appLaunchIdentifier: nil,
             systemActionIdentifier: nil,
-            urlIdentifier: url
+            urlIdentifier: url,
+            collectionId: collectionId
         )
     }
 
@@ -167,8 +178,9 @@ actor LayerKeyMapper {
     ///   - layer: The layer name (e.g., "base", "nav", "symbols")
     ///   - configPath: Path to the kanata config file
     ///   - layout: The physical keyboard layout to use for mapping
+    ///   - collections: All rule collections (for tracking collection ownership)
     /// - Returns: Dictionary mapping physical key codes to their layer-specific info
-    func getMapping(for layer: String, configPath: String, layout: PhysicalLayout) async throws -> [UInt16: LayerKeyInfo] {
+    func getMapping(for layer: String, configPath: String, layout: PhysicalLayout, collections: [RuleCollection] = []) async throws -> [UInt16: LayerKeyInfo] {
         // Normalize layer name to lowercase for consistent cache keys
         let normalizedLayer = layer.lowercased()
         AppLogger.shared.info("🗺️ [LayerKeyMapper] getMapping called for layer '\(layer)' (normalized: '\(normalizedLayer)')")
@@ -196,9 +208,13 @@ actor LayerKeyMapper {
 
         AppLogger.shared.info("🗺️ [LayerKeyMapper] Building new mapping for '\(normalizedLayer)'...")
 
+        // Build key→collection reverse index for collection ownership tracking
+        let keyToCollection = buildKeyCollectionMap(for: normalizedLayer, collections: collections)
+        AppLogger.shared.debug("🗺️ [LayerKeyMapper] Built key→collection map: \(keyToCollection.count) keys")
+
         // Use batch simulation for accurate key mapping
         // This handles aliases, tap-hold, forks, macros, etc.
-        let mapping = try await buildMappingWithSimulator(for: normalizedLayer, configPath: configPath, layout: layout)
+        let mapping = try await buildMappingWithSimulator(for: normalizedLayer, configPath: configPath, layout: layout, keyToCollection: keyToCollection)
 
         cache[normalizedLayer] = mapping
         AppLogger.shared.info("🗺️ [LayerKeyMapper] Built mapping: \(mapping.count) keys")
@@ -217,7 +233,8 @@ actor LayerKeyMapper {
     ///   - layerNames: List of all layer names (from TCP RequestLayerNames)
     ///   - configPath: Path to the kanata config file
     ///   - layout: The physical keyboard layout to use for mapping
-    func prebuildAllLayers(_ layerNames: [String], configPath: String, layout: PhysicalLayout) async {
+    ///   - collections: All rule collections (for tracking collection ownership)
+    func prebuildAllLayers(_ layerNames: [String], configPath: String, layout: PhysicalLayout, collections: [RuleCollection] = []) async {
         // Normalize layer names to lowercase
         let normalizedLayers = layerNames.map { $0.lowercased() }
         AppLogger.shared.info("🗺️ [LayerKeyMapper] Pre-building mappings for \(normalizedLayers.count) layers: \(normalizedLayers.joined(separator: ", "))")
@@ -244,7 +261,9 @@ actor LayerKeyMapper {
             for layer in normalizedLayers {
                 group.addTask {
                     do {
-                        let mapping = try await self.buildMappingWithSimulator(for: layer, configPath: configPath, layout: layout)
+                        // Build key→collection map for this layer
+                        let keyToCollection = self.buildKeyCollectionMap(for: layer, collections: collections)
+                        let mapping = try await self.buildMappingWithSimulator(for: layer, configPath: configPath, layout: layout, keyToCollection: keyToCollection)
                         return (layer, mapping)
                     } catch {
                         AppLogger.shared.error("🗺️ [LayerKeyMapper] Failed to build mapping for '\(layer)': \(error)")
@@ -262,6 +281,45 @@ actor LayerKeyMapper {
         }
 
         AppLogger.shared.info("🗺️ [LayerKeyMapper] Pre-build complete: \(cache.count) layers cached")
+    }
+
+    // MARK: - Collection Ownership Mapping
+
+    /// Build reverse mapping from key names to collection UUIDs
+    /// This allows us to track which collection each key belongs to in the overlay
+    /// - Parameters:
+    ///   - layerName: The layer to build mapping for (e.g., "nav", "window")
+    ///   - collections: All enabled rule collections
+    /// - Returns: Dictionary mapping Kanata key names to collection UUIDs
+    nonisolated private func buildKeyCollectionMap(
+        for layerName: String,
+        collections: [RuleCollection]
+    ) -> [String: UUID] {
+        var map: [String: UUID] = [:]
+
+        // Convert layer name to RuleCollectionLayer for comparison
+        let targetLayer = RuleCollectionLayer(kanataName: layerName)
+
+        for collection in collections {
+            guard collection.isEnabled else { continue }
+
+            // Map regular keys from this collection's mappings
+            if collection.targetLayer == targetLayer {
+                for mapping in collection.mappings {
+                    let kanataKey = KanataKeyConverter.convertToKanataKey(mapping.input)
+                    map[kanataKey] = collection.id
+                }
+            }
+
+            // Map momentary activator keys (e.g., "w" for Window Snapping in Nav layer)
+            if let activator = collection.momentaryActivator,
+               activator.sourceLayer == targetLayer {
+                let kanataKey = KanataKeyConverter.convertToKanataKey(activator.input)
+                map[kanataKey] = collection.id
+            }
+        }
+
+        return map
     }
 
     // MARK: - Key Mapping via Simulator
@@ -327,7 +385,8 @@ actor LayerKeyMapper {
     ///   - layer: The layer name to build mapping for
     ///   - configPath: Path to the kanata config file
     ///   - layout: The physical keyboard layout to use for mapping
-    private func buildMappingWithSimulator(for layer: String, configPath: String, layout: PhysicalLayout) async throws -> [UInt16: LayerKeyInfo] {
+    ///   - keyToCollection: Map of key names to collection UUIDs (for collection ownership tracking)
+    private func buildMappingWithSimulator(for layer: String, configPath: String, layout: PhysicalLayout, keyToCollection: [String: UUID] = [:]) async throws -> [UInt16: LayerKeyInfo] {
         var mapping: [UInt16: LayerKeyInfo] = [:]
 
         // Get all physical keys from the provided layout
@@ -376,6 +435,9 @@ actor LayerKeyMapper {
 
         // Process results
         for (keyCode, fallbackLabel, simName, result) in results {
+            // Look up collection ownership for this key
+            let collectionId = keyToCollection[simName]
+
             // Debug: Log raw simulation result for A key (keyCode 0)
             if keyCode == 0 {
                 if let result {
@@ -396,7 +458,8 @@ actor LayerKeyMapper {
                     outputKey: nil,
                     outputKeyCode: nil,
                     isTransparent: false,
-                    isLayerSwitch: false
+                    isLayerSwitch: false,
+                    collectionId: collectionId
                 )
                 continue
             }
@@ -412,7 +475,8 @@ actor LayerKeyMapper {
                     outputKey: nil,
                     outputKeyCode: nil,
                     isTransparent: isTransparent,
-                    isLayerSwitch: false
+                    isLayerSwitch: false,
+                    collectionId: collectionId
                 )
                 if isTransparent {
                     AppLogger.shared.debug("🔍 [LayerKeyMapper] \(simName)(\(keyCode)) is transparent (XX) on '\(startLayer)'")
@@ -422,7 +486,7 @@ actor LayerKeyMapper {
 
             // Check for app launch mappings (push-msg "launch:...")
             if let appIdentifier = extractAppLaunchMapping(from: parsed.outputs) {
-                mapping[keyCode] = .appLaunch(appIdentifier: appIdentifier)
+                mapping[keyCode] = .appLaunch(appIdentifier: appIdentifier, collectionId: collectionId)
                 AppLogger.shared.debug("🚀 [LayerKeyMapper] Mapped \(parsed.input)(\(keyCode)) -> AppLaunch(\(appIdentifier))")
                 continue
             }
@@ -431,7 +495,8 @@ actor LayerKeyMapper {
             if let systemAction = extractSystemActionMapping(from: parsed.outputs) {
                 mapping[keyCode] = .systemAction(
                     action: systemAction,
-                    description: systemActionDisplayLabel(systemAction)
+                    description: systemActionDisplayLabel(systemAction),
+                    collectionId: collectionId
                 )
                 AppLogger.shared.debug("⚙️ [LayerKeyMapper] Mapped \(parsed.input)(\(keyCode)) -> SystemAction(\(systemAction))")
                 continue
@@ -439,8 +504,16 @@ actor LayerKeyMapper {
 
             // Check if output is a URL mapping
             if let urlMapping = extractURLMapping(from: parsed.outputs) {
-                mapping[keyCode] = .webURL(url: urlMapping)
+                mapping[keyCode] = .webURL(url: urlMapping, collectionId: collectionId)
                 AppLogger.shared.debug("🌐 [LayerKeyMapper] Mapped \(parsed.input)(\(keyCode)) -> URL(\(urlMapping))")
+                continue
+            }
+
+            // Check if this is a layer switch (outputs contain kp-layer- prefix)
+            let isLayerSwitch = parsed.outputs.contains { $0.lowercased().contains("kp-layer-") }
+            if isLayerSwitch {
+                mapping[keyCode] = .layerSwitch(displayLabel: fallbackLabel, collectionId: collectionId)
+                AppLogger.shared.debug("🔀 [LayerKeyMapper] Mapped \(parsed.input)(\(keyCode)) -> LayerSwitch (collection: \(collectionId?.uuidString ?? "none"))")
                 continue
             }
 
@@ -453,7 +526,8 @@ actor LayerKeyMapper {
                     outputKey: outputKey,
                     outputKeyCode: outputKeyCode,
                     isTransparent: true,
-                    isLayerSwitch: false
+                    isLayerSwitch: false,
+                    collectionId: collectionId
                 )
             } else if parsed.outputs.allSatisfy({ $0.lowercased() == "xx" }) {
                 // Explicitly blocked key (XX) should render blank in the overlay
@@ -462,12 +536,13 @@ actor LayerKeyMapper {
                     outputKey: nil,
                     outputKeyCode: nil,
                     isTransparent: false,
-                    isLayerSwitch: false
+                    isLayerSwitch: false,
+                    collectionId: collectionId
                 )
             } else if parsed.outputs.isEmpty {
                 // No explicit mapping - fall back to physical key label
                 // This happens for keys that aren't defined in the config
-                mapping[keyCode] = .transparent(fallbackLabel: fallbackLabel)
+                mapping[keyCode] = .transparent(fallbackLabel: fallbackLabel, collectionId: collectionId)
             } else {
                 // Convert all outputs to display labels using labelForOutputKeys for Hyper/Meh detection
                 let outputSet = Set(parsed.outputs)
@@ -496,7 +571,8 @@ actor LayerKeyMapper {
                     mapping[keyCode] = .mapped(
                         displayLabel: displayLabel,
                         outputKey: outputKey,
-                        outputKeyCode: primaryOutputKeyCode
+                        outputKeyCode: primaryOutputKeyCode,
+                        collectionId: collectionId
                     )
                     if outputKey.uppercased() != parsed.input.uppercased() {
                         AppLogger.shared.debug("🗺️ [LayerKeyMapper] Mapped \(parsed.input)(\(keyCode)) -> \(outputKey)(\(displayLabel))")
@@ -507,7 +583,8 @@ actor LayerKeyMapper {
                         outputKey: nil,
                         outputKeyCode: nil,
                         isTransparent: false,
-                        isLayerSwitch: false
+                        isLayerSwitch: false,
+                        collectionId: collectionId
                     )
                 }
             }
@@ -619,7 +696,8 @@ actor LayerKeyMapper {
                 outputKey: nil,
                 outputKeyCode: nil,
                 isTransparent: false,
-                isLayerSwitch: false
+                isLayerSwitch: false,
+                collectionId: nil
             )
         }
 

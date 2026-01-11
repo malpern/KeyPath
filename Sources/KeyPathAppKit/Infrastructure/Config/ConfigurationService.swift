@@ -245,8 +245,15 @@ public final class ConfigurationService: FileConfigurationProviding {
         let mappings = combinedCollections.enabledMappings()
         let preservedChordGroups = loadPreservedChordGroups()
         let preservedSequences = loadPreservedSequences()
+
+        // Get leader key preference from PreferencesService on MainActor
+        let leaderKeyPref = await MainActor.run {
+            PreferencesService.shared.leaderKeyPreference
+        }
+
         let configContent = KanataConfiguration.generateFromCollections(
             combinedCollections,
+            leaderKeyPreference: leaderKeyPref,
             chordGroups: preservedChordGroups,
             sequences: preservedSequences
         )

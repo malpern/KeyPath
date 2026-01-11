@@ -191,8 +191,7 @@ struct RuleCollectionCatalog {
             icon: "resource:vim-icon",
             tags: ["vim", "navigation", "editing", "selection"],
             targetLayer: .navigation,
-            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation),
-            activationHint: "Hold Leader key to enter Navigation layer",
+            activationHint: "Hold Leader key for Vim navigation",
             configuration: .table
         )
     }
@@ -517,8 +516,7 @@ struct RuleCollectionCatalog {
             icon: "delete.left",
             tags: ["delete", "backspace", "forward delete", "leader"],
             targetLayer: .navigation,
-            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation),
-            activationHint: "Hold Leader + Delete",
+            activationHint: "Hold Leader key, then press Delete",
             configuration: .singleKeyPicker(SingleKeyPickerConfig(
                 inputKey: "bspc",
                 presetOptions: [

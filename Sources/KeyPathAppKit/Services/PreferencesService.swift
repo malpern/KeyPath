@@ -115,6 +115,19 @@ final class PreferencesService: @unchecked Sendable {
         }
     }
 
+    // MARK: - Leader Key Configuration
+
+    /// Primary leader key preference (Space → Nav by default)
+    /// This is independent of any collection - collections just target this layer
+    var leaderKeyPreference: LeaderKeyPreference {
+        didSet {
+            if let data = try? JSONEncoder().encode(leaderKeyPreference) {
+                UserDefaults.standard.set(data, forKey: Keys.leaderKeyPreference)
+                AppLogger.shared.log("🎯 [Preferences] Leader key: \(leaderKeyPreference.key) → \(leaderKeyPreference.targetLayer.displayName) (enabled: \(leaderKeyPreference.enabled))")
+            }
+        }
+    }
+
     // MARK: - Keys
 
     private enum Keys {
@@ -126,6 +139,7 @@ final class PreferencesService: @unchecked Sendable {
         static let verboseKanataLogging = "KeyPath.Diagnostics.VerboseKanataLogging"
         static let activityLoggingEnabled = "KeyPath.ActivityLogging.Enabled"
         static let activityLoggingConsentDate = "KeyPath.ActivityLogging.ConsentDate"
+        static let leaderKeyPreference = "KeyPath.LeaderKey.Preference"
     }
 
     // MARK: - Defaults
@@ -179,6 +193,14 @@ final class PreferencesService: @unchecked Sendable {
             activityLoggingConsentDate = Date(timeIntervalSince1970: consentTimestamp)
         } else {
             activityLoggingConsentDate = nil
+        }
+
+        // Leader key preference
+        if let data = UserDefaults.standard.data(forKey: Keys.leaderKeyPreference),
+           let stored = try? JSONDecoder().decode(LeaderKeyPreference.self, from: data) {
+            leaderKeyPreference = stored
+        } else {
+            leaderKeyPreference = .default
         }
 
         AppLogger.shared.log(

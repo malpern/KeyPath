@@ -368,6 +368,21 @@ public enum RuleCollectionLayer: Codable, Equatable, Sendable, Hashable {
         }
     }
 
+    /// Initialize from Kanata layer name (reverse of kanataName)
+    /// - Parameter kanataName: The Kanata layer name (e.g., "base", "nav", "window")
+    /// - Returns: The corresponding RuleCollectionLayer (base, navigation, or custom)
+    public init(kanataName: String) {
+        let normalized = kanataName.lowercased()
+        switch normalized {
+        case "base":
+            self = .base
+        case "nav", "navigation":
+            self = .navigation
+        default:
+            self = .custom(kanataName)
+        }
+    }
+
     // Custom Codable implementation to handle both old and new formats
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()

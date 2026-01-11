@@ -658,11 +658,15 @@ class KeyboardVisualizationViewModel: ObservableObject {
                 let configPath = WizardSystemPaths.userConfigPath
                 AppLogger.shared.debug("🗺️ [KeyboardViz] Using config: \(configPath)")
 
+                // Load rule collections for collection ownership tracking
+                let ruleCollections = await RuleCollectionStore.shared.loadCollections()
+
                 // Build mapping for target layer
                 var mapping = try await layerKeyMapper.getMapping(
                     for: targetLayerName,
                     configPath: configPath,
-                    layout: layout
+                    layout: layout,
+                    collections: ruleCollections
                 )
 
                 // DEBUG: Log what simulator returned
@@ -674,7 +678,6 @@ class KeyboardVisualizationViewModel: ObservableObject {
                 // Augment mapping with push-msg actions from custom rules and rule collections
                 // Only include actions targeting this specific layer
                 let customRules = await CustomRulesStore.shared.loadRules()
-                let ruleCollections = await RuleCollectionStore.shared.loadCollections()
                 AppLogger.shared.info("🗺️ [KeyboardViz] Augmenting '\(targetLayerName)' with \(customRules.count) custom rules and \(ruleCollections.count) collections")
                 mapping = augmentWithPushMsgActions(
                     mapping: mapping,

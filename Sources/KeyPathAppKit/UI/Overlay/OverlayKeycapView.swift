@@ -808,18 +808,41 @@ struct OverlayKeycapView: View {
             if key.label == "fn" {
                 fnKeyContent
             } else {
-                // Mapped key: action in center, key letter in top-left (except arrows)
-                ZStack(alignment: .topLeading) {
-                    // Centered action content
-                    layerActionContent
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // For Window layer, prefer SF symbols over text labels
+                let useWindowSymbol = currentLayerName.lowercased().contains("window")
+                let windowSymbol = useWindowSymbol ? windowActionSymbol(from: layerKeyInfo?.displayLabel ?? "") : nil
 
-                    // Key letter in top-left corner (skip for arrow keys to avoid dual arrows)
-                    if !isArrowKey {
-                        Text(layerKeyLabel.uppercased())
-                            .font(.system(size: 8 * scale, weight: .medium, design: .rounded))
-                            .foregroundStyle(Color.white.opacity(0.7))
-                            .padding(3 * scale)
+                if let symbol = windowSymbol {
+                    // Window action with SF Symbol: show symbol in center, key letter in top-left
+                    ZStack(alignment: .topLeading) {
+                        // Centered SF Symbol
+                        Image(systemName: symbol)
+                            .font(.system(size: 16 * scale, weight: .semibold))
+                            .foregroundStyle(Color.white)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                        // Key letter in top-left corner
+                        if !isArrowKey {
+                            Text(layerKeyLabel.uppercased())
+                                .font(.system(size: 8 * scale, weight: .medium, design: .rounded))
+                                .foregroundStyle(Color.white.opacity(0.7))
+                                .padding(3 * scale)
+                        }
+                    }
+                } else {
+                    // Default: action in center, key letter in top-left (except arrows)
+                    ZStack(alignment: .topLeading) {
+                        // Centered action content
+                        layerActionContent
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                        // Key letter in top-left corner (skip for arrow keys to avoid dual arrows)
+                        if !isArrowKey {
+                            Text(layerKeyLabel.uppercased())
+                                .font(.system(size: 8 * scale, weight: .medium, design: .rounded))
+                                .foregroundStyle(Color.white.opacity(0.7))
+                                .padding(3 * scale)
+                        }
                     }
                 }
             }
@@ -1952,9 +1975,9 @@ struct OverlayKeycapView: View {
         else if isLauncherMode {
             Color(red: 56 / 255, green: 56 / 255, blue: 57 / 255)
         }
-        // Layer mode (Vim/Nav): orange background for mapped keys
+        // Layer mode: collection-specific color for mapped keys
         else if isLayerMode, hasLayerMapping {
-            Color(red: 0.85, green: 0.45, blue: 0.15)
+            collectionColor(for: layerKeyInfo?.collectionId)
         }
         // Layer mode: dark gray for unmapped keys (same as launcher)
         else if isLayerMode {
@@ -1999,6 +2022,97 @@ struct OverlayKeycapView: View {
         let base: CGFloat = 0.25 // Reduced from 0.4 for crisper default
         let max: CGFloat = 0.5 // Enhanced when faded
         return base + (max - base) * fadeAmount
+    }
+
+    // MARK: - Window Action Detection
+
+    /// Detect window action type from output label for color-coding
+    private func windowActionColor(from label: String) -> Color? {
+        guard currentLayerName.lowercased().contains("window") else { return nil }
+
+        let lower = label.lowercased()
+
+        // Corners - purple
+        if lower.contains("top") && lower.contains("left") { return .purple }
+        if lower.contains("top") && lower.contains("right") { return .purple }
+        if lower.contains("bottom") && lower.contains("left") { return .purple }
+        if lower.contains("bottom") && lower.contains("right") { return .purple }
+
+        // Halves - blue
+        if lower.contains("left") && lower.contains("half") { return .blue }
+        if lower.contains("right") && lower.contains("half") { return .blue }
+
+        // Maximize/Center - green
+        if lower.contains("maximize") || lower.contains("fullscreen") { return .green }
+        if lower.contains("center") { return .green }
+
+        // Displays - orange
+        if lower.contains("display") || lower.contains("monitor") { return .orange }
+
+        // Spaces - cyan
+        if lower.contains("space") { return .cyan }
+
+        // Undo - gray
+        if lower.contains("undo") { return .gray }
+
+        return nil
+    }
+
+    /// Get SF Symbol for window action
+    private func windowActionSymbol(from label: String) -> String? {
+        guard currentLayerName.lowercased().contains("window") else { return nil }
+
+        let lower = label.lowercased()
+
+        // Directional arrows for halves
+        if lower.contains("left") && lower.contains("half") { return "arrow.left" }
+        if lower.contains("right") && lower.contains("half") { return "arrow.right" }
+
+        // Diagonal arrows for corners
+        if lower.contains("top") && lower.contains("left") { return "arrow.up.left" }
+        if lower.contains("top") && lower.contains("right") { return "arrow.up.right" }
+        if lower.contains("bottom") && lower.contains("left") { return "arrow.down.left" }
+        if lower.contains("bottom") && lower.contains("right") { return "arrow.down.right" }
+
+        // Maximize/restore
+        if lower.contains("maximize") || lower.contains("fullscreen") {
+            return "arrow.up.left.and.arrow.down.right"
+        }
+        if lower.contains("center") { return "circle.grid.cross" }
+
+        // Displays
+        if lower.contains("display") || lower.contains("monitor") { return "display" }
+
+        // Spaces
+        if lower.contains("next") && lower.contains("space") { return "arrow.right.square" }
+        if lower.contains("previous") && lower.contains("space") { return "arrow.left.square" }
+
+        return nil
+    }
+
+    // MARK: - Collection Colors
+
+    /// Determine key color based on collection ownership
+    private func collectionColor(for collectionId: UUID?) -> Color {
+        guard let id = collectionId else {
+            // No collection info - use default layer mode orange
+            return Color(red: 0.85, green: 0.45, blue: 0.15)
+        }
+
+        // Map collection UUIDs to colors
+        switch id {
+        case RuleCollectionIdentifier.vimNavigation:
+            return Color(red: 0.85, green: 0.45, blue: 0.15)  // Orange - Vim navigation keys
+        case RuleCollectionIdentifier.windowSnapping:
+            return .purple  // Purple - Window snapping keys
+        case RuleCollectionIdentifier.symbolLayer:
+            return .blue    // Blue - Symbol layer keys (future)
+        case RuleCollectionIdentifier.launcher:
+            return .cyan    // Cyan - Launcher keys (future)
+        default:
+            // Unknown collection - default orange
+            return Color(red: 0.85, green: 0.45, blue: 0.15)
+        }
     }
 }
 

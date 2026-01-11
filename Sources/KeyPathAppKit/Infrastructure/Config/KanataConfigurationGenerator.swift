@@ -40,6 +40,7 @@ public struct KanataConfiguration: Sendable {
     /// Flattens enabled collections to `defsrc`/`deflayer` for backward compatibility with Kanata config format.
     public static func generateFromCollections(
         _ collections: [RuleCollection],
+        leaderKeyPreference: LeaderKeyPreference? = nil,
         chordGroups: [ChordGroupConfig] = [],
         sequences: [KanataDefseqParser.ParsedSequence] = []
     ) -> String {
@@ -56,7 +57,10 @@ public struct KanataConfiguration: Sendable {
             .compactMap(\.configuration.chordGroupsConfig)
             .first
 
-        let (rawBlocks, aliasDefinitions, extraLayers, chordMappings) = buildCollectionBlocks(from: enabledCollections)
+        let (rawBlocks, aliasDefinitions, extraLayers, chordMappings) = buildCollectionBlocks(
+            from: enabledCollections,
+            leaderKeyPreference: leaderKeyPreference
+        )
         let blocks = deduplicateBlocks(rawBlocks)
         let enabledNames = enabledCollections.map(\.name).joined(separator: ", ")
         let header = """
@@ -550,7 +554,8 @@ public struct KanataConfiguration: Sendable {
     // MARK: - Block builders
 
     private static func buildCollectionBlocks(
-        from collections: [RuleCollection]
+        from collections: [RuleCollection],
+        leaderKeyPreference: LeaderKeyPreference?
     ) -> ([CollectionBlock], [AliasDefinition], [RuleCollectionLayer], [ChordMapping]) {
         var blocks: [CollectionBlock] = []
         var aliasDefinitions: [AliasDefinition] = []
@@ -559,6 +564,56 @@ public struct KanataConfiguration: Sendable {
         var seenLayers = Set<RuleCollectionLayer>()
         var activatorBlocks: [CollectionBlock] = []
         var seenActivators: Set<String> = []
+
+        // Generate primary leader key alias from system preference (independent of collections)
+        if let pref = leaderKeyPreference, pref.enabled {
+            let tapKey = KanataKeyConverter.convertToKanataKey(pref.key)
+            let layerName = pref.targetLayer.kanataName
+            let aliasName = aliasSafeName(layer: pref.targetLayer, key: tapKey)
+
+            // Add to additional layers if not base
+            if pref.targetLayer != .base {
+                if !seenLayers.contains(pref.targetLayer) {
+                    seenLayers.insert(pref.targetLayer)
+                    additionalLayers.append(pref.targetLayer)
+                }
+            }
+
+            seenActivators.insert(aliasName)
+
+            // Standard tap-hold for primary leader key (always from base layer)
+            let definition = "(tap-hold $tap-timeout $hold-timeout \(tapKey)\n    (multi\n      (layer-while-held \(layerName))\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (on-release-fakekey kp-layer-\(layerName)-exit tap)))"
+
+            aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: definition))
+
+            let entry = LayerEntry(
+                sourceKey: tapKey,
+                baseOutput: "@\(aliasName)",
+                layerOutputs: [:]
+            )
+
+            let metadata = [
+                "  ;; === Primary Leader Key (System Preference) ===",
+                "  ;; Input: \(pref.key)",
+                "  ;; Activates: \(pref.targetLayer.displayName)"
+            ]
+            activatorBlocks.append(CollectionBlock(metadata: metadata, entries: [entry]))
+        }
+
+        // Collect all activator keys for each source layer to avoid blocking them
+        var activatorKeysBySourceLayer: [RuleCollectionLayer: Set<String>] = [:]
+
+        // Include the primary leader key in activator tracking
+        if let pref = leaderKeyPreference, pref.enabled {
+            let tapKey = KanataKeyConverter.convertToKanataKey(pref.key)
+            activatorKeysBySourceLayer[.base, default: []].insert(tapKey)
+        }
+
+        for collection in collections {
+            guard collection.isEnabled, let activator = collection.momentaryActivator else { continue }
+            let tapKey = KanataKeyConverter.convertToKanataKey(activator.input)
+            activatorKeysBySourceLayer[activator.sourceLayer, default: []].insert(tapKey)
+        }
 
         // Detect layers that should be activated when "hyper" is triggered.
         // These are collections with momentaryActivator.input == "hyper" (like Quick Launcher).
@@ -766,13 +821,15 @@ public struct KanataConfiguration: Sendable {
             if collection.id == RuleCollectionIdentifier.vimNavigation,
                collection.targetLayer != .base {
                 let mappedKeys = layerMappedKeys[collection.targetLayer] ?? Set(entries.map(\.sourceKey))
-                let activatorKey = collection.momentaryActivator.map { KanataKeyConverter.convertToKanataKey($0.input) } ?? ""
+                // Skip ALL activator keys that target this layer, not just Vim's own activator
+                // This prevents blocking layer-switch keys like "w" (Nav → Window)
+                let keysToSkip = activatorKeysBySourceLayer[collection.targetLayer] ?? []
                 // Read user's selected physical layout from UserDefaults
                 let selectedLayoutId = UserDefaults.standard.string(forKey: LayoutPreferences.layoutIdKey) ?? LayoutPreferences.defaultLayoutId
                 let layout = PhysicalLayout.find(id: selectedLayoutId) ?? .macBookUS
                 let extraKeys = Self.navigationUnmappedKeys(
                     excluding: mappedKeys,
-                    skipping: activatorKey.isEmpty ? [] : [activatorKey],
+                    skipping: keysToSkip,
                     layout: layout
                 )
                 let blockedEntries = extraKeys.map { key in
