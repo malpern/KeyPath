@@ -575,13 +575,19 @@ public struct LauncherGridConfig: Codable, Equatable, Sendable {
             LauncherMapping(key: "n", target: .app(name: "Notes", bundleId: "com.apple.Notes"))
         ]
 
-        // Number row (websites)
+        // Number row (websites + folders + scripts)
         let numberRowMappings: [LauncherMapping] = [
             LauncherMapping(key: "1", target: .url("github.com")),
             LauncherMapping(key: "2", target: .url("google.com")),
             LauncherMapping(key: "3", target: .url("notion.so")),
-            LauncherMapping(key: "4", target: .url("stackoverflow.com"))
+            LauncherMapping(key: "4", target: .url("stackoverflow.com")),
+            LauncherMapping(key: "5", target: .folder(path: "~/Documents", name: "Documents")),
+            LauncherMapping(key: "6", target: .folder(path: "~/Downloads", name: "Downloads")),
+            LauncherMapping(key: "7", target: .folder(path: "~/Desktop", name: "Desktop"))
         ]
+
+        // Note: Script examples are not included by default since script execution requires
+        // explicit user opt-in via Settings > Security. Users can add scripts manually.
 
         return homeRowMappings + topRowMappings + bottomRowMappings + numberRowMappings
     }

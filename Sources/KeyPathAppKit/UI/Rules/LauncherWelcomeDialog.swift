@@ -80,7 +80,7 @@ struct LauncherWelcomeDialog: View {
                     .font(.largeTitle)
                     .fontWeight(.bold)
 
-                Text("Launch your favorite apps and websites\nwith a single keystroke")
+                Text("Launch apps, open websites, folders,\nand run scripts with a single keystroke")
                     .font(.title3)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -98,12 +98,12 @@ struct LauncherWelcomeDialog: View {
                 howItWorksRow(
                     icon: "keyboard.fill",
                     title: "Press a Shortcut",
-                    description: "S for Safari, T for Terminal, 1 for GitHub..."
+                    description: "S for Safari, 5 for Documents, 1 for GitHub..."
                 )
                 howItWorksRow(
                     icon: "arrow.up.forward.app.fill",
-                    title: "App Opens Instantly",
-                    description: "Your app or website launches immediately"
+                    title: "Opens Instantly",
+                    description: "Your app, website, folder, or script launches immediately"
                 )
             }
             .padding(.horizontal, 40)
