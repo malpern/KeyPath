@@ -659,7 +659,8 @@ class KeyboardVisualizationViewModel: ObservableObject {
                 AppLogger.shared.debug("🗺️ [KeyboardViz] Using config: \(configPath)")
 
                 // Load rule collections for collection ownership tracking
-                let ruleCollections = await RuleCollectionStore.shared.loadCollections()
+                // Only use enabled collections to match config generation behavior
+                let ruleCollections = await RuleCollectionStore.shared.loadCollections().filter(\.isEnabled)
 
                 // Build mapping for target layer
                 var mapping = try await layerKeyMapper.getMapping(
