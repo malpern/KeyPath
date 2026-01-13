@@ -527,6 +527,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
             // Simple sequential startup (no timers/notifications fan-out)
             Task { @MainActor in
+                do {
+                    try await AppConfigGenerator.regenerateFromStore()
+                    AppLogger.shared.log("✅ [AppDelegate] App-specific config regenerated")
+                } catch {
+                    AppLogger.shared.error(
+                        "❌ [AppDelegate] Failed to regenerate app-specific config: \(error)"
+                    )
+                }
+
                 // Respect permission-grant return to avoid resetting wizard state
                 let result = PermissionGrantCoordinator.shared.checkForPendingPermissionGrant()
                 if !result.shouldRestart {
