@@ -22,6 +22,8 @@ final class ServiceBootstrapper {
 
     private init() {}
 
+    private(set) var lastVHIDRepairOutput: String?
+
     // MARK: - Service Identifiers
 
     /// Service identifier for the main Kanata keyboard remapping daemon
@@ -661,10 +663,6 @@ final class ServiceBootstrapper {
     func repairVHIDDaemonServices() async -> Bool {
         AppLogger.shared.log("🔧 [ServiceBootstrapper] Repairing VHID LaunchDaemon services")
 
-        // Unload services if present
-        _ = await unloadService(serviceID: Self.vhidDaemonServiceID)
-        _ = await unloadService(serviceID: Self.vhidManagerServiceID)
-
         // Reinstall plists with correct content
         let vhidDaemonPlist = PlistGenerator.generateVHIDDaemonPlist()
         let vhidManagerPlist = PlistGenerator.generateVHIDManagerPlist()
@@ -683,15 +681,105 @@ final class ServiceBootstrapper {
             return false
         }
 
-        // Load services
-        let daemonLoad = await loadService(serviceID: Self.vhidDaemonServiceID)
-        let managerLoad = await loadService(serviceID: Self.vhidManagerServiceID)
+        let preflightIssues = await VHIDDeviceManager().securityPreflightIssues()
+        if !preflightIssues.isEmpty {
+            AppLogger.shared.log(
+                "⚠️ [ServiceBootstrapper] VHID preflight security issues detected:\n- \(preflightIssues.joined(separator: "\n- "))"
+            )
+        }
 
-        let ok = daemonLoad && managerLoad && ServiceHealthChecker.shared.isVHIDDaemonConfiguredCorrectly()
+        // Bootstrap services (bootout -> bootstrap -> enable -> kickstart)
+        let bootstrapResult = bootstrapVHIDServices(
+            daemonPlistPath: daemonPlistPath,
+            managerPlistPath: managerPlistPath
+        )
+        let daemonLoaded = await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidDaemonServiceID)
+        let managerLoaded = await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidManagerServiceID)
+        let configured = ServiceHealthChecker.shared.isVHIDDaemonConfiguredCorrectly()
+        let postflightIssues = await VHIDDeviceManager().securityPreflightIssues()
+        let ok = bootstrapResult.success && daemonLoaded && managerLoaded && configured
+        lastVHIDRepairOutput = formatVHIDRepairOutput(
+            bootstrapOutput: bootstrapResult.output,
+            daemonLoaded: daemonLoaded,
+            managerLoaded: managerLoaded,
+            configured: configured,
+            securityIssues: postflightIssues
+        )
         AppLogger.shared.log(
-            "🔍 [ServiceBootstrapper] Repair result: loadedDaemon=\(daemonLoad), loadedManager=\(managerLoad), configured=\(ServiceHealthChecker.shared.isVHIDDaemonConfiguredCorrectly())"
+            "🔍 [ServiceBootstrapper] Repair result: bootstrapOK=\(bootstrapResult.success), loadedDaemon=\(daemonLoaded), loadedManager=\(managerLoaded), configured=\(configured)"
         )
         return ok
+    }
+
+    private func bootstrapVHIDServices(
+        daemonPlistPath: String,
+        managerPlistPath: String
+    ) -> (success: Bool, output: String) {
+        // Skip admin operations in test environment
+        if TestEnvironment.shouldSkipAdminOperations {
+            AppLogger.shared.log("🧪 [ServiceBootstrapper] Test mode - skipping VHID bootstrap")
+            return (true, "Skipped in test mode")
+        }
+
+        let command = """
+        /bin/launchctl bootout system/\(Self.vhidDaemonServiceID) 2>/dev/null || true
+        /bin/launchctl bootout system/\(Self.vhidManagerServiceID) 2>/dev/null || true
+        /usr/bin/xattr -d com.apple.quarantine '\(VHIDDeviceManager.vhidManagerPath)' 2>/dev/null || true
+        /usr/bin/xattr -d com.apple.quarantine '\(VHIDDeviceManager.vhidDeviceDaemonPath)' 2>/dev/null || true
+        /bin/launchctl bootstrap system '\(daemonPlistPath)'
+        /bin/launchctl bootstrap system '\(managerPlistPath)'
+        /bin/launchctl enable system/\(Self.vhidDaemonServiceID)
+        /bin/launchctl enable system/\(Self.vhidManagerServiceID)
+        /bin/launchctl kickstart -k system/\(Self.vhidDaemonServiceID)
+        /bin/launchctl kickstart -k system/\(Self.vhidManagerServiceID)
+        """
+
+        let result = PrivilegedExecutor.shared.executeWithPrivileges(
+            command: command,
+            prompt: "KeyPath needs to start the VirtualHID services."
+        )
+
+        if result.success {
+            AppLogger.shared.log("✅ [ServiceBootstrapper] VHID bootstrap command succeeded")
+        } else {
+            AppLogger.shared.log(
+                "❌ [ServiceBootstrapper] VHID bootstrap command failed: \(result.output)"
+            )
+        }
+
+        if !result.output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            AppLogger.shared.log("📄 [ServiceBootstrapper] VHID bootstrap output:\n\(result.output)")
+        }
+
+        return (result.success, result.output)
+    }
+
+    private func formatVHIDRepairOutput(
+        bootstrapOutput: String,
+        daemonLoaded: Bool,
+        managerLoaded: Bool,
+        configured: Bool,
+        securityIssues: [String]
+    ) -> String? {
+        var details: [String] = []
+        let trimmed = bootstrapOutput.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            details.append(trimmed)
+        }
+        if !daemonLoaded {
+            details.append("Service not loaded: \(Self.vhidDaemonServiceID)")
+        }
+        if !managerLoaded {
+            details.append("Service not loaded: \(Self.vhidManagerServiceID)")
+        }
+        if !configured {
+            details.append("VHID daemon plist configuration check failed")
+        }
+        if !securityIssues.isEmpty {
+            details.append("Security checks:")
+            details.append(contentsOf: securityIssues.map { "- \($0)" })
+        }
+        return details.isEmpty ? nil : details.joined(separator: "\n")
     }
 
     // MARK: - Service Installation (Install Only, No Load)

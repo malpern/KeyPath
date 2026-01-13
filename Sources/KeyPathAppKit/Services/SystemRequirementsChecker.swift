@@ -242,12 +242,14 @@ final class SystemRequirementsChecker {
         let vhid = VHIDDeviceManager()
         let installedVersion = vhid.getInstalledVersion() ?? "unknown"
         let hasMismatch = vhid.hasVersionMismatch()
+        let securityIssues = await vhid.securityPreflightIssues()
 
         return Self.makeVirtualHIDBreakageSummary(
             status: status,
             driverEnabled: driverEnabled,
             installedVersion: installedVersion,
-            hasMismatch: hasMismatch
+            hasMismatch: hasMismatch,
+            securityIssues: securityIssues
         )
     }
 
@@ -256,7 +258,8 @@ final class SystemRequirementsChecker {
         status: VirtualHIDDaemonStatus,
         driverEnabled: Bool,
         installedVersion: String,
-        hasMismatch: Bool
+        hasMismatch: Bool,
+        securityIssues: [String] = []
     ) -> String {
         var lines: [String] = []
         if status.pids.count > 1 {
@@ -288,6 +291,10 @@ final class SystemRequirementsChecker {
         lines.append("Driver extension: \(driverEnabled ? "enabled" : "disabled")")
         let versionSuffix = hasMismatch ? " (incompatible with current Kanata)" : ""
         lines.append("Driver version: \(installedVersion)\(versionSuffix)")
+        if !securityIssues.isEmpty {
+            lines.append("Security checks:")
+            lines.append(contentsOf: securityIssues.map { "- \($0)" })
+        }
         return lines.joined(separator: "\n")
     }
 }

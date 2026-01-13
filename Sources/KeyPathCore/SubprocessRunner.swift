@@ -71,6 +71,11 @@ public actor SubprocessRunner: SubprocessRunning {
 
         let runContext = RunContext()
 
+        @Sendable func terminateIfRunning(_ task: Process) {
+            guard task.isRunning else { return }
+            task.terminate()
+        }
+
         return try await withTaskCancellationHandler(operation: {
             try await withCheckedThrowingContinuation { continuation in
                 runContext.setContinuation(continuation)
@@ -116,7 +121,7 @@ public actor SubprocessRunner: SubprocessRunning {
                         return
                     }
 
-                    task.terminate()
+                    terminateIfRunning(task)
                     if runContext.resume(
                         with: .failure(SubprocessError.timeout(executable: executable, timeout: timeoutInterval))
                     ) {
@@ -138,7 +143,7 @@ public actor SubprocessRunner: SubprocessRunning {
                 }
             }
         }, onCancel: {
-            task.terminate()
+            terminateIfRunning(task)
             runContext.timeoutTask?.cancel()
             runContext.resume(with: .failure(CancellationError()))
         })

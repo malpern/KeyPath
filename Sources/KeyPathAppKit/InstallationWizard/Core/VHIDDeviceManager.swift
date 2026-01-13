@@ -15,10 +15,10 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
     // MARK: - Constants
 
-    private static let vhidManagerPath =
+    static let vhidManagerPath =
         "/Applications/.Karabiner-VirtualHIDDevice-Manager.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Manager"
     private static let vhidManagerBundleID = "org.pqrs.Karabiner-VirtualHIDDevice-Manager"
-    private static let vhidDeviceDaemonPath =
+    static let vhidDeviceDaemonPath =
         "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon"
     private static let vhidDeviceDaemonInfoPlistPath =
         "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/Info.plist"
@@ -82,6 +82,32 @@ final class VHIDDeviceManager: @unchecked Sendable {
         return daemonExists
     }
 
+    /// Preflight security checks for VirtualHID components (quarantine + codesign)
+    /// Returns user-visible issue descriptions when problems are found.
+    func securityPreflightIssues() async -> [String] {
+        let targets: [(label: String, path: String)] = [
+            ("VirtualHIDDevice Manager", Self.vhidManagerPath),
+            ("VirtualHIDDevice Daemon", Self.vhidDeviceDaemonPath)
+        ]
+
+        var issues: [String] = []
+        for target in targets {
+            guard FileManager.default.fileExists(atPath: target.path) else { continue }
+
+            if await isQuarantined(at: target.path) {
+                issues.append("\(target.label) appears quarantined: \(target.path)")
+            }
+
+            let codesign = await verifyCodeSignature(at: target.path)
+            if !codesign.success {
+                let detail = codesign.detail.isEmpty ? "codesign verification failed" : codesign.detail
+                issues.append("\(target.label) \(detail)")
+            }
+        }
+
+        return issues
+    }
+
     /// Checks if VirtualHIDDevice processes are currently running
     func detectRunning() async -> Bool {
         let maxAttempts = FeatureFlags.shared.startupModeActive ? 1 : 2
@@ -116,6 +142,48 @@ final class VHIDDeviceManager: @unchecked Sendable {
             }
         }
         return false
+    }
+
+    private func isQuarantined(at path: String) async -> Bool {
+        do {
+            let result = try await SubprocessRunner.shared.run(
+                "/usr/bin/xattr",
+                args: ["-p", "com.apple.quarantine", path],
+                timeout: 5
+            )
+            if result.exitCode == 0 {
+                return !result.stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            }
+        } catch {
+            AppLogger.shared.log("⚠️ [VHIDManager] Quarantine check failed for \(path): \(error)")
+        }
+        return false
+    }
+
+    private func verifyCodeSignature(at path: String) async -> (success: Bool, detail: String) {
+        do {
+            let result = try await SubprocessRunner.shared.run(
+                "/usr/bin/codesign",
+                args: ["--verify", "--deep", "--strict", "--verbose=2", path],
+                timeout: 10
+            )
+            if result.exitCode == 0 {
+                return (true, "")
+            }
+            let detail = sanitizeCodesignOutput(result.stderr.isEmpty ? result.stdout : result.stderr)
+            return (false, "codesign verification failed: \(detail)")
+        } catch {
+            AppLogger.shared.log("⚠️ [VHIDManager] codesign verification failed for \(path): \(error)")
+            return (false, "codesign verification failed: \(error.localizedDescription)")
+        }
+    }
+
+    private func sanitizeCodesignOutput(_ output: String) -> String {
+        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "unknown error" }
+        let compact = trimmed.replacingOccurrences(of: "\n", with: " ")
+        if compact.count <= 160 { return compact }
+        return String(compact.prefix(160)) + "…"
     }
 
     private struct TimeoutError: Error {}

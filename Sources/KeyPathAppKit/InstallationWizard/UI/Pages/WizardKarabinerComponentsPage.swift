@@ -483,12 +483,40 @@ struct WizardKarabinerComponentsPage: View {
         if success {
             // Run a fresh validation before leaving the page to avoid stale summary red states.
             await refreshAndWait(fixSucceeded: true)
-            actionStatus = .success(message: "Driver repair succeeded")
-            scheduleStatusClear()
+
+            let refreshedIssues = stateManager.lastWizardSnapshot?.issues ?? issues
+            let remainingVHIDIssues = refreshedIssues.filter(\.identifier.isVHIDRelated)
+            if remainingVHIDIssues.isEmpty {
+                actionStatus = .success(message: "Driver repair succeeded")
+                scheduleStatusClear()
+                return true
+            } else {
+                let detail = repairFailureDetail(from: ServiceBootstrapper.shared.lastVHIDRepairOutput)
+                AppLogger.shared.log(
+                    "❌ [FIX-VHID \(session)] Repair completed but issues remain: \(remainingVHIDIssues.map { "\($0.category)-\($0.title)" })"
+                )
+                actionStatus = .error(
+                    message: detail.isEmpty
+                        ? "Driver repair incomplete. VirtualHID services are still unhealthy."
+                        : "Driver repair incomplete. \(detail)"
+                )
+                return false
+            }
         } else {
             actionStatus = .error(message: "Driver repair failed. Try restarting your Mac.")
+            return false
         }
-        return success
+    }
+
+    private func repairFailureDetail(from output: String?) -> String {
+        guard let output, !output.isEmpty else { return "" }
+        let compact = output
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\t", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !compact.isEmpty else { return "" }
+        let snippet = String(compact.prefix(160))
+        return snippet + (compact.count > 160 ? "…" : "")
     }
 
     /// Auto-clear success status after 3 seconds
