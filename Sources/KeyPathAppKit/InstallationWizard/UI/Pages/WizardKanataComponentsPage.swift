@@ -24,8 +24,7 @@ struct WizardKanataComponentsPage: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Use experimental hero design when engine is installed
-            if kanataRelatedIssues.isEmpty, componentStatus(for: "Kanata Binary") == .completed {
+            if !hasKanataIssues {
                 VStack(spacing: WizardDesign.Spacing.sectionGap) {
                     WizardHeroSection.success(
                         icon: "cpu.fill",
@@ -34,53 +33,8 @@ struct WizardKanataComponentsPage: View {
                         "Kanata binary is installed & configured for advanced keyboard remapping functionality"
                     )
 
-                    // Inline action status (immediately after hero for visual consistency)
-                    if actionStatus.isActive, let message = actionStatus.message {
-                        InlineStatusView(status: actionStatus, message: message)
-                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                    }
-
-                    // Component details card below the subheading - horizontally centered
-                    HStack {
-                        Spacer()
-                        VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
-                            // Kanata Binary (always shown in success state)
-                            HStack(spacing: 12) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
-                                HStack(spacing: 0) {
-                                    Text("Kanata Binary")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-                                    Text(" - KeyPath's bundled & Developer ID signed version")
-                                        .font(.headline)
-                                        .fontWeight(.regular)
-                                }
-                            }
-
-                            // Kanata Service (if service is configured)
-                            if componentStatus(for: "Kanata Service") == .completed {
-                                HStack(spacing: 12) {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
-                                    HStack(spacing: 0) {
-                                        Text("Kanata Service")
-                                            .font(.headline)
-                                            .fontWeight(.semibold)
-                                        Text(" - System service configuration & management")
-                                            .font(.headline)
-                                            .fontWeight(.regular)
-                                    }
-                                }
-                            }
-                        }
-                        Spacer()
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(WizardDesign.Spacing.cardPadding)
-                    .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
-                    .padding(.horizontal, WizardDesign.Spacing.pageVertical)
-                    .padding(.top, WizardDesign.Spacing.pageVertical)
+                    InlineStatusView(status: actionStatus, message: actionStatus.message ?? " ")
+                        .opacity(actionStatus.isActive ? 1 : 0)
 
                     Button(nextStepButtonTitle) {
                         navigateToNextStep()
@@ -89,65 +43,37 @@ struct WizardKanataComponentsPage: View {
                     .keyboardShortcut(.defaultAction)
                     .padding(.top, WizardDesign.Spacing.sectionGap)
                 }
+                .animation(WizardDesign.Animation.statusTransition, value: actionStatus)
                 .heroSectionContainer()
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                // Header for setup/error states with action link
-                WizardHeroSection.warning(
-                    icon: "cpu.fill",
-                    title: "Kanata Engine Setup",
-                    subtitle: "Install and configure the Kanata keyboard remapping engine",
-                    iconTapAction: {
-                        Task {
-                            onRefresh()
-                        }
-                    }
-                )
-
-                // Inline action status (immediately after hero for visual consistency)
-                if actionStatus.isActive, let message = actionStatus.message {
-                    InlineStatusView(status: actionStatus, message: message)
-                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                }
-
-                // Component details for error/setup states
-                if !(kanataRelatedIssues.isEmpty && componentStatus(for: "Kanata Binary") == .completed) {
-                    ScrollView {
-                        VStack(spacing: WizardDesign.Spacing.elementGap) {
-                            // Dynamic issues from installation category that are Kanata-specific
-                            // (these have detailed descriptions and Fix buttons)
-                            ForEach(kanataRelatedIssues, id: \.id) { issue in
-                                InstallationItemView(
-                                    title: getComponentTitle(for: issue),
-                                    description: getComponentDescription(for: issue),
-                                    status: .failed,
-                                    autoFixButton: issue.autoFixAction != nil
-                                        ? {
-                                            let isThisIssueFixing = fixingIssues.contains(issue.id)
-                                            return AnyView(
-                                                WizardButton(
-                                                    isThisIssueFixing ? "Fixing..." : "Fix",
-                                                    style: .secondary,
-                                                    isLoading: isThisIssueFixing
-                                                ) {
-                                                    guard let autoFixAction = issue.autoFixAction else { return }
-
-                                                    let componentTitle = getComponentTitle(for: issue)
-                                                    requestIssueFix(
-                                                        issueId: issue.id,
-                                                        action: autoFixAction,
-                                                        title: componentTitle
-                                                    )
-                                                }
-                                            )
-                                        } : nil
-                                )
+                VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                    WizardHeroSection.warning(
+                        icon: "cpu.fill",
+                        title: "Kanata Engine Setup",
+                        subtitle: "Install and configure the Kanata keyboard remapping engine",
+                        iconTapAction: {
+                            Task {
+                                onRefresh()
                             }
                         }
-                        .padding(.horizontal, 40)
-                        .padding(.bottom, WizardDesign.Spacing.pageVertical)
+                    )
+
+                    InlineStatusView(status: actionStatus, message: actionStatus.message ?? " ")
+                        .opacity(actionStatus.isActive ? 1 : 0)
+
+                    Button("Fix") {
+                        handlePrimaryFix()
                     }
+                    .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isPrimaryFixLoading))
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(isPrimaryFixLoading || primaryFixIssue?.autoFixAction == nil)
+                    .frame(minHeight: 44)
+                    .padding(.top, WizardDesign.Spacing.itemGap)
                 }
+                .animation(WizardDesign.Animation.statusTransition, value: actionStatus)
+                .heroSectionContainer()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
             Spacer()
@@ -191,13 +117,15 @@ struct WizardKanataComponentsPage: View {
 
     // MARK: - Helper Methods
 
-    private var kanataRelatedIssues: [WizardIssue] {
+    private var kanataIssues: [WizardIssue] {
         issues.filter { issue in
             // Include installation issues related to Kanata
             if issue.category == .installation {
                 switch issue.identifier {
                 case .component(.kanataBinaryMissing),
-                     .component(.kanataService):
+                     .component(.kanataService),
+                     .component(.launchDaemonServices),
+                     .component(.launchDaemonServicesUnhealthy):
                     return true
                 default:
                     return false
@@ -240,13 +168,6 @@ struct WizardKanataComponentsPage: View {
         }
     }
 
-    private var needsManualInstallation: Bool {
-        // Need manual installation if Kanata binary is missing
-        issues.contains { issue in
-            issue.identifier == .component(.kanataBinaryMissing)
-        }
-    }
-
     private func getComponentTitle(for issue: WizardIssue) -> String {
         // Use identifiers instead of stringly-typed title matching
         if case let .component(component) = issue.identifier {
@@ -275,6 +196,49 @@ struct WizardKanataComponentsPage: View {
             }
         }
         return issue.description
+    }
+
+    private var hasKanataIssues: Bool {
+        !kanataIssues.isEmpty
+    }
+
+    private var primaryFixIssue: WizardIssue? {
+        if let binaryIssue = kanataIssues.first(where: { $0.identifier == .component(.kanataBinaryMissing) }) {
+            return binaryIssue
+        }
+        if let serviceIssue = kanataIssues.first(where: {
+            switch $0.identifier {
+            case .component(.kanataService),
+                 .component(.launchDaemonServices),
+                 .component(.launchDaemonServicesUnhealthy):
+                return true
+            default:
+                return false
+            }
+        }) {
+            return serviceIssue
+        }
+        return kanataIssues.first
+    }
+
+    private var isPrimaryFixLoading: Bool {
+        if case .inProgress = actionStatus {
+            return true
+        }
+        return isFixing
+    }
+
+    private func handlePrimaryFix() {
+        guard let issue = primaryFixIssue else { return }
+
+        if issue.autoFixAction == .installBundledKanata {
+            installBundledKanata()
+            return
+        }
+
+        guard let action = issue.autoFixAction else { return }
+        let componentTitle = getComponentTitle(for: issue)
+        requestIssueFix(issueId: issue.id, action: action, title: componentTitle)
     }
 
     private func installBundledKanata() {
