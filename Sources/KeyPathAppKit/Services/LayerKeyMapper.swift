@@ -210,11 +210,18 @@ actor LayerKeyMapper {
 
         // Build key→collection reverse index for collection ownership tracking
         let keyToCollection = buildKeyCollectionMap(for: normalizedLayer, collections: collections)
+        let activatorKeys = buildActivatorKeySet(for: normalizedLayer, collections: collections)
         AppLogger.shared.debug("🗺️ [LayerKeyMapper] Built key→collection map: \(keyToCollection.count) keys")
 
         // Use batch simulation for accurate key mapping
         // This handles aliases, tap-hold, forks, macros, etc.
-        let mapping = try await buildMappingWithSimulator(for: normalizedLayer, configPath: configPath, layout: layout, keyToCollection: keyToCollection)
+        let mapping = try await buildMappingWithSimulator(
+            for: normalizedLayer,
+            configPath: configPath,
+            layout: layout,
+            keyToCollection: keyToCollection,
+            activatorKeys: activatorKeys
+        )
 
         cache[normalizedLayer] = mapping
         AppLogger.shared.info("🗺️ [LayerKeyMapper] Built mapping: \(mapping.count) keys")
@@ -263,7 +270,14 @@ actor LayerKeyMapper {
                     do {
                         // Build key→collection map for this layer
                         let keyToCollection = self.buildKeyCollectionMap(for: layer, collections: collections)
-                        let mapping = try await self.buildMappingWithSimulator(for: layer, configPath: configPath, layout: layout, keyToCollection: keyToCollection)
+                        let activatorKeys = self.buildActivatorKeySet(for: layer, collections: collections)
+                        let mapping = try await self.buildMappingWithSimulator(
+                            for: layer,
+                            configPath: configPath,
+                            layout: layout,
+                            keyToCollection: keyToCollection,
+                            activatorKeys: activatorKeys
+                        )
                         return (layer, mapping)
                     } catch {
                         AppLogger.shared.error("🗺️ [LayerKeyMapper] Failed to build mapping for '\(layer)': \(error)")
@@ -291,7 +305,7 @@ actor LayerKeyMapper {
     ///   - layerName: The layer to build mapping for (e.g., "nav", "window")
     ///   - collections: All enabled rule collections
     /// - Returns: Dictionary mapping Kanata key names to collection UUIDs
-    nonisolated private func buildKeyCollectionMap(
+    private nonisolated func buildKeyCollectionMap(
         for layerName: String,
         collections: [RuleCollection]
     ) -> [String: UUID] {
@@ -320,6 +334,25 @@ actor LayerKeyMapper {
         }
 
         return map
+    }
+
+    /// Build a set of activator keys for the given source layer.
+    /// Used to ensure layer-switch keys are highlighted even when simulator outputs are empty.
+    private nonisolated func buildActivatorKeySet(
+        for layerName: String,
+        collections: [RuleCollection]
+    ) -> Set<String> {
+        var keys = Set<String>()
+        let targetLayer = RuleCollectionLayer(kanataName: layerName)
+
+        for collection in collections where collection.isEnabled {
+            guard let activator = collection.momentaryActivator,
+                  activator.sourceLayer == targetLayer else { continue }
+            let kanataKey = KanataKeyConverter.convertToKanataKey(activator.input)
+            keys.insert(kanataKey.lowercased())
+        }
+
+        return keys
     }
 
     // MARK: - Key Mapping via Simulator
@@ -367,8 +400,8 @@ actor LayerKeyMapper {
 
         // Check if this is a transparent key (input == output with no other keys)
         // Normalize both to handle simulator symbol aliases (e.g., "◀" for "left")
-        let normalizedInput = normalizeKeyName(simName.lowercased())
-        let normalizedOutput = allPressedOutputs.count == 1 ? normalizeKeyName(allPressedOutputs[0]) : nil
+        let normalizedInput = Self.normalizeKeyName(simName.lowercased())
+        let normalizedOutput = allPressedOutputs.count == 1 ? Self.normalizeKeyName(allPressedOutputs[0]) : nil
         let isTransparent = normalizedOutput != nil && normalizedOutput == normalizedInput
 
         return RawSimulationResult(
@@ -386,7 +419,13 @@ actor LayerKeyMapper {
     ///   - configPath: Path to the kanata config file
     ///   - layout: The physical keyboard layout to use for mapping
     ///   - keyToCollection: Map of key names to collection UUIDs (for collection ownership tracking)
-    private func buildMappingWithSimulator(for layer: String, configPath: String, layout: PhysicalLayout, keyToCollection: [String: UUID] = [:]) async throws -> [UInt16: LayerKeyInfo] {
+    private func buildMappingWithSimulator(
+        for layer: String,
+        configPath: String,
+        layout: PhysicalLayout,
+        keyToCollection: [String: UUID] = [:],
+        activatorKeys: Set<String> = []
+    ) async throws -> [UInt16: LayerKeyInfo] {
         var mapping: [UInt16: LayerKeyInfo] = [:]
 
         // Get all physical keys from the provided layout
@@ -437,6 +476,7 @@ actor LayerKeyMapper {
         for (keyCode, fallbackLabel, simName, result) in results {
             // Look up collection ownership for this key
             let collectionId = keyToCollection[simName]
+            let isActivatorKey = activatorKeys.contains(simName.lowercased())
 
             // Debug: Log raw simulation result for A key (keyCode 0)
             if keyCode == 0 {
@@ -452,6 +492,10 @@ actor LayerKeyMapper {
             }
 
             guard let result else {
+                if isActivatorKey {
+                    mapping[keyCode] = .layerSwitch(displayLabel: fallbackLabel, collectionId: collectionId)
+                    continue
+                }
                 // Simulation failed - use physical label
                 mapping[keyCode] = LayerKeyInfo(
                     displayLabel: fallbackLabel,
@@ -466,6 +510,10 @@ actor LayerKeyMapper {
 
             // Parse events to extract outputs
             guard let parsed = parseRawSimulationEvents(simName: simName, events: result.events) else {
+                if isActivatorKey {
+                    mapping[keyCode] = .layerSwitch(displayLabel: fallbackLabel, collectionId: collectionId)
+                    continue
+                }
                 // No outputs found
                 // On non-base layers: this means the key is transparent (XX)
                 // On base layer: use physical label (shouldn't happen, but handle gracefully)
@@ -481,6 +529,11 @@ actor LayerKeyMapper {
                 if isTransparent {
                     AppLogger.shared.debug("🔍 [LayerKeyMapper] \(simName)(\(keyCode)) is transparent (XX) on '\(startLayer)'")
                 }
+                continue
+            }
+
+            if isActivatorKey {
+                mapping[keyCode] = .layerSwitch(displayLabel: fallbackLabel, collectionId: collectionId)
                 continue
             }
 
@@ -518,9 +571,12 @@ actor LayerKeyMapper {
             }
 
             if parsed.isTransparent {
-                // Key passes through unchanged but still expose output key for highlighting.
+                // Key passes through unchanged
                 let outputKey = parsed.outputs.first
                 let outputKeyCode = outputKey.flatMap(kanataKeyToKeyCode)
+
+                // Transparent keys usually should not claim collection ownership.
+                // Exception: explicit identity mappings keep collectionId so nav-layer styling can reflect ownership.
                 mapping[keyCode] = LayerKeyInfo(
                     displayLabel: fallbackLabel,
                     outputKey: outputKey,
@@ -881,7 +937,7 @@ actor LayerKeyMapper {
 
     /// Normalize key names to canonical form for transparent key detection.
     /// Maps simulator symbols and aliases to their base key names.
-    private func normalizeKeyName(_ key: String) -> String {
+    nonisolated static func normalizeKeyName(_ key: String) -> String {
         switch key.lowercased() {
         // Arrow symbols from simulator
         case "◀", "←": "left"
@@ -894,14 +950,26 @@ actor LayerKeyMapper {
         case "‹⇧", "⇧›", "lsft", "rsft", "lshift", "rshift", "shift": "lsft"
         case "‹⎈", "⎈›", "lctl", "rctl", "lctrl", "rctrl", "ctrl", "control": "lctl"
         // Special keys
-        case "ret", "return": "enter"
-        case "bspc": "backspace"
-        case "spc", "sp": "space"
+        case "ret", "return", "⏎": "enter"
+        case "bspc", "␈": "backspace"
+        case "spc", "sp", "␠", "␣": "space"
         case "esc": "escape"
         case "caps": "capslock"
         case "del": "delete"
+        // Punctuation aliases (simulator abbrevs + symbol forms)
+        case "grv", "grave", "`": "grave"
+        case "min", "minus", "-", "−": "minus"
+        case "eql", "equal", "=": "equal"
+        case "lbrc", "leftbrace", "[", "{", "lbrack", "leftbracket": "leftbrace"
+        case "rbrc", "rightbrace", "]", "}", "rbrack", "rightbracket": "rightbrace"
+        case "bksl", "backslash", "\\": "backslash"
+        case "scln", "semicolon", ";": "semicolon"
+        case "apos", "apostrophe", "quote", "'": "apostrophe"
+        case "comm", "comma", ",": "comma"
+        case "dot", "period", ".": "dot"
+        case "slash", "slsh", "/": "slash"
         // Tab and fn stay as-is
-        case "⇥": "tab"
+        case "⇥", "⭾": "tab"
         case "↩": "enter"
         case "⌫": "backspace"
         case "⌦": "delete"

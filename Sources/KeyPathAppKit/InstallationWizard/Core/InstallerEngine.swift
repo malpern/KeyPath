@@ -459,7 +459,8 @@ public final class InstallerEngine {
 
         case InstallerRecipeID.enableTCPServer,
              InstallerRecipeID.setupTCPAuthentication,
-             InstallerRecipeID.regenerateCommServiceConfig:
+             InstallerRecipeID.regenerateCommServiceConfig,
+             InstallerRecipeID.regenerateServiceConfig:
             try await broker.regenerateServiceConfiguration()
 
         case InstallerRecipeID.restartCommServer:

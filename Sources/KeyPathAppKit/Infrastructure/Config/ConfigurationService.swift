@@ -360,11 +360,16 @@ public final class ConfigurationService: FileConfigurationProviding {
                 }
 
                 AppLogger.shared.log("❌ [ConfigService] File validation failed: \(errors)")
+                notifyValidationFailure(errors, context: "file")
                 return (false, errors)
             }
 
         } catch {
             AppLogger.shared.log("❌ [ConfigService] File validation error: \(error)")
+            notifyValidationFailure(
+                ["Failed to validate configuration file: \(error.localizedDescription)"],
+                context: "file"
+            )
             return (false, ["Failed to validate configuration file: \(error.localizedDescription)"])
         }
     }
@@ -453,6 +458,7 @@ public final class ConfigurationService: FileConfigurationProviding {
                 return (true, [])
             } else {
                 let errors = parseKanataErrors(output)
+                notifyValidationFailure(errors, context: "cli")
                 if keepFailedConfig {
                     AppLogger.shared.log(
                         "🧪 [Validation-CLI] Keeping temp config for debugging at \(tempConfigPath)"
@@ -478,6 +484,10 @@ public final class ConfigurationService: FileConfigurationProviding {
             }
             AppLogger.shared.log("❌ [Validation-CLI] Validation process failed: \(error)")
             AppLogger.shared.log("❌ [Validation-CLI] Error type: \(type(of: error))")
+            notifyValidationFailure(
+                ["Validation failed: \(error.localizedDescription)"],
+                context: "cli"
+            )
             return (false, ["Validation failed: \(error.localizedDescription)"])
         }
     }
@@ -495,6 +505,18 @@ public final class ConfigurationService: FileConfigurationProviding {
         } catch {
             return (false, ["Mock validation failed: \(error.localizedDescription)"])
         }
+    }
+
+    private func notifyValidationFailure(_ errors: [String], context: String) {
+        guard !errors.isEmpty, !TestEnvironment.isRunningTests else { return }
+        NotificationCenter.default.post(
+            name: .configValidationFailed,
+            object: nil,
+            userInfo: [
+                "errors": errors,
+                "context": context
+            ]
+        )
     }
 
     // MARK: - Backup and Recovery
@@ -932,10 +954,11 @@ public enum KanataKeyConverter {
         // Known modifier prefixes that must remain uppercase in macro context
         // Order matters - check longer prefixes first
         let modifierPrefixes = ["M-S-", "C-S-", "A-S-", "M-", "A-", "C-", "S-"]
+        let uppercasedInput = input.uppercased()
 
         for prefix in modifierPrefixes {
-            if input.hasPrefix(prefix) {
-                // Preserve uppercase prefix, convert base key
+            if uppercasedInput.hasPrefix(prefix) {
+                // Preserve canonical uppercase prefix, convert base key
                 let baseKey = String(input.dropFirst(prefix.count))
                 let convertedBase = convertToKanataKey(baseKey)
                 return prefix + convertedBase

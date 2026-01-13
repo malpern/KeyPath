@@ -460,8 +460,12 @@ public final class WindowManager {
             return nil
         }
 
-        // Convert to CGRect (note: AX uses top-left origin, we need to handle this)
-        let frame = CGRect(origin: position, size: size)
+        // Convert to CGRect and normalize to AppKit coordinates for consistent calculations.
+        let axFrame = CGRect(origin: position, size: size)
+        guard let screen = screenContaining(axFrame: axFrame) else {
+            return nil
+        }
+        let frame = convertAXToScreen(axFrame, in: screen)
         return (axWindow, frame)
     }
 
@@ -492,8 +496,15 @@ public final class WindowManager {
     }
 
     private func setWindowFrame(_ window: AXUIElement, frame: CGRect) -> Bool {
+        // Convert AppKit coordinates to AX coordinates before applying.
+        guard let screen = screenContaining(frame: frame) else {
+            AppLogger.shared.log("⚠️ [WindowManager] Could not determine screen for target frame")
+            return false
+        }
+        let axFrame = convertScreenToAX(frame, in: screen)
+
         // Set position
-        var position = frame.origin
+        var position = axFrame.origin
         guard let positionValue = AXValueCreate(.cgPoint, &position) else {
             return false
         }
@@ -501,7 +512,7 @@ public final class WindowManager {
         let posResult = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, positionValue)
 
         // Set size
-        var size = frame.size
+        var size = axFrame.size
         guard let sizeValue = AXValueCreate(.cgSize, &size) else {
             return false
         }
@@ -521,20 +532,14 @@ public final class WindowManager {
 
     // MARK: - Screen Helpers
 
-    /// Find the screen that contains the majority of the given frame
+    /// Find the screen that contains the majority of the given frame (AppKit coordinates)
     private func screenContaining(frame: CGRect) -> NSScreen? {
-        // NSScreen uses bottom-left origin, AX uses top-left
-        // We need to find which screen contains the window center
+        // NSScreen uses bottom-left origin.
 
         let windowCenter = CGPoint(x: frame.midX, y: frame.midY)
 
         for screen in NSScreen.screens {
-            // Convert AX coordinates (top-left origin) to screen coordinates
-            // AX y=0 is at top of main screen, NSScreen y=0 is at bottom
             let screenFrame = screen.frame
-
-            // Check if window center is within this screen's frame
-            // Account for coordinate system differences
             if screenFrame.contains(windowCenter) ||
                 isWindowOnScreen(frame: frame, screen: screen) {
                 return screen
@@ -543,6 +548,36 @@ public final class WindowManager {
 
         // Fallback to main screen
         return NSScreen.main
+    }
+
+    /// Find the screen that contains the majority of the given frame (AX coordinates)
+    private func screenContaining(axFrame: CGRect) -> NSScreen? {
+        for screen in NSScreen.screens {
+            let screenFrame = screen.frame
+            let appKitFrame = convertAXToScreen(axFrame, in: screen)
+            if screenFrame.contains(CGPoint(x: appKitFrame.midX, y: appKitFrame.midY)) ||
+                isWindowOnScreen(frame: appKitFrame, screen: screen) {
+                return screen
+            }
+        }
+
+        return NSScreen.main
+    }
+
+    /// Convert AX (top-left origin) frame to AppKit (bottom-left origin) for a specific screen.
+    /// NOTE: This transform is its own inverse when using the same screen frame.
+    private func convertAXToScreen(_ frame: CGRect, in screen: NSScreen) -> CGRect {
+        let screenFrame = screen.frame
+        let y = screenFrame.maxY - frame.origin.y - frame.height
+        return CGRect(x: frame.origin.x, y: y, width: frame.width, height: frame.height)
+    }
+
+    /// Convert AppKit (bottom-left origin) frame to AX (top-left origin) for a specific screen.
+    private func convertScreenToAX(_ frame: CGRect, in screen: NSScreen) -> CGRect {
+        // Same formula as convertAXToScreen (inverse transform).
+        let screenFrame = screen.frame
+        let y = screenFrame.maxY - frame.origin.y - frame.height
+        return CGRect(x: frame.origin.x, y: y, width: frame.width, height: frame.height)
     }
 
     /// Check if window overlaps significantly with a screen

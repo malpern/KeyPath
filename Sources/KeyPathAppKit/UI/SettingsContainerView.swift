@@ -544,11 +544,16 @@ struct AdvancedSettingsTabView: View {
     }
 
     private func performResetEverything() async {
-        let autoFixer = WizardAutoFixer(kanataManager: kanataManager.underlyingManager)
-        _ = await autoFixer.resetEverything()
+        let report = await InstallerEngine()
+            .runSingleAction(.restartUnhealthyServices, using: PrivilegeBroker())
         // InstallerEngine is stateless, no refresh needed
         await MainActor.run {
-            settingsToastManager.showInfo("Reset everything complete")
+            if report.success {
+                settingsToastManager.showInfo("Reset everything complete")
+            } else {
+                settingsToastManager.showError(
+                    report.failureReason ?? "Reset everything failed")
+            }
         }
     }
 }

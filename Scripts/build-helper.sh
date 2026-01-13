@@ -21,7 +21,8 @@ HELPER_NAME="KeyPathHelper"
 BUILD_DIR=".build/arm64-apple-macosx/release"
 HELPER_BUILD_DIR="${BUILD_DIR}/${HELPER_NAME}"
 SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X2RKZ5TG99)}"
-if [ "${KP_SIGN_DRY_RUN:-0}" != "1" ]; then
+SKIP_CODESIGN="${SKIP_CODESIGN:-0}"
+if [ "${KP_SIGN_DRY_RUN:-0}" != "1" ] && [ "$SKIP_CODESIGN" != "1" ]; then
     if ! security find-identity -v -p codesigning | grep -Fq "$SIGNING_IDENTITY"; then
         echo "❌ ERROR: codesign identity not found: $SIGNING_IDENTITY" >&2
         echo "Available identities:" >&2
@@ -52,19 +53,23 @@ if [ ! -f "$HELPER_EXECUTABLE" ]; then
     exit 1
 fi
 
-echo "2️⃣  Signing helper..."
-HELPER_ENTITLEMENTS="Sources/KeyPathHelper/KeyPathHelper.entitlements"
-
-if [ -f "$HELPER_ENTITLEMENTS" ]; then
-    codesign --force --options=runtime \
-        --identifier "com.keypath.helper" \
-        --entitlements "$HELPER_ENTITLEMENTS" \
-        --sign "$SIGNING_IDENTITY" \
-        --timestamp \
-        "$HELPER_EXECUTABLE"
+if [ "$SKIP_CODESIGN" = "1" ]; then
+    echo "⏭️  Skipping helper codesign (SKIP_CODESIGN=1)"
 else
-    echo "❌ ERROR: Helper entitlements not found: $HELPER_ENTITLEMENTS"
-    exit 1
+    echo "2️⃣  Signing helper..."
+    HELPER_ENTITLEMENTS="Sources/KeyPathHelper/KeyPathHelper.entitlements"
+
+    if [ -f "$HELPER_ENTITLEMENTS" ]; then
+        codesign --force --options=runtime \
+            --identifier "com.keypath.helper" \
+            --entitlements "$HELPER_ENTITLEMENTS" \
+            --sign "$SIGNING_IDENTITY" \
+            --timestamp \
+            "$HELPER_EXECUTABLE"
+    else
+        echo "❌ ERROR: Helper entitlements not found: $HELPER_ENTITLEMENTS"
+        exit 1
+    fi
 fi
 
 echo ""

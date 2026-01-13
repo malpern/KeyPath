@@ -31,7 +31,7 @@ final class RecentKeypressesServiceTests: XCTestCase {
         )
 
         // Wait for async processing
-        try await Task.sleep(nanoseconds: 10_000_000)  // 10ms
+        try await Task.sleep(nanoseconds: 10_000_000) // 10ms
 
         let eventsAfterFirst = service.events.count
         XCTAssertEqual(eventsAfterFirst, 1, "First event should be added")
@@ -44,7 +44,7 @@ final class RecentKeypressesServiceTests: XCTestCase {
         )
 
         // Wait for async processing
-        try await Task.sleep(nanoseconds: 10_000_000)  // 10ms
+        try await Task.sleep(nanoseconds: 10_000_000) // 10ms
 
         let eventsAfterDuplicate = service.events.count
         XCTAssertEqual(
@@ -112,7 +112,7 @@ final class RecentKeypressesServiceTests: XCTestCase {
         )
 
         // Wait longer than deduplication window
-        try await Task.sleep(nanoseconds: 110_000_000)  // 110ms
+        try await Task.sleep(nanoseconds: 110_000_000) // 110ms
 
         // Post same key after 100ms
         NotificationCenter.default.post(
@@ -139,14 +139,14 @@ final class RecentKeypressesServiceTests: XCTestCase {
             object: nil,
             userInfo: ["key": "t", "action": "press"]
         )
-        try await Task.sleep(nanoseconds: 60_000_000)  // 60ms hold
+        try await Task.sleep(nanoseconds: 60_000_000) // 60ms hold
 
         NotificationCenter.default.post(
             name: .kanataKeyInput,
             object: nil,
             userInfo: ["key": "t", "action": "release"]
         )
-        try await Task.sleep(nanoseconds: 60_000_000)  // 60ms gap (total 120ms from first press)
+        try await Task.sleep(nanoseconds: 60_000_000) // 60ms gap (total 120ms from first press)
 
         // Type second 't' - should be >100ms after first 't' press
         NotificationCenter.default.post(
@@ -154,14 +154,14 @@ final class RecentKeypressesServiceTests: XCTestCase {
             object: nil,
             userInfo: ["key": "t", "action": "press"]
         )
-        try await Task.sleep(nanoseconds: 60_000_000)  // 60ms hold
+        try await Task.sleep(nanoseconds: 60_000_000) // 60ms hold
 
         NotificationCenter.default.post(
             name: .kanataKeyInput,
             object: nil,
             userInfo: ["key": "t", "action": "release"]
         )
-        try await Task.sleep(nanoseconds: 10_000_000)  // Wait for processing
+        try await Task.sleep(nanoseconds: 10_000_000) // Wait for processing
 
         // Should have 4 events (2 't' presses + 2 't' releases)
         XCTAssertEqual(
@@ -233,7 +233,7 @@ final class RecentKeypressesServiceTests: XCTestCase {
         )
 
         // Duplicate arrives 2ms later (TCP buffer replay)
-        try await Task.sleep(nanoseconds: 2_000_000)  // 2ms
+        try await Task.sleep(nanoseconds: 2_000_000) // 2ms
 
         NotificationCenter.default.post(
             name: .kanataKeyInput,
@@ -258,7 +258,7 @@ final class RecentKeypressesServiceTests: XCTestCase {
             userInfo: ["key": "a", "action": "press"]
         )
 
-        try await Task.sleep(nanoseconds: 50_000_000)  // 50ms
+        try await Task.sleep(nanoseconds: 50_000_000) // 50ms
 
         NotificationCenter.default.post(
             name: .kanataKeyInput,
@@ -321,13 +321,13 @@ final class RecentKeypressesServiceTests: XCTestCase {
 
     func testDeduplication_ChecksLast10Events() async throws {
         // Add 15 events of different keys
-        for i in 0..<15 {
+        for i in 0 ..< 15 {
             NotificationCenter.default.post(
                 name: .kanataKeyInput,
                 object: nil,
                 userInfo: ["key": "key\(i)", "action": "press"]
             )
-            try await Task.sleep(nanoseconds: 1_000_000)  // 1ms between events
+            try await Task.sleep(nanoseconds: 1_000_000) // 1ms between events
         }
 
         try await Task.sleep(nanoseconds: 10_000_000)

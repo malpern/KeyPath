@@ -635,6 +635,8 @@ private struct PermissionStatusBanner: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .accessibilityIdentifier("window-snapping-open-settings-button")
+                .accessibilityLabel("Open accessibility settings")
             }
             .padding(12)
             .background(

@@ -19,6 +19,7 @@ CACHE_INFO="$BUILD_DIR/kanata-cache.info"
 
 # Signing identity from environment or use Developer ID
 SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X2RKZ5TG99)}"
+SKIP_CODESIGN="${SKIP_CODESIGN:-0}"
 
 echo "🦀 Building Kanata from source (with TCC-safe caching)..."
 
@@ -68,8 +69,12 @@ function check_cache_validity() {
         cached_hash=$(cat "$CACHE_INFO" 2>/dev/null || echo "")
         
         if [[ "$current_hash" == "$cached_hash" ]]; then
-            # Verify the cached binary is still properly signed
-            if codesign --verify --deep --strict "$BUILD_DIR/kanata-universal" >/dev/null 2>&1; then
+            # Verify the cached binary is still properly signed (unless skipping codesign)
+            if [[ "$SKIP_CODESIGN" == "1" ]]; then
+                cache_valid=true
+                echo "🎯 TCC-Safe Cache HIT: Kanata source unchanged (signature check skipped)" >&2
+                echo "📋 Source hash: $current_hash" >&2
+            elif codesign --verify --deep --strict "$BUILD_DIR/kanata-universal" >/dev/null 2>&1; then
                 cache_valid=true
                 echo "🎯 TCC-Safe Cache HIT: Kanata source unchanged, using existing binary" >&2
                 echo "📋 Source hash: $current_hash" >&2
@@ -141,35 +146,39 @@ echo "✅ Verifying binary..."
 file "$BUILD_DIR/kanata-universal"
 
 # Sign the binary
-echo "🔏 Signing kanata binary..."
-if [[ "$SIGNING_IDENTITY" == *"Developer ID"* ]]; then
-    # Production signing with runtime hardening
-    codesign \
-        --force \
-        --options=runtime \
-        --sign "$SIGNING_IDENTITY" \
-        "$BUILD_DIR/kanata-universal"
-    
-    echo "✅ Kanata signed for production with Developer ID"
+if [[ "$SKIP_CODESIGN" == "1" ]]; then
+    echo "⏭️  Skipping kanata codesign (SKIP_CODESIGN=1)"
 else
-    # Development signing (requires valid certificate)
-    if codesign \
-        --force \
-        --sign "$SIGNING_IDENTITY" \
-        "$BUILD_DIR/kanata-universal" 2>/dev/null; then
-        echo "✅ Kanata signed for development"
+    echo "🔏 Signing kanata binary..."
+    if [[ "$SIGNING_IDENTITY" == *"Developer ID"* ]]; then
+        # Production signing with runtime hardening
+        codesign \
+            --force \
+            --options=runtime \
+            --sign "$SIGNING_IDENTITY" \
+            "$BUILD_DIR/kanata-universal"
+        
+        echo "✅ Kanata signed for production with Developer ID"
     else
-        echo "❌ SIGNING FAILED: No valid signing identity available"
-        echo "💡 Ensure you have a valid Apple Developer certificate"
-        exit 1
+        # Development signing (requires valid certificate)
+        if codesign \
+            --force \
+            --sign "$SIGNING_IDENTITY" \
+            "$BUILD_DIR/kanata-universal" 2>/dev/null; then
+            echo "✅ Kanata signed for development"
+        else
+            echo "❌ SIGNING FAILED: No valid signing identity available"
+            echo "💡 Ensure you have a valid Apple Developer certificate"
+            exit 1
+        fi
     fi
-fi
 
-# Verify signature
-echo "🔍 Verifying code signature..."
-codesign --verify --deep --strict --verbose=2 "$BUILD_DIR/kanata-universal" 2>&1 || {
-    echo "⚠️  Code signature verification failed (may be expected for development builds)"
-}
+    # Verify signature
+    echo "🔍 Verifying code signature..."
+    codesign --verify --deep --strict --verbose=2 "$BUILD_DIR/kanata-universal" 2>&1 || {
+        echo "⚠️  Code signature verification failed (may be expected for development builds)"
+    }
+fi
 
 # Test basic functionality
 echo "🧪 Testing kanata binary..."

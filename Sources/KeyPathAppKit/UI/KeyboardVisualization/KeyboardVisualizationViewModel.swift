@@ -248,8 +248,15 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Key codes to emphasize based on current layer and custom emphasis commands
     /// HJKL keys are auto-emphasized when on nav layer, plus any custom emphasis via push-msg
     var emphasizedKeyCodes: Set<UInt16> {
-        // Auto-emphasis: HJKL on nav layer
-        let autoEmphasis = currentLayerName.lowercased() == "nav" ? Self.hjklKeyCodes : []
+        // Auto-emphasis: HJKL on nav layer, but only when those keys are actually mapped.
+        let autoEmphasis: Set<UInt16> = {
+            guard currentLayerName.lowercased() == "nav" else { return [] }
+            return Self.hjklKeyCodes.filter { keyCode in
+                guard let info = layerKeyMap[keyCode] else { return false }
+                return !info.isTransparent
+            }
+            .reduce(into: Set<UInt16>()) { $0.insert($1) }
+        }()
 
         // Merge with custom emphasis from push-msg
         return autoEmphasis.union(customEmphasisKeyCodes)
@@ -660,7 +667,11 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
                 // Load rule collections for collection ownership tracking
                 // Only use enabled collections to match config generation behavior
-                let ruleCollections = await RuleCollectionStore.shared.loadCollections().filter(\.isEnabled)
+                let allCollections = await RuleCollectionStore.shared.loadCollections()
+                let ruleCollections = allCollections.filter(\.isEnabled)
+
+                AppLogger.shared.debug("🗺️ [KeyboardViz] Total collections: \(allCollections.count), Enabled: \(ruleCollections.count)")
+                AppLogger.shared.debug("🗺️ [KeyboardViz] Enabled collection IDs: \(ruleCollections.map { $0.id.uuidString.prefix(8) }.joined(separator: ", "))")
 
                 // Build mapping for target layer
                 var mapping = try await layerKeyMapper.getMapping(
@@ -768,8 +779,6 @@ class KeyboardVisualizationViewModel: ObservableObject {
                 continue
             }
 
-            AppLogger.shared.debug("🗺️ [KeyboardViz] Including collection '\(collection.name)' (\(collection.mappings.count) mappings)")
-
             for keyMapping in collection.mappings {
                 let input = keyMapping.input.lowercased()
                 // First try push-msg pattern (apps, system actions, URLs)
@@ -836,18 +845,34 @@ class KeyboardVisualizationViewModel: ObservableObject {
         for (keyCode, originalInfo) in mapping {
             let keyName = OverlayKeyboardView.keyCodeToKanataName(keyCode).lowercased()
             if let info = actionByInput[keyName] {
-                // Skip augmentation if the original key is transparent (XX)
-                // Transparent keys should not show action labels from collections/rules
-                if originalInfo.isTransparent {
-                    AppLogger.shared.debug("🗺️ [KeyboardViz] Skipping augmentation for transparent key \(keyName)(\(keyCode))")
-                    continue
-                }
-                augmented[keyCode] = info
-                AppLogger.shared.debug("🗺️ [KeyboardViz] Key \(keyName)(\(keyCode)) -> '\(info.displayLabel)'")
+                let resolvedInfo = Self.attachCollectionId(info, from: originalInfo)
+                augmented[keyCode] = resolvedInfo
+                AppLogger.shared.debug("🗺️ [KeyboardViz] Key \(keyName)(\(keyCode)) -> '\(resolvedInfo.displayLabel)'")
             }
         }
 
         return augmented
+    }
+
+    /// Preserve collection ownership when augmenting with push-msg or remap actions.
+    private nonisolated static func attachCollectionId(
+        _ info: LayerKeyInfo,
+        from originalInfo: LayerKeyInfo
+    ) -> LayerKeyInfo {
+        let collectionId = originalInfo.collectionId ?? info.collectionId
+        guard collectionId != info.collectionId else { return info }
+
+        return LayerKeyInfo(
+            displayLabel: info.displayLabel,
+            outputKey: info.outputKey,
+            outputKeyCode: info.outputKeyCode,
+            isTransparent: info.isTransparent,
+            isLayerSwitch: info.isLayerSwitch,
+            appLaunchIdentifier: info.appLaunchIdentifier,
+            systemActionIdentifier: info.systemActionIdentifier,
+            urlIdentifier: info.urlIdentifier,
+            collectionId: collectionId
+        )
     }
 
     // MARK: - Cached Regex Patterns
@@ -974,6 +999,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
         Task {
             await layerKeyMapper.invalidateCache()
             AppLogger.shared.info("🔔 [KeyboardViz] Cache invalidated, now calling rebuildLayerMapping()")
+
             rebuildLayerMapping()
         }
     }
@@ -1267,6 +1293,16 @@ class KeyboardVisualizationViewModel: ObservableObject {
 
             customEmphasisKeyCodes = keyCodes
             AppLogger.shared.info("✨ [KeyboardViz] Emphasis set: \(keyNames.joined(separator: ", ")) -> \(keyCodes)")
+            return
+        }
+
+        // Parse layer messages: "layer:nav", "layer:base"
+        // These come from push-msg fake keys used by momentary layer activators
+        if message.hasPrefix("layer:") {
+            let layerName = String(message.dropFirst(6)).trimmingCharacters(in: .whitespaces)
+            AppLogger.shared.info("🗂️ [KeyboardViz] Layer push message: '\(layerName)'")
+            // Update the layer and rebuild mappings
+            updateLayer(layerName)
             return
         }
 

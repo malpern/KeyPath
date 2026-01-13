@@ -21,6 +21,7 @@ enum InstallerRecipeID {
     static let enableTCPServer = "enable-tcp-server"
     static let setupTCPAuthentication = "setup-tcp-authentication"
     static let regenerateCommServiceConfig = "regenerate-comm-service-config"
+    static let regenerateServiceConfig = "regenerate-service-config"
     static let restartCommServer = "restart-comm-server"
     static let adoptOrphanedProcess = "adopt-orphaned-process"
     static let replaceOrphanedProcess = "replace-orphaned-process"

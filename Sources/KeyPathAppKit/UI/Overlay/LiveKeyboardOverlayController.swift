@@ -120,24 +120,27 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         setupOpenOverlayWithMapperObserver()
     }
 
-    /// Check if build version changed and clear stale caches
+    /// Check if build changed and clear stale caches
     /// This prevents showing outdated layer mappings after deploying a new build
+    /// Uses git commit + build date for uniqueness since CFBundleVersion is static
     private func checkBuildVersionAndClearCacheIfNeeded() {
-        let currentBuild = BuildInfo.current().build
-        let lastBuildKey = "LiveKeyboardOverlay.lastBuildVersion"
+        let buildInfo = BuildInfo.current()
+        // Use git commit + build date as unique identifier (CFBundleVersion is always "0")
+        let currentBuild = "\(buildInfo.git)_\(buildInfo.date)"
+        let lastBuildKey = "LiveKeyboardOverlay.lastBuildIdentifier"
         let lastBuild = UserDefaults.standard.string(forKey: lastBuildKey)
 
         if lastBuild != currentBuild {
-            AppLogger.shared.info("🔄 [OverlayController] Build version changed: \(lastBuild ?? "none") -> \(currentBuild)")
+            AppLogger.shared.info("🔄 [OverlayController] Build changed: \(lastBuild ?? "none") -> \(currentBuild)")
             AppLogger.shared.info("🗑️ [OverlayController] Clearing layer mapping cache to prevent stale data")
 
             // Clear LayerKeyMapper cache to prevent showing old collection colors/mappings
             viewModel.invalidateLayerMappings()
 
-            // Store new build version
+            // Store new build identifier
             UserDefaults.standard.set(currentBuild, forKey: lastBuildKey)
         } else {
-            AppLogger.shared.debug("✅ [OverlayController] Build version unchanged: \(currentBuild)")
+            AppLogger.shared.debug("✅ [OverlayController] Build unchanged: \(currentBuild)")
         }
     }
 

@@ -854,9 +854,19 @@ class ConfigurationServiceTests: XCTestCase {
             "Should preserve uppercase M-"
         )
         XCTAssertEqual(
+            KanataKeyConverter.convertToKanataKeyForMacro("m-right"),
+            "M-right",
+            "Should normalize lowercase m- to uppercase M-"
+        )
+        XCTAssertEqual(
             KanataKeyConverter.convertToKanataKeyForMacro("M-S-g"),
             "M-S-g",
             "Should preserve uppercase M-S-"
+        )
+        XCTAssertEqual(
+            KanataKeyConverter.convertToKanataKeyForMacro("m-s-g"),
+            "M-S-g",
+            "Should normalize lowercase m-s- to uppercase M-S-"
         )
         XCTAssertEqual(
             KanataKeyConverter.convertToKanataKeyForMacro("A-left"),
@@ -873,6 +883,28 @@ class ConfigurationServiceTests: XCTestCase {
             "up",
             "Arrow keys should pass through"
         )
+    }
+
+    func testForkAliasGeneration_NormalizesLowercaseModifierOutputs() {
+        // Lowercase modifier outputs should be normalized to avoid invalid m- prefixes.
+        let nav = RuleCollection(
+            id: RuleCollectionIdentifier.vimNavigation,
+            name: "Vim Navigation",
+            summary: "Append with lowercase modifier",
+            category: .navigation,
+            mappings: [
+                KeyMapping(input: "a", output: "right", shiftedOutput: "m-right")
+            ],
+            isEnabled: true,
+            isSystemDefault: false,
+            targetLayer: .navigation,
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
+        )
+
+        let config = KanataConfiguration.generateFromCollections([nav])
+
+        XCTAssertTrue(config.contains("(multi lmet right)"), "Lowercase m- should normalize to lmet")
+        XCTAssertFalse(config.contains("m-right"), "Config should NOT have lowercase m-right")
     }
 
     // MARK: - Chord Mapping Tests

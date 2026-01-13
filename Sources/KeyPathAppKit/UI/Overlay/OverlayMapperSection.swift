@@ -178,7 +178,9 @@ struct OverlayMapperSection: View {
             Button("Reset All", role: .destructive) {
                 performResetAll()
             }
+            .accessibilityIdentifier("overlay-mapper-reset-all-button")
             Button("Cancel", role: .cancel) {}
+                .accessibilityIdentifier("overlay-mapper-reset-all-cancel-button")
         } message: {
             Text("This will remove ALL custom key mappings including app-specific rules. Your enabled rule collections (Home Row Mods, etc.) will be preserved.")
         }
@@ -577,6 +579,8 @@ struct OverlayMapperSection: View {
         }
         .buttonStyle(LayerPickerItemButtonStyle())
         .focusable(false)
+        .accessibilityIdentifier("overlay-mapper-running-app-\(app.bundleIdentifier ?? "pid-\(app.processIdentifier)")")
+        .accessibilityLabel(app.localizedName ?? "Unknown app")
     }
 
     private func selectRunningApp(_ app: NSRunningApplication) {

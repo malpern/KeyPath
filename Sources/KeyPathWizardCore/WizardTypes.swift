@@ -189,6 +189,7 @@ public enum AutoFixAction: Equatable, Sendable {
     case enableTCPServer // Enable TCP server for communication
     case setupTCPAuthentication // Generate and configure TCP authentication token
     case regenerateCommServiceConfiguration // Update LaunchDaemon plist with TCP settings
+    case regenerateServiceConfiguration // Regenerate service configuration (plists + settings)
     case restartCommServer // Restart service to enable TCP functionality
     case fixDriverVersionMismatch // Download and install correct Karabiner driver version (v5 for kanata v1.9.0)
     case installCorrectVHIDDriver // Download and install the correct driver when missing (helper-first)

@@ -4,6 +4,7 @@ import IOKit.hidsystem
 import KeyPathCore
 import KeyPathDaemonLifecycle
 import KeyPathPermissions
+import KeyPathWizardCore
 import Network
 import SwiftUI
 
@@ -64,11 +65,13 @@ extension RuntimeCoordinator {
     }
 
     func killAllKanataProcesses() async {
-        do {
-            try await PrivilegedOperationsCoordinator.shared.killAllKanataProcesses()
+        let report = await installerEngine
+            .runSingleAction(.terminateConflictingProcesses, using: privilegeBroker)
+        if report.success {
             AppLogger.shared.log("🔧 [Recovery] Killed Kanata processes")
-        } catch {
-            AppLogger.shared.warn("⚠️ [Recovery] Failed to kill Kanata processes: \(error)")
+        } else {
+            let failureReason = report.failureReason ?? "Unknown error"
+            AppLogger.shared.warn("⚠️ [Recovery] Failed to kill Kanata processes: \(failureReason)")
         }
     }
 }

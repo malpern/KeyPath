@@ -5,8 +5,9 @@ set -euo pipefail
 # This builds, signs, notarizes (unless SKIP_NOTARIZE=1), deploys to ~/Applications, and restarts the app.
 #
 # Usage:
-#   ./build.sh                  # Full build with notarization
-#   SKIP_NOTARIZE=1 ./build.sh  # Skip notarization for faster local testing
+#   ./build.sh                               # Full build with notarization
+#   SKIP_NOTARIZE=1 ./build.sh               # Skip notarization for faster local testing
+#   SKIP_NOTARIZE=1 SKIP_CODESIGN=1 ./build.sh  # Skip notarization + codesign for local dev
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)
 

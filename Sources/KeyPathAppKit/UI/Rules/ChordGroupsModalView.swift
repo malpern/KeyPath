@@ -575,6 +575,8 @@ private struct ChordEditorDialog: View {
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("chord-groups-edit-close-button")
+                .accessibilityLabel("Close chord editor")
             }
             .padding()
 
@@ -619,6 +621,8 @@ private struct ChordEditorDialog: View {
                                 }
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)
+                                .accessibilityIdentifier("chord-groups-common-output-\(outputKey)")
+                                .accessibilityLabel("Set output to \(label)")
                             }
                         }
                     }
@@ -673,6 +677,8 @@ private struct ChordEditorDialog: View {
             HStack {
                 Button("Cancel", action: onCancel)
                     .keyboardShortcut(.escape, modifiers: [])
+                    .accessibilityIdentifier("chord-groups-edit-cancel-button")
+                    .accessibilityLabel("Cancel chord changes")
 
                 Spacer()
 
@@ -688,6 +694,8 @@ private struct ChordEditorDialog: View {
                 .keyboardShortcut(.return, modifiers: .command)
                 .buttonStyle(.borderedProminent)
                 .disabled(keys.count < 2 || output.isEmpty)
+                .accessibilityIdentifier("chord-groups-edit-save-button")
+                .accessibilityLabel("Save chord")
             }
             .padding()
         }

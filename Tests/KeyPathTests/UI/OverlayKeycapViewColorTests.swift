@@ -1,5 +1,5 @@
-@preconcurrency import XCTest
 import SwiftUI
+@preconcurrency import XCTest
 
 @testable import KeyPathAppKit
 

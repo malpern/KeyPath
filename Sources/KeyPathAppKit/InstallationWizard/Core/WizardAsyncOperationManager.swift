@@ -702,6 +702,8 @@ extension AutoFixAction {
             "Setup TCP Authentication"
         case .regenerateCommServiceConfiguration:
             "Regenerate TCP Service Configuration"
+        case .regenerateServiceConfiguration:
+            "Regenerate Service Configuration"
         case .restartCommServer:
             "Restart TCP Server"
         case .fixDriverVersionMismatch:

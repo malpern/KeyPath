@@ -235,6 +235,8 @@ struct HomeRowModsModalView: View {
                                 }
                                 .pickerStyle(.segmented)
                                 .padding(.bottom, 4)
+                                .accessibilityIdentifier("home-row-mods-hold-preset-picker")
+                                .accessibilityLabel("Hold preset")
 
                                 ForEach(chunks(of: HomeRowModsConfig.allKeys, size: 4), id: \.self) { row in
                                     HStack(spacing: 12) {

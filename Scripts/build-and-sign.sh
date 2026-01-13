@@ -252,49 +252,56 @@ cat > "$RESOURCES/BuildInfo.plist" <<EOF
 </plist>
 EOF
 
-echo "✍️  Signing executables..."
 SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X2RKZ5TG99)}"
-if [ "${KP_SIGN_DRY_RUN:-0}" != "1" ]; then
-    if ! security find-identity -v -p codesigning | grep -Fq "$SIGNING_IDENTITY"; then
-        echo "❌ ERROR: codesign identity not found: $SIGNING_IDENTITY" >&2
-        echo "Available identities:" >&2
-        security find-identity -v -p codesigning >&2 || true
-        echo "💡 TIP: Set CODESIGN_IDENTITY to a valid Developer ID Application identity." >&2
-        exit 1
-    fi
-fi
+SKIP_CODESIGN="${SKIP_CODESIGN:-0}"
 
-# Sign from innermost to outermost (helper -> kanata -> main app)
-
-# Sign privileged helper (bundle-local binary)
-HELPER_ENTITLEMENTS="Sources/KeyPathHelper/KeyPathHelper.entitlements"
-kp_sign "$HELPER_TOOLS/KeyPathHelper" \
-    --force --options=runtime \
-    --identifier "com.keypath.helper" \
-    --entitlements "$HELPER_ENTITLEMENTS" \
-    --sign "$SIGNING_IDENTITY"
-
-# Sign bundled kanata binary (already signed in build-kanata.sh, but ensure consistency)
-kp_sign "$CONTENTS/Library/KeyPath/kanata" --force --options=runtime --sign "$SIGNING_IDENTITY"
-
-	# Sign bundled kanata simulator binary
-	kp_sign "$CONTENTS/Library/KeyPath/kanata-simulator" --force --options=runtime --sign "$SIGNING_IDENTITY"
-
-	# Sign embedded Sparkle framework (contains nested helper apps; deep signing is simplest)
-	kp_sign "$FRAMEWORKS/Sparkle.framework" --force --options=runtime --deep --sign "$SIGNING_IDENTITY"
-
-	# Sign main app WITH entitlements
-	ENTITLEMENTS_FILE="KeyPath.entitlements"
-	if [ -f "$ENTITLEMENTS_FILE" ]; then
-	    echo "Applying entitlements from $ENTITLEMENTS_FILE..."
-    kp_sign "$APP_BUNDLE" --force --options=runtime --entitlements "$ENTITLEMENTS_FILE" --sign "$SIGNING_IDENTITY"
+if [ "$SKIP_CODESIGN" = "1" ]; then
+    echo "⏭️  Skipping codesign (SKIP_CODESIGN=1)"
+    SKIP_NOTARIZE=1
 else
-    echo "⚠️ WARNING: No entitlements file found - admin operations may fail"
-    kp_sign "$APP_BUNDLE" --force --options=runtime --sign "$SIGNING_IDENTITY"
-fi
+    echo "✍️  Signing executables..."
+    if [ "${KP_SIGN_DRY_RUN:-0}" != "1" ]; then
+        if ! security find-identity -v -p codesigning | grep -Fq "$SIGNING_IDENTITY"; then
+            echo "❌ ERROR: codesign identity not found: $SIGNING_IDENTITY" >&2
+            echo "Available identities:" >&2
+            security find-identity -v -p codesigning >&2 || true
+            echo "💡 TIP: Set CODESIGN_IDENTITY to a valid Developer ID Application identity." >&2
+            exit 1
+        fi
+    fi
 
-echo "✅ Verifying signatures..."
-kp_verify_signature "$APP_BUNDLE"
+    # Sign from innermost to outermost (helper -> kanata -> main app)
+
+    # Sign privileged helper (bundle-local binary)
+    HELPER_ENTITLEMENTS="Sources/KeyPathHelper/KeyPathHelper.entitlements"
+    kp_sign "$HELPER_TOOLS/KeyPathHelper" \
+        --force --options=runtime \
+        --identifier "com.keypath.helper" \
+        --entitlements "$HELPER_ENTITLEMENTS" \
+        --sign "$SIGNING_IDENTITY"
+
+    # Sign bundled kanata binary (already signed in build-kanata.sh, but ensure consistency)
+    kp_sign "$CONTENTS/Library/KeyPath/kanata" --force --options=runtime --sign "$SIGNING_IDENTITY"
+
+    # Sign bundled kanata simulator binary
+    kp_sign "$CONTENTS/Library/KeyPath/kanata-simulator" --force --options=runtime --sign "$SIGNING_IDENTITY"
+
+    # Sign embedded Sparkle framework (contains nested helper apps; deep signing is simplest)
+    kp_sign "$FRAMEWORKS/Sparkle.framework" --force --options=runtime --deep --sign "$SIGNING_IDENTITY"
+
+    # Sign main app WITH entitlements
+    ENTITLEMENTS_FILE="KeyPath.entitlements"
+    if [ -f "$ENTITLEMENTS_FILE" ]; then
+        echo "Applying entitlements from $ENTITLEMENTS_FILE..."
+        kp_sign "$APP_BUNDLE" --force --options=runtime --entitlements "$ENTITLEMENTS_FILE" --sign "$SIGNING_IDENTITY"
+    else
+        echo "⚠️ WARNING: No entitlements file found - admin operations may fail"
+        kp_sign "$APP_BUNDLE" --force --options=runtime --sign "$SIGNING_IDENTITY"
+    fi
+
+    echo "✅ Verifying signatures..."
+    kp_verify_signature "$APP_BUNDLE"
+fi
 
 if [ "${SKIP_NOTARIZE:-}" = "1" ]; then
     echo "⏭️  Skipping notarization (SKIP_NOTARIZE=1)"

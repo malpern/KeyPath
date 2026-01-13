@@ -290,14 +290,41 @@ public struct KanataConfiguration: Sendable {
         }
 
         let beforeMulti = String(action[..<multiStart.lowerBound]).trimmingCharacters(in: .whitespaces)
-        let multiPart = String(action[multiStart.lowerBound...])
+        let remaining = action[multiStart.lowerBound...]
+
+        // Capture a balanced (multi ...) block and keep any trailing tokens (e.g., closing paren for tap-hold)
+        var depth = 0
+        var endIndex: String.Index?
+        var index = remaining.startIndex
+        while index < remaining.endIndex {
+            let char = remaining[index]
+            if char == "(" {
+                depth += 1
+            } else if char == ")" {
+                depth -= 1
+                if depth == 0 {
+                    endIndex = index
+                    break
+                }
+            }
+            index = remaining.index(after: index)
+        }
+
+        guard let endIndex else {
+            return action
+        }
+
+        let multiPart = String(remaining[...endIndex])
+        let trailing = String(remaining[remaining.index(after: endIndex)...])
 
         // Format the multi part
         let formattedMulti = formatMultiAction(multiPart)
 
         // Combine with proper indentation
         if formattedMulti.contains("\n") {
-            return "\(beforeMulti)\n  \(formattedMulti.replacingOccurrences(of: "\n", with: "\n  "))"
+            let indentedMulti = formattedMulti.replacingOccurrences(of: "\n", with: "\n  ")
+            let trimmedTrailing = trailing.trimmingCharacters(in: .whitespacesAndNewlines)
+            return "\(beforeMulti)\n  \(indentedMulti)\(trimmedTrailing)"
         }
 
         return action
@@ -564,6 +591,8 @@ public struct KanataConfiguration: Sendable {
         var seenLayers = Set<RuleCollectionLayer>()
         var activatorBlocks: [CollectionBlock] = []
         var seenActivators: Set<String> = []
+        let oneShotTimeoutMs = 65000 // Max-safe timeout (Kanata limit 65535)
+        let oneShotPauseMs = 10
 
         // Generate primary leader key alias from system preference (independent of collections)
         if let pref = leaderKeyPreference, pref.enabled {
@@ -581,8 +610,13 @@ public struct KanataConfiguration: Sendable {
 
             seenActivators.insert(aliasName)
 
-            // Standard tap-hold for primary leader key (always from base layer)
-            let definition = "(tap-hold $tap-timeout $hold-timeout \(tapKey)\n    (multi\n      (layer-while-held \(layerName))\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (on-release-fakekey kp-layer-\(layerName)-exit tap)))"
+            let definition = if pref.targetLayer == .navigation {
+                // Tap-hold enters nav, then keep it active until next key (one-shot)
+                "(tap-hold $tap-timeout $hold-timeout \(tapKey)\n    (multi\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (one-shot-pause-processing \(oneShotPauseMs))\n      (one-shot-press \(oneShotTimeoutMs) (layer-while-held \(layerName)))))"
+            } else {
+                // Standard tap-hold for primary leader key (always from base layer)
+                "(tap-hold $tap-timeout $hold-timeout \(tapKey)\n    (multi\n      (layer-while-held \(layerName))\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (on-release-fakekey kp-layer-\(layerName)-exit tap)))"
+            }
 
             aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: definition))
 
@@ -631,6 +665,34 @@ public struct KanataConfiguration: Sendable {
                 let triggerMode: HyperTriggerMode = collection.configuration.launcherGridConfig?.hyperTriggerMode ?? .hold
                 return HyperLinkedLayerInfo(layerName: activator.targetLayer.kanataName, triggerMode: triggerMode)
             }
+
+        // Layers that should behave as one-shot (stay active until next key press).
+        var oneShotLayers = Set<RuleCollectionLayer>()
+        if let pref = leaderKeyPreference, pref.enabled, pref.targetLayer == .navigation {
+            oneShotLayers.insert(pref.targetLayer)
+        }
+        for collection in collections where collection.isEnabled {
+            guard let activator = collection.momentaryActivator else { continue }
+            guard activator.input.lowercased() != "hyper" else { continue }
+            if activator.targetLayer == .navigation {
+                oneShotLayers.insert(activator.targetLayer)
+            }
+            if activator.sourceLayer != .base {
+                oneShotLayers.insert(activator.targetLayer)
+            }
+        }
+
+        func wrapWithOneShotExit(
+            _ output: String,
+            layer: RuleCollectionLayer,
+            sourceKey: String,
+            hasLayerBasePush: Bool
+        ) -> String {
+            guard layer != .base, oneShotLayers.contains(layer) else { return output }
+            guard !hasLayerBasePush else { return output }
+            if activatorKeysBySourceLayer[layer]?.contains(sourceKey) == true { return output }
+            return "(multi \(output) (push-msg \"layer:base\"))"
+        }
 
         // Precompute mapped keys for non-base layers to avoid blocking keys mapped by other collections.
         var layerMappedKeys: [RuleCollectionLayer: Set<String>] = [:]
@@ -691,16 +753,20 @@ public struct KanataConfiguration: Sendable {
                 // For chained layers (sourceLayer != .base), use one-shot-press instead of tap-hold
                 // This allows quick entry to nested layers without requiring hold
                 let definition = if activator.sourceLayer == .base {
-                    // Standard tap-hold for base layer activators
-                    // Use multi to combine layer-while-held with fake key triggers for TCP layer notifications.
-                    // This works around Kanata's limitation where layer-while-held doesn't broadcast LayerChange messages.
-                    "(tap-hold $tap-timeout $hold-timeout \(tapKey)\n    (multi\n      (layer-while-held \(layerName))\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (on-release-fakekey kp-layer-\(layerName)-exit tap)))"
+                    if activator.targetLayer == .navigation {
+                        // Tap-hold enters nav, then keep it active until next key (one-shot)
+                        "(tap-hold $tap-timeout $hold-timeout \(tapKey)\n    (multi\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (one-shot-pause-processing \(oneShotPauseMs))\n      (one-shot-press \(oneShotTimeoutMs) (layer-while-held \(layerName)))))"
+                    } else {
+                        // Standard tap-hold for base layer activators
+                        // Use multi to combine layer-while-held with fake key triggers for TCP layer notifications.
+                        // This works around Kanata's limitation where layer-while-held doesn't broadcast LayerChange messages.
+                        "(tap-hold $tap-timeout $hold-timeout \(tapKey)\n    (multi\n      (layer-while-held \(layerName))\n      (on-press-fakekey kp-layer-\(layerName)-enter tap)\n      (on-release-fakekey kp-layer-\(layerName)-exit tap)))"
+                    }
                 } else {
                     // One-shot for chained layers (e.g., nav → window, nav → sym)
-                    // Activates target layer for 2 seconds or until next key press.
+                    // Activates target layer until next key press (or timeout).
                     // Include layer notification fake keys for overlay and UI updates.
-                    // Exit notification triggers when one-shot releases, returning to parent layer.
-                    "(multi\n    (one-shot-press 2000 (layer-while-held \(layerName)))\n    (on-press-fakekey kp-layer-\(layerName)-enter tap)\n    (on-release-fakekey kp-layer-\(layerName)-exit tap))"
+                    "(multi (on-press-fakekey kp-layer-\(layerName)-enter tap) (one-shot-pause-processing \(oneShotPauseMs)) (one-shot-press \(oneShotTimeoutMs) (layer-while-held \(layerName))))"
                 }
                 aliasDefinitions.append(AliasDefinition(aliasName: aliasName, definition: definition))
 
@@ -774,9 +840,10 @@ public struct KanataConfiguration: Sendable {
                 var layerOutputs: [RuleCollectionLayer: String] = [:]
 
                 let trimmedOutput = mapping.output.trimmingCharacters(in: .whitespacesAndNewlines)
+                let hasLayerBasePush = trimmedOutput.contains("layer:base")
 
                 // Determine the output action based on behavior or simple output
-                let layerOutput: String
+                var layerOutput: String
                 if mapping.behavior != nil {
                     // Advanced behavior (tap-hold, tap-dance) - use renderer
                     // Pass hyperLinkedLayerInfos so "hyper" hold action includes linked layer activations
@@ -802,7 +869,12 @@ public struct KanataConfiguration: Sendable {
                 }
 
                 if collection.targetLayer != .base {
-                    layerOutputs[collection.targetLayer] = layerOutput
+                    layerOutputs[collection.targetLayer] = wrapWithOneShotExit(
+                        layerOutput,
+                        layer: collection.targetLayer,
+                        sourceKey: sourceKey,
+                        hasLayerBasePush: hasLayerBasePush
+                    )
                 }
                 let baseOutput: String =
                     if collection.targetLayer == .base {
@@ -833,16 +905,40 @@ public struct KanataConfiguration: Sendable {
                     layout: layout
                 )
                 let blockedEntries = extraKeys.map { key in
-                    LayerEntry(
+                    let layerOutput = wrapWithOneShotExit(
+                        "XX",
+                        layer: collection.targetLayer,
+                        sourceKey: key,
+                        hasLayerBasePush: false
+                    )
+                    return LayerEntry(
                         sourceKey: key,
                         baseOutput: key, // base layer keeps normal behavior
-                        layerOutputs: [collection.targetLayer: "XX"] // nav layer blocks output
+                        layerOutputs: [collection.targetLayer: layerOutput] // nav layer blocks output
                     )
                 }
                 entries.append(contentsOf: blockedEntries)
             }
 
             blocks.append(CollectionBlock(metadata: metadata, entries: entries))
+        }
+
+        if !oneShotLayers.isEmpty {
+            let cancelOutput = "(multi XX (push-msg \"layer:base\"))"
+            var layerOutputs: [RuleCollectionLayer: String] = [:]
+            for layer in oneShotLayers {
+                layerOutputs[layer] = cancelOutput
+            }
+            let entry = LayerEntry(
+                sourceKey: KanataKeyConverter.convertToKanataKey("esc"),
+                baseOutput: KanataKeyConverter.convertToKanataKey("esc"),
+                layerOutputs: layerOutputs
+            )
+            let metadata = [
+                "  ;; === One-Shot Cancel (Esc) ===",
+                "  ;; Cancels one-shot layers and returns to base"
+            ]
+            blocks.append(CollectionBlock(metadata: metadata, entries: [entry]))
         }
 
         return (activatorBlocks + blocks, aliasDefinitions, additionalLayers, chordMappings)
@@ -1019,12 +1115,24 @@ public struct KanataConfiguration: Sendable {
             // Skip unknown keycodes
             guard !name.hasPrefix("unknown-") else { return nil }
             guard !skip.contains(name) else { return nil }
-            let kanata = KanataKeyConverter.convertToKanataKey(name)
+            let converted = KanataKeyConverter.convertToKanataKey(name)
+            let kanata = normalizeInternationalKey(converted)
             guard !mappedKeys.contains(kanata) else { return nil }
             return kanata
         }
 
         return Array(Set(keys)).sorted()
+    }
+
+    private static func normalizeInternationalKey(_ key: String) -> String {
+        switch key {
+        case "hangeul", "hangul", "lang1":
+            "kana"
+        case "hanja", "lang2":
+            "eisu"
+        default:
+            key
+        }
     }
 
     private static func aliasSafeName(layer: RuleCollectionLayer, key: String) -> String {
@@ -1066,17 +1174,17 @@ public struct KanataConfiguration: Sendable {
     /// Fork syntax: (fork default-action alternate-action (trigger-keys))
     /// Note: Inside fork, modifier prefixes like m-right must be (multi lmet right)
     private static func buildForkDefinition(for mapping: KeyMapping) -> String {
-        let defaultOutput = convertToForkAction(mapping.output)
+        let defaultOutput = normalizeForkOutput(convertToForkAction(mapping.output))
 
         // Shift modifier takes precedence
         if let shiftedOutput = mapping.shiftedOutput {
-            let shiftOutput = convertToForkAction(shiftedOutput)
+            let shiftOutput = normalizeForkOutput(convertToForkAction(shiftedOutput))
             return "(fork \(defaultOutput) \(shiftOutput) (lsft rsft))"
         }
 
         // Ctrl modifier
         if let ctrlOutput = mapping.ctrlOutput {
-            let ctrlOutputConverted = convertToForkAction(ctrlOutput)
+            let ctrlOutputConverted = normalizeForkOutput(convertToForkAction(ctrlOutput))
             return "(fork \(defaultOutput) \(ctrlOutputConverted) (lctl rctl))"
         }
 
@@ -1100,6 +1208,36 @@ public struct KanataConfiguration: Sendable {
             return convertSingleKeyToForkFormat(single)
         }
         return output
+    }
+
+    /// Normalize modifier-prefixed outputs inside fork actions.
+    /// If an output looks like a modified key (e.g., m-right), convert to (multi ...).
+    private static func normalizeForkOutput(_ output: String) -> String {
+        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Leave complex actions or multi-token outputs alone.
+        if trimmed.hasPrefix("(") || trimmed.contains(" ") {
+            return output
+        }
+
+        let uppercased = trimmed.uppercased()
+        let modifierMap: [(prefix: String, keys: String)] = [
+            ("M-S-", "lmet lsft"),
+            ("C-S-", "lctl lsft"),
+            ("A-S-", "lalt lsft"),
+            ("M-", "lmet"),
+            ("A-", "lalt"),
+            ("C-", "lctl"),
+            ("S-", "lsft")
+        ]
+
+        guard let (prefix, keys) = modifierMap.first(where: { uppercased.hasPrefix($0.prefix) }) else {
+            return output
+        }
+
+        let baseKey = String(trimmed.dropFirst(prefix.count))
+        let kanataKey = KanataKeyConverter.convertToKanataKey(baseKey)
+        return "(multi \(keys) \(kanataKey))"
     }
 
     /// Convert a single key (possibly with modifiers) to fork-compatible format
@@ -1292,8 +1430,9 @@ public struct KanataConfiguration: Sendable {
         var remainingKey = key
         var modifiers: [String] = []
 
-        // Extract all modifier prefixes (only match first one)
-        if let (prefix, modKey) = modifierMap.first(where: { remainingKey.hasPrefix($0.key) }) {
+        // Extract all modifier prefixes (only match first one, case-insensitive)
+        let lowercasedKey = remainingKey.lowercased()
+        if let (prefix, modKey) = modifierMap.first(where: { lowercasedKey.hasPrefix($0.key.lowercased()) }) {
             modifiers.append(contentsOf: modKey.split(separator: " ").map(String.init))
             remainingKey = String(remainingKey.dropFirst(prefix.count))
         }

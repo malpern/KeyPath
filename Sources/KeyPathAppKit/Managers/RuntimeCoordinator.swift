@@ -234,8 +234,8 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     // Additional dependencies needed by extensions
     private let processCoordinator: ProcessCoordinating
-    private let installerEngine: InstallerEngine
-    private let privilegeBroker: PrivilegeBroker
+    let installerEngine: InstallerEngine
+    let privilegeBroker: PrivilegeBroker
     let kanataService: KanataService
     private nonisolated let diagnosticsService: DiagnosticsServiceProtocol
     let reloadSafetyMonitor = ReloadSafetyMonitor() // internal for use by extensions
@@ -408,8 +408,16 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
 
         // Configure RecoveryCoordinator handlers (after all initialization)
         recoveryCoordinator.configure(
-            killAllKanataProcesses: {
-                try await PrivilegedOperationsCoordinator.shared.killAllKanataProcesses()
+            killAllKanataProcesses: { [weak self] in
+                guard let self else {
+                    throw KeyPathError.process(.noManager)
+                }
+                let report = await installerEngine
+                    .runSingleAction(.terminateConflictingProcesses, using: privilegeBroker)
+                if !report.success {
+                    throw KeyPathError.process(
+                        .terminateFailed(underlyingError: report.failureReason ?? "Unknown error"))
+                }
             },
             restartKarabinerDaemon: { [weak self] in
                 await self?.restartKarabinerDaemon() ?? false
@@ -426,6 +434,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
             notifyStateChanged()
             // Notify overlay to rebuild layer mapping
             AppLogger.shared.debug("🔔 [RuntimeCoordinator] Posting kanataConfigChanged notification")
+
             NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
         }
         ruleCollectionsManager.onLayerChanged = { [weak self] layerName in
@@ -1381,17 +1390,19 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
     /// Returns true on success.
     func regenerateServices() async -> Bool {
         AppLogger.shared.log("🔧 [Services] One-click regenerate services initiated")
-        do {
-            try await PrivilegedOperationsCoordinator.shared.regenerateServiceConfiguration()
+        let report = await installerEngine
+            .runSingleAction(.regenerateServiceConfiguration, using: privilegeBroker)
+        if report.success {
             // Refresh status after regeneration to update UI promptly
             await updateStatus()
             AppLogger.shared.info("✅ [Services] Regenerate services completed")
             return true
-        } catch {
-            AppLogger.shared.error("❌ [Services] Regenerate services failed: \(error)")
-            lastError = "Regenerate services failed: \(error.localizedDescription)"
-            return false
         }
+
+        let failureReason = report.failureReason ?? "Unknown error"
+        AppLogger.shared.error("❌ [Services] Regenerate services failed: \(failureReason)")
+        lastError = "Regenerate services failed: \(failureReason)"
+        return false
     }
 
     /// Trigger VirtualHID recovery when connection failures are detected

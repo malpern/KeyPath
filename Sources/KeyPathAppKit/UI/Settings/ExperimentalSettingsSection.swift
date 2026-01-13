@@ -119,6 +119,7 @@ struct ExperimentalSettingsSection: View {
                 onChange: { FeatureFlags.setSimulatorAndVirtualKeysEnabled($0) },
                 identifier: "feature-flag-simulator"
             )
+            .accessibilityIdentifier("feature-flag-simulator-row")
 
             featureFlagToggle(
                 title: "Listen-Only Event Tap",
@@ -127,6 +128,7 @@ struct ExperimentalSettingsSection: View {
                 onChange: { FeatureFlags.setCaptureListenOnlyEnabled($0) },
                 identifier: "feature-flag-listen-only"
             )
+            .accessibilityIdentifier("feature-flag-listen-only-row")
 
             featureFlagToggle(
                 title: "SMAppService for Daemon",
@@ -135,6 +137,7 @@ struct ExperimentalSettingsSection: View {
                 onChange: { FeatureFlags.setUseSMAppServiceForDaemon($0) },
                 identifier: "feature-flag-smappservice"
             )
+            .accessibilityIdentifier("feature-flag-smappservice-row")
         }
     }
 

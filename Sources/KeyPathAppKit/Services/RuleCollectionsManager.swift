@@ -1113,7 +1113,9 @@ final class RuleCollectionsManager {
         // Heartbeat: any layer poll result means TCP is alive, even if layer is unchanged.
         NotificationCenter.default.post(name: .kanataTcpHeartbeat, object: nil)
 
-        if currentLayerName == display { return }
+        if currentLayerName == display {
+            return
+        }
 
         currentLayerName = display
         onLayerChanged?(display)

@@ -860,10 +860,12 @@ private struct ExpandableCollectionRow: View {
         .background(
             RoundedRectangle(cornerRadius: 10)
                 .fill(isHovered ? Color(NSColor.controlBackgroundColor).opacity(0.5) : Color(NSColor.windowBackgroundColor))
+                .allowsHitTesting(false)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10)
                 .stroke(Color.white.opacity(isHovered ? 0.15 : 0), lineWidth: 1)
+                .allowsHitTesting(false)
         )
         .onHover { hovering in
             isHovered = hovering
@@ -902,82 +904,85 @@ private struct ExpandableCollectionRow: View {
 
     @ViewBuilder
     private var headerButtonView: some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isExpanded.toggle()
-                // Auto-scroll to show expanded content
-                if isExpanded, let id = scrollID, let proxy = scrollProxy {
-                    // Delay slightly to allow expansion animation to begin
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            proxy.scrollTo(id, anchor: .top)
+        HStack(alignment: .top, spacing: 12) {
+            // Left side: Clickable area for expansion
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded.toggle()
+                    // Auto-scroll to show expanded content
+                    if isExpanded, let id = scrollID, let proxy = scrollProxy {
+                        // Delay slightly to allow expansion animation to begin
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                proxy.scrollTo(id, anchor: .top)
+                            }
                         }
                     }
                 }
-            }
-        } label: {
-            HStack(alignment: .top, spacing: 12) {
-                iconView(for: icon)
-                    .frame(width: 24)
+            } label: {
+                HStack(alignment: .top, spacing: 12) {
+                    iconView(for: icon)
+                        .frame(width: 24)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 4) {
-                        Text(name)
-                            .font(.headline)
-                            .foregroundColor(.primary)
-                        if count > 0, showZeroState || onEditMapping != nil {
-                            // Show count for custom rules section only
-                            Text("(\(count))")
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 4) {
+                            Text(name)
                                 .font(.headline)
-                                .fontWeight(.regular)
+                                .foregroundColor(.primary)
+                            if count > 0, showZeroState || onEditMapping != nil {
+                                // Show count for custom rules section only
+                                Text("(\(count))")
+                                    .font(.headline)
+                                    .fontWeight(.regular)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+
+                        if let desc = description {
+                            Text(desc)
+                                .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
-                    }
 
-                    if let desc = description {
-                        Text(desc)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-
-                    if let hint = activationHint {
-                        // Use collection's custom activation hint (e.g., "Hold Hyper key")
-                        Label(hint, systemImage: "hand.point.up.left")
-                            .font(.caption)
-                            .foregroundColor(.accentColor)
-                    } else if layerActivator != nil {
-                        // Fall back to leader key display for leader-based collections
-                        Label("Hold \(leaderKeyDisplay)", systemImage: "hand.point.up.left")
-                            .font(.caption)
-                            .foregroundColor(.accentColor)
+                        if let hint = activationHint {
+                            // Use collection's custom activation hint (e.g., "Hold Hyper key")
+                            Label(hint, systemImage: "hand.point.up.left")
+                                .font(.caption)
+                                .foregroundColor(.accentColor)
+                        } else if layerActivator != nil {
+                            // Fall back to leader key display for leader-based collections
+                            Label("Hold \(leaderKeyDisplay)", systemImage: "hand.point.up.left")
+                                .font(.caption)
+                                .foregroundColor(.accentColor)
+                        }
                     }
                 }
-
-                Spacer()
-
-                Toggle(
-                    "",
-                    isOn: Binding(
-                        get: { effectiveEnabled },
-                        set: { newValue in
-                            // Optimistic update: change UI immediately
-                            localEnabled = newValue
-                            // Then trigger async operation
-                            onToggle(newValue)
-                        }
-                    )
-                )
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .tint(.blue)
-                .onTapGesture {} // Prevents toggle from triggering row expansion
-                .accessibilityIdentifier("rules-summary-toggle-\(collectionId)")
-                .accessibilityLabel("Toggle \(name)")
+                .contentShape(Rectangle())
             }
-            .padding(12)
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            // Right side: Toggle (NOT inside button, so it receives taps)
+            Toggle(
+                "",
+                isOn: Binding(
+                    get: { effectiveEnabled },
+                    set: { newValue in
+                        // Optimistic update: change UI immediately
+                        localEnabled = newValue
+                        // Then trigger async operation
+                        onToggle(newValue)
+                    }
+                )
+            )
+            .labelsHidden()
+            .toggleStyle(.switch)
+            .tint(.blue)
+            .accessibilityIdentifier("rules-summary-toggle-\(collectionId)")
+            .accessibilityLabel("Toggle \(name)")
         }
-        .buttonStyle(.plain)
+        .padding(12)
     }
 
     @ViewBuilder

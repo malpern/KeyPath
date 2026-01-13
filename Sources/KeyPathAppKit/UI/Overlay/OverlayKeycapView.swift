@@ -76,6 +76,7 @@ struct OverlayKeycapView: View {
     /// Whether this key has a meaningful layer mapping (not transparent/identity)
     private var hasLayerMapping: Bool {
         guard let info = layerKeyInfo else { return false }
+
         // Bottom row modifier keys (fn, ctrl, opt, cmd) should never show as mapped in layer modes
         // They are fundamental modifiers that should look consistent across all layers
         if key.layoutRole == .narrowModifier {
@@ -92,6 +93,32 @@ struct OverlayKeycapView: View {
             return outputKey.lowercased() != inputKeyName
         }
         return !info.displayLabel.isEmpty && info.displayLabel.lowercased() != inputKeyName
+    }
+
+    /// Whether current layer is a navigation layer
+    private var isNavLayer: Bool {
+        let lower = currentLayerName.lowercased()
+        return lower == "nav" || lower == "navigation"
+    }
+
+    /// Identity-style mapping: mapped output matches the physical key label
+    /// (used to simplify nav layer visuals for explicit identity mappings)
+    private var isIdentityLayerMapping: Bool {
+        guard let info = layerKeyInfo else { return false }
+        guard info.collectionId != nil else { return false }
+        guard !baseLabel.isEmpty else { return false }
+        guard info.appLaunchIdentifier == nil,
+              info.systemActionIdentifier == nil,
+              info.urlIdentifier == nil else { return false }
+
+        let outputMatchesInput = info.outputKey?.lowercased() == inputKeyName
+        let displayMatchesInput = !info.displayLabel.isEmpty
+            && info.displayLabel.uppercased() == baseLabel.uppercased()
+        return outputMatchesInput || displayMatchesInput
+    }
+
+    private var isNavIdentityMapping: Bool {
+        isNavLayer && isIdentityLayerMapping
     }
 
     /// Size thresholds for typography adaptation
@@ -117,6 +144,9 @@ struct OverlayKeycapView: View {
 
         // If there's a nav overlay symbol, render it (arrow only, letter handled by floating label)
         if navOverlaySymbol != nil { return true }
+
+        // Nav identity mappings render their own centered label
+        if isNavIdentityMapping { return true }
 
         // If key is remapped to a different output, render the label directly
         // (floating labels only exist for base layout characters like A-Z, not for mapped outputs)
@@ -803,7 +833,9 @@ struct OverlayKeycapView: View {
         // Arrow keys don't need top-left label (would just duplicate the arrow)
         let isArrowKey = key.layoutRole == .arrow
 
-        if hasLayerMapping {
+        if isNavIdentityMapping {
+            navIdentityContent
+        } else if hasLayerMapping {
             // Special case: fn key should always show globe + "fn" even when mapped
             if key.label == "fn" {
                 fnKeyContent
@@ -885,6 +917,15 @@ struct OverlayKeycapView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
             }
         }
+    }
+
+    /// Nav-layer identity mapping: large centered label (same visual weight as base layer)
+    @ViewBuilder
+    private var navIdentityContent: some View {
+        Text(baseLabel.uppercased())
+            .font(.system(size: 12 * scale, weight: .medium))
+            .foregroundStyle(foregroundColor)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     /// The action content to display in center for layer mode (arrows, icons, etc.)
@@ -1976,7 +2017,7 @@ struct OverlayKeycapView: View {
             Color(red: 56 / 255, green: 56 / 255, blue: 57 / 255)
         }
         // Layer mode: collection-specific color for mapped keys
-        else if isLayerMode, hasLayerMapping {
+        else if isLayerMode, hasLayerMapping || isNavIdentityMapping {
             collectionColor(for: layerKeyInfo?.collectionId)
         }
         // Layer mode: dark gray for unmapped keys (same as launcher)
@@ -2084,8 +2125,8 @@ struct OverlayKeycapView: View {
         if lower.contains("display") || lower.contains("monitor") { return "display" }
 
         // Spaces
-        if lower.contains("next") && lower.contains("space") { return "arrow.right.square" }
-        if lower.contains("previous") && lower.contains("space") { return "arrow.left.square" }
+        if lower.contains("next"), lower.contains("space") { return "arrow.right.square" }
+        if lower.contains("previous"), lower.contains("space") { return "arrow.left.square" }
 
         return nil
     }

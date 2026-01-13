@@ -14,6 +14,7 @@ CACHE_INFO="$BUILD_DIR/kanata-simulator-cache.info"
 
 # Signing identity from environment or use Developer ID
 SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X2RKZ5TG99)}"
+SKIP_CODESIGN="${SKIP_CODESIGN:-0}"
 
 echo "🔬 Building Kanata Simulator from source..."
 
@@ -52,7 +53,10 @@ function check_cache_validity() {
         cached_hash=$(cat "$CACHE_INFO" 2>/dev/null || echo "")
 
         if [[ "$current_hash" == "$cached_hash" ]]; then
-            if codesign --verify --deep --strict "$BUILD_DIR/kanata-simulator" >/dev/null 2>&1; then
+            if [[ "$SKIP_CODESIGN" == "1" ]]; then
+                cache_valid=true
+                echo "🎯 Cache HIT: Simulator source unchanged (signature check skipped)" >&2
+            elif codesign --verify --deep --strict "$BUILD_DIR/kanata-simulator" >/dev/null 2>&1; then
                 cache_valid=true
                 echo "🎯 Cache HIT: Simulator source unchanged, using existing binary" >&2
             fi
@@ -98,32 +102,36 @@ echo "✅ Verifying binary..."
 file "$BUILD_DIR/kanata-simulator"
 
 # Sign the binary
-echo "🔏 Signing simulator binary..."
-if [[ "$SIGNING_IDENTITY" == *"Developer ID"* ]]; then
-    codesign \
-        --force \
-        --options=runtime \
-        --sign "$SIGNING_IDENTITY" \
-        "$BUILD_DIR/kanata-simulator"
-
-    echo "✅ Simulator signed for production with Developer ID"
+if [[ "$SKIP_CODESIGN" == "1" ]]; then
+    echo "⏭️  Skipping simulator codesign (SKIP_CODESIGN=1)"
 else
-    if codesign \
-        --force \
-        --sign "$SIGNING_IDENTITY" \
-        "$BUILD_DIR/kanata-simulator" 2>/dev/null; then
-        echo "✅ Simulator signed for development"
-    else
-        echo "❌ SIGNING FAILED: No valid signing identity available"
-        exit 1
-    fi
-fi
+    echo "🔏 Signing simulator binary..."
+    if [[ "$SIGNING_IDENTITY" == *"Developer ID"* ]]; then
+        codesign \
+            --force \
+            --options=runtime \
+            --sign "$SIGNING_IDENTITY" \
+            "$BUILD_DIR/kanata-simulator"
 
-# Verify signature
-echo "🔍 Verifying code signature..."
-codesign --verify --deep --strict --verbose=2 "$BUILD_DIR/kanata-simulator" 2>&1 || {
-    echo "⚠️  Code signature verification failed (may be expected for development builds)"
-}
+        echo "✅ Simulator signed for production with Developer ID"
+    else
+        if codesign \
+            --force \
+            --sign "$SIGNING_IDENTITY" \
+            "$BUILD_DIR/kanata-simulator" 2>/dev/null; then
+            echo "✅ Simulator signed for development"
+        else
+            echo "❌ SIGNING FAILED: No valid signing identity available"
+            exit 1
+        fi
+    fi
+
+    # Verify signature
+    echo "🔍 Verifying code signature..."
+    codesign --verify --deep --strict --verbose=2 "$BUILD_DIR/kanata-simulator" 2>&1 || {
+        echo "⚠️  Code signature verification failed (may be expected for development builds)"
+    }
+fi
 
 # Test basic functionality
 echo "🧪 Testing simulator binary..."

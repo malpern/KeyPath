@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import KeyPathWizardCore
 import os.lock
 
 /// Handles loading, unloading, and restarting of LaunchDaemon services.
@@ -715,11 +716,13 @@ final class ServiceBootstrapper {
         }
 
         // Step 1: Install VirtualHID services (helper-first, falls back to osascript)
-        AppLogger.shared.log("📱 [ServiceBootstrapper] Step 1: Installing VirtualHID services via PrivilegedOperationsCoordinator")
-        do {
-            try await PrivilegedOperationsCoordinator.shared.repairVHIDDaemonServices()
-        } catch {
-            AppLogger.shared.log("❌ [ServiceBootstrapper] VirtualHID installation failed: \(error.localizedDescription)")
+        AppLogger.shared.log("📱 [ServiceBootstrapper] Step 1: Installing VirtualHID services via InstallerEngine")
+        let report = await InstallerEngine()
+            .runSingleAction(.repairVHIDDaemonServices, using: PrivilegeBroker())
+        if !report.success {
+            AppLogger.shared.log(
+                "❌ [ServiceBootstrapper] VirtualHID installation failed: \(report.failureReason ?? "Unknown error")"
+            )
             return false
         }
 

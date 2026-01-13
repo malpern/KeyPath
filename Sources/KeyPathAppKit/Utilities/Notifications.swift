@@ -39,6 +39,9 @@ extension Notification.Name {
     // Rule collections
     static let ruleCollectionsChanged = Notification.Name("KeyPath.RuleCollections.Changed")
 
+    // Config validation
+    static let configValidationFailed = Notification.Name("KeyPath.Config.ValidationFailed")
+
     // Mapper drawer
     /// Posted when a key is clicked and should be selected in the mapper drawer
     /// userInfo: keyCode (UInt16), inputKey (String), outputKey (String), layer (String)

@@ -395,9 +395,11 @@ struct LiveKeyboardOverlayView: View {
                         deleteAppRule(keymap: pending.keymap, override: pending.override)
                         pendingDeleteRule = nil
                     }
+                    .accessibilityIdentifier("overlay-delete-app-rule-confirm-button")
                     Button("Cancel", role: .cancel) {
                         pendingDeleteRule = nil
                     }
+                    .accessibilityIdentifier("overlay-delete-app-rule-cancel-button")
                 }
             },
             message: {
@@ -433,7 +435,9 @@ struct LiveKeyboardOverlayView: View {
                 Button("Reset All", role: .destructive) {
                     resetAllCustomRules()
                 }
+                .accessibilityIdentifier("overlay-reset-all-custom-rules-confirm-button")
                 Button("Cancel", role: .cancel) {}
+                    .accessibilityIdentifier("overlay-reset-all-custom-rules-cancel-button")
             },
             message: {
                 Text("This will remove all custom rules (both global and app-specific). This action cannot be undone.")
@@ -982,8 +986,6 @@ private struct OverlayDragHeader: View {
 
     var body: some View {
         let buttonSize = max(10, height * 0.9)
-        // Always use the same width so layer indicator stays in consistent position
-        let maxControlsWidth = inspectorWidth - 12
         let indicatorCornerRadius: CGFloat = 4
 
         HStack(spacing: 0) {
@@ -2193,6 +2195,7 @@ private struct InspectorPanelToolbar: View {
                 let settingsFrame = anchors[.settings].map { proxy[$0] }
                 if let mainFrame, let settingsFrame {
                     gearButton(isSelected: showSettingsTabs, rotationDegrees: gearRotationDegrees)
+                        .accessibilityIdentifier("inspector-tab-settings")
                         .position(x: gearPositionX, y: gearPositionY)
                         .zIndex(1)
                         .onAppear {

@@ -1127,6 +1127,8 @@ struct InstallationWizardView: View {
             "Setup TCP authentication for secure communication"
         case .regenerateCommServiceConfiguration:
             "Update TCP service configuration"
+        case .regenerateServiceConfiguration:
+            "Regenerate service configuration"
         case .restartCommServer:
             "Restart Service with Authentication"
         case .fixDriverVersionMismatch:

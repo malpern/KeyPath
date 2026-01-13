@@ -1,7 +1,7 @@
 # Scripts
 
 ## Supported commands (recommended)
-- `./build.sh` — Canonical build & sign entry (root)
+- `./build.sh` — Canonical build & sign entry (root). Use `SKIP_CODESIGN=1` to bypass signing for local dev.
 - `./test.sh` — Run the full test suite (root)
 
 ## Scripts in this directory

@@ -170,6 +170,13 @@ extension InstallerEngine {
                 serviceID: nil
             )
 
+        case .regenerateServiceConfiguration:
+            ServiceRecipe(
+                id: InstallerRecipeID.regenerateServiceConfig,
+                type: .installComponent,
+                serviceID: nil
+            )
+
         case .restartCommServer:
             ServiceRecipe(
                 id: InstallerRecipeID.restartCommServer,
@@ -280,6 +287,8 @@ extension InstallerEngine {
             InstallerRecipeID.setupTCPAuthentication
         case .regenerateCommServiceConfiguration:
             InstallerRecipeID.regenerateCommServiceConfig
+        case .regenerateServiceConfiguration:
+            InstallerRecipeID.regenerateServiceConfig
         case .restartCommServer:
             InstallerRecipeID.restartCommServer
         case .adoptOrphanedProcess:

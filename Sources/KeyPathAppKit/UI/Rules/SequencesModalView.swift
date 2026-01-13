@@ -523,6 +523,8 @@ private struct KeyPicker: View {
         }
         .pickerStyle(.menu)
         .frame(width: 90)
+        .accessibilityIdentifier("sequences-key-picker")
+        .accessibilityLabel("Sequence key picker")
     }
 }
 
@@ -548,5 +550,7 @@ private struct LayerPicker: View {
         }
         .pickerStyle(.menu)
         .labelsHidden()
+        .accessibilityIdentifier("sequences-layer-picker")
+        .accessibilityLabel("Sequence layer picker")
     }
 }

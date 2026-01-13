@@ -595,6 +595,11 @@ struct ContentView: View {
                     kanataManager.lastError = nil
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .configValidationFailed)) { notification in
+                let errors = notification.userInfo?["errors"] as? [String] ?? []
+                guard !errors.isEmpty else { return }
+                presentValidationFailureModal(errors)
+            }
             .onReceive(stateController.$issues) { newIssues in
                 handleKanataServiceIssueChange(newIssues)
             }

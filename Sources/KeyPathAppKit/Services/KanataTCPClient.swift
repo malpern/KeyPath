@@ -960,7 +960,7 @@ actor KanataTCPClient {
                                                 "⚠️ [TCP] Response missing request_id when we sent \(sentId) - likely broadcast, skipping: \(msgStr.prefix(100))"
                                             )
                                         }
-                                        continue  // Skip and read next line
+                                        continue // Skip and read next line
                                     }
                                 }
 
