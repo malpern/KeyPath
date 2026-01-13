@@ -105,9 +105,9 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         case unknown
     }
 
-    private var oneShotLayerOverride: String?
-    private var oneShotOverrideToken = UUID()
-    private var oneShotOverrideTask: Task<Void, Never>?
+    private let oneShotOverride = OneShotLayerOverrideState(
+        timeoutNanoseconds: LiveKeyboardOverlayController.oneShotTimeoutNanoseconds
+    )
     private var isLauncherSessionActive = false
     private var shouldRestoreAppHidden = false
     private var shouldRestoreOverlayHidden = false
@@ -310,14 +310,13 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
                 guard let key, action == "press" else { return }
 
                 // Clear one-shot override on the first non-modifier key press.
-                if let overrideLayer = self.oneShotLayerOverride,
-                   !Self.modifierKeys.contains(key.lowercased()) {
+                if let overrideLayer = self.oneShotOverride.clearOnKeyPress(
+                    key,
+                    modifierKeys: Self.modifierKeys
+                ) {
                     AppLogger.shared.debug(
                         "🧭 [OverlayController] Clearing one-shot layer override '\(overrideLayer)' on key press: \(key)"
                     )
-                    self.oneShotLayerOverride = nil
-                    self.oneShotOverrideTask?.cancel()
-                    self.oneShotOverrideTask = nil
                 }
             }
         }
@@ -331,17 +330,15 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         switch source {
         case .push:
             if normalized == "base" {
-                oneShotLayerOverride = nil
-                oneShotOverrideTask?.cancel()
-                oneShotOverrideTask = nil
+                oneShotOverride.clear()
             } else {
-                oneShotLayerOverride = normalized
-                scheduleOneShotOverrideTimeout()
+                oneShotOverride.activate(normalized)
             }
             updateLayerName(layerName)
         case .kanata:
-            if let overrideLayer = oneShotLayerOverride,
-               normalized != overrideLayer {
+            if oneShotOverride.shouldIgnoreKanataUpdate(normalizedLayer: normalized),
+               let overrideLayer = oneShotOverride.currentLayer
+            {
                 AppLogger.shared.debug(
                     "🧭 [OverlayController] Ignoring kanata layer '\(layerName)' while one-shot override '\(overrideLayer)' active"
                 )
@@ -365,22 +362,6 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         "capslock",
         "fn"
     ]
-
-    private func scheduleOneShotOverrideTimeout() {
-        oneShotOverrideTask?.cancel()
-        let token = UUID()
-        oneShotOverrideToken = token
-        oneShotOverrideTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: Self.oneShotTimeoutNanoseconds)
-            guard oneShotOverrideToken == token else { return }
-            if let overrideLayer = oneShotLayerOverride {
-                AppLogger.shared.debug(
-                    "🧭 [OverlayController] One-shot override '\(overrideLayer)' expired"
-                )
-                oneShotLayerOverride = nil
-            }
-        }
-    }
 
     private static let oneShotTimeoutNanoseconds: UInt64 = 5_000_000_000
 
@@ -729,7 +710,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         // Restore overlay if it was auto-hidden recently and user hasn't manually shown it
         if let hiddenAt = autoHiddenTimestamp,
            Date().timeIntervalSince(hiddenAt) < restoreWindowDuration,
-           !isVisible {
+           !isVisible
+        {
             isVisible = true
         }
     }
@@ -811,7 +793,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             }
 
             if let mapping = viewModel.launcherMappings[normalizedKey],
-               let message = Self.launcherActionMessage(for: mapping.target) {
+               let message = Self.launcherActionMessage(for: mapping.target)
+            {
                 AppLogger.shared.log("🖱️ [OverlayController] Launcher key clicked: \(normalizedKey) -> \(message)")
                 ActionDispatcher.shared.dispatch(message: message)
                 ActionDispatcher.shared.dispatch(message: "layer:base")
@@ -1480,6 +1463,71 @@ private final class OverlayWindow: NSWindow {
         }
 
         return rect
+    }
+}
+
+@MainActor
+final class OneShotLayerOverrideState {
+    private(set) var currentLayer: String?
+    private var overrideTask: Task<Void, Never>?
+    private var overrideToken = UUID()
+    private let timeoutNanoseconds: UInt64
+    private let sleep: @Sendable (UInt64) async -> Void
+
+    init(
+        timeoutNanoseconds: UInt64,
+        sleep: @escaping @Sendable (UInt64) async -> Void = { nanos in
+            try? await Task.sleep(nanoseconds: nanos)
+        }
+    ) {
+        self.timeoutNanoseconds = timeoutNanoseconds
+        self.sleep = sleep
+    }
+
+    func activate(_ layer: String) {
+        currentLayer = layer
+        scheduleTimeout()
+    }
+
+    func clear() {
+        currentLayer = nil
+        cancelTimeout()
+    }
+
+    func clearOnKeyPress(_ key: String, modifierKeys: Set<String>) -> String? {
+        guard let layer = currentLayer,
+              !modifierKeys.contains(key.lowercased())
+        else {
+            return nil
+        }
+        clear()
+        return layer
+    }
+
+    func shouldIgnoreKanataUpdate(normalizedLayer: String) -> Bool {
+        guard let layer = currentLayer else { return false }
+        return normalizedLayer != layer
+    }
+
+    private func scheduleTimeout() {
+        cancelTimeout()
+        let token = UUID()
+        overrideToken = token
+        overrideTask = Task { @MainActor in
+            await sleep(timeoutNanoseconds)
+            guard overrideToken == token else { return }
+            if let layer = currentLayer {
+                AppLogger.shared.debug(
+                    "🧭 [OverlayController] One-shot override '\(layer)' expired"
+                )
+                currentLayer = nil
+            }
+        }
+    }
+
+    private func cancelTimeout() {
+        overrideTask?.cancel()
+        overrideTask = nil
     }
 }
 
