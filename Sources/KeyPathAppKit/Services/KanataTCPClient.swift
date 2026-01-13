@@ -569,30 +569,8 @@ actor KanataTCPClient {
                 return .failure(error: errorMsg, response: firstLineStr)
             }
 
-            // Read second line (ReloadResult) with timeout
-            AppLogger.shared.log("⏱️ [TCP] t=\(Int(Date().timeIntervalSince(startTime) * 1000))ms: About to get connection for second line read")
-            let connection = try await ensureConnectionCore()
-            AppLogger.shared.log("⏱️ [TCP] t=\(Int(Date().timeIntervalSince(startTime) * 1000))ms: Starting second line read, connection state=\(connection.state)")
-
-            let secondLine = try await withThrowingTaskGroup(of: Data.self) { group in
-                group.addTask {
-                    try await self.readUntilNewline(on: connection)
-                }
-
-                group.addTask {
-                    try await Task.sleep(nanoseconds: UInt64(timeoutMs + 1000) * 1_000_000)
-                    throw KeyPathError.communication(.timeout)
-                }
-
-                let result = try await group.next()!
-                group.cancelAll()
-                return result
-            }
-
-            AppLogger.shared.log("⏱️ [TCP] t=\(Int(Date().timeIntervalSince(startTime) * 1000))ms: Second line received, connection state=\(connection.state)")
-
             if let reload = try extractMessage(
-                named: "ReloadResult", into: ReloadResult.self, from: secondLine
+                named: "ReloadResult", into: ReloadResult.self, from: firstLine
             ) {
                 if reload.ready {
                     let dur = reload.duration_ms ?? 0
@@ -600,14 +578,12 @@ actor KanataTCPClient {
                     let totalTime = Int(Date().timeIntervalSince(startTime) * 1000)
                     AppLogger.shared.log("✅ [TCP] Reload(wait) ok duration=\(dur)ms epoch=\(ep)")
                     AppLogger.shared.log("⏱️ [TCP] t=\(totalTime)ms: Reload completed successfully")
-                    let secondLineStr = String(data: secondLine, encoding: .utf8) ?? ""
-                    return .success(response: secondLineStr)
+                    return .success(response: firstLineStr)
                 } else {
                     let totalTime = Int(Date().timeIntervalSince(startTime) * 1000)
                     AppLogger.shared.log("⚠️ [TCP] Reload(wait) timeout before \(reload.timeout_ms) ms")
                     AppLogger.shared.log("⏱️ [TCP] t=\(totalTime)ms: Reload timed out")
-                    let secondLineStr = String(data: secondLine, encoding: .utf8) ?? ""
-                    return .failure(error: "timeout", response: secondLineStr)
+                    return .failure(error: "timeout", response: firstLineStr)
                 }
             }
 

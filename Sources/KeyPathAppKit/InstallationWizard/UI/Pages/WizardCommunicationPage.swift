@@ -203,11 +203,9 @@ struct WizardCommunicationPage: View {
                     // It ignores all Authenticate messages. We only need to verify the server responds.
 
                     // 1) Is the server answering? Prefer Hello handshake to align with summary check
-                    let responding: Bool
-                    do {
-                        let t0 = CFAbsoluteTimeGetCurrent()
-                        let hello = try await client.hello()
-                        responding = true
+                    let t0 = CFAbsoluteTimeGetCurrent()
+                    let hello = await attemptHello(client: client, maxAttempts: 3)
+                    if let hello {
                         let dt = CFAbsoluteTimeGetCurrent() - t0
                         AppLogger.shared.log(
                             "🌐 [WizardCommDetail] hello ok port=\(port) duration_ms=\(Int(dt * 1000)) caps=\(hello.capabilities.joined(separator: ","))"
@@ -226,12 +224,9 @@ struct WizardCommunicationPage: View {
                             }
                             return
                         }
-                    } catch {
-                        responding = false
+                    } else {
                         AppLogger.shared.log(
-                            "🌐 [WizardCommDetail] hello failed port=\(port) error=\(error.localizedDescription)")
-                    }
-                    guard responding else {
+                            "🌐 [WizardCommDetail] hello failed port=\(port)")
                         await MainActor.run {
                             withAnimation(.easeInOut(duration: 0.3)) {
                                 commStatus = .needsSetup(
@@ -243,38 +238,13 @@ struct WizardCommunicationPage: View {
                         return
                     }
 
-                    // 2) Test if we can send commands (e.g., reload config)
-                    // No authentication needed - TCP mode is open for local connections
-                    let reload = await client.reloadConfig()
-                    if reload.isSuccess {
-                        await MainActor.run {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                commStatus = .ready(
-                                    "Ready for instant configuration changes and external integrations")
-                                actionStatus = .success(message: "Communication ready")
-                                scheduleStatusClear()
-                            }
-                        }
-                    } else if reload.isCancellation {
-                        AppLogger.shared.log("⚠️ [WizardComm] TCP reload cancelled; retrying status check")
-                        await MainActor.run {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                commStatus = .checking
-                                actionStatus = .idle
-                            }
-                        }
-                        Task {
-                            try? await Task.sleep(nanoseconds: 300_000_000)
-                            await checkCommunicationStatus()
-                        }
-                        return
-                    } else {
-                        let msg = reload.errorMessage ?? "TCP server responded but reload failed"
-                        await MainActor.run {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                commStatus = .needsSetup(msg)
-                                actionStatus = .idle
-                            }
+                    // Hello ok is sufficient for readiness in the wizard.
+                    await MainActor.run {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            commStatus = .ready(
+                                "Ready for instant configuration changes and external integrations")
+                            actionStatus = .success(message: "Communication ready")
+                            scheduleStatusClear()
                         }
                     }
                 }
@@ -319,6 +289,31 @@ struct WizardCommunicationPage: View {
 
         // FIX #1: Explicitly close connection to prevent file descriptor leak
         await client.cancelInflightAndCloseConnection()
+    }
+
+    private func attemptHello(
+        client: KanataTCPClient,
+        maxAttempts: Int
+    ) async -> KanataTCPClient.TcpHelloOk? {
+        var lastError: Error?
+
+        for attempt in 1...maxAttempts {
+            do {
+                return try await client.hello()
+            } catch {
+                lastError = error
+                await client.cancelInflightAndCloseConnection()
+                let delayMs = 200 * attempt
+                AppLogger.shared.log(
+                    "🌐 [WizardCommDetail] hello attempt \(attempt) failed: \(error.localizedDescription). Retrying in \(delayMs)ms")
+                try? await Task.sleep(nanoseconds: UInt64(delayMs) * 1_000_000)
+            }
+        }
+
+        if let lastError {
+            AppLogger.shared.log("🌐 [WizardCommDetail] hello failed after retries: \(lastError.localizedDescription)")
+        }
+        return nil
     }
 
     private struct TimeoutError: Error {}
