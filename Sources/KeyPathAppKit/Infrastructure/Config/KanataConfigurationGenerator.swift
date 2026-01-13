@@ -580,6 +580,12 @@ public struct KanataConfiguration: Sendable {
 
     // MARK: - Block builders
 
+    private struct LayerActivationPlan {
+        let activatorKeysBySourceLayer: [RuleCollectionLayer: Set<String>]
+        let hyperLinkedLayerInfos: [HyperLinkedLayerInfo]
+        let oneShotLayers: Set<RuleCollectionLayer>
+    }
+
     private static func buildCollectionBlocks(
         from collections: [RuleCollection],
         leaderKeyPreference: LeaderKeyPreference?
@@ -634,53 +640,13 @@ public struct KanataConfiguration: Sendable {
             activatorBlocks.append(CollectionBlock(metadata: metadata, entries: [entry]))
         }
 
-        // Collect all activator keys for each source layer to avoid blocking them
-        var activatorKeysBySourceLayer: [RuleCollectionLayer: Set<String>] = [:]
-
-        // Include the primary leader key in activator tracking
-        if let pref = leaderKeyPreference, pref.enabled {
-            let tapKey = KanataKeyConverter.convertToKanataKey(pref.key)
-            activatorKeysBySourceLayer[.base, default: []].insert(tapKey)
-        }
-
-        for collection in collections {
-            guard collection.isEnabled, let activator = collection.momentaryActivator else { continue }
-            let tapKey = KanataKeyConverter.convertToKanataKey(activator.input)
-            activatorKeysBySourceLayer[activator.sourceLayer, default: []].insert(tapKey)
-        }
-
-        // Detect layers that should be activated when "hyper" is triggered.
-        // These are collections with momentaryActivator.input == "hyper" (like Quick Launcher).
-        // Since "hyper" isn't a physical key, we integrate these layers into the hyper hold action
-        // of collections like Caps Lock Remap that output hyper on hold.
-        let hyperLinkedLayerInfos: [HyperLinkedLayerInfo] = collections
-            .filter(\.isEnabled)
-            .compactMap { collection -> HyperLinkedLayerInfo? in
-                guard let activator = collection.momentaryActivator,
-                      activator.input.lowercased() == "hyper"
-                else {
-                    return nil
-                }
-                // Get trigger mode from launcher config if available
-                let triggerMode: HyperTriggerMode = collection.configuration.launcherGridConfig?.hyperTriggerMode ?? .hold
-                return HyperLinkedLayerInfo(layerName: activator.targetLayer.kanataName, triggerMode: triggerMode)
-            }
-
-        // Layers that should behave as one-shot (stay active until next key press).
-        var oneShotLayers = Set<RuleCollectionLayer>()
-        if let pref = leaderKeyPreference, pref.enabled, pref.targetLayer == .navigation {
-            oneShotLayers.insert(pref.targetLayer)
-        }
-        for collection in collections where collection.isEnabled {
-            guard let activator = collection.momentaryActivator else { continue }
-            guard activator.input.lowercased() != "hyper" else { continue }
-            if activator.targetLayer == .navigation {
-                oneShotLayers.insert(activator.targetLayer)
-            }
-            if activator.sourceLayer != .base {
-                oneShotLayers.insert(activator.targetLayer)
-            }
-        }
+        let activationPlan = makeLayerActivationPlan(
+            collections: collections,
+            leaderKeyPreference: leaderKeyPreference
+        )
+        let activatorKeysBySourceLayer = activationPlan.activatorKeysBySourceLayer
+        let hyperLinkedLayerInfos = activationPlan.hyperLinkedLayerInfos
+        let oneShotLayers = activationPlan.oneShotLayers
 
         func wrapWithOneShotExit(
             _ output: String,
@@ -696,28 +662,6 @@ public struct KanataConfiguration: Sendable {
 
         // Precompute mapped keys for non-base layers to avoid blocking keys mapped by other collections.
         var layerMappedKeys: [RuleCollectionLayer: Set<String>] = [:]
-
-        func effectiveMappings(for collection: RuleCollection) -> [KeyMapping] {
-            switch collection.configuration {
-            case let .homeRowMods(config):
-                generateHomeRowModsMappings(from: config)
-            case let .homeRowLayerToggles(config):
-                generateHomeRowLayerTogglesMappings(from: config)
-            case let .chordGroups(config):
-                generateChordGroupsMappings(from: config)
-            case .sequences:
-                // Sequences don't generate mappings - handled by defseq
-                collection.mappings
-            case .tapHoldPicker:
-                generateTapHoldPickerMappings(from: collection)
-            case .layerPresetPicker:
-                generateLayerPresetMappings(from: collection)
-            case let .launcherGrid(config):
-                generateLauncherGridMappings(from: config)
-            case .list, .table, .singleKeyPicker:
-                collection.mappings
-            }
-        }
 
         for collection in collections where collection.isEnabled {
             let mappings = effectiveMappings(for: collection)
@@ -794,25 +738,7 @@ public struct KanataConfiguration: Sendable {
             var metadata = metadataLines(for: collection, indent: "  ", status: "enabled")
 
             // Handle special display styles: generate mappings from config
-            let effectiveMappings: [KeyMapping] = switch collection.configuration {
-            case let .homeRowMods(config):
-                generateHomeRowModsMappings(from: config)
-            case let .homeRowLayerToggles(config):
-                generateHomeRowLayerTogglesMappings(from: config)
-            case let .chordGroups(config):
-                generateChordGroupsMappings(from: config)
-            case .sequences:
-                // Sequences don't generate mappings - handled by defseq
-                collection.mappings
-            case .tapHoldPicker:
-                generateTapHoldPickerMappings(from: collection)
-            case .layerPresetPicker:
-                generateLayerPresetMappings(from: collection)
-            case let .launcherGrid(config):
-                generateLauncherGridMappings(from: config)
-            case .list, .table, .singleKeyPicker:
-                collection.mappings
-            }
+            let effectiveMappings = effectiveMappings(for: collection)
 
             // Separate chord mappings (input contains space = multiple simultaneous keys)
             let regularMappings = effectiveMappings.filter { !$0.input.contains(" ") }
@@ -942,6 +868,87 @@ public struct KanataConfiguration: Sendable {
         }
 
         return (activatorBlocks + blocks, aliasDefinitions, additionalLayers, chordMappings)
+    }
+
+    private static func makeLayerActivationPlan(
+        collections: [RuleCollection],
+        leaderKeyPreference: LeaderKeyPreference?
+    ) -> LayerActivationPlan {
+        // Collect all activator keys for each source layer to avoid blocking them.
+        var activatorKeysBySourceLayer: [RuleCollectionLayer: Set<String>] = [:]
+
+        // Include the primary leader key in activator tracking.
+        if let pref = leaderKeyPreference, pref.enabled {
+            let tapKey = KanataKeyConverter.convertToKanataKey(pref.key)
+            activatorKeysBySourceLayer[.base, default: []].insert(tapKey)
+        }
+
+        for collection in collections {
+            guard collection.isEnabled, let activator = collection.momentaryActivator else { continue }
+            let tapKey = KanataKeyConverter.convertToKanataKey(activator.input)
+            activatorKeysBySourceLayer[activator.sourceLayer, default: []].insert(tapKey)
+        }
+
+        // Detect layers that should be activated when "hyper" is triggered.
+        // These are collections with momentaryActivator.input == "hyper" (like Quick Launcher).
+        // Since "hyper" isn't a physical key, we integrate these layers into the hyper hold action
+        // of collections like Caps Lock Remap that output hyper on hold.
+        let hyperLinkedLayerInfos: [HyperLinkedLayerInfo] = collections
+            .filter(\.isEnabled)
+            .compactMap { collection -> HyperLinkedLayerInfo? in
+                guard let activator = collection.momentaryActivator,
+                      activator.input.lowercased() == "hyper"
+                else {
+                    return nil
+                }
+                // Get trigger mode from launcher config if available.
+                let triggerMode: HyperTriggerMode = collection.configuration.launcherGridConfig?.hyperTriggerMode ?? .hold
+                return HyperLinkedLayerInfo(layerName: activator.targetLayer.kanataName, triggerMode: triggerMode)
+            }
+
+        // Layers that should behave as one-shot (stay active until next key press).
+        var oneShotLayers = Set<RuleCollectionLayer>()
+        if let pref = leaderKeyPreference, pref.enabled, pref.targetLayer == .navigation {
+            oneShotLayers.insert(pref.targetLayer)
+        }
+        for collection in collections where collection.isEnabled {
+            guard let activator = collection.momentaryActivator else { continue }
+            guard activator.input.lowercased() != "hyper" else { continue }
+            if activator.targetLayer == .navigation {
+                oneShotLayers.insert(activator.targetLayer)
+            }
+            if activator.sourceLayer != .base {
+                oneShotLayers.insert(activator.targetLayer)
+            }
+        }
+
+        return LayerActivationPlan(
+            activatorKeysBySourceLayer: activatorKeysBySourceLayer,
+            hyperLinkedLayerInfos: hyperLinkedLayerInfos,
+            oneShotLayers: oneShotLayers
+        )
+    }
+
+    private static func effectiveMappings(for collection: RuleCollection) -> [KeyMapping] {
+        switch collection.configuration {
+        case let .homeRowMods(config):
+            generateHomeRowModsMappings(from: config)
+        case let .homeRowLayerToggles(config):
+            generateHomeRowLayerTogglesMappings(from: config)
+        case let .chordGroups(config):
+            generateChordGroupsMappings(from: config)
+        case .sequences:
+            // Sequences don't generate mappings - handled by defseq.
+            collection.mappings
+        case .tapHoldPicker:
+            generateTapHoldPickerMappings(from: collection)
+        case .layerPresetPicker:
+            generateLayerPresetMappings(from: collection)
+        case let .launcherGrid(config):
+            generateLauncherGridMappings(from: config)
+        case .list, .table, .singleKeyPicker:
+            collection.mappings
+        }
     }
 
     private static func deduplicateBlocks(_ blocks: [CollectionBlock]) -> [CollectionBlock] {
