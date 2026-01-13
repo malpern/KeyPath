@@ -541,7 +541,8 @@ public final class WindowManager {
         for screen in NSScreen.screens {
             let screenFrame = screen.frame
             if screenFrame.contains(windowCenter) ||
-                isWindowOnScreen(frame: frame, screen: screen) {
+                isWindowOnScreen(frame: frame, screen: screen)
+            {
                 return screen
             }
         }
@@ -556,7 +557,8 @@ public final class WindowManager {
             let screenFrame = screen.frame
             let appKitFrame = convertAXToScreen(axFrame, in: screen)
             if screenFrame.contains(CGPoint(x: appKitFrame.midX, y: appKitFrame.midY)) ||
-                isWindowOnScreen(frame: appKitFrame, screen: screen) {
+                isWindowOnScreen(frame: appKitFrame, screen: screen)
+            {
                 return screen
             }
         }
@@ -567,14 +569,16 @@ public final class WindowManager {
     /// Convert AX (top-left origin) frame to AppKit (bottom-left origin) for a specific screen.
     /// NOTE: This transform is its own inverse when using the same screen frame.
     private func convertAXToScreen(_ frame: CGRect, in screen: NSScreen) -> CGRect {
-        let screenFrame = screen.frame
-        let y = screenFrame.maxY - frame.origin.y - frame.height
-        return CGRect(x: frame.origin.x, y: y, width: frame.width, height: frame.height)
+        convertBetweenAXAndScreen(frame, in: screen)
     }
 
     /// Convert AppKit (bottom-left origin) frame to AX (top-left origin) for a specific screen.
     private func convertScreenToAX(_ frame: CGRect, in screen: NSScreen) -> CGRect {
-        // Same formula as convertAXToScreen (inverse transform).
+        convertBetweenAXAndScreen(frame, in: screen)
+    }
+
+    /// Shared transform between AX and AppKit coordinate spaces (self-inverse per screen).
+    private func convertBetweenAXAndScreen(_ frame: CGRect, in screen: NSScreen) -> CGRect {
         let screenFrame = screen.frame
         let y = screenFrame.maxY - frame.origin.y - frame.height
         return CGRect(x: frame.origin.x, y: y, width: frame.width, height: frame.height)
