@@ -793,61 +793,50 @@ final class PrivilegedOperationsCoordinator {
         AppLogger.shared.log(
             "🔎 [PrivCoordinator] VHID PIDs before restart: \(beforePIDs.joined(separator: ", "))")
 
-        // If present, boot it out to avoid KeepAlive race
+        var commands: [String] = []
+
         if hasService {
-            let bootout = """
+            commands.append("""
             /bin/launchctl bootout system/\(vhidLabel) 2>/dev/null || true
             /bin/launchctl disable system/\(vhidLabel) 2>/dev/null || true
-            """
-            do {
-                try await sudoExecuteCommand(bootout, description: "Bootout VHID daemon service")
-            } catch {
-                AppLogger.shared.log("⚠️ [PrivCoordinator] Bootout returned error (continuing): \(error)")
-            }
+            """)
         }
 
         // Kill remaining processes (SIGTERM → SIGKILL) - optimized sleep from 0.3 to 0.15
         AppLogger.shared.log("🔐 [PrivCoordinator] Killing all VirtualHIDDevice daemon processes")
-        let killCommand = """
+        commands.append("""
         /usr/bin/pkill -f "Karabiner-VirtualHIDDevice-Daemon" 2>/dev/null || true
         /bin/sleep 0.15
         /usr/bin/pkill -9 -f "Karabiner-VirtualHIDDevice-Daemon" 2>/dev/null || true
-        """
-        do {
-            try await sudoExecuteCommand(killCommand, description: "Kill VirtualHIDDevice daemons")
-        } catch {
-            AppLogger.shared.log(
-                "⚠️ [PrivCoordinator] Kill failed (may be OK if no processes running): \(error)")
-        }
-
-        // Small settle - optimized from 300ms to 150ms
-        try await Task.sleep(nanoseconds: Self.vhidSettleDelayNanos)
+        /bin/sleep 0.15
+        """)
 
         // Start via kickstart if service exists; otherwise start directly
         if hasService {
             AppLogger.shared.log("🔐 [PrivCoordinator] Starting VHID via launchctl kickstart")
-            let kickstart = """
+            commands.append("""
             /bin/launchctl enable system/\(vhidLabel) 2>/dev/null || true
             /bin/launchctl kickstart -k system/\(vhidLabel)
-            """
-            do {
-                try await sudoExecuteCommand(kickstart, description: "Kickstart VHID daemon service")
-            } catch {
-                AppLogger.shared.log("❌ [PrivCoordinator] Kickstart failed: \(error)")
-                return false
-            }
+            """)
         } else {
             AppLogger.shared.log(
                 "🔐 [PrivCoordinator] LaunchDaemon missing - starting VHID by direct exec")
-            let startCommand = """
+            commands.append("""
             '\(daemonPath)' > /dev/null 2>&1 &
-            """
-            do {
-                try await sudoExecuteCommand(startCommand, description: "Start VirtualHIDDevice daemon")
-            } catch {
-                AppLogger.shared.log("❌ [PrivCoordinator] Failed to start daemon: \(error)")
-                return false
-            }
+            """)
+        }
+
+        let batch = PrivilegedCommandRunner.Batch(
+            label: "restart VirtualHID daemon",
+            commands: commands,
+            prompt: "KeyPath needs to restart the VirtualHID daemon."
+        )
+
+        do {
+            try await sudoExecuteBatch(batch)
+        } catch {
+            AppLogger.shared.log("❌ [PrivCoordinator] Restart batch failed: \(error)")
+            return false
         }
 
         // Log PIDs after kill, before start (for diagnostics)
@@ -905,6 +894,24 @@ final class PrivilegedOperationsCoordinator {
             AppLogger.shared.log("❌ [PrivCoordinator] Output: \(result.output)")
             throw PrivilegedOperationError.commandFailed(
                 description: description,
+                exitCode: result.exitCode,
+                output: result.output
+            )
+        }
+    }
+
+    /// Execute a batch of commands with a single admin prompt.
+    private func sudoExecuteBatch(_ batch: PrivilegedCommandRunner.Batch) async throws {
+        AppLogger.shared.log("🔧 [PrivCoordinator] Executing admin batch: \(batch.label)")
+        let result = try await AdminCommandExecutorHolder.shared.execute(batch: batch)
+
+        if result.exitCode == 0 {
+            AppLogger.shared.log("✅ [PrivCoordinator] Successfully executed batch: \(batch.label)")
+        } else {
+            AppLogger.shared.log("❌ [PrivCoordinator] Failed batch: \(batch.label)")
+            AppLogger.shared.log("❌ [PrivCoordinator] Output: \(result.output)")
+            throw PrivilegedOperationError.commandFailed(
+                description: batch.label,
                 exitCode: result.exitCode,
                 output: result.output
             )

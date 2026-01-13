@@ -474,8 +474,8 @@ struct WizardKarabinerComponentsPage: View {
         success = success || restartOk
 
         // Post-repair diagnostic
-        let detail = await kanataManager.getVirtualHIDBreakageSummary()
-        AppLogger.shared.log("🧭 [FIX-VHID \(session)] Diagnostic after repair:\n\(detail)")
+        let diagnosticDetail = await kanataManager.getVirtualHIDBreakageSummary()
+        AppLogger.shared.log("🧭 [FIX-VHID \(session)] Diagnostic after repair:\n\(diagnosticDetail)")
 
         let elapsed = String(format: "%.3f", Date().timeIntervalSince(t0))
         AppLogger.shared.log("🧭 [FIX-VHID \(session)] END (success=\(success)) in \(elapsed)s")
@@ -491,19 +491,30 @@ struct WizardKarabinerComponentsPage: View {
                 scheduleStatusClear()
                 return true
             } else {
-                let detail = repairFailureDetail(from: ServiceBootstrapper.shared.lastVHIDRepairOutput)
+                let detail = composeRepairFailureMessage(
+                    headline: "Driver repair incomplete.",
+                    bootstrapOutput: ServiceBootstrapper.shared.lastVHIDRepairOutput,
+                    diagnosticSummary: diagnosticDetail
+                )
                 AppLogger.shared.log(
                     "❌ [FIX-VHID \(session)] Repair completed but issues remain: \(remainingVHIDIssues.map { "\($0.category)-\($0.title)" })"
                 )
                 actionStatus = .error(
                     message: detail.isEmpty
                         ? "Driver repair incomplete. VirtualHID services are still unhealthy."
-                        : "Driver repair incomplete. \(detail)"
+                        : detail
                 )
                 return false
             }
         } else {
-            actionStatus = .error(message: "Driver repair failed. Try restarting your Mac.")
+            let detail = composeRepairFailureMessage(
+                headline: "Driver repair failed.",
+                bootstrapOutput: ServiceBootstrapper.shared.lastVHIDRepairOutput,
+                diagnosticSummary: diagnosticDetail
+            )
+            actionStatus = .error(
+                message: detail.isEmpty ? "Driver repair failed. Try restarting your Mac." : detail
+            )
             return false
         }
     }
@@ -517,6 +528,60 @@ struct WizardKarabinerComponentsPage: View {
         guard !compact.isEmpty else { return "" }
         let snippet = String(compact.prefix(160))
         return snippet + (compact.count > 160 ? "…" : "")
+    }
+
+    private func compactBreakageSummary(_ summary: String) -> String {
+        let lines = summary
+            .split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        guard !lines.isEmpty else { return "" }
+
+        let preferredPrefixes = [
+            "Reason:",
+            "LaunchDaemon:",
+            "Driver extension:",
+            "Driver version:",
+            "Security checks:"
+        ]
+
+        var selected: [String] = []
+        for prefix in preferredPrefixes {
+            if let line = lines.first(where: { $0.hasPrefix(prefix) }) {
+                selected.append(line)
+            }
+        }
+
+        if let securityIndex = lines.firstIndex(where: { $0.hasPrefix("Security checks:") }) {
+            let securityLines = lines.dropFirst(securityIndex + 1).prefix(2)
+            selected.append(contentsOf: securityLines)
+        }
+
+        if selected.isEmpty {
+            let count = min(3, lines.count)
+            if count > 0 {
+                selected = lines[0..<count].map { String($0) }
+            }
+        }
+
+        return selected.joined(separator: "\n")
+    }
+
+    private func composeRepairFailureMessage(
+        headline: String,
+        bootstrapOutput: String?,
+        diagnosticSummary: String
+    ) -> String {
+        var parts: [String] = [headline]
+        let summary = compactBreakageSummary(diagnosticSummary)
+        if !summary.isEmpty {
+            parts.append(summary)
+        }
+        let bootstrapDetail = repairFailureDetail(from: bootstrapOutput)
+        if !bootstrapDetail.isEmpty {
+            parts.append("Repair output: \(bootstrapDetail)")
+        }
+        return parts.joined(separator: "\n")
     }
 
     /// Auto-clear success status after 3 seconds

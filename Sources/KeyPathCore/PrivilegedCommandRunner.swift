@@ -12,6 +12,27 @@ import Foundation
 /// - Note: For test mode to work, run `sudo ./Scripts/dev-setup-sudoers.sh` first.
 /// - Warning: Remove sudoers config before public release: `sudo ./Scripts/dev-remove-sudoers.sh`
 public enum PrivilegedCommandRunner {
+    public struct Batch: Sendable {
+        public let label: String
+        public let commands: [String]
+        public let prompt: String
+
+        public init(label: String, commands: [String], prompt: String? = nil) {
+            self.label = label
+            self.commands = commands
+            self.prompt = prompt ?? "KeyPath needs to \(label.lowercased())."
+        }
+
+        public var script: String {
+            let trimmed = commands
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            if trimmed.isEmpty {
+                return ":"
+            }
+            return "set -e\n" + trimmed.joined(separator: "\n")
+        }
+    }
     /// Result of a privileged command execution
     public struct Result {
         public let success: Bool
@@ -49,6 +70,14 @@ public enum PrivilegedCommandRunner {
     public static func execute(commands: [String], prompt: String) -> Result {
         let combinedCommand = commands.joined(separator: " && ")
         return execute(command: combinedCommand, prompt: prompt)
+    }
+
+    /// Execute a batch of commands in a single privileged session.
+    public static func execute(batch: Batch) -> Result {
+        AppLogger.shared.log(
+            "🔐 [PrivilegedCommandRunner] Executing privileged batch: \(batch.label) (\(batch.commands.count) commands)"
+        )
+        return execute(command: batch.script, prompt: batch.prompt)
     }
 
     // MARK: - Private Implementation

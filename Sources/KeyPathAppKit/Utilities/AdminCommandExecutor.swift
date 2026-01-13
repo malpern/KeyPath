@@ -8,6 +8,7 @@ public struct CommandExecutionResult: Sendable {
 
 public protocol AdminCommandExecutor: Sendable {
     func execute(command: String, description: String) async throws -> CommandExecutionResult
+    func execute(batch: PrivilegedCommandRunner.Batch) async throws -> CommandExecutionResult
 }
 
 public final class DefaultAdminCommandExecutor: AdminCommandExecutor {
@@ -19,6 +20,11 @@ public final class DefaultAdminCommandExecutor: AdminCommandExecutor {
             command: command,
             prompt: "KeyPath needs to \(description.lowercased())."
         )
+        return CommandExecutionResult(exitCode: result.exitCode, output: result.output)
+    }
+
+    public func execute(batch: PrivilegedCommandRunner.Batch) async throws -> CommandExecutionResult {
+        let result = PrivilegedCommandRunner.execute(batch: batch)
         return CommandExecutionResult(exitCode: result.exitCode, output: result.output)
     }
 }

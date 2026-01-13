@@ -1,6 +1,7 @@
 @preconcurrency import XCTest
 
 @testable import KeyPathAppKit
+@testable import KeyPathCore
 
 @MainActor
 final class FakeAdminCommandExecutor: AdminCommandExecutor {
@@ -16,11 +17,20 @@ final class FakeAdminCommandExecutor: AdminCommandExecutor {
     }
 
     private(set) var commands: [(command: String, description: String)] = []
+    private(set) var batches: [PrivilegedCommandRunner.Batch] = []
 
     func execute(command: String, description: String) async throws -> CommandExecutionResult {
         commands.append((command, description))
         if let provider = resultProvider {
             return provider(command, description)
+        }
+        return defaultResult
+    }
+
+    func execute(batch: PrivilegedCommandRunner.Batch) async throws -> CommandExecutionResult {
+        batches.append(batch)
+        if let provider = resultProvider {
+            return provider(batch.script, batch.label)
         }
         return defaultResult
     }

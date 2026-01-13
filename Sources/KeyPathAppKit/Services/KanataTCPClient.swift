@@ -374,10 +374,10 @@ actor KanataTCPClient {
 
     // MARK: - Handshake / Status
 
-    /// Perform Hello handshake and cache capabilities
-    /// Note: Kanata v1.10+ returns TWO lines:
-    ///   Line 1: {"status":"Ok"}
-    ///   Line 2: {"HelloOk": {...}}
+    /// Perform Hello handshake and cache capabilities.
+    /// Kanata may emit a status line and/or broadcast lines before HelloOk.
+    /// We parse HelloOk from the first response and fall back to reading
+    /// additional lines only if needed.
     func hello() async throws -> TcpHelloOk {
         // FIX #3: Wrap operation with error recovery to clean up bad connections
         try await withErrorRecovery {
@@ -387,10 +387,19 @@ actor KanataTCPClient {
             let requestData = try JSONEncoder().encode(["Hello": ["request_id": requestId]])
             let start = CFAbsoluteTimeGetCurrent()
 
-            // Read first line (status response)
+            // Read first response (may already contain HelloOk)
             let firstLine = try await send(requestData)
             let firstLineStr = String(data: firstLine, encoding: .utf8) ?? ""
-            AppLogger.shared.log("🌐 [TCP] Hello status: \(firstLineStr)")
+            AppLogger.shared.log("🌐 [TCP] Hello response: \(firstLineStr)")
+
+            if let hello = try extractMessage(named: "HelloOk", into: TcpHelloOk.self, from: firstLine) {
+                let dt = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+                AppLogger.shared.log(
+                    "✅ [TCP] hello ok (duration=\(dt)ms, protocol=\(hello.protocolVersion), caps=\(hello.capabilities.joined(separator: ",")))"
+                )
+                cachedHello = hello
+                return hello
+            }
 
             // Check if first line indicates error
             if let json = try? JSONSerialization.jsonObject(with: firstLine) as? [String: Any],
@@ -400,25 +409,44 @@ actor KanataTCPClient {
                 throw KeyPathError.communication(.connectionFailed(reason: errorMsg))
             }
 
-            // Read second line (HelloOk details) with timeout
+            // Fallback: read additional lines until we find HelloOk or time out.
             let connection = try await ensureConnectionCore()
-            let secondLine = try await withTimeout(seconds: 5.0) {
-                try await self.readUntilNewline(on: connection)
-            }
-            let dt = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+            let deadline = CFAbsoluteTimeGetCurrent() + 5.0
+            var attempts = 0
+            var lastLine = firstLine
 
-            guard let hello = try extractMessage(named: "HelloOk", into: TcpHelloOk.self, from: secondLine)
-            else {
-                let raw = String(data: secondLine, encoding: .utf8) ?? ""
-                AppLogger.shared.error("🌐 [TCP] hello parse failed: \(raw)")
-                throw KeyPathError.communication(.invalidResponse)
+            while CFAbsoluteTimeGetCurrent() < deadline, attempts < 5 {
+                let remaining = max(0.1, deadline - CFAbsoluteTimeGetCurrent())
+                let nextLine = try await withTimeout(seconds: remaining) {
+                    try await self.readUntilNewline(on: connection)
+                }
+                attempts += 1
+                lastLine = nextLine
+
+                if isUnsolicitedBroadcast(nextLine) {
+                    continue
+                }
+
+                if let hello = try extractMessage(named: "HelloOk", into: TcpHelloOk.self, from: nextLine) {
+                    let dt = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+                    AppLogger.shared.log(
+                        "✅ [TCP] hello ok (duration=\(dt)ms, protocol=\(hello.protocolVersion), caps=\(hello.capabilities.joined(separator: ",")))"
+                    )
+                    cachedHello = hello
+                    return hello
+                }
+
+                if let json = try? JSONSerialization.jsonObject(with: nextLine) as? [String: Any],
+                   let status = json["status"] as? String,
+                   status.lowercased() == "error" {
+                    let errorMsg = json["msg"] as? String ?? "Hello request failed"
+                    throw KeyPathError.communication(.connectionFailed(reason: errorMsg))
+                }
             }
 
-            AppLogger.shared.log(
-                "✅ [TCP] hello ok (duration=\(dt)ms, protocol=\(hello.protocolVersion), caps=\(hello.capabilities.joined(separator: ",")))"
-            )
-            cachedHello = hello
-            return hello
+            let raw = String(data: lastLine, encoding: .utf8) ?? ""
+            AppLogger.shared.error("🌐 [TCP] hello parse failed: \(raw)")
+            throw KeyPathError.communication(.invalidResponse)
         }
     }
 

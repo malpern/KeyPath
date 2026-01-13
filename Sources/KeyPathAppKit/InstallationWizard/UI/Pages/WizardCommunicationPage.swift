@@ -139,6 +139,19 @@ struct WizardCommunicationPage: View {
                 await checkCommunicationStatus()
             }
         }
+        .onChange(of: commStatus) { _, newValue in
+            guard case .inProgress = actionStatus else { return }
+            let isActiveCheck: Bool
+            switch newValue {
+            case .checking, .authTesting:
+                isActiveCheck = true
+            default:
+                isActiveCheck = false
+            }
+            if !isActiveCheck {
+                actionStatus = .idle
+            }
+        }
     }
 
     private var nextStepButtonTitle: String {
@@ -155,6 +168,7 @@ struct WizardCommunicationPage: View {
     // MARK: - Communication Status Check (Using Shared SystemStatusChecker)
 
     private func checkCommunicationStatus() async {
+        AppLogger.shared.log("🧪 [WizardComm] checkCommunicationStatus() start")
         await MainActor.run {
             withAnimation(.easeInOut(duration: 0.3)) {
                 commStatus = .checking
@@ -207,6 +221,7 @@ struct WizardCommunicationPage: View {
                                     commStatus = .needsSetup(
                                         "TCP reachable but Status capability not available (older Kanata). Install/update via Wizard."
                                     )
+                                    actionStatus = .idle
                                 }
                             }
                             return
@@ -222,6 +237,7 @@ struct WizardCommunicationPage: View {
                                 commStatus = .needsSetup(
                                     "TCP server is not responding. Service may use old TCP configuration. Click Fix to regenerate with TCP."
                                 )
+                                actionStatus = .idle
                             }
                         }
                         return
@@ -244,6 +260,7 @@ struct WizardCommunicationPage: View {
                         await MainActor.run {
                             withAnimation(.easeInOut(duration: 0.3)) {
                                 commStatus = .checking
+                                actionStatus = .idle
                             }
                         }
                         Task {
@@ -256,6 +273,7 @@ struct WizardCommunicationPage: View {
                         await MainActor.run {
                             withAnimation(.easeInOut(duration: 0.3)) {
                                 commStatus = .needsSetup(msg)
+                                actionStatus = .idle
                             }
                         }
                     }
@@ -263,16 +281,8 @@ struct WizardCommunicationPage: View {
 
                 // Timeout task (15 seconds total)
                 group.addTask {
-                    // Poll for up to 15s at 250ms to detect service recovery
                     let clock = ContinuousClock()
-                    for _ in 0 ..< 60 {
-                        try await clock.sleep(for: .milliseconds(250))
-                        if await isCommunicationResponding() {
-                            // Communication is responding - return normally (no timeout)
-                            return
-                        }
-                    }
-                    // Only throw if we exhausted all 60 polls without a response
+                    try await clock.sleep(for: .seconds(15))
                     throw TimeoutError()
                 }
 
@@ -287,6 +297,7 @@ struct WizardCommunicationPage: View {
                     commStatus = .needsSetup(
                         "Connection timed out. Service may be using old TCP configuration. Click Fix to regenerate with TCP."
                     )
+                    actionStatus = .idle
                 }
             }
         } catch {
@@ -295,7 +306,14 @@ struct WizardCommunicationPage: View {
                 withAnimation(.easeInOut(duration: 0.3)) {
                     commStatus = .needsSetup(
                         "Failed to connect to TCP server. Click Fix to regenerate service configuration.")
+                    actionStatus = .idle
                 }
+            }
+        }
+
+        await MainActor.run {
+            if case .inProgress = actionStatus, !commStatus.isSuccess {
+                actionStatus = .idle
             }
         }
 
@@ -329,10 +347,14 @@ struct WizardCommunicationPage: View {
     private func performAutoFix() async {
         guard let onAutoFix else { return }
 
-        isFixing = true
-
         await MainActor.run {
+            isFixing = true
             actionStatus = .inProgress(message: "Fixing communication server...")
+        }
+        defer {
+            Task { @MainActor in
+                isFixing = false
+            }
         }
 
         let (action, successMessage, failureMessage) = getAutoFixAction()
@@ -359,8 +381,6 @@ struct WizardCommunicationPage: View {
                 AppLogger.shared.log("❌ [WizardComm] Failed to restart service after regeneration")
             }
         }
-
-        isFixing = false
 
         await MainActor.run {
             if success {

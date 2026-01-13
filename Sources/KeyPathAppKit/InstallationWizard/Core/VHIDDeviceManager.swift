@@ -537,23 +537,33 @@ final class VHIDDeviceManager: @unchecked Sendable {
         }
     }
 
+    /// Execute a batch of commands with a single admin prompt.
+    private func executeBatchWithAdminPrivileges(batch: PrivilegedCommandRunner.Batch) async -> Bool {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                AppLogger.shared.log("🔧 [VHIDManager] Requesting admin privileges for batch: \(batch.label)")
+                let result = PrivilegedCommandRunner.execute(batch: batch)
+
+                if result.success {
+                    AppLogger.shared.log("✅ [VHIDManager] Batch completed successfully")
+                    continuation.resume(returning: true)
+                } else {
+                    AppLogger.shared.log(
+                        "❌ [VHIDManager] Batch failed with status \(result.exitCode): \(result.output)"
+                    )
+                    continuation.resume(returning: false)
+                }
+            }
+        }
+    }
+
     /// Uninstalls all existing Karabiner-DriverKit-VirtualHIDDevice versions
     /// This ensures a clean slate before installing the correct version
     func uninstallAllDriverVersions() async -> Bool {
         AppLogger.shared.log("🧹 [VHIDManager] Uninstalling all existing driver versions...")
 
-        // First, check if there are any DriverKit extensions to uninstall
         do {
-            let listResult = try await SubprocessRunner.shared.run(
-                "/usr/bin/systemextensionsctl",
-                args: ["list"],
-                timeout: 10
-            )
-
-            // Check if our driver extension is listed
-            let hasKarabinerDriver = listResult.stdout.contains("Karabiner-DriverKit-VirtualHIDDevice")
-
-            if !hasKarabinerDriver {
+            guard try await hasInstalledDriverExtensions() else {
                 AppLogger.shared.log(
                     "ℹ️ [VHIDManager] No Karabiner driver extensions found - nothing to uninstall")
                 return true
@@ -561,7 +571,6 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
             AppLogger.shared.log("📋 [VHIDManager] Found Karabiner driver extension(s) to uninstall")
 
-            // Uninstall using systemextensionsctl with admin privileges
             let uninstallCommand =
                 "/usr/bin/systemextensionsctl uninstall \(Self.driverTeamID) \(Self.driverBundleID)"
 
@@ -581,15 +590,21 @@ final class VHIDDeviceManager: @unchecked Sendable {
             } else {
                 AppLogger.shared.log(
                     "⚠️ [VHIDManager] Uninstall command completed - may require restart to take full effect")
-                // Still return true since we attempted uninstall
                 return true
             }
-
         } catch {
             AppLogger.shared.log("⚠️ [VHIDManager] Error checking/uninstalling drivers: \(error)")
-            // Don't fail - proceed with installation anyway
             return true
         }
+    }
+
+    private func hasInstalledDriverExtensions() async throws -> Bool {
+        let listResult = try await SubprocessRunner.shared.run(
+            "/usr/bin/systemextensionsctl",
+            args: ["list"],
+            timeout: 10
+        )
+        return listResult.stdout.contains("Karabiner-DriverKit-VirtualHIDDevice")
     }
 
     /// Installs the correct version of Karabiner-DriverKit-VirtualHIDDevice
@@ -602,13 +617,18 @@ final class VHIDDeviceManager: @unchecked Sendable {
         AppLogger.shared.log(
             "🔧 [VHIDManager] Installing v\(Self.requiredDriverVersionString)")
 
-        // Step 1: Clean up existing driver versions first
-        Self.reportStep("Removing old driver...")
-        AppLogger.shared.log("🔧 [VHIDManager] Step 1/4: Cleaning up existing driver versions...")
-        let uninstallSuccess = await uninstallAllDriverVersions()
-        if !uninstallSuccess {
-            AppLogger.shared.log(
-                "⚠️ [VHIDManager] Cleanup had issues, but proceeding with installation...")
+        // Step 1: Detect whether uninstall is needed (non-privileged)
+        let shouldUninstall: Bool
+        do {
+            shouldUninstall = try await hasInstalledDriverExtensions()
+        } catch {
+            AppLogger.shared.log("⚠️ [VHIDManager] Unable to detect driver extensions: \(error)")
+            shouldUninstall = false
+        }
+
+        if shouldUninstall {
+            Self.reportStep("Removing old driver...")
+            AppLogger.shared.log("🔧 [VHIDManager] Step 1/3: Cleaning up existing driver versions...")
         }
 
         // Step 2: Use bundled pkg (required - no download fallback)
@@ -623,15 +643,27 @@ final class VHIDDeviceManager: @unchecked Sendable {
         AppLogger.shared.log("📦 [VHIDManager] Step 2/3: Using bundled VHID driver pkg")
         let pkgPath = URL(fileURLWithPath: bundledPkgPath)
 
-        // Step 3: Install the package
+        // Step 3: Install and activate with a single privilege prompt
         Self.reportStep("Installing driver (authenticate if prompted)...")
-        AppLogger.shared.log("🔧 [VHIDManager] Step 3/3: Installing package...")
+        AppLogger.shared.log("🔧 [VHIDManager] Step 3/3: Installing package and activating...")
 
-        let installResult = await executeWithAdminPrivileges(
-            command: "/usr/sbin/installer -pkg \"\(pkgPath.path)\" -target /",
-            description:
-            "Install Karabiner-DriverKit-VirtualHIDDevice v\(Self.requiredDriverVersionString)"
+        var commands: [String] = []
+        if shouldUninstall {
+            commands.append(
+                "/usr/bin/systemextensionsctl uninstall \(Self.driverTeamID) \(Self.driverBundleID) 2>/dev/null || true"
+            )
+            commands.append("/bin/sleep 2")
+        }
+        commands.append("/usr/sbin/installer -pkg \"\(pkgPath.path)\" -target /")
+        commands.append("/bin/sleep 3")
+        commands.append("'\(Self.vhidManagerPath)' activate")
+
+        let batch = PrivilegedCommandRunner.Batch(
+            label: "install VirtualHID driver",
+            commands: commands,
+            prompt: "KeyPath needs to install the VirtualHID driver."
         )
+        let installResult = await executeBatchWithAdminPrivileges(batch: batch)
 
         if installResult {
             AppLogger.shared.log(
@@ -643,16 +675,9 @@ final class VHIDDeviceManager: @unchecked Sendable {
             try? await clock.sleep(for: .seconds(3)) // 3 seconds
 
             // Activate the newly installed version
-            Self.reportStep("Activating driver...")
-            AppLogger.shared.log("🔧 [VHIDManager] Activating newly installed driver...")
-            let activateResult = await activateManager()
-
-            if activateResult {
-                AppLogger.shared.log("✅ [VHIDManager] Driver activated successfully")
-            } else {
-                AppLogger.shared.log(
-                    "⚠️ [VHIDManager] Driver installed but activation may need user approval")
-            }
+            Self.reportStep("Verifying activation...")
+            let activated = detectActivation()
+            AppLogger.shared.log("🔍 [VHIDManager] Post-activation verification: \(activated)")
             return true // Installation succeeded regardless of activation status
         } else {
             AppLogger.shared.log("❌ [VHIDManager] Installation failed")

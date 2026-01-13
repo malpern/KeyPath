@@ -28,7 +28,7 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
         // This test verifies that installLogRotation() executes without crashing.
         // In test mode, privileged operations are skipped via TestEnvironment.shouldSkipAdminOperations,
         // so we just verify the method completes (whether success or expected failure).
-        // The actual implementation uses PrivilegedExecutor (not AdminCommandExecutor).
+        // The actual implementation uses AdminCommandExecutor (backed by PrivilegedCommandRunner).
 
         let coordinator = PrivilegedOperationsCoordinator.shared
 
@@ -54,5 +54,21 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
                 "Debug builds should use directSudo mode"
             )
         #endif
+    }
+
+    func testRestartKarabinerDaemonUsesSingleBatch() async throws {
+        let fakeExecutor = FakeAdminCommandExecutor()
+        AdminCommandExecutorHolder.shared = fakeExecutor
+        VHIDDeviceManager.testPIDProvider = { ["123"] }
+        defer {
+            VHIDDeviceManager.testPIDProvider = nil
+            AdminCommandExecutorHolder.shared = originalExecutor
+        }
+
+        let coordinator = PrivilegedOperationsCoordinator.shared
+        let success = try await coordinator.restartKarabinerDaemonVerified()
+
+        XCTAssertTrue(success)
+        XCTAssertEqual(fakeExecutor.batches.count, 1)
     }
 }

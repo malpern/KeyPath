@@ -192,7 +192,7 @@ final class ServiceBootstrapper {
     ///
     /// - Parameter serviceIDs: Array of service identifiers to restart
     /// - Returns: `true` if all services were restarted successfully
-    func restartServicesWithAdmin(_ serviceIDs: [String]) -> Bool {
+    func restartServicesWithAdmin(_ serviceIDs: [String]) async -> Bool {
         AppLogger.shared.log(
             "🔧 [ServiceBootstrapper] Restarting services with admin privileges: \(serviceIDs)")
 
@@ -209,14 +209,10 @@ final class ServiceBootstrapper {
         }
 
         // Build kickstart commands for all services
-        let commands = serviceIDs.map { "launchctl kickstart -k system/\($0)" }
-            .joined(separator: " && ")
-
-        AppLogger.shared.log("🔧 [ServiceBootstrapper] Executing admin command: \(commands)")
-
-        // Use PrivilegedExecutor for admin operations
-        let result = PrivilegedExecutor.shared.executeWithPrivileges(
-            command: commands,
+        let commands = serviceIDs.map { "/bin/launchctl kickstart -k system/\($0)" }
+        let result = await executePrivilegedBatch(
+            label: "restart failing system services",
+            commands: commands,
             prompt: "KeyPath needs to restart failing system services."
         )
 
@@ -267,73 +263,51 @@ final class ServiceBootstrapper {
         return "/bin/launchctl"
     }
 
-    // MARK: - Plist Installation
+    // MARK: - Privileged Helpers
 
-    /// Install a plist file to the system LaunchDaemons directory
-    ///
-    /// Writes the plist content to a temp file, then uses admin privileges to copy it to the final location.
-    ///
-    /// - Parameters:
-    ///   - content: The plist XML content
-    ///   - path: The destination path for the plist file
-    ///   - serviceID: The service identifier (used for temp file naming)
-    /// - Returns: `true` if installation succeeded
-    func installPlist(content: String, path: String, serviceID: String) -> Bool {
-        AppLogger.shared.log("🔧 [ServiceBootstrapper] Installing plist: \(path)")
-
-        // Skip admin operations in test environment
-        if TestEnvironment.shouldSkipAdminOperations {
-            AppLogger.shared.log(
-                "🧪 [TestEnvironment] Skipping plist installation - returning mock success")
-            return true
-        }
-
-        // Create temporary file with plist content
-        let tempDir = NSTemporaryDirectory()
-        let tempPath = "\(tempDir)\(serviceID).plist"
-
-        do {
-            // Write content to temporary file first
-            try content.write(toFile: tempPath, atomically: true, encoding: .utf8)
-
-            // Use admin privileges to install the plist
-            let success = installPlistWithPrivileges(tempPath: tempPath, finalPath: path, serviceID: serviceID)
-
-            // Clean up temporary file
-            try? FileManager.default.removeItem(atPath: tempPath)
-
-            return success
-        } catch {
-            AppLogger.shared.log(
-                "❌ [ServiceBootstrapper] Failed to create temporary plist \(serviceID): \(error)")
-            return false
-        }
+    private struct PlistInstallSpec {
+        let content: String
+        let path: String
+        let serviceID: String
     }
 
-    /// Install plist using admin privileges
-    private func installPlistWithPrivileges(tempPath: String, finalPath: String, serviceID: String) -> Bool {
-        AppLogger.shared.log("🔧 [ServiceBootstrapper] Installing plist with admin privileges: \(serviceID)")
+    private func preparePlistInstall(
+        specs: [PlistInstallSpec]
+    ) throws -> (tempFiles: [String], commands: [String]) {
+        let tempDir = NSTemporaryDirectory()
+        var tempFiles: [String] = []
+        var commands: [String] = []
 
-        // Build the installation command
-        let command = """
-        mkdir -p '\((finalPath as NSString).deletingLastPathComponent)' && \
-        cp '\(tempPath)' '\(finalPath)' && \
-        chmod 644 '\(finalPath)' && \
-        chown root:wheel '\(finalPath)'
-        """
-
-        let result = PrivilegedExecutor.shared.executeWithPrivileges(
-            command: command,
-            prompt: "KeyPath needs to install the \(serviceID) service."
-        )
-
-        if result.success {
-            AppLogger.shared.log("✅ [ServiceBootstrapper] Plist installed: \(serviceID)")
-        } else {
-            AppLogger.shared.log("❌ [ServiceBootstrapper] Failed to install plist: \(result.output)")
+        let parentDirs = Set(specs.map { ($0.path as NSString).deletingLastPathComponent })
+        for dir in parentDirs.sorted() {
+            commands.append("mkdir -p '\(dir)'")
         }
 
-        return result.success
+        for spec in specs {
+            let tempPath = "\(tempDir)\(spec.serviceID)_\(UUID().uuidString).plist"
+            try spec.content.write(toFile: tempPath, atomically: true, encoding: .utf8)
+            tempFiles.append(tempPath)
+
+            commands.append("cp '\(tempPath)' '\(spec.path)'")
+            commands.append("chmod 644 '\(spec.path)'")
+            commands.append("chown root:wheel '\(spec.path)'")
+        }
+
+        return (tempFiles, commands)
+    }
+
+    private func executePrivilegedBatch(
+        label: String,
+        commands: [String],
+        prompt: String
+    ) async -> (success: Bool, output: String) {
+        let batch = PrivilegedCommandRunner.Batch(label: label, commands: commands, prompt: prompt)
+        do {
+            let result = try await AdminCommandExecutorHolder.shared.execute(batch: batch)
+            return (result.exitCode == 0, result.output)
+        } catch {
+            return (false, error.localizedDescription)
+        }
     }
 
     // MARK: - Log Rotation Service
@@ -345,6 +319,11 @@ final class ServiceBootstrapper {
     /// - Returns: `true` if installation succeeded
     func installLogRotationService() async -> Bool {
         AppLogger.shared.log("🔧 [ServiceBootstrapper] Installing log rotation service (keeps logs < 10MB)")
+
+        if TestEnvironment.shouldSkipAdminOperations {
+            AppLogger.shared.log("🧪 [ServiceBootstrapper] Test mode - skipping log rotation install")
+            return true
+        }
 
         let script = generateLogRotationScript()
         let plist = PlistGenerator.generateLogRotationPlist(scriptPath: logRotationScriptPath)
@@ -373,8 +352,9 @@ final class ServiceBootstrapper {
             launchctl bootstrap system '\(plistFinal)'
             """
 
-            let result = PrivilegedExecutor.shared.executeWithPrivileges(
-                command: command,
+            let result = await executePrivilegedBatch(
+                label: "install log rotation service",
+                commands: [command],
                 prompt: "KeyPath needs to install the log rotation service."
             )
 
@@ -578,7 +558,7 @@ final class ServiceBootstrapper {
         // Restart remaining unhealthy services
         if !toRestart.isEmpty {
             AppLogger.shared.log("🔧 [ServiceBootstrapper] Restarting services: \(toRestart)")
-            let restartSuccess = restartServicesWithAdmin(toRestart)
+            let restartSuccess = await restartServicesWithAdmin(toRestart)
             if !restartSuccess {
                 AppLogger.shared.log("❌ [ServiceBootstrapper] Failed to restart services")
                 return false
@@ -598,8 +578,9 @@ final class ServiceBootstrapper {
         /bin/launchctl bootout system/\(Self.kanataServiceID) 2>/dev/null || true && \
         /bin/rm -f '\(legacyPlistPath)' || true
         """
-        let result = PrivilegedExecutor.shared.executeWithPrivileges(
-            command: command,
+        let result = await executePrivilegedBatch(
+            label: "remove legacy service configuration",
+            commands: [command],
             prompt: "KeyPath needs to remove the legacy service configuration."
         )
         if result.success {
@@ -663,23 +644,30 @@ final class ServiceBootstrapper {
     func repairVHIDDaemonServices() async -> Bool {
         AppLogger.shared.log("🔧 [ServiceBootstrapper] Repairing VHID LaunchDaemon services")
 
+        if TestEnvironment.shouldSkipAdminOperations {
+            AppLogger.shared.log("🧪 [ServiceBootstrapper] Test mode - skipping VHID repair")
+            lastVHIDRepairOutput = "Skipped in test mode"
+            return true
+        }
+
         // Reinstall plists with correct content
         let vhidDaemonPlist = PlistGenerator.generateVHIDDaemonPlist()
         let vhidManagerPlist = PlistGenerator.generateVHIDManagerPlist()
         let daemonPlistPath = "\(getLaunchDaemonsPath())/\(Self.vhidDaemonServiceID).plist"
         let managerPlistPath = "\(getLaunchDaemonsPath())/\(Self.vhidManagerServiceID).plist"
 
-        let daemonInstall = installPlist(
-            content: vhidDaemonPlist, path: daemonPlistPath, serviceID: Self.vhidDaemonServiceID
-        )
-        let managerInstall = installPlist(
-            content: vhidManagerPlist, path: managerPlistPath, serviceID: Self.vhidManagerServiceID
-        )
-
-        guard daemonInstall, managerInstall else {
-            AppLogger.shared.log("❌ [ServiceBootstrapper] Failed to install repaired VHID plists")
-            return false
-        }
+        let plistSpecs = [
+            PlistInstallSpec(
+                content: vhidDaemonPlist,
+                path: daemonPlistPath,
+                serviceID: Self.vhidDaemonServiceID
+            ),
+            PlistInstallSpec(
+                content: vhidManagerPlist,
+                path: managerPlistPath,
+                serviceID: Self.vhidManagerServiceID
+            )
+        ]
 
         let preflightIssues = await VHIDDeviceManager().securityPreflightIssues()
         if !preflightIssues.isEmpty {
@@ -688,70 +676,66 @@ final class ServiceBootstrapper {
             )
         }
 
-        // Bootstrap services (bootout -> bootstrap -> enable -> kickstart)
-        let bootstrapResult = bootstrapVHIDServices(
-            daemonPlistPath: daemonPlistPath,
-            managerPlistPath: managerPlistPath
+        let prepared: (tempFiles: [String], commands: [String])
+        do {
+            prepared = try preparePlistInstall(specs: plistSpecs)
+        } catch {
+            AppLogger.shared.log(
+                "❌ [ServiceBootstrapper] Failed to prepare VHID plists: \(error)"
+            )
+            lastVHIDRepairOutput = "Failed to prepare VHID plists: \(error.localizedDescription)"
+            return false
+        }
+
+        defer {
+            for tempFile in prepared.tempFiles {
+                try? FileManager.default.removeItem(atPath: tempFile)
+            }
+        }
+
+        var privilegedCommands = prepared.commands
+        privilegedCommands.append(contentsOf: [
+            "/bin/launchctl bootout system/\(Self.vhidDaemonServiceID) 2>/dev/null || true",
+            "/bin/launchctl bootout system/\(Self.vhidManagerServiceID) 2>/dev/null || true",
+            "/usr/bin/xattr -d com.apple.quarantine '\(VHIDDeviceManager.vhidManagerPath)' 2>/dev/null || true",
+            "/usr/bin/xattr -d com.apple.quarantine '\(VHIDDeviceManager.vhidDeviceDaemonPath)' 2>/dev/null || true",
+            "/bin/launchctl bootstrap system '\(daemonPlistPath)'",
+            "/bin/launchctl bootstrap system '\(managerPlistPath)'",
+            "/bin/launchctl enable system/\(Self.vhidDaemonServiceID)",
+            "/bin/launchctl enable system/\(Self.vhidManagerServiceID)",
+            "/bin/launchctl kickstart -k system/\(Self.vhidDaemonServiceID)",
+            "/bin/launchctl kickstart -k system/\(Self.vhidManagerServiceID)"
+        ])
+
+        let batchResult = await executePrivilegedBatch(
+            label: "repair VirtualHID services",
+            commands: privilegedCommands,
+            prompt: "KeyPath needs to repair the VirtualHID services."
         )
+        if batchResult.success {
+            AppLogger.shared.log("✅ [ServiceBootstrapper] VHID repair batch succeeded")
+        } else {
+            AppLogger.shared.log(
+                "❌ [ServiceBootstrapper] VHID repair batch failed: \(batchResult.output)"
+            )
+        }
+
         let daemonLoaded = await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidDaemonServiceID)
         let managerLoaded = await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidManagerServiceID)
         let configured = ServiceHealthChecker.shared.isVHIDDaemonConfiguredCorrectly()
         let postflightIssues = await VHIDDeviceManager().securityPreflightIssues()
-        let ok = bootstrapResult.success && daemonLoaded && managerLoaded && configured
+        let ok = batchResult.success && daemonLoaded && managerLoaded && configured
         lastVHIDRepairOutput = formatVHIDRepairOutput(
-            bootstrapOutput: bootstrapResult.output,
+            bootstrapOutput: batchResult.output,
             daemonLoaded: daemonLoaded,
             managerLoaded: managerLoaded,
             configured: configured,
             securityIssues: postflightIssues
         )
         AppLogger.shared.log(
-            "🔍 [ServiceBootstrapper] Repair result: bootstrapOK=\(bootstrapResult.success), loadedDaemon=\(daemonLoaded), loadedManager=\(managerLoaded), configured=\(configured)"
+            "🔍 [ServiceBootstrapper] Repair result: bootstrapOK=\(batchResult.success), loadedDaemon=\(daemonLoaded), loadedManager=\(managerLoaded), configured=\(configured)"
         )
         return ok
-    }
-
-    private func bootstrapVHIDServices(
-        daemonPlistPath: String,
-        managerPlistPath: String
-    ) -> (success: Bool, output: String) {
-        // Skip admin operations in test environment
-        if TestEnvironment.shouldSkipAdminOperations {
-            AppLogger.shared.log("🧪 [ServiceBootstrapper] Test mode - skipping VHID bootstrap")
-            return (true, "Skipped in test mode")
-        }
-
-        let command = """
-        /bin/launchctl bootout system/\(Self.vhidDaemonServiceID) 2>/dev/null || true
-        /bin/launchctl bootout system/\(Self.vhidManagerServiceID) 2>/dev/null || true
-        /usr/bin/xattr -d com.apple.quarantine '\(VHIDDeviceManager.vhidManagerPath)' 2>/dev/null || true
-        /usr/bin/xattr -d com.apple.quarantine '\(VHIDDeviceManager.vhidDeviceDaemonPath)' 2>/dev/null || true
-        /bin/launchctl bootstrap system '\(daemonPlistPath)'
-        /bin/launchctl bootstrap system '\(managerPlistPath)'
-        /bin/launchctl enable system/\(Self.vhidDaemonServiceID)
-        /bin/launchctl enable system/\(Self.vhidManagerServiceID)
-        /bin/launchctl kickstart -k system/\(Self.vhidDaemonServiceID)
-        /bin/launchctl kickstart -k system/\(Self.vhidManagerServiceID)
-        """
-
-        let result = PrivilegedExecutor.shared.executeWithPrivileges(
-            command: command,
-            prompt: "KeyPath needs to start the VirtualHID services."
-        )
-
-        if result.success {
-            AppLogger.shared.log("✅ [ServiceBootstrapper] VHID bootstrap command succeeded")
-        } else {
-            AppLogger.shared.log(
-                "❌ [ServiceBootstrapper] VHID bootstrap command failed: \(result.output)"
-            )
-        }
-
-        if !result.output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            AppLogger.shared.log("📄 [ServiceBootstrapper] VHID bootstrap output:\n\(result.output)")
-        }
-
-        return (result.success, result.output)
     }
 
     private func formatVHIDRepairOutput(
@@ -854,8 +838,9 @@ final class ServiceBootstrapper {
             /bin/launchctl bootout system/\(Self.kanataServiceID) 2>/dev/null || true && \
             /bin/rm -f '\(legacyPlistPath)' || true
             """
-            let result = PrivilegedExecutor.shared.executeWithPrivileges(
-                command: command,
+            let result = await executePrivilegedBatch(
+                label: "remove legacy service configuration",
+                commands: [command],
                 prompt: "KeyPath needs to remove the legacy service configuration."
             )
             if !result.success {
@@ -913,13 +898,46 @@ final class ServiceBootstrapper {
         let vhidDaemonPlistPath = "\(launchDaemonsDir)/\(Self.vhidDaemonServiceID).plist"
         let vhidManagerPlistPath = "\(launchDaemonsDir)/\(Self.vhidManagerServiceID).plist"
 
-        // Install each plist
-        let kanataOK = installPlist(content: kanataPlist, path: kanataPlistPath, serviceID: Self.kanataServiceID)
-        let vhidDaemonOK = installPlist(content: vhidDaemonPlist, path: vhidDaemonPlistPath, serviceID: Self.vhidDaemonServiceID)
-        let vhidManagerOK = installPlist(content: vhidManagerPlist, path: vhidManagerPlistPath, serviceID: Self.vhidManagerServiceID)
+        let specs = [
+            PlistInstallSpec(
+                content: kanataPlist,
+                path: kanataPlistPath,
+                serviceID: Self.kanataServiceID
+            ),
+            PlistInstallSpec(
+                content: vhidDaemonPlist,
+                path: vhidDaemonPlistPath,
+                serviceID: Self.vhidDaemonServiceID
+            ),
+            PlistInstallSpec(
+                content: vhidManagerPlist,
+                path: vhidManagerPlistPath,
+                serviceID: Self.vhidManagerServiceID
+            )
+        ]
 
-        let success = kanataOK && vhidDaemonOK && vhidManagerOK
-        AppLogger.shared.log("🔧 [ServiceBootstrapper] Install-only result: kanata=\(kanataOK), vhidDaemon=\(vhidDaemonOK), vhidManager=\(vhidManagerOK)")
-        return success
+        let prepared: (tempFiles: [String], commands: [String])
+        do {
+            prepared = try preparePlistInstall(specs: specs)
+        } catch {
+            AppLogger.shared.log("❌ [ServiceBootstrapper] Failed to prepare service plists: \(error)")
+            return false
+        }
+
+        defer {
+            for tempFile in prepared.tempFiles {
+                try? FileManager.default.removeItem(atPath: tempFile)
+            }
+        }
+
+        let result = await executePrivilegedBatch(
+            label: "install service plists",
+            commands: prepared.commands,
+            prompt: "KeyPath needs to install the service plists."
+        )
+        AppLogger.shared.log(
+            "🔧 [ServiceBootstrapper] Install-only result: success=\(result.success)"
+        )
+        return result.success
     }
 }
