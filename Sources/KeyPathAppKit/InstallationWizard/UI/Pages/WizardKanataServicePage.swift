@@ -53,7 +53,7 @@ struct WizardKanataServicePage: View {
             switch self {
             case .running: "Service is running"
             case .stopped: "Service is not running"
-            case let .failed(error): "Service error: \(error)"
+            case .failed: "Service error"
             case .starting: "Service is starting..."
             case .stopping: "Service is stopping..."
             case .unknown: "Checking service status..."
@@ -129,22 +129,20 @@ struct WizardKanataServicePage: View {
             case .running:
                 actionStatus = .success(message: "\(actionName) succeeded")
                 scheduleStatusClear()
-            case let .failed(error):
-                actionStatus = .error(message: "\(actionName) failed: \(error)")
+            case .failed:
+                actionStatus = .error(message: "\(actionName) failed. Try again.")
             default:
-                actionStatus = .error(
-                    message: "\(actionName) did not complete. Current state: \(serviceStatus.description)")
+                actionStatus = .error(message: "\(actionName) did not complete. Try again.")
             }
         case .stopped:
             switch serviceStatus {
             case .stopped:
                 actionStatus = .success(message: "\(actionName) succeeded")
                 scheduleStatusClear()
-            case let .failed(error):
-                actionStatus = .error(message: "\(actionName) encountered an error: \(error)")
+            case .failed:
+                actionStatus = .error(message: "\(actionName) failed. Try again.")
             default:
-                actionStatus = .error(
-                    message: "\(actionName) did not complete. Current state: \(serviceStatus.description)")
+                actionStatus = .error(message: "\(actionName) did not complete. Try again.")
             }
         }
     }
@@ -187,8 +185,8 @@ struct WizardKanataServicePage: View {
             "Kanata is running and ready to process keyboard events."
         case .stopped:
             "Kanata service is not running. Click Fix to start it."
-        case let .failed(error):
-            "Kanata service encountered an error: \(error)"
+        case .failed:
+            "Kanata failed to start. Click Fix to retry."
         case .starting:
             "Starting Kanata service…"
         case .stopping:
@@ -356,6 +354,14 @@ struct WizardKanataServicePage: View {
     /// Extract config parsing error from kanata stderr log
     /// Returns a user-friendly error message if a recent config error is found
     private func extractConfigError(from stderrPath: String) -> String? {
+        // Ignore stale stderr logs so old config errors don't surface after reinstalls.
+        let maxLogAge: TimeInterval = 10 * 60
+        if let attributes = try? FileManager.default.attributesOfItem(atPath: stderrPath),
+           let modifiedAt = attributes[.modificationDate] as? Date,
+           Date().timeIntervalSince(modifiedAt) > maxLogAge {
+            return nil
+        }
+
         guard let logData = try? String(contentsOfFile: stderrPath, encoding: .utf8) else {
             return nil
         }

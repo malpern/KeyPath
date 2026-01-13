@@ -267,10 +267,9 @@ struct WizardKanataComponentsPage: View {
         if case let .component(component) = issue.identifier {
             switch component {
             case .kanataBinaryMissing:
-                return
-                    "Kanata must be installed to /Library/KeyPath/bin/kanata for stable macOS permissions (Input Monitoring + Accessibility). KeyPath can install it automatically."
+                return "Kanata is required for remapping. Click Fix to install it."
             case .kanataService:
-                return "Service configuration files for running kanata in the background"
+                return "Background service configuration required for Kanata."
             default:
                 return issue.description
             }
