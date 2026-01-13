@@ -460,12 +460,22 @@ struct WizardKarabinerComponentsPage: View {
         if vhidIssues.contains(where: { $0.identifier == .component(.vhidDriverVersionMismatch) }) {
             AppLogger.shared.log("🧭 [FIX-VHID \(session)] Action: fixDriverVersionMismatch")
             success = await performAutoFix(.fixDriverVersionMismatch)
-        } else if vhidIssues.contains(where: { $0.identifier == .component(.vhidDaemonMisconfigured) }) {
-            AppLogger.shared.log("🧭 [FIX-VHID \(session)] Action: repairVHIDDaemonServices")
-            success = await performAutoFix(.repairVHIDDaemonServices)
+        }
+
+        if vhidIssues.contains(where: { $0.identifier == .component(.vhidDaemonMisconfigured) }) {
+            AppLogger.shared.log("🧭 [FIX-VHID \(session)] Action: repairVHIDDaemonServices (misconfigured)")
+            success = await performAutoFix(.repairVHIDDaemonServices) || success
+        }
+
+        let needsDaemonRepair = vhidIssues.contains(where: { $0.identifier == .component(.vhidDeviceRunning) }) ||
+            issues.contains(where: { $0.identifier == .component(.karabinerDaemon) }) ||
+            issues.contains(where: { $0.identifier == .component(.launchDaemonServicesUnhealthy) })
+        if needsDaemonRepair {
+            AppLogger.shared.log("🧭 [FIX-VHID \(session)] Action: repairVHIDDaemonServices (daemon not running)")
+            success = await performAutoFix(.repairVHIDDaemonServices) || success
         } else if vhidIssues.contains(where: { $0.identifier == .component(.launchDaemonServices) }) {
             AppLogger.shared.log("🧭 [FIX-VHID \(session)] Action: installLaunchDaemonServices")
-            success = await performAutoFix(.installLaunchDaemonServices)
+            success = await performAutoFix(.installLaunchDaemonServices) || success
         }
 
         // Always run a verified restart last to ensure single-owner state
