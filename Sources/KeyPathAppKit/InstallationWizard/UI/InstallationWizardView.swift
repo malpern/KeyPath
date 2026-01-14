@@ -56,6 +56,7 @@ struct InstallationWizardView: View {
 
     // Task management for race condition prevention
     @State private var refreshTask: Task<Void, Never>?
+    @State private var summaryRefreshTask: Task<Void, Never>?
     @State private var isForceClosing = false // Prevent new operations after nuclear close
     @State private var loginItemsPollingTask: Task<Void, Never>? // Polls for Login Items approval
     @State private var statusBannerMessage: String?
@@ -170,6 +171,9 @@ struct InstallationWizardView: View {
         }
         .onChange(of: navigationCoordinator.currentPage) { oldPage, newPage in
             AppLogger.shared.log("🧭 [Wizard] View detected page change: \(oldPage) → \(newPage)")
+            if newPage == .summary, !isValidating {
+                refreshStateForSummaryEntry(previousPage: oldPage)
+            }
         }
         .onChange(of: navSequence) { _, newSeq in
             if !showAllSummaryItems {
@@ -1184,6 +1188,99 @@ struct InstallationWizardView: View {
         }
     }
 
+    private func refreshStateForSummaryEntry(previousPage: WizardPage?) {
+        // Check if force closing is in progress
+        guard !isForceClosing else {
+            AppLogger.shared.log("🔍 [Wizard] Summary refresh blocked - force closing in progress")
+            return
+        }
+
+        let now = Date()
+        if let last = lastRefreshAt, now.timeIntervalSince(last) < 0.3 {
+            AppLogger.shared.log("🔍 [Wizard] Summary refresh skipped (debounced)")
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isValidating = true
+            }
+            currentIssues = []
+            return
+        }
+        lastRefreshAt = now
+
+        AppLogger.shared.log("🔍 [Wizard] Refreshing summary state after navigation")
+
+        // Show validating state to avoid stale/red summary flash
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isValidating = true
+        }
+        currentIssues = []
+
+        summaryRefreshTask?.cancel()
+        summaryRefreshTask = Task { [previousPage] in
+            if await MainActor.run { asyncOperationManager.hasRunningOperations } {
+                AppLogger.shared.log("🔍 [Wizard] Summary refresh waiting for in-flight operations")
+                while !Task.isCancelled,
+                      await MainActor.run { asyncOperationManager.hasRunningOperations } {
+                    _ = await WizardSleep.ms(200)
+                }
+            }
+
+            guard !Task.isCancelled else { return }
+
+            // Give the TCP server a moment to come back after leaving the communication page
+            if previousPage == .communication {
+                _ = await WizardSleep.seconds(1)
+            }
+
+            await MainActor.run {
+                runSummaryStateDetection(previousPage: previousPage, attempt: 0)
+            }
+        }
+    }
+
+    @MainActor
+    private func runSummaryStateDetection(previousPage: WizardPage?, attempt: Int) {
+        guard !isForceClosing else { return }
+
+        let operation = WizardOperations.stateDetection(
+            stateManager: nil,
+            stateMachine: stateMachine,
+            progressCallback: { _ in }
+        )
+
+        asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
+            if shouldRetrySummaryState(result: result, previousPage: previousPage, attempt: attempt) {
+                AppLogger.shared.log("🔍 [Wizard] Summary refresh deferring result (TCP warm-up)")
+                Task {
+                    _ = await WizardSleep.seconds(1.5)
+                    await MainActor.run {
+                        runSummaryStateDetection(previousPage: previousPage, attempt: attempt + 1)
+                    }
+                }
+                return
+            }
+
+            _ = applySystemStateResult(result)
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isValidating = false
+            }
+        }
+    }
+
+    private func shouldRetrySummaryState(
+        result: SystemStateResult,
+        previousPage: WizardPage?,
+        attempt: Int
+    ) -> Bool {
+        guard previousPage == .communication, attempt == 0 else { return false }
+
+        switch result.state {
+        case .serviceNotRunning, .daemonNotRunning:
+            return true
+        default:
+            return false
+        }
+    }
+
     @MainActor
     private func autoNavigateIfSingleIssue(in issues: [WizardIssue], state _: WizardSystemState) {
         AppLogger.shared.log("🔍 [AutoNav] ===== autoNavigateIfSingleIssue CALLED =====")
@@ -1483,6 +1580,7 @@ struct InstallationWizardView: View {
         // Cancel monitoring tasks
         AppLogger.shared.log("🔴 [FORCE-CLOSE] Cancelling refresh task...")
         refreshTask?.cancel()
+        summaryRefreshTask?.cancel()
         stopLoginItemsApprovalPolling()
         AppLogger.shared.log("🔴 [FORCE-CLOSE] Refresh and polling tasks cancelled")
 
