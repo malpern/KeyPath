@@ -310,8 +310,11 @@ struct WizardKanataServicePage: View {
         }
 
         if case .stopped = derivedStatus {
+            serviceStatus = .stopped
             AppLogger.shared.log("🔍 [ServiceStatus] Service stopped - checking for crash indicators")
-            checkForCrash()
+            Task {
+                await checkForCrashAsync()
+            }
             return
         }
 
@@ -324,31 +327,53 @@ struct WizardKanataServicePage: View {
         serviceStatus = derivedStatus
     }
 
-    private func checkForCrash() {
+    private func checkForCrashAsync() async {
         // First check stderr log for config parsing errors (more detailed)
         let stderrPath = "/var/log/com.keypath.kanata.stderr.log"
         if let configError = extractConfigError(from: stderrPath) {
-            serviceStatus = .failed(error: configError)
+            await MainActor.run {
+                serviceStatus = .failed(error: configError)
+            }
             return
         }
 
         // Fall back to stdout log for other errors
         let logPath = WizardSystemPaths.kanataLogFile
-
-        if let logData = try? String(contentsOfFile: logPath, encoding: .utf8) {
-            let lines = logData.components(separatedBy: .newlines)
-            let recentLines = lines.suffix(20) // Check last 20 lines
+        if let logData = readRecentLogData(from: logPath, maxBytes: 64 * 1024) {
+            let logString = String(decoding: logData, as: UTF8.self)
+            let lines = logString.components(separatedBy: .newlines)
+            let recentLines = lines.suffix(40) // Check last 40 lines
 
             for line in recentLines.reversed() {
                 if line.contains("ERROR") || line.contains("FATAL") || line.contains("panic") {
-                    serviceStatus = .failed(error: extractErrorMessage(from: line))
+                    await MainActor.run {
+                        serviceStatus = .failed(error: extractErrorMessage(from: line))
+                    }
                     return
                 }
             }
         }
 
         // No error detected, just not running
-        serviceStatus = .stopped
+        await MainActor.run {
+            serviceStatus = .stopped
+        }
+    }
+
+    private func readRecentLogData(from path: String, maxBytes: Int) -> Data? {
+        guard let handle = FileHandle(forReadingAtPath: path) else { return nil }
+        defer {
+            try? handle.close()
+        }
+
+        do {
+            let endOffset = try handle.seekToEnd()
+            let startOffset = max(0, Int64(endOffset) - Int64(maxBytes))
+            try handle.seek(toOffset: UInt64(startOffset))
+            return try handle.readToEnd()
+        } catch {
+            return nil
+        }
     }
 
     /// Extract config parsing error from kanata stderr log
