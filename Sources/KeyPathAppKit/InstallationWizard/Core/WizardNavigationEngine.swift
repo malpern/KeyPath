@@ -54,9 +54,12 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
         }
 
         // Preserve single-show Full Disk Access behavior here.
-        if corePage == .summary, !hasShownFullDiskAccessPage, state != .active {
+        // Show FDA once when we're otherwise ready to finalize setup (summary or Kanata setup).
+        if !hasShownFullDiskAccessPage,
+           state != .active,
+           (corePage == .summary || corePage == .kanataComponents) {
             AppLogger.shared.log(
-                "🔍 [NavigationEngine] → .fullDiskAccess (no blocking issues - checking optional FDA)")
+                "🔍 [NavigationEngine] → .fullDiskAccess (optional FDA before final setup)")
             hasShownFullDiskAccessPage = true
             return .fullDiskAccess
         }
@@ -201,7 +204,7 @@ final class WizardNavigationEngine: WizardNavigating, @unchecked Sendable {
         case .karabinerComponents:
             "Install Karabiner Components"
         case .kanataComponents:
-            "Install Kanata Components"
+            "Finalize Kanata Setup"
         case .helper:
             await HelperManager.shared.isHelperInstalled() ? "Manage Helper" : "Install Helper"
         case .communication:

@@ -19,6 +19,14 @@ enum WizardRouter {
                 return issue.identifier == identifier
             }
         }
+        let hasComponentIssue: (ComponentRequirement) -> Bool = { component in
+            issues.contains { issue in
+                if case let .component(comp) = issue.identifier {
+                    return comp == component
+                }
+                return false
+            }
+        }
 
         // 1. Conflicts (highest priority)
         if issues.contains(where: { $0.category == .conflicts }) {
@@ -46,62 +54,37 @@ enum WizardRouter {
             return .accessibility
         }
 
-        // 4. Communication configuration
-        let hasCommunicationIssues = issues.contains {
-            if $0.category == .installation {
-                switch $0.identifier {
-                case .component(.communicationServerConfiguration),
-                     .component(.communicationServerNotResponding),
-                     .component(.tcpServerConfiguration),
-                     .component(.tcpServerNotResponding):
-                    return true
-                default:
-                    return false
-                }
-            }
-            return false
-        }
-        if hasCommunicationIssues { return .communication }
-
-        // 5. Karabiner components (driver/VHID/background services)
-        let hasKarabinerIssues = issues.contains {
-            if $0.category == .installation {
-                switch $0.identifier {
-                case .component(.karabinerDriver),
-                     .component(.karabinerDaemon),
-                     .component(.vhidDeviceManager),
-                     .component(.vhidDeviceActivation),
-                     .component(.vhidDeviceRunning),
-                     .component(.launchDaemonServices),
-                     .component(.vhidDaemonMisconfigured),
-                     .component(.vhidDriverVersionMismatch):
-                    return true
-                default:
-                    return false
-                }
-            }
-            return false
-        }
+        // 4. Karabiner components (driver/VHID/background services)
+        let hasKarabinerIssues = [
+            .karabinerDriver,
+            .karabinerDaemon,
+            .vhidDeviceManager,
+            .vhidDeviceActivation,
+            .vhidDeviceRunning,
+            .launchDaemonServices,
+            .vhidDaemonMisconfigured,
+            .vhidDriverVersionMismatch
+        ].contains { hasComponentIssue($0) }
         if hasKarabinerIssues { return .karabinerComponents }
 
-        // 6. Kanata components (binary/service)
-        let hasKanataIssues = issues.contains {
-            if $0.category == .installation {
-                switch $0.identifier {
-                case .component(.kanataBinaryMissing), .component(.kanataService):
-                    return true
-                default:
-                    return false
-                }
-            }
-            return false
-        }
+        // 5. Kanata setup (engine + service + communication)
+        let hasKanataIssues = [
+            .kanataBinaryMissing,
+            .kanataService,
+            .launchDaemonServices,
+            .launchDaemonServicesUnhealthy,
+            .orphanedKanataProcess,
+            .communicationServerConfiguration,
+            .communicationServerNotResponding,
+            .tcpServerConfiguration,
+            .tcpServerNotResponding
+        ].contains { hasComponentIssue($0) }
         if hasKanataIssues { return .kanataComponents }
 
-        // 7. Service readiness
+        // 6. Service readiness (finalize on Kanata setup page)
         switch state {
         case .serviceNotRunning, .ready, .daemonNotRunning:
-            return .service
+            return .kanataComponents
         default:
             break
         }

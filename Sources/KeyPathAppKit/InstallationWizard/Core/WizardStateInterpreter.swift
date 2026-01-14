@@ -170,10 +170,16 @@ struct WizardStateInterpreter {
         case .kanataComponents:
             // Kanata-related components
             issues.filter { issue in
-                if issue.category == .installation {
-                    switch issue.identifier {
-                    case .component(.kanataBinaryMissing),
-                         .component(.kanataService):
+                if case let .component(component) = issue.identifier {
+                    switch component {
+                    case .kanataBinaryMissing,
+                         .kanataService,
+                         .launchDaemonServicesUnhealthy,
+                         .orphanedKanataProcess,
+                         .communicationServerConfiguration,
+                         .communicationServerNotResponding,
+                         .tcpServerConfiguration,
+                         .tcpServerNotResponding:
                         return true
                     default:
                         return false

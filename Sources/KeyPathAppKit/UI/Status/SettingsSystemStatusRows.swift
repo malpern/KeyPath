@@ -15,8 +15,8 @@ enum SettingsSystemStatusRowsBuilder {
     static func rows(
         wizardSystemState: WizardSystemState,
         wizardIssues: [WizardIssue],
-        systemContext: SystemContext?,
-        tcpConfigured: Bool?,
+        systemContext _: SystemContext?,
+        tcpConfigured _: Bool?,
         hasFullDiskAccess: Bool
     ) -> [SettingsSystemStatusRowModel] {
         // Mirror wizard summary ordering and semantics.
@@ -44,23 +44,7 @@ enum SettingsSystemStatusRowsBuilder {
             )
         )
 
-        // 2) Full Disk Access (optional)
-        let fdaStatus: InstallationStatus = wizardSystemState == .initializing
-            ? .notStarted
-            : (hasFullDiskAccess ? .completed : .notStarted)
-        let fdaMessage: String? = fdaStatus != .completed ? "Full Disk Access not granted" : nil
-        rows.append(
-            SettingsSystemStatusRowModel(
-                id: "full-disk-access",
-                title: "Full Disk Access (Optional)",
-                icon: "folder",
-                status: fdaStatus,
-                targetPage: .fullDiskAccess,
-                message: fdaMessage
-            )
-        )
-
-        // 3) Conflicts
+        // 2) Conflicts
         let conflictIssues = wizardIssues.filter { $0.category == .conflicts }
         let conflictStatus: InstallationStatus = wizardSystemState == .initializing
             ? .notStarted
@@ -77,7 +61,7 @@ enum SettingsSystemStatusRowsBuilder {
             )
         )
 
-        // 4) Karabiner Driver (permissions are shown in dedicated section above)
+        // 3) Karabiner Driver (permissions are shown in dedicated section above)
         let karabinerStatus = KarabinerComponentsStatusEvaluator.evaluate(
             systemState: wizardSystemState,
             issues: wizardIssues
@@ -99,60 +83,46 @@ enum SettingsSystemStatusRowsBuilder {
             )
         )
 
-        // 5) Kanata Service
-        let daemonIssues = wizardIssues.filter(\.identifier.isDaemon)
-        let blockingPermissionIssue = ServiceStatusEvaluator.blockingIssueMessage(from: wizardIssues)
-        let serviceStatus: InstallationStatus = {
-            if wizardSystemState == .initializing { return .inProgress }
-            if !daemonIssues.isEmpty {
-                return issueStatus(for: daemonIssues)
-            }
-            if blockingPermissionIssue != nil {
-                return .failed
-            }
-            if systemContext?.services.kanataRunning == true {
-                return .completed
-            }
-            return .notStarted
-        }()
-        let serviceMessage: String? = {
-            if serviceStatus != .completed {
-                return blockingPermissionIssue ?? daemonIssues.first?.title
-            }
-            return nil
-        }()
+        // 4) Full Disk Access (optional)
+        let fdaStatus: InstallationStatus = wizardSystemState == .initializing
+            ? .notStarted
+            : (hasFullDiskAccess ? .completed : .notStarted)
+        let fdaMessage: String? = fdaStatus != .completed ? "Full Disk Access not granted" : nil
         rows.append(
             SettingsSystemStatusRowModel(
-                id: "kanata-service",
-                title: "Kanata Service",
-                icon: "app.badge.checkmark",
-                status: serviceStatus,
-                targetPage: .service,
-                message: serviceMessage
+                id: "full-disk-access",
+                title: "Full Disk Access (Optional)",
+                icon: "folder",
+                status: fdaStatus,
+                targetPage: .fullDiskAccess,
+                message: fdaMessage
             )
         )
 
-        // 6) Kanata Engine Setup (only once driver is healthy, mirrors wizard)
+        // 5) Kanata Setup (only once driver is healthy, mirrors wizard)
         if karabinerStatus == .completed {
             let kanataIssues = wizardIssues.filter { issue in
-                if issue.category == .installation {
-                    switch issue.identifier {
-                    case .component(.kanataBinaryMissing),
-                         .component(.kanataService),
-                         .component(.orphanedKanataProcess):
-                        return true
-                    default:
-                        return false
-                    }
+                switch issue.identifier {
+                case .component(.kanataBinaryMissing),
+                     .component(.kanataService),
+                     .component(.launchDaemonServices),
+                     .component(.launchDaemonServicesUnhealthy),
+                     .component(.orphanedKanataProcess),
+                     .component(.communicationServerConfiguration),
+                     .component(.communicationServerNotResponding),
+                     .component(.tcpServerConfiguration),
+                     .component(.tcpServerNotResponding):
+                    return true
+                default:
+                    return false
                 }
-                return false
             }
             let kanataStatus = issueStatus(for: kanataIssues)
             let kanataMessage: String? = kanataStatus != .completed ? kanataIssues.first?.title : nil
             rows.append(
                 SettingsSystemStatusRowModel(
                     id: "kanata-components",
-                    title: "Kanata Engine Setup",
+                    title: "Kanata Setup",
                     icon: "cpu.fill",
                     status: kanataStatus,
                     targetPage: .kanataComponents,
@@ -160,32 +130,6 @@ enum SettingsSystemStatusRowsBuilder {
                 )
             )
         }
-
-        // 7) TCP Communication
-        let commStatus: InstallationStatus = {
-            if wizardSystemState == .initializing { return .notStarted }
-            guard systemContext?.services.kanataRunning == true else { return .notStarted }
-            guard let tcpConfigured else { return .inProgress }
-            return tcpConfigured ? .completed : .failed
-        }()
-        let commMessage: String? = {
-            if commStatus == .failed {
-                return "TCP port configuration missing"
-            } else if commStatus == .inProgress {
-                return "Checking TCP configuration…"
-            }
-            return nil
-        }()
-        rows.append(
-            SettingsSystemStatusRowModel(
-                id: "tcp-communication",
-                title: "TCP Communication",
-                icon: "network",
-                status: commStatus,
-                targetPage: .communication,
-                message: commMessage
-            )
-        )
 
         return rows
     }

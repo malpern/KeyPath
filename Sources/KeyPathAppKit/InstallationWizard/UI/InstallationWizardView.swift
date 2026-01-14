@@ -349,6 +349,7 @@ struct InstallationWizardView: View {
                     isFixing: fixInFlight,
                     blockingFixDescription: currentFixDescriptionForUI,
                     onAutoFix: performAutoFix,
+                    onFixAll: { await performAutoFixAll() },
                     onRefresh: { refreshState() },
                     kanataManager: kanataManager
                 )
@@ -728,7 +729,7 @@ struct InstallationWizardView: View {
 
     // MARK: - Actions
 
-    private func performAutoFix() {
+    private func performAutoFixAll() async -> Bool {
         AppLogger.shared.log(
             "🔍 [Wizard] *** FIX BUTTON CLICKED *** Auto-fix started via InstallerEngine")
         AppLogger.shared.log("🔍 [Wizard] Current issues: \(currentIssues.count) total")
@@ -744,115 +745,118 @@ struct InstallationWizardView: View {
             }
         }
 
-        // Use InstallerEngine to repair all issues at once (with façade fast-path)
-        Task {
-            guard !fixInFlight else {
-                await MainActor.run {
-                    toastManager.showInfo("Another fix is already running…", duration: 3.0)
-                }
-                return
-            }
-            await MainActor.run { fixInFlight = true }
-            defer { Task { @MainActor in fixInFlight = false } }
-
-            let smState = await KanataDaemonManager.shared.refreshManagementState()
-            if smState == .smappservicePending {
-                await MainActor.run {
-                    toastManager.showError(
-                        "Enable KeyPath in System Settings → Login Items before running Fix.",
-                        duration: 6.0
-                    )
-                }
-                return
-            }
-
-            if await attemptFastRestartFix() {
-                AppLogger.shared.log(
-                    "✅ [Wizard] Fast-path restart resolved issues; skipping InstallerEngine repair"
-                )
-                return
-            }
-
-            if await attemptAutoFixActions() {
-                AppLogger.shared.log(
-                    "✅ [Wizard] Auto-fix actions resolved issues; skipping InstallerEngine repair"
-                )
-                await MainActor.run {
-                    toastManager.showSuccess("Issues resolved", duration: 4.0)
-                }
-                return
-            }
-
-            let report = await kanataManager.runFullRepair(reason: "Wizard Fix button fallback repair")
-
-            await MainActor.run {
-                if report.success {
-                    let successCount = report.executedRecipes.filter(\.success).count
-                    let totalCount = report.executedRecipes.count
-                    if totalCount > 0 {
-                        toastManager.showSuccess(
-                            "Repaired \(successCount) of \(totalCount) issue(s) successfully",
-                            duration: 5.0
-                        )
-                    } else {
-                        toastManager.showInfo("No issues found to repair", duration: 3.0)
-                    }
-                } else {
-                    let failureReason = report.failureReason ?? "Unknown error"
-                    toastManager.showError("Repair failed: \(failureReason)", duration: 7.0)
-                }
-            }
-
-            // Log report details
-            AppLogger.shared.log(
-                "🔧 [Wizard] InstallerEngine repair completed - success: \(report.success)")
-            AppLogger.shared.log("🔧 [Wizard] Executed recipes: \(report.executedRecipes.count)")
-            for (index, result) in report.executedRecipes.enumerated() {
-                AppLogger.shared.log(
-                    "🔧 [Wizard] Recipe \(index + 1): \(result.recipeID) - \(result.success ? "success" : "failed")"
-                )
-            }
-            if let failureReason = report.failureReason {
-                AppLogger.shared.log("❌ [Wizard] Failure reason: \(failureReason)")
-            }
-
-            // Refresh state after repair
-            refreshState()
-
-            // Post-repair health check for VHID-related issues
-            if currentIssues.contains(where: { issue in
-                if let action = issue.autoFixAction {
-                    return action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon
-                }
+        let canRun = await MainActor.run {
+            if fixInFlight {
+                toastManager.showInfo("Another fix is already running…", duration: 3.0)
                 return false
-            }) {
-                Task {
-                    _ = await WizardSleep.seconds(2) // allow services to settle
-                    let latestResult = await stateManager.detectCurrentState()
-                    let filteredIssues = sanitizedIssues(from: latestResult.issues, for: latestResult.state)
-                    await MainActor.run {
-                        systemState = latestResult.state
-                        currentIssues = filteredIssues
-                    }
-                    let karabinerStatus = KarabinerComponentsStatusEvaluator.evaluate(
-                        systemState: latestResult.state,
-                        issues: filteredIssues
+            }
+            fixInFlight = true
+            return true
+        }
+        guard canRun else { return false }
+        defer { Task { @MainActor in fixInFlight = false } }
+
+        let smState = await KanataDaemonManager.shared.refreshManagementState()
+        if smState == .smappservicePending {
+            await MainActor.run {
+                toastManager.showError(
+                    "Enable KeyPath in System Settings → Login Items before running Fix.",
+                    duration: 6.0
+                )
+            }
+            return false
+        }
+
+        if await attemptFastRestartFix() {
+            AppLogger.shared.log(
+                "✅ [Wizard] Fast-path restart resolved issues; skipping InstallerEngine repair"
+            )
+            return true
+        }
+
+        if await attemptAutoFixActions() {
+            AppLogger.shared.log(
+                "✅ [Wizard] Auto-fix actions resolved issues; skipping InstallerEngine repair"
+            )
+            await MainActor.run {
+                toastManager.showSuccess("Issues resolved", duration: 4.0)
+            }
+            return true
+        }
+
+        let report = await kanataManager.runFullRepair(reason: "Wizard Fix button fallback repair")
+
+        await MainActor.run {
+            if report.success {
+                let successCount = report.executedRecipes.filter(\.success).count
+                let totalCount = report.executedRecipes.count
+                if totalCount > 0 {
+                    toastManager.showSuccess(
+                        "Repaired \(successCount) of \(totalCount) issue(s) successfully",
+                        duration: 5.0
                     )
+                } else {
+                    toastManager.showInfo("No issues found to repair", duration: 3.0)
+                }
+            } else {
+                let failureReason = report.failureReason ?? "Unknown error"
+                toastManager.showError("Repair failed: \(failureReason)", duration: 7.0)
+            }
+        }
+
+        // Log report details
+        AppLogger.shared.log(
+            "🔧 [Wizard] InstallerEngine repair completed - success: \(report.success)")
+        AppLogger.shared.log("🔧 [Wizard] Executed recipes: \(report.executedRecipes.count)")
+        for (index, result) in report.executedRecipes.enumerated() {
+            AppLogger.shared.log(
+                "🔧 [Wizard] Recipe \(index + 1): \(result.recipeID) - \(result.success ? "success" : "failed")"
+            )
+        }
+        if let failureReason = report.failureReason {
+            AppLogger.shared.log("❌ [Wizard] Failure reason: \(failureReason)")
+        }
+
+        // Refresh state after repair
+        await MainActor.run {
+            refreshState()
+        }
+
+        // Post-repair health check for VHID-related issues
+        if currentIssues.contains(where: { issue in
+            if let action = issue.autoFixAction {
+                return action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon
+            }
+            return false
+        }) {
+            Task {
+                _ = await WizardSleep.seconds(2) // allow services to settle
+                let latestResult = await stateManager.detectCurrentState()
+                let filteredIssues = sanitizedIssues(from: latestResult.issues, for: latestResult.state)
+                await MainActor.run {
+                    systemState = latestResult.state
+                    currentIssues = filteredIssues
+                }
+                let karabinerStatus = KarabinerComponentsStatusEvaluator.evaluate(
+                    systemState: latestResult.state,
+                    issues: filteredIssues
+                )
+                AppLogger.shared.log(
+                    "🔍 [Wizard] Post-repair health check: karabinerStatus=\(karabinerStatus)")
+                if karabinerStatus != .completed {
+                    let detail = await kanataManager.getVirtualHIDBreakageSummary()
                     AppLogger.shared.log(
-                        "🔍 [Wizard] Post-repair health check: karabinerStatus=\(karabinerStatus)")
-                    if karabinerStatus != .completed {
-                        let detail = await kanataManager.getVirtualHIDBreakageSummary()
-                        AppLogger.shared.log(
-                            "❌ [Wizard] Post-repair health check failed; showing diagnostic toast")
-                        await MainActor.run {
-                            toastManager.showError(
-                                "Karabiner driver is still not healthy.\n\n\(detail)", duration: 7.0
-                            )
-                        }
+                        "❌ [Wizard] Post-repair health check failed; showing diagnostic toast")
+                    await MainActor.run {
+                        toastManager.showError(
+                            "Karabiner driver is still not healthy.\n\n\(detail)", duration: 7.0
+                        )
                     }
                 }
             }
         }
+
+        return report.success
     }
 
     private func attemptFastRestartFix() async -> Bool {
@@ -1226,8 +1230,8 @@ struct InstallationWizardView: View {
 
             guard !Task.isCancelled else { return }
 
-            // Give the TCP server a moment to come back after leaving the communication page
-            if previousPage == .communication {
+            // Give the service a moment to settle after leaving Kanata setup
+            if previousPage == .kanataComponents {
                 _ = await WizardSleep.seconds(1)
             }
 
@@ -1271,7 +1275,7 @@ struct InstallationWizardView: View {
         previousPage: WizardPage?,
         attempt: Int
     ) -> Bool {
-        guard previousPage == .communication, attempt == 0 else { return false }
+        guard previousPage == .kanataComponents, attempt == 0 else { return false }
 
         switch result.state {
         case .serviceNotRunning, .daemonNotRunning:
@@ -1315,8 +1319,8 @@ struct InstallationWizardView: View {
         guard page != .summary else { return nil }
 
         let hasExactlyOneIssue = issues.count == 1
-        let serviceOnly = issues.isEmpty && page == .service
-        return (hasExactlyOneIssue || serviceOnly) ? page : nil
+        let kanataSetupOnly = issues.isEmpty && page == .kanataComponents
+        return (hasExactlyOneIssue || kanataSetupOnly) ? page : nil
     }
 
     private func cachedPreferredPage() async -> WizardPage? {
@@ -1712,7 +1716,7 @@ struct InstallationWizardView: View {
         guard navigationCoordinator.currentPage != .summary else { return }
         let defaultSequence: [WizardPage] = [
             .fullDiskAccess, .conflicts, .inputMonitoring, .accessibility,
-            .karabinerComponents, .kanataComponents, .service, .communication
+            .karabinerComponents, .kanataComponents
         ]
         let sequence = navSequence.isEmpty ? defaultSequence : navSequence
         guard let idx = sequence.firstIndex(of: navigationCoordinator.currentPage), idx > 0 else {
@@ -1728,7 +1732,7 @@ struct InstallationWizardView: View {
         guard navigationCoordinator.currentPage != .summary else { return }
         let defaultSequence: [WizardPage] = [
             .fullDiskAccess, .conflicts, .inputMonitoring, .accessibility,
-            .karabinerComponents, .kanataComponents, .service, .communication
+            .karabinerComponents, .kanataComponents
         ]
         let sequence = navSequence.isEmpty ? defaultSequence : navSequence
         guard let idx = sequence.firstIndex(of: navigationCoordinator.currentPage),

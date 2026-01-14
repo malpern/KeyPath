@@ -334,26 +334,24 @@ struct WizardSummaryPage: View {
         )
         if karabinerStatus == .failed { count += 1 }
 
-        // 6. Kanata Engine Setup (failed => red)
+        // 6. Kanata Setup (failed => red)
         let hasKanataIssues = issues.contains { issue in
-            if issue.category == .installation {
-                switch issue.identifier {
-                case .component(.kanataBinaryMissing),
-                     .component(.kanataService),
-                     .component(.orphanedKanataProcess):
-                    return true
-                default:
-                    return false
-                }
+            guard case let .component(component) = issue.identifier else { return false }
+            switch component {
+            case .kanataBinaryMissing,
+                 .kanataService,
+                 .launchDaemonServicesUnhealthy,
+                 .orphanedKanataProcess,
+                 .communicationServerConfiguration,
+                 .communicationServerNotResponding,
+                 .tcpServerConfiguration,
+                 .tcpServerNotResponding:
+                return true
+            default:
+                return false
             }
-            return false
         }
         if hasKanataIssues { count += 1 }
-
-        // NOTE: Kanata Service (daemon issues) is NOT counted here because it's a
-        // dependent item that's hidden when earlier prerequisites fail.
-        // The service item only shows after: Karabiner Driver + Helper + Permissions are complete.
-        // Counting hidden items would inflate the count and confuse users.
 
         return count
     }

@@ -15,18 +15,18 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
                 targetPage: .helper
             ),
             LocalStatusItem(
-                id: "kanata-service",
-                icon: "antenna.radiowaves.left.and.right",
-                title: "Background Services",
+                id: "kanata-components",
+                icon: "cpu.fill",
+                title: "Kanata Setup",
                 status: .failed,
                 isNavigable: true,
-                targetPage: .service
+                targetPage: .kanataComponents
             )
         ]
 
         let filtered = filteredDisplayItems(items, showAllItems: false)
 
-        XCTAssertEqual(filtered.map(\.id), ["privileged-helper", "kanata-service"])
+        XCTAssertEqual(filtered.map(\.id), ["privileged-helper", "kanata-components"])
         XCTAssertEqual(filtered.count, 2, "Dependent rows should remain visible in filtered view")
     }
 

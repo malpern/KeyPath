@@ -5,7 +5,7 @@ The Installation Wizard is KeyPath's multi-step setup system that automatically 
 ## Overview
 
 The wizard handles:
-- **9 pages** of guided setup
+- **10 pages** of guided setup (including optional pages)
 - **50+ edge cases** for macOS configuration
 - **Automatic remediation** for most common issues
 - **State-driven navigation** based on system detection
@@ -17,7 +17,7 @@ KeyPath requires deep macOS system integration:
 - Karabiner-Elements VirtualHID driver installation
 - LaunchDaemon service management (requires root privileges)
 - Keyboard conflict detection and resolution
-- UDP server configuration for Kanata communication
+- TCP server configuration for Kanata communication
 - Driver version compatibility (v5 for kanata v1.9.0, v6 for v1.10+)
 
 The wizard's size reflects the **legitimate complexity** of making keyboard remapping "just work" on macOS.
@@ -45,7 +45,7 @@ InstallationWizard/
 └── Components/           # Reusable UI (5 files, ~500 lines)
 ```
 
-## The 9-Page Flow
+## The 10-Page Flow
 
 The wizard uses **state-driven navigation** - pages are shown dynamically based on detected issues:
 
@@ -56,50 +56,53 @@ The wizard uses **state-driven navigation** - pages are shown dynamically based 
 └─────────────────────────────────────────────────────────────────────┘
                                   ↓
 ┌─────────────────────────────────────────────────────────────────────┐
-│                   2. FULL DISK ACCESS (Optional)                    │
-│  Improves diagnostics - shown once if not blocking                 │
+│                     2. KANATA MIGRATION (Optional)                  │
+│  Import existing kanata config or adopt running process             │
 └─────────────────────────────────────────────────────────────────────┘
                                   ↓
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    3. RESOLVE CONFLICTS (Blocking)                  │
+│                  3. STOP EXTERNAL KANATA (Optional)                 │
+│  Ensures external kanata process is stopped before setup           │
+└─────────────────────────────────────────────────────────────────────┘
+                                  ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│                     4. PRIVILEGED HELPER (Blocking)                 │
+│  Installs helper required for privileged operations                 │
+└─────────────────────────────────────────────────────────────────────┘
+                                  ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│                    5. RESOLVE CONFLICTS (Blocking)                  │
 │  Detects conflicting processes (Karabiner-Grabber, orphaned Kanata) │
 │  Auto-fix: Terminates conflicts or adopts managed processes         │
 └─────────────────────────────────────────────────────────────────────┘
                                   ↓
 ┌─────────────────────────────────────────────────────────────────────┐
-│                 4. INPUT MONITORING PERMISSION                      │
-│  Required for both KeyPath (recording) and Kanata (remapping)      │
-│  User action: Opens System Settings                                │
-└─────────────────────────────────────────────────────────────────────┘
-                                  ↓
-┌─────────────────────────────────────────────────────────────────────┐
-│                  5. ACCESSIBILITY PERMISSION                        │
+│                  6. ACCESSIBILITY PERMISSION                        │
 │  Required for Kanata's keyboard event injection                    │
 │  User action: Opens System Settings                                │
 └─────────────────────────────────────────────────────────────────────┘
                                   ↓
 ┌─────────────────────────────────────────────────────────────────────┐
-│              6. KARABINER COMPONENTS (Blocking)                     │
+│                 7. INPUT MONITORING PERMISSION                      │
+│  Required for both KeyPath (recording) and Kanata (remapping)      │
+│  User action: Opens System Settings                                │
+└─────────────────────────────────────────────────────────────────────┘
+                                  ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│              8. KARABINER COMPONENTS (Blocking)                     │
 │  Installs: VirtualHID Driver, VirtualHID Manager, VirtualHID Daemon│
 │  Auto-fix: Downloads/installs missing components, handles versions │
 └─────────────────────────────────────────────────────────────────────┘
                                   ↓
 ┌─────────────────────────────────────────────────────────────────────┐
-│                7. KANATA COMPONENTS (Blocking)                      │
-│  Installs: Bundled Kanata binary, LaunchDaemon services            │
-│  Auto-fix: Copies signed binary, configures LaunchDaemon           │
+│                   9. FULL DISK ACCESS (Optional)                    │
+│  Improves diagnostics - shown once if not blocking                 │
 └─────────────────────────────────────────────────────────────────────┘
                                   ↓
 ┌─────────────────────────────────────────────────────────────────────┐
-│                      8. START SERVICE                               │
-│  Starts the Kanata LaunchDaemon service                            │
-│  Auto-fix: launchctl kickstart                                     │
-└─────────────────────────────────────────────────────────────────────┘
-                                  ↓
-┌─────────────────────────────────────────────────────────────────────┐
-│                  9. COMMUNICATION (Optional)                        │
-│  Configures UDP server for config hot-reload                       │
-│  Auto-fix: Generates auth token, updates service config            │
+│                      10. KANATA SETUP                               │
+│  Installs: Kanata binary, LaunchDaemon service, TCP comms           │
+│  Auto-fix: Copies signed binary, configures services, restarts      │
 └─────────────────────────────────────────────────────────────────────┘
                                   ↓
                             ✓ COMPLETE
@@ -110,13 +113,12 @@ The wizard uses **state-driven navigation** - pages are shown dynamically based 
 Pages are shown in priority order when issues are detected:
 
 1. **Conflicts** (highest) - Must resolve before anything else
-2. **Permissions** - Input Monitoring, then Accessibility
-3. **Communication** - UDP server configuration (optional but recommended)
+2. **Helper** - Required for privileged operations (Login Items approval)
+3. **Permissions** - Accessibility, then Input Monitoring
 4. **Karabiner Components** - Driver and VirtualHID setup
-5. **Kanata Components** - Binary and service installation
-6. **Service** - Starting the keyboard remapping service
-7. **Full Disk Access** - Shown once if no blocking issues
-8. **Summary** - Default when no issues detected
+5. **Kanata Setup** - Binary, service, and TCP communication
+6. **Full Disk Access** - Shown once if no blocking issues
+7. **Summary** - Default when no issues detected
 
 ## Core Components
 
@@ -153,8 +155,10 @@ Pages are shown in priority order when issues are detected:
 All wizard types are defined in `WizardTypes.swift` (433 lines):
 
 ### Pages (`WizardPage` enum)
-- `summary`, `fullDiskAccess`, `conflicts`, `inputMonitoring`, `accessibility`
-- `communication`, `karabinerComponents`, `kanataComponents`, `service`
+- `summary`, `kanataMigration`, `stopExternalKanata`, `helper`
+- `conflicts`, `accessibility`, `inputMonitoring`, `karabinerComponents`
+- `fullDiskAccess`, `kanataComponents`
+- `service`, `communication` (advanced/debug pages, not in the default flow)
 
 ### System State (`WizardSystemState` enum)
 - `initializing`, `conflictsDetected`, `missingPermissions`, `missingComponents`
@@ -181,13 +185,12 @@ The wizard uses `WizardNavigationEngine.determineCurrentPage()` to calculate the
 ```swift
 // Priority-based navigation (see WizardNavigationEngine.swift:19-149)
 1. Check for conflicts → .conflicts
-2. Check for permission issues → .inputMonitoring or .accessibility
-3. Check for communication issues → .communication
+2. Check helper readiness → .helper
+3. Check for permission issues → .inputMonitoring or .accessibility
 4. Check for Karabiner issues → .karabinerComponents
-5. Check for Kanata issues → .kanataComponents
-6. Check service state → .service
-7. Show Full Disk Access once → .fullDiskAccess (if not shown and no blocking issues)
-8. Default → .summary (all clear)
+5. Check for Kanata setup issues (engine/service/TCP) → .kanataComponents
+6. Show Full Disk Access once → .fullDiskAccess (before final setup)
+7. Default → .summary (all clear)
 ```
 
 This ensures users always see the **most critical issue first** without manual navigation.
@@ -214,8 +217,8 @@ InstallationWizardView.swift (1,020 lines)
 │   ├── WizardAccessibilityPage
 │   ├── WizardKarabinerComponentsPage
 │   ├── WizardKanataComponentsPage
-│   ├── WizardServicePage
-│   └── WizardCommunicationPage
+│   ├── WizardKanataServicePage (advanced/optional)
+│   └── WizardCommunicationPage (advanced/optional)
 ├── Page Dots (navigation indicators)
 └── Action Buttons (Next, Previous, Fix)
 ```

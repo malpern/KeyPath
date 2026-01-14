@@ -30,7 +30,7 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
         case .inputMonitoring: "Input Monitoring Permission"
         case .accessibility: "Accessibility Permission"
         case .karabinerComponents: "Karabiner Driver Setup"
-        case .kanataComponents: "Kanata Engine Setup"
+        case .kanataComponents: "Kanata Setup"
         case .kanataMigration: "Migrate Existing Kanata Config"
         case .stopExternalKanata: "Stop External Kanata"
         case .communication: "Communication Protocol"
@@ -66,14 +66,12 @@ public extension WizardPage {
         .kanataMigration,
         .stopExternalKanata,
         .helper,
-        .fullDiskAccess,
         .conflicts,
         .accessibility,
         .inputMonitoring,
         .karabinerComponents,
-        .kanataComponents,
-        .service,
-        .communication
+        .fullDiskAccess,
+        .kanataComponents
     ]
 }
 

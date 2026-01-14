@@ -207,8 +207,8 @@ struct WizardSystemStatusOverview: View {
     // MARK: - Animation Helpers
 
     private func isFinalKeyPathStatus(item: StatusItemModel) -> Bool {
-        // The Communication Server is the final status that should get pulse animation when completed
-        item.id == "communication-server" && item.status == .completed
+        // Kanata Setup is the final status that should get pulse animation when completed
+        item.id == "kanata-components" && item.status == .completed
     }
 
     private func shouldShowInitialClock(for item: StatusItemModel) -> Bool {
@@ -249,25 +249,7 @@ struct WizardSystemStatusOverview: View {
                 relatedIssues: helperIssues
             ))
 
-        // 3. Full Disk Access (Optional but recommended)
-        let hasFullDiskAccess = checkFullDiskAccess()
-        let fullDiskAccessStatus: InstallationStatus = {
-            if systemState == .initializing {
-                return .notStarted
-            }
-            return hasFullDiskAccess ? .completed : .notStarted
-        }()
-        items.append(
-            StatusItemModel(
-                id: "full-disk-access",
-                icon: "folder",
-                title: "Full Disk Access (Optional)",
-                status: fullDiskAccessStatus,
-                isNavigable: true,
-                targetPage: .fullDiskAccess
-            ))
-
-        // 4. System Conflicts
+        // 2. System Conflicts
         let conflictIssues = issues.filter { $0.category == .conflicts }
         let conflictStatus: InstallationStatus = {
             if systemState == .initializing {
@@ -286,26 +268,7 @@ struct WizardSystemStatusOverview: View {
                 relatedIssues: conflictIssues
             ))
 
-        // 5. Input Monitoring Permission
-        let inputMonitoringStatus = getInputMonitoringStatus()
-        let inputMonitoringIssues = issues.filter { issue in
-            if case let .permission(req) = issue.identifier {
-                return req == .keyPathInputMonitoring || req == .kanataInputMonitoring
-            }
-            return false
-        }
-        items.append(
-            StatusItemModel(
-                id: "input-monitoring",
-                icon: "eye",
-                title: "Input Monitoring Permission",
-                status: inputMonitoringStatus,
-                isNavigable: true,
-                targetPage: .inputMonitoring,
-                relatedIssues: inputMonitoringIssues
-            ))
-
-        // 6. Accessibility Permission
+        // 3. Accessibility Permission
         let accessibilityStatus = getAccessibilityStatus()
         let accessibilityIssues = issues.filter { issue in
             if case let .permission(req) = issue.identifier {
@@ -324,7 +287,26 @@ struct WizardSystemStatusOverview: View {
                 relatedIssues: accessibilityIssues
             ))
 
-        // 6. Karabiner Driver Setup (led first in list for clear dependency order)
+        // 4. Input Monitoring Permission
+        let inputMonitoringStatus = getInputMonitoringStatus()
+        let inputMonitoringIssues = issues.filter { issue in
+            if case let .permission(req) = issue.identifier {
+                return req == .keyPathInputMonitoring || req == .kanataInputMonitoring
+            }
+            return false
+        }
+        items.append(
+            StatusItemModel(
+                id: "input-monitoring",
+                icon: "eye",
+                title: "Input Monitoring Permission",
+                status: inputMonitoringStatus,
+                isNavigable: true,
+                targetPage: .inputMonitoring,
+                relatedIssues: inputMonitoringIssues
+            ))
+
+        // 5. Karabiner Driver Setup (led first in list for clear dependency order)
         let karabinerStatus = getKarabinerComponentsStatus()
         let karabinerIssues = issues.filter { issue in
             // Filter for installation issues related to Karabiner driver
@@ -341,63 +323,55 @@ struct WizardSystemStatusOverview: View {
                 relatedIssues: karabinerIssues
             ))
 
-        // 7. Kanata Service (depends on helper + driver)
-        let serviceStatus = getServiceStatus()
-        let serviceNavigation = getServiceNavigationTarget()
-        let serviceIssues = issues.filter { issue in
-            issue.category == .daemon
-        }
+        // 6. Full Disk Access (Optional but recommended)
+        let hasFullDiskAccess = checkFullDiskAccess()
+        let fullDiskAccessStatus: InstallationStatus = {
+            if systemState == .initializing {
+                return .notStarted
+            }
+            return hasFullDiskAccess ? .completed : .notStarted
+        }()
         items.append(
             StatusItemModel(
-                id: "kanata-service",
-                icon: "app.badge.checkmark",
-                title: "Kanata Service",
-                subtitle: kanataIsRunning ? "Running" : nil,
-                status: serviceStatus,
+                id: "full-disk-access",
+                icon: "folder",
+                title: "Full Disk Access (Optional)",
+                status: fullDiskAccessStatus,
                 isNavigable: true,
-                targetPage: serviceNavigation.page,
-                relatedIssues: serviceIssues
+                targetPage: .fullDiskAccess
             ))
 
         // Check dependency requirements for remaining items
         let prerequisitesMet = shouldShowDependentItems()
 
-        // 8. Kanata Engine Setup (hidden if Karabiner Driver not completed)
+        // 7. Kanata Setup (hidden if Karabiner Driver not completed)
         if prerequisitesMet.showKanataEngineItem {
             let kanataComponentsStatus = getKanataComponentsStatus()
             let kanataComponentsIssues = issues.filter { issue in
-                // Kanata component issues
-                if case let .component(comp) = issue.identifier {
-                    return comp == .kanataBinaryMissing
+                guard case let .component(component) = issue.identifier else { return false }
+                switch component {
+                case .kanataBinaryMissing,
+                     .kanataService,
+                     .launchDaemonServicesUnhealthy,
+                     .orphanedKanataProcess,
+                     .communicationServerConfiguration,
+                     .communicationServerNotResponding,
+                     .tcpServerConfiguration,
+                     .tcpServerNotResponding:
+                    return true
+                default:
+                    return false
                 }
-                return false
             }
             items.append(
                 StatusItemModel(
                     id: "kanata-components",
                     icon: "cpu.fill",
-                    title: "Kanata Engine Setup",
+                    title: "Kanata Setup",
                     status: kanataComponentsStatus,
                     isNavigable: true,
                     targetPage: .kanataComponents,
                     relatedIssues: kanataComponentsIssues
-                ))
-        }
-
-        // 9. Communication Server (hidden if dependencies not met)
-        if prerequisitesMet.showCommunicationItem {
-            let commServerStatus = getCommunicationServerStatus()
-            // Communication server issues (no specific category, use empty for now)
-            items.append(
-                StatusItemModel(
-                    id: "communication-server",
-                    icon: "network",
-                    title: "Communication",
-                    subtitle: commServerStatus == .notStarted && !kanataIsRunning
-                        ? "Kanata isn't running" : nil,
-                    status: commServerStatus,
-                    isNavigable: true,
-                    targetPage: .communication
                 ))
         }
 
@@ -431,7 +405,6 @@ struct WizardSystemStatusOverview: View {
 
     private struct DependencyVisibility {
         let showKanataEngineItem: Bool
-        let showCommunicationItem: Bool
     }
 
     // MARK: - Lightweight probe caching
@@ -441,7 +414,6 @@ struct WizardSystemStatusOverview: View {
         private static let ttl: TimeInterval = 1.5
 
         private var fda: (value: Bool, ts: Date)?
-        private var comm: (value: InstallationStatus, port: Int, kanataRunning: Bool, ts: Date)?
 
         mutating func fullDiskAccessIfFresh() -> Bool? {
             guard let fda, Date().timeIntervalSince(fda.ts) < Self.ttl else { return nil }
@@ -451,38 +423,14 @@ struct WizardSystemStatusOverview: View {
         mutating func updateFullDiskAccess(_ value: Bool) {
             fda = (value, Date())
         }
-
-        mutating func communicationStatusIfFresh(
-            port: Int,
-            kanataRunning: Bool
-        ) -> InstallationStatus? {
-            guard let comm,
-                  comm.port == port,
-                  comm.kanataRunning == kanataRunning,
-                  Date().timeIntervalSince(comm.ts) < Self.ttl
-            else { return nil }
-            return comm.value
-        }
-
-        mutating func updateCommunication(
-            status: InstallationStatus,
-            port: Int,
-            kanataRunning: Bool
-        ) {
-            comm = (status, port, kanataRunning, Date())
-        }
     }
 
     private func shouldShowDependentItems() -> DependencyVisibility {
-        // Prerequisites for Kanata Engine Setup:
+        // Prerequisites for Kanata Setup:
         // - Karabiner Driver Setup must be completed (Kanata requires VirtualHID driver)
         let karabinerDriverCompleted = getKarabinerComponentsStatus() == .completed
 
-        // Communication item shown when Kanata is running
-        return DependencyVisibility(
-            showKanataEngineItem: karabinerDriverCompleted,
-            showCommunicationItem: kanataIsRunning
-        )
+        return DependencyVisibility(showKanataEngineItem: karabinerDriverCompleted)
     }
 
     // MARK: - Dependency-aware filtering
@@ -492,10 +440,7 @@ struct WizardSystemStatusOverview: View {
     private var itemDependencies: [String: [String]] {
         [
             // Must have helper before anything privileged
-            "kanata-service": ["privileged-helper", "karabiner-components"],
-            "communication-server": ["kanata-service"],
             "kanata-components": ["karabiner-components"],
-            "background-services": ["privileged-helper"],
             "karabiner-components": ["privileged-helper"]
         ]
     }
@@ -614,26 +559,22 @@ struct WizardSystemStatusOverview: View {
         }
 
         let kanataIssues = issues.filter { issue in
-            if issue.category == .installation {
-                switch issue.identifier {
-                case .component(.kanataBinaryMissing),
-                     .component(.kanataService),
-                     .component(.orphanedKanataProcess):
-                    return true
-                default:
-                    return false
-                }
+            guard case let .component(component) = issue.identifier else { return false }
+            switch component {
+            case .kanataBinaryMissing,
+                 .kanataService,
+                 .launchDaemonServicesUnhealthy,
+                 .orphanedKanataProcess,
+                 .communicationServerConfiguration,
+                 .communicationServerNotResponding,
+                 .tcpServerConfiguration,
+                 .tcpServerNotResponding:
+                return true
+            default:
+                return false
             }
-            return false
         }
         return issueStatus(for: kanataIssues)
-    }
-
-    private func getCommunicationServerStatus() -> InstallationStatus {
-        // Keep this lightweight on the UI thread: if Kanata is running, assume comm server is available.
-        // Detailed TCP health is validated elsewhere by InstallerEngine.
-        if systemState == .initializing { return .notStarted }
-        return kanataIsRunning ? .completed : .notStarted
     }
 
     func getServiceStatus() -> InstallationStatus {
@@ -657,34 +598,6 @@ struct WizardSystemStatusOverview: View {
         return .notStarted
     }
 
-    private func getServiceNavigationTarget() -> (page: WizardPage, reason: String) {
-        // When service fails, navigate to the most critical missing permission
-        let hasBlockingInputMonitoring = issues.contains { issue in
-            guard issue.severity == .critical || issue.severity == .error else { return false }
-            if case let .permission(permission) = issue.identifier {
-                return permission == .kanataInputMonitoring
-            }
-            return false
-        }
-
-        let hasBlockingAccessibility = issues.contains { issue in
-            guard issue.severity == .critical || issue.severity == .error else { return false }
-            if case let .permission(permission) = issue.identifier {
-                return permission == .kanataAccessibility
-            }
-            return false
-        }
-
-        // Navigate to the first blocking permission page
-        if hasBlockingInputMonitoring {
-            return (.inputMonitoring, "Input Monitoring permission required")
-        } else if hasBlockingAccessibility {
-            return (.accessibility, "Accessibility permission required")
-        } else {
-            // Default to service page if no specific permission issue
-            return (.service, "Check service status")
-        }
-    }
 
     private func issueStatus(for issues: [WizardIssue]) -> InstallationStatus {
         IssueSeverityInstallationStatusMapper.installationStatus(for: issues)

@@ -9,6 +9,7 @@ struct WizardKanataComponentsPage: View {
     let isFixing: Bool
     let blockingFixDescription: String?
     let onAutoFix: (AutoFixAction, Bool) async -> Bool // (action, suppressToast)
+    let onFixAll: () async -> Bool
     let onRefresh: () -> Void
     let kanataManager: RuntimeCoordinator
 
@@ -28,9 +29,9 @@ struct WizardKanataComponentsPage: View {
                 VStack(spacing: WizardDesign.Spacing.sectionGap) {
                     WizardHeroSection.success(
                         icon: "cpu.fill",
-                        title: "Kanata Engine Setup",
+                        title: "Kanata Setup",
                         subtitle:
-                        "Kanata binary is installed & configured for advanced keyboard remapping functionality"
+                        "Kanata engine, service, and TCP communication are configured"
                     )
 
                     InlineStatusView(status: actionStatus, message: actionStatus.message ?? " ")
@@ -50,8 +51,8 @@ struct WizardKanataComponentsPage: View {
                 VStack(spacing: WizardDesign.Spacing.sectionGap) {
                     WizardHeroSection.warning(
                         icon: "cpu.fill",
-                        title: "Kanata Engine Setup",
-                        subtitle: "Install and configure the Kanata keyboard remapping engine",
+                        title: "Kanata Setup",
+                        subtitle: "Install Kanata, start the service, and enable TCP communication",
                         iconTapAction: {
                             Task {
                                 onRefresh()
@@ -62,12 +63,10 @@ struct WizardKanataComponentsPage: View {
                     InlineStatusView(status: actionStatus, message: actionStatus.message ?? " ")
                         .opacity(actionStatus.isActive ? 1 : 0)
 
-                    Button("Fix") {
-                        handlePrimaryFix()
-                    }
+                    Button("Fix") { handlePrimaryFix() }
                     .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isPrimaryFixLoading))
                     .keyboardShortcut(.defaultAction)
-                    .disabled(isPrimaryFixLoading || primaryFixIssue?.autoFixAction == nil)
+                    .disabled(isPrimaryFixLoading)
                     .frame(minHeight: 44)
                     .padding(.top, WizardDesign.Spacing.itemGap)
                 }
@@ -119,20 +118,21 @@ struct WizardKanataComponentsPage: View {
 
     private var kanataIssues: [WizardIssue] {
         issues.filter { issue in
-            // Include installation issues related to Kanata
-            if issue.category == .installation {
-                switch issue.identifier {
-                case .component(.kanataBinaryMissing),
-                     .component(.kanataService),
-                     .component(.launchDaemonServices),
-                     .component(.launchDaemonServicesUnhealthy):
-                    return true
-                default:
-                    return false
-                }
+            guard case let .component(component) = issue.identifier else { return false }
+            switch component {
+            case .kanataBinaryMissing,
+                 .kanataService,
+                 .launchDaemonServices,
+                 .launchDaemonServicesUnhealthy,
+                 .orphanedKanataProcess,
+                 .communicationServerConfiguration,
+                 .communicationServerNotResponding,
+                 .tcpServerConfiguration,
+                 .tcpServerNotResponding:
+                return true
+            default:
+                return false
             }
-
-            return false
         }
     }
 
@@ -175,7 +175,10 @@ struct WizardKanataComponentsPage: View {
             case .kanataBinaryMissing:
                 return "Kanata Binary"
             case .kanataService:
-                return "Kanata Service Configuration"
+                return "Kanata Service"
+            case .communicationServerConfiguration, .communicationServerNotResponding,
+                 .tcpServerConfiguration, .tcpServerNotResponding:
+                return "TCP Communication"
             default:
                 return issue.title
             }
@@ -191,6 +194,9 @@ struct WizardKanataComponentsPage: View {
                 return "Kanata is required for remapping. Click Fix to install it."
             case .kanataService:
                 return "Background service configuration required for Kanata."
+            case .communicationServerConfiguration, .communicationServerNotResponding,
+                 .tcpServerConfiguration, .tcpServerNotResponding:
+                return "TCP communication needs to be configured for KeyPath."
             default:
                 return issue.description
             }
@@ -218,6 +224,19 @@ struct WizardKanataComponentsPage: View {
         }) {
             return serviceIssue
         }
+        if let communicationIssue = kanataIssues.first(where: {
+            switch $0.identifier {
+            case .component(.communicationServerConfiguration),
+                 .component(.communicationServerNotResponding),
+                 .component(.tcpServerConfiguration),
+                 .component(.tcpServerNotResponding):
+                return true
+            default:
+                return false
+            }
+        }) {
+            return communicationIssue
+        }
         return kanataIssues.first
     }
 
@@ -231,6 +250,11 @@ struct WizardKanataComponentsPage: View {
     private func handlePrimaryFix() {
         guard let issue = primaryFixIssue else { return }
 
+        if kanataIssues.count > 1 {
+            startFixAll(focusTitle: getComponentTitle(for: issue))
+            return
+        }
+
         if issue.autoFixAction == .installBundledKanata {
             installBundledKanata()
             return
@@ -239,6 +263,25 @@ struct WizardKanataComponentsPage: View {
         guard let action = issue.autoFixAction else { return }
         let componentTitle = getComponentTitle(for: issue)
         requestIssueFix(issueId: issue.id, action: action, title: componentTitle)
+    }
+
+    private func startFixAll(focusTitle: String) {
+        Task {
+            await MainActor.run {
+                actionStatus = .inProgress(message: "Fixing \(focusTitle)…")
+            }
+
+            let ok = await onFixAll()
+
+            await MainActor.run {
+                if ok {
+                    actionStatus = .success(message: "Kanata setup fixed")
+                    scheduleStatusClear()
+                } else {
+                    actionStatus = .error(message: "Fix failed. See diagnostics for details.")
+                }
+            }
+        }
     }
 
     private func installBundledKanata() {

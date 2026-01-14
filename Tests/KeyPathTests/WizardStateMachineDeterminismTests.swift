@@ -163,7 +163,7 @@ final class WizardStateMachineDeterminismTests: XCTestCase {
         machine.nextPage()
         XCTAssertEqual(machine.currentPage, .karabinerComponents)
 
-        // 6) All good -> service page
+        // 6) Components ready but daemon not running -> karabinerComponents page
         machine.currentPage = .summary
         machine.systemSnapshot = makeSnapshot(
             helperInstalled: true,
@@ -176,6 +176,6 @@ final class WizardStateMachineDeterminismTests: XCTestCase {
             components: allComponentsReady
         )
         machine.nextPage()
-        XCTAssertEqual(machine.currentPage, .service)
+        XCTAssertEqual(machine.currentPage, .karabinerComponents)
     }
 }

@@ -164,8 +164,8 @@ class WizardNavigationEngineTests: XCTestCase {
         // When: System is otherwise ready but service not running
         let page = await engine.determineCurrentPage(for: .serviceNotRunning, issues: [warningIssue])
 
-        // Then: Should route to service (not force the permission page)
-        XCTAssertEqual(page, .service)
+        // Then: Should route to optional FDA before final setup (not force the permission page)
+        XCTAssertEqual(page, .fullDiskAccess)
     }
 
     func testNavigationWarningOnlyDoesNotShowFDAPageWhenActive() async {
@@ -194,8 +194,8 @@ class WizardNavigationEngineTests: XCTestCase {
         // When: Determining current page with service not running state
         let page = await engine.determineCurrentPage(for: .serviceNotRunning, issues: issues)
 
-        // Then: Should navigate to service page
-        XCTAssertEqual(page, .service, "Should navigate to service page when service not running")
+        // Then: Should surface optional FDA before final setup
+        XCTAssertEqual(page, .fullDiskAccess, "Should navigate to FDA page before final setup")
     }
 
     func testNavigationReadyState() async {
@@ -205,8 +205,8 @@ class WizardNavigationEngineTests: XCTestCase {
         // When: Determining current page with ready state
         let page = await engine.determineCurrentPage(for: .ready, issues: issues)
 
-        // Then: Should navigate to service page
-        XCTAssertEqual(page, .service, "Should navigate to service page when ready to start service")
+        // Then: Should surface optional FDA before final setup
+        XCTAssertEqual(page, .fullDiskAccess, "Should navigate to FDA page before final setup")
     }
 
     func testNavigationNoIssues() async {
@@ -229,14 +229,12 @@ class WizardNavigationEngineTests: XCTestCase {
             .kanataMigration, // Migrate existing Kanata configs
             .stopExternalKanata, // Stop external Kanata before setup
             .helper, // Privileged helper installation comes early to avoid repeated prompts
-            .fullDiskAccess, // Optional FDA for better diagnostics
             .conflicts, // Must resolve conflicts first
             .accessibility, // Accessibility permission
             .inputMonitoring, // Input Monitoring permission
             .karabinerComponents, // Karabiner driver and VirtualHID setup
-            .kanataComponents, // Kanata binary and service setup
-            .service, // Start keyboard service
-            .communication // Optional TCP/communication verification
+            .fullDiskAccess, // Optional FDA for better diagnostics
+            .kanataComponents // Finalize Kanata setup
         ]
 
         // When: Getting page order
@@ -252,12 +250,12 @@ class WizardNavigationEngineTests: XCTestCase {
         // When: Getting page indices
         let summaryIndex = await engine.pageIndex(.summary)
         let conflictsIndex = await engine.pageIndex(.conflicts)
-        let serviceIndex = await engine.pageIndex(.service)
+        let kanataIndex = await engine.pageIndex(.kanataComponents)
 
         // Then: Should return correct indices
         XCTAssertEqual(summaryIndex, 0, "Summary should be first (index 0)")
-        XCTAssertEqual(conflictsIndex, 5, "Conflicts should be at index 5")
-        XCTAssertEqual(serviceIndex, 10, "Service should be index 10 in the expanded flow")
+        XCTAssertEqual(conflictsIndex, 4, "Conflicts should be at index 4")
+        XCTAssertEqual(kanataIndex, 9, "Kanata setup should be last in the expanded flow")
     }
 
     // MARK: - Blocking Page Tests
@@ -270,8 +268,7 @@ class WizardNavigationEngineTests: XCTestCase {
         let installationBlocking = await engine.isBlockingPage(.kanataComponents)
         let helperBlockingWhenEnabled = await engine.isBlockingPage(.helper) // Should NOT block when enabled
         let permissionsBlocking = await engine.isBlockingPage(.inputMonitoring)
-        let backgroundServicesBlocking = await engine.isBlockingPage(.service)
-        let serviceBlocking = await engine.isBlockingPage(.service)
+        let fullDiskBlocking = await engine.isBlockingPage(.fullDiskAccess)
         let summaryBlocking = await engine.isBlockingPage(.summary)
 
         // Then: Should correctly identify blocking pages
@@ -279,8 +276,7 @@ class WizardNavigationEngineTests: XCTestCase {
         XCTAssertTrue(installationBlocking, "Installation should be blocking")
         XCTAssertFalse(helperBlockingWhenEnabled, "Helper should NOT be blocking when enabled")
         XCTAssertFalse(permissionsBlocking, "Permissions should not be blocking")
-        XCTAssertFalse(backgroundServicesBlocking, "Background services should not be blocking")
-        XCTAssertFalse(serviceBlocking, "Service should not be blocking")
+        XCTAssertFalse(fullDiskBlocking, "Full Disk Access should not be blocking")
         XCTAssertFalse(summaryBlocking, "Summary should not be blocking")
     }
 
@@ -370,8 +366,7 @@ class WizardNavigationEngineTests: XCTestCase {
             (.inputMonitoring, "Open System Settings"),
             (.accessibility, "Open System Settings"),
             (.karabinerComponents, "Install Karabiner Components"),
-            (.kanataComponents, "Install Kanata Components"),
-            (.service, "Start Keyboard Service")
+            (.kanataComponents, "Finalize Kanata Setup")
         ]
 
         // When/Then: Each page should have appropriate button text
@@ -457,8 +452,8 @@ class WizardNavigationEngineTests: XCTestCase {
         // When: Getting next page
         let nextPage = await engine.nextPage(from: currentPage, given: systemState, issues: issues)
 
-        // Then: Should continue to next page in sequence (.service comes after .kanataComponents)
-        XCTAssertEqual(nextPage, .service, "Should continue to next page in sequence")
+        // Then: Kanata setup is the last page; no next page
+        XCTAssertNil(nextPage, "Should not advance past final setup page")
     }
 
     func testNextPageNoIssuesSequentialProgression() async {

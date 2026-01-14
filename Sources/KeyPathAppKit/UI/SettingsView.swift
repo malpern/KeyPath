@@ -605,7 +605,7 @@ struct StatusSettingsTabView: View {
                     SystemDiagnostics.openKanataLogsInEditor()
                 },
                 StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
-                    wizardInitialPage = .communication
+                    wizardInitialPage = .kanataComponents
                 }
             ]
         )
