@@ -337,9 +337,9 @@ struct WizardKanataServicePage: View {
         // First check stderr log for config parsing errors (more detailed)
         let stderrPath = "/var/log/com.keypath.kanata.stderr.log"
         let logPath = WizardSystemPaths.kanataLogFile
-        let errorMessage = await Task.detached {
-            extractCrashError(stderrPath: stderrPath, logPath: logPath)
-        }.value
+        let errorMessage = await (Task.detached {
+            Self.extractCrashError(stderrPath: stderrPath, logPath: logPath)
+        }).value
 
         await MainActor.run {
             guard case .stopped = serviceStatus else { return }
