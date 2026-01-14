@@ -17,6 +17,7 @@ struct WizardKanataServicePage: View {
     @State private var serviceStatus: ServiceStatus = .unknown
     @State private var refreshTimer: Timer?
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
+    @State private var refreshTask: Task<Void, Never>?
 
     // Integration with RuntimeCoordinator for better error context
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
@@ -112,6 +113,8 @@ struct WizardKanataServicePage: View {
         }
         .onDisappear {
             stopAutoRefresh()
+            refreshTask?.cancel()
+            refreshTask = nil
         }
     }
 
@@ -246,7 +249,8 @@ struct WizardKanataServicePage: View {
     }
 
     private func refreshStatus() {
-        Task {
+        refreshTask?.cancel()
+        refreshTask = Task {
             await refreshStatusAsync()
         }
     }
@@ -282,7 +286,7 @@ struct WizardKanataServicePage: View {
         case let .failed(reason):
             // Try to get more detailed config error from stderr log
             let stderrPath = "/var/log/com.keypath.kanata.stderr.log"
-            if let configError = extractConfigError(from: stderrPath) {
+            if let configError = Self.extractConfigError(from: stderrPath) {
                 derivedStatus = .failed(error: configError)
             } else {
                 derivedStatus = .failed(error: reason)
@@ -330,15 +334,25 @@ struct WizardKanataServicePage: View {
     private func checkForCrashAsync() async {
         // First check stderr log for config parsing errors (more detailed)
         let stderrPath = "/var/log/com.keypath.kanata.stderr.log"
-        if let configError = extractConfigError(from: stderrPath) {
-            await MainActor.run {
-                serviceStatus = .failed(error: configError)
+        let logPath = WizardSystemPaths.kanataLogFile
+        let errorMessage = await Task.detached {
+            Self.extractCrashError(stderrPath: stderrPath, logPath: logPath)
+        }.value
+
+        await MainActor.run {
+            if let errorMessage {
+                serviceStatus = .failed(error: errorMessage)
+            } else {
+                serviceStatus = .stopped
             }
-            return
+        }
+    }
+
+    private static func extractCrashError(stderrPath: String, logPath: String) -> String? {
+        if let configError = extractConfigError(from: stderrPath) {
+            return configError
         }
 
-        // Fall back to stdout log for other errors
-        let logPath = WizardSystemPaths.kanataLogFile
         if let logData = readRecentLogData(from: logPath, maxBytes: 64 * 1024) {
             let logString = String(decoding: logData, as: UTF8.self)
             let lines = logString.components(separatedBy: .newlines)
@@ -346,21 +360,15 @@ struct WizardKanataServicePage: View {
 
             for line in recentLines.reversed() {
                 if line.contains("ERROR") || line.contains("FATAL") || line.contains("panic") {
-                    await MainActor.run {
-                        serviceStatus = .failed(error: extractErrorMessage(from: line))
-                    }
-                    return
+                    return extractErrorMessage(from: line)
                 }
             }
         }
 
-        // No error detected, just not running
-        await MainActor.run {
-            serviceStatus = .stopped
-        }
+        return nil
     }
 
-    private func readRecentLogData(from path: String, maxBytes: Int) -> Data? {
+    private static func readRecentLogData(from path: String, maxBytes: Int) -> Data? {
         guard let handle = FileHandle(forReadingAtPath: path) else { return nil }
         defer {
             try? handle.close()
@@ -378,7 +386,7 @@ struct WizardKanataServicePage: View {
 
     /// Extract config parsing error from kanata stderr log
     /// Returns a user-friendly error message if a recent config error is found
-    private func extractConfigError(from stderrPath: String) -> String? {
+    private static func extractConfigError(from stderrPath: String) -> String? {
         // Ignore stale stderr logs so old config errors don't surface after reinstalls.
         let maxLogAge: TimeInterval = 10 * 60
         if let attributes = try? FileManager.default.attributesOfItem(atPath: stderrPath),
@@ -498,7 +506,7 @@ struct WizardKanataServicePage: View {
         }
     }
 
-    private func extractErrorMessage(from logLine: String) -> String {
+    private static func extractErrorMessage(from logLine: String) -> String {
         // Extract meaningful error message from log line
         if logLine.contains("Permission denied") {
             "Permission denied - check Input Monitoring settings"

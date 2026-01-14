@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import KeyPathCore
 
@@ -98,35 +99,45 @@ public actor LaunchDaemonPIDCache {
     // MARK: - Private Implementation
 
     private func fetchLaunchDaemonPIDWithTimeout() async throws -> pid_t? {
-        try await withThrowingTaskGroup(of: pid_t?.self) { group in
-            group.addTask {
-                try await self.runLaunchctlPrint()
-            }
+        let task = Process()
+        task.launchPath = "/bin/launchctl"
+        task.arguments = ["print", "system/com.keypath.kanata"]
 
-            group.addTask {
-                try await Task.sleep(nanoseconds: UInt64(self.launchctlTimeout * 1_000_000_000))
-                throw TimeoutError()
-            }
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = Pipe() // Discard error output
 
-            guard let result = try await group.next() else {
+        let processTask = Task { () throws -> pid_t? in
+            try await self.runLaunchctlPrint(task: task, pipe: pipe)
+        }
+
+        do {
+            return try await withThrowingTaskGroup(of: pid_t?.self) { group in
+                group.addTask {
+                    try await processTask.value
+                }
+
+                group.addTask {
+                    try await Task.sleep(nanoseconds: UInt64(self.launchctlTimeout * 1_000_000_000))
+                    throw TimeoutError()
+                }
+
+                guard let result = try await group.next() else {
+                    group.cancelAll()
+                    throw TimeoutError()
+                }
                 group.cancelAll()
-                throw TimeoutError()
+                return result
             }
-            group.cancelAll()
-            return result
+        } catch {
+            terminateLaunchctl(task)
+            processTask.cancel()
+            throw error
         }
     }
 
-    private func runLaunchctlPrint() async throws -> pid_t? {
+    private func runLaunchctlPrint(task: Process, pipe: Pipe) async throws -> pid_t? {
         try await withCheckedThrowingContinuation { continuation in
-            let task = Process()
-            task.launchPath = "/bin/launchctl"
-            task.arguments = ["print", "system/com.keypath.kanata"]
-
-            let pipe = Pipe()
-            task.standardOutput = pipe
-            task.standardError = Pipe() // Discard error output
-
             task.terminationHandler = { task in
                 if task.terminationStatus == 0 {
                     let data = pipe.fileHandleForReading.readDataToEndOfFile()
@@ -142,6 +153,20 @@ public actor LaunchDaemonPIDCache {
                 try task.run()
             } catch {
                 continuation.resume(throwing: error)
+            }
+        }
+    }
+
+    private func terminateLaunchctl(_ task: Process) {
+        guard task.isRunning else { return }
+        let pid = task.processIdentifier
+        AppLogger.shared.log("⛔️ [PIDCache] Terminating hung launchctl (pid=\(pid))")
+        task.terminate()
+
+        Task.detached {
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            if pid > 0, kill(pid, 0) == 0 {
+                _ = kill(pid, SIGKILL)
             }
         }
     }
