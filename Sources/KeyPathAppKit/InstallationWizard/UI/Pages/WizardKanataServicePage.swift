@@ -17,8 +17,6 @@ struct WizardKanataServicePage: View {
     @State private var serviceStatus: ServiceStatus = .unknown
     @State private var refreshTimer: Timer?
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
-    @State private var statusCheckTimeoutTask: Task<Void, Never>?
-    @State private var allowFixWhenUnknown = false
 
     // Integration with RuntimeCoordinator for better error context
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
@@ -114,8 +112,6 @@ struct WizardKanataServicePage: View {
         }
         .onDisappear {
             stopAutoRefresh()
-            statusCheckTimeoutTask?.cancel()
-            statusCheckTimeoutTask = nil
         }
     }
 
@@ -196,11 +192,7 @@ struct WizardKanataServicePage: View {
         case .stopping:
             "Stopping Kanata service…"
         case .unknown:
-            if allowFixWhenUnknown {
-                "Status check is taking longer than expected. Click Fix to start Kanata."
-            } else {
-                "Checking Kanata service status…"
-            }
+            "Checking Kanata service status… If this takes too long, click Fix."
         }
     }
 
@@ -254,16 +246,6 @@ struct WizardKanataServicePage: View {
     }
 
     private func refreshStatus() {
-        allowFixWhenUnknown = false
-        statusCheckTimeoutTask?.cancel()
-        statusCheckTimeoutTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
-            if serviceStatus == .unknown, !isPerformingAction {
-                allowFixWhenUnknown = true
-                actionStatus = .idle
-            }
-        }
-
         Task {
             await refreshStatusAsync()
         }
@@ -337,12 +319,6 @@ struct WizardKanataServicePage: View {
             AppLogger.shared.log("✅ [ServiceStatus] Service confirmed functional via shared evaluator")
         } else if case let .failed(error) = derivedStatus {
             AppLogger.shared.log("⚠️ [ServiceStatus] Service failed: \(error)")
-        }
-
-        if derivedStatus != .unknown {
-            allowFixWhenUnknown = false
-            statusCheckTimeoutTask?.cancel()
-            statusCheckTimeoutTask = nil
         }
 
         serviceStatus = derivedStatus
@@ -477,15 +453,11 @@ struct WizardKanataServicePage: View {
         case .starting, .stopping:
             nil
         case .unknown:
-            if allowFixWhenUnknown {
-                (
-                    label: "Fix",
-                    action: startService,
-                    disabled: isPerformingAction
-                )
-            } else {
-                nil
-            }
+            (
+                label: "Fix",
+                action: startService,
+                disabled: isPerformingAction
+            )
         case .stopped:
             (
                 label: "Fix",

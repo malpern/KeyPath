@@ -150,6 +150,10 @@ public final class KanataService: ObservableObject {
         makeSMService().status
     }
 
+    private nonisolated static func fetchSMStatus() -> SMAppService.Status {
+        smServiceFactory(Constants.daemonPlistName).status
+    }
+
     private func ensureDaemonRegistered() async throws {
         let service = makeSMService()
         switch service.status {
@@ -204,6 +208,21 @@ public final class KanataService: ObservableObject {
     }
 
     private func detectProcessState() async -> ProcessSnapshot {
+        if let daemonPID = await pidCache.getCachedPID() {
+            return ProcessSnapshot(isRunning: true, pid: Int(daemonPID))
+        }
+
+        let ownership = PIDFileManager.checkOwnership()
+        if ownership.owned, let pid = ownership.pid {
+            return ProcessSnapshot(isRunning: true, pid: Int(pid))
+        }
+
+        return ProcessSnapshot(isRunning: false, pid: nil)
+    }
+
+    private nonisolated static func detectProcessState(
+        pidCache: LaunchDaemonPIDCache
+    ) async -> ProcessSnapshot {
         if let daemonPID = await pidCache.getCachedPID() {
             return ProcessSnapshot(isRunning: true, pid: Int(daemonPID))
         }
@@ -376,8 +395,16 @@ public final class KanataService: ObservableObject {
     // MARK: - Status Composition
 
     private func evaluateStatus() async -> ServiceState {
-        let smStatus = currentDaemonStatus()
-        let processState = await detectProcessState()
+        let pidCache = self.pidCache
+        let smStatusTask = Task.detached(priority: .utility) {
+            Self.fetchSMStatus()
+        }
+        let processTask = Task.detached(priority: .utility) {
+            await Self.detectProcessState(pidCache: pidCache)
+        }
+
+        let smStatus = await smStatusTask.value
+        let processState = await processTask.value
 
         switch smStatus {
         case .requiresApproval:
