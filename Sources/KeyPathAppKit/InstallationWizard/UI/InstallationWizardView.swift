@@ -1282,10 +1282,10 @@ struct InstallationWizardView: View {
 
         summaryRefreshTask?.cancel()
         summaryRefreshTask = Task { [previousPage] in
-            if await MainActor.run { asyncOperationManager.hasRunningOperations } {
+            if await MainActor.run(resultType: Bool.self, body: { asyncOperationManager.hasRunningOperations }) {
                 AppLogger.shared.log("🔍 [Wizard] Summary refresh waiting for in-flight operations")
                 while !Task.isCancelled,
-                      await MainActor.run { asyncOperationManager.hasRunningOperations } {
+                      await MainActor.run(resultType: Bool.self, body: { asyncOperationManager.hasRunningOperations }) {
                     _ = await WizardSleep.ms(200)
                 }
             }
