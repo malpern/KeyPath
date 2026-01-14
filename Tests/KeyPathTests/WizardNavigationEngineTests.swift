@@ -93,7 +93,7 @@ class WizardNavigationEngineTests: XCTestCase {
         HelperManager.smServiceFactory = { _ in MockEnabledSMAppService() }
     }
 
-    func testNavigationPriorityInstallationAfterHelper() async {
+    func testNavigationPriorityInstallationAfterHelperShowsFDAFirst() async {
         // Given: Helper is enabled (from setUp), system has component issues but no conflicts
         let componentIssue = createTestIssue(
             category: .installation,
@@ -106,8 +106,8 @@ class WizardNavigationEngineTests: XCTestCase {
         // When: Determining current page (helper is mocked as enabled)
         let page = await engine.determineCurrentPage(for: .missingComponents(missing: []), issues: issues)
 
-        // Then: Should navigate to kanata components (helper is satisfied)
-        XCTAssertEqual(page, .kanataComponents, "Installation should be shown when helper is satisfied")
+        // Then: Should surface optional FDA before Kanata setup
+        XCTAssertEqual(page, .fullDiskAccess, "FDA should be shown before Kanata setup")
     }
 
     func testNavigationPriorityInputMonitoringThird() async {
@@ -433,8 +433,8 @@ class WizardNavigationEngineTests: XCTestCase {
         // When: Getting next page
         let nextPage = await engine.nextPage(from: currentPage, given: systemState, issues: issues)
 
-        // Then: Should return the target page based on current issues
-        XCTAssertEqual(nextPage, .kanataComponents, "Next page should be installation based on issues")
+        // Then: Should surface optional FDA before Kanata setup
+        XCTAssertEqual(nextPage, .fullDiskAccess, "Next page should be FDA before installation")
     }
 
     func testNextPageWhenAlreadyOnTarget() async {

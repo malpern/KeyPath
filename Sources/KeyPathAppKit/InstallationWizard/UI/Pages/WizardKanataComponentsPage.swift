@@ -9,7 +9,7 @@ struct WizardKanataComponentsPage: View {
     let isFixing: Bool
     let blockingFixDescription: String?
     let onAutoFix: (AutoFixAction, Bool) async -> Bool // (action, suppressToast)
-    let onFixAll: () async -> Bool
+    let onFixAll: () async -> FixAllResult
     let onRefresh: () -> Void
     let kanataManager: RuntimeCoordinator
 
@@ -271,17 +271,86 @@ struct WizardKanataComponentsPage: View {
                 actionStatus = .inProgress(message: "Fixing \(focusTitle)…")
             }
 
-            let ok = await onFixAll()
+            let result = await onFixAll()
 
             await MainActor.run {
-                if ok {
-                    actionStatus = .success(message: "Kanata setup fixed")
+                switch result.status {
+                case .success:
+                    actionStatus = .success(message: "All issues resolved")
                     scheduleStatusClear()
-                } else {
-                    actionStatus = .error(message: "Fix failed. See diagnostics for details.")
+                case .partial:
+                    actionStatus = .error(message: formatPartialResultMessage(result))
+                case .failed:
+                    actionStatus = .error(message: formatFailureResultMessage(result))
                 }
             }
         }
+    }
+
+    private func formatPartialResultMessage(_ result: FixAllResult) -> String {
+        let fixedSteps = formatStepList(result.steps, success: true)
+        let failedSteps = formatStepList(result.steps, success: false)
+        let remainingIssues = formatIssueList(result.remainingIssueIDs)
+
+        if !fixedSteps.isEmpty, !remainingIssues.isEmpty, !failedSteps.isEmpty {
+            return "Fixed: \(fixedSteps). Failed: \(failedSteps). Remaining: \(remainingIssues)."
+        }
+        if !fixedSteps.isEmpty, !remainingIssues.isEmpty {
+            return "Fixed: \(fixedSteps). Remaining: \(remainingIssues)."
+        }
+        if !fixedSteps.isEmpty, !failedSteps.isEmpty {
+            return "Fixed: \(fixedSteps). Failed: \(failedSteps)."
+        }
+        if !remainingIssues.isEmpty {
+            return "Fix incomplete. Remaining: \(remainingIssues)."
+        }
+        return "Fix incomplete. Re-check status."
+    }
+
+    private func formatFailureResultMessage(_ result: FixAllResult) -> String {
+        let failedSteps = formatStepList(result.steps, success: false)
+        let remainingIssues = formatIssueList(result.remainingIssueIDs)
+        if !failedSteps.isEmpty, !remainingIssues.isEmpty {
+            return "Fix failed. Failed: \(failedSteps). Remaining: \(remainingIssues)."
+        }
+        if !remainingIssues.isEmpty {
+            return "Fix failed. Remaining: \(remainingIssues)."
+        }
+        return "Fix failed. See diagnostics for details."
+    }
+
+    private func formatStepList(_ steps: [FixStepResult], success: Bool) -> String {
+        steps.filter { $0.success == success }.map { result in
+            if let detail = result.detail, !detail.isEmpty {
+                return "\(result.step.rawValue) (\(detail))"
+            }
+            return result.step.rawValue
+        }.joined(separator: ", ")
+    }
+
+    private func formatIssueList(_ ids: [IssueIdentifier]) -> String {
+        ids.map(issueTitle(for:)).joined(separator: ", ")
+    }
+
+    private func issueTitle(for identifier: IssueIdentifier) -> String {
+        if case let .component(component) = identifier {
+            switch component {
+            case .kanataBinaryMissing:
+                return "Kanata Binary"
+            case .kanataService, .launchDaemonServices, .launchDaemonServicesUnhealthy:
+                return "Kanata Service"
+            case .communicationServerConfiguration,
+                 .communicationServerNotResponding,
+                 .tcpServerConfiguration,
+                 .tcpServerNotResponding:
+                return "TCP Communication"
+            case .orphanedKanataProcess:
+                return "Orphaned Kanata Process"
+            default:
+                return "Kanata Setup"
+            }
+        }
+        return "Setup Issue"
     }
 
     private func installBundledKanata() {
