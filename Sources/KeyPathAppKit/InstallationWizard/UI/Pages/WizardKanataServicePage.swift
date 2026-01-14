@@ -264,6 +264,8 @@ struct WizardKanataServicePage: View {
             issues: issues
         )
 
+        guard !Task.isCancelled else { return }
+
         await MainActor.run {
             withAnimation(.easeInOut(duration: 0.3)) {
                 applyStatusUpdate(serviceState: serviceState, processStatus: processStatus)
@@ -340,6 +342,7 @@ struct WizardKanataServicePage: View {
         }.value
 
         await MainActor.run {
+            guard case .stopped = serviceStatus else { return }
             if let errorMessage {
                 serviceStatus = .failed(error: errorMessage)
             } else {

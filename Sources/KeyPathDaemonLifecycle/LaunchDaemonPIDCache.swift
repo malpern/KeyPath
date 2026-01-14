@@ -166,6 +166,7 @@ public actor LaunchDaemonPIDCache {
         Task.detached {
             try? await Task.sleep(nanoseconds: 200_000_000)
             if pid > 0, kill(pid, 0) == 0 {
+                AppLogger.shared.log("⛔️ [PIDCache] launchctl did not exit, sending SIGKILL (pid=\(pid))")
                 _ = kill(pid, SIGKILL)
             }
         }
