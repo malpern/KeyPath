@@ -338,7 +338,7 @@ struct WizardKanataServicePage: View {
         let stderrPath = "/var/log/com.keypath.kanata.stderr.log"
         let logPath = WizardSystemPaths.kanataLogFile
         let errorMessage = await Task.detached {
-            Self.extractCrashError(stderrPath: stderrPath, logPath: logPath)
+            extractCrashError(stderrPath: stderrPath, logPath: logPath)
         }.value
 
         await MainActor.run {
@@ -351,7 +351,7 @@ struct WizardKanataServicePage: View {
         }
     }
 
-    private static func extractCrashError(stderrPath: String, logPath: String) -> String? {
+    nonisolated private static func extractCrashError(stderrPath: String, logPath: String) -> String? {
         if let configError = extractConfigError(from: stderrPath) {
             return configError
         }
@@ -371,7 +371,7 @@ struct WizardKanataServicePage: View {
         return nil
     }
 
-    private static func readRecentLogData(from path: String, maxBytes: Int) -> Data? {
+    nonisolated private static func readRecentLogData(from path: String, maxBytes: Int) -> Data? {
         guard let handle = FileHandle(forReadingAtPath: path) else { return nil }
         defer {
             try? handle.close()
@@ -389,7 +389,7 @@ struct WizardKanataServicePage: View {
 
     /// Extract config parsing error from kanata stderr log
     /// Returns a user-friendly error message if a recent config error is found
-    private static func extractConfigError(from stderrPath: String) -> String? {
+    nonisolated private static func extractConfigError(from stderrPath: String) -> String? {
         // Ignore stale stderr logs so old config errors don't surface after reinstalls.
         let maxLogAge: TimeInterval = 10 * 60
         if let attributes = try? FileManager.default.attributesOfItem(atPath: stderrPath),
@@ -509,7 +509,7 @@ struct WizardKanataServicePage: View {
         }
     }
 
-    private static func extractErrorMessage(from logLine: String) -> String {
+    nonisolated private static func extractErrorMessage(from logLine: String) -> String {
         // Extract meaningful error message from log line
         if logLine.contains("Permission denied") {
             "Permission denied - check Input Monitoring settings"
