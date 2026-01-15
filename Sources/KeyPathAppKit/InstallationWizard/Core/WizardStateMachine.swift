@@ -22,8 +22,14 @@ struct WizardSnapshotRecord {
 class WizardStateMachine: ObservableObject {
     // MARK: - Published State
 
-    /// Single source of truth for all wizard state
+    /// Raw system snapshot from SystemValidator (internal use)
     @Published var systemSnapshot: SystemSnapshot?
+
+    /// Current wizard system state (canonical source - pass to child views)
+    @Published var wizardState: WizardSystemState = .initializing
+
+    /// Current wizard issues (canonical source - pass to child views)
+    @Published var wizardIssues: [WizardIssue] = []
 
     /// Current wizard page
     @Published var currentPage: WizardPage = .summary
@@ -149,6 +155,16 @@ class WizardStateMachine: ObservableObject {
     /// Bump the state version to signal that a refresh cycle has completed.
     func markRefreshComplete() {
         stateVersion += 1
+    }
+
+    /// Update the wizard state and issues (single source of truth)
+    /// Call this after state detection completes with sanitized/filtered issues
+    func updateWizardState(_ state: WizardSystemState, issues: [WizardIssue]) {
+        wizardState = state
+        wizardIssues = issues
+        lastWizardSnapshot = WizardSnapshotRecord(state: state, issues: issues)
+        markRefreshComplete()
+        AppLogger.shared.log("🎯 [StateMachine] State updated: \(state), issues: \(issues.count)")
     }
 
     // MARK: - Navigation

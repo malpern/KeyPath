@@ -42,8 +42,7 @@ struct InstallationWizardView: View {
     @State private var isValidating: Bool = true // Track validation state for gear icon
     @State private var preflightStart = Date()
     @State private var evaluationProgress: Double = 0.0
-    @State private var systemState: WizardSystemState = .initializing
-    @State private var currentIssues: [WizardIssue] = []
+    // stateMachine.wizardState and stateMachine.wizardIssues now live in stateMachine (single source of truth)
     @State private var showAllSummaryItems: Bool = false
     @State private var navSequence: [WizardPage] = []
     @State private var inFlightFixActions: Set<AutoFixAction> = []
@@ -237,7 +236,7 @@ struct InstallationWizardView: View {
             }
             .keyboardShortcut(.defaultAction) // Return key for destructive action
         } message: {
-            let criticalCount = currentIssues.filter { $0.severity == .critical }.count
+            let criticalCount = stateMachine.wizardIssues.filter { $0.severity == .critical }.count
             Text(
                 "There \(criticalCount == 1 ? "is" : "are") \(criticalCount) critical \(criticalCount == 1 ? "issue" : "issues") "
                     + "that may prevent KeyPath from working properly. Are you sure you want to close the setup wizard?"
@@ -277,8 +276,8 @@ struct InstallationWizardView: View {
             switch stateMachine.currentPage {
             case .summary:
                 WizardSummaryPage(
-                    systemState: systemState,
-                    issues: currentIssues,
+                    systemState: stateMachine.wizardState,
+                    issues: stateMachine.wizardIssues,
                     stateInterpreter: stateInterpreter,
                     onStartService: startKanataService,
                     onDismiss: { dismissAndRefreshMainScreen() },
@@ -291,23 +290,23 @@ struct InstallationWizardView: View {
                 )
             case .fullDiskAccess:
                 WizardFullDiskAccessPage(
-                    systemState: systemState,
-                    issues: currentIssues
+                    systemState: stateMachine.wizardState,
+                    issues: stateMachine.wizardIssues
                 )
             case .conflicts:
                 WizardConflictsPage(
-                    systemState: systemState,
-                    issues: currentIssues.filter { $0.category == .conflicts },
-                    allIssues: currentIssues,
+                    systemState: stateMachine.wizardState,
+                    issues: stateMachine.wizardIssues.filter { $0.category == .conflicts },
+                    allIssues: stateMachine.wizardIssues,
                     isFixing: fixInFlight,
                     onRefresh: { refreshSystemState() },
                     kanataManager: kanataManager
                 )
             case .inputMonitoring:
                 WizardInputMonitoringPage(
-                    systemState: systemState,
-                    issues: currentIssues.filter { $0.category == .permissions },
-                    allIssues: currentIssues,
+                    systemState: stateMachine.wizardState,
+                    issues: stateMachine.wizardIssues.filter { $0.category == .permissions },
+                    allIssues: stateMachine.wizardIssues,
                     stateInterpreter: stateInterpreter,
                     onRefresh: { refreshSystemState() },
                     onNavigateToPage: { page in
@@ -320,9 +319,9 @@ struct InstallationWizardView: View {
                 )
             case .accessibility:
                 WizardAccessibilityPage(
-                    systemState: systemState,
-                    issues: currentIssues.filter { $0.category == .permissions },
-                    allIssues: currentIssues,
+                    systemState: stateMachine.wizardState,
+                    issues: stateMachine.wizardIssues.filter { $0.category == .permissions },
+                    allIssues: stateMachine.wizardIssues,
                     onRefresh: { refreshSystemState() },
                     onNavigateToPage: { page in
                         stateMachine.navigateToPage(page)
@@ -334,8 +333,8 @@ struct InstallationWizardView: View {
                 )
             case .karabinerComponents:
                 WizardKarabinerComponentsPage(
-                    systemState: systemState,
-                    issues: currentIssues,
+                    systemState: stateMachine.wizardState,
+                    issues: stateMachine.wizardIssues,
                     isFixing: fixInFlight,
                     blockingFixDescription: currentFixDescriptionForUI,
                     onAutoFix: performAutoFix,
@@ -344,8 +343,8 @@ struct InstallationWizardView: View {
                 )
             case .kanataComponents:
                 WizardKanataComponentsPage(
-                    systemState: systemState,
-                    issues: currentIssues,
+                    systemState: stateMachine.wizardState,
+                    issues: stateMachine.wizardIssues,
                     isFixing: fixInFlight,
                     blockingFixDescription: currentFixDescriptionForUI,
                     onAutoFix: performAutoFix,
@@ -361,7 +360,7 @@ struct InstallationWizardView: View {
                         } else {
                             // No running kanata, continue to next step
                             refreshSystemState()
-                            if currentIssues.contains(where: { $0.category == .installation && $0.identifier == .component(.kanataBinaryMissing) }) {
+                            if stateMachine.wizardIssues.contains(where: { $0.category == .installation && $0.identifier == .component(.kanataBinaryMissing) }) {
                                 stateMachine.navigateToPage(.kanataComponents)
                             } else {
                                 stateMachine.navigateToPage(.summary)
@@ -379,7 +378,7 @@ struct InstallationWizardView: View {
                     onComplete: {
                         // After stopping, refresh state and continue
                         refreshSystemState()
-                        if currentIssues.contains(where: { $0.category == .installation && $0.identifier == .component(.kanataBinaryMissing) }) {
+                        if stateMachine.wizardIssues.contains(where: { $0.category == .installation && $0.identifier == .component(.kanataBinaryMissing) }) {
                             stateMachine.navigateToPage(.kanataComponents)
                         } else {
                             stateMachine.navigateToPage(.summary)
@@ -392,8 +391,8 @@ struct InstallationWizardView: View {
                 )
             case .helper:
                 WizardHelperPage(
-                    systemState: systemState,
-                    issues: currentIssues,
+                    systemState: stateMachine.wizardState,
+                    issues: stateMachine.wizardIssues,
                     isFixing: fixInFlight,
                     blockingFixDescription: currentFixDescriptionForUI,
                     onAutoFix: performAutoFix,
@@ -402,14 +401,14 @@ struct InstallationWizardView: View {
                 )
             case .communication:
                 WizardCommunicationPage(
-                    systemState: systemState,
-                    issues: currentIssues,
+                    systemState: stateMachine.wizardState,
+                    issues: stateMachine.wizardIssues,
                     onAutoFix: performAutoFix
                 )
             case .service:
                 WizardKanataServicePage(
-                    systemState: systemState,
-                    issues: currentIssues,
+                    systemState: stateMachine.wizardState,
+                    issues: stateMachine.wizardIssues,
                     onRefresh: { refreshSystemState() }
                 )
             }
@@ -491,8 +490,8 @@ struct InstallationWizardView: View {
                 preflightStart = Date()
                 evaluationProgress = 0.0
                 isValidating = true
-                systemState = .initializing
-                currentIssues = []
+                stateMachine.wizardState = .initializing
+                stateMachine.wizardIssues = []
                 AppLogger.shared.log("🚀 [Wizard] Summary page shown immediately, starting validation")
                 AppLogger.shared.log("⏱️ [TIMING] Wizard validation START")
             }
@@ -551,8 +550,8 @@ struct InstallationWizardView: View {
             }
 
             let filteredIssues = sanitizedIssues(from: result.issues, for: result.state)
-            systemState = result.state
-            currentIssues = filteredIssues
+            stateMachine.wizardState = result.state
+            stateMachine.wizardIssues = filteredIssues
             stateMachine.lastWizardSnapshot = WizardSnapshotRecord(
                 state: result.state, issues: filteredIssues
             )
@@ -649,7 +648,7 @@ struct InstallationWizardView: View {
                 progressCallback: { _ in }
             )
             asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
-                let oldState = systemState
+                let oldState = stateMachine.wizardState
                 let oldPage = stateMachine.currentPage
 
                 // Freshness guard: drop stale results and retry once
@@ -667,8 +666,8 @@ struct InstallationWizardView: View {
                 }
 
                 let filteredIssues = sanitizedIssues(from: result.issues, for: result.state)
-                systemState = result.state
-                currentIssues = filteredIssues
+                stateMachine.wizardState = result.state
+                stateMachine.wizardIssues = filteredIssues
 
                 AppLogger.shared.log(
                     "🔍 [Navigation] Current: \(stateMachine.currentPage), Issues: \(filteredIssues.map { "\($0.category)-\($0.title)" })"
@@ -689,9 +688,9 @@ struct InstallationWizardView: View {
                     }
                 }
 
-                if oldState != systemState || oldPage != stateMachine.currentPage {
+                if oldState != stateMachine.wizardState || oldPage != stateMachine.currentPage {
                     AppLogger.shared.log(
-                        "🔍 [Wizard] State changed: \(oldState) -> \(systemState), page: \(oldPage) -> \(stateMachine.currentPage)"
+                        "🔍 [Wizard] State changed: \(oldState) -> \(stateMachine.wizardState), page: \(oldPage) -> \(stateMachine.currentPage)"
                     )
                 }
             }
@@ -721,10 +720,10 @@ struct InstallationWizardView: View {
     private func performAutoFix() {
         AppLogger.shared.log(
             "🔍 [Wizard] *** FIX BUTTON CLICKED *** Auto-fix started via InstallerEngine")
-        AppLogger.shared.log("🔍 [Wizard] Current issues: \(currentIssues.count) total")
+        AppLogger.shared.log("🔍 [Wizard] Current issues: \(stateMachine.wizardIssues.count) total")
 
         // Log each current issue for debugging
-        for (index, issue) in currentIssues.enumerated() {
+        for (index, issue) in stateMachine.wizardIssues.enumerated() {
             if let autoFixAction = issue.autoFixAction {
                 AppLogger.shared.log(
                     "🔍 [Wizard] Issue \(index): \(issue.identifier) -> AutoFix: \(autoFixAction)")
@@ -810,7 +809,7 @@ struct InstallationWizardView: View {
             refreshSystemState()
 
             // Post-repair health check for VHID-related issues
-            if currentIssues.contains(where: { issue in
+            if stateMachine.wizardIssues.contains(where: { issue in
                 if let action = issue.autoFixAction {
                     return action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon
                 }
@@ -821,8 +820,8 @@ struct InstallationWizardView: View {
                     let latestResult = await stateMachine.detectCurrentState()
                     let filteredIssues = sanitizedIssues(from: latestResult.issues, for: latestResult.state)
                     await MainActor.run {
-                        systemState = latestResult.state
-                        currentIssues = filteredIssues
+                        stateMachine.wizardState = latestResult.state
+                        stateMachine.wizardIssues = filteredIssues
                     }
                     let karabinerStatus = KarabinerComponentsStatusEvaluator.evaluate(
                         systemState: latestResult.state,
@@ -881,7 +880,7 @@ struct InstallationWizardView: View {
             return false
         }
 
-        let issuesSnapshot = await MainActor.run { currentIssues }
+        let issuesSnapshot = await MainActor.run { stateMachine.wizardIssues }
         let uniqueActions = Array(Set(issuesSnapshot.compactMap(\.autoFixAction)))
         guard !uniqueActions.isEmpty else {
             AppLogger.shared.log("ℹ️ [Wizard] No auto-fix actions available for current issues")
@@ -1028,8 +1027,8 @@ struct InstallationWizardView: View {
                 let latestResult = await stateMachine.detectCurrentState()
                 let filteredIssues = sanitizedIssues(from: latestResult.issues, for: latestResult.state)
                 await MainActor.run {
-                    systemState = latestResult.state
-                    currentIssues = filteredIssues
+                    stateMachine.wizardState = latestResult.state
+                    stateMachine.wizardIssues = filteredIssues
                 }
                 let karabinerStatus = KarabinerComponentsStatusEvaluator.evaluate(
                     systemState: latestResult.state,
@@ -1119,7 +1118,7 @@ struct InstallationWizardView: View {
             withAnimation(.easeInOut(duration: 0.2)) {
                 isValidating = true
             }
-            currentIssues = []
+            stateMachine.wizardIssues = []
         }
 
         refreshTask = Task { [previousPage, showSpinner] in
@@ -1273,13 +1272,7 @@ struct InstallationWizardView: View {
     @MainActor
     private func applySystemStateResult(_ result: SystemStateResult) -> [WizardIssue] {
         let filteredIssues = sanitizedIssues(from: result.issues, for: result.state)
-        systemState = result.state
-        currentIssues = filteredIssues
-        stateMachine.lastWizardSnapshot = WizardSnapshotRecord(
-            state: result.state,
-            issues: filteredIssues
-        )
-        stateMachine.markRefreshComplete()
+        stateMachine.updateWizardState(result.state, issues: filteredIssues)
 
         // Only auto-navigate if user hasn't been interacting with the wizard
         // This prevents jarring navigation away from a page after a fix completes
@@ -1345,7 +1338,7 @@ struct InstallationWizardView: View {
             let shouldStart = await showStartConfirmation()
 
             if shouldStart {
-                if systemState != .active {
+                if stateMachine.wizardState != .active {
                     let operation = WizardOperations.startService(kanataManager: kanataManager)
 
                     asyncOperationManager.execute(operation: operation) { (success: Bool) in
@@ -1382,7 +1375,7 @@ struct InstallationWizardView: View {
         asyncOperationManager.cancelAllOperationsAsync()
 
         // Check for critical issues - but don't block the close
-        let criticalIssues = currentIssues.filter { $0.severity == .critical }
+        let criticalIssues = stateMachine.wizardIssues.filter { $0.severity == .critical }
 
         if criticalIssues.isEmpty {
             // Force immediate close - bypass any SwiftUI environment blocking
