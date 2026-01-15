@@ -424,13 +424,6 @@ struct InstallationWizardView: View {
     }
 
     @ViewBuilder
-    private func initializingOverlay() -> some View {
-        // Ultra minimal - just system progress indicator
-        ProgressView()
-            .scaleEffect(1.0)
-    }
-
-    @ViewBuilder
     private func operationProgressOverlay() -> some View {
         let operationName = getCurrentOperationName()
 
@@ -462,7 +455,6 @@ struct InstallationWizardView: View {
         stateMachine.navigationEngine.resetNavigationState()
 
         // Configure state providers
-        stateMachine.configure(kanataManager: kanataManager)
         stateMachine.configure(kanataManager: kanataManager)
         autoFixer.configure(
             kanataManager: kanataManager,
