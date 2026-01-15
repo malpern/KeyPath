@@ -724,7 +724,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         wasVisibleBeforeAutoHide = false
 
         // Restore overlay if it was visible before wizard/settings opened
-        if shouldRestore && !isVisible {
+        if shouldRestore, !isVisible {
             isVisible = true
         }
     }

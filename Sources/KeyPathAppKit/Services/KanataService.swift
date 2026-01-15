@@ -395,7 +395,7 @@ public final class KanataService: ObservableObject {
     // MARK: - Status Composition
 
     private func evaluateStatus() async -> ServiceState {
-        let pidCache = self.pidCache
+        let pidCache = pidCache
         let smStatusTask = Task.detached(priority: .utility) {
             Self.fetchSMStatus()
         }

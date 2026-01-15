@@ -85,7 +85,8 @@ struct WizardKanataComponentsPage: View {
 
             if let pendingId = pendingIssueFixId,
                let pendingAction = pendingIssueFixAction,
-               let pendingTitle = pendingIssueFixTitle {
+               let pendingTitle = pendingIssueFixTitle
+            {
                 pendingIssueFixId = nil
                 pendingIssueFixAction = nil
                 pendingIssueFixTitle = nil
@@ -209,9 +210,9 @@ struct WizardKanataComponentsPage: View {
             case .component(.kanataService),
                  .component(.launchDaemonServices),
                  .component(.launchDaemonServicesUnhealthy):
-                return true
+                true
             default:
-                return false
+                false
             }
         }) {
             return serviceIssue
@@ -371,7 +372,8 @@ struct WizardKanataComponentsPage: View {
 
         Task {
             if let nextPage = await stateMachine.getNextPage(for: systemState, issues: issues),
-               nextPage != stateMachine.currentPage {
+               nextPage != stateMachine.currentPage
+            {
                 stateMachine.navigateToPage(nextPage)
             } else {
                 stateMachine.navigateToPage(.summary)

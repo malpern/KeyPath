@@ -350,7 +350,7 @@ struct WizardKanataServicePage: View {
         }
     }
 
-    nonisolated private static func extractCrashError(stderrPath: String, logPath: String) -> String? {
+    private nonisolated static func extractCrashError(stderrPath: String, logPath: String) -> String? {
         if let configError = extractConfigError(from: stderrPath) {
             return configError
         }
@@ -370,7 +370,7 @@ struct WizardKanataServicePage: View {
         return nil
     }
 
-    nonisolated private static func readRecentLogData(from path: String, maxBytes: Int) -> Data? {
+    private nonisolated static func readRecentLogData(from path: String, maxBytes: Int) -> Data? {
         guard let handle = FileHandle(forReadingAtPath: path) else { return nil }
         defer {
             try? handle.close()
@@ -388,12 +388,13 @@ struct WizardKanataServicePage: View {
 
     /// Extract config parsing error from kanata stderr log
     /// Returns a user-friendly error message if a recent config error is found
-    nonisolated private static func extractConfigError(from stderrPath: String) -> String? {
+    private nonisolated static func extractConfigError(from stderrPath: String) -> String? {
         // Ignore stale stderr logs so old config errors don't surface after reinstalls.
         let maxLogAge: TimeInterval = 10 * 60
         if let attributes = try? FileManager.default.attributesOfItem(atPath: stderrPath),
            let modifiedAt = attributes[.modificationDate] as? Date,
-           Date().timeIntervalSince(modifiedAt) > maxLogAge {
+           Date().timeIntervalSince(modifiedAt) > maxLogAge
+        {
             return nil
         }
 
@@ -418,7 +419,8 @@ struct WizardKanataServicePage: View {
 
             // Extract file and line info: ╭─[keypath-apps.kbd:14:1]
             if foundConfigError, errorFile == nil,
-               let match = line.range(of: #"\[([^\]]+\.kbd):(\d+)"#, options: .regularExpression) {
+               let match = line.range(of: #"\[([^\]]+\.kbd):(\d+)"#, options: .regularExpression)
+            {
                 let matchStr = String(line[match])
                 // Extract filename and line number
                 let parts = matchStr.dropFirst().dropLast().split(separator: ":")
@@ -472,7 +474,8 @@ struct WizardKanataServicePage: View {
 
         Task {
             if let nextPage = await stateMachine.getNextPage(for: systemState, issues: issues),
-               nextPage != stateMachine.currentPage {
+               nextPage != stateMachine.currentPage
+            {
                 stateMachine.navigateToPage(nextPage)
             } else {
                 stateMachine.navigateToPage(.summary)
@@ -481,7 +484,8 @@ struct WizardKanataServicePage: View {
     }
 
     private var primaryCTAConfiguration:
-        (label: String, action: () -> Void, disabled: Bool)? {
+        (label: String, action: () -> Void, disabled: Bool)?
+    {
         switch serviceStatus {
         case .running:
             nil
@@ -508,7 +512,7 @@ struct WizardKanataServicePage: View {
         }
     }
 
-    nonisolated private static func extractErrorMessage(from logLine: String) -> String {
+    private nonisolated static func extractErrorMessage(from logLine: String) -> String {
         // Extract meaningful error message from log line
         if logLine.contains("Permission denied") {
             "Permission denied - check Input Monitoring settings"

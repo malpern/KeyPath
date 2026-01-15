@@ -225,7 +225,8 @@ struct WizardKarabinerComponentsPage: View {
 
         Task {
             if let nextPage = await stateMachine.getNextPage(for: systemState, issues: issues),
-               nextPage != stateMachine.currentPage {
+               nextPage != stateMachine.currentPage
+            {
                 stateMachine.navigateToPage(nextPage)
             } else {
                 stateMachine.navigateToPage(.summary)
@@ -570,7 +571,7 @@ struct WizardKarabinerComponentsPage: View {
         if selected.isEmpty {
             let count = min(3, lines.count)
             if count > 0 {
-                selected = lines[0..<count].map { String($0) }
+                selected = lines[0 ..< count].map { String($0) }
             }
         }
 

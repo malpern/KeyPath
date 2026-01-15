@@ -155,7 +155,8 @@ final class FaviconFetcher {
             let pattern = #"<link[^>]*rel=["\'](?:shortcut )?icon["\'][^>]*href=["\']([^"\']+)["\']"#
             if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
                let match = regex.firstMatch(in: html, range: NSRange(html.startIndex..., in: html)),
-               let hrefRange = Range(match.range(at: 1), in: html) {
+               let hrefRange = Range(match.range(at: 1), in: html)
+            {
                 let iconPath = String(html[hrefRange])
 
                 // Resolve relative URLs
@@ -190,7 +191,8 @@ final class FaviconFetcher {
 
             // Check HTTP response
             if let httpResponse = response as? HTTPURLResponse,
-               httpResponse.statusCode != 200 {
+               httpResponse.statusCode != 200
+            {
                 AppLogger.shared.debug("🌐 [FaviconFetcher] HTTP \(httpResponse.statusCode) for \(url)")
                 return nil
             }

@@ -286,7 +286,8 @@ final class ServiceHealthChecker: @unchecked Sendable {
                 for line in result.stdout.components(separatedBy: "\n") where line.contains("pid =") {
                     let comps = line.components(separatedBy: "=")
                     if comps.count == 2,
-                       Int(comps[1].trimmingCharacters(in: .whitespaces)) != nil {
+                       Int(comps[1].trimmingCharacters(in: .whitespaces)) != nil
+                    {
                         foundPid = true
                         break
                     }
@@ -303,7 +304,8 @@ final class ServiceHealthChecker: @unchecked Sendable {
         // 2) TCP probe (Hello/Status) - runs off MainActor via Task.detached for blocking socket ops
         let tcpOK = await Task.detached { [self] in
             if let portEnv = ProcessInfo.processInfo.environment["KEYPATH_TCP_PORT"],
-               let overridePort = Int(portEnv) {
+               let overridePort = Int(portEnv)
+            {
                 return probeTCP(port: overridePort, timeoutMs: timeoutMs)
             }
             return probeTCP(port: tcpPort, timeoutMs: timeoutMs)

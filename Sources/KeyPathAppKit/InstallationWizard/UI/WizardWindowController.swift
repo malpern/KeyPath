@@ -144,7 +144,7 @@ final class WizardWindowController {
 
     /// Resize window to a specific height, keeping top edge fixed
     private func resizeWindowToHeight(_ newHeight: CGFloat, animated: Bool) {
-        guard let window = window else { return }
+        guard let window else { return }
 
         let currentFrame = window.frame
         let titleBarHeight = window.frame.height - window.contentLayoutRect.height

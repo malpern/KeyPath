@@ -33,6 +33,7 @@ public enum PrivilegedCommandRunner {
             return "set -e\n" + trimmed.joined(separator: "\n")
         }
     }
+
     /// Result of a privileged command execution
     public struct Result {
         public let success: Bool

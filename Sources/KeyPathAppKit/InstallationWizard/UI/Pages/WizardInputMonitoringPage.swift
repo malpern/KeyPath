@@ -18,6 +18,7 @@ struct WizardInputMonitoringPage: View {
     @State private var showingStaleEntryCleanup = false
     @State private var staleEntryDetails: [String] = []
     @State private var permissionPollingTask: Task<Void, Never>?
+    @State private var showSuccessBurst = false
 
     @EnvironmentObject var stateMachine: WizardStateMachine
 
@@ -46,157 +47,168 @@ struct WizardInputMonitoringPage: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Use experimental hero design when permissions are granted
-            if !hasInputMonitoringIssues {
-                VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                    WizardHeroSection.success(
-                        icon: "eye",
-                        title: "Input Monitoring",
-                        subtitle: "KeyPath has permission to capture keyboard events",
-                        iconTapAction: {
-                            Task {
-                                await onRefresh()
+        ZStack {
+            VStack(spacing: 0) {
+                // Use experimental hero design when permissions are granted
+                if !hasInputMonitoringIssues {
+                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                        WizardHeroSection.success(
+                            icon: "eye",
+                            title: "Input Monitoring",
+                            subtitle: "KeyPath has permission to capture keyboard events",
+                            iconTapAction: {
+                                Task {
+                                    await onRefresh()
+                                }
                             }
-                        }
-                    )
+                        )
 
-                    // Component details card below the subheading - horizontally centered
-                    HStack {
-                        Spacer()
+                        // Component details card below the subheading - horizontally centered
+                        HStack {
+                            Spacer()
+                            VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                    HStack(spacing: 0) {
+                                        Text("KeyPath.app")
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                        Text(" - Main application captures keyboard input")
+                                            .font(.headline)
+                                            .fontWeight(.regular)
+                                    }
+                                }
+
+                                HStack(spacing: 12) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                    HStack(spacing: 0) {
+                                        Text("kanata")
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                        Text(" - Remapping engine processes keyboard events")
+                                            .font(.headline)
+                                            .fontWeight(.regular)
+                                    }
+                                }
+                            }
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(WizardDesign.Spacing.cardPadding)
+                        .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+                        .padding(.top, WizardDesign.Spacing.pageVertical)
+
+                        Button(nextStepButtonTitle) {
+                            navigateToNextStep()
+                        }
+                        .buttonStyle(WizardDesign.Component.PrimaryButton())
+                        .keyboardShortcut(.defaultAction)
+                        .padding(.top, WizardDesign.Spacing.sectionGap)
+                    }
+                    .heroSectionContainer()
+                    .frame(maxWidth: .infinity)
+                } else {
+                    // Use hero design for error state too, with blue links below
+                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                        WizardHeroSection.warning(
+                            icon: "eye",
+                            title: "Input Monitoring Required",
+                            subtitle:
+                            "KeyPath needs Input Monitoring permission to capture keyboard events for remapping",
+                            iconTapAction: {
+                                Task {
+                                    await onRefresh()
+                                }
+                            }
+                        )
+
+                        // Component details for error state
                         VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
                             HStack(spacing: 12) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
+                                let icon = statusIcon(for: keyPathInputMonitoringStatus)
+                                Image(systemName: icon.name)
+                                    .foregroundColor(icon.color)
                                 HStack(spacing: 0) {
                                     Text("KeyPath.app")
                                         .font(.headline)
                                         .fontWeight(.semibold)
-                                    Text(" - Main application captures keyboard input")
+                                    Text(" - Main application needs permission")
                                         .font(.headline)
                                         .fontWeight(.regular)
                                 }
+                                Spacer()
+                                if keyPathInputMonitoringStatus != .completed {
+                                    Button("Fix") {
+                                        openInputMonitoringSettings()
+                                    }
+                                    .buttonStyle(WizardDesign.Component.SecondaryButton())
+                                    .scaleEffect(0.8)
+                                }
                             }
+                            .help(keyPathInputMonitoringIssues.asTooltipText())
 
                             HStack(spacing: 12) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
+                                let icon = statusIcon(for: kanataInputMonitoringStatus)
+                                Image(systemName: icon.name)
+                                    .foregroundColor(icon.color)
                                 HStack(spacing: 0) {
                                     Text("kanata")
                                         .font(.headline)
                                         .fontWeight(.semibold)
-                                    Text(" - Remapping engine processes keyboard events")
+                                    Text(kanataSubtitle(for: kanataInputMonitoringStatus))
                                         .font(.headline)
                                         .fontWeight(.regular)
                                 }
-                            }
-                        }
-                        Spacer()
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(WizardDesign.Spacing.cardPadding)
-                    .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
-                    .padding(.horizontal, WizardDesign.Spacing.pageVertical)
-                    .padding(.top, WizardDesign.Spacing.pageVertical)
-
-                    Button(nextStepButtonTitle) {
-                        navigateToNextStep()
-                    }
-                    .buttonStyle(WizardDesign.Component.PrimaryButton())
-                    .keyboardShortcut(.defaultAction)
-                    .padding(.top, WizardDesign.Spacing.sectionGap)
-                }
-                .heroSectionContainer()
-                .frame(maxWidth: .infinity)
-            } else {
-                // Use hero design for error state too, with blue links below
-                VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                    WizardHeroSection.warning(
-                        icon: "eye",
-                        title: "Input Monitoring Required",
-                        subtitle:
-                        "KeyPath needs Input Monitoring permission to capture keyboard events for remapping",
-                        iconTapAction: {
-                            Task {
-                                await onRefresh()
-                            }
-                        }
-                    )
-
-                    // Component details for error state
-                    VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
-                        HStack(spacing: 12) {
-                            let icon = statusIcon(for: keyPathInputMonitoringStatus)
-                            Image(systemName: icon.name)
-                                .foregroundColor(icon.color)
-                            HStack(spacing: 0) {
-                                Text("KeyPath.app")
-                                    .font(.headline)
-                                    .fontWeight(.semibold)
-                                Text(" - Main application needs permission")
-                                    .font(.headline)
-                                    .fontWeight(.regular)
-                            }
-                            Spacer()
-                            if keyPathInputMonitoringStatus != .completed {
-                                Button("Fix") {
-                                    openInputMonitoringSettings()
-                                }
-                                .buttonStyle(WizardDesign.Component.SecondaryButton())
-                                .scaleEffect(0.8)
-                            }
-                        }
-                        .help(keyPathInputMonitoringIssues.asTooltipText())
-
-                        HStack(spacing: 12) {
-                            let icon = statusIcon(for: kanataInputMonitoringStatus)
-                            Image(systemName: icon.name)
-                                .foregroundColor(icon.color)
-                            HStack(spacing: 0) {
-                                Text("kanata")
-                                    .font(.headline)
-                                    .fontWeight(.semibold)
-                                Text(kanataSubtitle(for: kanataInputMonitoringStatus))
-                                    .font(.headline)
-                                    .fontWeight(.regular)
-                            }
-                            Spacer()
-                            if kanataInputMonitoringStatus != .completed {
-                                Button("Fix") {
-                                    AppLogger.shared.log(
-                                        "🔧 [WizardInputMonitoringPage] Kanata Fix clicked - opening System Settings and revealing kanata"
-                                    )
-                                    let path = WizardSystemPaths.kanataSystemInstallPath
-                                    if !FileManager.default.fileExists(atPath: path) {
-                                        AppLogger.shared.warn(
-                                            "⚠️ [WizardInputMonitoringPage] Kanata system binary missing at \(path) - routing to Kanata Components"
+                                Spacer()
+                                if kanataInputMonitoringStatus != .completed {
+                                    Button("Fix") {
+                                        AppLogger.shared.log(
+                                            "🔧 [WizardInputMonitoringPage] Kanata Fix clicked - opening System Settings and revealing kanata"
                                         )
-                                        stateMachine.navigateToPage(.kanataComponents)
-                                        return
+                                        let path = WizardSystemPaths.kanataSystemInstallPath
+                                        if !FileManager.default.fileExists(atPath: path) {
+                                            AppLogger.shared.warn(
+                                                "⚠️ [WizardInputMonitoringPage] Kanata system binary missing at \(path) - routing to Kanata Components"
+                                            )
+                                            stateMachine.navigateToPage(.kanataComponents)
+                                            return
+                                        }
+                                        openInputMonitoringPreferencesPanel()
+                                        revealKanataInFinder()
+                                        startPermissionPolling(for: .inputMonitoring)
                                     }
-                                    openInputMonitoringPreferencesPanel()
-                                    revealKanataInFinder()
-                                    startPermissionPolling(for: .inputMonitoring)
+                                    .buttonStyle(WizardDesign.Component.SecondaryButton())
+                                    .scaleEffect(0.8)
                                 }
-                                .buttonStyle(WizardDesign.Component.SecondaryButton())
-                                .scaleEffect(0.8)
                             }
+                            .help(kanataInputMonitoringIssues.asTooltipText())
                         }
-                        .help(kanataInputMonitoringIssues.asTooltipText())
+                        .frame(maxWidth: .infinity)
+                        .padding(WizardDesign.Spacing.cardPadding)
+                        .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+                        .padding(.top, WizardDesign.Spacing.pageVertical)
                     }
+                    .heroSectionContainer()
                     .frame(maxWidth: .infinity)
-                    .padding(WizardDesign.Spacing.cardPadding)
-                    .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
-                    .padding(.horizontal, WizardDesign.Spacing.pageVertical)
-                    .padding(.top, WizardDesign.Spacing.pageVertical)
                 }
-                .heroSectionContainer()
-                .frame(maxWidth: .infinity)
+            }
+            .frame(maxWidth: .infinity)
+            .background(WizardDesign.Colors.wizardBackground)
+            .wizardDetailPage()
+
+            // Celebration overlay
+            if showSuccessBurst {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+
+                CheckmarkBurstView(isShowing: $showSuccessBurst)
             }
         }
-        .frame(maxWidth: .infinity)
-        .background(WizardDesign.Colors.wizardBackground)
-        .wizardDetailPage()
         .onAppear {
             checkForStaleEntries()
         }
@@ -268,7 +280,8 @@ struct WizardInputMonitoringPage: View {
 
         Task {
             if let nextPage = await stateMachine.getNextPage(for: systemState, issues: allIssues),
-               nextPage != stateMachine.currentPage {
+               nextPage != stateMachine.currentPage
+            {
                 stateMachine.navigateToPage(nextPage)
             } else {
                 stateMachine.navigateToPage(.summary)
@@ -300,7 +313,7 @@ struct WizardInputMonitoringPage: View {
     // Automatic prompt polling (Phase 1)
     private func startPermissionPolling(for type: CoordinatorPermissionType) {
         permissionPollingTask?.cancel()
-        permissionPollingTask = Task { [onRefresh] in
+        permissionPollingTask = Task { @MainActor [onRefresh] in
             var attempts = 0
             let maxAttempts = 20 // ~5s at 250ms intervals
             while attempts < maxAttempts {
@@ -315,6 +328,13 @@ struct WizardInputMonitoringPage: View {
                         snapshot.keyPath.inputMonitoring.isReady && snapshot.kanata.inputMonitoring.isReady
                     }
                 if hasPermission {
+                    // Celebrate!
+                    withAnimation(.spring(response: 0.3)) {
+                        showSuccessBurst = true
+                    }
+                    // Wait for celebration, then refresh
+                    try? await Task.sleep(nanoseconds: 1_500_000_000)
+                    showSuccessBurst = false
                     await onRefresh()
                     return
                 }
@@ -356,7 +376,8 @@ struct WizardInputMonitoringPage: View {
 
 private func openInputMonitoringPreferencesPanel() {
     if let url = URL(
-        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
+    {
         let ok = NSWorkspace.shared.open(url)
         if !ok {
             // Fallback: open System Settings app if deep-link fails
@@ -373,6 +394,75 @@ private func revealKanataInFinder() {
     NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
     _ = NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: dir)
     AppLogger.shared.log("📂 [WizardInputMonitoringPage] Revealed kanata in Finder: \(path)")
+
+    // Position windows side-by-side after a short delay
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        positionSettingsAndFinderSideBySide()
+    }
+}
+
+/// Position System Settings and Finder windows side-by-side for easy drag-and-drop
+private func positionSettingsAndFinderSideBySide() {
+    guard let screen = NSScreen.main else { return }
+    let screenFrame = screen.visibleFrame
+
+    // Calculate side-by-side positions (Settings on left, Finder on right)
+    let windowWidth = screenFrame.width / 2
+    let windowHeight = screenFrame.height * 0.8
+    let yPosition = screenFrame.minY + (screenFrame.height - windowHeight) / 2
+
+    let settingsFrame = NSRect(
+        x: screenFrame.minX,
+        y: yPosition,
+        width: windowWidth,
+        height: windowHeight
+    )
+    let finderFrame = NSRect(
+        x: screenFrame.minX + windowWidth,
+        y: yPosition,
+        width: windowWidth,
+        height: windowHeight
+    )
+
+    // Find and position System Settings window
+    if let settingsApp = NSRunningApplication.runningApplications(
+        withBundleIdentifier: "com.apple.systempreferences"
+    ).first {
+        let axApp = AXUIElementCreateApplication(settingsApp.processIdentifier)
+        var windowsRef: CFTypeRef?
+        if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
+           let windows = windowsRef as? [AXUIElement], !windows.isEmpty
+        {
+            let axWindow = windows[0]
+            var position = CGPoint(x: settingsFrame.minX, y: screen.frame.maxY - settingsFrame.maxY)
+            var size = CGSize(width: settingsFrame.width, height: settingsFrame.height)
+            let positionValue = AXValueCreate(.cgPoint, &position)!
+            let sizeValue = AXValueCreate(.cgSize, &size)!
+            AXUIElementSetAttributeValue(axWindow, kAXPositionAttribute as CFString, positionValue)
+            AXUIElementSetAttributeValue(axWindow, kAXSizeAttribute as CFString, sizeValue)
+        }
+    }
+
+    // Find and position Finder window
+    if let finderApp = NSRunningApplication.runningApplications(
+        withBundleIdentifier: "com.apple.finder"
+    ).first {
+        let axApp = AXUIElementCreateApplication(finderApp.processIdentifier)
+        var windowsRef: CFTypeRef?
+        if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
+           let windows = windowsRef as? [AXUIElement], !windows.isEmpty
+        {
+            let axWindow = windows[0]
+            var position = CGPoint(x: finderFrame.minX, y: screen.frame.maxY - finderFrame.maxY)
+            var size = CGSize(width: finderFrame.width, height: finderFrame.height)
+            let positionValue = AXValueCreate(.cgPoint, &position)!
+            let sizeValue = AXValueCreate(.cgSize, &size)!
+            AXUIElementSetAttributeValue(axWindow, kAXPositionAttribute as CFString, positionValue)
+            AXUIElementSetAttributeValue(axWindow, kAXSizeAttribute as CFString, sizeValue)
+        }
+    }
+
+    AppLogger.shared.log("📐 [WizardInputMonitoringPage] Positioned Settings and Finder side-by-side")
 }
 
 private func copyKanataPathToClipboard() {

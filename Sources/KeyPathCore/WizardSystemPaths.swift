@@ -29,7 +29,8 @@ public enum WizardSystemPaths {
 
     private static func resolvedHomeDirectory() -> String {
         if let override = ProcessInfo.processInfo.environment["KEYPATH_HOME_DIR_OVERRIDE"],
-           !override.isEmpty {
+           !override.isEmpty
+        {
             return override
         }
         return NSHomeDirectory()
@@ -75,7 +76,8 @@ public enum WizardSystemPaths {
             return override
         }
         if let override = ProcessInfo.processInfo.environment["KEYPATH_BUNDLED_KANATA_OVERRIDE"],
-           !override.isEmpty {
+           !override.isEmpty
+        {
             return override
         }
         return "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
@@ -85,7 +87,8 @@ public enum WizardSystemPaths {
     /// This binary outputs structured JSON instead of sending real HID events
     public static var bundledSimulatorPath: String {
         if let override = ProcessInfo.processInfo.environment["KEYPATH_BUNDLED_SIMULATOR_OVERRIDE"],
-           !override.isEmpty {
+           !override.isEmpty
+        {
             return override
         }
         return "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata-simulator"

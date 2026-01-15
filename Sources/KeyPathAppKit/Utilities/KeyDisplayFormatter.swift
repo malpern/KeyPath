@@ -88,10 +88,9 @@ public enum KeyDisplayFormatter {
         "↑": "↑",
         "↓": "↓",
 
-        // Function/Globe key
-        "fn": "🌐",
-        "function": "🌐",
-        "🌐": "🌐",
+        // Function/Globe key - keep as "fn" so keycap views can render SF Symbol
+        "fn": "fn",
+        "function": "fn",
 
         // Punctuation
         "grave": "`",

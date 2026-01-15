@@ -1,3 +1,4 @@
+import AppKit
 import KeyPathCore
 import KeyPathPermissions
 import KeyPathWizardCore
@@ -13,6 +14,7 @@ struct WizardAccessibilityPage: View {
     let onDismiss: (() -> Void)?
     let kanataManager: RuntimeCoordinator
     @State private var permissionPollingTask: Task<Void, Never>?
+    @State private var showSuccessBurst = false
 
     @EnvironmentObject var stateMachine: WizardStateMachine
 
@@ -44,190 +46,213 @@ struct WizardAccessibilityPage: View {
     private let stateInterpreter = WizardStateInterpreter()
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Use experimental hero design when permissions are granted
-            if !hasAccessibilityIssues {
-                VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                    WizardHeroSection.success(
-                        icon: "accessibility",
-                        title: "Accessibility",
-                        subtitle: "KeyPath has system-level access for keyboard monitoring & safety controls",
-                        iconTapAction: {
-                            Task {
-                                await onRefresh()
+        ZStack {
+            VStack(spacing: 0) {
+                // Use experimental hero design when permissions are granted
+                if !hasAccessibilityIssues {
+                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                        WizardHeroSection.success(
+                            icon: "accessibility",
+                            title: "Accessibility",
+                            subtitle: "KeyPath has system-level access for keyboard monitoring & safety controls",
+                            iconTapAction: {
+                                Task {
+                                    await onRefresh()
+                                }
                             }
-                        }
-                    )
+                        )
 
-                    // Component details card below the subheading - horizontally centered
-                    HStack {
-                        Spacer()
+                        // Component details card below the subheading - horizontally centered
+                        HStack {
+                            Spacer()
+                            VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                    HStack(spacing: 0) {
+                                        Text("KeyPath.app")
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                        Text(" - Emergency stop detection and system monitoring")
+                                            .font(.headline)
+                                            .fontWeight(.regular)
+                                    }
+                                }
+
+                                HStack(spacing: 12) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                    HStack(spacing: 0) {
+                                        Text("kanata")
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                        Text(" - Keyboard monitoring and remapping engine")
+                                            .font(.headline)
+                                            .fontWeight(.regular)
+                                    }
+                                }
+                            }
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(WizardDesign.Spacing.cardPadding)
+                        .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+                        .padding(.top, WizardDesign.Spacing.pageVertical)
+
+                        Button(nextStepButtonTitle) {
+                            navigateToNextStep()
+                        }
+                        .buttonStyle(WizardDesign.Component.PrimaryButton())
+                        .keyboardShortcut(.defaultAction)
+                        .padding(.top, WizardDesign.Spacing.sectionGap)
+                    }
+                    .heroSectionContainer()
+                    .frame(maxWidth: .infinity)
+                } else {
+                    // Use hero design for error state too, with blue links below
+                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                        WizardHeroSection.warning(
+                            icon: "accessibility",
+                            title: "Accessibility",
+                            subtitle: "Turn on KeyPath in Accessibility, then add and turn on kanata",
+                            iconTapAction: {
+                                Task {
+                                    await onRefresh()
+                                }
+                            }
+                        )
+
+                        // Guard: recommend running from /Applications for stable permissions
+                        if !isRunningFromApplicationsFolder {
+                            Text("For the smoothest setup, move KeyPath to /Applications and relaunch.")
+                                .font(.system(size: 13))
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.top, WizardDesign.Spacing.elementGap)
+                        }
+
+                        // Action link below the subheader
+                        Button("Open Settings Manually") {
+                            openAccessibilitySettings()
+                        }
+                        .buttonStyle(.link)
+                        .padding(.top, WizardDesign.Spacing.elementGap)
+
+                        // Component details for error state
                         VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
                             HStack(spacing: 12) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
+                                let icon = statusIcon(for: keyPathAccessibilityStatus)
+                                Image(systemName: icon.name)
+                                    .foregroundColor(icon.color)
                                 HStack(spacing: 0) {
                                     Text("KeyPath.app")
                                         .font(.headline)
                                         .fontWeight(.semibold)
-                                    Text(" - Emergency stop detection and system monitoring")
+                                    Text(" - Emergency stop detection")
                                         .font(.headline)
                                         .fontWeight(.regular)
                                 }
+                                Spacer()
+                                if keyPathAccessibilityStatus != .completed {
+                                    Button("Turn On") {
+                                        // Set service bounce flag before showing permission grant
+                                        PermissionGrantCoordinator.shared.setServiceBounceNeeded(
+                                            reason: "Accessibility permission fix for KeyPath.app")
+                                        openAccessibilityPermissionGrant()
+                                    }
+                                    .buttonStyle(WizardDesign.Component.SecondaryButton())
+                                    .scaleEffect(0.8)
+                                }
                             }
+                            .help(keyPathAccessibilityIssues.asTooltipText())
 
                             HStack(spacing: 12) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
+                                let icon = statusIcon(for: kanataAccessibilityStatus)
+                                Image(systemName: icon.name)
+                                    .foregroundColor(icon.color)
                                 HStack(spacing: 0) {
                                     Text("kanata")
                                         .font(.headline)
                                         .fontWeight(.semibold)
-                                    Text(" - Keyboard monitoring and remapping engine")
+                                    Text(kanataSubtitle(for: kanataAccessibilityStatus))
                                         .font(.headline)
                                         .fontWeight(.regular)
                                 }
-                            }
-                        }
-                        Spacer()
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(WizardDesign.Spacing.cardPadding)
-                    .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
-                    .padding(.horizontal, WizardDesign.Spacing.pageVertical)
-                    .padding(.top, WizardDesign.Spacing.pageVertical)
-
-                    Button(nextStepButtonTitle) {
-                        navigateToNextStep()
-                    }
-                    .buttonStyle(WizardDesign.Component.PrimaryButton())
-                    .keyboardShortcut(.defaultAction)
-                    .padding(.top, WizardDesign.Spacing.sectionGap)
-                }
-                .heroSectionContainer()
-                .frame(maxWidth: .infinity)
-            } else {
-                // Use hero design for error state too, with blue links below
-                VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                    WizardHeroSection.warning(
-                        icon: "accessibility",
-                        title: "Accessibility",
-                        subtitle: "Turn on KeyPath in Accessibility, then add and turn on kanata",
-                        iconTapAction: {
-                            Task {
-                                await onRefresh()
-                            }
-                        }
-                    )
-
-                    // Guard: recommend running from /Applications for stable permissions
-                    if !isRunningFromApplicationsFolder {
-                        Text("For the smoothest setup, move KeyPath to /Applications and relaunch.")
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.top, WizardDesign.Spacing.elementGap)
-                    }
-
-                    // Action link below the subheader
-                    Button("Open Settings Manually") {
-                        openAccessibilitySettings()
-                    }
-                    .buttonStyle(.link)
-                    .padding(.top, WizardDesign.Spacing.elementGap)
-
-                    // Component details for error state
-                    VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
-                        HStack(spacing: 12) {
-                            let icon = statusIcon(for: keyPathAccessibilityStatus)
-                            Image(systemName: icon.name)
-                                .foregroundColor(icon.color)
-                            HStack(spacing: 0) {
-                                Text("KeyPath.app")
-                                    .font(.headline)
-                                    .fontWeight(.semibold)
-                                Text(" - Emergency stop detection")
-                                    .font(.headline)
-                                    .fontWeight(.regular)
-                            }
-                            Spacer()
-                            if keyPathAccessibilityStatus != .completed {
-                                Button("Turn On") {
-                                    // Set service bounce flag before showing permission grant
-                                    PermissionGrantCoordinator.shared.setServiceBounceNeeded(
-                                        reason: "Accessibility permission fix for KeyPath.app")
-                                    openAccessibilityPermissionGrant()
-                                }
-                                .buttonStyle(WizardDesign.Component.SecondaryButton())
-                                .scaleEffect(0.8)
-                            }
-                        }
-                        .help(keyPathAccessibilityIssues.asTooltipText())
-
-                        HStack(spacing: 12) {
-                            let icon = statusIcon(for: kanataAccessibilityStatus)
-                            Image(systemName: icon.name)
-                                .foregroundColor(icon.color)
-                            HStack(spacing: 0) {
-                                Text("kanata")
-                                    .font(.headline)
-                                    .fontWeight(.semibold)
-                                Text(kanataSubtitle(for: kanataAccessibilityStatus))
-                                    .font(.headline)
-                                    .fontWeight(.regular)
-                            }
-                            Spacer()
-                            if kanataAccessibilityStatus != .completed {
-                                Button("Fix") {
-                                    AppLogger.shared.log(
-                                        "🔘 [WizardAccessibilityPage] Fix clicked for kanata - opening System Settings and revealing kanata"
-                                    )
-                                    let path = WizardSystemPaths.kanataSystemInstallPath
-                                    if !FileManager.default.fileExists(atPath: path) {
-                                        AppLogger.shared.warn(
-                                            "⚠️ [WizardAccessibilityPage] Kanata system binary missing at \(path) - routing to Kanata Components"
+                                Spacer()
+                                if kanataAccessibilityStatus != .completed {
+                                    Button("Fix") {
+                                        AppLogger.shared.log(
+                                            "🔘 [WizardAccessibilityPage] Fix clicked for kanata - opening System Settings and revealing kanata"
                                         )
-                                        stateMachine.navigateToPage(.kanataComponents)
-                                        return
+                                        let path = WizardSystemPaths.kanataSystemInstallPath
+                                        if !FileManager.default.fileExists(atPath: path) {
+                                            AppLogger.shared.warn(
+                                                "⚠️ [WizardAccessibilityPage] Kanata system binary missing at \(path) - routing to Kanata Components"
+                                            )
+                                            stateMachine.navigateToPage(.kanataComponents)
+                                            return
+                                        }
+                                        openAccessibilitySettings()
+                                        revealKanataInFinder()
                                     }
-                                    openAccessibilitySettings()
-                                    revealKanataInFinder()
+                                    .buttonStyle(WizardDesign.Component.SecondaryButton())
+                                    .scaleEffect(0.8)
                                 }
-                                .buttonStyle(WizardDesign.Component.SecondaryButton())
-                                .scaleEffect(0.8)
                             }
+                            .help(kanataAccessibilityIssues.asTooltipText())
                         }
-                        .help(kanataAccessibilityIssues.asTooltipText())
+                        .frame(maxWidth: .infinity)
+                        .padding(WizardDesign.Spacing.cardPadding)
+                        .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+                        .padding(.top, WizardDesign.Spacing.pageVertical)
                     }
+                    .heroSectionContainer()
                     .frame(maxWidth: .infinity)
-                    .padding(WizardDesign.Spacing.cardPadding)
-                    .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
-                    .padding(.horizontal, WizardDesign.Spacing.pageVertical)
-                    .padding(.top, WizardDesign.Spacing.pageVertical)
                 }
-                .heroSectionContainer()
-                .frame(maxWidth: .infinity)
+            }
+            .frame(maxWidth: .infinity)
+            .background(WizardDesign.Colors.wizardBackground)
+            .wizardDetailPage()
+
+            // Celebration overlay
+            if showSuccessBurst {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+
+                CheckmarkBurstView(isShowing: $showSuccessBurst)
             }
         }
-        .frame(maxWidth: .infinity)
-        .background(WizardDesign.Colors.wizardBackground)
-        .wizardDetailPage()
         .onAppear {
             // Start passive polling to reflect manual changes in System Settings
             if permissionPollingTask == nil {
-                permissionPollingTask = Task { [onRefresh] in
+                permissionPollingTask = Task { @MainActor [onRefresh] in
                     var lastKeyPathGranted: Bool?
                     var lastKanataGranted: Bool?
+                    var hasEverCelebrated = false
                     while !Task.isCancelled {
                         let snapshot = await PermissionOracle.shared.currentSnapshot()
                         let kpGranted = snapshot.keyPath.accessibility.isReady
                         let kaGranted = snapshot.kanata.accessibility.isReady
+                        let bothGranted = kpGranted && kaGranted
                         if lastKeyPathGranted != kpGranted || lastKanataGranted != kaGranted {
                             AppLogger.shared.log(
                                 "🔁 [WizardAccessibilityPage] Passive AX change detected - KeyPath: \(kpGranted), Kanata: \(kaGranted). Refreshing UI."
                             )
                             lastKeyPathGranted = kpGranted
                             lastKanataGranted = kaGranted
+
+                            // Celebrate when both permissions are granted for the first time
+                            if bothGranted, !hasEverCelebrated {
+                                hasEverCelebrated = true
+                                withAnimation(.spring(response: 0.3)) {
+                                    showSuccessBurst = true
+                                }
+                                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                                showSuccessBurst = false
+                            }
                             await onRefresh()
                         }
                         // Poll every 250ms up to 1s to reflect changes promptly without long sleeps
@@ -347,7 +372,8 @@ struct WizardAccessibilityPage: View {
 
         // Fallback: Open System Settings > Privacy & Security > Accessibility
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+        {
             let ok = NSWorkspace.shared.open(url)
             if !ok {
                 // Fallback: open System Settings app if deep-link fails
@@ -364,7 +390,8 @@ struct WizardAccessibilityPage: View {
 
         Task {
             if let nextPage = await stateMachine.getNextPage(for: systemState, issues: allIssues),
-               nextPage != stateMachine.currentPage {
+               nextPage != stateMachine.currentPage
+            {
                 stateMachine.navigateToPage(nextPage)
             } else {
                 stateMachine.navigateToPage(.summary)
@@ -379,6 +406,11 @@ struct WizardAccessibilityPage: View {
         AppLogger.shared.log("📂 [WizardAccessibilityPage] Revealed kanata in Finder: \(path)")
         // If NSWorkspace.selectFile is preferred:
         _ = NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: dir)
+
+        // Position windows side-by-side after a short delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            Self.positionSettingsAndFinderSideBySide()
+        }
     }
 
     private func copyKanataPathToClipboard() {
@@ -387,6 +419,70 @@ struct WizardAccessibilityPage: View {
         pb.clearContents()
         pb.setString(path, forType: .string)
         AppLogger.shared.log("📋 [WizardAccessibilityPage] Copied kanata path to clipboard: \(path)")
+    }
+
+    /// Position System Settings and Finder windows side-by-side for easy drag-and-drop
+    private static func positionSettingsAndFinderSideBySide() {
+        guard let screen = NSScreen.main else { return }
+        let screenFrame = screen.visibleFrame
+
+        // Calculate side-by-side positions (Settings on left, Finder on right)
+        let windowWidth = screenFrame.width / 2
+        let windowHeight = screenFrame.height * 0.8
+        let yPosition = screenFrame.minY + (screenFrame.height - windowHeight) / 2
+
+        let settingsFrame = NSRect(
+            x: screenFrame.minX,
+            y: yPosition,
+            width: windowWidth,
+            height: windowHeight
+        )
+        let finderFrame = NSRect(
+            x: screenFrame.minX + windowWidth,
+            y: yPosition,
+            width: windowWidth,
+            height: windowHeight
+        )
+
+        // Find and position System Settings window
+        if let settingsApp = NSRunningApplication.runningApplications(
+            withBundleIdentifier: "com.apple.systempreferences"
+        ).first {
+            let axApp = AXUIElementCreateApplication(settingsApp.processIdentifier)
+            var windowsRef: CFTypeRef?
+            if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
+               let windows = windowsRef as? [AXUIElement], !windows.isEmpty
+            {
+                let axWindow = windows[0]
+                var position = CGPoint(x: settingsFrame.minX, y: screen.frame.maxY - settingsFrame.maxY)
+                var size = CGSize(width: settingsFrame.width, height: settingsFrame.height)
+                let positionValue = AXValueCreate(.cgPoint, &position)!
+                let sizeValue = AXValueCreate(.cgSize, &size)!
+                AXUIElementSetAttributeValue(axWindow, kAXPositionAttribute as CFString, positionValue)
+                AXUIElementSetAttributeValue(axWindow, kAXSizeAttribute as CFString, sizeValue)
+            }
+        }
+
+        // Find and position Finder window
+        if let finderApp = NSRunningApplication.runningApplications(
+            withBundleIdentifier: "com.apple.finder"
+        ).first {
+            let axApp = AXUIElementCreateApplication(finderApp.processIdentifier)
+            var windowsRef: CFTypeRef?
+            if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
+               let windows = windowsRef as? [AXUIElement], !windows.isEmpty
+            {
+                let axWindow = windows[0]
+                var position = CGPoint(x: finderFrame.minX, y: screen.frame.maxY - finderFrame.maxY)
+                var size = CGSize(width: finderFrame.width, height: finderFrame.height)
+                let positionValue = AXValueCreate(.cgPoint, &position)!
+                let sizeValue = AXValueCreate(.cgSize, &size)!
+                AXUIElementSetAttributeValue(axWindow, kAXPositionAttribute as CFString, positionValue)
+                AXUIElementSetAttributeValue(axWindow, kAXSizeAttribute as CFString, sizeValue)
+            }
+        }
+
+        AppLogger.shared.log("📐 [WizardAccessibilityPage] Positioned Settings and Finder side-by-side")
     }
 }
 

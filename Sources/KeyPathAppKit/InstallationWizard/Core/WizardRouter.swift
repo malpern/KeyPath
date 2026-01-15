@@ -38,11 +38,13 @@ enum WizardRouter {
         //
         // Users can still navigate to the permission pages manually from Summary/status rows.
         if hasBlockingPermissionIssue(.permission(.keyPathInputMonitoring))
-            || hasBlockingPermissionIssue(.permission(.kanataInputMonitoring)) {
+            || hasBlockingPermissionIssue(.permission(.kanataInputMonitoring))
+        {
             return .inputMonitoring
         }
         if hasBlockingPermissionIssue(.permission(.keyPathAccessibility))
-            || hasBlockingPermissionIssue(.permission(.kanataAccessibility)) {
+            || hasBlockingPermissionIssue(.permission(.kanataAccessibility))
+        {
             return .accessibility
         }
 

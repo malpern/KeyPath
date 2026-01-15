@@ -140,12 +140,11 @@ struct WizardCommunicationPage: View {
         }
         .onChange(of: commStatus) { _, newValue in
             guard case .inProgress = actionStatus else { return }
-            let isActiveCheck: Bool
-            switch newValue {
+            let isActiveCheck = switch newValue {
             case .checking, .authTesting:
-                isActiveCheck = true
+                true
             default:
-                isActiveCheck = false
+                false
             }
             if !isActiveCheck {
                 actionStatus = .idle
@@ -296,7 +295,7 @@ struct WizardCommunicationPage: View {
     ) async -> KanataTCPClient.TcpHelloOk? {
         var lastError: Error?
 
-        for attempt in 1...maxAttempts {
+        for attempt in 1 ... maxAttempts {
             do {
                 return try await client.hello()
             } catch {
@@ -433,7 +432,8 @@ struct WizardCommunicationPage: View {
 
         Task {
             if let nextPage = await stateMachine.getNextPage(for: systemState, issues: issues),
-               nextPage != stateMachine.currentPage {
+               nextPage != stateMachine.currentPage
+            {
                 stateMachine.navigateToPage(nextPage)
             } else {
                 stateMachine.navigateToPage(.summary)

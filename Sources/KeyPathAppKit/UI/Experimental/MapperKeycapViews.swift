@@ -153,6 +153,15 @@ struct MapperKeycapView: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
+            } else if label.lowercased() == "fn" {
+                // fn key: show globe SF Symbol + "fn" text like input keycap
+                HStack(spacing: 8) {
+                    Image(systemName: "globe")
+                        .font(.system(size: 28, weight: .regular))
+                    Text("fn")
+                        .font(.system(size: 24, weight: .regular))
+                }
+                .foregroundStyle(foregroundColor)
             } else {
                 // Key label - match INPUT keycap layout (no internal padding for short labels)
                 Text(label)

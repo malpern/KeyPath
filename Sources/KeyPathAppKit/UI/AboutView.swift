@@ -1,5 +1,5 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 /// About window for KeyPath - shows app info, version, attribution, and links
 struct AboutView: View {
