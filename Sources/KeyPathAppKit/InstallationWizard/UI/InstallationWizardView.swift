@@ -1085,68 +1085,15 @@ struct InstallationWizardView: View {
         return success
     }
 
-    /// UI-only descriptions for auto-fix actions.
-    ///
-    /// Keep this free of logging so it can be called from SwiftUI view updates.
+    /// UI-only descriptions for auto-fix actions (delegated to AutoFixActionDescriptions)
     private func describeAutoFixActionForUI(_ action: AutoFixAction) -> String {
-        switch action {
-        case .installPrivilegedHelper:
-            "Install privileged helper for system operations"
-        case .reinstallPrivilegedHelper:
-            "Reinstall privileged helper to restore functionality"
-        case .terminateConflictingProcesses:
-            "Terminate conflicting processes"
-        case .startKarabinerDaemon:
-            "Start Karabiner daemon"
-        case .restartVirtualHIDDaemon:
-            "Fix VirtualHID connection issues"
-        case .installMissingComponents:
-            "Install missing components"
-        case .createConfigDirectories:
-            "Create configuration directories"
-        case .activateVHIDDeviceManager:
-            "Activate VirtualHID Device Manager"
-        case .installLaunchDaemonServices:
-            "Install LaunchDaemon services"
-        case .adoptOrphanedProcess:
-            "Connect existing Kanata to KeyPath management"
-        case .replaceOrphanedProcess:
-            "Replace orphaned process with managed service"
-        case .installBundledKanata:
-            "Install Kanata binary"
-        case .repairVHIDDaemonServices:
-            "Repair VHID LaunchDaemon services"
-        case .synchronizeConfigPaths:
-            "Fix config path mismatch between KeyPath and Kanata"
-        case .restartUnhealthyServices:
-            "Restart failing system services"
-        case .installLogRotation:
-            "Install log rotation to keep logs under 10MB"
-        case .replaceKanataWithBundled:
-            "Replace kanata with Developer ID signed version"
-        case .enableTCPServer:
-            "Enable TCP server"
-        case .setupTCPAuthentication:
-            "Setup TCP authentication for secure communication"
-        case .regenerateCommServiceConfiguration:
-            "Update TCP service configuration"
-        case .regenerateServiceConfiguration:
-            "Regenerate service configuration"
-        case .restartCommServer:
-            "Restart Service with Authentication"
-        case .fixDriverVersionMismatch:
-            "Fix Karabiner driver version (v6 → v5)"
-        case .installCorrectVHIDDriver:
-            "Install Karabiner VirtualHID driver"
-        }
+        AutoFixActionDescriptions.describe(action)
     }
 
     /// Get user-friendly description for auto-fix actions
     private func getAutoFixActionDescription(_ action: AutoFixAction) -> String {
         AppLogger.shared.log("🔍 [ActionDescription] getAutoFixActionDescription called for: \(action)")
-
-        let description = describeAutoFixActionForUI(action)
-
+        let description = AutoFixActionDescriptions.describe(action)
         AppLogger.shared.log("🔍 [ActionDescription] Returning description: \(description)")
         return description
     }
@@ -1680,32 +1627,11 @@ struct InstallationWizardView: View {
     }
 
     /// Get detailed error message for specific auto-fix failures
-    private func getDetailedErrorMessage(for action: AutoFixAction, actionDescription: String)
+    private func getDetailedErrorMessage(for action: AutoFixAction, actionDescription _: String)
         async -> String {
         AppLogger.shared.log("🔍 [ErrorMessage] getDetailedErrorMessage called for action: \(action)")
-        AppLogger.shared.log("🔍 [ErrorMessage] Action description: \(actionDescription)")
 
-        var message =
-            switch action {
-            case .installLaunchDaemonServices:
-                "Failed to install system services. Check that you provided admin password and try again."
-            case .activateVHIDDeviceManager:
-                "Failed to activate driver extensions. Please manually approve in System Settings > General > Login Items & Extensions."
-            case .installBundledKanata:
-                "Failed to install Kanata binary. Check admin permissions and try again."
-            case .startKarabinerDaemon:
-                "Failed to start system daemon."
-            case .createConfigDirectories:
-                "Failed to create configuration directories. Check file system permissions."
-            case .restartVirtualHIDDaemon:
-                "Failed to restart Virtual HID daemon."
-            case .restartUnhealthyServices:
-                "Failed to restart system services. This usually means:\n\n• Admin password was not provided when prompted\n"
-                    + "• Missing services could not be installed\n• System permission denied for service restart\n\n"
-                    + "Try the Fix button again and provide admin password when prompted."
-            default:
-                "Failed to \(actionDescription.lowercased()). Check logs for details and try again."
-            }
+        var message = AutoFixActionDescriptions.errorMessage(for: action)
 
         // Enrich daemon-related errors with a succinct diagnosis
         if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon {
@@ -1770,152 +1696,11 @@ struct InstallationWizardView: View {
     }
 }
 
-// MARK: - Timeout helper for auto-fix actions (file-private)
+// MARK: - Extracted Components
 
-private struct AutoFixTimeoutError: Error {}
-
-private func runWithTimeout<T: Sendable>(
-    seconds: Double,
-    operation: @Sendable @escaping () async -> T
-) async throws -> T {
-    try await withThrowingTaskGroup(of: T.self) { group in
-        group.addTask { await operation() }
-        group.addTask {
-            let clock = ContinuousClock()
-            try await clock.sleep(for: .seconds(seconds))
-            throw AutoFixTimeoutError()
-        }
-        let result = try await group.next()!
-        group.cancelAll()
-        return result
-    }
-}
-
-// MARK: - Auto-Fixer Manager
-
-// MARK: - Keyboard Navigation Support
-
-/// ViewModifier that adds keyboard navigation support with macOS version compatibility
-struct KeyboardNavigationModifier: ViewModifier {
-    let onLeftArrow: () -> Void
-    let onRightArrow: () -> Void
-    let onEscape: (() -> Void)?
-
-    init(
-        onLeftArrow: @escaping () -> Void, onRightArrow: @escaping () -> Void,
-        onEscape: (() -> Void)? = nil
-    ) {
-        self.onLeftArrow = onLeftArrow
-        self.onRightArrow = onRightArrow
-        self.onEscape = onEscape
-    }
-
-    func body(content: Content) -> some View {
-        if #available(macOS 14.0, *) {
-            content
-                .onKeyPress(.leftArrow) {
-                    onLeftArrow()
-                    return .handled
-                }
-                .onKeyPress(.rightArrow) {
-                    onRightArrow()
-                    return .handled
-                }
-                .onKeyPress(.escape) {
-                    onEscape?()
-                    return .handled
-                }
-                .focusable(true)
-        } else {
-            // For macOS 13.0, keyboard navigation isn't available
-            content
-        }
-    }
-}
-
-// MARK: - UI-Layer WizardOperations Extension
-
-// This extends WizardOperations (from Core) with UI-specific factory methods that need UI types
-
-extension WizardOperations {
-    /// State detection operation (UI-layer only - uses WizardStateMachine)
-    static func stateDetection(
-        stateMachine: WizardStateMachine?,
-        progressCallback: @escaping @Sendable (Double) -> Void = { _ in }
-    ) -> AsyncOperation<SystemStateResult> {
-        enum StateDetectionError: Error {
-            case timeout
-        }
-
-        return AsyncOperation<SystemStateResult>(
-            id: "state_detection",
-            name: "System State Detection"
-        ) { operationProgressCallback in
-            // Forward progress from SystemValidator to the operation callback
-            if let machine = stateMachine {
-                progressCallback(0.1)
-                do {
-                    try await withThrowingTaskGroup(of: Void.self) { group in
-                        group.addTask { await machine.refresh() }
-                        group.addTask {
-                            try await Task.sleep(nanoseconds: 12_000_000_000)
-                            throw StateDetectionError.timeout
-                        }
-                        _ = try await group.next()
-                        group.cancelAll()
-                    }
-                } catch {
-                    AppLogger.shared.log("⚠️ [Wizard] State detection timed out: \(error)")
-                    progressCallback(1.0)
-                    operationProgressCallback(1.0)
-                    return timeoutResult()
-                }
-
-                progressCallback(1.0)
-                operationProgressCallback(1.0)
-                // Adapt snapshot on the main actor
-                return await MainActor.run {
-                    if let snapshot = machine.systemSnapshot {
-                        let context = SystemContext(
-                            permissions: snapshot.permissions,
-                            services: snapshot.health,
-                            conflicts: snapshot.conflicts,
-                            components: snapshot.components,
-                            helper: snapshot.helper,
-                            system: EngineSystemInfo(macOSVersion: "unknown", driverCompatible: true),
-                            timestamp: snapshot.timestamp
-                        )
-                        return SystemContextAdapter.adapt(context)
-                    } else {
-                        return timeoutResult()
-                    }
-                }
-            } else {
-                progressCallback(1.0)
-                operationProgressCallback(1.0)
-                return timeoutResult()
-            }
-        }
-    }
-
-    private static func timeoutResult() -> SystemStateResult {
-        let issue = WizardIssue(
-            identifier: .daemon,
-            severity: .warning,
-            category: .daemon,
-            title: "System check timed out",
-            description: "KeyPath couldn't finish checking system status. This can happen if the helper or services are unresponsive.",
-            autoFixAction: .restartUnhealthyServices,
-            userAction: "Try restarting KeyPath or click Restart Services."
-        )
-        return SystemStateResult(
-            state: .serviceNotRunning,
-            issues: [issue],
-            autoFixActions: [.restartUnhealthyServices],
-            detectionTimestamp: Date()
-        )
-    }
-}
+// KeyboardNavigationModifier -> Components/KeyboardNavigationModifier.swift
+// WizardOperations.stateDetection -> Core/WizardOperationsUIExtension.swift
+// AutoFixActionDescriptions -> Core/AutoFixActionDescriptions.swift
 
 // MARK: - Focus Ring Suppression Helper
 
