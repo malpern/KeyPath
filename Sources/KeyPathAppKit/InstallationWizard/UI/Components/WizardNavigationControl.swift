@@ -5,28 +5,28 @@ import SwiftUI
 /// System Preferences-style navigation control for wizard detail pages
 /// Automatically reads navigation state from environment
 struct WizardNavigationControl: View {
-    @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
+    @EnvironmentObject var stateMachine: WizardStateMachine
     @State private var isHovering = false
 
     var body: some View {
         // Only show navigation control if at least one direction is available
-        if navigationCoordinator.canNavigateBack || navigationCoordinator.canNavigateForward {
+        if stateMachine.canNavigateBack || stateMachine.canNavigateForward {
             HStack(spacing: 0) {
                 // Left arrow
                 Button(action: {
-                    if let previous = navigationCoordinator.previousPage {
-                        navigationCoordinator.navigateToPage(previous)
+                    if let previous = stateMachine.previousPageInSequence {
+                        stateMachine.navigateToPage(previous)
                     }
                 }) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 14, weight: .medium)) // 25% larger (11 * 1.25 = 13.75 ≈ 14)
                         .foregroundColor(
-                            navigationCoordinator.canNavigateBack ? .primary : .secondary.opacity(0.4)
+                            stateMachine.canNavigateBack ? .primary : .secondary.opacity(0.4)
                         )
                         .frame(width: 25, height: 25) // 25% larger (20 * 1.25 = 25)
                 }
                 .buttonStyle(.plain)
-                .disabled(!navigationCoordinator.canNavigateBack)
+                .disabled(!stateMachine.canNavigateBack)
                 .accessibilityIdentifier("wizard-nav-back")
                 .accessibilityLabel("Previous page")
 
@@ -37,19 +37,19 @@ struct WizardNavigationControl: View {
 
                 // Right arrow
                 Button(action: {
-                    if let next = navigationCoordinator.nextPage {
-                        navigationCoordinator.navigateToPage(next)
+                    if let next = stateMachine.nextPageInSequence {
+                        stateMachine.navigateToPage(next)
                     }
                 }) {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 14, weight: .medium)) // 25% larger
                         .foregroundColor(
-                            navigationCoordinator.canNavigateForward ? .primary : .secondary.opacity(0.4)
+                            stateMachine.canNavigateForward ? .primary : .secondary.opacity(0.4)
                         )
                         .frame(width: 25, height: 25) // 25% larger
                 }
                 .buttonStyle(.plain)
-                .disabled(!navigationCoordinator.canNavigateForward)
+                .disabled(!stateMachine.canNavigateForward)
                 .accessibilityIdentifier("wizard-nav-forward")
                 .accessibilityLabel("Next page")
             }
@@ -79,7 +79,7 @@ struct WizardNavigationControl: View {
 
 /// ViewModifier that adds navigation control overlay to wizard detail pages
 struct WizardDetailPageModifier: ViewModifier {
-    @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
+    @EnvironmentObject var stateMachine: WizardStateMachine
 
     func body(content: Content) -> some View {
         content
@@ -88,7 +88,7 @@ struct WizardDetailPageModifier: ViewModifier {
                     .padding(.top, WizardDesign.Spacing.navigationControlTop + 4) // Extra padding from edge
                     .padding(.leading, WizardDesign.Spacing.navigationControlLeading + 4) // Extra padding from edge
             }
-            .accessibilityIdentifier("wizard-page-\(navigationCoordinator.currentPage.rawValue)")
+            .accessibilityIdentifier("wizard-page-\(stateMachine.currentPage.rawValue)")
     }
 }
 
@@ -101,12 +101,12 @@ extension View {
 
 /// Close button for wizard detail pages with hover state
 struct CloseButton: View {
-    @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
+    @EnvironmentObject var stateMachine: WizardStateMachine
     @State private var isHovering = false
 
     var body: some View {
         Button {
-            navigationCoordinator.navigateToPage(.summary)
+            stateMachine.navigateToPage(.summary)
             AppLogger.shared.log("✖️ [Wizard] Close pressed — navigating to summary")
         } label: {
             Image(systemName: "xmark")

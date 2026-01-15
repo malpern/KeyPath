@@ -25,7 +25,7 @@ struct WizardHelperPage: View {
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
     @State private var hasLoggedDiagnostics = false
     @State private var approvalPollingTimer: Timer?
-    @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
+    @EnvironmentObject var stateMachine: WizardStateMachine
 
     /// Check if bundled helper is newer than installed helper
     private var hasUpdateAvailable: Bool {
@@ -477,16 +477,16 @@ struct WizardHelperPage: View {
 
     private func navigateToNextStep() {
         if issues.isEmpty {
-            navigationCoordinator.navigateToPage(.summary)
+            stateMachine.navigateToPage(.summary)
             return
         }
 
         Task {
-            if let next = await navigationCoordinator.getNextPage(for: systemState, issues: issues),
-               next != navigationCoordinator.currentPage {
-                navigationCoordinator.navigateToPage(next)
+            if let next = await stateMachine.getNextPage(for: systemState, issues: issues),
+               next != stateMachine.currentPage {
+                stateMachine.navigateToPage(next)
             } else {
-                navigationCoordinator.navigateToPage(.summary)
+                stateMachine.navigateToPage(.summary)
             }
         }
     }

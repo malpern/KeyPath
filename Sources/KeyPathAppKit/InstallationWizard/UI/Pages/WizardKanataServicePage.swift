@@ -20,7 +20,7 @@ struct WizardKanataServicePage: View {
     @State private var refreshTask: Task<Void, Never>?
 
     // Integration with RuntimeCoordinator for better error context
-    @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
+    @EnvironmentObject var stateMachine: WizardStateMachine
 
     enum ServiceStatus: Equatable {
         case unknown
@@ -466,16 +466,16 @@ struct WizardKanataServicePage: View {
 
     private func navigateToNextStep() {
         if issues.isEmpty {
-            navigationCoordinator.navigateToPage(.summary)
+            stateMachine.navigateToPage(.summary)
             return
         }
 
         Task {
-            if let nextPage = await navigationCoordinator.getNextPage(for: systemState, issues: issues),
-               nextPage != navigationCoordinator.currentPage {
-                navigationCoordinator.navigateToPage(nextPage)
+            if let nextPage = await stateMachine.getNextPage(for: systemState, issues: issues),
+               nextPage != stateMachine.currentPage {
+                stateMachine.navigateToPage(nextPage)
             } else {
-                navigationCoordinator.navigateToPage(.summary)
+                stateMachine.navigateToPage(.summary)
             }
         }
     }
@@ -551,6 +551,6 @@ struct WizardKanataServicePage_Previews: PreviewProvider {
             onRefresh: {}
         )
         .environmentObject(viewModel)
-        .environmentObject(WizardNavigationCoordinator())
+        .environmentObject(WizardStateMachine())
     }
 }

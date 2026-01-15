@@ -27,7 +27,7 @@ struct WizardKarabinerComponentsPage: View {
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
     @State private var lastKarabinerHealthy = false
     @State private var stepProgressCancellable: AnyCancellable?
-    @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
+    @EnvironmentObject var stateMachine: WizardStateMachine
 
     var body: some View {
         VStack(spacing: 0) {
@@ -220,16 +220,16 @@ struct WizardKarabinerComponentsPage: View {
 
     private func navigateToNextStep() {
         if issues.isEmpty {
-            navigationCoordinator.navigateToPage(.summary)
+            stateMachine.navigateToPage(.summary)
             return
         }
 
         Task {
-            if let nextPage = await navigationCoordinator.getNextPage(for: systemState, issues: issues),
-               nextPage != navigationCoordinator.currentPage {
-                navigationCoordinator.navigateToPage(nextPage)
+            if let nextPage = await stateMachine.getNextPage(for: systemState, issues: issues),
+               nextPage != stateMachine.currentPage {
+                stateMachine.navigateToPage(nextPage)
             } else {
-                navigationCoordinator.navigateToPage(.summary)
+                stateMachine.navigateToPage(.summary)
             }
         }
     }

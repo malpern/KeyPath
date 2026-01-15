@@ -12,7 +12,7 @@ struct WizardConflictsPage: View {
     let kanataManager: RuntimeCoordinator
 
     @State private var isScanning = false
-    @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
+    @EnvironmentObject var stateMachine: WizardStateMachine
     @State private var isDisablingPermanently = false
 
     // Check if there are Karabiner-related conflicts
@@ -126,16 +126,16 @@ struct WizardConflictsPage: View {
 
     private func navigateToNextStep() {
         if allIssues.isEmpty {
-            navigationCoordinator.navigateToPage(.summary)
+            stateMachine.navigateToPage(.summary)
             return
         }
 
         Task {
-            if let nextPage = await navigationCoordinator.getNextPage(for: systemState, issues: allIssues),
-               nextPage != navigationCoordinator.currentPage {
-                navigationCoordinator.navigateToPage(nextPage)
+            if let nextPage = await stateMachine.getNextPage(for: systemState, issues: allIssues),
+               nextPage != stateMachine.currentPage {
+                stateMachine.navigateToPage(nextPage)
             } else {
-                navigationCoordinator.navigateToPage(.summary)
+                stateMachine.navigateToPage(.summary)
             }
         }
     }

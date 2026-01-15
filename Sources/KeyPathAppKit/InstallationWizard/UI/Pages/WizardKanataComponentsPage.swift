@@ -20,7 +20,7 @@ struct WizardKanataComponentsPage: View {
     @State private var pendingIssueFixId: UUID?
     @State private var pendingIssueFixTitle: String?
     @State private var queuedFixTimeoutTask: Task<Void, Never>?
-    @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
+    @EnvironmentObject var stateMachine: WizardStateMachine
 
     var body: some View {
         VStack(spacing: 0) {
@@ -365,16 +365,16 @@ struct WizardKanataComponentsPage: View {
 
     private func navigateToNextStep() {
         if issues.isEmpty {
-            navigationCoordinator.navigateToPage(.summary)
+            stateMachine.navigateToPage(.summary)
             return
         }
 
         Task {
-            if let nextPage = await navigationCoordinator.getNextPage(for: systemState, issues: issues),
-               nextPage != navigationCoordinator.currentPage {
-                navigationCoordinator.navigateToPage(nextPage)
+            if let nextPage = await stateMachine.getNextPage(for: systemState, issues: issues),
+               nextPage != stateMachine.currentPage {
+                stateMachine.navigateToPage(nextPage)
             } else {
-                navigationCoordinator.navigateToPage(.summary)
+                stateMachine.navigateToPage(.summary)
             }
         }
     }

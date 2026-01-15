@@ -19,7 +19,7 @@ struct WizardInputMonitoringPage: View {
     @State private var staleEntryDetails: [String] = []
     @State private var permissionPollingTask: Task<Void, Never>?
 
-    @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
+    @EnvironmentObject var stateMachine: WizardStateMachine
 
     private func statusIcon(for status: InstallationStatus) -> (name: String, color: Color) {
         switch status {
@@ -171,7 +171,7 @@ struct WizardInputMonitoringPage: View {
                                         AppLogger.shared.warn(
                                             "⚠️ [WizardInputMonitoringPage] Kanata system binary missing at \(path) - routing to Kanata Components"
                                         )
-                                        navigationCoordinator.navigateToPage(.kanataComponents)
+                                        stateMachine.navigateToPage(.kanataComponents)
                                         return
                                     }
                                     openInputMonitoringPreferencesPanel()
@@ -262,16 +262,16 @@ struct WizardInputMonitoringPage: View {
 
     private func navigateToNextStep() {
         if allIssues.isEmpty {
-            navigationCoordinator.navigateToPage(.summary)
+            stateMachine.navigateToPage(.summary)
             return
         }
 
         Task {
-            if let nextPage = await navigationCoordinator.getNextPage(for: systemState, issues: allIssues),
-               nextPage != navigationCoordinator.currentPage {
-                navigationCoordinator.navigateToPage(nextPage)
+            if let nextPage = await stateMachine.getNextPage(for: systemState, issues: allIssues),
+               nextPage != stateMachine.currentPage {
+                stateMachine.navigateToPage(nextPage)
             } else {
-                navigationCoordinator.navigateToPage(.summary)
+                stateMachine.navigateToPage(.summary)
             }
         }
     }

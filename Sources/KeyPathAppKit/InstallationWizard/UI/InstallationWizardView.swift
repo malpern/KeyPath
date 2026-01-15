@@ -36,7 +36,6 @@ struct InstallationWizardView: View {
     @StateObject private var stateMachine = WizardStateMachine()
     @StateObject private var autoFixer = WizardAutoFixerManager()
     private let stateInterpreter = WizardStateInterpreter()
-    @StateObject private var navigationCoordinator = WizardNavigationCoordinator()
     @State private var asyncOperationManager = WizardAsyncOperationManager()
     @State private var toastManager = WizardToastManager()
 
@@ -102,7 +101,7 @@ struct InstallationWizardView: View {
             VStack(spacing: 0) {
                 // Always show page content - no preflight view
                 pageContent()
-                    .id(navigationCoordinator.currentPage) // Force view recreation on page change
+                    .id(stateMachine.currentPage) // Force view recreation on page change
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .overlay {
                         // Don't show overlay during validation - summary page has its own gear
@@ -113,16 +112,16 @@ struct InstallationWizardView: View {
                     }
             }
             .frame(width: WizardDesign.Layout.pageWidth)
-            .frame(maxHeight: (navigationCoordinator.currentPage == .summary) ? 540 : .infinity) // Grow up to cap, then scroll
+            .frame(maxHeight: (stateMachine.currentPage == .summary) ? 540 : .infinity) // Grow up to cap, then scroll
             .fixedSize(horizontal: true, vertical: false) // Allow vertical growth; keep width fixed
             .animation(.easeInOut(duration: 0.25), value: isValidating)
             // Prevent vertical position animation during page transitions
-            .animation(nil, value: navigationCoordinator.currentPage)
+            .animation(nil, value: stateMachine.currentPage)
             // Remove animation on frame changes to prevent window movement
             .background(WizardDesign.Colors.wizardBackground) // Simple solid background, no visual effect
         }
         .withToasts(toastManager)
-        .environmentObject(navigationCoordinator)
+        .environmentObject(stateMachine)
         .focused($hasKeyboardFocus) // Enable focus for reliable ESC key handling
         // Aggressively disable focus rings during validation
         .onChange(of: isValidating) { _, newValue in
@@ -136,18 +135,18 @@ struct InstallationWizardView: View {
                 }
             } else {
                 // Validation finished; set navigation sequence based on current filter
-                navigationCoordinator.customSequence = showAllSummaryItems ? nil : navSequence
+                stateMachine.customSequence = showAllSummaryItems ? nil : navSequence
             }
         }
         // Global Close button overlay for all detail pages
         .overlay(alignment: .topTrailing) {
-            if navigationCoordinator.currentPage != .summary {
+            if stateMachine.currentPage != .summary {
                 CloseButton()
-                    .environmentObject(navigationCoordinator)
+                    .environmentObject(stateMachine)
                     .padding(.top, 8 + 4) // Extra padding from edge
                     .padding(.trailing, 8 + 4) // Extra padding from edge
                     // Prevent close button from animating during page transitions
-                    .animation(nil, value: navigationCoordinator.currentPage)
+                    .animation(nil, value: stateMachine.currentPage)
             }
         }
         .onAppear {
@@ -167,9 +166,9 @@ struct InstallationWizardView: View {
         }
         // Keep navigation sequence in sync with summary filter state
         .onChange(of: showAllSummaryItems) { _, showAll in
-            navigationCoordinator.customSequence = showAll ? nil : navSequence
+            stateMachine.customSequence = showAll ? nil : navSequence
         }
-        .onChange(of: navigationCoordinator.currentPage) { oldPage, newPage in
+        .onChange(of: stateMachine.currentPage) { oldPage, newPage in
             AppLogger.shared.log("🧭 [Wizard] View detected page change: \(oldPage) → \(newPage)")
             if newPage == .summary, !isValidating {
                 refreshStateForSummaryEntry(previousPage: oldPage)
@@ -181,7 +180,7 @@ struct InstallationWizardView: View {
         }
         .onChange(of: navSequence) { _, newSeq in
             if !showAllSummaryItems {
-                navigationCoordinator.customSequence = newSeq
+                stateMachine.customSequence = newSeq
             }
         }
         .onChange(of: showingStartConfirmation) { _, newValue in
@@ -277,7 +276,7 @@ struct InstallationWizardView: View {
     @ViewBuilder
     private func pageContent() -> some View {
         ZStack {
-            switch navigationCoordinator.currentPage {
+            switch stateMachine.currentPage {
             case .summary:
                 WizardSummaryPage(
                     systemState: systemState,
@@ -286,7 +285,7 @@ struct InstallationWizardView: View {
                     onStartService: startKanataService,
                     onDismiss: { dismissAndRefreshMainScreen() },
                     onNavigateToPage: { page in
-                        navigationCoordinator.navigateToPage(page)
+                        stateMachine.navigateToPage(page)
                     },
                     isValidating: isValidating,
                     showAllItems: $showAllSummaryItems,
@@ -314,7 +313,7 @@ struct InstallationWizardView: View {
                     stateInterpreter: stateInterpreter,
                     onRefresh: { refreshState() },
                     onNavigateToPage: { page in
-                        navigationCoordinator.navigateToPage(page)
+                        stateMachine.navigateToPage(page)
                     },
                     onDismiss: {
                         dismissAndRefreshMainScreen()
@@ -328,7 +327,7 @@ struct InstallationWizardView: View {
                     allIssues: currentIssues,
                     onRefresh: { refreshState() },
                     onNavigateToPage: { page in
-                        navigationCoordinator.navigateToPage(page)
+                        stateMachine.navigateToPage(page)
                     },
                     onDismiss: {
                         dismissAndRefreshMainScreen()
@@ -361,21 +360,21 @@ struct InstallationWizardView: View {
                     onMigrationComplete: { hasRunningKanata in
                         // After migration, check if we need to stop external kanata
                         if hasRunningKanata {
-                            navigationCoordinator.navigateToPage(.stopExternalKanata)
+                            stateMachine.navigateToPage(.stopExternalKanata)
                         } else {
                             // No running kanata, continue to next step
                             refreshState()
                             if currentIssues.contains(where: { $0.category == .installation && $0.identifier == .component(.kanataBinaryMissing) }) {
-                                navigationCoordinator.navigateToPage(.kanataComponents)
+                                stateMachine.navigateToPage(.kanataComponents)
                             } else {
-                                navigationCoordinator.navigateToPage(.summary)
+                                stateMachine.navigateToPage(.summary)
                             }
                         }
                     },
                     onSkip: {
                         // Skip migration, continue to next step
                         refreshState()
-                        navigationCoordinator.navigateToPage(.summary)
+                        stateMachine.navigateToPage(.summary)
                     }
                 )
             case .stopExternalKanata:
@@ -384,14 +383,14 @@ struct InstallationWizardView: View {
                         // After stopping, refresh state and continue
                         refreshState()
                         if currentIssues.contains(where: { $0.category == .installation && $0.identifier == .component(.kanataBinaryMissing) }) {
-                            navigationCoordinator.navigateToPage(.kanataComponents)
+                            stateMachine.navigateToPage(.kanataComponents)
                         } else {
-                            navigationCoordinator.navigateToPage(.summary)
+                            stateMachine.navigateToPage(.summary)
                         }
                     },
                     onCancel: {
                         // User cancelled, go back to migration
-                        navigationCoordinator.navigateToPage(.kanataMigration)
+                        stateMachine.navigateToPage(.kanataMigration)
                     }
                 )
             case .helper:
@@ -420,7 +419,7 @@ struct InstallationWizardView: View {
         }
         // Directional page transition based on navigation direction
         .transition(
-            navigationCoordinator.isNavigatingForward
+            stateMachine.isNavigatingForward
                 ? WizardDesign.Transition.pageSlideForward
                 : WizardDesign.Transition.pageSlideBackward
         )
@@ -462,7 +461,7 @@ struct InstallationWizardView: View {
         AppLogger.shared.log("🔍 [Wizard] Setting up wizard with new architecture")
 
         // Always reset navigation state for fresh run
-        navigationCoordinator.navigationEngine.resetNavigationState()
+        stateMachine.navigationEngine.resetNavigationState()
 
         // Configure state providers
         stateManager.configure(kanataManager: kanataManager)
@@ -489,12 +488,12 @@ struct InstallationWizardView: View {
         let preferredPage = await cachedPreferredPage()
         if let preferredPage, initialPage == nil {
             AppLogger.shared.log("🔍 [Wizard] Preferring cached page: \(preferredPage)")
-            navigationCoordinator.navigateToPage(preferredPage)
+            stateMachine.navigateToPage(preferredPage)
         } else if let initialPage {
             AppLogger.shared.log("🔍 [Wizard] Navigating to initial page override: \(initialPage)")
-            navigationCoordinator.navigateToPage(initialPage)
+            stateMachine.navigateToPage(initialPage)
         } else {
-            navigationCoordinator.navigateToPage(.summary)
+            stateMachine.navigateToPage(.summary)
         }
 
         Task {
@@ -570,7 +569,7 @@ struct InstallationWizardView: View {
                 state: result.state, issues: filteredIssues
             )
             // Start at summary page - no auto navigation
-            // navigationCoordinator.autoNavigateIfNeeded(for: result.state, issues: result.issues)
+            // stateMachine.autoNavigateIfNeeded(for: result.state, issues: result.issues)
 
             // Transition to results immediately when validation completes
             Task { @MainActor in
@@ -581,24 +580,24 @@ struct InstallationWizardView: View {
             }
 
             AppLogger.shared.log(
-                "🔍 [Wizard] Initial setup - State: \(result.state), Issues: \(filteredIssues.count), Target Page: \(navigationCoordinator.currentPage)"
+                "🔍 [Wizard] Initial setup - State: \(result.state), Issues: \(filteredIssues.count), Target Page: \(stateMachine.currentPage)"
             )
             AppLogger.shared.log(
                 "🔍 [Wizard] Issue details: \(filteredIssues.map { "\($0.category)-\($0.title)" })")
 
             Task { @MainActor in
                 if shouldNavigateToSummary(
-                    currentPage: navigationCoordinator.currentPage,
+                    currentPage: stateMachine.currentPage,
                     state: result.state,
                     issues: filteredIssues
                 ) {
                     AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
-                    navigationCoordinator.navigateToPage(.summary)
+                    stateMachine.navigateToPage(.summary)
                 } else if let preferred = await preferredDetailPage(for: result.state, issues: filteredIssues),
-                          navigationCoordinator.currentPage != preferred {
+                          stateMachine.currentPage != preferred {
                     AppLogger.shared.log("🔍 [Wizard] Deterministic routing to \(preferred) (single blocker)")
-                    navigationCoordinator.navigateToPage(preferred)
-                } else if navigationCoordinator.currentPage == .summary {
+                    stateMachine.navigateToPage(preferred)
+                } else if stateMachine.currentPage == .summary {
                     // Wait a tick for navSequence to be updated by WizardSystemStatusOverview's onChange handlers
                     _ = await WizardSleep.ms(50) // 50ms
                     autoNavigateIfSingleIssue(in: filteredIssues, state: result.state)
@@ -606,11 +605,11 @@ struct InstallationWizardView: View {
             }
 
             // Targeted auto-navigation: if helper isn't installed, go to Helper page first
-            let recommended = await navigationCoordinator.navigationEngine
+            let recommended = await stateMachine.navigationEngine
                 .determineCurrentPage(for: result.state, issues: filteredIssues)
-            if recommended == .helper, navigationCoordinator.currentPage == .summary {
+            if recommended == .helper, stateMachine.currentPage == .summary {
                 AppLogger.shared.log("🔍 [Wizard] Auto-navigating to Helper page (helper missing)")
-                navigationCoordinator.navigateToPage(.helper)
+                stateMachine.navigateToPage(.helper)
             }
         }
     }
@@ -643,7 +642,7 @@ struct InstallationWizardView: View {
     /// Determine if background polling is needed
     private func shouldPerformBackgroundPolling() -> Bool {
         // Only poll on summary page where overview is shown
-        navigationCoordinator.currentPage == .summary
+        stateMachine.currentPage == .summary
     }
 
     /// Perform targeted state check based on current page
@@ -654,7 +653,7 @@ struct InstallationWizardView: View {
             return
         }
 
-        switch navigationCoordinator.currentPage {
+        switch stateMachine.currentPage {
         case .summary:
             // Full check only for summary page
             let operation = WizardOperations.stateDetection(
@@ -664,7 +663,7 @@ struct InstallationWizardView: View {
             )
             asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
                 let oldState = systemState
-                let oldPage = navigationCoordinator.currentPage
+                let oldPage = stateMachine.currentPage
 
                 // Freshness guard: drop stale results and retry once
                 if !isFresh(result) {
@@ -685,27 +684,27 @@ struct InstallationWizardView: View {
                 currentIssues = filteredIssues
 
                 AppLogger.shared.log(
-                    "🔍 [Navigation] Current: \(navigationCoordinator.currentPage), Issues: \(filteredIssues.map { "\($0.category)-\($0.title)" })"
+                    "🔍 [Navigation] Current: \(stateMachine.currentPage), Issues: \(filteredIssues.map { "\($0.category)-\($0.title)" })"
                 )
 
                 // No auto-navigation - stay on current page
-                // navigationCoordinator.autoNavigateIfNeeded(for: result.state, issues: result.issues)
+                // stateMachine.autoNavigateIfNeeded(for: result.state, issues: result.issues)
 
                 Task { @MainActor in
                     if shouldNavigateToSummary(
-                        currentPage: navigationCoordinator.currentPage,
+                        currentPage: stateMachine.currentPage,
                         state: result.state,
                         issues: filteredIssues
                     ) {
                         AppLogger.shared.log(
                             "🟢 [Wizard] Healthy system detected during monitor; routing to summary")
-                        navigationCoordinator.navigateToPage(.summary)
+                        stateMachine.navigateToPage(.summary)
                     }
                 }
 
-                if oldState != systemState || oldPage != navigationCoordinator.currentPage {
+                if oldState != systemState || oldPage != stateMachine.currentPage {
                     AppLogger.shared.log(
-                        "🔍 [Wizard] State changed: \(oldState) -> \(systemState), page: \(oldPage) -> \(navigationCoordinator.currentPage)"
+                        "🔍 [Wizard] State changed: \(oldState) -> \(systemState), page: \(oldPage) -> \(stateMachine.currentPage)"
                     )
                 }
             }
@@ -1305,12 +1304,12 @@ struct InstallationWizardView: View {
     @MainActor
     private func autoNavigateIfSingleIssue(in issues: [WizardIssue], state _: WizardSystemState) {
         AppLogger.shared.log("🔍 [AutoNav] ===== autoNavigateIfSingleIssue CALLED =====")
-        AppLogger.shared.log("🔍 [AutoNav] Current page: \(navigationCoordinator.currentPage)")
+        AppLogger.shared.log("🔍 [AutoNav] Current page: \(stateMachine.currentPage)")
         AppLogger.shared.log("🔍 [AutoNav] Issues count: \(issues.count)")
         AppLogger.shared.log("🔍 [AutoNav] navSequence count: \(navSequence.count)")
         AppLogger.shared.log("🔍 [AutoNav] navSequence pages: \(navSequence.map(\.displayName))")
 
-        guard navigationCoordinator.currentPage == .summary else {
+        guard stateMachine.currentPage == .summary else {
             AppLogger.shared.log("🔍 [AutoNav] SKIP: Not on summary page")
             return
         }
@@ -1324,13 +1323,13 @@ struct InstallationWizardView: View {
         }
 
         AppLogger.shared.log("🔍 [AutoNav] ✅ AUTO-NAVIGATING to \(targetPage) (single item in summary)")
-        navigationCoordinator.navigateToPage(targetPage)
+        stateMachine.navigateToPage(targetPage)
         AppLogger.shared.log("🔍 [AutoNav] Navigation command sent")
     }
 
     private func preferredDetailPage(for state: WizardSystemState, issues: [WizardIssue])
         async -> WizardPage? {
-        let page = await navigationCoordinator.navigationEngine.determineCurrentPage(
+        let page = await stateMachine.navigationEngine.determineCurrentPage(
             for: state, issues: issues
         )
         guard page != .summary else { return nil }
@@ -1376,25 +1375,25 @@ struct InstallationWizardView: View {
 
         // Only auto-navigate if user hasn't been interacting with the wizard
         // This prevents jarring navigation away from a page after a fix completes
-        let shouldAutoNavigate = !navigationCoordinator.userInteractionMode
+        let shouldAutoNavigate = !stateMachine.userInteractionMode
 
         if shouldNavigateToSummary(
-            currentPage: navigationCoordinator.currentPage,
+            currentPage: stateMachine.currentPage,
             state: result.state,
             issues: filteredIssues
         ) {
             AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
-            navigationCoordinator.navigateToPage(.summary)
+            stateMachine.navigateToPage(.summary)
         } else if shouldAutoNavigate {
             Task {
                 if let preferred = await preferredDetailPage(for: result.state, issues: filteredIssues),
-                   navigationCoordinator.currentPage != preferred {
+                   stateMachine.currentPage != preferred {
                     AppLogger.shared.log("🔄 [Wizard] Deterministic routing to \(preferred) after refresh")
-                    navigationCoordinator.navigateToPage(preferred)
+                    stateMachine.navigateToPage(preferred)
                 }
             }
         }
-        if navigationCoordinator.currentPage == .summary, shouldAutoNavigate {
+        if stateMachine.currentPage == .summary, shouldAutoNavigate {
             Task { @MainActor in
                 _ = await WizardSleep.ms(50) // 50ms
                 autoNavigateIfSingleIssue(in: filteredIssues, state: result.state)
@@ -1730,33 +1729,33 @@ struct InstallationWizardView: View {
 
     /// Navigate to the previous page using keyboard left arrow
     private func navigateToPreviousPage() {
-        guard navigationCoordinator.currentPage != .summary else { return }
+        guard stateMachine.currentPage != .summary else { return }
         let defaultSequence: [WizardPage] = [
             .fullDiskAccess, .conflicts, .inputMonitoring, .accessibility,
             .karabinerComponents, .kanataComponents, .service, .communication
         ]
         let sequence = navSequence.isEmpty ? defaultSequence : navSequence
-        guard let idx = sequence.firstIndex(of: navigationCoordinator.currentPage), idx > 0 else {
+        guard let idx = sequence.firstIndex(of: stateMachine.currentPage), idx > 0 else {
             return
         }
         let previousPage = sequence[idx - 1]
-        navigationCoordinator.navigateToPage(previousPage)
+        stateMachine.navigateToPage(previousPage)
         AppLogger.shared.log("⬅️ [Keyboard] Navigated to previous page: \(previousPage.displayName)")
     }
 
     /// Navigate to the next page using keyboard right arrow
     private func navigateToNextPage() {
-        guard navigationCoordinator.currentPage != .summary else { return }
+        guard stateMachine.currentPage != .summary else { return }
         let defaultSequence: [WizardPage] = [
             .fullDiskAccess, .conflicts, .inputMonitoring, .accessibility,
             .karabinerComponents, .kanataComponents, .service, .communication
         ]
         let sequence = navSequence.isEmpty ? defaultSequence : navSequence
-        guard let idx = sequence.firstIndex(of: navigationCoordinator.currentPage),
+        guard let idx = sequence.firstIndex(of: stateMachine.currentPage),
               idx < sequence.count - 1
         else { return }
         let nextPage = sequence[idx + 1]
-        navigationCoordinator.navigateToPage(nextPage)
+        stateMachine.navigateToPage(nextPage)
         AppLogger.shared.log("➡️ [Keyboard] Navigated to next page: \(nextPage.displayName)")
     }
 

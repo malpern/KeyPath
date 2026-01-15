@@ -39,7 +39,7 @@ struct WizardFullDiskAccessPage: View {
     @State private var cachedFDAStatus: Bool = false
     private let cacheValidityDuration: TimeInterval = 10.0 // Cache for 10 seconds
 
-    @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
+    @EnvironmentObject var stateMachine: WizardStateMachine
 
     var body: some View {
         VStack(spacing: 0) {
@@ -215,16 +215,16 @@ struct WizardFullDiskAccessPage: View {
 
     private func navigateToNextStep() {
         if issues.isEmpty {
-            navigationCoordinator.navigateToPage(.summary)
+            stateMachine.navigateToPage(.summary)
             return
         }
 
         Task {
-            if let nextPage = await navigationCoordinator.getNextPage(for: systemState, issues: issues),
-               nextPage != navigationCoordinator.currentPage {
-                navigationCoordinator.navigateToPage(nextPage)
+            if let nextPage = await stateMachine.getNextPage(for: systemState, issues: issues),
+               nextPage != stateMachine.currentPage {
+                stateMachine.navigateToPage(nextPage)
             } else {
-                navigationCoordinator.navigateToPage(.summary)
+                stateMachine.navigateToPage(.summary)
             }
         }
     }

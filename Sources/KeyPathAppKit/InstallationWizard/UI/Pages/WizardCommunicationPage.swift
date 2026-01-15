@@ -9,7 +9,7 @@ struct WizardCommunicationPage: View {
     @State private var isFixing = false
     @State private var lastCheckTime = Date()
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
-    @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
+    @EnvironmentObject var stateMachine: WizardStateMachine
     @EnvironmentObject var kanataViewModel: KanataViewModel
     @Environment(\.preferencesService) private var preferences: PreferencesService
 
@@ -427,16 +427,16 @@ struct WizardCommunicationPage: View {
 
     private func navigateToNextStep() {
         if issues.isEmpty {
-            navigationCoordinator.navigateToPage(.summary)
+            stateMachine.navigateToPage(.summary)
             return
         }
 
         Task {
-            if let nextPage = await navigationCoordinator.getNextPage(for: systemState, issues: issues),
-               nextPage != navigationCoordinator.currentPage {
-                navigationCoordinator.navigateToPage(nextPage)
+            if let nextPage = await stateMachine.getNextPage(for: systemState, issues: issues),
+               nextPage != stateMachine.currentPage {
+                stateMachine.navigateToPage(nextPage)
             } else {
-                navigationCoordinator.navigateToPage(.summary)
+                stateMachine.navigateToPage(.summary)
             }
         }
     }

@@ -22,6 +22,16 @@ class WizardStateMachine: ObservableObject {
     /// Current wizard page
     @Published var currentPage: WizardPage = .summary
 
+    /// Last visited page for direction detection
+    @Published var lastVisitedPage: WizardPage?
+
+    /// Whether user has manually interacted (blocks auto-navigation)
+    @Published var userInteractionMode = false
+
+    /// Optional external sequence to drive back/next order (e.g., filtered issues-only list).
+    /// When nil or empty, the default ordered pages are used.
+    @Published var customSequence: [WizardPage]?
+
     /// Whether we're currently refreshing state
     @Published var isRefreshing = false
 
@@ -32,6 +42,15 @@ class WizardStateMachine: ObservableObject {
 
     private var validator: SystemValidator?
     private weak var kanataManager: RuntimeCoordinator?
+
+    /// Navigation engine for determining appropriate pages
+    let navigationEngine = WizardNavigationEngine()
+
+    // MARK: - Navigation State
+
+    private var lastPageChangeTime = Date()
+    private let autoNavigationGracePeriod: TimeInterval = 10.0
+    private let navigationAnimation: Animation = .spring(response: 0.35, dampingFraction: 0.9)
 
     // MARK: - Defensive State
 
@@ -101,7 +120,59 @@ class WizardStateMachine: ObservableObject {
 
     // MARK: - Navigation
 
-    /// Navigate to next appropriate page based on system state
+    /// Navigate to a specific page with animation (main navigation method)
+    func navigateToPage(_ page: WizardPage) {
+        AppLogger.shared.log("🧭 [StateMachine] navigateToPage(\(page)) called, current=\(currentPage)")
+        withAnimation(navigationAnimation) {
+            lastVisitedPage = currentPage
+            currentPage = page
+            lastPageChangeTime = Date()
+            userInteractionMode = true
+        }
+        AppLogger.shared.log("🧭 [StateMachine] navigateToPage(\(page)) complete, now=\(currentPage)")
+    }
+
+    /// Auto-navigate based on system state (if user hasn't interacted recently)
+    func autoNavigateIfNeeded(for state: WizardSystemState, issues: [WizardIssue]) async {
+        // Don't auto-navigate if user has recently interacted
+        guard !isInUserInteractionMode() else { return }
+
+        let recommendedPage = await navigationEngine.determineCurrentPage(for: state, issues: issues)
+
+        // Only navigate if it's different from current page
+        guard recommendedPage != currentPage else { return }
+
+        withAnimation(navigationAnimation) {
+            lastVisitedPage = currentPage
+            currentPage = recommendedPage
+            lastPageChangeTime = Date()
+        }
+    }
+
+    /// Check if we can navigate to a specific page
+    func canNavigate(to page: WizardPage, given state: WizardSystemState) -> Bool {
+        navigationEngine.canNavigate(from: currentPage, to: page, given: state)
+    }
+
+    /// Get the next logical page in the wizard flow
+    func getNextPage(for state: WizardSystemState, issues: [WizardIssue]) async -> WizardPage? {
+        await navigationEngine.nextPage(from: currentPage, given: state, issues: issues)
+    }
+
+    /// Reset navigation state (typically called when wizard starts)
+    func resetNavigation() {
+        currentPage = .summary
+        userInteractionMode = false
+        lastPageChangeTime = Date()
+    }
+
+    /// Navigate to specific page (simplified, without animation tracking)
+    func navigateTo(_ page: WizardPage) {
+        AppLogger.shared.log("🎯 [WizardStateMachine] Navigate to: \(page.rawValue)")
+        currentPage = page
+    }
+
+    /// Navigate to next appropriate page based on system state (used by determinism tests)
     func nextPage() {
         guard let snapshot = systemSnapshot else {
             AppLogger.shared.warn("⚠️ [WizardStateMachine] Cannot navigate - no system state")
@@ -114,7 +185,7 @@ class WizardStateMachine: ObservableObject {
         currentPage = next
     }
 
-    /// Navigate to previous page
+    /// Navigate to previous page based on hardcoded flow
     func previousPage() {
         let previous = determinePreviousPage(from: currentPage)
         AppLogger.shared.log(
@@ -122,13 +193,7 @@ class WizardStateMachine: ObservableObject {
         currentPage = previous
     }
 
-    /// Navigate to specific page
-    func navigateTo(_ page: WizardPage) {
-        AppLogger.shared.log("🎯 [WizardStateMachine] Navigate to: \(page.rawValue)")
-        currentPage = page
-    }
-
-    // MARK: - Navigation Logic
+    // MARK: - Private Navigation Helpers
 
     private func determineNextPage(from current: WizardPage, state: SystemSnapshot) -> WizardPage {
         // Use the shared pure router to choose target page based on latest snapshot.
@@ -185,6 +250,11 @@ class WizardStateMachine: ObservableObject {
         }
     }
 
+    private func isInUserInteractionMode() -> Bool {
+        userInteractionMode
+            && Date().timeIntervalSince(lastPageChangeTime) < autoNavigationGracePeriod
+    }
+
     // MARK: - Computed Properties
 
     /// Whether system is ready
@@ -212,5 +282,104 @@ class WizardStateMachine: ObservableObject {
     /// Get refresh stats for debugging
     func getRefreshStats() -> (count: Int, lastStart: Date?) {
         (refreshCount, lastRefreshStart)
+    }
+}
+
+// MARK: - Navigation State Helpers
+
+extension WizardStateMachine {
+    /// Returns true if navigating forward (to a later page in the flow)
+    var isNavigatingForward: Bool {
+        guard let lastPage = lastVisitedPage else { return true }
+        let order = WizardPage.orderedPages
+        guard let currentIndex = order.firstIndex(of: currentPage),
+              let lastIndex = order.firstIndex(of: lastPage) else { return true }
+        return currentIndex > lastIndex
+    }
+
+    /// Active sequence used for previous/next navigation
+    private var activeSequence: [WizardPage] {
+        if let custom = customSequence, !custom.isEmpty {
+            return custom
+        }
+        return WizardPage.orderedPages
+    }
+
+    /// Get navigation state for UI components (like page dots)
+    var navigationState: WizardNavigationState {
+        WizardNavigationState(
+            currentPage: currentPage,
+            availablePages: WizardPage.allCases,
+            canNavigateNext: false, // This would need system state to determine
+            canNavigatePrevious: false, // This would need system state to determine
+            shouldAutoNavigate: !isInUserInteractionMode()
+        )
+    }
+
+    /// Check if a page is the currently active page
+    func isCurrentPage(_ page: WizardPage) -> Bool {
+        currentPage == page
+    }
+
+    /// Get pages that have been visited or are available
+    func getAvailablePages(for _: WizardSystemState) -> [WizardPage] {
+        // This could be enhanced to show which pages are accessible
+        // based on current system state
+        WizardPage.allCases
+    }
+
+    /// Check if we can navigate to the previous page
+    var canNavigateBack: Bool {
+        guard let currentIndex = activeSequence.firstIndex(of: currentPage) else {
+            return false
+        }
+        return currentIndex > 0
+    }
+
+    /// Check if we can navigate to the next page
+    var canNavigateForward: Bool {
+        guard let currentIndex = activeSequence.firstIndex(of: currentPage) else {
+            return false
+        }
+        return currentIndex < activeSequence.count - 1
+    }
+
+    /// Get the previous page in the ordered sequence
+    var previousPageInSequence: WizardPage? {
+        guard let currentIndex = activeSequence.firstIndex(of: currentPage),
+              currentIndex > 0
+        else {
+            return nil
+        }
+        return activeSequence[currentIndex - 1]
+    }
+
+    /// Get the next page in the ordered sequence
+    var nextPageInSequence: WizardPage? {
+        guard let currentIndex = activeSequence.firstIndex(of: currentPage),
+              currentIndex < activeSequence.count - 1
+        else {
+            return nil
+        }
+        return activeSequence[currentIndex + 1]
+    }
+}
+
+// MARK: - Animation Helpers
+
+extension WizardStateMachine {
+    /// Standard page transition animation
+    static let pageTransition: Animation = .easeInOut(duration: 0.3)
+
+    /// Quick feedback animation for user interactions
+    static let userFeedback: Animation = .easeInOut(duration: 0.2)
+
+    /// Perform navigation with custom animation
+    func navigateToPage(_ page: WizardPage, animation: Animation) {
+        withAnimation(animation) {
+            currentPage = page
+            lastPageChangeTime = Date()
+            userInteractionMode = true
+        }
     }
 }

@@ -4,19 +4,19 @@ import Foundation
 @testable import KeyPathAppKit
 @testable import KeyPathWizardCore
 
-/// Tests for WizardNavigationCoordinator behavior
-/// These tests capture the current behavior before migrating to WizardStateMachine
+/// Tests for WizardStateMachine navigation behavior
+/// These tests verify navigation functionality after migrating from WizardNavigationCoordinator
 @MainActor
-final class WizardNavigationCoordinatorTests: XCTestCase {
-    var coordinator: WizardNavigationCoordinator!
+final class WizardStateMachineNavigationTests: XCTestCase {
+    var stateMachine: WizardStateMachine!
 
     override func setUp() async throws {
         try await super.setUp()
-        coordinator = WizardNavigationCoordinator()
+        stateMachine = WizardStateMachine()
     }
 
     override func tearDown() async throws {
-        coordinator = nil
+        stateMachine = nil
         try await super.tearDown()
     }
 
@@ -24,188 +24,188 @@ final class WizardNavigationCoordinatorTests: XCTestCase {
 
     func testNavigateToPage_updatesCurrentPage() {
         // Given
-        XCTAssertEqual(coordinator.currentPage, .summary)
+        XCTAssertEqual(stateMachine.currentPage, .summary)
 
         // When
-        coordinator.navigateToPage(.inputMonitoring)
+        stateMachine.navigateToPage(.inputMonitoring)
 
         // Then
-        XCTAssertEqual(coordinator.currentPage, .inputMonitoring)
+        XCTAssertEqual(stateMachine.currentPage, .inputMonitoring)
     }
 
     func testNavigateToPage_updatesLastVisitedPage() {
         // Given
-        XCTAssertNil(coordinator.lastVisitedPage)
+        XCTAssertNil(stateMachine.lastVisitedPage)
 
         // When
-        coordinator.navigateToPage(.inputMonitoring)
+        stateMachine.navigateToPage(.inputMonitoring)
 
         // Then
-        XCTAssertEqual(coordinator.lastVisitedPage, .summary)
+        XCTAssertEqual(stateMachine.lastVisitedPage, .summary)
     }
 
     func testNavigateToPage_setsUserInteractionMode() {
         // Given
-        XCTAssertFalse(coordinator.userInteractionMode)
+        XCTAssertFalse(stateMachine.userInteractionMode)
 
         // When
-        coordinator.navigateToPage(.accessibility)
+        stateMachine.navigateToPage(.accessibility)
 
         // Then
-        XCTAssertTrue(coordinator.userInteractionMode)
+        XCTAssertTrue(stateMachine.userInteractionMode)
     }
 
     func testNavigateToPage_multipleNavigations_tracksLastVisited() {
         // When
-        coordinator.navigateToPage(.inputMonitoring)
-        coordinator.navigateToPage(.accessibility)
-        coordinator.navigateToPage(.service)
+        stateMachine.navigateToPage(.inputMonitoring)
+        stateMachine.navigateToPage(.accessibility)
+        stateMachine.navigateToPage(.service)
 
         // Then
-        XCTAssertEqual(coordinator.currentPage, .service)
-        XCTAssertEqual(coordinator.lastVisitedPage, .accessibility)
+        XCTAssertEqual(stateMachine.currentPage, .service)
+        XCTAssertEqual(stateMachine.lastVisitedPage, .accessibility)
     }
 
     // MARK: - isNavigatingForward Tests
 
     func testIsNavigatingForward_whenNoLastPage_returnsTrue() {
         // Given - no navigation yet
-        XCTAssertNil(coordinator.lastVisitedPage)
+        XCTAssertNil(stateMachine.lastVisitedPage)
 
         // Then
-        XCTAssertTrue(coordinator.isNavigatingForward)
+        XCTAssertTrue(stateMachine.isNavigatingForward)
     }
 
     func testIsNavigatingForward_whenMovingForward_returnsTrue() {
         // Given - navigate forward in the flow
         // Order: .accessibility (6) -> .inputMonitoring (7) -> .service (10)
-        coordinator.navigateToPage(.accessibility)
-        coordinator.navigateToPage(.inputMonitoring)
+        stateMachine.navigateToPage(.accessibility)
+        stateMachine.navigateToPage(.inputMonitoring)
 
         // Then - inputMonitoring comes after accessibility in orderedPages
-        XCTAssertTrue(coordinator.isNavigatingForward)
+        XCTAssertTrue(stateMachine.isNavigatingForward)
     }
 
     func testIsNavigatingForward_whenMovingBackward_returnsFalse() {
         // Given - navigate forward then back
         // Order: .accessibility (6) -> .inputMonitoring (7)
-        coordinator.navigateToPage(.inputMonitoring)
-        coordinator.navigateToPage(.accessibility)
+        stateMachine.navigateToPage(.inputMonitoring)
+        stateMachine.navigateToPage(.accessibility)
 
         // Then - accessibility comes before inputMonitoring in orderedPages
-        XCTAssertFalse(coordinator.isNavigatingForward)
+        XCTAssertFalse(stateMachine.isNavigatingForward)
     }
 
     // MARK: - customSequence Tests
 
     func testCustomSequence_affectsCanNavigateBack() {
         // Given - default sequence, on summary (first page)
-        XCTAssertFalse(coordinator.canNavigateBack)
+        XCTAssertFalse(stateMachine.canNavigateBack)
 
         // When - set custom sequence where summary is not first
-        coordinator.customSequence = [.inputMonitoring, .summary, .accessibility]
-        coordinator.navigateToPage(.summary)
+        stateMachine.customSequence = [.inputMonitoring, .summary, .accessibility]
+        stateMachine.navigateToPage(.summary)
 
         // Then - summary is now in middle, can go back
-        XCTAssertTrue(coordinator.canNavigateBack)
+        XCTAssertTrue(stateMachine.canNavigateBack)
     }
 
     func testCustomSequence_affectsPreviousPage() {
         // Given
-        coordinator.customSequence = [.inputMonitoring, .accessibility, .service]
-        coordinator.navigateToPage(.accessibility)
+        stateMachine.customSequence = [.inputMonitoring, .accessibility, .service]
+        stateMachine.navigateToPage(.accessibility)
 
         // Then
-        XCTAssertEqual(coordinator.previousPage, .inputMonitoring)
+        XCTAssertEqual(stateMachine.previousPageInSequence, .inputMonitoring)
     }
 
     func testCustomSequence_affectsNextPage() {
         // Given
-        coordinator.customSequence = [.inputMonitoring, .accessibility, .service]
-        coordinator.navigateToPage(.accessibility)
+        stateMachine.customSequence = [.inputMonitoring, .accessibility, .service]
+        stateMachine.navigateToPage(.accessibility)
 
         // Then
-        XCTAssertEqual(coordinator.nextPage, .service)
+        XCTAssertEqual(stateMachine.nextPageInSequence, .service)
     }
 
     func testCustomSequence_whenNil_usesDefaultOrder() {
         // Given
-        coordinator.customSequence = nil
-        coordinator.navigateToPage(.summary)
+        stateMachine.customSequence = nil
+        stateMachine.navigateToPage(.summary)
 
         // Then - uses WizardPage.orderedPages
-        XCTAssertFalse(coordinator.canNavigateBack) // summary is first in default order
+        XCTAssertFalse(stateMachine.canNavigateBack) // summary is first in default order
     }
 
     func testCustomSequence_whenEmpty_usesDefaultOrder() {
         // Given
-        coordinator.customSequence = []
-        coordinator.navigateToPage(.summary)
+        stateMachine.customSequence = []
+        stateMachine.navigateToPage(.summary)
 
         // Then - uses WizardPage.orderedPages
-        XCTAssertFalse(coordinator.canNavigateBack)
+        XCTAssertFalse(stateMachine.canNavigateBack)
     }
 
     // MARK: - canNavigateBack / canNavigateForward Tests
 
     func testCanNavigateBack_whenOnFirstPage_returnsFalse() {
         // Given - on summary (first in default order)
-        XCTAssertEqual(coordinator.currentPage, .summary)
+        XCTAssertEqual(stateMachine.currentPage, .summary)
 
         // Then
-        XCTAssertFalse(coordinator.canNavigateBack)
+        XCTAssertFalse(stateMachine.canNavigateBack)
     }
 
     func testCanNavigateBack_whenNotOnFirstPage_returnsTrue() {
         // Given
-        coordinator.navigateToPage(.inputMonitoring)
+        stateMachine.navigateToPage(.inputMonitoring)
 
         // Then
-        XCTAssertTrue(coordinator.canNavigateBack)
+        XCTAssertTrue(stateMachine.canNavigateBack)
     }
 
     func testCanNavigateForward_whenOnLastPage_returnsFalse() {
         // Given - navigate to last page in default order
         let lastPage = WizardPage.orderedPages.last!
-        coordinator.navigateToPage(lastPage)
+        stateMachine.navigateToPage(lastPage)
 
         // Then
-        XCTAssertFalse(coordinator.canNavigateForward)
+        XCTAssertFalse(stateMachine.canNavigateForward)
     }
 
     func testCanNavigateForward_whenNotOnLastPage_returnsTrue() {
         // Given - on summary (first page)
-        XCTAssertEqual(coordinator.currentPage, .summary)
+        XCTAssertEqual(stateMachine.currentPage, .summary)
 
         // Then
-        XCTAssertTrue(coordinator.canNavigateForward)
+        XCTAssertTrue(stateMachine.canNavigateForward)
     }
 
     // MARK: - previousPage / nextPage Tests
 
     func testPreviousPage_whenOnFirstPage_returnsNil() {
         // Given - on summary
-        XCTAssertEqual(coordinator.currentPage, .summary)
+        XCTAssertEqual(stateMachine.currentPage, .summary)
 
         // Then
-        XCTAssertNil(coordinator.previousPage)
+        XCTAssertNil(stateMachine.previousPageInSequence)
     }
 
     func testPreviousPage_returnsCorrectPage() {
         // Given - inputMonitoring is at index 7, accessibility is at index 6
-        coordinator.navigateToPage(.inputMonitoring)
+        stateMachine.navigateToPage(.inputMonitoring)
 
         // Then - previous page is accessibility (index 6), not summary
-        XCTAssertEqual(coordinator.previousPage, .accessibility)
+        XCTAssertEqual(stateMachine.previousPageInSequence, .accessibility)
     }
 
     func testNextPage_whenOnLastPage_returnsNil() {
         // Given
         let lastPage = WizardPage.orderedPages.last!
-        coordinator.navigateToPage(lastPage)
+        stateMachine.navigateToPage(lastPage)
 
         // Then
-        XCTAssertNil(coordinator.nextPage)
+        XCTAssertNil(stateMachine.nextPageInSequence)
     }
 
     func testNextPage_returnsCorrectPage() {
@@ -213,54 +213,54 @@ final class WizardNavigationCoordinatorTests: XCTestCase {
         let expectedNext = WizardPage.orderedPages[1]
 
         // Then
-        XCTAssertEqual(coordinator.nextPage, expectedNext)
+        XCTAssertEqual(stateMachine.nextPageInSequence, expectedNext)
     }
 
     // MARK: - resetNavigation Tests
 
     func testResetNavigation_resetsCurrentPage() {
         // Given
-        coordinator.navigateToPage(.accessibility)
+        stateMachine.navigateToPage(.accessibility)
 
         // When
-        coordinator.resetNavigation()
+        stateMachine.resetNavigation()
 
         // Then
-        XCTAssertEqual(coordinator.currentPage, .summary)
+        XCTAssertEqual(stateMachine.currentPage, .summary)
     }
 
     func testResetNavigation_resetsUserInteractionMode() {
         // Given
-        coordinator.navigateToPage(.accessibility)
-        XCTAssertTrue(coordinator.userInteractionMode)
+        stateMachine.navigateToPage(.accessibility)
+        XCTAssertTrue(stateMachine.userInteractionMode)
 
         // When
-        coordinator.resetNavigation()
+        stateMachine.resetNavigation()
 
         // Then
-        XCTAssertFalse(coordinator.userInteractionMode)
+        XCTAssertFalse(stateMachine.userInteractionMode)
     }
 
     // MARK: - isCurrentPage Tests
 
     func testIsCurrentPage_returnsTrue_whenMatches() {
-        XCTAssertTrue(coordinator.isCurrentPage(.summary))
+        XCTAssertTrue(stateMachine.isCurrentPage(.summary))
     }
 
     func testIsCurrentPage_returnsFalse_whenDoesNotMatch() {
-        XCTAssertFalse(coordinator.isCurrentPage(.accessibility))
+        XCTAssertFalse(stateMachine.isCurrentPage(.accessibility))
     }
 
     // MARK: - User Interaction Grace Period Tests
 
     func testUserInteractionMode_blocksAutoNavigation_withinGracePeriod() async {
         // Given - user navigates (sets interaction mode)
-        coordinator.navigateToPage(.inputMonitoring)
+        stateMachine.navigateToPage(.inputMonitoring)
 
         // When - try to auto-navigate immediately
-        await coordinator.autoNavigateIfNeeded(for: .active, issues: [])
+        await stateMachine.autoNavigateIfNeeded(for: .active, issues: [])
 
         // Then - should NOT auto-navigate because we're in grace period
-        XCTAssertEqual(coordinator.currentPage, .inputMonitoring)
+        XCTAssertEqual(stateMachine.currentPage, .inputMonitoring)
     }
 }
