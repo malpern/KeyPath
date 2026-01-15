@@ -103,9 +103,7 @@ struct WizardFullDiskAccessPage: View {
                 }
             }
             .heroSectionContainer()
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            Spacer()
+            .frame(maxWidth: .infinity)
 
             WizardButtonBar(
                 secondary: hasFullDiskAccess

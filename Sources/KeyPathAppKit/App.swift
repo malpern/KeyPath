@@ -426,10 +426,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 mainWindowController?.show(focus: true)
             }
         } else {
-            // Subsequent activations: show overlay if not visible
-            if !LiveKeyboardOverlayController.shared.isVisible {
+            // Subsequent activations: only show overlay if user hasn't explicitly hidden it
+            if !LiveKeyboardOverlayController.shared.isVisible,
+               LiveKeyboardOverlayController.shared.canAutoShow
+            {
                 LiveKeyboardOverlayController.shared.showForStartup()
                 AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - showing overlay")
+            } else if !LiveKeyboardOverlayController.shared.isVisible {
+                AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - overlay hidden by user, not auto-showing")
             } else {
                 AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - overlay already visible")
             }

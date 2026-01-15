@@ -99,9 +99,8 @@ struct WizardKanataServicePage: View {
                 .keyboardShortcut(.defaultAction)
                 .padding(.top, WizardDesign.Spacing.sectionGap)
             }
-
-            Spacer()
         }
+        .padding(.bottom, 32)
         .animation(WizardDesign.Animation.statusTransition, value: actionStatus)
         .frame(maxWidth: .infinity)
         .fixedSize(horizontal: false, vertical: true)

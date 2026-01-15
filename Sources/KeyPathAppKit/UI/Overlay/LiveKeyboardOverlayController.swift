@@ -39,12 +39,6 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     private weak var hostingView: NSHostingView<AnyView>?
     private let frameStore = OverlayWindowFrameStore()
 
-    /// Timestamp when overlay was auto-hidden for settings (for restore on close)
-    private var autoHiddenTimestamp: Date?
-
-    /// Duration within which we'll restore the overlay when settings closes (10 minutes)
-    private let restoreWindowDuration: TimeInterval = 10 * 60
-
     /// Reference to KanataViewModel for opening Mapper window
     private weak var kanataViewModel: KanataViewModel?
 
@@ -55,6 +49,14 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
     private enum DefaultsKey {
         static let isVisible = "LiveKeyboardOverlay.isVisible"
+        static let userExplicitlyHidden = "LiveKeyboardOverlay.userExplicitlyHidden"
+    }
+
+    /// Track if user explicitly hid the overlay via toggle (Cmd+Opt+K or menu)
+    /// When true, we won't auto-show on app activation
+    private var userExplicitlyHidden: Bool {
+        get { UserDefaults.standard.bool(forKey: DefaultsKey.userExplicitlyHidden) }
+        set { UserDefaults.standard.set(newValue, forKey: DefaultsKey.userExplicitlyHidden) }
     }
 
     private let inspectorPanelWidth: CGFloat = 240
@@ -583,9 +585,12 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     /// If trying to show and system status is not healthy, launches the wizard instead
     func toggle() {
         if isVisible {
-            // Hiding is always allowed
+            // User explicitly hiding - mark as such so we don't auto-show on app activation
+            userExplicitlyHidden = true
             isVisible = false
         } else {
+            // User explicitly showing - clear the explicit hide flag
+            userExplicitlyHidden = false
             // Showing requires system to be healthy
             Task { @MainActor in
                 let health = await ServiceHealthChecker.shared.checkKanataServiceHealth()
@@ -598,6 +603,17 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
                 }
             }
         }
+    }
+
+    /// Check if auto-showing overlay is allowed
+    /// Returns false if user explicitly hidden OR if wizard/settings is currently hiding it
+    var canAutoShow: Bool {
+        !userExplicitlyHidden && !hasAutoHiddenForCurrentSettingsSession
+    }
+
+    /// Clear the explicit hide flag (e.g., on fresh app launch)
+    func clearExplicitHideFlag() {
+        userExplicitlyHidden = false
     }
 
     /// Reset the overlay window to its default size and position
@@ -688,32 +704,22 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         toggleInspectorPanel()
     }
 
-    /// Automatically hide the overlay once when Settings opens.
-    /// If the user later shows it manually, we won't hide it again until Settings closes.
+    /// Automatically hide the overlay when Settings/Wizard opens.
+    /// Does NOT set userExplicitlyHidden since this is automatic, not user action.
     func autoHideOnceForSettings() {
         guard !hasAutoHiddenForCurrentSettingsSession else { return }
         hasAutoHiddenForCurrentSettingsSession = true
         if isVisible {
-            autoHiddenTimestamp = Date()
             isVisible = false
         }
     }
 
-    /// Reset the one-shot auto-hide guard when Settings closes.
-    /// Restores the overlay if it was auto-hidden within the restore window (10 minutes).
+    /// Reset the auto-hide guard when Settings/Wizard closes.
+    /// Does NOT restore the overlay - user must explicitly show it if they want it back.
     func resetSettingsAutoHideGuard() {
-        defer {
-            hasAutoHiddenForCurrentSettingsSession = false
-            autoHiddenTimestamp = nil
-        }
-
-        // Restore overlay if it was auto-hidden recently and user hasn't manually shown it
-        if let hiddenAt = autoHiddenTimestamp,
-           Date().timeIntervalSince(hiddenAt) < restoreWindowDuration,
-           !isVisible
-        {
-            isVisible = true
-        }
+        hasAutoHiddenForCurrentSettingsSession = false
+        // Note: We intentionally don't restore the overlay here.
+        // User can show it via Cmd+Opt+K or menu if desired.
     }
 
     // MARK: - Window Management

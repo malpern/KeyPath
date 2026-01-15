@@ -193,10 +193,8 @@ struct WizardInputMonitoringPage: View {
                 .heroSectionContainer()
                 .frame(maxWidth: .infinity)
             }
-
-            Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
         .wizardDetailPage()
         .onAppear {

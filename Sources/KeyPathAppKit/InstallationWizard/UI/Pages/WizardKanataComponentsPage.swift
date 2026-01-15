@@ -75,8 +75,6 @@ struct WizardKanataComponentsPage: View {
                 .heroSectionContainer()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-
-            Spacer()
         }
         .frame(maxWidth: .infinity)
         .fixedSize(horizontal: false, vertical: true)

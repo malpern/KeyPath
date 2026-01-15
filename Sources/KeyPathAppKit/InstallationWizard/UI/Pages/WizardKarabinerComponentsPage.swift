@@ -107,7 +107,7 @@ struct WizardKarabinerComponentsPage: View {
                 }
                 .animation(WizardDesign.Animation.statusTransition, value: actionStatus)
                 .heroSectionContainer()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity)
             } else {
                 // Simplified error state: hero + centered Fix button
                 VStack(spacing: WizardDesign.Spacing.sectionGap) {
@@ -139,10 +139,11 @@ struct WizardKarabinerComponentsPage: View {
                 }
                 .animation(WizardDesign.Animation.statusTransition, value: actionStatus)
                 .heroSectionContainer()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        .fixedSize(horizontal: false, vertical: true)
         .background(WizardDesign.Colors.wizardBackground)
         .wizardDetailPage()
         .onChange(of: hasKarabinerIssues) { _, hasIssues in

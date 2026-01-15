@@ -77,9 +77,14 @@ struct WizardHeroSection: View {
                     Text(actionButtonTitle)
                 }
                 .buttonStyle(.link)
+                .accessibilityIdentifier("wizard-hero-action-button")
             }
         }
         // Padding removed - pages control padding via heroSectionContainer() modifier
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("wizard-hero-section")
+        .accessibilityLabel("\(title). \(subtitle)")
+        .accessibilityAddTraits(.isHeader)
     }
 
     // MARK: - Icon View

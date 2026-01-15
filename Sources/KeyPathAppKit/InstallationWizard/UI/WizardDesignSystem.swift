@@ -282,17 +282,12 @@ enum WizardDesign {
     // MARK: - View Modifiers
 
     /// Standardized hero section container modifier
-    /// Wraps content in Spacer() above/below with consistent vertical padding
+    /// Top-aligned with generous padding for visual balance
     struct HeroSectionContainer: ViewModifier {
         func body(content: Content) -> some View {
-            VStack(spacing: 0) {
-                Spacer()
-
-                content
-                    .padding(.vertical, WizardDesign.Spacing.pageVertical)
-
-                Spacer()
-            }
+            content
+                .padding(.top, 64)
+                .padding(.bottom, 32)
         }
     }
 
@@ -1033,6 +1028,7 @@ struct WizardStatusItem: View {
         .modifier(TapGestureModifier(isNavigable: isNavigable, action: action))
         .help(tooltip ?? "") // Show tooltip on hover if provided
         .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("wizard-status-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
         .accessibilityLabel("\(title): \(statusText)")
         .accessibilityHint(isNavigable ? "Tap to navigate to \(title) page" : "")
     }
@@ -1209,6 +1205,7 @@ struct WizardPageHeader: View {
         }
         .padding(.top, 36) // Increased top padding after removing window header
         .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("wizard-hero-section")
         .accessibilityLabel("\(title). \(subtitle)")
         .accessibilityAddTraits(.isHeader)
     }

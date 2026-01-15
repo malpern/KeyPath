@@ -76,6 +76,11 @@ struct WizardKanataMigrationPage: View {
                     }
             }
         }
+        .heroSectionContainer()
+        .frame(maxWidth: .infinity)
+        .fixedSize(horizontal: false, vertical: true)
+        .background(WizardDesign.Colors.wizardBackground)
+        .wizardDetailPage()
         .animation(.easeInOut(duration: 0.2), value: showSuccessBurst)
         .onAppear {
             detectConfig()
@@ -218,7 +223,6 @@ struct WizardKanataMigrationPage: View {
             }
             .padding(.horizontal, WizardDesign.Spacing.pageVertical)
         }
-        .heroSectionContainer()
     }
 
     // MARK: - Helper Views

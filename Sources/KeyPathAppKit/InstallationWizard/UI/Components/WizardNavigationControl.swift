@@ -79,6 +79,8 @@ struct WizardNavigationControl: View {
 
 /// ViewModifier that adds navigation control overlay to wizard detail pages
 struct WizardDetailPageModifier: ViewModifier {
+    @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
+
     func body(content: Content) -> some View {
         content
             .overlay(alignment: .topLeading) {
@@ -86,6 +88,7 @@ struct WizardDetailPageModifier: ViewModifier {
                     .padding(.top, WizardDesign.Spacing.navigationControlTop + 4) // Extra padding from edge
                     .padding(.leading, WizardDesign.Spacing.navigationControlLeading + 4) // Extra padding from edge
             }
+            .accessibilityIdentifier("wizard-page-\(navigationCoordinator.currentPage.rawValue)")
     }
 }
 

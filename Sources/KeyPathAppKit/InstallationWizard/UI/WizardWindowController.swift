@@ -3,6 +3,11 @@ import KeyPathCore
 import KeyPathWizardCore
 import SwiftUI
 
+/// Notification posted when wizard content size changes
+extension Notification.Name {
+    static let wizardContentSizeChanged = Notification.Name("wizardContentSizeChanged")
+}
+
 /// Controller for showing the Installation Wizard in its own window.
 /// This allows the wizard to be shown regardless of which KeyPath window is currently frontmost.
 @MainActor
@@ -10,8 +15,10 @@ final class WizardWindowController {
     static let shared = WizardWindowController()
 
     private var window: NSWindow?
+    private var hostingView: NSHostingView<AnyView>?
     private var windowDelegate: WizardWindowDelegate?
     private var onDismiss: (() -> Void)?
+    private var sizeObserver: NSObjectProtocol?
 
     private init() {}
 
@@ -34,62 +41,72 @@ final class WizardWindowController {
 
         let wizardView = InstallationWizardView(initialPage: initialPage)
 
-        let hostingView: NSHostingView<AnyView> = if let viewModel = kanataViewModel {
+        // Create hosting view - let SwiftUI determine ideal height
+        let hosting: NSHostingView<AnyView> = if let viewModel = kanataViewModel {
             NSHostingView(rootView:
                 AnyView(
                     wizardView
                         .environmentObject(viewModel)
-                        .frame(minWidth: 700, minHeight: 500)
+                        .frame(width: 700)
+                        .fixedSize(horizontal: false, vertical: true)
                 ))
         } else {
             NSHostingView(rootView:
                 AnyView(
                     wizardView
-                        .frame(minWidth: 700, minHeight: 500)
+                        .frame(width: 700)
+                        .fixedSize(horizontal: false, vertical: true)
                 ))
         }
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            contentRect: NSRect(x: 0, y: 0, width: 700, height: 400),
+            styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
         window.title = "KeyPath Setup"
-        let minContentSize = NSSize(
-            width: WizardDesign.Layout.pageWidth,
-            height: WizardDesign.Layout.pageHeight
-        )
-        let maxContentSize = NSSize(
-            width: WizardDesign.Layout.pageWidth,
-            height: 720
-        )
+
+        // Allow flexible height but fixed width
+        let minContentSize = NSSize(width: 700, height: 250)
+        let maxContentSize = NSSize(width: 700, height: 800)
         window.contentMinSize = minContentSize
         window.contentMaxSize = maxContentSize
-        window.minSize = NSSize(width: minContentSize.width, height: minContentSize.height)
-        window.contentView = hostingView
+        window.contentView = hosting
         window.isReleasedWhenClosed = false
+
         let delegate = WizardWindowDelegate(controller: self)
         window.delegate = delegate
         windowDelegate = delegate
+        hostingView = hosting
 
-        // Persistent window position
+        // Center on first show, then remember position
         window.setFrameAutosaveName("WizardWindow")
         if !window.setFrameUsingName("WizardWindow") {
             window.center()
         }
-        if window.contentLayoutRect.size.height > maxContentSize.height
-            || window.contentLayoutRect.size.width > maxContentSize.width {
-            window.setContentSize(maxContentSize)
-        } else if window.contentLayoutRect.size.height < minContentSize.height
-            || window.contentLayoutRect.size.width < minContentSize.width {
-            window.setContentSize(minContentSize)
+
+        // Set initial size based on content
+        let idealSize = hosting.intrinsicContentSize
+        if idealSize.height > 0 {
+            resizeWindowToHeight(idealSize.height, animated: false)
         }
 
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
         self.window = window
+
+        // Observe content size changes to resize window dynamically
+        sizeObserver = NotificationCenter.default.addObserver(
+            forName: .wizardContentSizeChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.updateWindowSizeToFitContent()
+            }
+        }
 
         // Auto-hide overlay when wizard opens
         LiveKeyboardOverlayController.shared.autoHideOnceForSettings()
@@ -98,9 +115,55 @@ final class WizardWindowController {
     /// Close the wizard window
     func closeWindow() {
         AppLogger.shared.log("🔮 [WizardWindow] Closing wizard window")
+        if let observer = sizeObserver {
+            NotificationCenter.default.removeObserver(observer)
+            sizeObserver = nil
+        }
         window?.close()
         handleWindowClosed()
         windowDelegate = nil
+    }
+
+    /// Update window size to fit current content, keeping top edge fixed
+    private func updateWindowSizeToFitContent() {
+        guard let hosting = hostingView else { return }
+
+        // Force layout update
+        hosting.layoutSubtreeIfNeeded()
+
+        let idealSize = hosting.intrinsicContentSize
+        guard idealSize.height > 0 else { return }
+
+        // Clamp to min/max
+        let clampedHeight = max(250, min(800, idealSize.height))
+        resizeWindowToHeight(clampedHeight, animated: true)
+    }
+
+    /// Resize window to a specific height, keeping top edge fixed
+    private func resizeWindowToHeight(_ newHeight: CGFloat, animated: Bool) {
+        guard let window = window else { return }
+
+        let currentFrame = window.frame
+        let titleBarHeight = window.frame.height - window.contentLayoutRect.height
+
+        // Calculate new frame keeping top edge fixed
+        let newContentHeight = newHeight
+        let newWindowHeight = newContentHeight + titleBarHeight
+        let heightDelta = newWindowHeight - currentFrame.height
+
+        var newFrame = currentFrame
+        newFrame.size.height = newWindowHeight
+        newFrame.origin.y -= heightDelta // Move origin down to keep top fixed
+
+        if animated {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.2
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                window.animator().setFrame(newFrame, display: true)
+            }
+        } else {
+            window.setFrame(newFrame, display: true)
+        }
     }
 
     /// Called when the window is closed (either programmatically or by user)

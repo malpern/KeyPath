@@ -35,6 +35,11 @@ struct WizardStopKanataPage: View {
                 .opacity(showContent ? 1 : 0)
                 .offset(y: showContent ? 0 : 10)
         }
+        .heroSectionContainer()
+        .frame(maxWidth: .infinity)
+        .fixedSize(horizontal: false, vertical: true)
+        .background(WizardDesign.Colors.wizardBackground)
+        .wizardDetailPage()
         .onAppear {
             runningInfo = ExternalKanataService.getExternalKanataInfo()
             animateEntrance()
@@ -125,8 +130,6 @@ struct WizardStopKanataPage: View {
                 .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
                 .padding(.horizontal, WizardDesign.Spacing.pageVertical)
             }
-
-            Spacer()
 
             // Action buttons
             HStack(spacing: WizardDesign.Spacing.elementGap) {

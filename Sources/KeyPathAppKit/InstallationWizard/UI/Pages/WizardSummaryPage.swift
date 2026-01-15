@@ -150,6 +150,8 @@ struct WizardSummaryPage: View {
                 }
             }
             .transition(.opacity) // Simple opacity transition, no scaling
+            .accessibilityIdentifier("wizard-summary-status-\(headerMode == .validating ? "validating" : (headerMode == .success ? "success" : "issues"))")
+            .accessibilityLabel(headerTitle)
             .onAppear {
                 // Initialize header mode based on validation state
                 if isValidating {
@@ -206,6 +208,7 @@ struct WizardSummaryPage: View {
         }
         .modifier(WizardDesign.DisableFocusEffects())
         .background(WizardDesign.Colors.wizardBackground)
+        .accessibilityIdentifier("wizard-page-summary")
         // Full-surface white fade to simplify transitions
         .overlay {
             Color.white

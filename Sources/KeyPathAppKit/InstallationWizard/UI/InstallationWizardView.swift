@@ -113,7 +113,7 @@ struct InstallationWizardView: View {
                     }
             }
             .frame(width: WizardDesign.Layout.pageWidth)
-            .frame(maxHeight: (navigationCoordinator.currentPage == .summary) ? 720 : .infinity) // Grow up to cap, then scroll
+            .frame(maxHeight: (navigationCoordinator.currentPage == .summary) ? 540 : .infinity) // Grow up to cap, then scroll
             .fixedSize(horizontal: true, vertical: false) // Allow vertical growth; keep width fixed
             .animation(.easeInOut(duration: 0.25), value: isValidating)
             // Prevent vertical position animation during page transitions
@@ -173,6 +173,10 @@ struct InstallationWizardView: View {
             AppLogger.shared.log("🧭 [Wizard] View detected page change: \(oldPage) → \(newPage)")
             if newPage == .summary, !isValidating {
                 refreshStateForSummaryEntry(previousPage: oldPage)
+            }
+            // Notify window to resize for new content
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                NotificationCenter.default.post(name: .wizardContentSizeChanged, object: nil)
             }
         }
         .onChange(of: navSequence) { _, newSeq in
