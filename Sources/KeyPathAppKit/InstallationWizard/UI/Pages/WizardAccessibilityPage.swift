@@ -372,8 +372,7 @@ struct WizardAccessibilityPage: View {
 
         // Fallback: Open System Settings > Privacy & Security > Accessibility
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-        {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             let ok = NSWorkspace.shared.open(url)
             if !ok {
                 // Fallback: open System Settings app if deep-link fails
@@ -390,8 +389,7 @@ struct WizardAccessibilityPage: View {
 
         Task {
             if let nextPage = await stateMachine.getNextPage(for: systemState, issues: allIssues),
-               nextPage != stateMachine.currentPage
-            {
+               nextPage != stateMachine.currentPage {
                 stateMachine.navigateToPage(nextPage)
             } else {
                 stateMachine.navigateToPage(.summary)
@@ -451,8 +449,7 @@ struct WizardAccessibilityPage: View {
             let axApp = AXUIElementCreateApplication(settingsApp.processIdentifier)
             var windowsRef: CFTypeRef?
             if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-               let windows = windowsRef as? [AXUIElement], !windows.isEmpty
-            {
+               let windows = windowsRef as? [AXUIElement], !windows.isEmpty {
                 let axWindow = windows[0]
                 var position = CGPoint(x: settingsFrame.minX, y: screen.frame.maxY - settingsFrame.maxY)
                 var size = CGSize(width: settingsFrame.width, height: settingsFrame.height)
@@ -470,8 +467,7 @@ struct WizardAccessibilityPage: View {
             let axApp = AXUIElementCreateApplication(finderApp.processIdentifier)
             var windowsRef: CFTypeRef?
             if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-               let windows = windowsRef as? [AXUIElement], !windows.isEmpty
-            {
+               let windows = windowsRef as? [AXUIElement], !windows.isEmpty {
                 let axWindow = windows[0]
                 var position = CGPoint(x: finderFrame.minX, y: screen.frame.maxY - finderFrame.maxY)
                 var size = CGSize(width: finderFrame.width, height: finderFrame.height)

@@ -90,7 +90,6 @@ struct ContentView: View {
     @State private var aiRepairBackupPath: String?
     @State private var lastKanataServiceIssuePresent = false
     @State private var hasSeenHealthyKanataService = false
-    @State private var kanataServiceStoppedDetails = ""
 
     private var wizardInitialPage: WizardPage? {
         // Check for FDA restart restore point (used when app restarts for Full Disk Access)
@@ -192,8 +191,7 @@ struct ContentView: View {
     private var saveButtonSection: some View {
         // Save button - only visible when input OR output has content
         if recordingCoordinator.capturedInputSequence() != nil
-            || recordingCoordinator.capturedOutputSequence() != nil
-        {
+            || recordingCoordinator.capturedOutputSequence() != nil {
             HStack {
                 Spacer()
                 Button(
@@ -530,21 +528,9 @@ struct ContentView: View {
                         }
                     }
                 }
-                Button("Open Wizard") {
-                    showingKanataServiceStoppedAlert = false
-                    showingInstallationWizard = true
-                }
-                Button("View System Status") {
-                    showingKanataServiceStoppedAlert = false
-                    openSystemStatusSettings()
-                }
-                Button("Dismiss", role: .cancel) {
-                    showingKanataServiceStoppedAlert = false
-                }
-                .accessibilityIdentifier("alert-dismiss-button")
-                .accessibilityLabel("Dismiss alert")
+                Button("Cancel", role: .cancel) {}
             } message: {
-                Text(kanataServiceStoppedDetails)
+                Text("The remapping service stopped unexpectedly.")
             }
 
         return serviceAlerts
@@ -655,17 +641,7 @@ struct ContentView: View {
         }
 
         if hasServiceIssue, !lastKanataServiceIssuePresent, hasSeenHealthyKanataService {
-            let reason =
-                serviceIssue?.description
-                    ?? "Kanata keyboard remapping service is not running. Open the setup wizard to diagnose and fix it."
-            var detailLines = [reason]
-            if let lastError = kanataManager.lastError, !lastError.isEmpty {
-                detailLines.append("")
-                detailLines.append("Last error: \(lastError)")
-            }
-            detailLines.append("")
-            detailLines.append("Details recorded in KeyPath log (search for ServiceStoppedSnapshot).")
-            kanataServiceStoppedDetails = detailLines.joined(separator: "\n")
+            let reason = serviceIssue?.description ?? "Service stopped unexpectedly"
             logKanataServiceStopSnapshot(reason: reason)
             showingKanataServiceStoppedAlert = true
         }
@@ -898,8 +874,7 @@ struct ContentView: View {
 
         // If Kanata is not running but we're recording, stop recording first (resumes Kanata)
         if !serviceState.isRunning,
-           recordingCoordinator.isInputRecording() || recordingCoordinator.isOutputRecording()
-        {
+           recordingCoordinator.isInputRecording() || recordingCoordinator.isOutputRecording() {
             AppLogger.shared.log("🔄 [ContentView] Kanata paused during recording - resuming before save")
             await MainActor.run {
                 recordingCoordinator.stopAllRecording()
@@ -948,8 +923,7 @@ struct ContentView: View {
             let reasonLower = reason.lowercased()
             if reasonLower.contains("tcp"),
                reasonLower.contains("required") || reasonLower.contains("unresponsive")
-               || reasonLower.contains("failed") || reasonLower.contains("reload")
-            {
+               || reasonLower.contains("failed") || reasonLower.contains("reload") {
                 // TCP connectivity issues - open wizard directly to Communication page
                 showStatusMessage(message: "⚠️ Service connection failed - opening setup wizard...")
                 Task { @MainActor in

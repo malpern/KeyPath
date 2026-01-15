@@ -60,6 +60,7 @@ extension FeatureFlags {
     private static let useJustInTimePermissionRequestsKey = "USE_JIT_PERMISSION_REQUESTS"
     private static let allowOptionalWizardKey = "ALLOW_OPTIONAL_WIZARD"
     private static let keyboardSuppressionDebugEnabledKey = "KEYBOARD_SUPPRESSION_DEBUG_ENABLED"
+    private static let uninstallForTestingKey = "UNINSTALL_FOR_TESTING"
 
     // MARK: - Active Feature Flags
 
@@ -112,6 +113,20 @@ extension FeatureFlags {
 
     static func setKeyboardSuppressionDebugEnabled(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: keyboardSuppressionDebugEnabledKey)
+    }
+
+    /// Reset TCC permissions and preferences on uninstall for fresh install testing (default ON)
+    /// When enabled, uninstall also clears Accessibility, Input Monitoring, and Full Disk Access
+    /// permissions plus UserDefaults, allowing a true "first launch" experience.
+    static var uninstallForTesting: Bool {
+        if UserDefaults.standard.object(forKey: uninstallForTestingKey) == nil {
+            return true // default ON
+        }
+        return UserDefaults.standard.bool(forKey: uninstallForTestingKey)
+    }
+
+    static func setUninstallForTesting(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: uninstallForTestingKey)
     }
 
     // MARK: - Future Implementation (not yet built)

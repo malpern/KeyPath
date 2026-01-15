@@ -106,8 +106,7 @@ public struct KeyPathActionURI: Sendable, Equatable {
         // Parse query items
         var items: [String: String] = [:]
         if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-           let queryItems = components.queryItems
-        {
+           let queryItems = components.queryItems {
             for item in queryItems {
                 items[item.name] = item.value ?? ""
             }
@@ -537,8 +536,7 @@ actor KanataEventListener {
 
         // Handle CurrentLayerName events (response to polling)
         if let current = json["CurrentLayerName"] as? [String: Any],
-           let name = current["name"] as? String
-        {
+           let name = current["name"] as? String {
             AppLogger.shared.debug("🌐 [EventListener] Current layer -> \(name)")
             if let handler = layerHandler {
                 await handler(name)
@@ -549,8 +547,7 @@ actor KanataEventListener {
         // Handle MessagePush events (keypath:// URIs via push-msg)
         // Format from Kanata: {"MessagePush":{"message":["keypath://launch/obsidian"]}}
         if let push = json["MessagePush"] as? [String: Any],
-           let messages = push["message"] as? [Any]
-        {
+           let messages = push["message"] as? [Any] {
             AppLogger.shared.log("🌐 [EventListener] MessagePush received: \(messages)")
 
             for item in messages {
@@ -589,8 +586,7 @@ actor KanataEventListener {
         // Note: Kanata sends capitalized action names (Press/Release/Repeat)
         if let keyInput = json["KeyInput"] as? [String: Any],
            let key = keyInput["key"] as? String,
-           let actionStr = keyInput["action"] as? String
-        {
+           let actionStr = keyInput["action"] as? String {
             // Lowercase the action to match our enum (Kanata sends "Press", we expect "press")
             if let action = KanataKeyAction(rawValue: actionStr.lowercased()) {
                 AppLogger.shared.info("⌨️ [EventListener] KeyInput: \(key) \(action)")
@@ -616,8 +612,7 @@ actor KanataEventListener {
         if let holdActivated = json["HoldActivated"] as? [String: Any],
            let key = holdActivated["key"] as? String,
            let action = holdActivated["action"] as? String,
-           let timestamp = holdActivated["t"] as? UInt64
-        {
+           let timestamp = holdActivated["t"] as? UInt64 {
             // Respect capability advertisement when available; still process for backward compat
             if capabilities.isEmpty || capabilities.contains("hold_activated") {
                 AppLogger.shared.log("🔒 [EventListener] HoldActivated: \(key) -> \(action)")
@@ -657,8 +652,7 @@ actor KanataEventListener {
         if let oneShotActivated = json["OneShotActivated"] as? [String: Any],
            let key = oneShotActivated["key"] as? String,
            let modifiers = oneShotActivated["modifiers"] as? String,
-           let timestamp = oneShotActivated["t"] as? UInt64
-        {
+           let timestamp = oneShotActivated["t"] as? UInt64 {
             if capabilities.isEmpty || capabilities.contains("oneshot_activated") {
                 AppLogger.shared.log("⚡ [EventListener] OneShotActivated: \(key) -> \(modifiers)")
                 let activation = KanataOneShotActivation(key: key, modifiers: modifiers, timestamp: timestamp)
@@ -676,8 +670,7 @@ actor KanataEventListener {
         if let chordResolved = json["ChordResolved"] as? [String: Any],
            let keys = chordResolved["keys"] as? String,
            let action = chordResolved["action"] as? String,
-           let timestamp = chordResolved["t"] as? UInt64
-        {
+           let timestamp = chordResolved["t"] as? UInt64 {
             if capabilities.isEmpty || capabilities.contains("chord_resolved") {
                 AppLogger.shared.log("🎹 [EventListener] ChordResolved: \(keys) -> \(action)")
                 let resolution = KanataChordResolution(keys: keys, action: action, timestamp: timestamp)
@@ -696,8 +689,7 @@ actor KanataEventListener {
            let key = tapDanceResolved["key"] as? String,
            let tapCount = tapDanceResolved["tap_count"] as? UInt8,
            let action = tapDanceResolved["action"] as? String,
-           let timestamp = tapDanceResolved["t"] as? UInt64
-        {
+           let timestamp = tapDanceResolved["t"] as? UInt64 {
             if capabilities.isEmpty || capabilities.contains("tap_dance_resolved") {
                 AppLogger.shared.log("💃 [EventListener] TapDanceResolved: \(key) x\(tapCount) -> \(action)")
                 let resolution = KanataTapDanceResolution(

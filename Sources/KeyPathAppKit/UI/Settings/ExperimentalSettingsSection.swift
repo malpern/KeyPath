@@ -7,6 +7,7 @@ struct ExperimentalSettingsSection: View {
     @State private var captureListenOnlyEnabled = FeatureFlags.captureListenOnlyEnabled
     @State private var useSMAppServiceForDaemon = FeatureFlags.useSMAppServiceForDaemon
     @State private var simulatorAndVirtualKeysEnabled = FeatureFlags.simulatorAndVirtualKeysEnabled
+    @State private var uninstallForTesting = FeatureFlags.uninstallForTesting
     @State private var qmkSearchEnabled = UserDefaults.standard.bool(forKey: LayoutPreferences.qmkSearchEnabledKey)
 
     var body: some View {
@@ -138,6 +139,15 @@ struct ExperimentalSettingsSection: View {
                 identifier: "feature-flag-smappservice"
             )
             .accessibilityIdentifier("feature-flag-smappservice-row")
+
+            featureFlagToggle(
+                title: "Uninstall for Testing",
+                description: "Reset TCC permissions & prefs on uninstall",
+                isOn: $uninstallForTesting,
+                onChange: { FeatureFlags.setUninstallForTesting($0) },
+                identifier: "feature-flag-uninstall-testing"
+            )
+            .accessibilityIdentifier("feature-flag-uninstall-testing-row")
         }
     }
 

@@ -46,6 +46,7 @@ final class UninstallCoordinator: ObservableObject {
         // Try to use the privileged helper first (no password prompt needed)
         if await tryUninstallViaHelper(deleteConfig: deleteConfig) {
             didSucceed = true
+            await resetForTestingIfEnabled()
             logLines.append("✅ Uninstall completed")
             return true
         }
@@ -113,6 +114,7 @@ final class UninstallCoordinator: ObservableObject {
             if !output.isEmpty {
                 logLines.append(contentsOf: output.components(separatedBy: "\n"))
             }
+            await resetForTestingIfEnabled()
             logLines.append("✅ Uninstall completed")
         } else {
             let trimmed = result.error.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -140,6 +142,67 @@ final class UninstallCoordinator: ObservableObject {
     func revealUninstallerInFinder() {
         guard let scriptURL = resolveUninstallerURLClosure() else { return }
         NSWorkspace.shared.activateFileViewerSelecting([scriptURL])
+    }
+
+    // MARK: - Testing Reset
+
+    /// Reset TCC permissions and preferences for fresh install testing.
+    /// Only runs when FeatureFlags.uninstallForTesting is enabled.
+    private func resetForTestingIfEnabled() async {
+        guard FeatureFlags.uninstallForTesting else {
+            logLines.append("ℹ️ TCC reset skipped (uninstallForTesting disabled)")
+            return
+        }
+
+        logLines.append("🧪 Resetting for fresh install testing...")
+
+        let bundleId = "com.keypath.KeyPath"
+        let kanataBinary = "/Library/KeyPath/bin/kanata"
+
+        // Reset TCC permissions (these don't require admin)
+        let tccResets: [(service: String, target: String)] = [
+            ("Accessibility", bundleId),
+            ("ListenEvent", bundleId), // Input Monitoring
+            ("ListenEvent", kanataBinary), // Input Monitoring for kanata
+            ("SystemPolicyAllFiles", bundleId) // Full Disk Access
+        ]
+
+        for (service, target) in tccResets {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+            process.arguments = ["reset", service, target]
+
+            do {
+                try process.run()
+                process.waitUntilExit()
+                if process.terminationStatus == 0 {
+                    logLines.append("  ✓ Reset \(service) for \(target)")
+                } else {
+                    logLines.append("  ⚠️ Failed to reset \(service) for \(target)")
+                }
+            } catch {
+                logLines.append("  ⚠️ tccutil error: \(error.localizedDescription)")
+            }
+        }
+
+        // Clear UserDefaults
+        let defaultsProcess = Process()
+        defaultsProcess.executableURL = URL(fileURLWithPath: "/usr/bin/defaults")
+        defaultsProcess.arguments = ["delete", bundleId]
+
+        do {
+            try defaultsProcess.run()
+            defaultsProcess.waitUntilExit()
+            if defaultsProcess.terminationStatus == 0 {
+                logLines.append("  ✓ Cleared UserDefaults")
+            } else {
+                logLines.append("  ⚠️ No UserDefaults to clear (or already cleared)")
+            }
+        } catch {
+            logLines.append("  ⚠️ defaults error: \(error.localizedDescription)")
+        }
+
+        logLines.append("🧪 Testing reset complete")
     }
 
     // MARK: - SMAppService Cleanup
@@ -187,8 +250,7 @@ final class UninstallCoordinator: ObservableObject {
     }
 
     private static func defaultRunWithAdminPrivileges(scriptURL: URL, deleteConfig: Bool) async
-        -> AppleScriptResult
-    {
+        -> AppleScriptResult {
         // Use PrivilegedCommandRunner which respects TestEnvironment.useSudoForPrivilegedOps
         let configFlag = deleteConfig ? " --delete-config" : ""
         let command = "KEYPATH_UNINSTALL_ASSUME_YES=1 '\(scriptURL.path)' --assume-yes\(configFlag)"

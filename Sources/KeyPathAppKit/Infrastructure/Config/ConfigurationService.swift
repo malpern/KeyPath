@@ -108,8 +108,7 @@ public final class ConfigurationService: FileConfigurationProviding {
     }
 
     public func observe(_ onChange: @Sendable @escaping (Config) async -> Void)
-        -> ConfigurationObservationToken
-    {
+        -> ConfigurationObservationToken {
         var index = 0
         stateLock.lock()
         observers.append(onChange)
@@ -525,8 +524,7 @@ public final class ConfigurationService: FileConfigurationProviding {
     /// Backs up a failed config and applies safe default, returning backup path
     public func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping])
         async throws
-        -> String
-    {
+        -> String {
         AppLogger.shared.log("🛡️ [Config] Backing up failed config and applying safe default")
 
         // Create backup directory if it doesn't exist
@@ -577,8 +575,7 @@ public final class ConfigurationService: FileConfigurationProviding {
     /// Repair configuration using rule-based strategies (keeps output Kanata-compatible).
     public func repairConfiguration(config: String, errors: [String], mappings: [KeyMapping])
         async throws
-        -> String
-    {
+        -> String {
         AppLogger.shared.log("🔧 [Config] Performing rule-based repair for \(errors.count) errors")
 
         // Common repair strategies

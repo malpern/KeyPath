@@ -77,8 +77,7 @@ final class ServiceBootstrapper {
     /// - Parameter within: Time window in seconds (default: 2.0)
     /// - Returns: `true` if any service was restarted within the window
     nonisolated static func hadRecentRestart(within seconds: TimeInterval = healthyWarmupWindow)
-        -> Bool
-    {
+        -> Bool {
         let now = Date()
         return restartTimeLock.withLock { times in
             times.values.contains { now.timeIntervalSince($0) < seconds }
@@ -258,8 +257,7 @@ final class ServiceBootstrapper {
     private func getLaunchctlPath() -> String {
         // Allow override for testing
         if let override = ProcessInfo.processInfo.environment["KEYPATH_LAUNCHCTL_PATH"],
-           !override.isEmpty
-        {
+           !override.isEmpty {
             return override
         }
         return "/bin/launchctl"

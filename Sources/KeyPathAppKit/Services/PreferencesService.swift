@@ -197,8 +197,7 @@ final class PreferencesService: @unchecked Sendable {
 
         // Leader key preference
         if let data = UserDefaults.standard.data(forKey: Keys.leaderKeyPreference),
-           let stored = try? JSONDecoder().decode(LeaderKeyPreference.self, from: data)
-        {
+           let stored = try? JSONDecoder().decode(LeaderKeyPreference.self, from: data) {
             leaderKeyPreference = stored
         } else {
             leaderKeyPreference = .default
