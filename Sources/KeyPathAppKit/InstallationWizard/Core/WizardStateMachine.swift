@@ -3,6 +3,12 @@ import KeyPathDaemonLifecycle
 import KeyPathWizardCore
 import SwiftUI
 
+/// Record of wizard snapshot for caching
+struct WizardSnapshotRecord {
+    let state: WizardSystemState
+    let issues: [WizardIssue]
+}
+
 /// Simple wizard state machine using SystemValidator
 ///
 /// Replaces: WizardStateManager + WizardNavigationEngine + WizardNavigationCoordinator + WizardStateInterpreter
@@ -37,6 +43,13 @@ class WizardStateMachine: ObservableObject {
 
     /// Last refresh timestamp
     @Published var lastRefreshTime: Date?
+
+    /// Monotonically increasing version counter, bumped each time state detection completes.
+    /// Used by callers to detect when a refresh has finished.
+    @Published private(set) var stateVersion: Int = 0
+
+    /// Cache for the last known wizard state (for backward compatibility with legacy flows)
+    var lastWizardSnapshot: WizardSnapshotRecord?
 
     // MARK: - Dependencies
 
@@ -116,6 +129,26 @@ class WizardStateMachine: ObservableObject {
         AppLogger.shared.info(
             "🔄 [WizardStateMachine] Refresh #\(myID) complete - ready=\(snapshot.isReady), issues=\(snapshot.blockingIssues.count)"
         )
+    }
+
+    /// Detect current state and return as SystemStateResult (legacy compatibility)
+    /// Prefer using refresh() + systemSnapshot for new code
+    func detectCurrentState(progressCallback _: @escaping @Sendable (Double) -> Void = { _ in }) async
+        -> SystemStateResult {
+        if let manager = kanataManager {
+            AppLogger.shared.log("🎯 [WizardStateMachine] Using RuntimeCoordinator.inspectSystemContext()")
+            let context = await manager.inspectSystemContext()
+            return SystemContextAdapter.adapt(context)
+        } else {
+            AppLogger.shared.warn("⚠️ [WizardStateMachine] RuntimeCoordinator not configured; falling back to InstallerEngine.inspectSystem()")
+            let context = await InstallerEngine().inspectSystem()
+            return SystemContextAdapter.adapt(context)
+        }
+    }
+
+    /// Bump the state version to signal that a refresh cycle has completed.
+    func markRefreshComplete() {
+        stateVersion += 1
     }
 
     // MARK: - Navigation

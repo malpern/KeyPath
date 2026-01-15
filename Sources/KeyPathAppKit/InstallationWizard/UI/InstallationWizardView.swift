@@ -32,7 +32,6 @@ struct InstallationWizardView: View {
     var initialPage: WizardPage?
 
     // New architecture components
-    @StateObject private var stateManager = WizardStateManager()
     @StateObject private var stateMachine = WizardStateMachine()
     @StateObject private var autoFixer = WizardAutoFixerManager()
     private let stateInterpreter = WizardStateInterpreter()
@@ -342,8 +341,7 @@ struct InstallationWizardView: View {
                     blockingFixDescription: currentFixDescriptionForUI,
                     onAutoFix: performAutoFix,
                     onRefresh: { refreshState() },
-                    kanataManager: kanataManager,
-                    stateManager: stateManager
+                    kanataManager: kanataManager
                 )
             case .kanataComponents:
                 WizardKanataComponentsPage(
@@ -464,7 +462,7 @@ struct InstallationWizardView: View {
         stateMachine.navigationEngine.resetNavigationState()
 
         // Configure state providers
-        stateManager.configure(kanataManager: kanataManager)
+        stateMachine.configure(kanataManager: kanataManager)
         stateMachine.configure(kanataManager: kanataManager)
         autoFixer.configure(
             kanataManager: kanataManager,
@@ -533,7 +531,6 @@ struct InstallationWizardView: View {
         AppLogger.shared.log("⏱️ [TIMING] Wizard validation START")
 
         let operation = WizardOperations.stateDetection(
-            stateManager: nil,
             stateMachine: stateMachine,
             progressCallback: { progress in
                 // Update progress on MainActor (callback may be called from background)
@@ -565,7 +562,7 @@ struct InstallationWizardView: View {
             let filteredIssues = sanitizedIssues(from: result.issues, for: result.state)
             systemState = result.state
             currentIssues = filteredIssues
-            stateManager.lastWizardSnapshot = WizardSnapshotRecord(
+            stateMachine.lastWizardSnapshot = WizardSnapshotRecord(
                 state: result.state, issues: filteredIssues
             )
             // Start at summary page - no auto navigation
@@ -657,7 +654,6 @@ struct InstallationWizardView: View {
         case .summary:
             // Full check only for summary page
             let operation = WizardOperations.stateDetection(
-                stateManager: nil,
                 stateMachine: stateMachine,
                 progressCallback: { _ in }
             )
@@ -831,7 +827,7 @@ struct InstallationWizardView: View {
             }) {
                 Task {
                     _ = await WizardSleep.seconds(2) // allow services to settle
-                    let latestResult = await stateManager.detectCurrentState()
+                    let latestResult = await stateMachine.detectCurrentState()
                     let filteredIssues = sanitizedIssues(from: latestResult.issues, for: latestResult.state)
                     await MainActor.run {
                         systemState = latestResult.state
@@ -870,7 +866,7 @@ struct InstallationWizardView: View {
             return false
         }
 
-        let latestResult = await stateManager.detectCurrentState()
+        let latestResult = await stateMachine.detectCurrentState()
         let filteredIssues = await MainActor.run { applySystemStateResult(latestResult) }
 
         let resolved = filteredIssues.isEmpty && latestResult.state == .active
@@ -909,7 +905,7 @@ struct InstallationWizardView: View {
             AppLogger.shared.log("🔧 [Wizard] Auto-fix action \(action) completed with success=\(success)")
             guard success else { continue }
 
-            let latestResult = await stateManager.detectCurrentState()
+            let latestResult = await stateMachine.detectCurrentState()
             let filteredIssues = await MainActor.run { applySystemStateResult(latestResult) }
             let resolved = filteredIssues.isEmpty && latestResult.state == .active
 
@@ -1038,7 +1034,7 @@ struct InstallationWizardView: View {
             // Schedule a follow-up health check; if still red, show a diagnostic error toast
             Task {
                 _ = await WizardSleep.seconds(2) // allow additional settle time
-                let latestResult = await stateManager.detectCurrentState()
+                let latestResult = await stateMachine.detectCurrentState()
                 let filteredIssues = sanitizedIssues(from: latestResult.issues, for: latestResult.state)
                 await MainActor.run {
                     systemState = latestResult.state
@@ -1179,7 +1175,6 @@ struct InstallationWizardView: View {
 
         // Use async operation manager for non-blocking refresh
         let operation = WizardOperations.stateDetection(
-            stateManager: nil,
             stateMachine: stateMachine,
             progressCallback: { _ in }
         )
@@ -1245,7 +1240,6 @@ struct InstallationWizardView: View {
         guard !isForceClosing else { return }
 
         let operation = WizardOperations.stateDetection(
-            stateManager: nil,
             stateMachine: stateMachine,
             progressCallback: { _ in }
         )
@@ -1340,8 +1334,8 @@ struct InstallationWizardView: View {
     }
 
     private func cachedPreferredPage() async -> WizardPage? {
-        // Use last known system state from WizardStateManager if available
-        guard let cachedState = stateManager.lastWizardSnapshot else { return nil }
+        // Use last known system state from WizardStateMachine if available
+        guard let cachedState = stateMachine.lastWizardSnapshot else { return nil }
         let adaptedIssues = cachedState.issues
         let adaptedState = cachedState.state
         return await preferredDetailPage(for: adaptedState, issues: adaptedIssues)
@@ -1367,11 +1361,11 @@ struct InstallationWizardView: View {
         let filteredIssues = sanitizedIssues(from: result.issues, for: result.state)
         systemState = result.state
         currentIssues = filteredIssues
-        stateManager.lastWizardSnapshot = WizardSnapshotRecord(
+        stateMachine.lastWizardSnapshot = WizardSnapshotRecord(
             state: result.state,
             issues: filteredIssues
         )
-        stateManager.markRefreshComplete()
+        stateMachine.markRefreshComplete()
 
         // Only auto-navigate if user hasn't been interacting with the wizard
         // This prevents jarring navigation away from a page after a fix completes
@@ -1876,9 +1870,8 @@ struct KeyboardNavigationModifier: ViewModifier {
 // This extends WizardOperations (from Core) with UI-specific factory methods that need UI types
 
 extension WizardOperations {
-    /// State detection operation (UI-layer only - uses WizardStateManager from UI target)
+    /// State detection operation (UI-layer only - uses WizardStateMachine)
     static func stateDetection(
-        stateManager _: WizardStateManager?,
         stateMachine: WizardStateMachine?,
         progressCallback: @escaping @Sendable (Double) -> Void = { _ in }
     ) -> AsyncOperation<SystemStateResult> {

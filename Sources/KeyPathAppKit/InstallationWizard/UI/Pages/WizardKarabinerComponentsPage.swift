@@ -18,7 +18,6 @@ struct WizardKarabinerComponentsPage: View {
     let onAutoFix: (AutoFixAction, Bool) async -> Bool // (action, suppressToast)
     let onRefresh: () -> Void
     let kanataManager: RuntimeCoordinator
-    let stateManager: WizardStateManager
 
     @State private var showAllItems = false
     @State private var isCombinedFixLoading = false
@@ -495,7 +494,7 @@ struct WizardKarabinerComponentsPage: View {
             // Run a fresh validation before leaving the page to avoid stale summary red states.
             await refreshAndWait(fixSucceeded: true)
 
-            let refreshedIssues = stateManager.lastWizardSnapshot?.issues ?? issues
+            let refreshedIssues = stateMachine.lastWizardSnapshot?.issues ?? issues
             let remainingVHIDIssues = refreshedIssues.filter(\.identifier.isVHIDRelated)
             if remainingVHIDIssues.isEmpty {
                 actionStatus = .success(message: "Driver repair succeeded")
@@ -640,19 +639,19 @@ struct WizardKarabinerComponentsPage: View {
         actionStatus = .inProgress(message: "Verifying installation...")
 
         // Trigger async state detection via the wizard's refresh callback.
-        let versionBefore = stateManager.stateVersion
+        let versionBefore = stateMachine.stateVersion
         onRefresh()
 
         // Wait for state detection to complete by polling stateVersion.
         // This is more deterministic than an arbitrary sleep.
         let refreshDeadline = Date().addingTimeInterval(stateRefreshTimeoutSeconds)
-        while stateManager.stateVersion == versionBefore, Date() < refreshDeadline {
+        while stateMachine.stateVersion == versionBefore, Date() < refreshDeadline {
             await Task.yield()
             _ = await WizardSleep.ms(20) // 20ms polling interval
         }
 
         let refreshElapsed = String(format: "%.2f", Date().timeIntervalSince(t0))
-        let refreshCompleted = stateManager.stateVersion != versionBefore
+        let refreshCompleted = stateMachine.stateVersion != versionBefore
         AppLogger.shared.log("🔄 [Karabiner Fix] State refresh \(refreshCompleted ? "completed" : "timed out") after \(refreshElapsed)s")
 
         // Check if service is already running - if so, we're done.
