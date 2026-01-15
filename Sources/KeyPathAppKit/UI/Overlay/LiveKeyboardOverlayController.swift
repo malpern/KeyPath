@@ -24,6 +24,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     private let viewModel = KeyboardVisualizationViewModel()
     private let uiState = LiveKeyboardOverlayUIState()
     private var hasAutoHiddenForCurrentSettingsSession = false
+    private var wasVisibleBeforeAutoHide = false
     private var collapsedFrameBeforeInspector: NSRect?
     private var lastWindowFrame: NSRect?
     private var isAdjustingHeight = false
@@ -709,17 +710,23 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     func autoHideOnceForSettings() {
         guard !hasAutoHiddenForCurrentSettingsSession else { return }
         hasAutoHiddenForCurrentSettingsSession = true
+        wasVisibleBeforeAutoHide = isVisible
         if isVisible {
             isVisible = false
         }
     }
 
     /// Reset the auto-hide guard when Settings/Wizard closes.
-    /// Does NOT restore the overlay - user must explicitly show it if they want it back.
+    /// Restores the overlay if it was visible before auto-hide.
     func resetSettingsAutoHideGuard() {
+        let shouldRestore = wasVisibleBeforeAutoHide
         hasAutoHiddenForCurrentSettingsSession = false
-        // Note: We intentionally don't restore the overlay here.
-        // User can show it via Cmd+Opt+K or menu if desired.
+        wasVisibleBeforeAutoHide = false
+
+        // Restore overlay if it was visible before wizard/settings opened
+        if shouldRestore && !isVisible {
+            isVisible = true
+        }
     }
 
     // MARK: - Window Management

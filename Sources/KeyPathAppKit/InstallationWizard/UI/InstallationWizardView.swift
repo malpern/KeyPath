@@ -1277,12 +1277,29 @@ struct InstallationWizardView: View {
     ) -> Bool {
         guard previousPage == .communication, attempt == 0 else { return false }
 
+        // Retry if service appears not running
         switch result.state {
         case .serviceNotRunning, .daemonNotRunning:
             return true
         default:
-            return false
+            break
         }
+
+        // Also retry if there are transient communication issues (TCP warm-up)
+        let hasCommunicationIssues = result.issues.contains { issue in
+            guard case let .component(component) = issue.identifier else { return false }
+            switch component {
+            case .kanataTCPServer,
+                 .communicationServerConfiguration,
+                 .communicationServerNotResponding,
+                 .tcpServerConfiguration,
+                 .tcpServerNotResponding:
+                return true
+            default:
+                return false
+            }
+        }
+        return hasCommunicationIssues
     }
 
     @MainActor

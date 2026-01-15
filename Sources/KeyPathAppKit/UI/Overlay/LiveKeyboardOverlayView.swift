@@ -30,8 +30,8 @@ struct LiveKeyboardOverlayView: View {
 
     @State private var escKeyLeftInset: CGFloat = 0
     @State private var keyboardWidth: CGFloat = 0
-    @AppStorage("inspectorSection") private var inspectorSectionRaw: String = InspectorSection.mapper.rawValue
-    @AppStorage("inspectorSettingsSection") private var settingsSectionRaw: String = InspectorSection.keycaps.rawValue
+    @AppStorage("inspectorSection") private var inspectorSectionRaw: String = InspectorSection.keyboard.rawValue
+    @AppStorage("inspectorSettingsSection") private var settingsSectionRaw: String = InspectorSection.keyboard.rawValue
     private var inspectorSection: InspectorSection {
         get { InspectorSection(rawValue: inspectorSectionRaw) ?? .mapper }
         nonmutating set { inspectorSectionRaw = newValue.rawValue }
@@ -2259,7 +2259,7 @@ private struct InspectorPanelToolbar: View {
     }
 
     private var gearSlideDuration: Double {
-        reduceMotion ? 0 : 2.8 // 60% faster than previous (4.5 / 1.6)
+        reduceMotion ? 0 : 0.7 // 4x faster than previous (2.8 / 4)
     }
 
     private var gearSpinDuration: Double {
@@ -2376,30 +2376,7 @@ private struct InspectorPanelToolbar: View {
 
     private var settingsTabsContent: some View {
         Group {
-            toolbarButton(
-                systemImage: "swatchpalette.fill",
-                isSelected: selectedSection == .keycaps,
-                isHovering: isHoveringKeycaps,
-                onHover: { isHoveringKeycaps = $0 }
-            ) {
-                onSelectSection(.keycaps)
-            }
-            .accessibilityIdentifier("inspector-tab-keycaps")
-            .accessibilityLabel("Keycap Style")
-            .help("Keycap Style")
-
-            toolbarButton(
-                systemImage: "speaker.wave.2.fill",
-                isSelected: selectedSection == .sounds,
-                isHovering: isHoveringSounds,
-                onHover: { isHoveringSounds = $0 }
-            ) {
-                onSelectSection(.sounds)
-            }
-            .accessibilityIdentifier("inspector-tab-sounds")
-            .accessibilityLabel("Typing Sounds")
-            .help("Typing Sounds")
-
+            // Keymap (Logical Layout) first
             toolbarButton(
                 systemImage: "keyboard",
                 isSelected: selectedSection == .keyboard,
@@ -2423,6 +2400,30 @@ private struct InspectorPanelToolbar: View {
             .accessibilityIdentifier("inspector-tab-layout")
             .accessibilityLabel("Physical Layout")
             .help("Physical Layout")
+
+            toolbarButton(
+                systemImage: "swatchpalette.fill",
+                isSelected: selectedSection == .keycaps,
+                isHovering: isHoveringKeycaps,
+                onHover: { isHoveringKeycaps = $0 }
+            ) {
+                onSelectSection(.keycaps)
+            }
+            .accessibilityIdentifier("inspector-tab-keycaps")
+            .accessibilityLabel("Keycap Style")
+            .help("Keycap Style")
+
+            toolbarButton(
+                systemImage: "speaker.wave.2.fill",
+                isSelected: selectedSection == .sounds,
+                isHovering: isHoveringSounds,
+                onHover: { isHoveringSounds = $0 }
+            ) {
+                onSelectSection(.sounds)
+            }
+            .accessibilityIdentifier("inspector-tab-sounds")
+            .accessibilityLabel("Typing Sounds")
+            .help("Typing Sounds")
         }
     }
 

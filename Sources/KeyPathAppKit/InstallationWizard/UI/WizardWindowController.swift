@@ -75,6 +75,9 @@ final class WizardWindowController {
         window.contentView = hosting
         window.isReleasedWhenClosed = false
 
+        // Disable focus ring on hosting view to prevent blue outline
+        hosting.focusRingType = .none
+
         let delegate = WizardWindowDelegate(controller: self)
         window.delegate = delegate
         windowDelegate = delegate

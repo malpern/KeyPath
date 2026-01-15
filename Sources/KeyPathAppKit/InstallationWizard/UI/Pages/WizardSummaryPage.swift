@@ -179,11 +179,7 @@ struct WizardSummaryPage: View {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         headerMode = isEverythingComplete ? .success : .issues
                     }
-                    // White cross-fade when revealing list for the first time
-                    fadeMaskOpacity = 1.0
-                    withAnimation(.easeInOut(duration: 0.22)) {
-                        fadeMaskOpacity = 0.0
-                    }
+                    // Instant reveal - no cross-fade delay
                 }
             }
             .onChange(of: isEverythingComplete) { _, newValue in
