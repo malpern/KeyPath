@@ -54,7 +54,6 @@ struct InstallationWizardView: View {
 
     // Task management for race condition prevention
     @State private var refreshTask: Task<Void, Never>?
-    @State private var summaryRefreshTask: Task<Void, Never>?
     @State private var isForceClosing = false // Prevent new operations after nuclear close
     @State private var loginItemsPollingTask: Task<Void, Never>? // Polls for Login Items approval
     @State private var statusBannerMessage: String?
@@ -170,7 +169,7 @@ struct InstallationWizardView: View {
         .onChange(of: stateMachine.currentPage) { oldPage, newPage in
             AppLogger.shared.log("🧭 [Wizard] View detected page change: \(oldPage) → \(newPage)")
             if newPage == .summary, !isValidating {
-                refreshStateForSummaryEntry(previousPage: oldPage)
+                refreshSystemState(showSpinner: true, previousPage: oldPage)
             }
             // Notify window to resize for new content
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
@@ -301,7 +300,7 @@ struct InstallationWizardView: View {
                     issues: currentIssues.filter { $0.category == .conflicts },
                     allIssues: currentIssues,
                     isFixing: fixInFlight,
-                    onRefresh: { refreshState() },
+                    onRefresh: { refreshSystemState() },
                     kanataManager: kanataManager
                 )
             case .inputMonitoring:
@@ -310,7 +309,7 @@ struct InstallationWizardView: View {
                     issues: currentIssues.filter { $0.category == .permissions },
                     allIssues: currentIssues,
                     stateInterpreter: stateInterpreter,
-                    onRefresh: { refreshState() },
+                    onRefresh: { refreshSystemState() },
                     onNavigateToPage: { page in
                         stateMachine.navigateToPage(page)
                     },
@@ -324,7 +323,7 @@ struct InstallationWizardView: View {
                     systemState: systemState,
                     issues: currentIssues.filter { $0.category == .permissions },
                     allIssues: currentIssues,
-                    onRefresh: { refreshState() },
+                    onRefresh: { refreshSystemState() },
                     onNavigateToPage: { page in
                         stateMachine.navigateToPage(page)
                     },
@@ -340,7 +339,7 @@ struct InstallationWizardView: View {
                     isFixing: fixInFlight,
                     blockingFixDescription: currentFixDescriptionForUI,
                     onAutoFix: performAutoFix,
-                    onRefresh: { refreshState() },
+                    onRefresh: { refreshSystemState() },
                     kanataManager: kanataManager
                 )
             case .kanataComponents:
@@ -350,7 +349,7 @@ struct InstallationWizardView: View {
                     isFixing: fixInFlight,
                     blockingFixDescription: currentFixDescriptionForUI,
                     onAutoFix: performAutoFix,
-                    onRefresh: { refreshState() },
+                    onRefresh: { refreshSystemState() },
                     kanataManager: kanataManager
                 )
             case .kanataMigration:
@@ -361,7 +360,7 @@ struct InstallationWizardView: View {
                             stateMachine.navigateToPage(.stopExternalKanata)
                         } else {
                             // No running kanata, continue to next step
-                            refreshState()
+                            refreshSystemState()
                             if currentIssues.contains(where: { $0.category == .installation && $0.identifier == .component(.kanataBinaryMissing) }) {
                                 stateMachine.navigateToPage(.kanataComponents)
                             } else {
@@ -371,7 +370,7 @@ struct InstallationWizardView: View {
                     },
                     onSkip: {
                         // Skip migration, continue to next step
-                        refreshState()
+                        refreshSystemState()
                         stateMachine.navigateToPage(.summary)
                     }
                 )
@@ -379,7 +378,7 @@ struct InstallationWizardView: View {
                 WizardStopKanataPage(
                     onComplete: {
                         // After stopping, refresh state and continue
-                        refreshState()
+                        refreshSystemState()
                         if currentIssues.contains(where: { $0.category == .installation && $0.identifier == .component(.kanataBinaryMissing) }) {
                             stateMachine.navigateToPage(.kanataComponents)
                         } else {
@@ -398,7 +397,7 @@ struct InstallationWizardView: View {
                     isFixing: fixInFlight,
                     blockingFixDescription: currentFixDescriptionForUI,
                     onAutoFix: performAutoFix,
-                    onRefresh: { refreshState() },
+                    onRefresh: { refreshSystemState() },
                     kanataManager: kanataManager
                 )
             case .communication:
@@ -411,7 +410,7 @@ struct InstallationWizardView: View {
                 WizardKanataServicePage(
                     systemState: systemState,
                     issues: currentIssues,
-                    onRefresh: { refreshState() }
+                    onRefresh: { refreshSystemState() }
                 )
             }
         }
@@ -808,7 +807,7 @@ struct InstallationWizardView: View {
             }
 
             // Refresh state after repair
-            refreshState()
+            refreshSystemState()
 
             // Post-repair health check for VHID-related issues
             if currentIssues.contains(where: { issue in
@@ -1016,7 +1015,7 @@ struct InstallationWizardView: View {
         Task {
             // Shorter delay - we have warm-up window to handle startup
             _ = await WizardSleep.seconds(1) // allow services to start
-            refreshState()
+            refreshSystemState()
 
             // Notify StartupValidator to refresh main screen status
             NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
@@ -1090,13 +1089,19 @@ struct InstallationWizardView: View {
         return description
     }
 
-    private func refreshState() {
-        // Check if force closing is in progress
+    // MARK: - Unified State Refresh
+
+    /// Consolidated refresh method that handles all refresh scenarios
+    /// - Parameters:
+    ///   - showSpinner: Whether to show the validating spinner (used when returning to summary)
+    ///   - previousPage: The page we're coming from (enables special handling for communication page)
+    private func refreshSystemState(showSpinner: Bool = false, previousPage: WizardPage? = nil) {
         guard !isForceClosing else {
-            AppLogger.shared.log("🔍 [Wizard] Refresh state blocked - force closing in progress")
+            AppLogger.shared.log("🔍 [Wizard] Refresh blocked - force closing in progress")
             return
         }
 
+        // Debounce rapid refreshes
         let now = Date()
         if let last = lastRefreshAt, now.timeIntervalSince(last) < 0.3 {
             AppLogger.shared.log("🔍 [Wizard] Refresh skipped (debounced)")
@@ -1104,78 +1109,50 @@ struct InstallationWizardView: View {
         }
         lastRefreshAt = now
 
-        AppLogger.shared.log("🔍 [Wizard] Refreshing system state (using cache if available)")
+        AppLogger.shared.log("🔍 [Wizard] Refreshing system state (showSpinner=\(showSpinner), from=\(previousPage?.rawValue ?? "nil"))")
 
-        // Don't clear cache - let the 2-second TTL handle freshness
-        // Only clear cache when we actually need fresh data (e.g., after auto-fix)
-
-        // Cancel any previous refresh task to prevent race conditions
+        // Cancel any previous refresh task
         refreshTask?.cancel()
 
-        // Use async operation manager for non-blocking refresh
-        let operation = WizardOperations.stateDetection(
-            stateMachine: stateMachine,
-            progressCallback: { _ in }
-        )
-
-        asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
-            Task { @MainActor in
-                _ = applySystemStateResult(result)
-            }
-        }
-    }
-
-    private func refreshStateForSummaryEntry(previousPage: WizardPage?) {
-        // Check if force closing is in progress
-        guard !isForceClosing else {
-            AppLogger.shared.log("🔍 [Wizard] Summary refresh blocked - force closing in progress")
-            return
-        }
-
-        let now = Date()
-        if let last = lastRefreshAt, now.timeIntervalSince(last) < 0.3 {
-            AppLogger.shared.log("🔍 [Wizard] Summary refresh skipped (debounced)")
+        // Show spinner if requested (used when returning to summary page)
+        if showSpinner {
             withAnimation(.easeInOut(duration: 0.2)) {
                 isValidating = true
             }
             currentIssues = []
-            return
         }
-        lastRefreshAt = now
 
-        AppLogger.shared.log("🔍 [Wizard] Refreshing summary state after navigation")
-
-        // Show validating state to avoid stale/red summary flash
-        withAnimation(.easeInOut(duration: 0.2)) {
-            isValidating = true
-        }
-        currentIssues = []
-
-        summaryRefreshTask?.cancel()
-        summaryRefreshTask = Task { [previousPage] in
-            if await MainActor.run { asyncOperationManager.hasRunningOperations } {
-                AppLogger.shared.log("🔍 [Wizard] Summary refresh waiting for in-flight operations")
+        refreshTask = Task { [previousPage, showSpinner] in
+            // Wait for in-flight operations to complete (only when showing spinner)
+            if showSpinner, await MainActor.run(body: { asyncOperationManager.hasRunningOperations }) {
+                AppLogger.shared.log("🔍 [Wizard] Refresh waiting for in-flight operations")
                 while !Task.isCancelled,
-                      await MainActor.run { asyncOperationManager.hasRunningOperations } {
+                      await MainActor.run(body: { asyncOperationManager.hasRunningOperations }) {
                     _ = await WizardSleep.ms(200)
                 }
             }
 
             guard !Task.isCancelled else { return }
 
-            // Give the TCP server a moment to come back after leaving the communication page
+            // Give TCP server time to recover after leaving communication page
             if previousPage == .communication {
                 _ = await WizardSleep.seconds(1)
             }
 
+            // Run state detection with optional retry for communication page
             await MainActor.run {
-                runSummaryStateDetection(previousPage: previousPage, attempt: 0)
+                performStateDetection(
+                    previousPage: previousPage,
+                    attempt: 0,
+                    showSpinner: showSpinner
+                )
             }
         }
     }
 
+    /// Internal: Performs state detection with retry logic for communication page
     @MainActor
-    private func runSummaryStateDetection(previousPage: WizardPage?, attempt: Int) {
+    private func performStateDetection(previousPage: WizardPage?, attempt: Int, showSpinner: Bool) {
         guard !isForceClosing else { return }
 
         let operation = WizardOperations.stateDetection(
@@ -1183,32 +1160,31 @@ struct InstallationWizardView: View {
             progressCallback: { _ in }
         )
 
-        asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
-            if shouldRetrySummaryState(result: result, previousPage: previousPage, attempt: attempt) {
-                AppLogger.shared.log("🔍 [Wizard] Summary refresh deferring result (TCP warm-up)")
+        asyncOperationManager.execute(operation: operation) { [previousPage, attempt, showSpinner] (result: SystemStateResult) in
+            // Retry once if coming from communication page and seeing transient issues
+            if previousPage == .communication, attempt == 0, shouldRetryForCommunication(result: result) {
+                AppLogger.shared.log("🔍 [Wizard] Deferring result for TCP warm-up, will retry")
                 Task {
                     _ = await WizardSleep.seconds(1.5)
                     await MainActor.run {
-                        runSummaryStateDetection(previousPage: previousPage, attempt: attempt + 1)
+                        performStateDetection(previousPage: previousPage, attempt: 1, showSpinner: showSpinner)
                     }
                 }
                 return
             }
 
             _ = applySystemStateResult(result)
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isValidating = false
+
+            if showSpinner {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isValidating = false
+                }
             }
         }
     }
 
-    private func shouldRetrySummaryState(
-        result: SystemStateResult,
-        previousPage: WizardPage?,
-        attempt: Int
-    ) -> Bool {
-        guard previousPage == .communication, attempt == 0 else { return false }
-
+    /// Check if we should retry due to transient communication issues
+    private func shouldRetryForCommunication(result: SystemStateResult) -> Bool {
         // Retry if service appears not running
         switch result.state {
         case .serviceNotRunning, .daemonNotRunning:
@@ -1218,7 +1194,7 @@ struct InstallationWizardView: View {
         }
 
         // Also retry if there are transient communication issues (TCP warm-up)
-        let hasCommunicationIssues = result.issues.contains { issue in
+        return result.issues.contains { issue in
             guard case let .component(component) = issue.identifier else { return false }
             switch component {
             case .kanataTCPServer,
@@ -1231,7 +1207,6 @@ struct InstallationWizardView: View {
                 return false
             }
         }
-        return hasCommunicationIssues
     }
 
     @MainActor
@@ -1491,7 +1466,7 @@ struct InstallationWizardView: View {
                     }
 
                     // Refresh the wizard state
-                    refreshState()
+                    refreshSystemState()
 
                     return
                 }
@@ -1533,7 +1508,6 @@ struct InstallationWizardView: View {
         // Cancel monitoring tasks
         AppLogger.shared.log("🔴 [FORCE-CLOSE] Cancelling refresh task...")
         refreshTask?.cancel()
-        summaryRefreshTask?.cancel()
         stopLoginItemsApprovalPolling()
         AppLogger.shared.log("🔴 [FORCE-CLOSE] Refresh and polling tasks cancelled")
 
