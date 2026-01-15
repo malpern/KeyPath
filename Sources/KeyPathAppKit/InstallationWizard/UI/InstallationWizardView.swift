@@ -717,24 +717,12 @@ struct InstallationWizardView: View {
 
     // MARK: - Actions
 
+    /// Main "Fix All" handler - delegates to InstallerEngine which handles all repair logic
     private func performAutoFix() {
-        AppLogger.shared.log(
-            "🔍 [Wizard] *** FIX BUTTON CLICKED *** Auto-fix started via InstallerEngine")
-        AppLogger.shared.log("🔍 [Wizard] Current issues: \(stateMachine.wizardIssues.count) total")
+        AppLogger.shared.log("🔧 [Wizard] Fix button clicked - delegating to InstallerEngine")
 
-        // Log each current issue for debugging
-        for (index, issue) in stateMachine.wizardIssues.enumerated() {
-            if let autoFixAction = issue.autoFixAction {
-                AppLogger.shared.log(
-                    "🔍 [Wizard] Issue \(index): \(issue.identifier) -> AutoFix: \(autoFixAction)")
-            } else {
-                AppLogger.shared.log(
-                    "🔍 [Wizard] Issue \(index): \(issue.identifier) -> AutoFix: nil")
-            }
-        }
-
-        // Use InstallerEngine to repair all issues at once (with façade fast-path)
         Task {
+            // Guard against double-execution
             guard !fixInFlight else {
                 await MainActor.run {
                     toastManager.showInfo("Another fix is already running…", duration: 3.0)
@@ -744,6 +732,7 @@ struct InstallationWizardView: View {
             await MainActor.run { fixInFlight = true }
             defer { Task { @MainActor in fixInFlight = false } }
 
+            // Check if Login Items approval is pending
             let smState = await KanataDaemonManager.shared.refreshManagementState()
             if smState == .smappservicePending {
                 await MainActor.run {
@@ -755,32 +744,17 @@ struct InstallationWizardView: View {
                 return
             }
 
-            if await attemptFastRestartFix() {
-                AppLogger.shared.log(
-                    "✅ [Wizard] Fast-path restart resolved issues; skipping InstallerEngine repair"
-                )
-                return
-            }
+            // Run full repair via InstallerEngine (it handles all cases efficiently)
+            let report = await kanataManager.runFullRepair(reason: "Wizard Fix button")
 
-            if await attemptAutoFixActions() {
-                AppLogger.shared.log(
-                    "✅ [Wizard] Auto-fix actions resolved issues; skipping InstallerEngine repair"
-                )
-                await MainActor.run {
-                    toastManager.showSuccess("Issues resolved", duration: 4.0)
-                }
-                return
-            }
-
-            let report = await kanataManager.runFullRepair(reason: "Wizard Fix button fallback repair")
-
+            // Show result toast
             await MainActor.run {
                 if report.success {
                     let successCount = report.executedRecipes.filter(\.success).count
                     let totalCount = report.executedRecipes.count
                     if totalCount > 0 {
                         toastManager.showSuccess(
-                            "Repaired \(successCount) of \(totalCount) issue(s) successfully",
+                            "Repaired \(successCount) of \(totalCount) issue(s)",
                             duration: 5.0
                         )
                     } else {
@@ -793,14 +767,7 @@ struct InstallationWizardView: View {
             }
 
             // Log report details
-            AppLogger.shared.log(
-                "🔧 [Wizard] InstallerEngine repair completed - success: \(report.success)")
-            AppLogger.shared.log("🔧 [Wizard] Executed recipes: \(report.executedRecipes.count)")
-            for (index, result) in report.executedRecipes.enumerated() {
-                AppLogger.shared.log(
-                    "🔧 [Wizard] Recipe \(index + 1): \(result.recipeID) - \(result.success ? "success" : "failed")"
-                )
-            }
+            AppLogger.shared.log("🔧 [Wizard] Repair completed - success: \(report.success), recipes: \(report.executedRecipes.count)")
             if let failureReason = report.failureReason {
                 AppLogger.shared.log("❌ [Wizard] Failure reason: \(failureReason)")
             }
@@ -808,107 +775,12 @@ struct InstallationWizardView: View {
             // Refresh state after repair
             refreshSystemState()
 
-            // Post-repair health check for VHID-related issues
-            if stateMachine.wizardIssues.contains(where: { issue in
-                if let action = issue.autoFixAction {
-                    return action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon
-                }
-                return false
-            }) {
-                Task {
-                    _ = await WizardSleep.seconds(2) // allow services to settle
-                    let latestResult = await stateMachine.detectCurrentState()
-                    let filteredIssues = sanitizedIssues(from: latestResult.issues, for: latestResult.state)
-                    await MainActor.run {
-                        stateMachine.wizardState = latestResult.state
-                        stateMachine.wizardIssues = filteredIssues
-                    }
-                    let karabinerStatus = KarabinerComponentsStatusEvaluator.evaluate(
-                        systemState: latestResult.state,
-                        issues: filteredIssues
-                    )
-                    AppLogger.shared.log(
-                        "🔍 [Wizard] Post-repair health check: karabinerStatus=\(karabinerStatus)")
-                    if karabinerStatus != .completed {
-                        let detail = await kanataManager.getVirtualHIDBreakageSummary()
-                        AppLogger.shared.log(
-                            "❌ [Wizard] Post-repair health check failed; showing diagnostic toast")
-                        await MainActor.run {
-                            toastManager.showError(
-                                "Karabiner driver is still not healthy.\n\n\(detail)", duration: 7.0
-                            )
-                        }
-                    }
-                }
-            }
+            // Notify main screen to refresh
+            NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
         }
     }
 
-    private func attemptFastRestartFix() async -> Bool {
-        AppLogger.shared.log(
-            "🔄 [Wizard] Attempting KanataService restart before running InstallerEngine repair"
-        )
-        let restarted = await kanataManager.restartServiceWithFallback(
-            reason: "Wizard Fix button fast path"
-        )
-        guard restarted else {
-            AppLogger.shared.warn("⚠️ [Wizard] Fast-path restart failed; falling back to InstallerEngine")
-            return false
-        }
-
-        let latestResult = await stateMachine.detectCurrentState()
-        let filteredIssues = await MainActor.run { applySystemStateResult(latestResult) }
-
-        let resolved = filteredIssues.isEmpty && latestResult.state == .active
-
-        if resolved {
-            await MainActor.run {
-                toastManager.showSuccess("Kanata service recovered", duration: 4.0)
-            }
-        } else {
-            AppLogger.shared.log(
-                "ℹ️ [Wizard] Fast-path restart completed but issues remain (\(filteredIssues.count) issue(s))"
-            )
-        }
-
-        return resolved
-    }
-
-    private func attemptAutoFixActions() async -> Bool {
-        guard autoFixer.autoFixer != nil else {
-            AppLogger.shared.warn("⚠️ [Wizard] AutoFixer not configured - cannot run auto-fix actions")
-            return false
-        }
-
-        let issuesSnapshot = await MainActor.run { stateMachine.wizardIssues }
-        let uniqueActions = Array(Set(issuesSnapshot.compactMap(\.autoFixAction)))
-        guard !uniqueActions.isEmpty else {
-            AppLogger.shared.log("ℹ️ [Wizard] No auto-fix actions available for current issues")
-            return false
-        }
-
-        AppLogger.shared.log("🔧 [Wizard] Attempting \(uniqueActions.count) auto-fix action(s) before InstallerEngine repair")
-
-        for action in uniqueActions {
-            AppLogger.shared.log("🔧 [Wizard] Running auto-fix action: \(action)")
-            let success = await autoFixer.performAutoFix(action)
-            AppLogger.shared.log("🔧 [Wizard] Auto-fix action \(action) completed with success=\(success)")
-            guard success else { continue }
-
-            let latestResult = await stateMachine.detectCurrentState()
-            let filteredIssues = await MainActor.run { applySystemStateResult(latestResult) }
-            let resolved = filteredIssues.isEmpty && latestResult.state == .active
-
-            if resolved {
-                AppLogger.shared.log("✅ [Wizard] System healthy after auto-fix action: \(action)")
-                return true
-            }
-        }
-
-        AppLogger.shared.log("ℹ️ [Wizard] Auto-fix actions did not fully resolve issues")
-        return false
-    }
-
+    /// Single-action fix handler for individual "Fix" buttons on pages
     private func performAutoFix(_ action: AutoFixAction, suppressToast: Bool = false) async -> Bool {
         // Single-flight guard for Fix buttons
         if inFlightFixActions.contains(action) {
