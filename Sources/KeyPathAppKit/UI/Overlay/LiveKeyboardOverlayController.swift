@@ -506,9 +506,6 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         viewModel.noteInteraction()
         window?.orderFront(nil)
 
-        // Play subtle show sound
-        SoundManager.shared.playOverlayShowSound()
-
         // Show hint bubble if user hasn't learned the shortcut yet
         if FeatureTipManager.shared.shouldShow(.hideOverlayShortcut) {
             showHintBubble()
@@ -786,9 +783,6 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             window.setFrame(savedFrame, display: false)
         }
 
-        // Play subtle show sound
-        SoundManager.shared.playOverlayShowSound()
-
         // Animate in: start scaled down and transparent, then expand
         if let contentView = window?.contentView {
             contentView.wantsLayer = true
@@ -830,9 +824,6 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         saveWindowFrame()
         viewModel.stopCapturing()
         dismissHintBubble()
-
-        // Play subtle hide sound
-        SoundManager.shared.playOverlayHideSound()
 
         if uiState.isInspectorOpen || uiState.inspectorReveal > 0 {
             closeInspector(animated: false)

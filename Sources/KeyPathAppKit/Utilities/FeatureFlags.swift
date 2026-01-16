@@ -61,6 +61,7 @@ extension FeatureFlags {
     private static let allowOptionalWizardKey = "ALLOW_OPTIONAL_WIZARD"
     private static let keyboardSuppressionDebugEnabledKey = "KEYBOARD_SUPPRESSION_DEBUG_ENABLED"
     private static let uninstallForTestingKey = "UNINSTALL_FOR_TESTING"
+    private static let alwaysShowLearningTipsKey = "ALWAYS_SHOW_LEARNING_TIPS"
 
     // MARK: - Active Feature Flags
 
@@ -127,6 +128,20 @@ extension FeatureFlags {
 
     static func setUninstallForTesting(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: uninstallForTestingKey)
+    }
+
+    /// Always show learning tips regardless of learned state (default ON for development)
+    /// When enabled, contextual tips like "Hide — ⌘⌥K" always appear.
+    /// Turn OFF for production to respect learning state.
+    static var alwaysShowLearningTips: Bool {
+        if UserDefaults.standard.object(forKey: alwaysShowLearningTipsKey) == nil {
+            return true // default ON for development
+        }
+        return UserDefaults.standard.bool(forKey: alwaysShowLearningTipsKey)
+    }
+
+    static func setAlwaysShowLearningTips(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: alwaysShowLearningTipsKey)
     }
 
     // MARK: - Future Implementation (not yet built)

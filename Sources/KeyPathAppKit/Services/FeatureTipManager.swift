@@ -72,18 +72,18 @@ final class FeatureTipManager: ObservableObject {
 
     // MARK: - Debug Mode
 
-    /// Debug flag to always show tips regardless of learned state
-    var debugAlwaysShowTips: Bool {
-        get { defaults.bool(forKey: "debug.alwaysShowTips") }
-        set { defaults.set(newValue, forKey: "debug.alwaysShowTips") }
+    /// Whether to always show tips regardless of learned state
+    /// Controlled by FeatureFlags.alwaysShowLearningTips (default ON for development)
+    var alwaysShowTips: Bool {
+        FeatureFlags.alwaysShowLearningTips
     }
 
     // MARK: - Public API
 
     /// Check if a tip should be shown
-    /// Returns true if not yet learned (or debug mode is on)
+    /// Returns true if not yet learned (or alwaysShowTips feature flag is on)
     func shouldShow(_ tip: TipID) -> Bool {
-        if debugAlwaysShowTips { return true }
+        if alwaysShowTips { return true }
 
         var state = loadState(for: tip)
         state.checkAndResetIfForgotten()
