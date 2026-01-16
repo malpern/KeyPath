@@ -84,6 +84,30 @@ class SoundManager {
         AppLogger.shared.log("🔊 [Sound] Playing layer-down sound (Pop)")
     }
 
+    // MARK: - Overlay Sounds
+
+    /// Play subtle sound when overlay appears
+    func playOverlayShowSound() {
+        if TestEnvironment.isRunningTests {
+            AppLogger.shared.log("🧪 [Sound] Suppressed overlay-show sound in test environment")
+            return
+        }
+        // "Bottle" is a soft cork/bubble sound - gentle for appearing
+        playSubtleSound(named: "Bottle", volume: 0.075)
+        AppLogger.shared.log("🔊 [Sound] Playing overlay-show sound (Bottle)")
+    }
+
+    /// Play subtle sound when overlay hides
+    func playOverlayHideSound() {
+        if TestEnvironment.isRunningTests {
+            AppLogger.shared.log("🧪 [Sound] Suppressed overlay-hide sound in test environment")
+            return
+        }
+        // "Funk" is a subtle descending tone - good for dismissing
+        playSubtleSound(named: "Funk", volume: 0.06)
+        AppLogger.shared.log("🔊 [Sound] Playing overlay-hide sound (Funk)")
+    }
+
     /// Play a system sound at reduced volume for subtle feedback
     private func playSubtleSound(named name: String, volume: Float) {
         guard let sound = NSSound(named: name) else {

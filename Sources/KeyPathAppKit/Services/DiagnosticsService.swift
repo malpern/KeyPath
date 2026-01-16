@@ -113,7 +113,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
             events.append(.virtualHIDConnected)
         }
         if lower.contains("asio.system") || lower.contains("connection failed")
-            || lower.contains("vhid error") {
+            || lower.contains("vhid error")
+        {
             events.append(.virtualHIDConnectionFailed)
         }
         return events
@@ -196,7 +197,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         case 6:
             // Exit code 6 has different causes - check for VirtualHID connection issues
             if output.contains("connect_failed asio.system:61")
-                || output.contains("connect_failed asio.system:2") {
+                || output.contains("connect_failed asio.system:2")
+            {
                 diagnostics.append(
                     KanataDiagnostic(
                         timestamp: Date(),

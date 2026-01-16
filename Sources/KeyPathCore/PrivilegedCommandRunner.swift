@@ -127,7 +127,12 @@ public enum PrivilegedCommandRunner {
         do shell script "\(escapedCommand)" with administrator privileges with prompt "\(escapedPrompt)"
         """
 
-        AppLogger.shared.log("🔐 [PrivilegedCommandRunner] Requesting admin privileges via osascript")
+        AppLogger.shared.log("🔐 [PRIVILEGED-TRIGGER] Requesting admin privileges via osascript")
+        AppLogger.shared.log("🔐 [PRIVILEGED-TRIGGER] Command: \(command.prefix(100))...")
+        AppLogger.shared.log("🔐 [PRIVILEGED-TRIGGER] Prompt: \(prompt)")
+        // Log stack trace to identify caller
+        let callStack = Thread.callStackSymbols.prefix(10).joined(separator: "\n")
+        AppLogger.shared.log("🔐 [PRIVILEGED-TRIGGER] Call stack:\n\(callStack)")
 
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")

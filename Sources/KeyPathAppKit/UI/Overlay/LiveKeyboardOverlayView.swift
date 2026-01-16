@@ -315,7 +315,8 @@ struct LiveKeyboardOverlayView: View {
             // If preset values are provided, forward them to the mapper
             if let userInfo = notification.userInfo,
                let inputKey = userInfo["inputKey"] as? String,
-               let outputKey = userInfo["outputKey"] as? String {
+               let outputKey = userInfo["outputKey"] as? String
+            {
                 var mapperUserInfo: [String: Any] = [
                     "inputKey": inputKey,
                     "outputKey": outputKey,
@@ -323,7 +324,8 @@ struct LiveKeyboardOverlayView: View {
                 ]
                 // Include app condition if present (for app-specific rule editing)
                 if let appBundleId = userInfo["appBundleId"] as? String,
-                   let appDisplayName = userInfo["appDisplayName"] as? String {
+                   let appDisplayName = userInfo["appDisplayName"] as? String
+                {
                     mapperUserInfo["appBundleId"] = appBundleId
                     mapperUserInfo["appDisplayName"] = appDisplayName
                 }
@@ -683,7 +685,8 @@ struct LiveKeyboardOverlayView: View {
             // Load the launcher config to pass to welcome dialog
             let collections = await RuleCollectionStore.shared.loadCollections()
             if let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
-               let config = launcherCollection.configuration.launcherGridConfig {
+               let config = launcherCollection.configuration.launcherGridConfig
+            {
                 await MainActor.run {
                     pendingLauncherConfig = config
                     showLauncherWelcomeWindow()
@@ -1017,21 +1020,21 @@ private struct OverlayDragHeader: View {
                 .accessibilityIdentifier("overlay-drawer-toggle")
                 .accessibilityLabel(isInspectorOpen ? "Close settings drawer" : "Open settings drawer")
 
-                // 3. Close button (rightmost)
+                // 3. Hide button (rightmost) - hides overlay, use ⌘⌥K to bring back
                 Button {
-                    AppLogger.shared.log("🔘 [Header] Close button clicked")
-                    print("🔘 [Header] Close button clicked")
+                    AppLogger.shared.log("🔘 [Header] Hide button clicked")
+                    print("🔘 [Header] Hide button clicked")
                     onClose()
                 } label: {
-                    Image(systemName: "xmark")
+                    Image(systemName: "eye.slash")
                         .font(.system(size: buttonSize * 0.45, weight: .semibold))
                         .foregroundStyle(headerIconColor)
                         .frame(width: buttonSize, height: buttonSize)
                 }
                 .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
-                .help("Close Overlay")
-                .accessibilityIdentifier("overlay-close-button")
-                .accessibilityLabel("Close keyboard overlay")
+                .help("Hide Overlay (⌘⌥K)")
+                .accessibilityIdentifier("overlay-hide-button")
+                .accessibilityLabel("Hide keyboard overlay")
             }
             .padding(.trailing, 6)
             .animation(.easeOut(duration: 0.12), value: currentLayerName)

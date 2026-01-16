@@ -22,15 +22,18 @@ struct RuleCollectionCatalog {
             // For tapHoldPicker: preserve user's selections but use catalog's options
             // This ensures removed options (like "None") don't persist
             if case let .tapHoldPicker(existingConfig) = existing.configuration,
-               case let .tapHoldPicker(catalogConfig) = updated.configuration {
+               case let .tapHoldPicker(catalogConfig) = updated.configuration
+            {
                 var mergedConfig = catalogConfig
                 // Preserve user's selection only if it's still a valid option
                 if let selectedTap = existingConfig.selectedTapOutput,
-                   catalogConfig.tapOptions.contains(where: { $0.output == selectedTap }) {
+                   catalogConfig.tapOptions.contains(where: { $0.output == selectedTap })
+                {
                     mergedConfig.selectedTapOutput = selectedTap
                 }
                 if let selectedHold = existingConfig.selectedHoldOutput,
-                   catalogConfig.holdOptions.contains(where: { $0.output == selectedHold }) {
+                   catalogConfig.holdOptions.contains(where: { $0.output == selectedHold })
+                {
                     mergedConfig.selectedHoldOutput = selectedHold
                 }
                 merged.configuration = .tapHoldPicker(mergedConfig)
@@ -61,8 +64,7 @@ struct RuleCollectionCatalog {
             numpadLayer,
             symbolLayer,
             launcher,
-            typingSounds,
-            keycapColorway
+            typingSounds
         ]
     }
 
@@ -838,23 +840,6 @@ struct RuleCollectionCatalog {
             isSystemDefault: false,
             icon: "speaker.wave.2",
             tags: ["sounds", "audio", "typing", "mechanical"],
-            configuration: .list
-        )
-    }
-
-    // MARK: - Keycap Colorway
-
-    private var keycapColorway: RuleCollection {
-        RuleCollection(
-            id: RuleCollectionIdentifier.keycapColorway,
-            name: "Keycap Colorway",
-            summary: "Customize the keyboard overlay with GMK-inspired color themes.",
-            category: .system,
-            mappings: [],
-            isEnabled: false,
-            isSystemDefault: false,
-            icon: "paintpalette",
-            tags: ["colors", "theme", "keycaps", "gmk", "customization"],
             configuration: .list
         )
     }

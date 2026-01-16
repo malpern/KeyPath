@@ -140,7 +140,8 @@ class WizardStateMachine: ObservableObject {
     /// Detect current state and return as SystemStateResult (legacy compatibility)
     /// Prefer using refresh() + systemSnapshot for new code
     func detectCurrentState(progressCallback _: @escaping @Sendable (Double) -> Void = { _ in }) async
-        -> SystemStateResult {
+        -> SystemStateResult
+    {
         if let manager = kanataManager {
             AppLogger.shared.log("🎯 [WizardStateMachine] Using RuntimeCoordinator.inspectSystemContext()")
             let context = await manager.inspectSystemContext()

@@ -39,6 +39,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     private var healthObserver: OverlayHealthIndicatorObserver?
     private weak var hostingView: NSHostingView<AnyView>?
     private let frameStore = OverlayWindowFrameStore()
+    private var hintWindowController: HideHintWindowController?
 
     /// Reference to KanataViewModel for opening Mapper window
     private weak var kanataViewModel: KanataViewModel?
@@ -340,7 +341,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             updateLayerName(layerName)
         case .kanata:
             if oneShotOverride.shouldIgnoreKanataUpdate(normalizedLayer: normalized),
-               let overrideLayer = oneShotOverride.currentLayer {
+               let overrideLayer = oneShotOverride.currentLayer
+            {
                 AppLogger.shared.debug(
                     "🧭 [OverlayController] Ignoring kanata layer '\(layerName)' while one-shot override '\(overrideLayer)' active"
                 )
@@ -404,7 +406,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             NSApp.unhide(nil)
         }
         NSApp.activate(ignoringOtherApps: true)
-        showForQuickLaunch()
+        // Launcher activation always bypasses hidden check - user is actively using it
+        showForQuickLaunch(bypassHiddenCheck: true)
     }
 
     func noteLauncherActionDispatched() {
@@ -456,7 +459,15 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
     /// Show overlay for app startup with 30% larger size, centered at bottom with margin.
     /// Also starts health state observation to show validation progress.
-    func showForStartup() {
+    /// - Parameter bypassHiddenCheck: If true, shows overlay even if user explicitly hid it.
+    ///   Only use this for the initial app launch, not for subsequent activations.
+    func showForStartup(bypassHiddenCheck: Bool = false) {
+        // IMPORTANT: Respect user's explicit hide unless bypassed (initial launch only)
+        if !bypassHiddenCheck, userExplicitlyHidden {
+            AppLogger.shared.log("⏸️ [OverlayController] showForStartup skipped - user explicitly hid overlay")
+            return
+        }
+
         // Start health observation and refresh state from current values.
         // Don't manually set .checking - let the observer determine state based on
         // MainAppStateController's current validation state. This fixes the bug where
@@ -495,6 +506,14 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         viewModel.noteInteraction()
         window?.orderFront(nil)
 
+        // Play subtle show sound
+        SoundManager.shared.playOverlayShowSound()
+
+        // Show hint bubble if user hasn't learned the shortcut yet
+        if FeatureTipManager.shared.shouldShow(.hideOverlayShortcut) {
+            showHintBubble()
+        }
+
         AppLogger.shared.log("🚀 [OverlayController] Showing overlay for startup - size: \(Int(startupSize.width))x\(Int(startupSize.height)), position: centered bottom")
     }
 
@@ -504,7 +523,16 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     }
 
     /// Show the overlay for a launcher activation while preserving size and position.
-    func showForQuickLaunch() {
+    /// - Parameter bypassHiddenCheck: If true, shows overlay even if user explicitly hid it.
+    ///   Used for launcher layer activation which should always show the overlay temporarily.
+    func showForQuickLaunch(bypassHiddenCheck: Bool = false) {
+        // IMPORTANT: Respect user's explicit hide unless bypassed
+        // Launcher activation should bypass because user is actively using it
+        if !bypassHiddenCheck, userExplicitlyHidden {
+            AppLogger.shared.log("⏸️ [OverlayController] showForQuickLaunch skipped - user explicitly hid overlay")
+            return
+        }
+
         if window == nil {
             createWindow()
         }
@@ -583,14 +611,31 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
     /// Toggle overlay visibility
     /// If trying to show and system status is not healthy, launches the wizard instead
-    func toggle() {
+    /// - Parameter viaKeyboardShortcut: Set to true when toggled via ⌘⌥K to track learning
+    func toggle(viaKeyboardShortcut: Bool = false) {
         if isVisible {
             // User explicitly hiding - mark as such so we don't auto-show on app activation
             userExplicitlyHidden = true
+
+            // Record use of hide shortcut for learning tracking
+            if viaKeyboardShortcut {
+                FeatureTipManager.shared.recordUse(.hideOverlayShortcut)
+                let state = FeatureTipManager.shared.learningState(for: .hideOverlayShortcut)
+                AppLogger.shared.log("📚 [OverlayController] Recorded hide shortcut use (\(state.useCount)/\(state.requiredUses))")
+            }
+
             isVisible = false
         } else {
             // User explicitly showing - clear the explicit hide flag
             userExplicitlyHidden = false
+
+            // Record use of show shortcut for learning tracking
+            if viaKeyboardShortcut {
+                FeatureTipManager.shared.recordUse(.hideOverlayShortcut)
+                let state = FeatureTipManager.shared.learningState(for: .hideOverlayShortcut)
+                AppLogger.shared.log("📚 [OverlayController] Recorded show shortcut use (\(state.useCount)/\(state.requiredUses))")
+            }
+
             // Showing requires system to be healthy
             Task { @MainActor in
                 let health = await ServiceHealthChecker.shared.checkKanataServiceHealth()
@@ -740,7 +785,39 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         if let savedFrame = restoreWindowFrame(), let window {
             window.setFrame(savedFrame, display: false)
         }
-        window?.orderFront(nil)
+
+        // Play subtle show sound
+        SoundManager.shared.playOverlayShowSound()
+
+        // Animate in: start scaled down and transparent, then expand
+        if let contentView = window?.contentView {
+            contentView.wantsLayer = true
+            contentView.layer?.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+            // Adjust position for anchor point change
+            let bounds = contentView.bounds
+            contentView.layer?.position = CGPoint(x: bounds.midX, y: bounds.midY)
+
+            // Start small and transparent
+            contentView.layer?.transform = CATransform3DMakeScale(0.95, 0.95, 1.0)
+            contentView.alphaValue = 0
+
+            window?.orderFront(nil)
+
+            // Animate to full size
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.15
+                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                contentView.animator().alphaValue = 1.0
+                contentView.layer?.transform = CATransform3DIdentity
+            }
+        } else {
+            window?.orderFront(nil)
+        }
+
+        // Show hint bubble if user hasn't learned the shortcut yet
+        if FeatureTipManager.shared.shouldShow(.hideOverlayShortcut) {
+            showHintBubble()
+        }
 
         // Ensure health state reflects current MainAppStateController values.
         // This is a belt-and-suspenders fix for stale "System Not Ready" state.
@@ -752,10 +829,37 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         // Save frame BEFORE closing inspector (which modifies the frame)
         saveWindowFrame()
         viewModel.stopCapturing()
+        dismissHintBubble()
+
+        // Play subtle hide sound
+        SoundManager.shared.playOverlayHideSound()
+
         if uiState.isInspectorOpen || uiState.inspectorReveal > 0 {
             closeInspector(animated: false)
         }
-        window?.orderOut(nil)
+
+        // Animate out: scale down and fade, then hide
+        if let contentView = window?.contentView {
+            contentView.wantsLayer = true
+            contentView.layer?.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+            // Adjust position for anchor point change
+            let bounds = contentView.bounds
+            contentView.layer?.position = CGPoint(x: bounds.midX, y: bounds.midY)
+
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.12
+                context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+                contentView.animator().alphaValue = 0
+                contentView.layer?.transform = CATransform3DMakeScale(0.95, 0.95, 1.0)
+            } completionHandler: { [weak self] in
+                self?.window?.orderOut(nil)
+                // Reset for next show
+                contentView.alphaValue = 1.0
+                contentView.layer?.transform = CATransform3DIdentity
+            }
+        } else {
+            window?.orderOut(nil)
+        }
     }
 
     // MARK: - Key Click Handling
@@ -805,7 +909,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             }
 
             if let mapping = viewModel.launcherMappings[normalizedKey],
-               let message = Self.launcherActionMessage(for: mapping.target) {
+               let message = Self.launcherActionMessage(for: mapping.target)
+            {
                 AppLogger.shared.log("🖱️ [OverlayController] Launcher key clicked: \(normalizedKey) -> \(message)")
                 ActionDispatcher.shared.dispatch(message: message)
                 ActionDispatcher.shared.dispatch(message: "layer:base")
@@ -1291,6 +1396,27 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             .store(in: &cancellables)
     }
 
+    private func observeHintBubble() {
+        // No longer needed - hint bubble is in a separate window
+    }
+
+    /// Show the hide hint bubble in a separate floating window above the overlay
+    private func showHintBubble() {
+        guard let window else { return }
+
+        // Create controller if needed
+        if hintWindowController == nil {
+            hintWindowController = HideHintWindowController()
+        }
+
+        hintWindowController?.show(above: window)
+    }
+
+    /// Dismiss the hide hint bubble if visible
+    func dismissHintBubble() {
+        hintWindowController?.dismiss()
+    }
+
     private func observeKeyboardAspectRatio() {
         uiState.$keyboardAspectRatio
             .removeDuplicates()
@@ -1413,6 +1539,12 @@ final class LiveKeyboardOverlayUIState: ObservableObject {
 
     /// Brief highlight of the drawer button when toggled via hotkey
     @Published var drawerButtonHighlighted = false
+
+    /// Whether the hide hint bubble is currently showing (affects window height)
+    @Published var showingHintBubble = false
+
+    /// Height of the hint bubble area when shown
+    static let hintBubbleHeight: CGFloat = 40
 }
 
 enum InspectorPanelLayout {

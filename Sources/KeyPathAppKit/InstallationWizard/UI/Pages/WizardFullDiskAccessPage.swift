@@ -174,6 +174,8 @@ struct WizardFullDiskAccessPage: View {
             if newValue, !showSuccessAnimation {
                 // Permission was just granted!
                 showSuccessAnimation = true
+                // Bounce dock icon to get user's attention back to KeyPath
+                WizardWindowManager.shared.bounceDocIcon()
                 AppLogger.shared.log("✅ [Wizard] Full Disk Access granted - showing success animation")
 
                 // Don't auto-navigate - let user navigate manually
@@ -221,7 +223,8 @@ struct WizardFullDiskAccessPage: View {
 
         Task {
             if let nextPage = await stateMachine.getNextPage(for: systemState, issues: issues),
-               nextPage != stateMachine.currentPage {
+               nextPage != stateMachine.currentPage
+            {
                 stateMachine.navigateToPage(nextPage)
             } else {
                 stateMachine.navigateToPage(.summary)
@@ -239,7 +242,8 @@ struct WizardFullDiskAccessPage: View {
         // Check cache first
         if let lastCheckTime = lastFDACheckTime,
            Date().timeIntervalSince(lastCheckTime) < cacheValidityDuration,
-           cachedFDAStatus {
+           cachedFDAStatus
+        {
             // Use cached positive result (don't cache negative to allow quick detection)
             hasFullDiskAccess = cachedFDAStatus
             hasCheckedPermission = true
@@ -321,7 +325,9 @@ struct WizardFullDiskAccessPage: View {
 
     private func openFullDiskAccessSettings() {
         if let url = URL(string: WizardSystemPaths.fullDiskAccessSettings) {
-            NSWorkspace.shared.open(url)
+            if NSWorkspace.shared.open(url) {
+                WizardWindowManager.shared.markSystemSettingsOpened()
+            }
             AppLogger.shared.log("🔗 [Wizard] Opened Full Disk Access settings")
         }
     }

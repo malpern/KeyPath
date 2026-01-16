@@ -32,9 +32,6 @@ protocol ConfigurationManaging: Sendable {
     /// Backup current config
     func backupCurrentConfig() async
 
-    /// Restore last good config
-    func restoreLastGoodConfig() async throws
-
     /// Create default config if missing
     func createDefaultIfMissing() async -> Bool
 
@@ -333,13 +330,6 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
             failedConfig: failedConfig,
             mappings: mappings
         )
-    }
-
-    func restoreLastGoodConfig() async throws {
-        AppLogger.shared.log("🔄 [ConfigManager] Restoring last good config")
-        // The backup manager handles restoration internally
-        // This would need to be implemented if not already available
-        throw KeyPathError.configuration(.loadFailed(reason: "Restore not yet implemented"))
     }
 
     func createDefaultIfMissing() async -> Bool {

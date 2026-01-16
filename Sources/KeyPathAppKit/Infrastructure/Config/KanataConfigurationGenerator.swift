@@ -526,7 +526,8 @@ public struct KanataConfiguration: Sendable {
     // Note: renderDisabledCollections removed - disabled collections not written to config (ADR-025)
 
     private static func metadataLines(for collection: RuleCollection, indent: String, status: String)
-        -> [String] {
+        -> [String]
+    {
         [
             "\(indent);; === Collection: \(collection.name) (\(status)) ===",
             "\(indent);; UUID: \(collection.id.uuidString)",
@@ -817,7 +818,8 @@ public struct KanataConfiguration: Sendable {
 
             // For Vim collection: optionally block unmapped keys in navigation layer
             if collection.id == RuleCollectionIdentifier.vimNavigation,
-               collection.targetLayer != .base {
+               collection.targetLayer != .base
+            {
                 let mappedKeys = layerMappedKeys[collection.targetLayer] ?? Set(entries.map(\.sourceKey))
                 // Skip ALL activator keys that target this layer, not just Vim's own activator
                 // This prevents blocking layer-switch keys like "w" (Nav → Window)

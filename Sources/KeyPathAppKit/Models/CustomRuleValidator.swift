@@ -292,7 +292,8 @@ public enum CustomRuleValidator {
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
         let range = NSRange(output.startIndex ..< output.endIndex, in: output)
         if let match = regex.firstMatch(in: output, range: range),
-           let actionRange = Range(match.range(at: 1), in: output) {
+           let actionRange = Range(match.range(at: 1), in: output)
+        {
             let actionId = String(output[actionRange])
             if validSystemActionIds.contains(actionId) {
                 return actionId

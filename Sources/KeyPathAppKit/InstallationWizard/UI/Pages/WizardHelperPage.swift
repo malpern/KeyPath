@@ -312,7 +312,8 @@ struct WizardHelperPage: View {
 
             // If approval is required, offer a quick link to System Settings
             if case let .error(message) = actionStatus,
-               message.localizedCaseInsensitiveContains("approval required") {
+               message.localizedCaseInsensitiveContains("approval required")
+            {
                 Button("Open System Settings → Login Items") {
                     openLoginItemsSettings()
                 }
@@ -352,11 +353,13 @@ struct WizardHelperPage: View {
     private var loginItemsScreenshot: NSImage? {
         let resourceName = "permissions-login-items"
         if let moduleURL = Bundle.module.url(forResource: resourceName, withExtension: "png"),
-           let image = NSImage(contentsOf: moduleURL) {
+           let image = NSImage(contentsOf: moduleURL)
+        {
             return image
         }
         if let mainURL = Bundle.main.url(forResource: resourceName, withExtension: "png"),
-           let image = NSImage(contentsOf: mainURL) {
+           let image = NSImage(contentsOf: mainURL)
+        {
             return image
         }
         return nil
@@ -426,7 +429,9 @@ struct WizardHelperPage: View {
     private func openLoginItemsSettings() {
         // Open System Settings directly to Login Items pane
         if let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") {
-            NSWorkspace.shared.open(url)
+            if NSWorkspace.shared.open(url) {
+                WizardWindowManager.shared.markSystemSettingsOpened()
+            }
         } else {
             openSystemSettings()
         }
@@ -463,6 +468,8 @@ struct WizardHelperPage: View {
                 // Success! Helper is approved and responding
                 stopApprovalPolling()
                 needsLoginItemsApproval = false
+                // Bounce dock icon to get user's attention back to KeyPath
+                WizardWindowManager.shared.bounceDocIcon()
                 actionStatus = .success(message: "Helper approved and ready!")
                 helperVersion = await HelperManager.shared.getHelperVersion()
                 scheduleStatusClear()
@@ -483,7 +490,8 @@ struct WizardHelperPage: View {
 
         Task {
             if let next = await stateMachine.getNextPage(for: systemState, issues: issues),
-               next != stateMachine.currentPage {
+               next != stateMachine.currentPage
+            {
                 stateMachine.navigateToPage(next)
             } else {
                 stateMachine.navigateToPage(.summary)

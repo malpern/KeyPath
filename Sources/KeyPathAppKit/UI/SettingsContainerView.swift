@@ -41,7 +41,7 @@ enum SettingsTab: Hashable, CaseIterable {
 
 struct SettingsContainerView: View {
     @EnvironmentObject var kanataManager: KanataViewModel
-    @State private var selection: SettingsTab = .advanced // Default to Repair/Remove for now
+    @State private var selection: SettingsTab = .general
     @State private var canManageRules: Bool = true
 
     var body: some View {

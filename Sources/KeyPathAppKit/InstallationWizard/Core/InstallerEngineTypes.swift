@@ -104,8 +104,6 @@ public enum RecipeType: Sendable, Equatable {
     case restartService
     /// Install a component (Kanata binary, driver, etc.)
     case installComponent
-    /// Write configuration file
-    case writeConfig
     /// Validate a prerequisite
     case checkRequirement
 }

@@ -273,6 +273,10 @@ struct WizardInputMonitoringPage: View {
     }
 
     private func navigateToNextStep() {
+        // Input Monitoring is the last permission step that uses System Settings.
+        // Clean up any windows we opened (System Settings, Finder) and focus KeyPath.
+        WizardWindowManager.shared.performFullCleanup()
+
         if allIssues.isEmpty {
             stateMachine.navigateToPage(.summary)
             return
@@ -280,7 +284,8 @@ struct WizardInputMonitoringPage: View {
 
         Task {
             if let nextPage = await stateMachine.getNextPage(for: systemState, issues: allIssues),
-               nextPage != stateMachine.currentPage {
+               nextPage != stateMachine.currentPage
+            {
                 stateMachine.navigateToPage(nextPage)
             } else {
                 stateMachine.navigateToPage(.summary)
@@ -327,6 +332,8 @@ struct WizardInputMonitoringPage: View {
                         snapshot.keyPath.inputMonitoring.isReady && snapshot.kanata.inputMonitoring.isReady
                     }
                 if hasPermission {
+                    // Bounce dock icon to get user's attention back to KeyPath
+                    WizardWindowManager.shared.bounceDocIcon()
                     // Celebrate!
                     withAnimation(.spring(response: 0.3)) {
                         showSuccessBurst = true
@@ -373,24 +380,32 @@ struct WizardInputMonitoringPage: View {
     }
 }
 
+@MainActor
 private func openInputMonitoringPreferencesPanel() {
     if let url = URL(
-        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
+    {
         let ok = NSWorkspace.shared.open(url)
-        if !ok {
+        if ok {
+            WizardWindowManager.shared.markSystemSettingsOpened()
+        } else {
             // Fallback: open System Settings app if deep-link fails
-            _ = NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app"))
+            if NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app")) {
+                WizardWindowManager.shared.markSystemSettingsOpened()
+            }
         }
     }
 }
 
 // MARK: - Helpers for Kanata add flow
 
+@MainActor
 private func revealKanataInFinder() {
     let path = WizardSystemPaths.kanataSystemInstallPath
     let dir = (path as NSString).deletingLastPathComponent
     NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
     _ = NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: dir)
+    WizardWindowManager.shared.markFinderWindowOpened(forPath: path)
     AppLogger.shared.log("📂 [WizardInputMonitoringPage] Revealed kanata in Finder: \(path)")
 
     // Position windows side-by-side after a short delay
@@ -429,7 +444,8 @@ private func positionSettingsAndFinderSideBySide() {
         let axApp = AXUIElementCreateApplication(settingsApp.processIdentifier)
         var windowsRef: CFTypeRef?
         if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-           let windows = windowsRef as? [AXUIElement], !windows.isEmpty {
+           let windows = windowsRef as? [AXUIElement], !windows.isEmpty
+        {
             let axWindow = windows[0]
             var position = CGPoint(x: settingsFrame.minX, y: screen.frame.maxY - settingsFrame.maxY)
             var size = CGSize(width: settingsFrame.width, height: settingsFrame.height)
@@ -447,7 +463,8 @@ private func positionSettingsAndFinderSideBySide() {
         let axApp = AXUIElementCreateApplication(finderApp.processIdentifier)
         var windowsRef: CFTypeRef?
         if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-           let windows = windowsRef as? [AXUIElement], !windows.isEmpty {
+           let windows = windowsRef as? [AXUIElement], !windows.isEmpty
+        {
             let axWindow = windows[0]
             var position = CGPoint(x: finderFrame.minX, y: screen.frame.maxY - finderFrame.maxY)
             var size = CGSize(width: finderFrame.width, height: finderFrame.height)

@@ -112,7 +112,8 @@ final class GlobalHotkeyService {
     private func toggleOverlayVisibility() {
         let overlay = LiveKeyboardOverlayController.shared
         let wasVisible = overlay.isVisible
-        overlay.isVisible = !wasVisible
+        // Use toggle with viaKeyboardShortcut: true to track learning
+        overlay.toggle(viaKeyboardShortcut: true)
         AppLogger.shared.log("👁️ [GlobalHotkey] Overlay toggled: \(wasVisible) → \(!wasVisible)")
     }
 

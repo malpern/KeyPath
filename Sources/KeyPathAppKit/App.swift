@@ -346,7 +346,8 @@ private func openPreferencesTab(_ notification: Notification.Name) {
         for item in appMenu.items {
             // Look for the "Settings..." menu item (standard name on macOS)
             if item.title.contains("Settings") || item.title.contains("Preferences"),
-               let action = item.action {
+               let action = item.action
+            {
                 AppLogger.shared.log("✅ [App] Found Settings menu item, triggering it")
                 NSApp.activate(ignoringOtherApps: true)
                 NSApp.sendAction(action, to: item.target, from: item)
@@ -428,7 +429,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             // Subsequent activations: only show overlay if user hasn't explicitly hidden it
             if !LiveKeyboardOverlayController.shared.isVisible,
-               LiveKeyboardOverlayController.shared.canAutoShow {
+               LiveKeyboardOverlayController.shared.canAutoShow
+            {
                 LiveKeyboardOverlayController.shared.showForStartup()
                 AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - showing overlay")
             } else if !LiveKeyboardOverlayController.shared.isVisible {
@@ -461,7 +463,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Legacy LaunchAgent support removed
 
         // Check for pending service bounce first
+        // Skip on fresh install to avoid prompting user before wizard runs
         Task { @MainActor in
+            // Fresh install check: no prior SMAppService registrations
+            let isFreshInstall = Self.checkIsFreshInstall()
+            if isFreshInstall {
+                AppLogger.shared.info("🆕 [AppDelegate] Fresh install detected - skipping service bounce")
+                PermissionGrantCoordinator.shared.clearServiceBounceFlag()
+                return
+            }
+
             let (shouldBounce, timeSince) = PermissionGrantCoordinator.shared.checkServiceBounceNeeded()
 
             if shouldBounce {
@@ -517,7 +528,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
             // Show overlay with startup sizing (30% larger, centered bottom)
             // This also starts health state observation for the health indicator
-            LiveKeyboardOverlayController.shared.showForStartup()
+            // First launch bypasses hidden check - we always show on initial launch
+            LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
 
             // Configure overlay controller with viewModel for Mapper integration and keymap changes
             LiveKeyboardOverlayController.shared.configure(
@@ -620,6 +632,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 AppLogger.shared.log("🔄 [App] Layer action dispatched: '\(layerName)'")
             }
         }
+    }
+
+    /// Check if this is a fresh install (no prior SMAppService registrations)
+    /// Fresh install = neither helper nor daemon have been registered before
+    private static func checkIsFreshInstall() -> Bool {
+        let helperStatus = SMAppService.daemon(plistName: "com.keypath.helper.plist").status
+        let daemonStatus = SMAppService.daemon(plistName: "com.keypath.kanata.plist").status
+
+        // Fresh if both are not registered (never been installed)
+        let isFresh = helperStatus == .notRegistered && daemonStatus == .notRegistered
+        AppLogger.shared.log(
+            "🔍 [AppDelegate] Fresh install check: helper=\(helperStatus), daemon=\(daemonStatus), isFresh=\(isFresh)"
+        )
+        return isFresh
     }
 
     private func setupMenuBarController() {

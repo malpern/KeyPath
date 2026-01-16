@@ -267,7 +267,8 @@ class MainAppStateController: ObservableObject {
 
                 // Only refresh if validation is stale (>30s since last check)
                 if let lastTime = lastValidationTime,
-                   Date().timeIntervalSince(lastTime) > 30 {
+                   Date().timeIntervalSince(lastTime) > 30
+                {
                     AppLogger.shared.log("🔄 [MainAppStateController] Periodic refresh triggered (stale state)")
                     await revalidate()
                 }
@@ -290,7 +291,8 @@ class MainAppStateController: ObservableObject {
 
         // Optimization: Skip validation if recently completed (prevents redundant work on rapid restarts)
         if let lastTime = lastValidationTime,
-           Date().timeIntervalSince(lastTime) < validationCooldown {
+           Date().timeIntervalSince(lastTime) < validationCooldown
+        {
             let timeSince = Int(Date().timeIntervalSince(lastTime))
             AppLogger.shared.log(
                 "⏭️ [MainAppStateController] Skipping validation - completed \(timeSince)s ago (cooldown: \(Int(validationCooldown))s)"

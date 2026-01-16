@@ -438,7 +438,10 @@ actor HelperManager {
             try await override()
             return
         }
-        AppLogger.shared.log("🔧 [HelperManager] Registering privileged helper via SMAppService")
+        AppLogger.shared.log("🔐 [SMAPPSERVICE-TRIGGER] *** Registering privileged helper via SMAppService")
+        // Log stack trace to identify caller
+        let callStack = Thread.callStackSymbols.prefix(10).joined(separator: "\n")
+        AppLogger.shared.log("🔐 [SMAPPSERVICE-TRIGGER] Helper install call stack:\n\(callStack)")
         guard #available(macOS 13, *) else {
             throw HelperManagerError.installationFailed("Requires macOS 13+ for SMAppService")
         }
@@ -932,7 +935,8 @@ extension HelperManager {
             var plistRequirement: String?
             if let info = NSDictionary(contentsOfFile: bundlePath + "/Contents/Info.plist"),
                let sm = (info["SMPrivilegedExecutables"] as? NSDictionary)?[Self.helperBundleIdentifier]
-               as? String {
+               as? String
+            {
                 plistRequirement = sm
                 if !req.contains("com.keypath.helper") {
                     warnings.append(

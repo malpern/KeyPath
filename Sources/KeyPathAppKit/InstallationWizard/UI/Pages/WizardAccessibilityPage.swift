@@ -247,6 +247,8 @@ struct WizardAccessibilityPage: View {
                             // Celebrate when both permissions are granted for the first time
                             if bothGranted, !hasEverCelebrated {
                                 hasEverCelebrated = true
+                                // Bounce dock icon to get user's attention back to KeyPath
+                                WizardWindowManager.shared.bounceDocIcon()
                                 withAnimation(.spring(response: 0.3)) {
                                     showSuccessBurst = true
                                 }
@@ -372,24 +374,44 @@ struct WizardAccessibilityPage: View {
 
         // Fallback: Open System Settings > Privacy & Security > Accessibility
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+        {
             let ok = NSWorkspace.shared.open(url)
-            if !ok {
+            if ok {
+                WizardWindowManager.shared.markSystemSettingsOpened()
+            } else {
                 // Fallback: open System Settings app if deep-link fails
-                _ = NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app"))
+                if NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app")) {
+                    WizardWindowManager.shared.markSystemSettingsOpened()
+                }
             }
         }
     }
 
     private func navigateToNextStep() {
-        if allIssues.isEmpty {
-            stateMachine.navigateToPage(.summary)
-            return
-        }
+        // Check if Input Monitoring is already granted - if so, we can close System Settings early
+        // since the user won't need to visit it again for permissions
+        Task { @MainActor in
+            let snapshot = await PermissionOracle.shared.currentSnapshot()
+            let inputMonitoringGranted = snapshot.keyPath.inputMonitoring.isReady
+                && snapshot.kanata.inputMonitoring.isReady
 
-        Task {
+            if inputMonitoringGranted {
+                // User already has Input Monitoring - clean up now since they won't need Settings again
+                AppLogger.shared.log(
+                    "🧹 [WizardAccessibilityPage] Input Monitoring already granted - cleaning up early"
+                )
+                WizardWindowManager.shared.performFullCleanup()
+            }
+
+            if allIssues.isEmpty {
+                stateMachine.navigateToPage(.summary)
+                return
+            }
+
             if let nextPage = await stateMachine.getNextPage(for: systemState, issues: allIssues),
-               nextPage != stateMachine.currentPage {
+               nextPage != stateMachine.currentPage
+            {
                 stateMachine.navigateToPage(nextPage)
             } else {
                 stateMachine.navigateToPage(.summary)
@@ -401,6 +423,7 @@ struct WizardAccessibilityPage: View {
         let path = WizardSystemPaths.kanataSystemInstallPath
         let dir = (path as NSString).deletingLastPathComponent
         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+        WizardWindowManager.shared.markFinderWindowOpened(forPath: path)
         AppLogger.shared.log("📂 [WizardAccessibilityPage] Revealed kanata in Finder: \(path)")
         // If NSWorkspace.selectFile is preferred:
         _ = NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: dir)
@@ -449,7 +472,8 @@ struct WizardAccessibilityPage: View {
             let axApp = AXUIElementCreateApplication(settingsApp.processIdentifier)
             var windowsRef: CFTypeRef?
             if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-               let windows = windowsRef as? [AXUIElement], !windows.isEmpty {
+               let windows = windowsRef as? [AXUIElement], !windows.isEmpty
+            {
                 let axWindow = windows[0]
                 var position = CGPoint(x: settingsFrame.minX, y: screen.frame.maxY - settingsFrame.maxY)
                 var size = CGSize(width: settingsFrame.width, height: settingsFrame.height)
@@ -467,7 +491,8 @@ struct WizardAccessibilityPage: View {
             let axApp = AXUIElementCreateApplication(finderApp.processIdentifier)
             var windowsRef: CFTypeRef?
             if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-               let windows = windowsRef as? [AXUIElement], !windows.isEmpty {
+               let windows = windowsRef as? [AXUIElement], !windows.isEmpty
+            {
                 let axWindow = windows[0]
                 var position = CGPoint(x: finderFrame.minX, y: screen.frame.maxY - finderFrame.maxY)
                 var size = CGSize(width: finderFrame.width, height: finderFrame.height)

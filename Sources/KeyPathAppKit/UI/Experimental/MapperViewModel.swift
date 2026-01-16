@@ -447,7 +447,8 @@ class MapperViewModel: ObservableObject {
             outputSequence = nil
             AppLogger.shared.log("🗺️ [MapperViewModel] Preset output is URL: \(urlIdentifier)")
         } else if let systemActionIdentifier,
-                  let systemAction = SystemActionInfo.find(byOutput: systemActionIdentifier) {
+                  let systemAction = SystemActionInfo.find(byOutput: systemActionIdentifier)
+        {
             // It's a system action/media key - set selectedSystemAction for SF Symbol rendering
             selectedSystemAction = systemAction
             outputLabel = systemAction.name
@@ -863,7 +864,8 @@ class MapperViewModel: ObservableObject {
             let info = mapping.info
 
             if let appIdentifier = info.appLaunchIdentifier,
-               let appInfo = appLaunchInfo(for: appIdentifier) {
+               let appInfo = appLaunchInfo(for: appIdentifier)
+            {
                 selectedApp = appInfo
                 outputLabel = appInfo.name
                 outputSequence = nil
@@ -880,7 +882,8 @@ class MapperViewModel: ObservableObject {
                 originalSystemActionIdentifier = nil
                 AppLogger.shared.log("🔍 [MapperViewModel] Key \(keyCode) is URL: \(url)")
             } else if let systemId = info.systemActionIdentifier,
-                      let systemAction = SystemActionInfo.find(byOutput: systemId) ?? SystemActionInfo.find(byOutput: info.displayLabel) {
+                      let systemAction = SystemActionInfo.find(byOutput: systemId) ?? SystemActionInfo.find(byOutput: info.displayLabel)
+            {
                 selectedSystemAction = systemAction
                 outputLabel = systemAction.name
                 outputSequence = nil
@@ -1175,7 +1178,8 @@ class MapperViewModel: ObservableObject {
             )
 
             if let appIdentifier = originalAppIdentifier,
-               let appInfo = appLaunchInfo(for: appIdentifier) {
+               let appInfo = appLaunchInfo(for: appIdentifier)
+            {
                 selectedApp = appInfo
                 outputLabel = appInfo.name
                 outputSequence = nil
@@ -1184,7 +1188,8 @@ class MapperViewModel: ObservableObject {
                 outputLabel = extractDomain(from: url)
                 outputSequence = nil
             } else if let systemActionId = originalSystemActionIdentifier,
-                      let systemAction = SystemActionInfo.find(byOutput: systemActionId) {
+                      let systemAction = SystemActionInfo.find(byOutput: systemActionId)
+            {
                 selectedSystemAction = systemAction
                 outputLabel = systemAction.name
                 outputSequence = nil

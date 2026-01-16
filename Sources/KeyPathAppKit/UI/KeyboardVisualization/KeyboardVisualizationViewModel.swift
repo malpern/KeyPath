@@ -88,9 +88,6 @@ class KeyboardVisualizationViewModel: ObservableObject {
     /// Whether the Typing Sounds collection is enabled
     @Published var isTypingSoundsEnabled: Bool = false
 
-    /// Whether the Keycap Colorway collection is enabled
-    @Published var isKeycapColorwayEnabled: Bool = false
-
     // MARK: - TCP Connection State
 
     /// Whether Kanata TCP server is responding (based on receiving events)
@@ -315,12 +312,11 @@ class KeyboardVisualizationViewModel: ObservableObject {
         AppLogger.shared.info("✅ [KeyboardViz] TCP-based key capture started")
     }
 
-    /// Load enabled states for optional feature collections (Typing Sounds, Keycap Colorway)
+    /// Load enabled states for optional feature collections (Typing Sounds)
     func loadFeatureCollectionStates() {
         Task { @MainActor in
             let collections = await RuleCollectionStore.shared.loadCollections()
             isTypingSoundsEnabled = collections.first { $0.id == RuleCollectionIdentifier.typingSounds }?.isEnabled ?? false
-            isKeycapColorwayEnabled = collections.first { $0.id == RuleCollectionIdentifier.keycapColorway }?.isEnabled ?? false
             updateTapHoldIdleLabels(from: collections)
         }
     }
@@ -1491,7 +1487,8 @@ class KeyboardVisualizationViewModel: ObservableObject {
             : false
 
         if FeatureFlags.keyboardSuppressionDebugEnabled,
-           let mappedOutput = remapOutputMap.first(where: { $0.value == keyCode }) {
+           let mappedOutput = remapOutputMap.first(where: { $0.value == keyCode })
+        {
             AppLogger.shared.debug(
                 "🔄 [KeyboardViz] KeyInput \(key)(\(keyCode)): isRemapOutput=true, sourceKey=\(mappedOutput.key), tcpPressed=\(pressedKeyCodes), remapSources=\(activeRemapSourceKeyCodes), suppressedRemapOutputs=\(suppressedRemapOutputKeyCodes), isRemapSuppressed=\(isRemapSuppressed)"
             )
