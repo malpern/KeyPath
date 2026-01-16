@@ -41,6 +41,9 @@ struct ActiveRulesView: View {
                             },
                             onLauncherConfigChanged: { newConfig in
                                 Task { await kanataManager.updateLauncherConfig(collection.id, config: newConfig) }
+                            },
+                            onWindowConventionChanged: { convention in
+                                Task { await kanataManager.updateWindowKeyConvention(collection.id, convention: convention) }
                             }
                         )
                         .padding(.horizontal, 12)
@@ -76,6 +79,7 @@ private struct RuleCollectionRow: View {
     let collection: RuleCollection
     let onToggle: (Bool) -> Void
     var onLauncherConfigChanged: ((LauncherGridConfig) -> Void)?
+    var onWindowConventionChanged: ((WindowKeyConvention) -> Void)?
     @State private var isExpanded = false
 
     var body: some View {
@@ -164,25 +168,35 @@ private extension RuleCollectionRow {
 
     @ViewBuilder
     var expandedContent: some View {
-        switch collection.displayStyle {
-        case .table:
-            MappingTableView(collection: collection, prettyKeyName: prettyKeyName)
-        case .launcherGrid:
-            if let config = collection.configuration.launcherGridConfig {
-                LauncherCollectionView(
-                    config: Binding(
-                        get: { config },
-                        set: { newConfig in
+        if collection.id == RuleCollectionIdentifier.windowSnapping {
+            WindowSnappingView(
+                mappings: collection.mappings,
+                convention: collection.windowKeyConvention ?? .standard,
+                onConventionChange: { convention in
+                    onWindowConventionChanged?(convention)
+                }
+            )
+        } else {
+            switch collection.displayStyle {
+            case .table:
+                MappingTableView(collection: collection, prettyKeyName: prettyKeyName)
+            case .launcherGrid:
+                if let config = collection.configuration.launcherGridConfig {
+                    LauncherCollectionView(
+                        config: Binding(
+                            get: { config },
+                            set: { newConfig in
+                                onLauncherConfigChanged?(newConfig)
+                            }
+                        ),
+                        onConfigChanged: { newConfig in
                             onLauncherConfigChanged?(newConfig)
                         }
-                    ),
-                    onConfigChanged: { newConfig in
-                        onLauncherConfigChanged?(newConfig)
-                    }
-                )
+                    )
+                }
+            default:
+                defaultMappingsList
             }
-        default:
-            defaultMappingsList
         }
     }
 
