@@ -1101,9 +1101,11 @@ class KeyboardVisualizationViewModel: ObservableObject {
             guard let self else { return }
             Task { @MainActor in
                 self.loadFeatureCollectionStates()
+                // Invalidate layer mapping cache so toggled rules take effect immediately
+                self.invalidateLayerMappings()
                 // Re-preload icons when collections change (cache warming for new mappings)
                 self.preloadAllIcons()
-                AppLogger.shared.debug("⌨️ [KeyboardViz] Reloaded feature collection states and icons after change")
+                AppLogger.shared.debug("⌨️ [KeyboardViz] Reloaded feature collection states, invalidated cache, and preloaded icons after change")
             }
         }
         AppLogger.shared.debug("⌨️ [KeyboardViz] Rule collections observer registered")
@@ -1487,8 +1489,7 @@ class KeyboardVisualizationViewModel: ObservableObject {
             : false
 
         if FeatureFlags.keyboardSuppressionDebugEnabled,
-           let mappedOutput = remapOutputMap.first(where: { $0.value == keyCode })
-        {
+           let mappedOutput = remapOutputMap.first(where: { $0.value == keyCode }) {
             AppLogger.shared.debug(
                 "🔄 [KeyboardViz] KeyInput \(key)(\(keyCode)): isRemapOutput=true, sourceKey=\(mappedOutput.key), tcpPressed=\(pressedKeyCodes), remapSources=\(activeRemapSourceKeyCodes), suppressedRemapOutputs=\(suppressedRemapOutputKeyCodes), isRemapSuppressed=\(isRemapSuppressed)"
             )
