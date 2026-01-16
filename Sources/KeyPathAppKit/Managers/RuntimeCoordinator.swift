@@ -1098,12 +1098,7 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
     }
 
     func revealKanataInFinder() {
-        systemRequirementsChecker.revealKanataInFinder(onRevealed: {
-            // Note: Post a notification for the UI layer to show a contextual help bubble
-            // Core library cannot directly call UI components
-            AppLogger.shared.log(
-                "ℹ️ [Bubble] Help bubble would be shown here (needs notification-based implementation)")
-        })
+        systemRequirementsChecker.revealKanataInFinder(onRevealed: nil)
     }
 
     func isKarabinerDriverInstalled() -> Bool {
