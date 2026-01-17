@@ -2322,8 +2322,7 @@ struct OverlayInspectorPanel: View {
                 onHealthTap: onHealthTap,
                 fadeAmount: fadeAmount,
                 onKeySelected: onKeySelected,
-                layerKeyMap: layerKeyMap,
-                onCustomize: { activeDrawerPanel = .customize }
+                layerKeyMap: layerKeyMap
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else if healthIndicatorState == .checking {
@@ -2334,8 +2333,7 @@ struct OverlayInspectorPanel: View {
                 onHealthTap: onHealthTap,
                 fadeAmount: fadeAmount,
                 onKeySelected: onKeySelected,
-                layerKeyMap: layerKeyMap,
-                onCustomize: { activeDrawerPanel = .customize }
+                layerKeyMap: layerKeyMap
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else if isMapperAvailable {
@@ -2346,8 +2344,7 @@ struct OverlayInspectorPanel: View {
                 onHealthTap: onHealthTap,
                 fadeAmount: fadeAmount,
                 onKeySelected: onKeySelected,
-                layerKeyMap: layerKeyMap,
-                onCustomize: { activeDrawerPanel = .customize }
+                layerKeyMap: layerKeyMap
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else {

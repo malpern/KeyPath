@@ -15,14 +15,17 @@ struct OverlayMapperSection: View {
     var onKeySelected: ((UInt16?) -> Void)?
     /// Layer key map for looking up actual mappings (passed from overlay view)
     var layerKeyMap: [UInt16: LayerKeyInfo] = [:]
-    /// Callback when the customize button is tapped (opens slide-over panel)
-    var onCustomize: (() -> Void)?
 
     @StateObject private var viewModel = MapperViewModel()
     @State private var isSystemActionPickerOpen = false
     @State private var isAppConditionPickerOpen = false
     @State private var cachedRunningApps: [NSRunningApplication] = []
     @State private var showingResetAllConfirmation = false
+
+    /// Current behavior state being edited (tap is default)
+    @State private var activeBehaviorState: BehaviorState = .tap
+    /// Which behavior states have mappings configured for current key
+    @State private var configuredStates: Set<BehaviorState> = []
 
     var body: some View {
         VStack(spacing: 8) {
@@ -209,11 +212,22 @@ struct OverlayMapperSection: View {
                 let scale = min(1, availableWidth / baseWidth)
 
                 HStack(alignment: .top, spacing: spacing) {
-                    // Input column: Label -> Keycap -> Dropdown -> Customize -> App indicators
+                    // Input column: Label -> Keycap -> Dropdown -> App indicators
                     VStack(spacing: 4) {
-                        Text("In")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        // Show behavior state in header when not on default "Tap"
+                        HStack(spacing: 4) {
+                            Text("In")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            if activeBehaviorState != .tap {
+                                Text("·")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text(activeBehaviorState.label)
+                                    .font(.caption.weight(.medium))
+                                    .foregroundColor(.accentColor)
+                            }
+                        }
                         MapperInputKeycap(
                             label: viewModel.inputLabel,
                             keyCode: viewModel.inputKeyCode,
@@ -221,7 +235,6 @@ struct OverlayMapperSection: View {
                             onTap: { viewModel.toggleInputRecording() }
                         )
                         appConditionDropdown
-                        customizeLink
                         appMappingIndicators
                     }
                     .frame(width: keycapWidth)
@@ -303,8 +316,61 @@ struct OverlayMapperSection: View {
             }
 
             Spacer(minLength: 0)
+
+            // Behavior state icons bar
+            behaviorStateBar
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - Behavior State Bar
+
+    /// Bar showing tap-dance behavior state icons
+    private var behaviorStateBar: some View {
+        HStack(spacing: 12) {
+            ForEach(BehaviorState.allCases) { state in
+                behaviorStateButton(for: state)
+            }
+        }
+        .padding(.top, 8)
+        .padding(.bottom, 4)
+    }
+
+    /// Individual behavior state button
+    private func behaviorStateButton(for state: BehaviorState) -> some View {
+        let isActive = activeBehaviorState == state
+        let isConfigured = configuredStates.contains(state)
+
+        return Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                activeBehaviorState = state
+            }
+            // TODO: Load the mapping for this state
+        } label: {
+            ZStack {
+                // Icon
+                Image(systemName: isActive ? state.iconFilled : state.icon)
+                    .font(.system(size: 18, weight: isActive ? .semibold : .regular))
+                    .foregroundStyle(isActive ? Color.accentColor : (isConfigured ? .primary : .secondary))
+
+                // Configured indicator dot (only if not active and has mapping)
+                if isConfigured && !isActive {
+                    Circle()
+                        .fill(Color.accentColor)
+                        .frame(width: 6, height: 6)
+                        .offset(x: 10, y: -10)
+                }
+            }
+            .frame(width: 32, height: 32)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(isActive ? Color.accentColor.opacity(0.15) : Color.clear)
+            )
+        }
+        .buttonStyle(.plain)
+        .help(state.label)
+        .accessibilityIdentifier("mapper-behavior-\(state.rawValue)")
+        .accessibilityLabel(state.accessibilityLabel)
     }
 
     /// App condition dropdown - subtle when not set, shows app icon when set
@@ -652,28 +718,6 @@ struct OverlayMapperSection: View {
         }
     }
 
-    /// Customize link - opens the slide-over panel for tap-hold/trigger configuration
-    /// Simple styling: just icon, text, and arrow (no button frame)
-    private var customizeLink: some View {
-        Button {
-            onCustomize?()
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 10))
-                Text("Customize")
-                    .lineLimit(1)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 8))
-            }
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("overlay-mapper-customize")
-        .accessibilityLabel("Customize tap-hold behavior")
-    }
-
     /// Output type dropdown - select what happens when the key is triggered
     private var outputTypeDropdown: some View {
         let currentType = outputTypeDisplayInfo
@@ -973,5 +1017,57 @@ private struct LayerPickerItemButtonStyle: ButtonStyle {
             .onHover { hovering in
                 isHovering = hovering
             }
+    }
+}
+
+// MARK: - Behavior State
+
+/// Tap-dance behavior states for key mapping
+enum BehaviorState: String, CaseIterable, Identifiable {
+    case tap
+    case hold
+    case doubleTap
+    case tripleTap
+
+    var id: String { rawValue }
+
+    /// SF Symbol icon for this state
+    var icon: String {
+        switch self {
+        case .tap: "1.circle"
+        case .hold: "timer"
+        case .doubleTap: "2.circle"
+        case .tripleTap: "3.circle"
+        }
+    }
+
+    /// Filled icon variant for active/configured state
+    var iconFilled: String {
+        switch self {
+        case .tap: "1.circle.fill"
+        case .hold: "timer"  // timer doesn't have a fill variant
+        case .doubleTap: "2.circle.fill"
+        case .tripleTap: "3.circle.fill"
+        }
+    }
+
+    /// Short label for header
+    var label: String {
+        switch self {
+        case .tap: "Tap"
+        case .hold: "Hold"
+        case .doubleTap: "Double Tap"
+        case .tripleTap: "Triple Tap"
+        }
+    }
+
+    /// Accessibility label
+    var accessibilityLabel: String {
+        switch self {
+        case .tap: "Single tap behavior"
+        case .hold: "Hold behavior"
+        case .doubleTap: "Double tap behavior"
+        case .tripleTap: "Triple tap behavior"
+        }
     }
 }
