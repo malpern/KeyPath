@@ -47,6 +47,8 @@ struct LiveKeyboardOverlayView: View {
 
     /// Whether custom rules exist (for showing Custom Rules tab)
     @State private var hasCustomRules = false
+    /// Cached global custom rules for Custom Rules tab content
+    @State private var cachedCustomRules: [CustomRule] = []
     /// Cached app keymaps for Custom Rules tab content
     @State private var appKeymaps: [AppKeymap] = []
     /// Whether to show reset all rules confirmation dialog
@@ -67,6 +69,8 @@ struct LiveKeyboardOverlayView: View {
 
     /// Whether the mouse is currently hovering over the overlay (for focus indicator)
     @State private var isOverlayHovered = false
+    /// Whether the mouse is hovering over a clickable header button (drawer/hide)
+    @State private var isHoveringHeaderButton = false
 
     /// Launcher welcome dialog state (shown once per install/build)
     /// We store the build date when welcome was last shown, so it shows again on new installs
@@ -175,6 +179,7 @@ struct LiveKeyboardOverlayView: View {
                     reduceTransparency: reduceTransparency,
                     isInspectorOpen: uiState.isInspectorOpen,
                     isDragging: $isHeaderDragging,
+                    isHoveringButton: $isHoveringHeaderButton,
                     inputModeIndicator: inputSourceDetector.modeIndicator,
                     currentLayerName: viewModel.currentLayerName,
                     isLauncherMode: viewModel.isLauncherModeActive || (uiState.isInspectorOpen && inspectorSection == .launchers),
@@ -183,7 +188,27 @@ struct LiveKeyboardOverlayView: View {
                     drawerButtonHighlighted: uiState.drawerButtonHighlighted,
                     onClose: { onClose?() },
                     onToggleInspector: { onToggleInspector?() },
-                    onHealthTap: { onHealthIndicatorTap?() }
+                    onHealthTap: { onHealthIndicatorTap?() },
+                    onLayerSelected: { layerName in
+                        Task {
+                            _ = await kanataViewModel?.changeLayer(layerName)
+                        }
+                    },
+                    onCreateLayer: { layerName in
+                        Task {
+                            await kanataViewModel?.underlyingManager.rulesManager.createLayer(layerName)
+                            _ = await kanataViewModel?.changeLayer(layerName)
+                        }
+                    },
+                    onDeleteLayer: { layerName in
+                        Task {
+                            // Switch to base if we're on this layer
+                            if kanataViewModel?.currentLayerName.lowercased() == layerName.lowercased() {
+                                _ = await kanataViewModel?.changeLayer("base")
+                            }
+                            await kanataViewModel?.underlyingManager.rulesManager.removeLayer(layerName)
+                        }
+                    }
                 )
                 .frame(maxWidth: .infinity)
 
@@ -361,6 +386,9 @@ struct LiveKeyboardOverlayView: View {
             refreshOverlayCursor(allowDragCursor: allowKeyboardDrag)
         })
         content = AnyView(content.onChange(of: isHeaderDragging) { _, _ in
+            refreshOverlayCursor(allowDragCursor: allowKeyboardDrag)
+        })
+        content = AnyView(content.onChange(of: isHoveringHeaderButton) { _, _ in
             refreshOverlayCursor(allowDragCursor: allowKeyboardDrag)
         })
         content = AnyView(content.onChange(of: uiState.inspectorReveal) { _, _ in
@@ -615,7 +643,11 @@ struct LiveKeyboardOverlayView: View {
             await MainActor.run {
                 appKeymaps = keymaps
                 // Show custom rules tab if either global rules or app-specific rules exist
-                let hasGlobalRules = !(kanataViewModel?.customRules.isEmpty ?? true)
+                // NOTE: We read underlyingManager.customRules directly to avoid race condition
+                // where the notification arrives before KanataViewModel's async state update
+                let globalRules = kanataViewModel?.underlyingManager.customRules ?? []
+                cachedCustomRules = globalRules
+                let hasGlobalRules = !globalRules.isEmpty
                 let hasAppSpecificRules = !keymaps.isEmpty
                 hasCustomRules = hasGlobalRules || hasAppSpecificRules
                 // If we were on customRules tab but rules are gone, switch to mapper
@@ -811,10 +843,16 @@ extension LiveKeyboardOverlayView {
     private func updateOverlayCursor(
         hovering: Bool,
         isDragging: Bool,
-        allowDragCursor: Bool
+        allowDragCursor: Bool,
+        isOverButton: Bool = false
     ) {
         if isDragging {
             NSCursor.closedHand.set()
+            return
+        }
+        // Pointing hand for clickable buttons (drawer, hide)
+        if isOverButton {
+            NSCursor.pointingHand.set()
             return
         }
         guard allowDragCursor else {
@@ -832,7 +870,8 @@ extension LiveKeyboardOverlayView {
         updateOverlayCursor(
             hovering: isOverlayHovered,
             isDragging: isKeyboardDragging || isHeaderDragging,
-            allowDragCursor: allowDragCursor
+            allowDragCursor: allowDragCursor,
+            isOverButton: isHoveringHeaderButton
         )
     }
 
@@ -864,6 +903,7 @@ extension LiveKeyboardOverlayView {
                 onKeySelected: onKeySelected,
                 layerKeyMap: viewModel.layerKeyMap,
                 hasCustomRules: hasCustomRules,
+                customRules: cachedCustomRules,
                 appKeymaps: appKeymaps,
                 onDeleteAppRule: { keymap, override in
                     // Delete immediately (no confirmation for single rule)
@@ -944,6 +984,45 @@ private struct DragHandleTexture: View {
     }
 }
 
+/// A tooltip modifier that uses a separate floating window (avoids clipping issues)
+private struct WindowTooltip: ViewModifier {
+    let text: String
+    let id: String
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                GeometryReader { geo in
+                    Color.clear
+                        .onHover { hovering in
+                            if hovering {
+                                // Convert local frame to screen coordinates
+                                if let window = NSApp.windows.first(where: { $0.isVisible && $0.level == .floating }) {
+                                    let localFrame = geo.frame(in: .global)
+                                    let windowFrame = window.frame
+                                    let screenRect = NSRect(
+                                        x: windowFrame.origin.x + localFrame.origin.x,
+                                        y: windowFrame.origin.y + windowFrame.height - localFrame.origin.y - localFrame.height,
+                                        width: localFrame.width,
+                                        height: localFrame.height
+                                    )
+                                    TooltipWindowController.shared.show(text: text, id: id, anchorRect: screenRect)
+                                }
+                            } else {
+                                TooltipWindowController.shared.dismiss(id: id)
+                            }
+                        }
+                }
+            )
+    }
+}
+
+private extension View {
+    func windowTooltip(_ text: String, id: String) -> some View {
+        modifier(WindowTooltip(text: text, id: id))
+    }
+}
+
 private struct OverlayDragHeader: View {
     let isDark: Bool
     let fadeAmount: CGFloat
@@ -952,6 +1031,8 @@ private struct OverlayDragHeader: View {
     let reduceTransparency: Bool
     let isInspectorOpen: Bool
     @Binding var isDragging: Bool
+    /// Whether mouse is hovering over a clickable button (for cursor)
+    @Binding var isHoveringButton: Bool
     /// Japanese input mode indicator (あ/ア/A) - nil when not in Japanese mode
     let inputModeIndicator: String?
     /// Current layer name from Kanata
@@ -968,9 +1049,48 @@ private struct OverlayDragHeader: View {
     let onToggleInspector: () -> Void
     /// Callback when health indicator is tapped (to launch wizard)
     let onHealthTap: () -> Void
+    /// Callback when a layer is selected in the picker
+    let onLayerSelected: (String) -> Void
+    /// Callback when a new layer is created
+    var onCreateLayer: ((String) -> Void)?
+    /// Callback when a layer is deleted
+    var onDeleteLayer: ((String) -> Void)?
 
     @State private var initialFrame: NSRect = .zero
     @State private var initialMouseLocation: NSPoint = .zero
+    @State private var isLayerPickerOpen = false
+    @State private var availableLayers: [String] = ["base", "nav"]
+    /// Whether the layer pill is expanded (showing name) or collapsed (icon only)
+    @State private var isLayerPillExpanded = true
+    /// Whether mouse is hovering over the layer pill
+    @State private var isHoveringLayerPill = false
+    /// Timer to auto-collapse the layer pill after showing layer name
+    @State private var layerCollapseTimer: Timer?
+    /// Timer for grace period after mouse leaves before starting collapse
+    @State private var layerGracePeriodTimer: Timer?
+    /// Tracks the last layer name to detect changes
+    @State private var lastLayerName: String = ""
+    /// Whether the new layer sheet is showing
+    @State private var showingNewLayerSheet = false
+    /// New layer name being entered
+    @State private var newLayerName = ""
+    /// Layer being hovered for delete button
+    @State private var hoveredLayer: String?
+    /// Computed arrow edge for layer picker (up by default, down near screen top)
+    @State private var layerPickerArrowEdge: Edge = .top
+
+    /// System layers that cannot be deleted
+    private static let systemLayers: Set<String> = ["base", "nav", "navigation", "launcher"]
+
+    /// Check if a layer is a system layer (cannot be deleted)
+    private func isSystemLayer(_ layer: String) -> Bool {
+        Self.systemLayers.contains(layer.lowercased())
+    }
+
+    // MARK: - Layer Pill Timing Constants
+    private let layerPillInitialCollapseDelay: TimeInterval = 2.0
+    private let layerPillHoverCollapseDelay: TimeInterval = 10.0
+    private let layerPillGracePeriod: TimeInterval = 0.4
 
     private var layerDisplayName: String {
         if isLauncherMode { return "Launcher" }
@@ -1001,7 +1121,7 @@ private struct OverlayDragHeader: View {
                 // 1. Status slot (leftmost of the right-aligned group):
                 // - Shows health indicator when not dismissed (including the "Ready" pill)
                 // - Otherwise shows Japanese input + layer pill
-                statusSlot(indicatorCornerRadius: indicatorCornerRadius)
+                statusSlot(indicatorCornerRadius: indicatorCornerRadius, buttonSize: buttonSize)
 
                 // 2. Toggle inspector/drawer button
                 Button {
@@ -1009,14 +1129,15 @@ private struct OverlayDragHeader: View {
                     onToggleInspector()
                 } label: {
                     Image(systemName: isInspectorOpen ? "xmark.circle" : "slider.horizontal.3")
-                        .font(.system(size: buttonSize * 0.45, weight: .semibold))
+                        .font(.system(size: buttonSize * 0.6, weight: .semibold))
                         .foregroundStyle(drawerButtonHighlighted ? Color.accentColor : headerIconColor)
                         .frame(width: buttonSize, height: buttonSize)
                         .scaleEffect(drawerButtonHighlighted ? 1.2 : 1.0)
                         .animation(.easeInOut(duration: 0.1), value: drawerButtonHighlighted)
                 }
                 .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
-                .help(isInspectorOpen ? "Close Settings" : "Open Settings")
+                .onHover { isHoveringButton = $0 }
+                .windowTooltip(isInspectorOpen ? "Close Settings" : "Open Settings", id: "drawer")
                 .accessibilityIdentifier("overlay-drawer-toggle")
                 .accessibilityLabel(isInspectorOpen ? "Close settings drawer" : "Open settings drawer")
 
@@ -1027,12 +1148,13 @@ private struct OverlayDragHeader: View {
                     onClose()
                 } label: {
                     Image(systemName: "eye.slash")
-                        .font(.system(size: buttonSize * 0.45, weight: .semibold))
+                        .font(.system(size: buttonSize * 0.6, weight: .semibold))
                         .foregroundStyle(headerIconColor)
                         .frame(width: buttonSize, height: buttonSize)
                 }
                 .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
-                .help("Hide Overlay (⌘⌥K)")
+                .onHover { isHoveringButton = $0 }
+                .windowTooltip("Hide Overlay (⌘⌥K)", id: "hide")
                 .accessibilityIdentifier("overlay-hide-button")
                 .accessibilityLabel("Hide keyboard overlay")
             }
@@ -1066,6 +1188,48 @@ private struct OverlayDragHeader: View {
                     isDragging = false
                 }
         )
+        .onAppear {
+            refreshAvailableLayers()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .ruleCollectionsChanged)) { _ in
+            refreshAvailableLayers()
+        }
+        .onChange(of: isInspectorOpen) { _, _ in
+            // Dismiss tooltips when drawer opens/closes so they don't get stuck
+            // in their old position during animation
+            TooltipWindowController.shared.dismissImmediately()
+        }
+    }
+
+    /// Refresh available layers from rule collections
+    private func refreshAvailableLayers() {
+        Task {
+            let collections = await RuleCollectionStore.shared.loadCollections()
+            var layers = Set<String>(["base", "nav"])
+
+            // Add layers from enabled rule collections
+            for collection in collections where collection.isEnabled {
+                // Add the collection's target layer
+                layers.insert(collection.targetLayer.kanataName)
+
+                // Also add layer from momentary activator if present
+                if let activator = collection.momentaryActivator {
+                    layers.insert(activator.targetLayer.kanataName)
+                }
+            }
+
+            // Also include current layer if not in list (e.g., from TCP)
+            layers.insert(currentLayerName.lowercased())
+
+            await MainActor.run {
+                availableLayers = layers.sorted { a, b in
+                    // Base always first, then alphabetical
+                    if a == "base" { return true }
+                    if b == "base" { return false }
+                    return a < b
+                }
+            }
+        }
     }
 
     private var headerTint: Color {
@@ -1082,7 +1246,7 @@ private struct OverlayDragHeader: View {
     }
 
     @ViewBuilder
-    private func statusSlot(indicatorCornerRadius: CGFloat) -> some View {
+    private func statusSlot(indicatorCornerRadius: CGFloat, buttonSize: CGFloat) -> some View {
         ZStack(alignment: .leading) {
             if healthIndicatorState != .dismissed {
                 SystemHealthIndicatorView(
@@ -1104,15 +1268,15 @@ private struct OverlayDragHeader: View {
                         )
                     }
 
-                    if isNonBaseLayer {
-                        layerPill(
-                            layerDisplayName: layerDisplayName,
-                            indicatorCornerRadius: indicatorCornerRadius
-                        )
-                        .id(layerDisplayName) // Force new view when layer changes
-                        .transition(.move(edge: .top))
-                        .animation(.easeOut(duration: 0.2), value: layerDisplayName)
-                    }
+                    // Always show layer indicator (including base layer)
+                    layerPill(
+                        layerDisplayName: layerDisplayName,
+                        indicatorCornerRadius: indicatorCornerRadius,
+                        buttonSize: buttonSize
+                    )
+                    .id(layerDisplayName) // Force new view when layer changes
+                    .transition(.move(edge: .top))
+                    .animation(.easeOut(duration: 0.2), value: layerDisplayName)
                 }
                 .transition(.opacity)
             }
@@ -1143,31 +1307,337 @@ private struct OverlayDragHeader: View {
             .accessibilityLabel("Japanese input mode: \(modeName)")
     }
 
-    private func layerPill(layerDisplayName: String, indicatorCornerRadius: CGFloat) -> some View {
+    /// Whether the layer pill should show the full name (expanded state, hovering, or picker open)
+    private var shouldShowLayerName: Bool {
+        isLayerPillExpanded || isHoveringLayerPill || isLayerPickerOpen
+    }
+
+    /// Background opacity for layer pill - brightens slightly on hover
+    private var layerPillBackgroundOpacity: Double {
+        let baseOpacity = isDark ? 0.1 : 0.15
+        return isHoveringLayerPill ? baseOpacity + 0.08 : baseOpacity
+    }
+
+    /// Spring animation for smooth layer pill transitions
+    private var layerPillSpring: Animation {
+        .spring(response: 0.35, dampingFraction: 0.8)
+    }
+
+    @ViewBuilder
+    private func layerPill(layerDisplayName: String, indicatorCornerRadius: CGFloat, buttonSize: CGFloat) -> some View {
         let iconName = layerIconName(for: layerDisplayName)
 
-        return HStack(spacing: 4) {
-            Image(systemName: iconName)
-                .font(.system(size: 9, weight: .medium))
-            Text(layerDisplayName)
-                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+        Group {
+            if shouldShowLayerName {
+                // Expanded: pill style with name, using glass effect
+                Button {
+                    toggleLayerPicker()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: iconName)
+                            .font(.system(size: 13, weight: .medium))
+                        Text(layerDisplayName)
+                            .font(.system(size: 12, weight: .regular, design: .monospaced))
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 8, weight: .semibold))
+                            .opacity(0.7)
+                    }
+                    .foregroundStyle(headerIconColor)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .modifier(GlassEffectModifier(
+                        isEnabled: !reduceTransparency,
+                        cornerRadius: indicatorCornerRadius,
+                        fallbackFill: Color.white.opacity(layerPillBackgroundOpacity)
+                    ))
+                }
+                .buttonStyle(.plain)
+            } else {
+                // Collapsed: icon-only, matches other header buttons exactly
+                Button {
+                    toggleLayerPicker()
+                } label: {
+                    Image(systemName: iconName)
+                        .font(.system(size: buttonSize * 0.6, weight: .semibold))
+                        .foregroundStyle(headerIconColor)
+                        .frame(width: buttonSize, height: buttonSize)
+                }
+                .modifier(GlassButtonStyleModifier(reduceTransparency: reduceTransparency))
+            }
         }
-        .foregroundStyle(headerIconColor)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(
-            RoundedRectangle(cornerRadius: indicatorCornerRadius)
-                .fill(Color.white.opacity(isDark ? 0.1 : 0.15))
-        )
-        .help("Current layer: \(layerDisplayName)")
+        .animation(layerPillSpring, value: shouldShowLayerName)
+        .animation(.easeInOut(duration: 0.15), value: isHoveringLayerPill)
+        // Extend hit area by 4px on all sides for easier targeting
+        .padding(4)
+        .contentShape(Rectangle())
+        .padding(-4)
+        .onHover { hovering in
+            handleLayerPillHover(hovering)
+        }
+        .popover(isPresented: $isLayerPickerOpen, arrowEdge: layerPickerArrowEdge) {
+            layerPickerPopover
+        }
+        .sheet(isPresented: $showingNewLayerSheet) {
+            NewLayerSheet(
+                layerName: $newLayerName,
+                existingLayers: availableLayers,
+                onSubmit: { name in
+                    onCreateLayer?(name)
+                    newLayerName = ""
+                    showingNewLayerSheet = false
+                },
+                onCancel: {
+                    newLayerName = ""
+                    showingNewLayerSheet = false
+                }
+            )
+        }
+        .onChange(of: currentLayerName) { _, newValue in
+            handleLayerNameChange(newValue)
+        }
+        .onAppear {
+            // Initialize lastLayerName and start initial collapse timer
+            lastLayerName = currentLayerName
+            scheduleLayerPillCollapse(delay: layerPillInitialCollapseDelay)
+        }
+        .help("Current layer: \(layerDisplayName). Click to see available layers.")
         .accessibilityIdentifier("overlay-layer-indicator")
-        .accessibilityLabel("Current layer: \(layerDisplayName)")
+        .accessibilityLabel("Current layer: \(layerDisplayName). Click to see available layers.")
+    }
+
+    /// Handle hover state changes with grace period
+    private func handleLayerPillHover(_ hovering: Bool) {
+        // Cancel any pending grace period timer
+        layerGracePeriodTimer?.invalidate()
+        layerGracePeriodTimer = nil
+
+        if hovering {
+            // Mouse entered - cancel collapse and expand immediately
+            layerCollapseTimer?.invalidate()
+            isHoveringLayerPill = true
+
+            // If collapsed, expand with animation
+            if !isLayerPillExpanded {
+                withAnimation(layerPillSpring) {
+                    isLayerPillExpanded = true
+                }
+            }
+        } else {
+            // Mouse left - start grace period before actually marking as not hovering
+            layerGracePeriodTimer = Timer.scheduledTimer(withTimeInterval: layerPillGracePeriod, repeats: false) { _ in
+                DispatchQueue.main.async {
+                    isHoveringLayerPill = false
+                    // Schedule collapse with longer delay since user was engaged
+                    scheduleLayerPillCollapse(delay: layerPillHoverCollapseDelay)
+                }
+            }
+        }
+    }
+
+    /// Handle layer name changes - expand the pill and schedule collapse
+    private func handleLayerNameChange(_ newLayerName: String) {
+        // Only expand if layer actually changed
+        guard newLayerName != lastLayerName else { return }
+        lastLayerName = newLayerName
+
+        // Cancel any timers
+        layerCollapseTimer?.invalidate()
+        layerGracePeriodTimer?.invalidate()
+
+        // Expand the pill to show the new layer name
+        withAnimation(layerPillSpring) {
+            isLayerPillExpanded = true
+        }
+
+        // Schedule collapse after showing the name (use initial delay for layer changes)
+        scheduleLayerPillCollapse(delay: layerPillInitialCollapseDelay)
+    }
+
+    /// Schedule the layer pill to collapse after a delay
+    private func scheduleLayerPillCollapse(delay: TimeInterval) {
+        // Cancel any existing timer
+        layerCollapseTimer?.invalidate()
+
+        // Schedule collapse
+        layerCollapseTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { _ in
+            DispatchQueue.main.async {
+                // Don't collapse if hovering or picker is open
+                guard !isHoveringLayerPill, !isLayerPickerOpen else { return }
+                withAnimation(layerPillSpring) {
+                    isLayerPillExpanded = false
+                }
+            }
+        }
+    }
+
+    /// Toggle layer picker with smart positioning (opens up by default, down near screen top)
+    private func toggleLayerPicker() {
+        if isLayerPickerOpen {
+            // Closing - just toggle
+            isLayerPickerOpen = false
+        } else {
+            // Opening - compute arrow edge first
+            layerPickerArrowEdge = computeLayerPickerArrowEdge()
+            isLayerPickerOpen = true
+        }
+    }
+
+    /// Compute which edge the popover arrow should point from based on available screen space
+    private func computeLayerPickerArrowEdge() -> Edge {
+        guard let window = findOverlayWindow(),
+              let screen = window.screen ?? NSScreen.main else {
+            return .top // Default to opening upward
+        }
+
+        let windowTop = window.frame.maxY
+        let screenTop = screen.visibleFrame.maxY
+        let spaceAbove = screenTop - windowTop
+
+        // Estimate popover height (layers + new layer option + padding)
+        // Each row is ~40pt, header/footer ~12pt
+        let estimatedRowHeight: CGFloat = 40
+        let estimatedPopoverHeight = CGFloat(availableLayers.count + 1) * estimatedRowHeight + 24
+
+        // If not enough space above, open downward (arrowEdge: .bottom)
+        // Add some margin (20pt) for safety
+        if spaceAbove < estimatedPopoverHeight + 20 {
+            return .bottom
+        }
+
+        return .top
+    }
+
+    /// Popover showing available layers
+    private var layerPickerPopover: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(availableLayers.enumerated()), id: \.element) { index, layer in
+                layerPickerRow(layer: layer, index: index)
+
+                if index < availableLayers.count - 1 {
+                    Divider()
+                        .opacity(0.2)
+                        .padding(.horizontal, 8)
+                }
+            }
+
+            Divider()
+                .opacity(0.2)
+                .padding(.horizontal, 8)
+
+            // New Layer option - styled same as layer rows
+            Button {
+                isLayerPickerOpen = false
+                showingNewLayerSheet = true
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "plus")
+                        .font(.body)
+                        .frame(width: 20)
+                        .foregroundStyle(.secondary)
+                    Text("New Layer...")
+                        .font(.body)
+                    Spacer()
+                }
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(LayerPickerButtonStyle())
+            .focusable(false)
+            .accessibilityIdentifier("layer-picker-new")
+        }
+        .padding(.vertical, 6)
+        .frame(minWidth: 200)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(Color.primary.opacity(0.15), lineWidth: 0.5)
+        )
+        .padding(4)
+    }
+
+    /// Individual layer row in the picker
+    @ViewBuilder
+    private func layerPickerRow(layer: String, index: Int) -> some View {
+        let displayName = layer.lowercased() == "base" ? "Base" : layer.capitalized
+        let isCurrentLayer = currentLayerName.lowercased() == layer.lowercased()
+        let layerIcon = layerIconName(for: displayName)
+        let canDelete = !isSystemLayer(layer)
+        let isHovered = hoveredLayer == layer
+
+        HStack(spacing: 0) {
+            Button {
+                isLayerPickerOpen = false
+                onLayerSelected(layer)
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: layerIcon)
+                        .font(.body)
+                        .frame(width: 20)
+                        .foregroundStyle(isCurrentLayer ? Color.accentColor : .secondary)
+                    Text(displayName)
+                        .font(.body)
+                    Spacer()
+                    if isCurrentLayer {
+                        Image(systemName: "checkmark")
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(LayerPickerButtonStyle())
+            .focusable(false)
+
+            // Delete button for user-created layers (hover only)
+            if canDelete {
+                Button {
+                    isLayerPickerOpen = false
+                    onDeleteLayer?(layer)
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(6)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .focusable(false)
+                .opacity(isHovered ? 1 : 0)
+                .accessibilityIdentifier("layer-delete-\(layer)")
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.primary.opacity(isCurrentLayer ? 0.05 : (isHovered ? 0.03 : 0)))
+        )
+        .onHover { hovering in
+            hoveredLayer = hovering ? layer : nil
+        }
+    }
+
+    /// Button style for layer picker items (no focus ring)
+    private struct LayerPickerButtonStyle: ButtonStyle {
+        func makeBody(configuration: Configuration) -> some View {
+            configuration.label
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.primary.opacity(configuration.isPressed ? 0.08 : 0))
+                )
+        }
     }
 
     private func layerIconName(for layerDisplayName: String) -> String {
         let lower = layerDisplayName.lowercased()
 
         switch lower {
+        case "base":
+            return "keyboard"
         case "nav", "navigation", "vim":
             return "arrow.up.and.down.and.arrow.left.and.right"
         case "window", "window-mgmt":
@@ -1473,6 +1943,8 @@ struct OverlayInspectorPanel: View {
     var layerKeyMap: [UInt16: LayerKeyInfo] = [:]
     /// Whether custom rules exist (for showing Custom Rules tab)
     var hasCustomRules: Bool = false
+    /// Global custom rules for displaying in Custom Rules tab
+    var customRules: [CustomRule] = []
     /// App keymaps for displaying in Custom Rules tab
     var appKeymaps: [AppKeymap] = []
     /// Callback when an app rule is deleted
@@ -1494,6 +1966,22 @@ struct OverlayInspectorPanel: View {
     /// Category to scroll to in physical layout grid
     @State private var scrollToLayoutCategory: LayoutCategory?
 
+    /// Which slide-over panel is currently open (nil = none)
+    @State private var activeDrawerPanel: DrawerPanel?
+
+    /// Binding for whether any panel is open
+    private var isPanelPresented: Binding<Bool> {
+        Binding(
+            get: { activeDrawerPanel != nil },
+            set: { if !$0 { activeDrawerPanel = nil } }
+        )
+    }
+
+    /// Title for the currently open panel
+    private var panelTitle: String {
+        activeDrawerPanel?.title ?? ""
+    }
+
     private var includePunctuation: Bool {
         KeymapPreferences.includePunctuation(for: selectedKeymapId, store: includePunctuationStore)
     }
@@ -1507,63 +1995,80 @@ struct OverlayInspectorPanel: View {
 
     var body: some View {
         let showDrawerDebugOutline = false
-        VStack(spacing: 8) {
-            // Toolbar with section tabs
-            InspectorPanelToolbar(
-                isDark: isDark,
-                selectedSection: selectedSection,
-                onSelectSection: onSelectSection,
-                isMapperAvailable: isMapperAvailable,
-                healthIndicatorState: healthIndicatorState,
-                hasCustomRules: hasCustomRules,
-                isSettingsShelfActive: isSettingsShelfActive,
-                onToggleSettingsShelf: onToggleSettingsShelf
-            )
+        // SlideOverContainer wraps entire drawer content (tabs + content) so panel covers everything
+        SlideOverContainer(
+            isPresented: isPanelPresented,
+            panelTitle: panelTitle,
+            mainContent: {
+                VStack(spacing: 8) {
+                    // Toolbar with section tabs
+                    InspectorPanelToolbar(
+                        isDark: isDark,
+                        selectedSection: selectedSection,
+                        onSelectSection: onSelectSection,
+                        isMapperAvailable: isMapperAvailable,
+                        healthIndicatorState: healthIndicatorState,
+                        hasCustomRules: hasCustomRules,
+                        isSettingsShelfActive: isSettingsShelfActive,
+                        onToggleSettingsShelf: onToggleSettingsShelf
+                    )
 
-            // Content based on selected section
-            if selectedSection == .launchers {
-                // Launchers section fills available space with button pinned to bottom
-                launchersContent
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 6)
-            } else if selectedSection == .mapper {
-                // Mapper section fills available space with layer button pinned to bottom
-                mapperContent
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 6)
-            } else if selectedSection == .layout {
-                // Physical layout has its own ScrollView with ScrollViewReader for anchoring
-                physicalLayoutContent
-            } else if selectedSection == .customRules {
-                // Custom rules browser (global + app-specific)
-                customRulesContent
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 6)
-            } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        switch selectedSection {
-                        case .mapper:
-                            EmptyView() // Handled above
-                        case .keyboard:
-                            keymapsContent
-                        case .layout:
-                            EmptyView() // Handled above
-                        case .keycaps:
-                            keycapsContent
-                        case .sounds:
-                            soundsContent
-                        case .launchers:
-                            EmptyView() // Handled above
-                        case .customRules:
-                            EmptyView() // Handled above
+                    // Content based on selected section
+                    if selectedSection == .launchers {
+                        // Launchers section fills available space with button pinned to bottom
+                        launchersContent
+                            .padding(.horizontal, 12)
+                            .padding(.bottom, 6)
+                    } else if selectedSection == .mapper {
+                        // Mapper section fills available space with layer button pinned to bottom
+                        mapperContent
+                            .padding(.horizontal, 12)
+                            .padding(.bottom, 6)
+                    } else if selectedSection == .layout {
+                        // Physical layout has its own ScrollView with ScrollViewReader for anchoring
+                        physicalLayoutContent
+                    } else if selectedSection == .customRules {
+                        // Custom rules browser (global + app-specific)
+                        customRulesContent
+                            .padding(.horizontal, 12)
+                            .padding(.bottom, 6)
+                    } else {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 16) {
+                                switch selectedSection {
+                                case .mapper:
+                                    EmptyView() // Handled above
+                                case .keyboard:
+                                    keymapsContent
+                                case .layout:
+                                    EmptyView() // Handled above
+                                case .keycaps:
+                                    keycapsContent
+                                case .sounds:
+                                    soundsContent
+                                case .launchers:
+                                    EmptyView() // Handled above
+                                case .customRules:
+                                    EmptyView() // Handled above
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.bottom, 6)
                         }
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 6)
+                }
+            },
+            panelContent: {
+                switch activeDrawerPanel {
+                case .customize:
+                    customizePanelContent
+                case .launcherSettings:
+                    launcherCustomizePanelContent
+                case nil:
+                    EmptyView()
                 }
             }
-        }
+        )
         .saturation(Double(1 - fadeAmount)) // Monochromatic when faded
         .opacity(Double(1 - fadeAmount * 0.5)) // Fade with keyboard
         .onChange(of: selectedKeymapId) { _, newValue in
@@ -1590,42 +2095,13 @@ struct OverlayInspectorPanel: View {
     @ViewBuilder
     private var customRulesContent: some View {
         VStack(spacing: 0) {
-            // Header with title, reset button, and "New Rule" button
-            HStack(spacing: 8) {
-                Text("Custom Rules")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.primary)
-                Spacer()
-                // Reset all rules button
-                Button(action: { onResetAllRules?() }) {
-                    Image(systemName: "arrow.counterclockwise")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("custom-rules-reset-button")
-                .accessibilityLabel("Reset all custom rules")
-                .help("Reset all custom rules")
-                // New rule button
-                Button(action: { onCreateNewAppRule?() }) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 16))
-                        .foregroundStyle(Color.accentColor)
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("custom-rules-new-button")
-                .accessibilityLabel("Create new custom rule")
-                .help("Create new custom rule")
-            }
-            .padding(.bottom, 12)
-
-            // Scrollable list of rule cards
+            // Scrollable list of rule cards (no header - title removed)
             ScrollView {
                 LazyVStack(spacing: 10) {
                     // "Everywhere" section for global rules (only shown when rules exist)
-                    if let globalRules = kanataViewModel?.customRules, !globalRules.isEmpty {
+                    if !customRules.isEmpty {
                         GlobalRulesCard(
-                            rules: globalRules,
+                            rules: customRules,
                             onEdit: { rule in
                                 editGlobalRule(rule: rule)
                             },
@@ -1634,7 +2110,7 @@ struct OverlayInspectorPanel: View {
                             },
                             onAddRule: {
                                 // Switch to mapper with no app condition (global/everywhere)
-                                UserDefaults.standard.set(InspectorSection.mapper.rawValue, forKey: "inspectorSection")
+                                onSelectSection(.mapper)
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                                     NotificationCenter.default.post(
                                         name: .mapperSetAppCondition,
@@ -1665,6 +2141,35 @@ struct OverlayInspectorPanel: View {
                     }
                 }
             }
+
+            Spacer()
+
+            // Bottom action bar with reset and add buttons (anchored to bottom right)
+            HStack {
+                Spacer()
+                // Reset all rules button
+                Button(action: { onResetAllRules?() }) {
+                    Image(systemName: "arrow.counterclockwise")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("custom-rules-reset-button")
+                .accessibilityLabel("Reset all custom rules")
+                .help("Reset all custom rules")
+
+                // New rule button
+                Button(action: { onCreateNewAppRule?() }) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(Color.accentColor)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("custom-rules-new-button")
+                .accessibilityLabel("Create new custom rule")
+                .help("Create new custom rule")
+            }
+            .padding(.top, 8)
         }
     }
 
@@ -1709,7 +2214,7 @@ struct OverlayInspectorPanel: View {
 
     private func editGlobalRule(rule: CustomRule) {
         // Open mapper with the global rule preloaded (no app condition)
-        UserDefaults.standard.set(InspectorSection.mapper.rawValue, forKey: "inspectorSection")
+        onSelectSection(.mapper)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             let userInfo: [String: Any] = [
                 "keyCode": UInt16(0),
@@ -1817,7 +2322,8 @@ struct OverlayInspectorPanel: View {
                 onHealthTap: onHealthTap,
                 fadeAmount: fadeAmount,
                 onKeySelected: onKeySelected,
-                layerKeyMap: layerKeyMap
+                layerKeyMap: layerKeyMap,
+                onCustomize: { activeDrawerPanel = .customize }
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else if healthIndicatorState == .checking {
@@ -1828,7 +2334,8 @@ struct OverlayInspectorPanel: View {
                 onHealthTap: onHealthTap,
                 fadeAmount: fadeAmount,
                 onKeySelected: onKeySelected,
-                layerKeyMap: layerKeyMap
+                layerKeyMap: layerKeyMap,
+                onCustomize: { activeDrawerPanel = .customize }
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else if isMapperAvailable {
@@ -1839,7 +2346,8 @@ struct OverlayInspectorPanel: View {
                 onHealthTap: onHealthTap,
                 fadeAmount: fadeAmount,
                 onKeySelected: onKeySelected,
-                layerKeyMap: layerKeyMap
+                layerKeyMap: layerKeyMap,
+                onCustomize: { activeDrawerPanel = .customize }
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else {
@@ -1847,6 +2355,528 @@ struct OverlayInspectorPanel: View {
                 title: "Mapper Unavailable",
                 message: "Finish setup to enable quick remapping in the overlay."
             )
+        }
+    }
+
+    // MARK: - Customize Panel Content (Tap-Hold Configuration)
+
+    /// Hold action for tap-hold configuration
+    @State private var customizeHoldAction: String = ""
+    /// Double tap action
+    @State private var customizeDoubleTapAction: String = ""
+    /// Additional tap-dance steps (Triple Tap, Quad Tap, etc.)
+    @State private var customizeTapDanceSteps: [(label: String, action: String)] = []
+    /// Tap timeout in milliseconds
+    @State private var customizeTapTimeout: Int = 200
+    /// Hold timeout in milliseconds
+    @State private var customizeHoldTimeout: Int = 200
+    /// Whether to show separate tap/hold timing fields
+    @State private var customizeShowTimingAdvanced: Bool = false
+    /// Which field is currently recording (nil = none)
+    @State private var customizeRecordingField: String? = nil
+    /// Local event monitor for key capture
+    @State private var customizeKeyMonitor: Any? = nil
+
+    // MARK: - Launcher Customize Panel State
+    /// Current launcher activation mode
+    @State private var launcherActivationMode: LauncherActivationMode = .holdHyper
+    /// Current hyper trigger mode (hold vs tap)
+    @State private var launcherHyperTriggerMode: HyperTriggerMode = .hold
+    /// Whether browser history sheet is showing
+    @State private var showLauncherHistorySuggestions = false
+
+    /// Labels for tap-dance steps beyond double tap
+    private static let tapDanceLabels = ["Triple Tap", "Quad Tap", "Quint Tap"]
+
+    /// Content for the slide-over customize panel - tap-hold focused
+    private var customizePanelContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // On Hold row
+            customizeRow(
+                label: "On Hold",
+                action: customizeHoldAction,
+                fieldId: "hold",
+                onClear: { customizeHoldAction = "" }
+            )
+
+            // Double Tap row
+            customizeRow(
+                label: "Double Tap",
+                action: customizeDoubleTapAction,
+                fieldId: "doubleTap",
+                onClear: { customizeDoubleTapAction = "" }
+            )
+
+            // Triple+ Tap rows (dynamically added)
+            ForEach(Array(customizeTapDanceSteps.enumerated()), id: \.offset) { index, step in
+                customizeTapDanceRow(index: index, step: step)
+            }
+
+            // "+ Triple Tap" link (only if we can add more)
+            if customizeTapDanceSteps.count < Self.tapDanceLabels.count {
+                HStack(spacing: 16) {
+                    Text("")
+                        .frame(width: 70)
+
+                    Button {
+                        let label = Self.tapDanceLabels[customizeTapDanceSteps.count]
+                        customizeTapDanceSteps.append((label: label, action: ""))
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "plus.circle")
+                                .font(.caption)
+                            Text(Self.tapDanceLabels[customizeTapDanceSteps.count])
+                                .font(.subheadline)
+                        }
+                        .foregroundColor(.accentColor)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("customize-add-tap-dance")
+                    .accessibilityLabel("Add \(Self.tapDanceLabels[customizeTapDanceSteps.count])")
+
+                    Spacer()
+                }
+            }
+
+            // Timing row
+            customizeTimingRow
+
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .onDisappear {
+            stopCustomizeRecording()
+        }
+    }
+
+    /// Content for the launcher customize slide-over panel
+    private var launcherCustomizePanelContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Activation Mode section
+            VStack(alignment: .leading, spacing: 8) {
+                Picker("Activation Mode", selection: $launcherActivationMode) {
+                    Text(LauncherActivationMode.holdHyper.displayName)
+                        .tag(LauncherActivationMode.holdHyper)
+                    Text(LauncherActivationMode.leaderSequence.displayName)
+                        .tag(LauncherActivationMode.leaderSequence)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .accessibilityIdentifier("launcher-customize-activation-mode")
+                .onChange(of: launcherActivationMode) { _, newMode in
+                    saveLauncherConfig()
+                }
+
+                // Hyper trigger mode segmented picker (only when Hyper mode selected)
+                if launcherActivationMode == .holdHyper {
+                    Picker("Trigger Mode", selection: $launcherHyperTriggerMode) {
+                        Text(HyperTriggerMode.hold.displayName)
+                            .tag(HyperTriggerMode.hold)
+                        Text(HyperTriggerMode.tap.displayName)
+                            .tag(HyperTriggerMode.tap)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .accessibilityIdentifier("launcher-customize-trigger-picker")
+                    .onChange(of: launcherHyperTriggerMode) { _, _ in
+                        saveLauncherConfig()
+                    }
+                }
+
+                // Description text
+                Text(launcherActivationDescription)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Divider()
+
+            // Suggest from History button
+            Button {
+                showLauncherHistorySuggestions = true
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.body)
+                    Text("Suggest from Browser History")
+                        .font(.subheadline)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .foregroundStyle(.primary)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.primary.opacity(0.05))
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("launcher-customize-suggest-history")
+
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .onAppear {
+            loadLauncherConfig()
+        }
+        .sheet(isPresented: $showLauncherHistorySuggestions) {
+            BrowserHistorySuggestionsView { selectedSites in
+                addSuggestedSitesToLauncher(selectedSites)
+            }
+        }
+    }
+
+    /// Description for launcher activation mode
+    private var launcherActivationDescription: String {
+        switch launcherActivationMode {
+        case .holdHyper:
+            launcherHyperTriggerMode.description + " Then press a shortcut key."
+        case .leaderSequence:
+            "Press Leader, then L, then press a shortcut key."
+        }
+    }
+
+    /// Load launcher config from store
+    private func loadLauncherConfig() {
+        Task {
+            let collections = await RuleCollectionStore.shared.loadCollections()
+            if let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
+               let config = launcherCollection.configuration.launcherGridConfig {
+                await MainActor.run {
+                    launcherActivationMode = config.activationMode
+                    launcherHyperTriggerMode = config.hyperTriggerMode
+                }
+            }
+        }
+    }
+
+    /// Save launcher config to store
+    private func saveLauncherConfig() {
+        Task {
+            var collections = await RuleCollectionStore.shared.loadCollections()
+            if let index = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
+                var collection = collections[index]
+                if var config = collection.configuration.launcherGridConfig {
+                    config.activationMode = launcherActivationMode
+                    config.hyperTriggerMode = launcherHyperTriggerMode
+                    collection.configuration = .launcherGrid(config)
+                    collections[index] = collection
+                    try? await RuleCollectionStore.shared.saveCollections(collections)
+                    // Notify that rules changed so config regenerates
+                    NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil)
+                }
+            }
+        }
+    }
+
+    /// Add suggested sites from browser history to launcher
+    private func addSuggestedSitesToLauncher(_ sites: [BrowserHistoryScanner.VisitedSite]) {
+        Task {
+            var collections = await RuleCollectionStore.shared.loadCollections()
+            if let index = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
+                var collection = collections[index]
+                if var config = collection.configuration.launcherGridConfig {
+                    // Get existing keys
+                    var existingKeys = Set(config.mappings.map { $0.key.lowercased() })
+
+                    // Add new mappings for each suggested site
+                    for site in sites {
+                        // Find next available letter
+                        let alphabet = "asdfghjklqwertyuiopzxcvbnm"
+                        guard let key = alphabet.first(where: { !existingKeys.contains(String($0)) }).map({ String($0) }) else {
+                            continue
+                        }
+
+                        existingKeys.insert(key)
+
+                        let mapping = LauncherMapping(
+                            key: key,
+                            target: .url("https://\(site.domain)")
+                        )
+                        config.mappings.append(mapping)
+                    }
+
+                    collection.configuration = .launcherGrid(config)
+                    collections[index] = collection
+                    try? await RuleCollectionStore.shared.saveCollections(collections)
+                    NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil)
+                }
+            }
+        }
+    }
+
+    /// Start recording for a specific field
+    private func startCustomizeRecording(fieldId: String) {
+        // Stop any existing recording first
+        stopCustomizeRecording()
+
+        customizeRecordingField = fieldId
+
+        // Add local key event monitor
+        customizeKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [self] event in
+            // Get the key name from the event
+            let keyName = keyNameFromEvent(event)
+
+            // Update the appropriate field
+            DispatchQueue.main.async {
+                self.setCustomizeFieldValue(fieldId: fieldId, value: keyName)
+                self.stopCustomizeRecording()
+            }
+
+            // Consume the event so it doesn't propagate
+            return nil
+        }
+    }
+
+    /// Stop any active recording
+    private func stopCustomizeRecording() {
+        if let monitor = customizeKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+            customizeKeyMonitor = nil
+        }
+        customizeRecordingField = nil
+    }
+
+    /// Toggle recording for a field
+    private func toggleCustomizeRecording(fieldId: String) {
+        if customizeRecordingField == fieldId {
+            stopCustomizeRecording()
+        } else {
+            startCustomizeRecording(fieldId: fieldId)
+        }
+    }
+
+    /// Set the value for a customize field by ID
+    private func setCustomizeFieldValue(fieldId: String, value: String) {
+        switch fieldId {
+        case "hold":
+            customizeHoldAction = value
+        case "doubleTap":
+            customizeDoubleTapAction = value
+        default:
+            // Handle tap-dance steps (e.g., "tapDance-0")
+            if fieldId.hasPrefix("tapDance-"),
+               let indexStr = fieldId.split(separator: "-").last,
+               let index = Int(indexStr),
+               index < customizeTapDanceSteps.count
+            {
+                customizeTapDanceSteps[index].action = value
+            }
+        }
+    }
+
+    /// Convert NSEvent to a key name string
+    private func keyNameFromEvent(_ event: NSEvent) -> String {
+        // Check for modifier-only keys first
+        let flags = event.modifierFlags
+
+        // Map common keyCodes to kanata key names
+        let keyCodeMap: [UInt16: String] = [
+            0: "a", 1: "s", 2: "d", 3: "f", 4: "h", 5: "g", 6: "z", 7: "x",
+            8: "c", 9: "v", 11: "b", 12: "q", 13: "w", 14: "e", 15: "r",
+            16: "y", 17: "t", 18: "1", 19: "2", 20: "3", 21: "4", 22: "6",
+            23: "5", 24: "=", 25: "9", 26: "7", 27: "-", 28: "8", 29: "0",
+            30: "]", 31: "o", 32: "u", 33: "[", 34: "i", 35: "p", 36: "ret",
+            37: "l", 38: "j", 39: "'", 40: "k", 41: ";", 42: "\\", 43: ",",
+            44: "/", 45: "n", 46: "m", 47: ".", 48: "tab", 49: "spc",
+            50: "`", 51: "bspc", 53: "esc",
+            // Modifiers
+            54: "rsft", 55: "lmet", 56: "lsft", 57: "caps", 58: "lalt",
+            59: "lctl", 60: "rsft", 61: "ralt", 62: "rctl",
+            // Function keys
+            122: "f1", 120: "f2", 99: "f3", 118: "f4", 96: "f5", 97: "f6",
+            98: "f7", 100: "f8", 101: "f9", 109: "f10", 103: "f11", 111: "f12",
+            // Arrow keys
+            123: "left", 124: "right", 125: "down", 126: "up",
+            // Other
+            117: "del", 119: "end", 121: "pgdn", 115: "home", 116: "pgup",
+        ]
+
+        if let keyName = keyCodeMap[event.keyCode] {
+            // Build modifier prefix if any non-modifier key
+            var result = ""
+            if flags.contains(.control) { result += "C-" }
+            if flags.contains(.option) { result += "A-" }
+            if flags.contains(.shift), !["lsft", "rsft"].contains(keyName) { result += "S-" }
+            if flags.contains(.command) { result += "M-" }
+            return result + keyName
+        }
+
+        // Fallback to characters
+        if let chars = event.charactersIgnoringModifiers, !chars.isEmpty {
+            return chars.lowercased()
+        }
+
+        return "unknown"
+    }
+
+    /// A row for hold/double-tap action with mini keycap
+    private func customizeRow(label: String, action: String, fieldId: String, onClear: @escaping () -> Void) -> some View {
+        HStack(spacing: 12) {
+            Text(label)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .frame(width: 70, alignment: .trailing)
+
+            TapHoldMiniKeycap(
+                label: action.isEmpty ? "" : formatKeyForCustomize(action),
+                isRecording: customizeRecordingField == fieldId,
+                onTap: {
+                    toggleCustomizeRecording(fieldId: fieldId)
+                }
+            )
+            .accessibilityIdentifier("customize-\(fieldId)-keycap")
+            .accessibilityLabel("\(label) action keycap")
+
+            if !action.isEmpty {
+                Button {
+                    onClear()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary.opacity(0.6))
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("customize-\(fieldId)-clear")
+                .accessibilityLabel("Clear \(label.lowercased()) action")
+            }
+
+            Spacer()
+        }
+    }
+
+    /// A row for tap-dance steps (triple tap, quad tap, etc.)
+    private func customizeTapDanceRow(index: Int, step: (label: String, action: String)) -> some View {
+        HStack(spacing: 12) {
+            Text(step.label)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .frame(width: 70, alignment: .trailing)
+
+            TapHoldMiniKeycap(
+                label: step.action.isEmpty ? "" : formatKeyForCustomize(step.action),
+                isRecording: customizeRecordingField == "tapDance-\(index)",
+                onTap: {
+                    toggleCustomizeRecording(fieldId: "tapDance-\(index)")
+                }
+            )
+            .accessibilityIdentifier("customize-tapDance-\(index)-keycap")
+            .accessibilityLabel("\(step.label) action keycap")
+
+            if !step.action.isEmpty {
+                Button {
+                    customizeTapDanceSteps[index].action = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary.opacity(0.6))
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("customize-tapDance-\(index)-clear")
+                .accessibilityLabel("Clear \(step.label.lowercased()) action")
+            }
+
+            // Remove button
+            Button {
+                customizeTapDanceSteps.remove(at: index)
+            } label: {
+                Image(systemName: "minus.circle.fill")
+                    .foregroundColor(.secondary.opacity(0.6))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("customize-tapDance-\(index)-remove")
+            .accessibilityLabel("Remove \(step.label.lowercased())")
+
+            Spacer()
+        }
+    }
+
+    /// Timing configuration row
+    private var customizeTimingRow: some View {
+        HStack(spacing: 12) {
+            Text("Timing")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .frame(width: 70, alignment: .trailing)
+
+            if customizeShowTimingAdvanced {
+                // Separate tap/hold fields
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Tap")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            TextField("", value: $customizeTapTimeout, format: .number)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 50)
+                                .accessibilityIdentifier("customize-tap-timeout")
+                                .accessibilityLabel("Tap timeout in milliseconds")
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Hold")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            TextField("", value: $customizeHoldTimeout, format: .number)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 50)
+                                .accessibilityIdentifier("customize-hold-timeout")
+                                .accessibilityLabel("Hold timeout in milliseconds")
+                        }
+                        Text("ms")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            } else {
+                // Single timing value
+                HStack(spacing: 8) {
+                    TextField("", value: $customizeTapTimeout, format: .number)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 60)
+                        .accessibilityIdentifier("customize-timing")
+                        .accessibilityLabel("Timing in milliseconds")
+
+                    Text("ms")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            // Gear icon to toggle advanced timing
+            Button {
+                customizeShowTimingAdvanced.toggle()
+                if customizeShowTimingAdvanced {
+                    customizeHoldTimeout = customizeTapTimeout
+                }
+            } label: {
+                Image(systemName: "gearshape")
+                    .font(.subheadline)
+                    .foregroundColor(customizeShowTimingAdvanced ? .accentColor : .secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("customize-timing-advanced-toggle")
+            .accessibilityLabel(customizeShowTimingAdvanced ? "Use single timing value" : "Use separate tap and hold timing")
+
+            Spacer()
+        }
+    }
+
+    /// Format a key name for display in customize panel
+    private func formatKeyForCustomize(_ key: String) -> String {
+        // Handle common modifier names
+        switch key.lowercased() {
+        case "lmet", "rmet", "met": return "⌘"
+        case "lalt", "ralt", "alt": return "⌥"
+        case "lctl", "rctl", "ctl": return "⌃"
+        case "lsft", "rsft", "sft": return "⇧"
+        case "space", "spc": return "␣"
+        case "ret", "return", "enter": return "↩"
+        case "bspc", "backspace": return "⌫"
+        case "tab": return "⇥"
+        case "esc", "escape": return "⎋"
+        default: return key.uppercased()
         }
     }
 
@@ -1896,7 +2926,8 @@ struct OverlayInspectorPanel: View {
         OverlayLaunchersSection(
             isDark: isDark,
             fadeAmount: fadeAmount,
-            onMappingHover: onRuleHover
+            onMappingHover: onRuleHover,
+            onCustomize: { activeDrawerPanel = .launcherSettings }
         )
     }
 
@@ -2542,6 +3573,19 @@ private struct GlassEffectModifier: ViewModifier {
     }
 }
 
+/// Slide-over panels that can appear in the drawer
+enum DrawerPanel {
+    case customize          // Tap-hold/trigger customization
+    case launcherSettings   // Launcher activation mode & history suggestions
+
+    var title: String {
+        switch self {
+        case .customize: "Customize"
+        case .launcherSettings: "Launcher Settings"
+        }
+    }
+}
+
 enum InspectorSection: String {
     case mapper
     case customRules // Only shown when custom rules exist
@@ -2678,5 +3722,113 @@ private struct MouseMoveMonitor: NSViewRepresentable {
             // Let events pass through to the SwiftUI content while still receiving mouseMoved.
             nil
         }
+    }
+}
+
+// MARK: - Tap-Hold Mini Keycap
+
+/// Small keycap for tap-hold configuration in the customize panel
+private struct TapHoldMiniKeycap: View {
+    let label: String
+    let isRecording: Bool
+    let onTap: () -> Void
+
+    @State private var isHovered = false
+    @State private var isPressed = false
+
+    private let size: CGFloat = 48
+    private let cornerRadius: CGFloat = 8
+    private let fontSize: CGFloat = 16
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(backgroundColor)
+                .shadow(color: shadowColor, radius: shadowRadius, y: shadowOffset)
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .stroke(borderColor, lineWidth: isRecording ? 2 : 1)
+                )
+
+            if isRecording {
+                Text("...")
+                    .font(.system(size: fontSize, weight: .medium))
+                    .foregroundStyle(foregroundColor)
+            } else if label.isEmpty {
+                Image(systemName: "plus")
+                    .font(.system(size: fontSize * 0.7, weight: .light))
+                    .foregroundStyle(foregroundColor.opacity(0.4))
+            } else {
+                Text(label)
+                    .font(.system(size: fontSize, weight: .medium))
+                    .foregroundStyle(foregroundColor)
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
+                    .padding(.horizontal, 4)
+            }
+        }
+        .frame(width: size, height: size)
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+        .animation(.spring(response: 0.15, dampingFraction: 0.6), value: isPressed)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
+        .onTapGesture {
+            withAnimation(.spring(response: 0.1, dampingFraction: 0.8)) {
+                isPressed = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation(.spring(response: 0.1, dampingFraction: 0.8)) {
+                    isPressed = false
+                }
+            }
+            onTap()
+        }
+    }
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var isDark: Bool {
+        colorScheme == .dark
+    }
+
+    private var foregroundColor: Color {
+        isDark
+            ? Color(red: 0.88, green: 0.93, blue: 1.0).opacity(isPressed ? 1.0 : 0.88)
+            : Color.primary.opacity(isPressed ? 1.0 : 0.88)
+    }
+
+    private var backgroundColor: Color {
+        if isRecording {
+            return Color.accentColor
+        } else if isHovered {
+            return isDark ? Color(white: 0.18) : Color(white: 0.92)
+        } else {
+            return isDark ? Color(white: 0.12) : Color(white: 0.96)
+        }
+    }
+
+    private var borderColor: Color {
+        if isRecording {
+            return Color.accentColor.opacity(0.8)
+        } else if isHovered {
+            return isDark ? Color.white.opacity(0.3) : Color.black.opacity(0.15)
+        } else {
+            return isDark ? Color.white.opacity(0.15) : Color.black.opacity(0.1)
+        }
+    }
+
+    private var shadowColor: Color {
+        isDark ? Color.black.opacity(0.5) : Color.black.opacity(0.15)
+    }
+
+    private var shadowRadius: CGFloat {
+        isPressed ? 1 : 2
+    }
+
+    private var shadowOffset: CGFloat {
+        isPressed ? 1 : 2
     }
 }

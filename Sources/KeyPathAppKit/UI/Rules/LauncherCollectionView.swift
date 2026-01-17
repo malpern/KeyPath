@@ -111,7 +111,7 @@ struct LauncherCollectionView: View {
     private var activationModeSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Activation")
+                Text("Launcher Settings")
                     .font(.headline)
 
                 Spacer()
@@ -136,35 +136,26 @@ struct LauncherCollectionView: View {
                 Text(LauncherActivationMode.leaderSequence.displayName).tag(LauncherActivationMode.leaderSequence)
             }
             .pickerStyle(.segmented)
+            .labelsHidden()
             .accessibilityIdentifier("launcher-activation-mode-picker")
 
-            // Hyper trigger mode radio buttons (only shown when Hyper mode is selected)
+            // Hyper trigger mode segmented picker (only shown when Hyper mode is selected)
             if config.activationMode == .holdHyper {
-                HStack(spacing: 16) {
-                    ForEach([HyperTriggerMode.hold, HyperTriggerMode.tap], id: \.self) { mode in
-                        Button {
-                            // Immediate local update for responsive UI
-                            localHyperTriggerMode = mode
-                            // Persist via callback
-                            var updated = config
-                            updated.hyperTriggerMode = mode
-                            onConfigChanged(updated)
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: localHyperTriggerMode == mode ? "circle.inset.filled" : "circle")
-                                    .foregroundColor(localHyperTriggerMode == mode ? .accentColor : .secondary)
-                                    .font(.system(size: 14))
-                                Text(mode.displayName)
-                                    .font(.subheadline)
-                                    .foregroundColor(.primary)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("launcher-hyper-trigger-\(mode.rawValue)")
+                Picker("Trigger Mode", selection: Binding(
+                    get: { localHyperTriggerMode },
+                    set: { newMode in
+                        localHyperTriggerMode = newMode
+                        var updated = config
+                        updated.hyperTriggerMode = newMode
+                        onConfigChanged(updated)
                     }
+                )) {
+                    Text(HyperTriggerMode.hold.displayName).tag(HyperTriggerMode.hold)
+                    Text(HyperTriggerMode.tap.displayName).tag(HyperTriggerMode.tap)
                 }
-                .padding(.top, 4)
-                .animation(.easeInOut(duration: 0.15), value: localHyperTriggerMode)
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .accessibilityIdentifier("launcher-hyper-trigger-picker")
                 .onAppear {
                     localHyperTriggerMode = config.hyperTriggerMode
                 }

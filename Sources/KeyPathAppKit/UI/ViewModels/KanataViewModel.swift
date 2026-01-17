@@ -205,6 +205,24 @@ class KanataViewModel: ObservableObject {
         let collection = ruleCollections.first { $0.id == id }
         let collectionName = collection?.name ?? "Collection"
 
+        // Special handling for macOS Function Keys
+        if id == RuleCollectionIdentifier.macFunctionKeys {
+            if enabled {
+                // Automatically enable "Use F1, F2, etc. as standard function keys" in macOS
+                // This is required for Kanata to intercept F10/F11/F12 and remap to volume keys
+                let wasSet = setMacOSFunctionKeyMode(useStandardFKeys: true)
+                if wasSet {
+                    showToast("Function Keys enabled — macOS setting updated automatically", type: .success, duration: 5.0)
+                } else {
+                    showToast("Function Keys enabled", type: .success)
+                }
+            } else {
+                // When disabling, we leave the macOS setting as-is (user may want to keep it)
+                showToast("Function Keys disabled", type: .info)
+            }
+            return
+        }
+
         // Special message for Home Row Mods
         if id == RuleCollectionIdentifier.homeRowMods {
             if enabled {
@@ -218,6 +236,43 @@ class KanataViewModel: ObservableObject {
             } else {
                 showToast("\(collectionName) disabled", type: .info)
             }
+        }
+    }
+
+    /// Set macOS "Use F1, F2, etc. keys as standard function keys" preference
+    /// - Parameter useStandardFKeys: true to use standard F-keys, false for media keys
+    /// - Returns: true if the setting was changed, false if it was already set or failed
+    private func setMacOSFunctionKeyMode(useStandardFKeys: Bool) -> Bool {
+        let currentValue = CFPreferencesCopyValue(
+            "com.apple.keyboard.fnState" as CFString,
+            kCFPreferencesAnyApplication,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesAnyHost
+        ) as? Bool ?? false
+
+        if currentValue == useStandardFKeys {
+            AppLogger.shared.log("🎹 [KanataViewModel] macOS fnState already set to \(useStandardFKeys)")
+            return false
+        }
+
+        // Use defaults command to set global preference
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/defaults")
+        process.arguments = ["write", "-g", "com.apple.keyboard.fnState", "-bool", useStandardFKeys ? "true" : "false"]
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+            if process.terminationStatus == 0 {
+                AppLogger.shared.log("🎹 [KanataViewModel] Set macOS fnState to \(useStandardFKeys)")
+                return true
+            } else {
+                AppLogger.shared.warn("⚠️ [KanataViewModel] Failed to set macOS fnState, exit code: \(process.terminationStatus)")
+                return false
+            }
+        } catch {
+            AppLogger.shared.warn("⚠️ [KanataViewModel] Failed to set macOS fnState: \(error)")
+            return false
         }
     }
 
@@ -370,6 +425,12 @@ class KanataViewModel: ObservableObject {
 
     func stopKanata(reason: String = "User action") async -> Bool {
         await manager.stopKanata(reason: reason)
+    }
+
+    /// Switch to a different layer via Kanata TCP command.
+    /// Returns true if the layer was changed successfully.
+    func changeLayer(_ layerName: String) async -> Bool {
+        await manager.changeLayer(layerName)
     }
 
     // MARK: - Toast Notifications

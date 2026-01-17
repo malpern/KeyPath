@@ -697,6 +697,63 @@ actor KanataTCPClient {
         }
     }
 
+    // MARK: - Change Layer
+
+    /// Result of changing a layer
+    enum ChangeLayerResult: Sendable {
+        case success
+        case error(String)
+        case networkError(String)
+    }
+
+    /// Switch to a different layer in Kanata via TCP
+    ///
+    /// Sends the `ChangeLayer` command to Kanata to programmatically switch layers.
+    /// This is typically used when the user clicks on a layer in the layer picker.
+    ///
+    /// - Parameter layerName: The name of the layer to switch to (e.g., "nav", "base")
+    /// - Returns: Result indicating success or failure
+    func changeLayer(_ layerName: String) async -> ChangeLayerResult {
+        AppLogger.shared.log("🔀 [TCP] ChangeLayer: \(layerName)")
+
+        do {
+            let requestId = generateRequestId()
+            let req: [String: Any] = [
+                "ChangeLayer": [
+                    "new": layerName,
+                    "request_id": requestId
+                ]
+            ]
+            let requestData = try JSONSerialization.data(withJSONObject: req)
+
+            let responseData = try await send(requestData)
+            let responseStr = String(data: responseData, encoding: .utf8) ?? ""
+            AppLogger.shared.log("🔀 [TCP] ChangeLayer response: \(responseStr)")
+
+            // Parse response
+            if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
+               let status = json["status"] as? String
+            {
+                if status.lowercased() == "ok" {
+                    AppLogger.shared.log("✅ [TCP] ChangeLayer success: \(layerName)")
+                    return .success
+                } else {
+                    let errorMsg = json["msg"] as? String ?? "Unknown error"
+                    AppLogger.shared.log("❌ [TCP] ChangeLayer failed: \(errorMsg)")
+                    return .error(errorMsg)
+                }
+            }
+
+            return .success
+        } catch {
+            AppLogger.shared.error("❌ [TCP] ChangeLayer error: \(error)")
+            if shouldRetry(error) {
+                closeConnection()
+            }
+            return .networkError(error.localizedDescription)
+        }
+    }
+
     // MARK: - Core Send/Receive
 
     /// Send TCP message and receive response with timeout

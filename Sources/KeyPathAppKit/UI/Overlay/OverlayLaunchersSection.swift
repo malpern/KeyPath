@@ -10,6 +10,8 @@ struct OverlayLaunchersSection: View {
     var fadeAmount: CGFloat = 0
     /// Callback when hovering a mapping row - passes key for keyboard highlighting
     var onMappingHover: ((String?) -> Void)?
+    /// Callback when customize is tapped (opens slide-over panel)
+    var onCustomize: (() -> Void)?
 
     @StateObject private var store = LauncherStore()
     @State private var showAddSheet = false
@@ -17,17 +19,11 @@ struct OverlayLaunchersSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header row with activation hint on the right
-            HStack(alignment: .center, spacing: 8) {
-                Text("Launcher")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-
-                Spacer()
-
-                activationHint
-            }
-            .padding(.bottom, 12)
+            // Header
+            Text("Launcher")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+                .padding(.bottom, 12)
 
             // Scrollable content (mappings list)
             ScrollView {
@@ -43,13 +39,53 @@ struct OverlayLaunchersSection: View {
 
             Spacer(minLength: 0)
 
-            // Add button pinned to bottom with minimal padding
-            // Full width to match Base Layer button styling
-            GeometryReader { geo in
-                launcherAddControl(width: geo.size.width)
-                    .frame(maxWidth: .infinity, alignment: .center)
+            // Bottom controls: Add Shortcut (left) and Settings (right)
+            HStack(spacing: 8) {
+                // Add button
+                Button {
+                    showAddSheet = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "plus")
+                        Text("Add Shortcut")
+                    }
+                    .font(.subheadline)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.primary.opacity(0.1))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(Color.primary.opacity(0.2), lineWidth: 0.5)
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("overlay-launcher-add")
+
+                Spacer()
+
+                // Customize link - opens slide-over panel (matches mapper style)
+                if onCustomize != nil {
+                    Button {
+                        onCustomize?()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "slider.horizontal.3")
+                                .font(.system(size: 10))
+                            Text("Customize")
+                                .lineLimit(1)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 8))
+                        }
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("overlay-launcher-customize")
+                }
             }
-            .frame(height: 28)
             .padding(.top, 6)
         }
         .sheet(isPresented: $showAddSheet) {
@@ -75,46 +111,6 @@ struct OverlayLaunchersSection: View {
                     store.deleteMapping(mapping.id)
                     editingMapping = nil
                 }
-            )
-        }
-    }
-
-    private var activationHint: some View {
-        HStack(spacing: 6) {
-            // Hyper badge
-            HStack(spacing: 2) {
-                Image(systemName: "sparkle")
-                    .font(.system(size: 8, weight: .bold))
-                Text("Hyper")
-                    .font(.system(size: 10, weight: .medium))
-            }
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 3)
-            .background(
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.white.opacity(0.1))
-            )
-
-            Text("or")
-                .font(.system(size: 10))
-                .foregroundStyle(.tertiary)
-
-            // Leader + L badge
-            HStack(spacing: 2) {
-                Text("Leader")
-                    .font(.system(size: 10, weight: .medium))
-                Text("+")
-                    .font(.system(size: 9))
-                Text("L")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-            }
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 3)
-            .background(
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.white.opacity(0.1))
             )
         }
     }
@@ -192,35 +188,6 @@ struct OverlayLaunchersSection: View {
         )
     }
 
-    /// Add button styled to match Base Layer button
-    /// - Parameter width: Explicit width for the button
-    @ViewBuilder
-    private func launcherAddControl(width: CGFloat) -> some View {
-        Button {
-            showAddSheet = true
-        } label: {
-            // Custom button appearance that respects width (matches Base Layer button)
-            HStack(spacing: 6) {
-                Image(systemName: "plus")
-                Text("Add Shortcut")
-                Spacer()
-            }
-            .font(.subheadline)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .frame(width: width)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.primary.opacity(0.1))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .strokeBorder(Color.primary.opacity(0.2), lineWidth: 0.5)
-            )
-        }
-        .buttonStyle(.plain) // Use plain style so our custom background shows
-        .accessibilityIdentifier("overlay-launcher-add")
-    }
 }
 
 // MARK: - Data Model

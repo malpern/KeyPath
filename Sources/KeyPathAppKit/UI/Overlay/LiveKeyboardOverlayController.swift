@@ -435,7 +435,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             isVisible = true
         }
         NSApp.activate(ignoringOtherApps: true)
-        window?.makeKeyAndOrderFront(nil)
+        // Use orderFront instead of makeKeyAndOrderFront since overlay can't become key
+        window?.orderFront(nil)
     }
 
     /// Restore overlay state from previous session
@@ -508,7 +509,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
         // Show hint bubble if user hasn't learned the shortcut yet
         if FeatureTipManager.shared.shouldShow(.hideOverlayShortcut) {
-            showHintBubble()
+            showHintBubbleAfterHealthIndicator()
         }
 
         AppLogger.shared.log("🚀 [OverlayController] Showing overlay for startup - size: \(Int(startupSize.width))x\(Int(startupSize.height)), position: centered bottom")
@@ -730,6 +731,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
                 }
             }
             AppLogger.shared.log("🔧 [OverlayController] Opening inspector...")
+            dismissHintBubble()
             openInspector(animated: true)
         }
     }
@@ -810,7 +812,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
         // Show hint bubble if user hasn't learned the shortcut yet
         if FeatureTipManager.shared.shouldShow(.hideOverlayShortcut) {
-            showHintBubble()
+            showHintBubbleAfterHealthIndicator()
         }
 
         // Ensure health state reflects current MainAppStateController values.
@@ -1387,24 +1389,47 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             .store(in: &cancellables)
     }
 
-    private func observeHintBubble() {
-        // No longer needed - hint bubble is in a separate window
-    }
+    private var hintBubbleObserver: AnyCancellable?
 
-    /// Show the hide hint bubble in a separate floating window above the overlay
-    private func showHintBubble() {
-        guard let window else { return }
+    /// Show the hide hint bubble after health indicator dismisses
+    /// Waits for health indicator to disappear, then 0.5s delay, then shows bubble
+    private func showHintBubbleAfterHealthIndicator() {
+        // Cancel any existing observer
+        hintBubbleObserver?.cancel()
 
-        // Create controller if needed
-        if hintWindowController == nil {
-            hintWindowController = HideHintWindowController()
+        // If health indicator is already dismissed, show after short delay
+        if uiState.healthIndicatorState == .dismissed || uiState.healthIndicatorState == .healthy {
+            showHintBubbleWithDelay(seconds: 0.5)
+            return
         }
 
-        hintWindowController?.show(above: window)
+        // Otherwise, observe and wait for dismissal
+        hintBubbleObserver = uiState.$healthIndicatorState
+            .filter { $0 == .dismissed || $0 == .healthy }
+            .first()
+            .sink { [weak self] _ in
+                self?.showHintBubbleWithDelay(seconds: 0.5)
+            }
+    }
+
+    private func showHintBubbleWithDelay(seconds: Double) {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            guard let window = self.window, window.isVisible else { return }
+
+            // Create controller if needed
+            if hintWindowController == nil {
+                hintWindowController = HideHintWindowController()
+            }
+
+            hintWindowController?.show(above: window)
+        }
     }
 
     /// Dismiss the hide hint bubble if visible
     func dismissHintBubble() {
+        hintBubbleObserver?.cancel()
+        hintBubbleObserver = nil
         hintWindowController?.dismiss()
     }
 

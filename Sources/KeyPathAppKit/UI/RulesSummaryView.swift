@@ -639,31 +639,35 @@ struct RulesTabView: View {
             collection.isEnabled
         }
 
-        // If collection is OFF, show "→ ?"
+        // If collection is OFF, still show the selected output (not "?")
+        // This helps users understand what the rule does before enabling
+        let selectedOutput = config.selectedOutput ?? config.presetOptions.first?.output ?? ""
+        let outputLabel = config.presetOptions.first { $0.output == selectedOutput }?.label ?? selectedOutput
+
         guard effectiveEnabled else {
-            // For leader-based rules, show "Leader + [key] → ?"
+            // For leader-based rules, show "Leader + [key] → [output]"
             if collection.momentaryActivator != nil {
-                return "\(currentLeaderKeyDisplay) + \(inputDisplay) → ?"
+                return "\(currentLeaderKeyDisplay) + \(inputDisplay) → \(outputLabel)"
             }
-            return "\(inputDisplay) → ?"
+            return "\(inputDisplay) → \(outputLabel)"
         }
 
-        // Check for pending selection (immediate UI feedback)
+        // Check for pending selection (immediate UI feedback when user is changing the value)
         let effectiveOutput: String = if let pending = pendingSelections[collection.id] {
             pending
         } else {
-            config.selectedOutput ?? config.presetOptions.first?.output ?? ""
+            selectedOutput
         }
 
-        // Get label for the output
-        let outputLabel = config.presetOptions.first { $0.output == effectiveOutput }?.label ?? effectiveOutput
+        // Get label for the effective output (may differ from selectedOutput if pending)
+        let effectiveOutputLabel = config.presetOptions.first { $0.output == effectiveOutput }?.label ?? effectiveOutput
 
         // For leader-based rules, show "Leader + [input] → [output]" instead of "[input] → [output]"
         if collection.momentaryActivator != nil {
-            return "\(currentLeaderKeyDisplay) + \(inputDisplay) → \(outputLabel)"
+            return "\(currentLeaderKeyDisplay) + \(inputDisplay) → \(effectiveOutputLabel)"
         }
 
-        return "\(inputDisplay) → \(outputLabel)"
+        return "\(inputDisplay) → \(effectiveOutputLabel)"
     }
 
     /// Format a modifier key for display

@@ -485,6 +485,52 @@ final class RuleCollectionsManager {
         AppLogger.shared.log("🗑️ [RuleCollections] Removed layer '\(layerName)': \(removedCollections) collections, \(removedRules) rules")
     }
 
+    /// Create a new custom layer with Leader key activator
+    func createLayer(_ name: String) async {
+        guard !name.isEmpty else { return }
+
+        // Sanitize the layer name
+        let sanitizedName = name.lowercased()
+            .replacingOccurrences(of: " ", with: "_")
+            .filter { $0.isLetter || $0.isNumber || $0 == "_" }
+
+        guard !sanitizedName.isEmpty else { return }
+
+        // Check for duplicates by looking at existing collections' target layers
+        let existingLayers = Set(ruleCollections.map { $0.targetLayer.kanataName.lowercased() })
+        if existingLayers.contains(sanitizedName) {
+            AppLogger.shared.warn("⚠️ [RuleCollections] Layer already exists: \(sanitizedName)")
+            return
+        }
+
+        // Create a RuleCollection for this layer with Leader key activator
+        // Activator: first letter of layer name, from nav layer (Leader → letter)
+        let activatorKey = String(sanitizedName.prefix(1))
+        let targetLayer = RuleCollectionLayer.custom(sanitizedName)
+
+        let collection = RuleCollection(
+            id: UUID(),
+            name: sanitizedName.capitalized,
+            summary: "Custom layer: \(sanitizedName)",
+            category: .custom,
+            mappings: [],
+            isEnabled: true,
+            icon: "square.stack.3d.up",
+            tags: ["custom-layer"],
+            targetLayer: targetLayer,
+            momentaryActivator: MomentaryActivator(
+                input: activatorKey,
+                targetLayer: targetLayer,
+                sourceLayer: .navigation
+            ),
+            activationHint: "Leader → \(activatorKey.uppercased())",
+            configuration: .list
+        )
+
+        await addCollection(collection)
+        AppLogger.shared.log("📚 [RuleCollections] Created new layer: \(sanitizedName) (Leader → \(activatorKey.uppercased()))")
+    }
+
     /// Update a single-key picker collection's selected output and regenerate its mapping
     func updateCollectionOutput(id: UUID, output: String) async {
         guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {

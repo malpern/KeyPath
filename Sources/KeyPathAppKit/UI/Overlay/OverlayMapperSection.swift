@@ -15,11 +15,10 @@ struct OverlayMapperSection: View {
     var onKeySelected: ((UInt16?) -> Void)?
     /// Layer key map for looking up actual mappings (passed from overlay view)
     var layerKeyMap: [UInt16: LayerKeyInfo] = [:]
+    /// Callback when the customize button is tapped (opens slide-over panel)
+    var onCustomize: (() -> Void)?
 
     @StateObject private var viewModel = MapperViewModel()
-    @State private var isLayerPickerOpen = false
-    @State private var showingNewLayerSheet = false
-    @State private var newLayerName = ""
     @State private var isSystemActionPickerOpen = false
     @State private var isAppConditionPickerOpen = false
     @State private var cachedRunningApps: [NSRunningApplication] = []
@@ -210,7 +209,7 @@ struct OverlayMapperSection: View {
                 let scale = min(1, availableWidth / baseWidth)
 
                 HStack(alignment: .top, spacing: spacing) {
-                    // Input column: Label -> Keycap -> Dropdown -> App indicators
+                    // Input column: Label -> Keycap -> Dropdown -> Customize -> App indicators
                     VStack(spacing: 4) {
                         Text("In")
                             .font(.caption)
@@ -222,6 +221,7 @@ struct OverlayMapperSection: View {
                             onTap: { viewModel.toggleInputRecording() }
                         )
                         appConditionDropdown
+                        customizeLink
                         appMappingIndicators
                     }
                     .frame(width: keycapWidth)
@@ -262,7 +262,7 @@ struct OverlayMapperSection: View {
                     }
                     .frame(width: arrowWidth)
 
-                    // Output column: Label -> Keycap -> Dropdown
+                    // Output column: Label -> Keycap -> Output type dropdown
                     VStack(spacing: 4) {
                         Text("Out")
                             .font(.caption)
@@ -276,7 +276,7 @@ struct OverlayMapperSection: View {
                             urlFavicon: viewModel.selectedURLFavicon,
                             onTap: { viewModel.toggleOutputRecording() }
                         )
-                        systemActionDropdown
+                        outputTypeDropdown
                     }
                     .frame(width: keycapWidth)
                 }
@@ -303,33 +303,8 @@ struct OverlayMapperSection: View {
             }
 
             Spacer(minLength: 0)
-
-            // Layer switcher styled like Add Shortcut button, pinned to bottom
-            // Full width to match blue debug box
-            GeometryReader { geo in
-                layerSwitcherMenu(width: geo.size.width)
-                    .frame(maxWidth: .infinity, alignment: .center)
-            }
-            .frame(height: 28) // Match button height
-            .padding(.top, 6)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .sheet(isPresented: $showingNewLayerSheet) {
-            NewLayerSheet(
-                layerName: $newLayerName,
-                existingLayers: viewModel.getAvailableLayers(),
-                onSubmit: { name in
-                    viewModel.createLayer(name)
-                    viewModel.setLayer(name)
-                    newLayerName = ""
-                    showingNewLayerSheet = false
-                },
-                onCancel: {
-                    newLayerName = ""
-                    showingNewLayerSheet = false
-                }
-            )
-        }
     }
 
     /// App condition dropdown - subtle when not set, shows app icon when set
@@ -677,40 +652,74 @@ struct OverlayMapperSection: View {
         }
     }
 
-    /// System action dropdown - subtle when using keystroke, shows action when set
-    private var systemActionDropdown: some View {
-        let hasAction = viewModel.selectedSystemAction != nil
-        let displayText = viewModel.selectedSystemAction?.name ?? "Keystroke"
-        let displayIcon = viewModel.selectedSystemAction?.sfSymbol ?? "keyboard"
-
-        return Button {
-            isSystemActionPickerOpen.toggle()
+    /// Customize link - opens the slide-over panel for tap-hold/trigger configuration
+    /// Simple styling: just icon, text, and arrow (no button frame)
+    private var customizeLink: some View {
+        Button {
+            onCustomize?()
         } label: {
             HStack(spacing: 4) {
-                Image(systemName: displayIcon)
+                Image(systemName: "slider.horizontal.3")
                     .font(.system(size: 10))
-                Text(displayText)
+                Text("Customize")
+                    .lineLimit(1)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 8))
+            }
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("overlay-mapper-customize")
+        .accessibilityLabel("Customize tap-hold behavior")
+    }
+
+    /// Output type dropdown - select what happens when the key is triggered
+    private var outputTypeDropdown: some View {
+        let currentType = outputTypeDisplayInfo
+
+        return Button {
+            isSystemActionPickerOpen = true
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: currentType.icon)
+                    .font(.system(size: 10))
+                Text(currentType.label)
                     .lineLimit(1)
                 Image(systemName: "chevron.down")
                     .font(.system(size: 8))
             }
             .font(.caption2)
-            .foregroundStyle(hasAction ? .primary : .secondary)
+            .foregroundStyle(currentType.isDefault ? .secondary : .primary)
             .padding(.horizontal, 6)
             .padding(.vertical, 3)
             .background(
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(hasAction ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.04))
+                    .fill(currentType.isDefault ? Color.primary.opacity(0.04) : Color.accentColor.opacity(0.15))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 4)
-                    .strokeBorder(hasAction ? Color.accentColor.opacity(0.3) : Color.primary.opacity(0.2), lineWidth: 0.5)
+                    .strokeBorder(currentType.isDefault ? Color.primary.opacity(0.2) : Color.accentColor.opacity(0.3), lineWidth: 0.5)
             )
         }
         .buttonStyle(.plain)
-        .accessibilityIdentifier("overlay-mapper-system-action")
+        .accessibilityIdentifier("overlay-mapper-output-type")
+        .accessibilityLabel("Select output action type")
         .popover(isPresented: $isSystemActionPickerOpen, arrowEdge: .bottom) {
             systemActionPopover
+        }
+    }
+
+    /// Info about current output type for display
+    private var outputTypeDisplayInfo: (label: String, icon: String, isDefault: Bool) {
+        if viewModel.selectedApp != nil {
+            return ("Launch App", "app.fill", false)
+        } else if viewModel.selectedSystemAction != nil {
+            return (viewModel.selectedSystemAction?.name ?? "System", "gearshape", false)
+        } else if viewModel.selectedURL != nil {
+            return ("Open URL", "link", false)
+        } else {
+            return ("Keystroke", "keyboard", true)
         }
     }
 
@@ -868,144 +877,6 @@ struct OverlayMapperSection: View {
         .buttonStyle(.plain)
         .focusable(false)
         .accessibilityIdentifier("system-action-\(action.id)")
-    }
-
-    /// Returns an SF Symbol icon for a layer name
-    private func iconForLayer(_ layer: String) -> String {
-        switch layer.lowercased() {
-        case "base":
-            "keyboard"
-        case "nav", "navigation":
-            "arrow.up.arrow.down.square"
-        case "num", "number", "numbers":
-            "number.square"
-        case "sym", "symbol", "symbols":
-            "textformat.abc"
-        case "fn", "function":
-            "fn"
-        case "media":
-            "play.rectangle"
-        case "mouse":
-            "cursorarrow.click"
-        default:
-            "square.stack.3d.up"
-        }
-    }
-
-    /// Layer switcher menu styled like the Add Shortcut button
-    /// - Parameter width: Explicit width for the menu button
-    @ViewBuilder
-    private func layerSwitcherMenu(width: CGFloat) -> some View {
-        let layerDisplayName = viewModel.currentLayer.lowercased() == "base" ? "Base Layer" : viewModel.currentLayer.capitalized
-        let availableLayers = viewModel.getAvailableLayers()
-
-        // Custom button that triggers popover
-        Button {
-            isLayerPickerOpen.toggle()
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "square.3.layers.3d")
-                Text(layerDisplayName)
-                Spacer()
-                Image(systemName: "chevron.down")
-                    .font(.caption2)
-                    .rotationEffect(.degrees(isLayerPickerOpen ? 180 : 0))
-                    .animation(.easeInOut(duration: 0.2), value: isLayerPickerOpen)
-            }
-            .font(.subheadline)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .frame(width: width)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.primary.opacity(0.1))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .strokeBorder(Color.primary.opacity(0.2), lineWidth: 0.5)
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("overlay-mapper-layer-switcher")
-        .popover(isPresented: $isLayerPickerOpen, arrowEdge: .top) {
-            // Custom styled popover matching the button appearance
-            VStack(spacing: 0) {
-                ForEach(Array(availableLayers.enumerated()), id: \.element) { index, layer in
-                    let displayName = layer.lowercased() == "base" ? "Base Layer" : layer.capitalized
-                    let isSelected = viewModel.currentLayer.lowercased() == layer.lowercased()
-                    let layerIcon = iconForLayer(layer)
-
-                    Button {
-                        viewModel.setLayer(layer)
-                        isLayerPickerOpen = false
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: layerIcon)
-                                .font(.body)
-                                .frame(width: 20)
-                                .foregroundStyle(isSelected ? Color.accentColor : .secondary)
-                            Text(displayName)
-                                .font(.body)
-                            Spacer()
-                            if isSelected {
-                                Image(systemName: "checkmark")
-                                    .font(.body.weight(.semibold))
-                                    .foregroundStyle(Color.accentColor)
-                            }
-                        }
-                        .foregroundStyle(.primary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(LayerPickerItemButtonStyle())
-                    .focusable(false) // Remove focus ring
-                    .accessibilityIdentifier("layer-picker-\(layer)")
-
-                    // Add separator between items (not after last)
-                    if index < availableLayers.count - 1 {
-                        Divider()
-                            .opacity(0.2)
-                            .padding(.horizontal, 8)
-                    }
-                }
-
-                // New Layer option
-                Divider()
-                    .opacity(0.2)
-                    .padding(.horizontal, 8)
-
-                Button {
-                    isLayerPickerOpen = false
-                    showingNewLayerSheet = true
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "plus")
-                            .font(.caption.weight(.semibold))
-                        Text("New Layer...")
-                            .font(.subheadline)
-                        Spacer()
-                    }
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(LayerPickerItemButtonStyle())
-                .focusable(false)
-                .accessibilityIdentifier("layer-picker-new")
-            }
-            .padding(.vertical, 6)
-            .frame(minWidth: width)
-            .background(.ultraThinMaterial) // Use material for consistent dark appearance
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(Color.primary.opacity(0.15), lineWidth: 0.5)
-            )
-            .padding(4)
-            .presentationCompactAdaptation(.none) // Prevent compact mode adaptation
-        }
     }
 
     private var shouldShowHealthGate: Bool {

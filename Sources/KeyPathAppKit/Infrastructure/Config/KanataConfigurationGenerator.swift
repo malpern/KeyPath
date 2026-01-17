@@ -658,7 +658,8 @@ public struct KanataConfiguration: Sendable {
             guard layer != .base, oneShotLayers.contains(layer) else { return output }
             guard !hasLayerBasePush else { return output }
             if activatorKeysBySourceLayer[layer]?.contains(sourceKey) == true { return output }
-            return "(multi \(output) (push-msg \"layer:base\"))"
+            // Use release-layer to explicitly release the layer-while-held, then output, then notify UI
+            return "(multi (release-layer \(layer.kanataName)) \(output) (push-msg \"layer:base\"))"
         }
 
         // Precompute mapped keys for non-base layers to avoid blocking keys mapped by other collections.
@@ -852,10 +853,10 @@ public struct KanataConfiguration: Sendable {
         }
 
         if !oneShotLayers.isEmpty {
-            let cancelOutput = "(multi XX (push-msg \"layer:base\"))"
             var layerOutputs: [RuleCollectionLayer: String] = [:]
             for layer in oneShotLayers {
-                layerOutputs[layer] = cancelOutput
+                // Use release-layer to explicitly release the layer-while-held, XX blocks output, notify UI
+                layerOutputs[layer] = "(multi (release-layer \(layer.kanataName)) XX (push-msg \"layer:base\"))"
             }
             let entry = LayerEntry(
                 sourceKey: KanataKeyConverter.convertToKanataKey("esc"),

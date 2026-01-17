@@ -941,6 +941,35 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         }
     }
 
+    /// Switch to a different layer via Kanata TCP command.
+    /// Returns true if the layer was changed successfully.
+    func changeLayer(_ layerName: String) async -> Bool {
+        let port = PreferencesService.shared.tcpServerPort
+        let client = KanataTCPClient(port: port, timeout: 3.0)
+
+        let serverUp = await client.checkServerStatus()
+        guard serverUp else {
+            AppLogger.shared.warn("❌ [RuntimeCoordinator] Cannot change layer - TCP server not available")
+            await client.cancelInflightAndCloseConnection()
+            return false
+        }
+
+        let result = await client.changeLayer(layerName)
+        await client.cancelInflightAndCloseConnection()
+
+        switch result {
+        case .success:
+            AppLogger.shared.log("✅ [RuntimeCoordinator] Layer changed to: \(layerName)")
+            return true
+        case .error(let msg):
+            AppLogger.shared.warn("❌ [RuntimeCoordinator] Failed to change layer: \(msg)")
+            return false
+        case .networkError(let msg):
+            AppLogger.shared.warn("❌ [RuntimeCoordinator] Network error changing layer: \(msg)")
+            return false
+        }
+    }
+
     func saveConfiguration(input: String, output: String) async throws {
         AppLogger.shared.log("💾 [RuntimeCoordinator] Saving configuration mapping")
 

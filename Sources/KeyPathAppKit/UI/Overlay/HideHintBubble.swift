@@ -6,21 +6,12 @@ final class HideShortcutKeyState: ObservableObject {
     @Published var commandPressed = false
     @Published var optionPressed = false
     @Published var kPressed = false
-    @Published var allPressedPulse = false
-
-    /// Check if all keys are pressed and trigger pulse if so
-    func checkAllPressed() {
-        if commandPressed, optionPressed, kPressed, !allPressedPulse {
-            allPressedPulse = true
-        }
-    }
 
     /// Reset all states
     func reset() {
         commandPressed = false
         optionPressed = false
         kPressed = false
-        allPressedPulse = false
     }
 }
 
@@ -60,21 +51,9 @@ struct HideHintBubble: View {
 
                 // Key chips for ⌘⌥K - respond to actual key presses
                 HStack(spacing: 3) {
-                    ModifierKeyChip(
-                        symbol: "⌘",
-                        isPressed: keyState.commandPressed,
-                        isPulsing: keyState.allPressedPulse
-                    )
-                    ModifierKeyChip(
-                        symbol: "⌥",
-                        isPressed: keyState.optionPressed,
-                        isPulsing: keyState.allPressedPulse
-                    )
-                    ModifierKeyChip(
-                        symbol: "K",
-                        isPressed: keyState.kPressed,
-                        isPulsing: keyState.allPressedPulse
-                    )
+                    ModifierKeyChip(symbol: "⌘", isPressed: keyState.commandPressed)
+                    ModifierKeyChip(symbol: "⌥", isPressed: keyState.optionPressed)
+                    ModifierKeyChip(symbol: "K", isPressed: keyState.kPressed)
                 }
             }
             .padding(.horizontal, 10)
@@ -121,7 +100,6 @@ struct HideHintBubble: View {
 private struct ModifierKeyChip: View {
     let symbol: String
     var isPressed: Bool = false
-    var isPulsing: Bool = false
 
     /// Normal bright blue color
     private static let normalTextColor = Color(red: 0.4, green: 0.8, blue: 1.0)
@@ -132,9 +110,6 @@ private struct ModifierKeyChip: View {
     private static let pressedTextColor = Color(red: 0.6, green: 0.95, blue: 1.0)
     /// Pressed/active background (brighter)
     private static let pressedBackgroundColor = Color(red: 0.15, green: 0.45, blue: 0.7)
-
-    /// Pulse glow color
-    private static let pulseGlowColor = Color(red: 0.4, green: 0.8, blue: 1.0)
 
     private var textColor: Color {
         isPressed ? Self.pressedTextColor : Self.normalTextColor
@@ -159,11 +134,8 @@ private struct ModifierKeyChip: View {
                 RoundedRectangle(cornerRadius: 4, style: .continuous)
                     .strokeBorder(textColor.opacity(isPressed ? 0.6 : 0.3), lineWidth: isPressed ? 1 : 0.5)
             )
-            .shadow(color: isPulsing ? Self.pulseGlowColor.opacity(0.8) : .clear, radius: isPulsing ? 8 : 0)
             .scaleEffect(isPressed ? 1.1 : 1.0)
-            .scaleEffect(isPulsing ? 1.15 : 1.0)
             .animation(.easeOut(duration: 0.08), value: isPressed)
-            .animation(.easeOut(duration: 0.12), value: isPulsing)
     }
 }
 

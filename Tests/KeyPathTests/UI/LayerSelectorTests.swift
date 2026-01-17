@@ -196,10 +196,62 @@ final class LayerSelectorTests: XCTestCase {
     }
 }
 
+// MARK: - ChangeLayer Tests
+
+extension LayerSelectorTests {
+    func testChangeLayerResult_successCase() {
+        let result = KanataTCPClient.ChangeLayerResult.success
+        if case .success = result {
+            // Success
+        } else {
+            XCTFail("Expected success case")
+        }
+    }
+
+    func testChangeLayerResult_errorCase() {
+        let result = KanataTCPClient.ChangeLayerResult.error("Layer not found")
+        if case let .error(msg) = result {
+            XCTAssertEqual(msg, "Layer not found")
+        } else {
+            XCTFail("Expected error case")
+        }
+    }
+
+    func testChangeLayerResult_networkErrorCase() {
+        let result = KanataTCPClient.ChangeLayerResult.networkError("Connection refused")
+        if case let .networkError(msg) = result {
+            XCTAssertEqual(msg, "Connection refused")
+        } else {
+            XCTFail("Expected networkError case")
+        }
+    }
+
+    func testChangeLayer_stubCoordinator_success() async {
+        let manager = StubRuntimeCoordinator()
+        manager.stubChangeLayerResult = true
+
+        let success = await manager.changeLayer("nav")
+        XCTAssertTrue(success)
+    }
+
+    func testChangeLayer_stubCoordinator_failure() async {
+        let manager = StubRuntimeCoordinator()
+        manager.stubChangeLayerResult = false
+
+        let success = await manager.changeLayer("nonexistent")
+        XCTAssertFalse(success)
+    }
+}
+
 private final class StubRuntimeCoordinator: RuntimeCoordinator {
     var stubLayerNames: [String] = []
+    var stubChangeLayerResult: Bool = false
 
     override func fetchLayerNamesFromKanata() async -> [String] {
         stubLayerNames
+    }
+
+    override func changeLayer(_ layerName: String) async -> Bool {
+        stubChangeLayerResult
     }
 }

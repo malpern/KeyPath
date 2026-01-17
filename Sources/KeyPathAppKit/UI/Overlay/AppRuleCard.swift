@@ -184,7 +184,7 @@ struct GlobalRulesCard: View {
                     .foregroundStyle(.secondary)
 
                 Text("Everywhere")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 

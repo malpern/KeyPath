@@ -9,12 +9,17 @@ import SwiftUI
 final class HideHintWindowController {
     private var window: NSWindow?
     private var dismissTask: Task<Void, Never>?
+    private var fadeInTask: Task<Void, Never>?
     private let keyState = HideShortcutKeyState()
 
     // Event monitors for tracking key presses
-    private var flagsMonitor: Any?
-    private var keyDownMonitor: Any?
-    private var keyUpMonitor: Any?
+    // We need both global (when app not focused) and local (when app focused) monitors
+    private var globalFlagsMonitor: Any?
+    private var globalKeyDownMonitor: Any?
+    private var globalKeyUpMonitor: Any?
+    private var localFlagsMonitor: Any?
+    private var localKeyDownMonitor: Any?
+    private var localKeyUpMonitor: Any?
 
     /// Show the hint bubble above the given parent window
     func show(above parentWindow: NSWindow) {
@@ -66,20 +71,24 @@ final class HideHintWindowController {
         // Make it a child of the parent window so it moves together
         parentWindow.addChildWindow(hintWindow, ordered: .above)
 
+        // Start invisible, then fade in
+        hintWindow.alphaValue = 0
         hintWindow.orderFront(nil)
         window = hintWindow
 
         // Start key event monitoring
         startKeyMonitoring()
 
-        // Start dismiss timer
-        startDismissTimer()
+        // Fade in immediately, then start dismiss timer
+        fadeIn()
 
         AppLogger.shared.log("🔔 [HideHintWindow] Showing hint bubble above overlay")
     }
 
     /// Dismiss the hint bubble
     func dismiss() {
+        fadeInTask?.cancel()
+        fadeInTask = nil
         dismissTask?.cancel()
         dismissTask = nil
         stopKeyMonitoring()
@@ -97,6 +106,22 @@ final class HideHintWindowController {
             self?.window = nil
             AppLogger.shared.log("🔔 [HideHintWindow] Hint bubble dismissed")
         }
+    }
+
+    private func fadeIn() {
+        guard let window else { return }
+
+        // Fade in
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 0.3
+            window.animator().alphaValue = 1.0
+        }, completionHandler: { [weak self] in
+            AppLogger.shared.log("🔔 [HideHintWindow] Hint bubble faded in")
+            // Start the 10 second dismiss timer after fade completes
+            Task { @MainActor in
+                self?.startDismissTimer()
+            }
+        })
     }
 
     private func startDismissTimer() {
@@ -125,61 +150,85 @@ final class HideHintWindowController {
     // MARK: - Key Event Monitoring
 
     private func startKeyMonitoring() {
-        // Monitor modifier flags (Command, Option)
-        flagsMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
+        // Global monitors for when app is NOT focused
+        globalFlagsMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
             Task { @MainActor in
                 self?.handleFlagsChanged(event)
             }
         }
 
-        // Monitor key down for K key
-        keyDownMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        globalKeyDownMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
             Task { @MainActor in
                 self?.handleKeyDown(event)
             }
         }
 
-        // Monitor key up for K key
-        keyUpMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyUp) { [weak self] event in
+        globalKeyUpMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyUp) { [weak self] event in
             Task { @MainActor in
                 self?.handleKeyUp(event)
             }
         }
+
+        // Local monitors for when app IS focused
+        localFlagsMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
+            Task { @MainActor in
+                self?.handleFlagsChanged(event)
+            }
+            return event // Don't consume the event
+        }
+
+        localKeyDownMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            Task { @MainActor in
+                self?.handleKeyDown(event)
+            }
+            return event // Don't consume the event
+        }
+
+        localKeyUpMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyUp) { [weak self] event in
+            Task { @MainActor in
+                self?.handleKeyUp(event)
+            }
+            return event // Don't consume the event
+        }
     }
 
     private func stopKeyMonitoring() {
-        if let monitor = flagsMonitor {
+        if let monitor = globalFlagsMonitor {
             NSEvent.removeMonitor(monitor)
-            flagsMonitor = nil
+            globalFlagsMonitor = nil
         }
-        if let monitor = keyDownMonitor {
+        if let monitor = globalKeyDownMonitor {
             NSEvent.removeMonitor(monitor)
-            keyDownMonitor = nil
+            globalKeyDownMonitor = nil
         }
-        if let monitor = keyUpMonitor {
+        if let monitor = globalKeyUpMonitor {
             NSEvent.removeMonitor(monitor)
-            keyUpMonitor = nil
+            globalKeyUpMonitor = nil
+        }
+        if let monitor = localFlagsMonitor {
+            NSEvent.removeMonitor(monitor)
+            localFlagsMonitor = nil
+        }
+        if let monitor = localKeyDownMonitor {
+            NSEvent.removeMonitor(monitor)
+            localKeyDownMonitor = nil
+        }
+        if let monitor = localKeyUpMonitor {
+            NSEvent.removeMonitor(monitor)
+            localKeyUpMonitor = nil
         }
     }
 
     private func handleFlagsChanged(_ event: NSEvent) {
         let flags = event.modifierFlags
-
-        // Check Command key
         keyState.commandPressed = flags.contains(.command)
-
-        // Check Option key
         keyState.optionPressed = flags.contains(.option)
-
-        // Check if all keys are pressed
-        keyState.checkAllPressed()
     }
 
     private func handleKeyDown(_ event: NSEvent) {
         // K key has keyCode 40
         if event.keyCode == 40 {
             keyState.kPressed = true
-            keyState.checkAllPressed()
         }
     }
 
