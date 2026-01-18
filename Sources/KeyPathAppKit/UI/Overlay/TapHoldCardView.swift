@@ -28,14 +28,7 @@ struct TapHoldCardView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            // Behavior state picker with keycap illustrations
-            BehaviorStatePicker(
-                selectedState: $selectedSlot,
-                configuredStates: configuredStates
-            )
-            .padding(.horizontal, 4)
-
-            // Action configuration for selected slot
+            // Action configuration for selected slot (no picker - user navigates in/out)
             actionConfigurationSection
 
             Divider()
@@ -290,6 +283,16 @@ enum BehaviorSlot: String, Identifiable, CaseIterable {
         case .hold: "Hold"
         case .doubleTap: "Double Tap"
         case .tapHold: "Tap & Hold"
+        }
+    }
+
+    /// Shorter label for compact display
+    var shortLabel: String {
+        switch self {
+        case .tap: "Tap"
+        case .hold: "Hold"
+        case .doubleTap: "2×Tap"
+        case .tapHold: "Tap+Hold"
         }
     }
 

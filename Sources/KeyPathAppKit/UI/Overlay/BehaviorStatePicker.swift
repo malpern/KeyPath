@@ -47,29 +47,30 @@ struct BehaviorStatePicker: View {
             }
             onStateSelected?(slot)
         } label: {
-            VStack(spacing: 6) {
-                // Keycap image
+            VStack(spacing: 3) {
+                // Keycap image (compact)
                 behaviorImage(for: slot, isSelected: isSelected)
-                    .frame(height: 44)
+                    .frame(height: 28)
 
-                // Label
-                Text(slot.label)
-                    .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
+                // Label (smaller)
+                Text(slot.shortLabel)
+                    .font(.system(size: 9, weight: isSelected ? .semibold : .regular))
                     .foregroundStyle(isSelected ? .white : .secondary)
+                    .lineLimit(1)
 
                 // Configured indicator dot
                 Circle()
                     .fill(isConfigured ? Color.accentColor : Color.clear)
-                    .frame(width: 5, height: 5)
+                    .frame(width: 4, height: 4)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .padding(.horizontal, 4)
+            .padding(.vertical, 6)
+            .padding(.horizontal, 2)
             .background(
                 Group {
                     if isSelected {
                         // Selected state blue glow background
-                        RoundedRectangle(cornerRadius: 8)
+                        RoundedRectangle(cornerRadius: 6)
                             .fill(
                                 LinearGradient(
                                     colors: [
@@ -102,7 +103,7 @@ struct BehaviorStatePicker: View {
         } else {
             // Fallback to SF Symbol if image not found
             Image(systemName: slot.fallbackIcon)
-                .font(.system(size: 24))
+                .font(.system(size: 16))
                 .foregroundStyle(isSelected ? .white : .secondary)
         }
     }
