@@ -119,6 +119,15 @@ struct RulesTabView: View {
         !kanataManager.customRules.isEmpty || !appKeymaps.isEmpty
     }
 
+    /// View ID for custom rules section to force re-render on changes
+    private var customRulesViewId: String {
+        let rulesHash = kanataManager.customRules
+            .map { "\($0.id)-\($0.input.hashValue)-\($0.output.hashValue)-\($0.title.hashValue)" }
+            .joined()
+        let appsHash = appKeymaps.map(\.id.uuidString).joined()
+        return "custom-rules-\(rulesHash)-\(appsHash)"
+    }
+
     // Show all catalog collections, merging with existing state
     private var allCollections: [RuleCollection] {
         let catalog = RuleCollectionCatalog()
@@ -354,9 +363,7 @@ struct RulesTabView: View {
                             scrollProxy: scrollProxy
                         )
                         // Force SwiftUI to re-render when customRules or appKeymaps change
-                        .id(
-                            "custom-rules-\(kanataManager.customRules.map { "\($0.id)-\($0.input.hashValue)-\($0.output.hashValue)-\($0.title.hashValue)" }.joined())-\(appKeymaps.map(\.id.uuidString).joined())"
-                        )
+                        .id(customRulesViewId)
                         .padding(.vertical, 4)
 
                         // Collection Rows (sorted: enabled first, order stable during session)

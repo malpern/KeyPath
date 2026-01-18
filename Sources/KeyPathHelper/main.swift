@@ -76,10 +76,13 @@ func validateConnection(_ connection: NSXPCConnection, requirement requirementSt
             NSLog("[KeyPathHelper]   → Connecting process: identifier=\(identifier), team=\(teamID)")
             NSLog("[KeyPathHelper]   → Expected: identifier=\"com.keypath.KeyPath\", team=\"X2RKZ5TG99\"")
             NSLog("[KeyPathHelper]   → This likely means app was updated but not restarted")
-            logger
-                .error(
-                    "Code signature validation failed for PID \(pid, privacy: .public): status \(status, privacy: .public), identifier=\(identifier, privacy: .public), team=\(teamID, privacy: .public)"
-                )
+            logger.error(
+                """
+                Code signature validation failed for PID \(pid, privacy: .public): \
+                status \(status, privacy: .public), identifier=\(identifier, privacy: .public), \
+                team=\(teamID, privacy: .public)
+                """
+            )
         } else {
             NSLog("[KeyPathHelper] Code signature validation failed for PID \(pid): \(status)")
             logger.error(
@@ -105,8 +108,8 @@ class HelperDelegate: NSObject, NSXPCListenerDelegate {
             let requirementString =
                 "anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13] and certificate leaf[subject.OU] = X2RKZ5TG99"
         #else
-            let requirementString =
-                "identifier \"com.keypath.KeyPath\" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13] and certificate leaf[subject.OU] = X2RKZ5TG99"
+            // swiftlint:disable:next line_length
+            let requirementString = "identifier \"com.keypath.KeyPath\" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13] and certificate leaf[subject.OU] = X2RKZ5TG99"
         #endif
 
         // Validate the caller's code signature using audit token

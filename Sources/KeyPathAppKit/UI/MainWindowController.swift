@@ -53,10 +53,15 @@ final class MainWindowController: NSWindowController {
 
         super.init(window: window)
 
-        AppLogger.shared
-            .log(
-                "🪟 [MainWindowController] titleVisibility=\(window.titleVisibility.rawValue) transparent=\(window.titlebarAppearsTransparent) fullSize=\(window.styleMask.contains(.fullSizeContentView)) toolbar=\(window.toolbar != nil) opaque=\(window.isOpaque) bgClear=\(window.backgroundColor == .clear)"
-            )
+        AppLogger.shared.log(
+            """
+            🪟 [MainWindowController] titleVisibility=\(window.titleVisibility.rawValue) \
+            transparent=\(window.titlebarAppearsTransparent) \
+            fullSize=\(window.styleMask.contains(.fullSizeContentView)) \
+            toolbar=\(window.toolbar != nil) opaque=\(window.isOpaque) \
+            bgClear=\(window.backgroundColor == .clear)
+            """
+        )
 
         // Wrap hosting view in a visual effect container so the entire window is glass-backed
         let container = GlassContainerViewController(hosting: hostingController)

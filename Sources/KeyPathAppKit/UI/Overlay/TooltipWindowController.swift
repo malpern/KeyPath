@@ -72,8 +72,10 @@ final class TooltipWindowController {
             context.duration = 0.15
             window.animator().alphaValue = 0
         } completionHandler: { [weak self] in
-            self?.window?.orderOut(nil)
-            self?.window = nil
+            MainActor.assumeIsolated {
+                self?.window?.orderOut(nil)
+                self?.window = nil
+            }
         }
     }
 

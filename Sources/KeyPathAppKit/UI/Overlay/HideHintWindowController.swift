@@ -101,10 +101,12 @@ final class HideHintWindowController {
             context.duration = 0.25
             window.animator().alphaValue = 0
         } completionHandler: { [weak self] in
-            self?.window?.parent?.removeChildWindow(window)
-            self?.window?.orderOut(nil)
-            self?.window = nil
-            AppLogger.shared.log("🔔 [HideHintWindow] Hint bubble dismissed")
+            MainActor.assumeIsolated {
+                self?.window?.parent?.removeChildWindow(window)
+                self?.window?.orderOut(nil)
+                self?.window = nil
+                AppLogger.shared.log("🔔 [HideHintWindow] Hint bubble dismissed")
+            }
         }
     }
 
