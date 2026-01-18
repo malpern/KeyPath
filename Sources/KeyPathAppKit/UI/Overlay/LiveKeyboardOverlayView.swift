@@ -1335,16 +1335,16 @@ private struct OverlayDragHeader: View {
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: iconName)
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.system(size: 10, weight: .medium))
                         Text(layerDisplayName)
-                            .font(.system(size: 12, weight: .regular, design: .monospaced))
+                            .font(.system(size: 9, weight: .medium))
                         Image(systemName: "chevron.down")
-                            .font(.system(size: 8, weight: .semibold))
+                            .font(.system(size: 7, weight: .semibold))
                             .opacity(0.7)
                     }
                     .foregroundStyle(headerIconColor)
                     .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
+                    .padding(.vertical, 3)
                     .modifier(GlassEffectModifier(
                         isEnabled: !reduceTransparency,
                         cornerRadius: indicatorCornerRadius,
@@ -2096,6 +2096,11 @@ struct OverlayInspectorPanel: View {
             if let keyCode = notification.userInfo?["keyCode"] as? UInt16 {
                 tapHoldKeyCode = keyCode
             }
+            // Extract selected slot
+            if let slotRaw = notification.userInfo?["slot"] as? String,
+               let slot = BehaviorSlot(rawValue: slotRaw) {
+                tapHoldInitialSlot = slot
+            }
             // Open the Tap & Hold panel
             withAnimation(.easeInOut(duration: 0.25)) {
                 activeDrawerPanel = .tapHold
@@ -2374,6 +2379,8 @@ struct OverlayInspectorPanel: View {
     @State private var tapHoldKeyLabel: String = "A"
     /// Key code being configured
     @State private var tapHoldKeyCode: UInt16? = 0
+    /// Initially selected behavior slot when panel opens
+    @State private var tapHoldInitialSlot: BehaviorSlot = .tap
     /// Tap behavior action
     @State private var tapHoldTapAction: BehaviorAction = .key("a")
     /// Hold behavior action
@@ -2422,6 +2429,7 @@ struct OverlayInspectorPanel: View {
         TapHoldCardView(
             keyLabel: tapHoldKeyLabel,
             keyCode: tapHoldKeyCode,
+            initialSlot: tapHoldInitialSlot,
             tapAction: $tapHoldTapAction,
             holdAction: $tapHoldHoldAction,
             doubleTapAction: $tapHoldDoubleTapAction,

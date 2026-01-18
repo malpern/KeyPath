@@ -7,6 +7,8 @@ struct TapHoldCardView: View {
     let keyLabel: String
     /// The key code for live feedback
     let keyCode: UInt16?
+    /// Initial slot to show when panel opens
+    let initialSlot: BehaviorSlot
 
     /// Bindings for the four behavior intents
     @Binding var tapAction: BehaviorAction
@@ -46,6 +48,9 @@ struct TapHoldCardView: View {
             interruptionCheckbox
 
             Spacer(minLength: 0)
+        }
+        .onAppear {
+            selectedSlot = initialSlot
         }
     }
 
@@ -410,6 +415,7 @@ enum LiveFeedbackState: Equatable {
             TapHoldCardView(
                 keyLabel: "A",
                 keyCode: 0,
+                initialSlot: .tap,
                 tapAction: $tap,
                 holdAction: $hold,
                 doubleTapAction: $doubleTap,

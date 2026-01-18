@@ -1,9 +1,14 @@
 import SwiftUI
 
-/// A horizontal picker showing the four behavior states with keycap illustrations.
-/// Styled after Apple's dark UI with glass-like appearance and blue selection glow.
+/// A horizontal picker showing the four behavior states using image assets.
+/// Place images in Resources/BehaviorIcons/ named:
+///   - behavior-tap.png, behavior-tap-selected.png
+///   - behavior-hold.png, behavior-hold-selected.png
+///   - behavior-doubletap.png, behavior-doubletap-selected.png
+///   - behavior-taphold.png, behavior-taphold-selected.png
 struct BehaviorStatePicker: View {
     @Binding var selectedState: BehaviorSlot
+    var onStateSelected: ((BehaviorSlot) -> Void)?
 
     /// Whether each state has a configured action
     var configuredStates: Set<BehaviorSlot> = []
@@ -22,15 +27,14 @@ struct BehaviorStatePicker: View {
             }
         }
         .background(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 10)
                 .fill(.ultraThinMaterial)
-                .shadow(color: .black.opacity(0.3), radius: 10, y: 5)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(Color.white.opacity(0.15), lineWidth: 0.5)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     private func behaviorStateCell(_ slot: BehaviorSlot) -> some View {
@@ -41,20 +45,26 @@ struct BehaviorStatePicker: View {
             withAnimation(.easeInOut(duration: 0.2)) {
                 selectedState = slot
             }
+            onStateSelected?(slot)
         } label: {
-            VStack(spacing: 8) {
-                // Keycap illustration
-                keycapIllustration(for: slot, isSelected: isSelected)
-                    .frame(height: 50)
+            VStack(spacing: 6) {
+                // Keycap image
+                behaviorImage(for: slot, isSelected: isSelected)
+                    .frame(height: 44)
 
                 // Label
                 Text(slot.label)
-                    .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
+                    .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
                     .foregroundStyle(isSelected ? .white : .secondary)
+
+                // Configured indicator dot
+                Circle()
+                    .fill(isConfigured ? Color.accentColor : Color.clear)
+                    .frame(width: 5, height: 5)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .padding(.horizontal, 8)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 4)
             .background(
                 Group {
                     if isSelected {
@@ -63,16 +73,12 @@ struct BehaviorStatePicker: View {
                             .fill(
                                 LinearGradient(
                                     colors: [
-                                        Color.blue.opacity(0.4),
-                                        Color.blue.opacity(0.2)
+                                        Color.blue.opacity(0.5),
+                                        Color.blue.opacity(0.25)
                                     ],
                                     startPoint: .top,
                                     endPoint: .bottom
                                 )
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.blue.opacity(0.5), lineWidth: 1)
                             )
                     }
                 }
@@ -85,298 +91,63 @@ struct BehaviorStatePicker: View {
     }
 
     @ViewBuilder
-    private func keycapIllustration(for slot: BehaviorSlot, isSelected: Bool) -> some View {
-        switch slot {
-        case .tap:
-            TapKeycapView(showWaves: true, isSelected: isSelected)
-        case .hold:
-            HoldKeycapView(isSelected: isSelected)
-        case .doubleTap:
-            DoubleTapKeycapView(isSelected: isSelected)
-        case .tapHold:
-            TapHoldKeycapView(isSelected: isSelected)
+    private func behaviorImage(for slot: BehaviorSlot, isSelected: Bool) -> some View {
+        let imageName = isSelected ? slot.selectedImageName : slot.imageName
+
+        // Try to load from bundle
+        if let image = loadBundleImage(named: imageName) {
+            Image(nsImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        } else {
+            // Fallback to SF Symbol if image not found
+            Image(systemName: slot.fallbackIcon)
+                .font(.system(size: 24))
+                .foregroundStyle(isSelected ? .white : .secondary)
         }
     }
+
+    private func loadBundleImage(named name: String) -> NSImage? {
+        // Try loading from the bundle's Resources/BehaviorIcons folder
+        guard let url = Bundle.module.url(
+            forResource: name,
+            withExtension: "png",
+            subdirectory: "BehaviorIcons"
+        ) else {
+            return nil
+        }
+        return NSImage(contentsOf: url)
+    }
 }
 
-// MARK: - Keycap Illustrations
+// MARK: - BehaviorSlot Image Names
 
-/// Single keycap with tap waves
-private struct TapKeycapView: View {
-    var showWaves: Bool = true
-    var isSelected: Bool = false
-
-    var body: some View {
-        ZStack {
-            // Glow under keycap when selected
-            if isSelected {
-                Ellipse()
-                    .fill(Color.blue.opacity(0.4))
-                    .frame(width: 40, height: 12)
-                    .blur(radius: 8)
-                    .offset(y: 18)
-            }
-
-            // Shadow
-            Ellipse()
-                .fill(Color.black.opacity(0.5))
-                .frame(width: 32, height: 8)
-                .offset(y: 16)
-                .blur(radius: 3)
-
-            // Keycap
-            KeycapShape()
-                .fill(
-                    LinearGradient(
-                        colors: [Color.white, Color(white: 0.85)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .frame(width: 28, height: 24)
-                .overlay(
-                    KeycapShape()
-                        .stroke(Color.black.opacity(0.3), lineWidth: 1.5)
-                )
-
-            // Tap waves
-            if showWaves {
-                TapWavesView()
-                    .offset(y: -20)
-            }
+extension BehaviorSlot {
+    var imageName: String {
+        switch self {
+        case .tap: "behavior-tap"
+        case .hold: "behavior-hold"
+        case .doubleTap: "behavior-doubletap"
+        case .tapHold: "behavior-taphold"
         }
     }
-}
 
-/// Single keycap pressed down (hold state)
-private struct HoldKeycapView: View {
-    var isSelected: Bool = false
-
-    var body: some View {
-        ZStack {
-            // Larger shadow when pressed
-            if isSelected {
-                Ellipse()
-                    .fill(Color.blue.opacity(0.4))
-                    .frame(width: 44, height: 14)
-                    .blur(radius: 10)
-                    .offset(y: 16)
-            }
-
-            // Pressed shadow (wider, closer)
-            Ellipse()
-                .fill(Color.black.opacity(0.6))
-                .frame(width: 36, height: 10)
-                .offset(y: 14)
-                .blur(radius: 4)
-
-            // Keycap (slightly lower, compressed)
-            KeycapShape()
-                .fill(
-                    LinearGradient(
-                        colors: [Color(white: 0.9), Color(white: 0.75)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .frame(width: 28, height: 22)
-                .offset(y: 2)
-                .overlay(
-                    KeycapShape()
-                        .stroke(Color.black.opacity(0.35), lineWidth: 1.5)
-                        .offset(y: 2)
-                )
+    var selectedImageName: String {
+        switch self {
+        case .tap: "behavior-tap-selected"
+        case .hold: "behavior-hold-selected"
+        case .doubleTap: "behavior-doubletap-selected"
+        case .tapHold: "behavior-taphold-selected"
         }
     }
-}
 
-/// Two keycaps for double tap
-private struct DoubleTapKeycapView: View {
-    var isSelected: Bool = false
-
-    var body: some View {
-        ZStack {
-            // Glow under keycaps when selected
-            if isSelected {
-                Ellipse()
-                    .fill(Color.blue.opacity(0.5))
-                    .frame(width: 56, height: 16)
-                    .blur(radius: 10)
-                    .offset(y: 16)
-            }
-
-            // Back keycap (slightly offset)
-            Group {
-                Ellipse()
-                    .fill(Color.black.opacity(0.4))
-                    .frame(width: 28, height: 7)
-                    .offset(x: 8, y: 14)
-                    .blur(radius: 2)
-
-                KeycapShape()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(white: 0.95), Color(white: 0.8)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .frame(width: 24, height: 20)
-                    .offset(x: 8, y: -2)
-                    .overlay(
-                        KeycapShape()
-                            .stroke(Color.black.opacity(0.25), lineWidth: 1.2)
-                            .offset(x: 8, y: -2)
-                    )
-            }
-
-            // Front keycap
-            Group {
-                Ellipse()
-                    .fill(Color.black.opacity(0.5))
-                    .frame(width: 28, height: 7)
-                    .offset(x: -6, y: 16)
-                    .blur(radius: 2)
-
-                KeycapShape()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.white, Color(white: 0.85)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .frame(width: 24, height: 20)
-                    .offset(x: -6)
-                    .overlay(
-                        KeycapShape()
-                            .stroke(Color.black.opacity(0.3), lineWidth: 1.2)
-                            .offset(x: -6)
-                    )
-            }
-
-            // Tap waves on front keycap
-            TapWavesView()
-                .scaleEffect(0.85)
-                .offset(x: -6, y: -18)
+    var fallbackIcon: String {
+        switch self {
+        case .tap: "hand.tap"
+        case .hold: "hand.point.down.fill"
+        case .doubleTap: "2.circle"
+        case .tapHold: "arrow.right.circle"
         }
-    }
-}
-
-/// Two keycaps with arrow for tap then hold
-private struct TapHoldKeycapView: View {
-    var isSelected: Bool = false
-
-    var body: some View {
-        HStack(spacing: 2) {
-            // First keycap with waves (tap)
-            ZStack {
-                Ellipse()
-                    .fill(Color.black.opacity(0.4))
-                    .frame(width: 22, height: 6)
-                    .offset(y: 12)
-                    .blur(radius: 2)
-
-                KeycapShape()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.white, Color(white: 0.85)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .frame(width: 20, height: 17)
-                    .overlay(
-                        KeycapShape()
-                            .stroke(Color.black.opacity(0.3), lineWidth: 1)
-                    )
-
-                TapWavesView()
-                    .scaleEffect(0.7)
-                    .offset(y: -14)
-            }
-
-            // Arrow
-            Image(systemName: "arrow.right")
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(Color.white.opacity(0.6))
-
-            // Second keycap pressed (hold)
-            ZStack {
-                if isSelected {
-                    Ellipse()
-                        .fill(Color.blue.opacity(0.4))
-                        .frame(width: 28, height: 10)
-                        .blur(radius: 6)
-                        .offset(y: 12)
-                }
-
-                Ellipse()
-                    .fill(Color.black.opacity(0.5))
-                    .frame(width: 24, height: 7)
-                    .offset(y: 11)
-                    .blur(radius: 2)
-
-                KeycapShape()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(white: 0.9), Color(white: 0.75)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .frame(width: 20, height: 16)
-                    .offset(y: 1)
-                    .overlay(
-                        KeycapShape()
-                            .stroke(Color.black.opacity(0.35), lineWidth: 1)
-                            .offset(y: 1)
-                    )
-            }
-        }
-    }
-}
-
-/// Blue tap indicator waves
-private struct TapWavesView: View {
-    var body: some View {
-        VStack(spacing: 2) {
-            // Outer arc
-            Arc(startAngle: .degrees(200), endAngle: .degrees(340))
-                .stroke(Color.cyan, lineWidth: 2)
-                .frame(width: 20, height: 8)
-
-            // Inner arc
-            Arc(startAngle: .degrees(210), endAngle: .degrees(330))
-                .stroke(Color.cyan, lineWidth: 2)
-                .frame(width: 14, height: 6)
-        }
-    }
-}
-
-/// Custom keycap shape (rounded rectangle with 3D perspective)
-private struct KeycapShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        // Use RoundedRectangle for simplicity
-        RoundedRectangle(cornerRadius: 4).path(in: rect)
-    }
-}
-
-/// Arc shape for tap waves
-private struct Arc: Shape {
-    var startAngle: Angle
-    var endAngle: Angle
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.addArc(
-            center: CGPoint(x: rect.midX, y: rect.maxY),
-            radius: rect.width / 2,
-            startAngle: startAngle,
-            endAngle: endAngle,
-            clockwise: false
-        )
-        return path
     }
 }
 
@@ -385,39 +156,21 @@ private struct Arc: Shape {
 #if DEBUG
 #Preview("Behavior State Picker") {
     struct PreviewWrapper: View {
-        @State var selected: BehaviorSlot = .doubleTap
+        @State var selected: BehaviorSlot = .tap
 
         var body: some View {
-            VStack(spacing: 40) {
+            VStack(spacing: 20) {
                 BehaviorStatePicker(
                     selectedState: $selected,
                     configuredStates: [.tap, .hold]
                 )
-                .frame(width: 340)
+                .frame(width: 280)
 
                 Text("Selected: \(selected.label)")
                     .foregroundStyle(.white)
             }
-            .padding(40)
+            .padding(30)
             .background(Color.black)
-        }
-    }
-
-    return PreviewWrapper()
-}
-
-#Preview("Behavior State Picker - Light") {
-    struct PreviewWrapper: View {
-        @State var selected: BehaviorSlot = .tap
-
-        var body: some View {
-            BehaviorStatePicker(
-                selectedState: $selected,
-                configuredStates: []
-            )
-            .frame(width: 340)
-            .padding(40)
-            .background(Color(white: 0.15))
         }
     }
 

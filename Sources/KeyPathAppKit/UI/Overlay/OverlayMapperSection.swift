@@ -22,10 +22,10 @@ struct OverlayMapperSection: View {
     @State private var cachedRunningApps: [NSRunningApplication] = []
     @State private var showingResetAllConfirmation = false
 
-    /// Current behavior state being edited (tap is default)
-    @State private var activeBehaviorState: BehaviorState = .tap
-    /// Which behavior states have mappings configured for current key
-    @State private var configuredStates: Set<BehaviorState> = []
+    /// Current behavior slot being edited (tap is default)
+    @State private var selectedBehaviorSlot: BehaviorSlot = .tap
+    /// Which behavior slots have actions configured for current key
+    @State private var configuredBehaviorSlots: Set<BehaviorSlot> = []
 
     var body: some View {
         VStack(spacing: 8) {
@@ -219,11 +219,11 @@ struct OverlayMapperSection: View {
                             Text("In")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                            if activeBehaviorState != .tap {
+                            if selectedBehaviorSlot != .tap {
                                 Text("·")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
-                                Text(activeBehaviorState.label)
+                                Text(selectedBehaviorSlot.label)
                                     .font(.caption.weight(.medium))
                                     .foregroundColor(.accentColor)
                             }
@@ -317,70 +317,26 @@ struct OverlayMapperSection: View {
 
             Spacer(minLength: 0)
 
-            // Behavior state icons bar
-            behaviorStateBar
+            // Behavior state picker with keycap illustrations
+            BehaviorStatePicker(
+                selectedState: $selectedBehaviorSlot,
+                onStateSelected: { slot in
+                    // Open the Tap & Hold panel to configure this behavior
+                    NotificationCenter.default.post(
+                        name: .openTapHoldPanel,
+                        object: nil,
+                        userInfo: [
+                            "keyLabel": viewModel.inputLabel,
+                            "keyCode": viewModel.inputKeyCode as Any,
+                            "slot": slot.rawValue
+                        ]
+                    )
+                },
+                configuredStates: configuredBehaviorSlots
+            )
+            .padding(.top, 8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    // MARK: - Behavior State Bar
-
-    /// Bar showing tap-dance behavior state icons
-    private var behaviorStateBar: some View {
-        HStack(spacing: 12) {
-            ForEach(BehaviorState.allCases) { state in
-                behaviorStateButton(for: state)
-            }
-        }
-        .padding(.top, 8)
-        .padding(.bottom, 4)
-    }
-
-    /// Individual behavior state button
-    private func behaviorStateButton(for state: BehaviorState) -> some View {
-        let isActive = activeBehaviorState == state
-        let isConfigured = configuredStates.contains(state)
-
-        return Button {
-            withAnimation(.easeInOut(duration: 0.15)) {
-                activeBehaviorState = state
-            }
-            // Open the Tap & Hold panel when a non-tap state is selected
-            if state != .tap {
-                NotificationCenter.default.post(
-                    name: .openTapHoldPanel,
-                    object: nil,
-                    userInfo: [
-                        "keyLabel": viewModel.inputLabel,
-                        "keyCode": viewModel.inputKeyCode as Any
-                    ]
-                )
-            }
-        } label: {
-            ZStack {
-                // Icon
-                Image(systemName: isActive ? state.iconFilled : state.icon)
-                    .font(.system(size: 18, weight: isActive ? .semibold : .regular))
-                    .foregroundStyle(isActive ? Color.accentColor : (isConfigured ? .primary : .secondary))
-
-                // Configured indicator dot (only if not active and has mapping)
-                if isConfigured && !isActive {
-                    Circle()
-                        .fill(Color.accentColor)
-                        .frame(width: 6, height: 6)
-                        .offset(x: 10, y: -10)
-                }
-            }
-            .frame(width: 32, height: 32)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isActive ? Color.accentColor.opacity(0.15) : Color.clear)
-            )
-        }
-        .buttonStyle(.plain)
-        .help(state.label)
-        .accessibilityIdentifier("mapper-behavior-\(state.rawValue)")
-        .accessibilityLabel(state.accessibilityLabel)
     }
 
     /// App condition dropdown - subtle when not set, shows app icon when set
@@ -1027,57 +983,5 @@ private struct LayerPickerItemButtonStyle: ButtonStyle {
             .onHover { hovering in
                 isHovering = hovering
             }
-    }
-}
-
-// MARK: - Behavior State
-
-/// Tap-dance behavior states for key mapping
-enum BehaviorState: String, CaseIterable, Identifiable {
-    case tap
-    case hold
-    case doubleTap
-    case tripleTap
-
-    var id: String { rawValue }
-
-    /// SF Symbol icon for this state
-    var icon: String {
-        switch self {
-        case .tap: "1.circle"
-        case .hold: "timer"
-        case .doubleTap: "2.circle"
-        case .tripleTap: "3.circle"
-        }
-    }
-
-    /// Filled icon variant for active/configured state
-    var iconFilled: String {
-        switch self {
-        case .tap: "1.circle.fill"
-        case .hold: "timer"  // timer doesn't have a fill variant
-        case .doubleTap: "2.circle.fill"
-        case .tripleTap: "3.circle.fill"
-        }
-    }
-
-    /// Short label for header
-    var label: String {
-        switch self {
-        case .tap: "Tap"
-        case .hold: "Hold"
-        case .doubleTap: "Double Tap"
-        case .tripleTap: "Triple Tap"
-        }
-    }
-
-    /// Accessibility label
-    var accessibilityLabel: String {
-        switch self {
-        case .tap: "Single tap behavior"
-        case .hold: "Hold behavior"
-        case .doubleTap: "Double tap behavior"
-        case .tripleTap: "Triple tap behavior"
-        }
     }
 }
