@@ -19,12 +19,6 @@ struct OverlayLaunchersSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header
-            Text("Launcher")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
-                .padding(.bottom, 12)
-
             // Scrollable content (mappings list)
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
@@ -66,24 +60,18 @@ struct OverlayLaunchersSection: View {
 
                 Spacer()
 
-                // Customize link - opens slide-over panel (matches mapper style)
+                // Settings icon - opens slide-over panel
                 if onCustomize != nil {
                     Button {
                         onCustomize?()
                     } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "slider.horizontal.3")
-                                .font(.system(size: 10))
-                            Text("Customize")
-                                .lineLimit(1)
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 8))
-                        }
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("overlay-launcher-customize")
+                    .accessibilityLabel("Launcher settings")
                 }
             }
             .padding(.top, 6)

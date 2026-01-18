@@ -70,26 +70,31 @@ final class FeatureTipManager: ObservableObject {
 
     private init() {}
 
-    // MARK: - Debug Mode
+    // MARK: - Learning Tips Mode
 
-    /// Whether to always show tips regardless of learned state
-    /// Controlled by FeatureFlags.alwaysShowLearningTips (default ON for development)
-    var alwaysShowTips: Bool {
-        FeatureFlags.alwaysShowLearningTips
+    /// Current learning tips display mode
+    var learningTipsMode: LearningTipsMode {
+        FeatureFlags.learningTipsMode
     }
 
     // MARK: - Public API
 
-    /// Check if a tip should be shown
-    /// Returns true if not yet learned (or alwaysShowTips feature flag is on)
+    /// Check if a tip should be shown based on learning tips mode
+    /// - .off: Never show tips
+    /// - .alwaysOn: Always show tips
+    /// - .untilLearned: Show until user demonstrates proficiency
     func shouldShow(_ tip: TipID) -> Bool {
-        if alwaysShowTips { return true }
-
-        var state = loadState(for: tip)
-        state.checkAndResetIfForgotten()
-        saveState(state, for: tip)
-
-        return !state.isLearned
+        switch learningTipsMode {
+        case .off:
+            return false
+        case .alwaysOn:
+            return true
+        case .untilLearned:
+            var state = loadState(for: tip)
+            state.checkAndResetIfForgotten()
+            saveState(state, for: tip)
+            return !state.isLearned
+        }
     }
 
     /// Record a successful use of the feature associated with this tip

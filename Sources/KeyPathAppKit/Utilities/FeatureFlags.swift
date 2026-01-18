@@ -61,7 +61,7 @@ extension FeatureFlags {
     private static let allowOptionalWizardKey = "ALLOW_OPTIONAL_WIZARD"
     private static let keyboardSuppressionDebugEnabledKey = "KEYBOARD_SUPPRESSION_DEBUG_ENABLED"
     private static let uninstallForTestingKey = "UNINSTALL_FOR_TESTING"
-    private static let alwaysShowLearningTipsKey = "ALWAYS_SHOW_LEARNING_TIPS"
+    private static let learningTipsModeKey = "LEARNING_TIPS_MODE"
 
     // MARK: - Active Feature Flags
 
@@ -130,18 +130,21 @@ extension FeatureFlags {
         UserDefaults.standard.set(enabled, forKey: uninstallForTestingKey)
     }
 
-    /// Always show learning tips regardless of learned state (default ON for development)
-    /// When enabled, contextual tips like "Hide — ⌘⌥K" always appear.
-    /// Turn OFF for production to respect learning state.
-    static var alwaysShowLearningTips: Bool {
-        if UserDefaults.standard.object(forKey: alwaysShowLearningTipsKey) == nil {
-            return true // default ON for development
+    /// Learning tips display mode
+    /// - untilLearned: Show tips until user demonstrates proficiency (default)
+    /// - alwaysOn: Always show tips regardless of learned state
+    /// - off: Never show learning tips
+    static var learningTipsMode: LearningTipsMode {
+        if let rawValue = UserDefaults.standard.string(forKey: learningTipsModeKey),
+           let mode = LearningTipsMode(rawValue: rawValue)
+        {
+            return mode
         }
-        return UserDefaults.standard.bool(forKey: alwaysShowLearningTipsKey)
+        return .untilLearned // default
     }
 
-    static func setAlwaysShowLearningTips(_ enabled: Bool) {
-        UserDefaults.standard.set(enabled, forKey: alwaysShowLearningTipsKey)
+    static func setLearningTipsMode(_ mode: LearningTipsMode) {
+        UserDefaults.standard.set(mode.rawValue, forKey: learningTipsModeKey)
     }
 
     // MARK: - Future Implementation (not yet built)
@@ -170,5 +173,25 @@ extension FeatureFlags {
 
     static func setAllowOptionalWizard(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: allowOptionalWizardKey)
+    }
+}
+
+// MARK: - Learning Tips Mode
+
+/// Controls when contextual learning tips are displayed
+enum LearningTipsMode: String, CaseIterable {
+    /// Show tips until user demonstrates proficiency (default)
+    case untilLearned = "until_learned"
+    /// Always show tips regardless of learned state
+    case alwaysOn = "always_on"
+    /// Never show learning tips
+    case off = "off"
+
+    var displayName: String {
+        switch self {
+        case .untilLearned: "Until Learned"
+        case .alwaysOn: "Always On"
+        case .off: "Off"
+        }
     }
 }
