@@ -317,21 +317,9 @@ struct OverlayMapperSection: View {
 
             Spacer(minLength: 0)
 
-            // Behavior state picker with keycap illustrations
+            // Behavior state picker - flat controls with click feedback
             BehaviorStatePicker(
                 selectedState: $selectedBehaviorSlot,
-                onStateSelected: { slot in
-                    // Open the Tap & Hold panel to configure this behavior
-                    NotificationCenter.default.post(
-                        name: .openTapHoldPanel,
-                        object: nil,
-                        userInfo: [
-                            "keyLabel": viewModel.inputLabel,
-                            "keyCode": viewModel.inputKeyCode as Any,
-                            "slot": slot.rawValue
-                        ]
-                    )
-                },
                 configuredStates: configuredBehaviorSlots
             )
             .padding(.top, 8)

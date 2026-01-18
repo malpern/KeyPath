@@ -1,6 +1,7 @@
 import SwiftUI
 
 /// A horizontal picker showing the four behavior states using image assets.
+/// Flat controls with click feedback and configuration indicators.
 /// Place images in Resources/BehaviorIcons/ named:
 ///   - behavior-tap.png, behavior-tap-selected.png
 ///   - behavior-hold.png, behavior-hold-selected.png
@@ -8,7 +9,6 @@ import SwiftUI
 ///   - behavior-taphold.png, behavior-taphold-selected.png
 struct BehaviorStatePicker: View {
     @Binding var selectedState: BehaviorSlot
-    var onStateSelected: ((BehaviorSlot) -> Void)?
 
     /// Whether each state has a configured action
     var configuredStates: Set<BehaviorSlot> = []
@@ -16,7 +16,16 @@ struct BehaviorStatePicker: View {
     var body: some View {
         HStack(spacing: 0) {
             ForEach(BehaviorSlot.allCases) { slot in
-                behaviorStateCell(slot)
+                BehaviorStateCell(
+                    slot: slot,
+                    isSelected: selectedState == slot,
+                    isConfigured: configuredStates.contains(slot),
+                    onSelect: {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            selectedState = slot
+                        }
+                    }
+                )
 
                 // Divider between cells (not after last)
                 if slot != BehaviorSlot.allCases.last {
@@ -27,34 +36,36 @@ struct BehaviorStatePicker: View {
             }
         }
         .background(
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: 8)
                 .fill(.ultraThinMaterial)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .strokeBorder(Color.white.opacity(0.15), lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
+}
 
-    private func behaviorStateCell(_ slot: BehaviorSlot) -> some View {
-        let isSelected = selectedState == slot
-        let isConfigured = configuredStates.contains(slot)
+/// Individual behavior state cell with press feedback
+private struct BehaviorStateCell: View {
+    let slot: BehaviorSlot
+    let isSelected: Bool
+    let isConfigured: Bool
+    let onSelect: () -> Void
 
-        return Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                selectedState = slot
-            }
-            onStateSelected?(slot)
-        } label: {
-            VStack(spacing: 3) {
+    @State private var isPressed = false
+
+    var body: some View {
+        Button(action: onSelect) {
+            VStack(spacing: 2) {
                 // Keycap image (compact)
-                behaviorImage(for: slot, isSelected: isSelected)
-                    .frame(height: 28)
+                behaviorImage
+                    .frame(height: 24)
 
                 // Label (smaller)
                 Text(slot.shortLabel)
-                    .font(.system(size: 9, weight: isSelected ? .semibold : .regular))
+                    .font(.system(size: 8, weight: isSelected ? .semibold : .regular))
                     .foregroundStyle(isSelected ? .white : .secondary)
                     .lineLimit(1)
 
@@ -64,35 +75,36 @@ struct BehaviorStatePicker: View {
                     .frame(width: 4, height: 4)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
+            .padding(.vertical, 5)
             .padding(.horizontal, 2)
-            .background(
-                Group {
-                    if isSelected {
-                        // Selected state blue glow background
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        Color.blue.opacity(0.5),
-                                        Color.blue.opacity(0.25)
-                                    ],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                    }
-                }
-            )
+            .background(cellBackground)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(BehaviorCellButtonStyle(isPressed: $isPressed))
         .accessibilityIdentifier("behavior-picker-\(slot.rawValue)")
         .accessibilityLabel("\(slot.label)\(isConfigured ? ", configured" : "")")
     }
 
     @ViewBuilder
-    private func behaviorImage(for slot: BehaviorSlot, isSelected: Bool) -> some View {
+    private var cellBackground: some View {
+        if isSelected {
+            // Selected state blue glow background
+            RoundedRectangle(cornerRadius: 5)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.blue.opacity(0.5),
+                            Color.blue.opacity(0.25)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+        }
+    }
+
+    @ViewBuilder
+    private var behaviorImage: some View {
         let imageName = isSelected ? slot.selectedImageName : slot.imageName
 
         // Try to load from bundle
@@ -103,13 +115,12 @@ struct BehaviorStatePicker: View {
         } else {
             // Fallback to SF Symbol if image not found
             Image(systemName: slot.fallbackIcon)
-                .font(.system(size: 16))
+                .font(.system(size: 14))
                 .foregroundStyle(isSelected ? .white : .secondary)
         }
     }
 
     private func loadBundleImage(named name: String) -> NSImage? {
-        // Try loading from the bundle's Resources/BehaviorIcons folder
         guard let url = Bundle.module.url(
             forResource: name,
             withExtension: "png",
@@ -118,6 +129,21 @@ struct BehaviorStatePicker: View {
             return nil
         }
         return NSImage(contentsOf: url)
+    }
+}
+
+/// Button style with press feedback animation
+private struct BehaviorCellButtonStyle: ButtonStyle {
+    @Binding var isPressed: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
+            .opacity(configuration.isPressed ? 0.8 : 1.0)
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { _, newValue in
+                isPressed = newValue
+            }
     }
 }
 
@@ -165,7 +191,7 @@ extension BehaviorSlot {
                     selectedState: $selected,
                     configuredStates: [.tap, .hold]
                 )
-                .frame(width: 280)
+                .frame(width: 240)
 
                 Text("Selected: \(selected.label)")
                     .foregroundStyle(.white)
