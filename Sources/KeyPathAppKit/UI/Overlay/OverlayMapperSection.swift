@@ -345,7 +345,17 @@ struct OverlayMapperSection: View {
             withAnimation(.easeInOut(duration: 0.15)) {
                 activeBehaviorState = state
             }
-            // TODO: Load the mapping for this state
+            // Open the Tap & Hold panel when a non-tap state is selected
+            if state != .tap {
+                NotificationCenter.default.post(
+                    name: .openTapHoldPanel,
+                    object: nil,
+                    userInfo: [
+                        "keyLabel": viewModel.inputLabel,
+                        "keyCode": viewModel.inputKeyCode as Any
+                    ]
+                )
+            }
         } label: {
             ZStack {
                 // Icon

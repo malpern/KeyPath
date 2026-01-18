@@ -47,6 +47,10 @@ extension Notification.Name {
     /// userInfo: keyCode (UInt16), inputKey (String), outputKey (String), layer (String)
     static let mapperDrawerKeySelected = Notification.Name("KeyPath.Mapper.DrawerKeySelected")
 
+    /// Posted when the Tap & Hold panel should be opened
+    /// userInfo: keyLabel (String), keyCode (UInt16)
+    static let openTapHoldPanel = Notification.Name("KeyPath.Mapper.OpenTapHoldPanel")
+
     // Uninstall flow
     static let keyPathUninstallCompleted = Notification.Name("KeyPath.Uninstall.Completed")
 

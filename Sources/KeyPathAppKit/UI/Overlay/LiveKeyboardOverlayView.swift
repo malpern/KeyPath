@@ -2060,8 +2060,8 @@ struct OverlayInspectorPanel: View {
             },
             panelContent: {
                 switch activeDrawerPanel {
-                case .customize:
-                    customizePanelContent
+                case .tapHold:
+                    tapHoldPanelContent
                 case .launcherSettings:
                     launcherCustomizePanelContent
                 case nil:
@@ -2086,6 +2086,19 @@ struct OverlayInspectorPanel: View {
                         .frame(width: width, height: proxy.size.height, alignment: .leading)
                 }
                 .allowsHitTesting(false)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openTapHoldPanel)) { notification in
+            // Extract key info from notification
+            if let keyLabel = notification.userInfo?["keyLabel"] as? String {
+                tapHoldKeyLabel = keyLabel
+            }
+            if let keyCode = notification.userInfo?["keyCode"] as? UInt16 {
+                tapHoldKeyCode = keyCode
+            }
+            // Open the Tap & Hold panel
+            withAnimation(.easeInOut(duration: 0.25)) {
+                activeDrawerPanel = .tapHold
             }
         }
     }
@@ -2355,7 +2368,26 @@ struct OverlayInspectorPanel: View {
         }
     }
 
-    // MARK: - Customize Panel Content (Tap-Hold Configuration)
+    // MARK: - Tap & Hold Panel State (Apple-style 80/20 design)
+
+    /// Key label being configured in the Tap & Hold panel
+    @State private var tapHoldKeyLabel: String = "A"
+    /// Key code being configured
+    @State private var tapHoldKeyCode: UInt16? = 0
+    /// Tap behavior action
+    @State private var tapHoldTapAction: BehaviorAction = .key("a")
+    /// Hold behavior action
+    @State private var tapHoldHoldAction: BehaviorAction = .none
+    /// Double tap behavior action
+    @State private var tapHoldDoubleTapAction: BehaviorAction = .none
+    /// Tap + Hold behavior action
+    @State private var tapHoldTapHoldAction: BehaviorAction = .none
+    /// Responsiveness level (maps to timing thresholds)
+    @State private var tapHoldResponsiveness: ResponsivenessLevel = .balanced
+    /// Use tap immediately when typing starts
+    @State private var tapHoldUseTapImmediately: Bool = true
+
+    // MARK: - Legacy Customize Panel State (deprecated - use Tap & Hold panel)
 
     /// Hold action for tap-hold configuration
     @State private var customizeHoldAction: String = ""
@@ -2385,7 +2417,22 @@ struct OverlayInspectorPanel: View {
     /// Labels for tap-dance steps beyond double tap
     private static let tapDanceLabels = ["Triple Tap", "Quad Tap", "Quint Tap"]
 
-    /// Content for the slide-over customize panel - tap-hold focused
+    /// Content for the Tap & Hold slide-over panel (Apple-style 80/20 design)
+    private var tapHoldPanelContent: some View {
+        TapHoldCardView(
+            keyLabel: tapHoldKeyLabel,
+            keyCode: tapHoldKeyCode,
+            tapAction: $tapHoldTapAction,
+            holdAction: $tapHoldHoldAction,
+            doubleTapAction: $tapHoldDoubleTapAction,
+            tapHoldAction: $tapHoldTapHoldAction,
+            responsiveness: $tapHoldResponsiveness,
+            useTapImmediately: $tapHoldUseTapImmediately
+        )
+        .padding(.horizontal, 4)
+    }
+
+    /// Content for the slide-over customize panel - tap-hold focused (legacy)
     private var customizePanelContent: some View {
         VStack(alignment: .leading, spacing: 16) {
             // On Hold row
@@ -3572,12 +3619,12 @@ private struct GlassEffectModifier: ViewModifier {
 
 /// Slide-over panels that can appear in the drawer
 enum DrawerPanel {
-    case customize          // Tap-hold/trigger customization
+    case tapHold            // Tap & Hold configuration (Apple-style 80/20 design)
     case launcherSettings   // Launcher activation mode & history suggestions
 
     var title: String {
         switch self {
-        case .customize: "Customize"
+        case .tapHold: "Tap & Hold"
         case .launcherSettings: "Launcher Settings"
         }
     }
