@@ -185,7 +185,7 @@ enum LearningTipsMode: String, CaseIterable {
     /// Always show tips regardless of learned state
     case alwaysOn = "always_on"
     /// Never show learning tips
-    case off = "off"
+    case off
 
     var displayName: String {
         switch self {

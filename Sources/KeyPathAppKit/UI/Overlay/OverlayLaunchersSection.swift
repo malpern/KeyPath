@@ -175,7 +175,6 @@ struct OverlayLaunchersSection: View {
             size: .zero // Use default size
         )
     }
-
 }
 
 // MARK: - Data Model

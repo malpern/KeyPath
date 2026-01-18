@@ -22,7 +22,7 @@ struct BehaviorSlotKeycap: View {
 
     var body: some View {
         ZStack {
-            if !isConfigured && !isRecording {
+            if !isConfigured, !isRecording {
                 // Not configured: show inviting "+" placeholder
                 emptyStateView
             } else {
@@ -109,7 +109,7 @@ struct BehaviorSlotKeycap: View {
             }
 
             // Clear button (top-right) - only shown when configured (not while recording)
-            if isConfigured && !isRecording {
+            if isConfigured, !isRecording {
                 VStack {
                     HStack {
                         Spacer()

@@ -961,10 +961,10 @@ class RuntimeCoordinator: SaveCoordinatorDelegate {
         case .success:
             AppLogger.shared.log("✅ [RuntimeCoordinator] Layer changed to: \(layerName)")
             return true
-        case .error(let msg):
+        case let .error(msg):
             AppLogger.shared.warn("❌ [RuntimeCoordinator] Failed to change layer: \(msg)")
             return false
-        case .networkError(let msg):
+        case let .networkError(msg):
             AppLogger.shared.warn("❌ [RuntimeCoordinator] Network error changing layer: \(msg)")
             return false
         }

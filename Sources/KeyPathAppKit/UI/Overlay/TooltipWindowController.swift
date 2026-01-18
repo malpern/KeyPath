@@ -68,13 +68,13 @@ final class TooltipWindowController {
 
         guard let window else { return }
 
-        NSAnimationContext.runAnimationGroup({ context in
+        NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.15
             window.animator().alphaValue = 0
-        }, completionHandler: { [weak self] in
+        } completionHandler: { [weak self] in
             self?.window?.orderOut(nil)
             self?.window = nil
-        })
+        }
     }
 
     private func showWindow(text: String, anchorRect: NSRect) {
@@ -95,20 +95,20 @@ final class TooltipWindowController {
         )
         tooltipWindow.isOpaque = false
         tooltipWindow.backgroundColor = .clear
-        tooltipWindow.level = .floating + 1  // Above other floating windows
+        tooltipWindow.level = .floating + 1 // Above other floating windows
         tooltipWindow.hasShadow = true
         tooltipWindow.ignoresMouseEvents = true
         tooltipWindow.contentView = hostingView
 
         // Position above the anchor, centered horizontally
         let tooltipX = anchorRect.midX - fittingSize.width / 2
-        let tooltipY = anchorRect.maxY + 6  // 6pt gap above anchor
+        let tooltipY = anchorRect.maxY + 6 // 6pt gap above anchor
         tooltipWindow.setFrameOrigin(NSPoint(x: tooltipX, y: tooltipY))
 
         // Fade in
         tooltipWindow.alphaValue = 0
         tooltipWindow.orderFront(nil)
-        self.window = tooltipWindow
+        window = tooltipWindow
 
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.15

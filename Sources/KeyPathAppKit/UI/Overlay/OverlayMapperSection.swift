@@ -67,13 +67,13 @@ struct OverlayMapperSection: View {
         switch selectedBehaviorSlot {
         case .tap:
             // Tap always has a behavior (even if it's same key in/out)
-            return true
+            true
         case .hold:
-            return !viewModel.holdAction.isEmpty
+            !viewModel.holdAction.isEmpty
         case .doubleTap:
-            return !viewModel.doubleTapAction.isEmpty
+            !viewModel.doubleTapAction.isEmpty
         case .tapHold:
-            return !viewModel.tapHoldAction.isEmpty
+            !viewModel.tapHoldAction.isEmpty
         }
     }
 
@@ -81,13 +81,13 @@ struct OverlayMapperSection: View {
     private var isRecordingForCurrentSlot: Bool {
         switch selectedBehaviorSlot {
         case .tap:
-            return viewModel.isRecordingOutput
+            viewModel.isRecordingOutput
         case .hold:
-            return viewModel.isRecordingHold
+            viewModel.isRecordingHold
         case .doubleTap:
-            return viewModel.isRecordingDoubleTap
+            viewModel.isRecordingDoubleTap
         case .tapHold:
-            return viewModel.isRecordingTapHold
+            viewModel.isRecordingTapHold
         }
     }
 
@@ -291,7 +291,7 @@ struct OverlayMapperSection: View {
             titleVisibility: .visible
         ) {
             // Option 1: Clear just the current slot (only for non-tap slots that are configured)
-            if selectedBehaviorSlot != .tap && currentSlotIsConfigured {
+            if selectedBehaviorSlot != .tap, currentSlotIsConfigured {
                 Button("Clear \(selectedBehaviorSlot.label) Only") {
                     clearCurrentSlot()
                 }
@@ -313,7 +313,7 @@ struct OverlayMapperSection: View {
             Button("Cancel", role: .cancel) {}
                 .accessibilityIdentifier("overlay-mapper-reset-cancel-button")
         } message: {
-            if selectedBehaviorSlot != .tap && currentSlotIsConfigured {
+            if selectedBehaviorSlot != .tap, currentSlotIsConfigured {
                 Text("What would you like to clear?")
             } else {
                 Text("Choose what to clear for \"\(viewModel.inputLabel.uppercased())\"")
@@ -458,16 +458,6 @@ struct OverlayMapperSection: View {
             }
             .frame(height: 160)
 
-            // Status message row
-            if let status = viewModel.statusMessage {
-                Text(status)
-                    .font(.caption)
-                    .foregroundStyle(viewModel.statusIsError ? .red : (status.contains("✓") ? .green : .secondary))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 4)
-                    .transition(.opacity)
-            }
-
             if viewModel.showAdvanced {
                 AdvancedBehaviorContent(viewModel: viewModel)
                     .transition(.opacity.combined(with: .move(edge: .top)))
@@ -476,12 +466,31 @@ struct OverlayMapperSection: View {
             Spacer(minLength: 0)
 
             // Behavior state picker - flat controls with click feedback
-            BehaviorStatePicker(
-                selectedState: $selectedBehaviorSlot,
-                configuredStates: configuredBehaviorSlots,
-                tapIsNonIdentity: tapHasNonIdentityMapping
-            )
-            .padding(.top, 8)
+            // Use ZStack to overlay status message without affecting layout
+            ZStack(alignment: .top) {
+                BehaviorStatePicker(
+                    selectedState: $selectedBehaviorSlot,
+                    configuredStates: configuredBehaviorSlots,
+                    tapIsNonIdentity: tapHasNonIdentityMapping
+                )
+                .padding(.top, 8)
+
+                // Status message overlaid above the picker (doesn't push content down)
+                if let status = viewModel.statusMessage {
+                    Text(status)
+                        .font(.caption)
+                        .foregroundStyle(viewModel.statusIsError ? .red : (status.contains("✓") ? .green : .secondary))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(.ultraThinMaterial)
+                        )
+                        .offset(y: -8)
+                        .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                        .animation(.easeOut(duration: 0.2), value: status)
+                }
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -1048,15 +1057,15 @@ struct OverlayMapperSection: View {
     /// Info about current output type for display
     private var outputTypeDisplayInfo: (label: String, icon: String, isDefault: Bool) {
         if viewModel.selectedApp != nil {
-            return ("Launch App", "app.fill", false)
+            ("Launch App", "app.fill", false)
         } else if viewModel.selectedSystemAction != nil {
-            return (viewModel.selectedSystemAction?.name ?? "System", "gearshape", false)
+            (viewModel.selectedSystemAction?.name ?? "System", "gearshape", false)
         } else if viewModel.selectedURL != nil {
-            return ("Open URL", "link", false)
+            ("Open URL", "link", false)
         } else if selectedLayerOutput != nil {
-            return ("Go to Layer", "square.stack.3d.up", false)
+            ("Go to Layer", "square.stack.3d.up", false)
         } else {
-            return ("Keystroke", "keyboard", true)
+            ("Keystroke", "keyboard", true)
         }
     }
 
@@ -1097,176 +1106,176 @@ struct OverlayMapperSection: View {
         let isLayerSelected = selectedLayerOutput != nil
 
         return VStack(spacing: 0) {
-                // "Keystroke" option
-                Button {
-                    collapseAllSections()
-                    selectedLayerOutput = nil
-                    viewModel.revertToKeystroke()
-                    isSystemActionPickerOpen = false
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: isKeystrokeSelected ? "checkmark.circle.fill" : "circle")
-                            .font(.title3)
-                            .foregroundStyle(isKeystrokeSelected ? Color.accentColor : .secondary)
-                            .frame(width: 24)
-                        Image(systemName: "keyboard")
-                            .font(.body)
-                            .frame(width: 20)
-                        Text("Keystroke")
-                            .font(.body)
-                        Spacer()
-                    }
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .contentShape(Rectangle())
+            // "Keystroke" option
+            Button {
+                collapseAllSections()
+                selectedLayerOutput = nil
+                viewModel.revertToKeystroke()
+                isSystemActionPickerOpen = false
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: isKeystrokeSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundStyle(isKeystrokeSelected ? Color.accentColor : .secondary)
+                        .frame(width: 24)
+                    Image(systemName: "keyboard")
+                        .font(.body)
+                        .frame(width: 20)
+                    Text("Keystroke")
+                        .font(.body)
+                    Spacer()
                 }
-                .buttonStyle(LayerPickerItemButtonStyle())
-                .focusable(false)
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(LayerPickerItemButtonStyle())
+            .focusable(false)
 
-                Divider().opacity(0.2).padding(.horizontal, 8)
+            Divider().opacity(0.2).padding(.horizontal, 8)
 
-                // "System Action" option - clickable to expand/collapse
-                Button {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        isSystemActionsExpanded.toggle()
-                        if isSystemActionsExpanded {
-                            isLaunchAppsExpanded = false
-                            isLayersExpanded = false
-                        }
+            // "System Action" option - clickable to expand/collapse
+            Button {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    isSystemActionsExpanded.toggle()
+                    if isSystemActionsExpanded {
+                        isLaunchAppsExpanded = false
+                        isLayersExpanded = false
                     }
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: isSystemActionSelected ? "checkmark.circle.fill" : "circle")
-                            .font(.title3)
-                            .foregroundStyle(isSystemActionSelected ? Color.accentColor : .secondary)
-                            .frame(width: 24)
-                        Image(systemName: "gearshape")
-                            .font(.body)
-                            .frame(width: 20)
-                        Text("System Action")
-                            .font(.body)
-                        Spacer()
-                        if let action = viewModel.selectedSystemAction {
-                            Text(action.name)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Image(systemName: isSystemActionsExpanded ? "chevron.up" : "chevron.down")
+                }
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: isSystemActionSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundStyle(isSystemActionSelected ? Color.accentColor : .secondary)
+                        .frame(width: 24)
+                    Image(systemName: "gearshape")
+                        .font(.body)
+                        .frame(width: 20)
+                    Text("System Action")
+                        .font(.body)
+                    Spacer()
+                    if let action = viewModel.selectedSystemAction {
+                        Text(action.name)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .contentShape(Rectangle())
+                    Image(systemName: isSystemActionsExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .buttonStyle(LayerPickerItemButtonStyle())
-                .focusable(false)
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(LayerPickerItemButtonStyle())
+            .focusable(false)
 
-                // Collapsible system actions grid
-                if isSystemActionsExpanded {
-                    VStack(spacing: 0) {
-                        ForEach(systemActionGroups, id: \.title) { group in
-                            systemActionGroupView(group)
-                        }
+            // Collapsible system actions grid
+            if isSystemActionsExpanded {
+                VStack(spacing: 0) {
+                    ForEach(systemActionGroups, id: \.title) { group in
+                        systemActionGroupView(group)
                     }
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
+            Divider().opacity(0.2).padding(.horizontal, 8)
+
+            // "Launch App" option - clickable to expand/collapse
+            Button {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    isLaunchAppsExpanded.toggle()
+                    if isLaunchAppsExpanded {
+                        isSystemActionsExpanded = false
+                        isLayersExpanded = false
+                        loadKnownApps()
+                    }
+                }
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: isAppSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundStyle(isAppSelected ? Color.accentColor : .secondary)
+                        .frame(width: 24)
+                    if let app = viewModel.selectedApp {
+                        Image(nsImage: app.icon)
+                            .resizable()
+                            .frame(width: 20, height: 20)
+                    } else {
+                        Image(systemName: "app.fill")
+                            .font(.body)
+                            .frame(width: 20)
+                    }
+                    Text(viewModel.selectedApp?.name ?? "Launch App")
+                        .font(.body)
+                    Spacer()
+                    if let app = viewModel.selectedApp {
+                        Text(app.name)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Image(systemName: isLaunchAppsExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(LayerPickerItemButtonStyle())
+            .focusable(false)
+
+            // Collapsible known apps list
+            if isLaunchAppsExpanded {
+                launchAppsExpandedContent
                     .transition(.opacity.combined(with: .move(edge: .top)))
-                }
+            }
 
-                Divider().opacity(0.2).padding(.horizontal, 8)
+            Divider().opacity(0.2).padding(.horizontal, 8)
 
-                // "Launch App" option - clickable to expand/collapse
-                Button {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        isLaunchAppsExpanded.toggle()
-                        if isLaunchAppsExpanded {
-                            isSystemActionsExpanded = false
-                            isLayersExpanded = false
-                            loadKnownApps()
-                        }
+            // "Go to Layer" option - clickable to expand/collapse
+            Button {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    isLayersExpanded.toggle()
+                    if isLayersExpanded {
+                        isSystemActionsExpanded = false
+                        isLaunchAppsExpanded = false
+                        Task { await viewModel.refreshAvailableLayers() }
                     }
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: isAppSelected ? "checkmark.circle.fill" : "circle")
-                            .font(.title3)
-                            .foregroundStyle(isAppSelected ? Color.accentColor : .secondary)
-                            .frame(width: 24)
-                        if let app = viewModel.selectedApp {
-                            Image(nsImage: app.icon)
-                                .resizable()
-                                .frame(width: 20, height: 20)
-                        } else {
-                            Image(systemName: "app.fill")
-                                .font(.body)
-                                .frame(width: 20)
-                        }
-                        Text(viewModel.selectedApp?.name ?? "Launch App")
-                            .font(.body)
-                        Spacer()
-                        if let app = viewModel.selectedApp {
-                            Text(app.name)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Image(systemName: isLaunchAppsExpanded ? "chevron.up" : "chevron.down")
+                }
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: isLayerSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundStyle(isLayerSelected ? Color.accentColor : .secondary)
+                        .frame(width: 24)
+                    Image(systemName: "square.stack.3d.up")
+                        .font(.body)
+                        .frame(width: 20)
+                    Text("Go to Layer")
+                        .font(.body)
+                    Spacer()
+                    if let layer = selectedLayerOutput {
+                        Text(layer.capitalized)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .contentShape(Rectangle())
+                    Image(systemName: isLayersExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .buttonStyle(LayerPickerItemButtonStyle())
-                .focusable(false)
-
-                // Collapsible known apps list
-                if isLaunchAppsExpanded {
-                    launchAppsExpandedContent
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                }
-
-                Divider().opacity(0.2).padding(.horizontal, 8)
-
-                // "Go to Layer" option - clickable to expand/collapse
-                Button {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        isLayersExpanded.toggle()
-                        if isLayersExpanded {
-                            isSystemActionsExpanded = false
-                            isLaunchAppsExpanded = false
-                            Task { await viewModel.refreshAvailableLayers() }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: isLayerSelected ? "checkmark.circle.fill" : "circle")
-                            .font(.title3)
-                            .foregroundStyle(isLayerSelected ? Color.accentColor : .secondary)
-                            .frame(width: 24)
-                        Image(systemName: "square.stack.3d.up")
-                            .font(.body)
-                            .frame(width: 20)
-                        Text("Go to Layer")
-                            .font(.body)
-                        Spacer()
-                        if let layer = selectedLayerOutput {
-                            Text(layer.capitalized)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Image(systemName: isLayersExpanded ? "chevron.up" : "chevron.down")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(LayerPickerItemButtonStyle())
-                .focusable(false)
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(LayerPickerItemButtonStyle())
+            .focusable(false)
 
             // Collapsible layers list
             if isLayersExpanded {

@@ -251,7 +251,7 @@ private final class StubRuntimeCoordinator: RuntimeCoordinator {
         stubLayerNames
     }
 
-    override func changeLayer(_ layerName: String) async -> Bool {
+    override func changeLayer(_: String) async -> Bool {
         stubChangeLayerResult
     }
 }

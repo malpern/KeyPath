@@ -5,8 +5,8 @@
 //  Tests for the tap-hold customize panel functionality.
 //
 
-import XCTest
 @testable import KeyPathAppKit
+import XCTest
 
 final class TapHoldCustomizeTests: XCTestCase {
     // MARK: - Key Formatting Tests
@@ -95,16 +95,16 @@ final class TapHoldCustomizeTests: XCTestCase {
     /// Standalone format function for testing (mirrors the one in LiveKeyboardOverlayView)
     private func formatKeyForCustomize(_ key: String) -> String {
         switch key.lowercased() {
-        case "lmet", "rmet", "met": return "⌘"
-        case "lalt", "ralt", "alt": return "⌥"
-        case "lctl", "rctl", "ctl": return "⌃"
-        case "lsft", "rsft", "sft": return "⇧"
-        case "space", "spc": return "␣"
-        case "ret", "return", "enter": return "↩"
-        case "bspc", "backspace": return "⌫"
-        case "tab": return "⇥"
-        case "esc", "escape": return "⎋"
-        default: return key.uppercased()
+        case "lmet", "rmet", "met": "⌘"
+        case "lalt", "ralt", "alt": "⌥"
+        case "lctl", "rctl", "ctl": "⌃"
+        case "lsft", "rsft", "sft": "⇧"
+        case "space", "spc": "␣"
+        case "ret", "return", "enter": "↩"
+        case "bspc", "backspace": "⌫"
+        case "tab": "⇥"
+        case "esc", "escape": "⎋"
+        default: key.uppercased()
         }
     }
 }

@@ -2242,8 +2242,10 @@ struct OverlayInspectorPanel: View {
         // Use UserDefaults directly since @AppStorage can't be accessed from nested functions
         UserDefaults.standard.set(InspectorSection.mapper.rawValue, forKey: "inspectorSection")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            // Convert input key label to keyCode for proper keyboard highlighting
+            let keyCode = LogicalKeymap.keyCode(forQwertyLabel: override.inputKey) ?? 0
             let userInfo: [String: Any] = [
-                "keyCode": UInt16(0),
+                "keyCode": keyCode,
                 "inputKey": override.inputKey,
                 "outputKey": override.outputAction,
                 "appBundleId": keymap.mapping.bundleIdentifier,
@@ -2278,8 +2280,10 @@ struct OverlayInspectorPanel: View {
         // Open mapper with the global rule preloaded (no app condition)
         onSelectSection(.mapper)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            // Convert input key label to keyCode for proper keyboard highlighting
+            let keyCode = LogicalKeymap.keyCode(forQwertyLabel: rule.input) ?? 0
             let userInfo: [String: Any] = [
-                "keyCode": UInt16(0),
+                "keyCode": keyCode,
                 "inputKey": rule.input,
                 "outputKey": rule.output
                 // No appBundleId means global/everywhere
@@ -2376,29 +2380,16 @@ struct OverlayInspectorPanel: View {
 
     @ViewBuilder
     private var mapperContent: some View {
-        if case .unhealthy = healthIndicatorState {
-            OverlayMapperSection(
-                isDark: isDark,
-                kanataViewModel: kanataViewModel,
-                healthIndicatorState: healthIndicatorState,
-                onHealthTap: onHealthTap,
-                fadeAmount: fadeAmount,
-                onKeySelected: onKeySelected,
-                layerKeyMap: layerKeyMap
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        } else if healthIndicatorState == .checking {
-            OverlayMapperSection(
-                isDark: isDark,
-                kanataViewModel: kanataViewModel,
-                healthIndicatorState: healthIndicatorState,
-                onHealthTap: onHealthTap,
-                fadeAmount: fadeAmount,
-                onKeySelected: onKeySelected,
-                layerKeyMap: layerKeyMap
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        } else if isMapperAvailable {
+        // Use a single OverlayMapperSection instance to maintain view identity across health state changes.
+        // Previously, separate instances for .unhealthy/.checking/.healthy caused onAppear to reset
+        // the selected key when health state changed (e.g., after clicking a rule from the rules panel).
+        let showMapper: Bool = {
+            if isMapperAvailable { return true }
+            if healthIndicatorState == .checking { return true }
+            if case .unhealthy = healthIndicatorState { return true }
+            return false
+        }()
+        if showMapper {
             OverlayMapperSection(
                 isDark: isDark,
                 kanataViewModel: kanataViewModel,

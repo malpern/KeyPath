@@ -112,16 +112,16 @@ final class HideHintWindowController {
         guard let window else { return }
 
         // Fade in
-        NSAnimationContext.runAnimationGroup({ context in
+        NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.3
             window.animator().alphaValue = 1.0
-        }, completionHandler: { [weak self] in
+        } completionHandler: { [weak self] in
             AppLogger.shared.log("🔔 [HideHintWindow] Hint bubble faded in")
             // Start the 10 second dismiss timer after fade completes
             Task { @MainActor in
                 self?.startDismissTimer()
             }
-        })
+        }
     }
 
     private func startDismissTimer() {

@@ -144,11 +144,11 @@ struct TapHoldCardView: View {
             Image(systemName: "minus.circle")
                 .font(.title2)
                 .foregroundStyle(.tertiary)
-        case .key(let label):
+        case let .key(label):
             Text(label.uppercased())
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
                 .foregroundStyle(.primary)
-        case .modifier(let symbol):
+        case let .modifier(symbol):
             Text(symbol)
                 .font(.title2)
                 .foregroundStyle(.primary)
@@ -156,7 +156,7 @@ struct TapHoldCardView: View {
             Image(systemName: "square.3.layers.3d")
                 .font(.title2)
                 .foregroundStyle(.purple)
-        case .app(_, let icon):
+        case let .app(_, icon):
             if let icon {
                 Image(nsImage: icon)
                     .resizable()
@@ -166,7 +166,7 @@ struct TapHoldCardView: View {
                     .font(.title2)
                     .foregroundStyle(.blue)
             }
-        case .systemAction(_, let iconName):
+        case let .systemAction(_, iconName):
             Image(systemName: iconName)
                 .font(.title2)
                 .foregroundStyle(.orange)
@@ -319,7 +319,7 @@ enum BehaviorSlot: String, Identifiable, CaseIterable {
 enum BehaviorAction: Equatable {
     case none
     case key(String)
-    case modifier(String)  // e.g., "⌘", "⌥"
+    case modifier(String) // e.g., "⌘", "⌥"
     case layer(String)
     case app(name: String, icon: NSImage?)
     case systemAction(name: String, icon: String)
@@ -327,11 +327,11 @@ enum BehaviorAction: Equatable {
     var displayName: String {
         switch self {
         case .none: "Not configured"
-        case .key(let k): "Key: \(k.uppercased())"
-        case .modifier(let m): "Modifier: \(m)"
-        case .layer(let l): "Layer: \(l)"
-        case .app(let n, _): "Launch: \(n)"
-        case .systemAction(let n, _): n
+        case let .key(k): "Key: \(k.uppercased())"
+        case let .modifier(m): "Modifier: \(m)"
+        case let .layer(l): "Layer: \(l)"
+        case let .app(n, _): "Launch: \(n)"
+        case let .systemAction(n, _): n
         }
     }
 
@@ -349,22 +349,22 @@ enum BehaviorAction: Equatable {
     var accessibilityDescription: String {
         switch self {
         case .none: "not configured"
-        case .key(let k): "key \(k)"
-        case .modifier(let m): "modifier \(m)"
-        case .layer(let l): "layer \(l)"
-        case .app(let n, _): "launch \(n)"
-        case .systemAction(let n, _): "\(n)"
+        case let .key(k): "key \(k)"
+        case let .modifier(m): "modifier \(m)"
+        case let .layer(l): "layer \(l)"
+        case let .app(n, _): "launch \(n)"
+        case let .systemAction(n, _): "\(n)"
         }
     }
 
     static func == (lhs: BehaviorAction, rhs: BehaviorAction) -> Bool {
         switch (lhs, rhs) {
         case (.none, .none): true
-        case (.key(let a), .key(let b)): a == b
-        case (.modifier(let a), .modifier(let b)): a == b
-        case (.layer(let a), .layer(let b)): a == b
-        case (.app(let a, _), .app(let b, _)): a == b
-        case (.systemAction(let a, _), .systemAction(let b, _)): a == b
+        case let (.key(a), .key(b)): a == b
+        case let (.modifier(a), .modifier(b)): a == b
+        case let (.layer(a), .layer(b)): a == b
+        case let (.app(a, _), .app(b, _)): a == b
+        case let (.systemAction(a, _), .systemAction(b, _)): a == b
         default: false
         }
     }
@@ -398,40 +398,40 @@ enum ResponsivenessLevel: String, CaseIterable {
 /// Live feedback state for the key preview
 enum LiveFeedbackState: Equatable {
     case idle
-    case holding(progress: CGFloat)  // 0.0 to 1.0
+    case holding(progress: CGFloat) // 0.0 to 1.0
     case tapped(count: Int)
 }
 
 // MARK: - Preview
 
 #if DEBUG
-#Preview("Tap & Hold Card") {
-    struct PreviewWrapper: View {
-        @State var tap: BehaviorAction = .key("a")
-        @State var hold: BehaviorAction = .modifier("⌘")
-        @State var doubleTap: BehaviorAction = .none
-        @State var tapHold: BehaviorAction = .layer("Nav")
-        @State var responsiveness: ResponsivenessLevel = .balanced
-        @State var useTapImmediately = true
+    #Preview("Tap & Hold Card") {
+        struct PreviewWrapper: View {
+            @State var tap: BehaviorAction = .key("a")
+            @State var hold: BehaviorAction = .modifier("⌘")
+            @State var doubleTap: BehaviorAction = .none
+            @State var tapHold: BehaviorAction = .layer("Nav")
+            @State var responsiveness: ResponsivenessLevel = .balanced
+            @State var useTapImmediately = true
 
-        var body: some View {
-            TapHoldCardView(
-                keyLabel: "A",
-                keyCode: 0,
-                initialSlot: .tap,
-                tapAction: $tap,
-                holdAction: $hold,
-                doubleTapAction: $doubleTap,
-                tapHoldAction: $tapHold,
-                responsiveness: $responsiveness,
-                useTapImmediately: $useTapImmediately
-            )
-            .frame(width: 300, height: 480)
-            .padding()
-            .background(Color(NSColor.windowBackgroundColor))
+            var body: some View {
+                TapHoldCardView(
+                    keyLabel: "A",
+                    keyCode: 0,
+                    initialSlot: .tap,
+                    tapAction: $tap,
+                    holdAction: $hold,
+                    doubleTapAction: $doubleTap,
+                    tapHoldAction: $tapHold,
+                    responsiveness: $responsiveness,
+                    useTapImmediately: $useTapImmediately
+                )
+                .frame(width: 300, height: 480)
+                .padding()
+                .background(Color(NSColor.windowBackgroundColor))
+            }
         }
-    }
 
-    return PreviewWrapper()
-}
+        return PreviewWrapper()
+    }
 #endif

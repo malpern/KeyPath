@@ -39,10 +39,10 @@ struct BehaviorStatePicker: View {
         switch slot {
         case .tap:
             // Only show dot if tap is a non-identity mapping (A→B, not A→A)
-            return tapIsNonIdentity
+            tapIsNonIdentity
         case .hold, .doubleTap, .tapHold:
             // Show dot if the slot has a configured action
-            return configuredStates.contains(slot)
+            configuredStates.contains(slot)
         }
     }
 }
@@ -285,27 +285,27 @@ extension BehaviorSlot {
 // MARK: - Preview
 
 #if DEBUG
-#Preview("Behavior State Picker") {
-    struct PreviewWrapper: View {
-        @State var selected: BehaviorSlot = .tap
+    #Preview("Behavior State Picker") {
+        struct PreviewWrapper: View {
+            @State var selected: BehaviorSlot = .tap
 
-        var body: some View {
-            VStack(spacing: 20) {
-                BehaviorStatePicker(
-                    selectedState: $selected,
-                    configuredStates: [.hold],
-                    tapIsNonIdentity: true
-                )
-                .frame(width: 240)
+            var body: some View {
+                VStack(spacing: 20) {
+                    BehaviorStatePicker(
+                        selectedState: $selected,
+                        configuredStates: [.hold],
+                        tapIsNonIdentity: true
+                    )
+                    .frame(width: 240)
 
-                Text("Selected: \(selected.label)")
-                    .foregroundStyle(.white)
+                    Text("Selected: \(selected.label)")
+                        .foregroundStyle(.white)
+                }
+                .padding(30)
+                .background(Color.black)
             }
-            .padding(30)
-            .background(Color.black)
         }
-    }
 
-    return PreviewWrapper()
-}
+        return PreviewWrapper()
+    }
 #endif

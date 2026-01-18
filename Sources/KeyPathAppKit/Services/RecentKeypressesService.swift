@@ -134,7 +134,7 @@ final class RecentKeypressesService: ObservableObject {
         let consecutiveWindow: TimeInterval = 0.5
 
         // Track release events for the current key being monitored
-        if key == lastConsecutiveKey && action == "release" {
+        if key == lastConsecutiveKey, action == "release" {
             sawReleaseBetweenPresses = true
             lastKeyAction = action
             return

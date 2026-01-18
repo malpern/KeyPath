@@ -118,35 +118,35 @@ struct SlideOverContainer<MainContent: View, PanelContent: View>: View {
 // MARK: - Preview
 
 #if DEBUG
-#Preview("SlideOverPanel") {
-    struct PreviewWrapper: View {
-        @State private var showPanel = false
+    #Preview("SlideOverPanel") {
+        struct PreviewWrapper: View {
+            @State private var showPanel = false
 
-        var body: some View {
-            SlideOverContainer(
-                isPresented: $showPanel,
-                panelTitle: "Customize",
-                mainContent: {
-                    VStack {
-                        Text("Main Content")
-                        Button("Show Panel") {
-                            showPanel = true
+            var body: some View {
+                SlideOverContainer(
+                    isPresented: $showPanel,
+                    panelTitle: "Customize",
+                    mainContent: {
+                        VStack {
+                            Text("Main Content")
+                            Button("Show Panel") {
+                                showPanel = true
+                            }
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.gray.opacity(0.2))
+                    },
+                    panelContent: {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("Panel Content")
+                            Text("This is where the action picker would go")
                         }
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.gray.opacity(0.2))
-                },
-                panelContent: {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Panel Content")
-                        Text("This is where the action picker would go")
-                    }
-                }
-            )
-            .frame(width: 280, height: 400)
+                )
+                .frame(width: 280, height: 400)
+            }
         }
-    }
 
-    return PreviewWrapper()
-}
+        return PreviewWrapper()
+    }
 #endif
