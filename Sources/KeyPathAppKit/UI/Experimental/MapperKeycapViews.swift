@@ -1,6 +1,162 @@
 import AppKit
 import SwiftUI
 
+// MARK: - Behavior Slot Keycap View
+
+/// Keycap view for behavior slot outputs (Hold, Double Tap, etc.)
+/// Shows a "+" placeholder when not configured (inviting user to add).
+/// Shows the configured action with a clear button when configured.
+struct BehaviorSlotKeycap: View {
+    let label: String
+    let isConfigured: Bool
+    let isRecording: Bool
+    let slotName: String // e.g., "Hold", "Double Tap"
+    let onTap: () -> Void
+    let onClear: () -> Void
+
+    @State private var isHovered = false
+    @State private var isPressed = false
+
+    private let baseSize: CGFloat = 100
+    private let cornerRadius: CGFloat = 10
+
+    var body: some View {
+        ZStack {
+            if !isConfigured && !isRecording {
+                // Not configured: show inviting "+" placeholder
+                emptyStateView
+            } else {
+                // Configured or recording: show keycap with label
+                configuredStateView
+            }
+        }
+        .frame(width: baseSize, height: baseSize)
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+        .animation(.spring(response: 0.15, dampingFraction: 0.6), value: isPressed)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
+        .onTapGesture {
+            withAnimation(.spring(response: 0.1, dampingFraction: 0.8)) {
+                isPressed = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation(.spring(response: 0.1, dampingFraction: 0.8)) {
+                    isPressed = false
+                }
+            }
+            onTap()
+        }
+    }
+
+    // MARK: - Empty State (Not Configured)
+
+    private var emptyStateView: some View {
+        ZStack {
+            // Dashed border background - indicates "tap to add"
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(Color(white: 0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .strokeBorder(
+                            style: StrokeStyle(lineWidth: 2, dash: [8, 4])
+                        )
+                        .foregroundStyle(isHovered ? Color.white.opacity(0.4) : Color.white.opacity(0.2))
+                )
+
+            // Plus icon - inviting to tap
+            Image(systemName: "plus")
+                .font(.system(size: 32, weight: .light))
+                .foregroundStyle(isHovered ? Color.white.opacity(0.6) : Color.white.opacity(0.35))
+        }
+    }
+
+    // MARK: - Configured State (Has Action)
+
+    private var configuredStateView: some View {
+        ZStack {
+            // Key background
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(backgroundColor)
+                .shadow(color: Color.black.opacity(0.5), radius: isPressed ? 1 : 2, y: isPressed ? 1 : 2)
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .stroke(borderColor, lineWidth: isRecording ? 2 : 1)
+                )
+
+            // Key label - show "..." when recording, otherwise show configured action
+            if isRecording {
+                // Recording mode: show "..." placeholder
+                Text("...")
+                    .font(.system(size: 42, weight: .medium))
+                    .foregroundStyle(foregroundColor)
+            } else if let shiftSymbol = LabelMetadata.forLabel(label).shiftSymbol {
+                // Dual symbol key (numbers, punctuation): shift symbol above, main below
+                VStack(spacing: 6) {
+                    Text(shiftSymbol)
+                        .font(.system(size: 28, weight: .light))
+                        .foregroundStyle(foregroundColor.opacity(0.6))
+                    Text(label.uppercased())
+                        .font(.system(size: 42, weight: .medium))
+                        .foregroundStyle(foregroundColor)
+                }
+            } else {
+                Text(label)
+                    .font(.system(size: 42, weight: .medium))
+                    .foregroundStyle(foregroundColor)
+            }
+
+            // Clear button (top-right) - only shown when configured (not while recording)
+            if isConfigured && !isRecording {
+                VStack {
+                    HStack {
+                        Spacer()
+                        Button(action: onClear) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 18))
+                                .foregroundStyle(
+                                    isHovered ? Color.white.opacity(0.7) : Color.white.opacity(0.3)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .padding(6)
+                    }
+                    Spacer()
+                }
+            }
+        }
+    }
+
+    // MARK: - Styling
+
+    private var foregroundColor: Color {
+        Color(red: 0.88, green: 0.93, blue: 1.0)
+            .opacity(isPressed ? 1.0 : 0.88)
+    }
+
+    private var backgroundColor: Color {
+        if isRecording {
+            Color.accentColor
+        } else if isHovered {
+            Color(white: 0.15)
+        } else {
+            Color(white: 0.08)
+        }
+    }
+
+    private var borderColor: Color {
+        if isRecording {
+            Color.accentColor.opacity(0.8)
+        } else if isHovered {
+            Color.white.opacity(0.3)
+        } else {
+            Color.white.opacity(0.15)
+        }
+    }
+}
+
 // MARK: - Mapper Keycap View
 
 /// Large (2x scale) keycap styled like the overlay keyboard.
@@ -162,6 +318,16 @@ struct MapperKeycapView: View {
                         .font(.system(size: 24, weight: .regular))
                 }
                 .foregroundStyle(foregroundColor)
+            } else if let shiftSymbol = LabelMetadata.forLabel(label).shiftSymbol {
+                // Dual symbol key (numbers, punctuation): shift symbol above, main below
+                VStack(spacing: 6) {
+                    Text(shiftSymbol)
+                        .font(.system(size: 28, weight: .light))
+                        .foregroundStyle(foregroundColor.opacity(0.6))
+                    Text(label.uppercased())
+                        .font(.system(size: dynamicOutputFontSize, weight: .medium))
+                        .foregroundStyle(foregroundColor)
+                }
             } else {
                 // Key label - match INPUT keycap layout (no internal padding for short labels)
                 Text(label)

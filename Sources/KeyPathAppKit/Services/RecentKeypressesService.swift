@@ -51,6 +51,16 @@ final class RecentKeypressesService: ObservableObject {
     /// Whether recording is enabled
     @Published var isRecording: Bool = true
 
+    /// Tracks consecutive same-key presses for duplicate detection
+    private var consecutiveKeyCount: Int = 0
+    private var lastConsecutiveKey: String?
+    private var consecutiveKeyStartTime: Date?
+    /// Stores timestamps of each consecutive press for detailed timing analysis
+    private var consecutivePressTimestamps: [Date] = []
+    /// Tracks if we saw a release between presses (helps diagnose cause)
+    private var sawReleaseBetweenPresses: Bool = false
+    private var lastKeyAction: String?
+
     private let observers = NotificationObserverManager()
 
     private init() {
@@ -106,12 +116,88 @@ final class RecentKeypressesService: ObservableObject {
             return
         }
 
+        // DIAGNOSTIC: Track consecutive same-key presses to detect unwanted duplicates
+        detectConsecutiveKeyPresses(key: key, action: action, timestamp: now, layer: currentLayer)
+
         events.insert(event, at: 0)
 
         // Trim to max size
         if events.count > maxEvents {
             events = Array(events.prefix(maxEvents))
         }
+    }
+
+    /// Detects and logs when the same key is pressed 3+ times consecutively within a short window
+    /// This helps diagnose unwanted duplicate keystrokes (driver/hardware issues)
+    private func detectConsecutiveKeyPresses(key: String, action: String, timestamp: Date, layer: String) {
+        // Window for considering keys "consecutive" - 500ms between presses
+        let consecutiveWindow: TimeInterval = 0.5
+
+        // Track release events for the current key being monitored
+        if key == lastConsecutiveKey && action == "release" {
+            sawReleaseBetweenPresses = true
+            lastKeyAction = action
+            return
+        }
+
+        // Only count "press" actions for duplicate detection
+        guard action == "press" else {
+            lastKeyAction = action
+            return
+        }
+
+        if key == lastConsecutiveKey,
+           let startTime = consecutiveKeyStartTime,
+           let lastTimestamp = consecutivePressTimestamps.last,
+           timestamp.timeIntervalSince(lastTimestamp) < consecutiveWindow
+        {
+            // Same key pressed again within window
+            consecutiveKeyCount += 1
+            consecutivePressTimestamps.append(timestamp)
+
+            if consecutiveKeyCount >= 3 {
+                let totalMs = Int(timestamp.timeIntervalSince(startTime) * 1000)
+
+                // Calculate individual intervals for detailed analysis
+                var intervals: [Int] = []
+                for i in 1 ..< consecutivePressTimestamps.count {
+                    let intervalMs = Int(consecutivePressTimestamps[i].timeIntervalSince(consecutivePressTimestamps[i - 1]) * 1000)
+                    intervals.append(intervalMs)
+                }
+                let intervalsStr = intervals.map { "\($0)ms" }.joined(separator: ", ")
+
+                // Determine likely cause based on pattern
+                let diagnosis: String
+                let avgInterval = totalMs / (consecutiveKeyCount - 1)
+                if !sawReleaseBetweenPresses {
+                    diagnosis = "NO RELEASE events between presses → likely driver sending duplicate press events"
+                } else if avgInterval < 30 {
+                    diagnosis = "Very fast intervals (<30ms) with releases → possible Karabiner VHID double-reporting"
+                } else if intervals.allSatisfy({ abs($0 - avgInterval) < 10 }) {
+                    diagnosis = "Consistent intervals → might be OS key repeat (check rapid-event-delay)"
+                } else {
+                    diagnosis = "Irregular intervals with releases → unclear cause, may be hardware"
+                }
+
+                AppLogger.shared.info(
+                    """
+                    ⚠️ [DUPLICATE DETECTION] Key '\(key)' pressed \(consecutiveKeyCount)x in \(totalMs)ms
+                       Layer: \(layer)
+                       Intervals: [\(intervalsStr)]
+                       Releases between presses: \(sawReleaseBetweenPresses ? "YES" : "NO")
+                       Diagnosis: \(diagnosis)
+                    """
+                )
+            }
+        } else {
+            // Different key or too long since last press - reset tracking
+            lastConsecutiveKey = key
+            consecutiveKeyCount = 1
+            consecutiveKeyStartTime = timestamp
+            consecutivePressTimestamps = [timestamp]
+            sawReleaseBetweenPresses = false
+        }
+        lastKeyAction = action
     }
 
     /// Clear all events

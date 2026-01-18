@@ -10,40 +10,40 @@ import SwiftUI
 struct BehaviorStatePicker: View {
     @Binding var selectedState: BehaviorSlot
 
-    /// Whether each state has a configured action
+    /// Whether each state has a configured action (for hold, doubleTap, tapHold)
     var configuredStates: Set<BehaviorSlot> = []
 
+    /// Whether the tap behavior is non-identity (A→B, not A→A)
+    /// When true, shows the "in use" dot for tap
+    var tapIsNonIdentity: Bool = false
+
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 16) {
             ForEach(BehaviorSlot.allCases) { slot in
                 BehaviorStateCell(
                     slot: slot,
                     isSelected: selectedState == slot,
-                    isConfigured: configuredStates.contains(slot),
+                    isConfigured: isSlotConfigured(slot),
                     onSelect: {
                         withAnimation(.easeInOut(duration: 0.15)) {
                             selectedState = slot
                         }
                     }
                 )
-
-                // Divider between cells (not after last)
-                if slot != BehaviorSlot.allCases.last {
-                    Rectangle()
-                        .fill(Color.white.opacity(0.1))
-                        .frame(width: 1)
-                }
             }
         }
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(.ultraThinMaterial)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    /// Determine if a slot should show the "in use" dot
+    private func isSlotConfigured(_ slot: BehaviorSlot) -> Bool {
+        switch slot {
+        case .tap:
+            // Only show dot if tap is a non-identity mapping (A→B, not A→A)
+            return tapIsNonIdentity
+        case .hold, .doubleTap, .tapHold:
+            // Show dot if the slot has a configured action
+            return configuredStates.contains(slot)
+        }
     }
 }
 
@@ -58,49 +58,29 @@ private struct BehaviorStateCell: View {
 
     var body: some View {
         Button(action: onSelect) {
-            VStack(spacing: 2) {
-                // Keycap image (compact)
+            VStack(spacing: 3) {
+                // Keycap image (25% larger: 28 -> 35)
                 behaviorImage
-                    .frame(height: 24)
+                    .frame(height: 35)
 
-                // Label (smaller)
-                Text(slot.shortLabel)
-                    .font(.system(size: 8, weight: isSelected ? .semibold : .regular))
-                    .foregroundStyle(isSelected ? .white : .secondary)
-                    .lineLimit(1)
+                // Label with configured dot on the left
+                HStack(spacing: 3) {
+                    // Configured indicator dot (on far left of label)
+                    Circle()
+                        .fill(isConfigured ? Color.accentColor : Color.clear)
+                        .frame(width: 5, height: 5)
 
-                // Configured indicator dot
-                Circle()
-                    .fill(isConfigured ? Color.accentColor : Color.clear)
-                    .frame(width: 4, height: 4)
+                    Text(slot.shortLabel)
+                        .font(.system(size: 9, weight: isSelected ? .medium : .regular))
+                        .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                        .lineLimit(1)
+                }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 5)
-            .padding(.horizontal, 2)
-            .background(cellBackground)
             .contentShape(Rectangle())
         }
         .buttonStyle(BehaviorCellButtonStyle(isPressed: $isPressed))
         .accessibilityIdentifier("behavior-picker-\(slot.rawValue)")
         .accessibilityLabel("\(slot.label)\(isConfigured ? ", configured" : "")")
-    }
-
-    @ViewBuilder
-    private var cellBackground: some View {
-        if isSelected {
-            // Selected state blue glow background
-            RoundedRectangle(cornerRadius: 5)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.blue.opacity(0.5),
-                            Color.blue.opacity(0.25)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-        }
     }
 
     @ViewBuilder
@@ -113,22 +93,146 @@ private struct BehaviorStateCell: View {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
         } else {
-            // Fallback to SF Symbol if image not found
-            Image(systemName: slot.fallbackIcon)
-                .font(.system(size: 14))
-                .foregroundStyle(isSelected ? .white : .secondary)
+            // Fallback to custom keycap illustration
+            BehaviorKeycapIcon(slot: slot, isSelected: isSelected)
         }
     }
 
     private func loadBundleImage(named name: String) -> NSImage? {
+        // Resources are at bundle root (process() flattens subdirectories)
         guard let url = Bundle.module.url(
             forResource: name,
-            withExtension: "png",
-            subdirectory: "BehaviorIcons"
+            withExtension: "png"
         ) else {
             return nil
         }
         return NSImage(contentsOf: url)
+    }
+}
+
+// MARK: - Custom Keycap Icons for Behavior States
+
+/// Custom-drawn keycap icons that illustrate each behavior state
+private struct BehaviorKeycapIcon: View {
+    let slot: BehaviorSlot
+    let isSelected: Bool
+
+    private var strokeColor: Color {
+        isSelected ? Color.accentColor : Color.secondary.opacity(0.6)
+    }
+
+    private var fillColor: Color {
+        isSelected ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.05)
+    }
+
+    var body: some View {
+        Group {
+            switch slot {
+            case .tap:
+                tapIcon
+            case .hold:
+                holdIcon
+            case .doubleTap:
+                doubleTapIcon
+            case .tapHold:
+                tapHoldIcon
+            }
+        }
+        .frame(width: 28, height: 28)
+    }
+
+    /// Tap: Single keycap with downward arrow
+    private var tapIcon: some View {
+        ZStack {
+            // Keycap
+            RoundedRectangle(cornerRadius: 4)
+                .fill(fillColor)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .strokeBorder(strokeColor, lineWidth: 1.5)
+                )
+                .frame(width: 18, height: 16)
+
+            // Downward press indicator
+            Image(systemName: "chevron.down")
+                .font(.system(size: 8, weight: .bold))
+                .foregroundStyle(strokeColor)
+                .offset(y: 1)
+        }
+    }
+
+    /// Hold: Keycap with hold bar underneath
+    private var holdIcon: some View {
+        VStack(spacing: 2) {
+            // Keycap (pressed appearance)
+            RoundedRectangle(cornerRadius: 4)
+                .fill(isSelected ? Color.accentColor.opacity(0.3) : Color.primary.opacity(0.1))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .strokeBorder(strokeColor, lineWidth: 1.5)
+                )
+                .frame(width: 18, height: 14)
+
+            // Hold duration bar
+            RoundedRectangle(cornerRadius: 1)
+                .fill(strokeColor)
+                .frame(width: 14, height: 3)
+        }
+    }
+
+    /// Double Tap: Two offset keycaps
+    private var doubleTapIcon: some View {
+        ZStack {
+            // Back keycap (shadow/ghost of first tap)
+            RoundedRectangle(cornerRadius: 3)
+                .fill(fillColor.opacity(0.5))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 3)
+                        .strokeBorder(strokeColor.opacity(0.4), lineWidth: 1)
+                )
+                .frame(width: 14, height: 12)
+                .offset(x: -3, y: -3)
+
+            // Front keycap (second tap)
+            RoundedRectangle(cornerRadius: 3)
+                .fill(fillColor)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 3)
+                        .strokeBorder(strokeColor, lineWidth: 1.5)
+                )
+                .frame(width: 14, height: 12)
+                .offset(x: 3, y: 3)
+
+            // "2" indicator
+            Text("2")
+                .font(.system(size: 7, weight: .bold, design: .rounded))
+                .foregroundStyle(strokeColor)
+                .offset(x: 3, y: 2)
+        }
+    }
+
+    /// Tap+Hold: Keycap with tap dot then hold bar
+    private var tapHoldIcon: some View {
+        VStack(spacing: 1) {
+            // Tap indicator dot
+            Circle()
+                .fill(strokeColor)
+                .frame(width: 4, height: 4)
+
+            // Keycap
+            RoundedRectangle(cornerRadius: 4)
+                .fill(fillColor)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .strokeBorder(strokeColor, lineWidth: 1.5)
+                )
+                .frame(width: 18, height: 12)
+
+            // Hold bar
+            RoundedRectangle(cornerRadius: 1)
+                .fill(strokeColor)
+                .frame(width: 12, height: 2)
+        }
     }
 }
 
@@ -170,10 +274,10 @@ extension BehaviorSlot {
 
     var fallbackIcon: String {
         switch self {
-        case .tap: "hand.tap"
-        case .hold: "hand.point.down.fill"
-        case .doubleTap: "2.circle"
-        case .tapHold: "arrow.right.circle"
+        case .tap: "rectangle.portrait.arrowtriangle.2.inward"
+        case .hold: "rectangle.portrait.bottomhalf.filled"
+        case .doubleTap: "square.on.square"
+        case .tapHold: "rectangle.portrait.on.rectangle.portrait"
         }
     }
 }
@@ -189,7 +293,8 @@ extension BehaviorSlot {
             VStack(spacing: 20) {
                 BehaviorStatePicker(
                     selectedState: $selected,
-                    configuredStates: [.tap, .hold]
+                    configuredStates: [.hold],
+                    tapIsNonIdentity: true
                 )
                 .frame(width: 240)
 

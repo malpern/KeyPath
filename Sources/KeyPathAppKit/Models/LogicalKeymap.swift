@@ -198,6 +198,15 @@ struct LogicalKeymap: Identifiable {
     /// Pre-computed reverse lookup table for QWERTY labels
     private static let qwertyLabelToKeyCode: [String: UInt16] = {
         var map: [String: UInt16] = [:]
+
+        // Number row
+        let numberRowKeyCodes: [UInt16] = [50, 18, 19, 20, 21, 23, 22, 26, 28, 25, 29, 27, 24]
+        let numberLabels = ["`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="]
+        for (code, label) in zip(numberRowKeyCodes, numberLabels) {
+            map[label] = code
+        }
+
+        // Letter rows
         let topLabels = ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"]
         let homeLabels = ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"]
         let bottomLabels = ["z", "x", "c", "v", "b", "n", "m", ",", ".", "/"]

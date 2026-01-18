@@ -76,6 +76,11 @@ public final class AdvancedBehaviorManager: ObservableObject {
         set { tapTimeout = newValue }
     }
 
+    // MARK: - Tap-Hold (Tap then Hold)
+
+    /// Action to perform on tap-then-hold gesture
+    @Published public var tapHoldAction: String = ""
+
     // MARK: - Recording State
 
     /// Whether currently recording hold action
@@ -83,6 +88,9 @@ public final class AdvancedBehaviorManager: ObservableObject {
 
     /// Whether currently recording double tap action
     @Published public var isRecordingDoubleTap = false
+
+    /// Whether currently recording tap-hold action
+    @Published public var isRecordingTapHold = false
 
     // MARK: - Conflict Detection
 
@@ -167,6 +175,7 @@ public final class AdvancedBehaviorManager: ObservableObject {
     public func stopAllRecording() {
         isRecordingHold = false
         isRecordingDoubleTap = false
+        isRecordingTapHold = false
         for i in tapDanceSteps.indices {
             tapDanceSteps[i].isRecording = false
         }
@@ -174,7 +183,7 @@ public final class AdvancedBehaviorManager: ObservableObject {
 
     /// Check if any recording is active
     public var isAnyRecording: Bool {
-        isRecordingHold || isRecordingDoubleTap || tapDanceSteps.contains { $0.isRecording }
+        isRecordingHold || isRecordingDoubleTap || isRecordingTapHold || tapDanceSteps.contains { $0.isRecording }
     }
 
     // MARK: - Reset

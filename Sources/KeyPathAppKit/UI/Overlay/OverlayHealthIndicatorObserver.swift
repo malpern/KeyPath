@@ -123,7 +123,14 @@ final class OverlayHealthIndicatorObserver {
             // Cancel any pending "checking" state
             checkingDebounceTask?.cancel()
             checkingDebounceTask = nil
-            setState(.unhealthy(issueCount: blockingIssues.count))
+            // If there are no blocking issues (only conflicts which are filtered out),
+            // treat as healthy - conflicts don't block the drawer from working
+            if blockingIssues.isEmpty {
+                setState(.healthy)
+                scheduleDismiss()
+            } else {
+                setState(.unhealthy(issueCount: blockingIssues.count))
+            }
         }
     }
 

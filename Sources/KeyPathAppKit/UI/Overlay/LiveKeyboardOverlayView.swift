@@ -287,12 +287,23 @@ struct LiveKeyboardOverlayView: View {
             }
         })
         content = AnyView(content.onChange(of: uiState.isInspectorOpen) { _, isOpen in
-            // Load launcher mappings when opening inspector to launchers section
-            if isOpen, inspectorSection == .launchers {
-                viewModel.loadLauncherMappings()
-            }
-            // Clear selected key and hovered rule key when closing inspector
-            if !isOpen {
+            if isOpen {
+                // When drawer opens, select appropriate default tab
+                if !isSettingsShelfActive {
+                    if hasCustomRules {
+                        // Rules tab is default when rules exist
+                        inspectorSection = .customRules
+                    } else {
+                        // Otherwise default to mapper
+                        inspectorSection = .mapper
+                    }
+                }
+                // Load launcher mappings if that's the active section
+                if inspectorSection == .launchers {
+                    viewModel.loadLauncherMappings()
+                }
+            } else {
+                // Clear selected key and hovered rule key when closing
                 viewModel.selectedKeyCode = nil
                 viewModel.hoveredRuleKeyCode = nil
             }
@@ -361,6 +372,23 @@ struct LiveKeyboardOverlayView: View {
                         object: nil,
                         userInfo: mapperUserInfo
                     )
+                }
+            }
+        })
+        // Switch to Mapper tab when a key is clicked while in Rules tab
+        // Re-post notification after tab switch so mapper section receives it after mounting
+        content = AnyView(content.onReceive(NotificationCenter.default.publisher(for: .mapperDrawerKeySelected)) { notification in
+            if inspectorSection == .customRules {
+                inspectorSection = .mapper
+                // Re-post notification after a small delay to allow mapper to mount
+                if let userInfo = notification.userInfo {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        NotificationCenter.default.post(
+                            name: .mapperDrawerKeySelected,
+                            object: nil,
+                            userInfo: userInfo
+                        )
+                    }
                 }
             }
         })
@@ -513,6 +541,8 @@ struct LiveKeyboardOverlayView: View {
                         // Convert input key name to keyCode for keyboard highlighting
                         if let key = inputKey {
                             viewModel.hoveredRuleKeyCode = LogicalKeymap.keyCode(forQwertyLabel: key)
+                            // Clear any selected key to avoid confusion between selection and hover
+                            viewModel.selectedKeyCode = nil
                         } else {
                             viewModel.hoveredRuleKeyCode = nil
                         }
@@ -694,18 +724,29 @@ struct LiveKeyboardOverlayView: View {
     /// Reset all custom rules (global and app-specific)
     private func resetAllCustomRules() {
         Task {
-            // Remove all global custom rules
-            if let rules = kanataViewModel?.customRules {
-                for rule in rules {
-                    await kanataViewModel?.removeCustomRule(rule.id)
-                }
-            }
+            guard let manager = kanataViewModel?.underlyingManager else { return }
+
+            // Clear all global custom rules atomically (uses clearAllCustomRules which saves to disk)
+            await manager.clearAllCustomRules()
+
             // Remove all app-specific keymaps
-            for keymap in appKeymaps {
+            let keymapsToRemove = appKeymaps
+            for keymap in keymapsToRemove {
                 try? await AppKeymapStore.shared.removeKeymap(bundleIdentifier: keymap.mapping.bundleIdentifier)
             }
-            // Reload state
+
+            // Regenerate app config and restart Kanata to apply all changes
+            do {
+                try await AppConfigGenerator.regenerateFromStore()
+                await AppContextService.shared.reloadMappings()
+                _ = await manager.restartKanata(reason: "All custom rules reset")
+            } catch {
+                AppLogger.shared.log("⚠️ [LiveKeyboardOverlay] Failed to regenerate config after reset: \(error)")
+            }
+
+            // Reload UI state
             loadCustomRulesState()
+            SoundPlayer.shared.playSuccessSound()
         }
     }
 
@@ -1088,6 +1129,7 @@ private struct OverlayDragHeader: View {
     }
 
     // MARK: - Layer Pill Timing Constants
+
     private let layerPillInitialCollapseDelay: TimeInterval = 2.0
     private let layerPillHoverCollapseDelay: TimeInterval = 10.0
     private let layerPillGracePeriod: TimeInterval = 0.4
@@ -1485,7 +1527,8 @@ private struct OverlayDragHeader: View {
     /// Compute which edge the popover arrow should point from based on available screen space
     private func computeLayerPickerArrowEdge() -> Edge {
         guard let window = findOverlayWindow(),
-              let screen = window.screen ?? NSScreen.main else {
+              let screen = window.screen ?? NSScreen.main
+        else {
             return .top // Default to opening upward
         }
 
@@ -1560,7 +1603,7 @@ private struct OverlayDragHeader: View {
 
     /// Individual layer row in the picker
     @ViewBuilder
-    private func layerPickerRow(layer: String, index: Int) -> some View {
+    private func layerPickerRow(layer: String, index _: Int) -> some View {
         let displayName = layer.lowercased() == "base" ? "Base" : layer.capitalized
         let isCurrentLayer = currentLayerName.lowercased() == layer.lowercased()
         let layerIcon = layerIconName(for: displayName)
@@ -2098,7 +2141,8 @@ struct OverlayInspectorPanel: View {
             }
             // Extract selected slot
             if let slotRaw = notification.userInfo?["slot"] as? String,
-               let slot = BehaviorSlot(rawValue: slotRaw) {
+               let slot = BehaviorSlot(rawValue: slotRaw)
+            {
                 tapHoldInitialSlot = slot
             }
             // Open the Tap & Hold panel
@@ -2414,6 +2458,7 @@ struct OverlayInspectorPanel: View {
     @State private var customizeKeyMonitor: Any? = nil
 
     // MARK: - Launcher Customize Panel State
+
     /// Current launcher activation mode
     @State private var launcherActivationMode: LauncherActivationMode = .holdHyper
     /// Current hyper trigger mode (hold vs tap)
@@ -2515,7 +2560,7 @@ struct OverlayInspectorPanel: View {
                 .pickerStyle(.segmented)
                 .labelsHidden()
                 .accessibilityIdentifier("launcher-customize-activation-mode")
-                .onChange(of: launcherActivationMode) { _, newMode in
+                .onChange(of: launcherActivationMode) { _, _ in
                     saveLauncherConfig()
                 }
 
@@ -2596,7 +2641,8 @@ struct OverlayInspectorPanel: View {
         Task {
             let collections = await RuleCollectionStore.shared.loadCollections()
             if let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
-               let config = launcherCollection.configuration.launcherGridConfig {
+               let config = launcherCollection.configuration.launcherGridConfig
+            {
                 await MainActor.run {
                     launcherActivationMode = config.activationMode
                     launcherHyperTriggerMode = config.hyperTriggerMode
@@ -2674,8 +2720,8 @@ struct OverlayInspectorPanel: View {
 
             // Update the appropriate field
             DispatchQueue.main.async {
-                self.setCustomizeFieldValue(fieldId: fieldId, value: keyName)
-                self.stopCustomizeRecording()
+                setCustomizeFieldValue(fieldId: fieldId, value: keyName)
+                stopCustomizeRecording()
             }
 
             // Consume the event so it doesn't propagate
@@ -2919,16 +2965,16 @@ struct OverlayInspectorPanel: View {
     private func formatKeyForCustomize(_ key: String) -> String {
         // Handle common modifier names
         switch key.lowercased() {
-        case "lmet", "rmet", "met": return "⌘"
-        case "lalt", "ralt", "alt": return "⌥"
-        case "lctl", "rctl", "ctl": return "⌃"
-        case "lsft", "rsft", "sft": return "⇧"
-        case "space", "spc": return "␣"
-        case "ret", "return", "enter": return "↩"
-        case "bspc", "backspace": return "⌫"
-        case "tab": return "⇥"
-        case "esc", "escape": return "⎋"
-        default: return key.uppercased()
+        case "lmet", "rmet", "met": "⌘"
+        case "lalt", "ralt", "alt": "⌥"
+        case "lctl", "rctl", "ctl": "⌃"
+        case "lsft", "rsft", "sft": "⇧"
+        case "space", "spc": "␣"
+        case "ret", "return", "enter": "↩"
+        case "bspc", "backspace": "⌫"
+        case "tab": "⇥"
+        case "esc", "escape": "⎋"
+        default: key.uppercased()
         }
     }
 
@@ -3402,8 +3448,6 @@ private struct InspectorPanelToolbar: View {
                 .frame(width: buttonSize, height: buttonSize)
         }
         .buttonStyle(PlainButtonStyle())
-        .accessibilityIdentifier("overlay-toolbar-button-\(systemImage)")
-        .accessibilityLabel("Toolbar button \(systemImage)")
         .onHover(perform: onHover)
     }
 
@@ -3415,22 +3459,7 @@ private struct InspectorPanelToolbar: View {
 
     private var mainTabsContent: some View {
         Group {
-            // Mapper first (leftmost)
-            toolbarButton(
-                systemImage: "arrow.right.arrow.left",
-                isSelected: selectedSection == .mapper,
-                isHovering: isHoveringMapper,
-                onHover: { isHoveringMapper = $0 }
-            ) {
-                onSelectSection(.mapper)
-            }
-            .disabled(!isMapperTabEnabled)
-            .opacity(isMapperTabEnabled ? 1 : 0.45)
-            .accessibilityIdentifier("inspector-tab-mapper")
-            .accessibilityLabel("Key Mapper")
-            .help("Key Mapper")
-
-            // Custom Rules (only shown when custom rules exist)
+            // Custom Rules first (leftmost) - only shown when custom rules exist
             if hasCustomRules {
                 toolbarButton(
                     systemImage: "list.bullet.rectangle",
@@ -3444,6 +3473,21 @@ private struct InspectorPanelToolbar: View {
                 .accessibilityLabel("Custom Rules")
                 .help("Custom Rules")
             }
+
+            // Mapper
+            toolbarButton(
+                systemImage: "arrow.right.arrow.left",
+                isSelected: selectedSection == .mapper,
+                isHovering: isHoveringMapper,
+                onHover: { isHoveringMapper = $0 }
+            ) {
+                onSelectSection(.mapper)
+            }
+            .disabled(!isMapperTabEnabled)
+            .opacity(isMapperTabEnabled ? 1 : 0.45)
+            .accessibilityIdentifier("inspector-tab-mapper")
+            .accessibilityLabel("Key Mapper")
+            .help("Key Mapper")
 
             // Launchers
             toolbarButton(
@@ -3627,8 +3671,8 @@ private struct GlassEffectModifier: ViewModifier {
 
 /// Slide-over panels that can appear in the drawer
 enum DrawerPanel {
-    case tapHold            // Tap & Hold configuration (Apple-style 80/20 design)
-    case launcherSettings   // Launcher activation mode & history suggestions
+    case tapHold // Tap & Hold configuration (Apple-style 80/20 design)
+    case launcherSettings // Launcher activation mode & history suggestions
 
     var title: String {
         switch self {
@@ -3854,21 +3898,21 @@ private struct TapHoldMiniKeycap: View {
 
     private var backgroundColor: Color {
         if isRecording {
-            return Color.accentColor
+            Color.accentColor
         } else if isHovered {
-            return isDark ? Color(white: 0.18) : Color(white: 0.92)
+            isDark ? Color(white: 0.18) : Color(white: 0.92)
         } else {
-            return isDark ? Color(white: 0.12) : Color(white: 0.96)
+            isDark ? Color(white: 0.12) : Color(white: 0.96)
         }
     }
 
     private var borderColor: Color {
         if isRecording {
-            return Color.accentColor.opacity(0.8)
+            Color.accentColor.opacity(0.8)
         } else if isHovered {
-            return isDark ? Color.white.opacity(0.3) : Color.black.opacity(0.15)
+            isDark ? Color.white.opacity(0.3) : Color.black.opacity(0.15)
         } else {
-            return isDark ? Color.white.opacity(0.15) : Color.black.opacity(0.1)
+            isDark ? Color.white.opacity(0.15) : Color.black.opacity(0.1)
         }
     }
 

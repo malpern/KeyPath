@@ -43,7 +43,6 @@ struct LauncherMappingRowView: View {
             // Target name
             Text(mapping.target.displayName)
                 .font(.system(size: 12))
-                .lineLimit(1)
                 .foregroundColor(mapping.isEnabled || !showToggle ? .primary : .secondary)
 
             Spacer()

@@ -3,7 +3,7 @@
   "version": "1.0",
   "projectType": "swift",
   "settings": {
-    "debounceMs": 500,
+    "debounceMs": 1500,
     "parallelBuilds": false,
     "showNotifications": true,
     "logLevel": "info"

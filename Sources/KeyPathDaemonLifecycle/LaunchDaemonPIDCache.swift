@@ -4,7 +4,12 @@ import KeyPathCore
 
 /// Cache for LaunchDaemon PID lookups to prevent repeated expensive launchctl calls
 /// Solves race condition where rapid process checks cause inconsistent conflict detection
+/// NOTE: This is a shared singleton to ensure all ProcessLifecycleManager instances
+/// use the same cached PID, preventing stale data issues during validation.
 public actor LaunchDaemonPIDCache {
+    /// Shared singleton instance - ensures consistent PID cache across all managers
+    public static let shared = LaunchDaemonPIDCache()
+
     public init() {}
 
     // MARK: - State

@@ -107,8 +107,12 @@ struct AppRuleCard: View {
         }
         .padding(.vertical, 4)
         .padding(.horizontal, 8)
-        .background(isHovered ? Color.primary.opacity(0.03) : Color.clear)
+        .background(isHovered ? Color.accentColor.opacity(0.15) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.accentColor.opacity(isHovered ? 0.4 : 0), lineWidth: 1)
+        )
         .contentShape(Rectangle())
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
@@ -176,36 +180,10 @@ struct GlobalRulesCard: View {
     @State private var isCardHovered = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Header with globe icon and add button
-            HStack(spacing: 6) {
-                Image(systemName: "globe")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.secondary)
-
-                Text("Everywhere")
-                    .font(.system(size: 12, weight: .regular))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-
-                Spacer()
-
-                Button(action: onAddRule) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .opacity(isCardHovered ? 1.0 : 0.5)
-                .accessibilityIdentifier("add-rule-everywhere")
-                .accessibilityLabel("Add global rule")
-            }
-
-            // Rules list with chip-style keys
-            VStack(spacing: 6) {
-                ForEach(rules) { rule in
-                    globalRuleRow(rule: rule)
-                }
+        // Rules list only - no header, just the rules
+        VStack(spacing: 6) {
+            ForEach(rules) { rule in
+                globalRuleRow(rule: rule)
             }
         }
         .padding(12)
@@ -214,7 +192,7 @@ struct GlobalRulesCard: View {
         .onHover { isCardHovered = $0 }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("global-rules-card")
-        .accessibilityLabel("Global rules applying everywhere")
+        .accessibilityLabel("Global rules")
     }
 
     // MARK: - Subviews
@@ -223,49 +201,70 @@ struct GlobalRulesCard: View {
     private func globalRuleRow(rule: CustomRule) -> some View {
         let isHovered = hoveredRuleId == rule.id
 
-        HStack(spacing: 8) {
-            // Input key chip
-            GlobalKeyChip(text: rule.input)
+        ZStack(alignment: .trailing) {
+            // Rule mapping content
+            HStack(spacing: 8) {
+                // Input key chip
+                GlobalKeyChip(text: rule.input)
 
-            // Arrow (matching Settings style)
-            Image(systemName: "arrow.right")
-                .font(.body.weight(.medium))
-                .foregroundStyle(.secondary)
+                // Arrow (matching Settings style)
+                Image(systemName: "arrow.right")
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.secondary)
 
-            // Output key chip
-            GlobalKeyChip(text: rule.output)
-
-            Spacer(minLength: 4)
-
-            // Action buttons (visible with varying opacity based on hover)
-            HStack(spacing: 4) {
-                Button(action: { onEdit(rule) }) {
-                    Image(systemName: "pencil")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary.opacity(isHovered ? 1 : 0.5))
-                        .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
+                // Output - show layer chip for layer switches, otherwise regular key chip
+                if let layerName = LayerInfo.extractLayerName(from: rule.output) {
+                    DrawerLayerChip(layerName: layerName)
+                } else {
+                    GlobalKeyChip(text: rule.output)
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("edit-global-rule-\(rule.id)")
-                .accessibilityLabel("Edit rule \(rule.input) to \(rule.output)")
 
-                Button(action: { onDelete(rule) }) {
-                    Image(systemName: "trash")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary.opacity(isHovered ? 1 : 0.5))
-                        .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
+                Spacer(minLength: 0)
+            }
+
+            // Action buttons overlay - only visible on hover
+            if isHovered {
+                HStack(spacing: 2) {
+                    Button(action: { onEdit(rule) }) {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 24, height: 24)
+                            .background(
+                                Circle()
+                                    .fill(Color.accentColor)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("edit-global-rule-\(rule.id)")
+                    .accessibilityLabel("Edit rule \(rule.input) to \(rule.output)")
+
+                    Button(action: { onDelete(rule) }) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 24, height: 24)
+                            .background(
+                                Circle()
+                                    .fill(Color.red.opacity(0.85))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("delete-global-rule-\(rule.id)")
+                    .accessibilityLabel("Delete rule \(rule.input) to \(rule.output)")
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("delete-global-rule-\(rule.id)")
-                .accessibilityLabel("Delete rule \(rule.input) to \(rule.output)")
+                .padding(.trailing, 4)
+                .transition(.opacity.combined(with: .scale(scale: 0.8)))
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
         .padding(.horizontal, 8)
-        .background(isHovered ? Color.primary.opacity(0.03) : Color.clear)
+        .background(isHovered ? Color.accentColor.opacity(0.15) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.accentColor.opacity(isHovered ? 0.4 : 0), lineWidth: 1)
+        )
         .contentShape(Rectangle())
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
@@ -311,6 +310,45 @@ private struct GlobalKeyChip: View {
                 RoundedRectangle(cornerRadius: 6)
                     .strokeBorder(Color.secondary.opacity(0.15), lineWidth: 0.5)
             )
+    }
+}
+
+/// Layer switch chip for the drawer - shows layer icon and "X Layer" name
+private struct DrawerLayerChip: View {
+    let layerName: String
+
+    /// The SF Symbol icon for this layer
+    private var layerIcon: String {
+        LayerInfo.iconName(for: layerName)
+    }
+
+    /// Human-readable display name with "Layer" suffix
+    private var displayName: String {
+        "\(LayerInfo.displayName(for: layerName)) Layer"
+    }
+
+    var body: some View {
+        HStack(spacing: 5) {
+            // Layer icon
+            Image(systemName: layerIcon)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.accentColor)
+
+            // Layer name (e.g., "Nav Layer")
+            Text(displayName)
+                .font(.body.weight(.semibold))
+                .foregroundColor(Color(red: 0.85, green: 0.92, blue: 1.0))
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.accentColor.opacity(0.15))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(Color.accentColor.opacity(0.3), lineWidth: 0.5)
+        )
     }
 }
 

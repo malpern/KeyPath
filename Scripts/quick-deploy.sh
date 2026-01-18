@@ -2,6 +2,11 @@
 # Quick deploy for development: build, copy to /Applications, restart
 # No signing or notarization - just fast iteration (~3-4 seconds)
 #
+# Features:
+# - Lock-based concurrency control (skips if another build is running)
+# - Build time instrumentation (logs to .build/build-stats.log)
+# - Cancellation tracking
+#
 # Prerequisites: Run ./build.sh once to create the initial app bundle structure
 
 set -euo pipefail
@@ -13,24 +18,112 @@ APP_BUNDLE="/Applications/${APP_NAME}.app"
 MACOS_DIR="$APP_BUNDLE/Contents/MacOS"
 ENTITLEMENTS="$PROJECT_DIR/KeyPath.entitlements"
 
+# Build instrumentation
+BUILD_STATS_FILE="$PROJECT_DIR/.build/build-stats.log"
+LOCK_FILE="$PROJECT_DIR/.build/quick-deploy.lock"
+BUILD_ID="$(date +%s%N | cut -c1-13)"  # Millisecond timestamp as build ID
+
 cd "$PROJECT_DIR"
+
+# Ensure .build directory exists for stats
+mkdir -p "$PROJECT_DIR/.build"
+
+# --- Instrumentation Functions ---
+
+log_build_event() {
+    local event="$1"
+    local duration="${2:-0}"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo "$timestamp | $event | build_id=$BUILD_ID | duration_ms=$duration" >> "$BUILD_STATS_FILE"
+}
+
+get_time_ms() {
+    # Cross-platform milliseconds (macOS doesn't have %N in date)
+    python3 -c 'import time; print(int(time.time() * 1000))' 2>/dev/null || date +%s000
+}
+
+# --- Lock Management ---
+
+acquire_lock() {
+    # Try to create lock file atomically
+    # If lock exists and process is still running, skip this build
+    if [[ -f "$LOCK_FILE" ]]; then
+        local lock_pid=$(cat "$LOCK_FILE" 2>/dev/null || echo "")
+        if [[ -n "$lock_pid" ]] && kill -0 "$lock_pid" 2>/dev/null; then
+            # Another build is actually running
+            echo "⏭️  Build already in progress (PID $lock_pid), skipping..."
+            log_build_event "SKIPPED_CONCURRENT"
+            return 1
+        else
+            # Stale lock file - remove it
+            rm -f "$LOCK_FILE"
+        fi
+    fi
+
+    # Create lock with our PID
+    echo $$ > "$LOCK_FILE"
+    return 0
+}
+
+release_lock() {
+    rm -f "$LOCK_FILE"
+}
+
+cleanup() {
+    local exit_code=$?
+    release_lock
+
+    if [[ $exit_code -ne 0 ]] && [[ $exit_code -ne 130 ]]; then
+        # Non-zero exit that isn't SIGINT
+        log_build_event "FAILED" "0"
+    fi
+}
+
+# Set up cleanup trap
+trap cleanup EXIT
+
+# --- Main Build Logic ---
+
+# Try to acquire lock
+if ! acquire_lock; then
+    exit 0  # Exit cleanly - not an error, just skipped
+fi
+
+BUILD_START_MS=$(get_time_ms)
+log_build_event "STARTED"
 
 # Check prerequisites
 if [[ ! -d "$APP_BUNDLE" ]]; then
     echo "❌ App bundle not found at $APP_BUNDLE"
     echo "💡 Run './build.sh' once to create the initial app structure"
+    log_build_event "FAILED_NO_BUNDLE"
     exit 1
+fi
+
+# Check if SwiftPM is already building (additional safety)
+SWIFTPM_LOCK="$PROJECT_DIR/.build/workspace-state.json"
+if [[ -f "$SWIFTPM_LOCK" ]] && lsof "$SWIFTPM_LOCK" 2>/dev/null | grep -q swift; then
+    echo "⏭️  SwiftPM build in progress, skipping..."
+    log_build_event "SKIPPED_SWIFTPM_BUSY"
+    exit 0
 fi
 
 # Build debug (fast - incremental)
 echo "🔨 Building..."
-swift build --product KeyPath 2>&1 | grep -v "^$" | tail -3
+if ! swift build --product KeyPath 2>&1 | grep -v "^$" | tail -3; then
+    BUILD_END_MS=$(get_time_ms)
+    DURATION=$((BUILD_END_MS - BUILD_START_MS))
+    echo "❌ Build failed"
+    log_build_event "BUILD_FAILED" "$DURATION"
+    exit 1
+fi
 
 # Get the built binary
 DEBUG_BIN=$(swift build --product KeyPath --show-bin-path)/KeyPath
 
 if [[ ! -f "$DEBUG_BIN" ]]; then
     echo "❌ Build failed - binary not found"
+    log_build_event "FAILED_NO_BINARY"
     exit 1
 fi
 
@@ -55,4 +148,9 @@ if pgrep -x "$APP_NAME" > /dev/null; then
 fi
 
 open "$APP_BUNDLE"
-echo "✅ Done!"
+
+BUILD_END_MS=$(get_time_ms)
+DURATION=$((BUILD_END_MS - BUILD_START_MS))
+
+echo "✅ Done! (${DURATION}ms)"
+log_build_event "SUCCESS" "$DURATION"

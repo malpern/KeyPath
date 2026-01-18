@@ -82,7 +82,8 @@ public final class ProcessLifecycleManager: @unchecked Sendable {
 
     // MARK: - Dependencies
 
-    private let pidCache = LaunchDaemonPIDCache()
+    /// Use shared singleton to ensure all ProcessLifecycleManager instances share the same cache
+    private var pidCache: LaunchDaemonPIDCache { LaunchDaemonPIDCache.shared }
 
     // MARK: - Public API
 

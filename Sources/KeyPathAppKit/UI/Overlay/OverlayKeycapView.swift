@@ -334,10 +334,12 @@ struct OverlayKeycapView: View {
             }
 
             // Rule hover highlight (shows when hovering a rule in the Custom Rules or Launcher tabs)
+            // Matches isSelected style for visual consistency
             if isHoveredByRule, !isSelected {
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .stroke(Color.accentColor.opacity(0.6), lineWidth: 2 * scale)
+                    .stroke(Color.accentColor.opacity(0.8), lineWidth: 2.5 * scale)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .shadow(color: Color.accentColor.opacity(0.4), radius: 4 * scale)
             }
 
             // Glow layers for dark mode backlight effect

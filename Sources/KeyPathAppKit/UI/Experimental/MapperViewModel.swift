@@ -221,6 +221,16 @@ class MapperViewModel: ObservableObject {
         set { advancedBehavior.isRecordingDoubleTap = newValue }
     }
 
+    var isRecordingTapHold: Bool {
+        get { advancedBehavior.isRecordingTapHold }
+        set { advancedBehavior.isRecordingTapHold = newValue }
+    }
+
+    var tapHoldAction: String {
+        get { advancedBehavior.tapHoldAction }
+        set { advancedBehavior.tapHoldAction = newValue }
+    }
+
     // Hold behavior type - use AdvancedBehaviorManager's type
     typealias HoldBehaviorType = AdvancedBehaviorManager.HoldBehaviorType
 
@@ -553,6 +563,20 @@ class MapperViewModel: ObservableObject {
             startSimpleKeyCapture { [weak self] keyName in
                 self?.doubleTapAction = keyName
                 self?.isRecordingDoubleTap = false
+            }
+        }
+    }
+
+    func toggleTapHoldRecording() {
+        if isRecordingTapHold {
+            isRecordingTapHold = false
+        } else {
+            // Stop any other recording
+            stopRecording()
+            isRecordingTapHold = true
+            startSimpleKeyCapture { [weak self] keyName in
+                self?.tapHoldAction = keyName
+                self?.isRecordingTapHold = false
             }
         }
     }

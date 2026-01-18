@@ -269,6 +269,11 @@ private struct CustomRuleRow: View {
         return String(rule.output[actionRange])
     }
 
+    /// Extract layer name from layer-switch output
+    private var layerSwitchIdentifier: String? {
+        LayerInfo.extractLayerName(from: rule.output)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 12) {
@@ -287,6 +292,8 @@ private struct CustomRuleRow: View {
                             AppLaunchChip(appIdentifier: appId)
                         } else if let actionId = systemActionIdentifier {
                             SystemActionChip(actionIdentifier: actionId)
+                        } else if let layerName = layerSwitchIdentifier {
+                            LayerSwitchChip(layerName: layerName)
                         } else {
                             KeyCapChip(text: rule.output)
                         }
@@ -574,6 +581,48 @@ private struct SystemActionChip: View {
 
             // Action name
             Text(actionInfo.name)
+                .font(.caption)
+                .fontWeight(.medium)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.accentColor.opacity(0.15))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(Color.accentColor.opacity(0.3), lineWidth: 0.5)
+        )
+    }
+}
+
+// MARK: - Layer Switch Chip
+
+/// Displays a layer icon and "X Layer" name for layer-switch actions
+private struct LayerSwitchChip: View {
+    let layerName: String
+
+    /// The SF Symbol icon for this layer
+    private var layerIcon: String {
+        LayerInfo.iconName(for: layerName)
+    }
+
+    /// Human-readable display name with "Layer" suffix
+    private var displayName: String {
+        "\(LayerInfo.displayName(for: layerName)) Layer"
+    }
+
+    var body: some View {
+        HStack(spacing: 5) {
+            // Layer icon
+            Image(systemName: layerIcon)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.accentColor)
+                .frame(width: 16, height: 16)
+
+            // Layer name (e.g., "Nav Layer")
+            Text(displayName)
                 .font(.caption)
                 .fontWeight(.medium)
         }
