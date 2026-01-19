@@ -279,7 +279,9 @@ struct RulesTabView: View {
 
                 Spacer()
 
-                Button(action: { openConfigInEditor() }) {
+                Button {
+                    openConfigInEditor()
+                } label: {
                     Label("Edit Config", systemImage: "doc.text")
                 }
                 .buttonStyle(.bordered)
@@ -287,7 +289,9 @@ struct RulesTabView: View {
                 .accessibilityIdentifier("rules-edit-config-button")
                 .accessibilityLabel("Edit Config")
 
-                Button(action: { showingResetConfirmation = true }) {
+                Button {
+                    showingResetConfirmation = true
+                } label: {
                     Label("Reset", systemImage: "arrow.counterclockwise")
                 }
                 .buttonStyle(.bordered)
@@ -1206,9 +1210,9 @@ private struct ExpandableCollectionRow: View {
                             }
                         }
 
-                        Button(action: {
+                        Button {
                             onOpenSequencesModal?()
-                        }) {
+                        } label: {
                             Label("Customize...", systemImage: "arrow.right.arrow.left.circle")
                         }
                         .buttonStyle(.bordered)

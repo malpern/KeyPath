@@ -33,11 +33,11 @@ struct HomeRowLayerTogglesCollectionView: View {
                 customizeSection
                     .transition(.opacity.combined(with: .move(edge: .top)))
             } else {
-                Button(action: {
+                Button {
                     withAnimation(.easeInOut(duration: 0.25)) {
                         showCustomize = true
                     }
-                }) {
+                } label: {
                     HStack {
                         Text("Customize...")
                             .font(.body)
@@ -269,13 +269,13 @@ struct HomeRowLayerTogglesCollectionView: View {
             }
 
             // Fewer Options button
-            Button(action: {
+            Button {
                 withAnimation(.easeInOut(duration: 0.25)) {
                     showCustomize = false
                     selectedKey = nil
                     showLayerPicker = false
                 }
-            }) {
+            } label: {
                 HStack {
                     Text("Fewer Options")
                         .font(.body)
@@ -305,14 +305,14 @@ struct HomeRowLayerTogglesCollectionView: View {
 
             HStack(spacing: 8) {
                 ForEach(HomeRowLayerTogglesConfig.allKeys, id: \.self) { key in
-                    Button(action: {
+                    Button {
                         if config.enabledKeys.contains(key) {
                             config.enabledKeys.remove(key)
                         } else {
                             config.enabledKeys.insert(key)
                         }
                         updateConfig()
-                    }) {
+                    } label: {
                         Text(key.uppercased())
                             .font(.caption)
                             .fontWeight(.medium)
@@ -343,12 +343,12 @@ struct HomeRowLayerTogglesCollectionView: View {
                 Text("Layer for \"\(key.uppercased())\":")
                     .font(.body)
                 Spacer()
-                Button(action: {
+                Button {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         selectedKey = nil
                         showLayerPicker = false
                     }
-                }) {
+                } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.secondary)
                 }

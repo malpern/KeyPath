@@ -44,11 +44,11 @@ struct ChordGroupsCollectionView: View {
                 detailsSection
                     .transition(.opacity.combined(with: .move(edge: .top)))
             } else if !config.groups.isEmpty {
-                Button(action: {
+                Button {
                     withAnimation(.easeInOut(duration: 0.25)) {
                         showDetails = true
                     }
-                }) {
+                } label: {
                     HStack {
                         Text("Show Details...")
                             .font(.body)
@@ -217,11 +217,11 @@ struct ChordGroupsCollectionView: View {
             }
 
             // Hide details button
-            Button(action: {
+            Button {
                 withAnimation(.easeInOut(duration: 0.25)) {
                     showDetails = false
                 }
-            }) {
+            } label: {
                 HStack {
                     Text("Hide Details")
                         .font(.body)

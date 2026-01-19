@@ -55,7 +55,8 @@ struct SequencesModalView: View {
 
             // Right panel
             if let selectedID = selectedSequenceID,
-               let index = localConfig.sequences.firstIndex(where: { $0.id == selectedID }) {
+               let index = localConfig.sequences.firstIndex(where: { $0.id == selectedID })
+            {
                 editorPanel(for: Binding(
                     get: { localConfig.sequences[index] },
                     set: { localConfig.sequences[index] = $0 }
@@ -143,7 +144,9 @@ struct SequencesModalView: View {
     }
 
     private func sequenceRow(_ sequence: SequenceDefinition) -> some View {
-        Button(action: { selectedSequenceID = sequence.id }) {
+        Button {
+            selectedSequenceID = sequence.id
+        } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(sequence.name)
@@ -192,7 +195,9 @@ struct SequencesModalView: View {
                 Spacer()
 
                 // Delete button
-                Button(action: { deleteSequence(sequence.wrappedValue.id) }) {
+                Button {
+                    deleteSequence(sequence.wrappedValue.id)
+                } label: {
                     Image(systemName: "trash")
                         .foregroundColor(.red)
                 }
@@ -280,12 +285,12 @@ struct SequencesModalView: View {
 
                     // Remove button
                     if sequence.keys.wrappedValue.count > 1 {
-                        Button(action: {
+                        Button {
                             var keys = sequence.keys.wrappedValue
                             keys.remove(at: index)
                             sequence.keys.wrappedValue = keys
                             detectConflicts()
-                        }) {
+                        } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .foregroundColor(.red.opacity(0.7))
                                 .font(.system(size: 14))
@@ -298,12 +303,12 @@ struct SequencesModalView: View {
 
                 // Add key button
                 if sequence.keys.wrappedValue.count < 5 {
-                    Button(action: {
+                    Button {
                         var keys = sequence.keys.wrappedValue
                         keys.append("space")
                         sequence.keys.wrappedValue = keys
                         detectConflicts()
-                    }) {
+                    } label: {
                         Label("Add Key", systemImage: "plus.circle")
                     }
                     .buttonStyle(.bordered)

@@ -332,13 +332,13 @@ struct HomeRowLayerTogglesModalView: View {
 
             HStack(spacing: 8) {
                 ForEach(HomeRowLayerTogglesConfig.allKeys, id: \.self) { key in
-                    Button(action: {
+                    Button {
                         if localConfig.enabledKeys.contains(key) {
                             localConfig.enabledKeys.remove(key)
                         } else {
                             localConfig.enabledKeys.insert(key)
                         }
-                    }) {
+                    } label: {
                         Text(key.uppercased())
                             .font(.caption)
                             .fontWeight(.medium)
@@ -369,12 +369,12 @@ struct HomeRowLayerTogglesModalView: View {
                 Text("Layer for \"\(key.uppercased())\":")
                     .font(.headline)
                 Spacer()
-                Button(action: {
+                Button {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         selectedKey = nil
                         showLayerPicker = false
                     }
-                }) {
+                } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.secondary)
                 }

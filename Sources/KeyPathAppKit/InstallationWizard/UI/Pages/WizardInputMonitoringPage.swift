@@ -444,7 +444,8 @@ private func positionSettingsAndFinderSideBySide() {
         let axApp = AXUIElementCreateApplication(settingsApp.processIdentifier)
         var windowsRef: CFTypeRef?
         if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-           let windows = windowsRef as? [AXUIElement], !windows.isEmpty {
+           let windows = windowsRef as? [AXUIElement], !windows.isEmpty
+        {
             let axWindow = windows[0]
             var position = CGPoint(x: settingsFrame.minX, y: screen.frame.maxY - settingsFrame.maxY)
             var size = CGSize(width: settingsFrame.width, height: settingsFrame.height)
@@ -462,7 +463,8 @@ private func positionSettingsAndFinderSideBySide() {
         let axApp = AXUIElementCreateApplication(finderApp.processIdentifier)
         var windowsRef: CFTypeRef?
         if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-           let windows = windowsRef as? [AXUIElement], !windows.isEmpty {
+           let windows = windowsRef as? [AXUIElement], !windows.isEmpty
+        {
             let axWindow = windows[0]
             var position = CGPoint(x: finderFrame.minX, y: screen.frame.maxY - finderFrame.maxY)
             var size = CGSize(width: finderFrame.width, height: finderFrame.height)

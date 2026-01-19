@@ -79,7 +79,8 @@ struct ChordGroupsModalView: View {
                     onSave: { updated in
                         if let groupIndex = selectedGroupIndex,
                            let chordIndex = localConfig.groups[groupIndex].chords
-                           .firstIndex(where: { $0.id == editingChord.id }) {
+                           .firstIndex(where: { $0.id == editingChord.id })
+                        {
                             localConfig.groups[groupIndex].chords[chordIndex] = updated
                         }
                         showChordEditor = false
@@ -163,7 +164,9 @@ struct ChordGroupsModalView: View {
 
                         // Delete group button
                         if localConfig.groups.count > 1 {
-                            Button(action: { deleteGroup(group) }) {
+                            Button {
+                                deleteGroup(group)
+                            } label: {
                                 Image(systemName: "trash")
                                     .foregroundColor(.red)
                             }
@@ -615,7 +618,9 @@ private struct ChordEditorDialog: View {
 
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 120))], spacing: 8) {
                             ForEach(commonOutputs, id: \.0) { outputKey, label in
-                                Button(action: { output = outputKey }) {
+                                Button {
+                                    output = outputKey
+                                } label: {
                                     Text(label)
                                         .font(.caption)
                                         .frame(maxWidth: .infinity)
