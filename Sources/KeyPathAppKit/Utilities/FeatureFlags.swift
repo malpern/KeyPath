@@ -136,8 +136,7 @@ extension FeatureFlags {
     /// - off: Never show learning tips
     static var learningTipsMode: LearningTipsMode {
         if let rawValue = UserDefaults.standard.string(forKey: learningTipsModeKey),
-           let mode = LearningTipsMode(rawValue: rawValue)
-        {
+           let mode = LearningTipsMode(rawValue: rawValue) {
             return mode
         }
         return .untilLearned // default

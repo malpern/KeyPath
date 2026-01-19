@@ -592,8 +592,7 @@ struct OverlayMapperSection: View {
             Color.clear.frame(height: 20)
 
             if !viewModel.appsWithCurrentKeyMapping.isEmpty,
-               let keyCode = viewModel.inputKeyCode
-            {
+               let keyCode = viewModel.inputKeyCode {
                 let inputKey = OverlayKeyboardView.keyCodeToKanataName(keyCode)
                 FlowLayout(spacing: 4) {
                     ForEach(viewModel.appsWithCurrentKeyMapping) { appKeymap in
@@ -749,8 +748,7 @@ struct OverlayMapperSection: View {
 
     private func selectRunningApp(_ app: NSRunningApplication) {
         if let bundleId = app.bundleIdentifier,
-           let name = app.localizedName
-        {
+           let name = app.localizedName {
             let icon = app.icon ?? NSWorkspace.shared.icon(forFile: app.bundleURL?.path ?? "")
             viewModel.selectedAppCondition = AppConditionInfo(
                 bundleIdentifier: bundleId,
@@ -1443,8 +1441,7 @@ struct OverlayMapperSection: View {
             for appName in commonApps {
                 let appPath = "/Applications/\(appName).app"
                 if FileManager.default.fileExists(atPath: appPath),
-                   !apps.contains(where: { $0.name == appName })
-                {
+                   !apps.contains(where: { $0.name == appName }) {
                     let url = URL(fileURLWithPath: appPath)
                     let icon = NSWorkspace.shared.icon(forFile: appPath)
                     icon.size = NSSize(width: 32, height: 32)

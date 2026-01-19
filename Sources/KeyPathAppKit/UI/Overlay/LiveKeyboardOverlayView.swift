@@ -2210,7 +2210,7 @@ struct OverlayInspectorPanel: View {
             HStack {
                 Spacer()
                 // Reset all rules button
-                Button(action: { onResetAllRules?() }) {
+                Button { onResetAllRules?() } label: {
                     Image(systemName: "arrow.counterclockwise")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.secondary)
@@ -2221,7 +2221,7 @@ struct OverlayInspectorPanel: View {
                 .help("Reset all custom rules")
 
                 // New rule button
-                Button(action: { onCreateNewAppRule?() }) {
+                Button { onCreateNewAppRule?() } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 16))
                         .foregroundStyle(Color.accentColor)
@@ -2444,9 +2444,9 @@ struct OverlayInspectorPanel: View {
     /// Whether to show separate tap/hold timing fields
     @State private var customizeShowTimingAdvanced: Bool = false
     /// Which field is currently recording (nil = none)
-    @State private var customizeRecordingField: String? = nil
+    @State private var customizeRecordingField: String?
     /// Local event monitor for key capture
-    @State private var customizeKeyMonitor: Any? = nil
+    @State private var customizeKeyMonitor: Any?
 
     // MARK: - Launcher Customize Panel State
 
@@ -3456,10 +3456,9 @@ private struct InspectorPanelToolbar: View {
                     systemImage: "list.bullet.rectangle",
                     isSelected: selectedSection == .customRules,
                     isHovering: isHoveringCustomRules,
-                    onHover: { isHoveringCustomRules = $0 }
-                ) {
-                    onSelectSection(.customRules)
-                }
+                    onHover: { isHoveringCustomRules = $0 },
+                    action: { onSelectSection(.customRules) }
+                )
                 .accessibilityIdentifier("inspector-tab-custom-rules")
                 .accessibilityLabel("Custom Rules")
                 .help("Custom Rules")
@@ -3470,10 +3469,9 @@ private struct InspectorPanelToolbar: View {
                 systemImage: "arrow.right.arrow.left",
                 isSelected: selectedSection == .mapper,
                 isHovering: isHoveringMapper,
-                onHover: { isHoveringMapper = $0 }
-            ) {
-                onSelectSection(.mapper)
-            }
+                onHover: { isHoveringMapper = $0 },
+                action: { onSelectSection(.mapper) }
+            )
             .disabled(!isMapperTabEnabled)
             .opacity(isMapperTabEnabled ? 1 : 0.45)
             .accessibilityIdentifier("inspector-tab-mapper")
@@ -3485,10 +3483,9 @@ private struct InspectorPanelToolbar: View {
                 systemImage: "bolt.fill",
                 isSelected: selectedSection == .launchers,
                 isHovering: isHoveringLaunchers,
-                onHover: { isHoveringLaunchers = $0 }
-            ) {
-                onSelectSection(.launchers)
-            }
+                onHover: { isHoveringLaunchers = $0 },
+                action: { onSelectSection(.launchers) }
+            )
             .accessibilityIdentifier("inspector-tab-launchers")
             .accessibilityLabel("Quick Launcher")
             .help("Quick Launcher")
@@ -3502,10 +3499,9 @@ private struct InspectorPanelToolbar: View {
                 systemImage: "keyboard",
                 isSelected: selectedSection == .keyboard,
                 isHovering: isHoveringKeyboard,
-                onHover: { isHoveringKeyboard = $0 }
-            ) {
-                onSelectSection(.keyboard)
-            }
+                onHover: { isHoveringKeyboard = $0 },
+                action: { onSelectSection(.keyboard) }
+            )
             .accessibilityIdentifier("inspector-tab-keymap")
             .accessibilityLabel("Keymap")
             .help("Keymap")
@@ -3514,10 +3510,9 @@ private struct InspectorPanelToolbar: View {
                 systemImage: "square.grid.3x2",
                 isSelected: selectedSection == .layout,
                 isHovering: isHoveringLayout,
-                onHover: { isHoveringLayout = $0 }
-            ) {
-                onSelectSection(.layout)
-            }
+                onHover: { isHoveringLayout = $0 },
+                action: { onSelectSection(.layout) }
+            )
             .accessibilityIdentifier("inspector-tab-layout")
             .accessibilityLabel("Physical Layout")
             .help("Physical Layout")
@@ -3526,10 +3521,9 @@ private struct InspectorPanelToolbar: View {
                 systemImage: "swatchpalette.fill",
                 isSelected: selectedSection == .keycaps,
                 isHovering: isHoveringKeycaps,
-                onHover: { isHoveringKeycaps = $0 }
-            ) {
-                onSelectSection(.keycaps)
-            }
+                onHover: { isHoveringKeycaps = $0 },
+                action: { onSelectSection(.keycaps) }
+            )
             .accessibilityIdentifier("inspector-tab-keycaps")
             .accessibilityLabel("Keycap Style")
             .help("Keycap Style")
@@ -3538,10 +3532,9 @@ private struct InspectorPanelToolbar: View {
                 systemImage: "speaker.wave.2.fill",
                 isSelected: selectedSection == .sounds,
                 isHovering: isHoveringSounds,
-                onHover: { isHoveringSounds = $0 }
-            ) {
-                onSelectSection(.sounds)
-            }
+                onHover: { isHoveringSounds = $0 },
+                action: { onSelectSection(.sounds) }
+            )
             .accessibilityIdentifier("inspector-tab-sounds")
             .accessibilityLabel("Typing Sounds")
             .help("Typing Sounds")

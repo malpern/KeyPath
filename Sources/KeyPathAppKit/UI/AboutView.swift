@@ -47,9 +47,9 @@ struct AboutView: View {
 
             // Update Button Section
             VStack(spacing: 12) {
-                Button(action: {
+                Button {
                     updateService.checkForUpdates()
-                }) {
+                } label: {
                     Label("Check for Updates", systemImage: "arrow.down.circle")
                         .frame(maxWidth: .infinity)
                         .frame(height: 28)
@@ -151,11 +151,11 @@ private struct LinkButton: View {
     let icon: String
 
     var body: some View {
-        Button(action: {
+        Button {
             if let url = URL(string: url) {
                 NSWorkspace.shared.open(url)
             }
-        }) {
+        } label: {
             HStack {
                 Label(title, systemImage: icon)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -196,11 +196,11 @@ private struct AttributionRow: View {
     let url: String
 
     var body: some View {
-        Button(action: {
+        Button {
             if let url = URL(string: url) {
                 NSWorkspace.shared.open(url)
             }
-        }) {
+        } label: {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 6) {

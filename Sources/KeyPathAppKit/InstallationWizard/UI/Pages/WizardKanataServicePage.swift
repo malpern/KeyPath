@@ -393,8 +393,7 @@ struct WizardKanataServicePage: View {
         let maxLogAge: TimeInterval = 10 * 60
         if let attributes = try? FileManager.default.attributesOfItem(atPath: stderrPath),
            let modifiedAt = attributes[.modificationDate] as? Date,
-           Date().timeIntervalSince(modifiedAt) > maxLogAge
-        {
+           Date().timeIntervalSince(modifiedAt) > maxLogAge {
             return nil
         }
 
@@ -419,8 +418,7 @@ struct WizardKanataServicePage: View {
 
             // Extract file and line info: ╭─[keypath-apps.kbd:14:1]
             if foundConfigError, errorFile == nil,
-               let match = line.range(of: #"\[([^\]]+\.kbd):(\d+)"#, options: .regularExpression)
-            {
+               let match = line.range(of: #"\[([^\]]+\.kbd):(\d+)"#, options: .regularExpression) {
                 let matchStr = String(line[match])
                 // Extract filename and line number
                 let parts = matchStr.dropFirst().dropLast().split(separator: ":")
@@ -474,8 +472,7 @@ struct WizardKanataServicePage: View {
 
         Task {
             if let nextPage = await stateMachine.getNextPage(for: systemState, issues: issues),
-               nextPage != stateMachine.currentPage
-            {
+               nextPage != stateMachine.currentPage {
                 stateMachine.navigateToPage(nextPage)
             } else {
                 stateMachine.navigateToPage(.summary)

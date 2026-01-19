@@ -82,7 +82,7 @@ struct AppRuleCard: View {
 
             // Action buttons (visible with varying opacity based on hover)
             HStack(spacing: 4) {
-                Button(action: { onEdit(override) }) {
+                Button { onEdit(override) } label: {
                     Image(systemName: "pencil")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.secondary.opacity(isHovered ? 1 : 0.5))
@@ -93,7 +93,7 @@ struct AppRuleCard: View {
                 .accessibilityIdentifier("edit-rule-\(override.id)")
                 .accessibilityLabel("Edit rule \(override.inputKey) to \(override.outputAction)")
 
-                Button(action: { onDelete(override) }) {
+                Button { onDelete(override) } label: {
                     Image(systemName: "trash")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.secondary.opacity(isHovered ? 1 : 0.5))
@@ -225,7 +225,7 @@ struct GlobalRulesCard: View {
             // Action buttons overlay - only visible on hover
             if isHovered {
                 HStack(spacing: 2) {
-                    Button(action: { onEdit(rule) }) {
+                    Button { onEdit(rule) } label: {
                         Image(systemName: "pencil")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(.white)
@@ -239,7 +239,7 @@ struct GlobalRulesCard: View {
                     .accessibilityIdentifier("edit-global-rule-\(rule.id)")
                     .accessibilityLabel("Edit rule \(rule.input) to \(rule.output)")
 
-                    Button(action: { onDelete(rule) }) {
+                    Button { onDelete(rule) } label: {
                         Image(systemName: "trash")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(.white)

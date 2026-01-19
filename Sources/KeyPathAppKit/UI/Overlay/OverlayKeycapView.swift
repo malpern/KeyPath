@@ -152,8 +152,7 @@ struct OverlayKeycapView: View {
         // (floating labels only exist for base layout characters like A-Z, not for mapped outputs)
         if let info = layerKeyInfo,
            !info.displayLabel.isEmpty,
-           info.displayLabel.uppercased() != baseLabel.uppercased()
-        {
+           info.displayLabel.uppercased() != baseLabel.uppercased() {
             return true
         }
 

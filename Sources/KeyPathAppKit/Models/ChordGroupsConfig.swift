@@ -342,10 +342,8 @@ public struct ChordDefinition: Codable, Equatable, Sendable, Identifiable {
         guard positions.count == keys.count else { return false }
 
         let sorted = positions.sorted()
-        for i in 0 ..< (sorted.count - 1) {
-            if sorted[i + 1] - sorted[i] > 1 {
-                return false
-            }
+        for i in 0 ..< (sorted.count - 1) where sorted[i + 1] - sorted[i] > 1 {
+            return false
         }
         return true
     }
