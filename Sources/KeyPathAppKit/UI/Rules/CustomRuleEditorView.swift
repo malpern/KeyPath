@@ -1165,6 +1165,13 @@ struct CustomRuleEditorView: View {
             if tapDanceSteps.isEmpty {
                 tapDanceSteps = defaultTapDanceSteps
             }
+
+        case .chord:
+            // Chord behavior is not yet supported in this editor
+            // Reset to defaults for now
+            if tapDanceSteps.isEmpty {
+                tapDanceSteps = defaultTapDanceSteps
+            }
         }
     }
 

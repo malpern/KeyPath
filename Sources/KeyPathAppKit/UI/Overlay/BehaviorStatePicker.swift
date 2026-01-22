@@ -6,7 +6,7 @@ import SwiftUI
 ///   - behavior-tap.png, behavior-tap-selected.png
 ///   - behavior-hold.png, behavior-hold-selected.png
 ///   - behavior-doubletap.png, behavior-doubletap-selected.png
-///   - behavior-taphold.png, behavior-taphold-selected.png
+///   - behavior-combo.png, behavior-combo-selected.png
 struct BehaviorStatePicker: View {
     @Binding var selectedState: BehaviorSlot
 
@@ -40,7 +40,7 @@ struct BehaviorStatePicker: View {
         case .tap:
             // Only show dot if tap is a non-identity mapping (A→B, not A→A)
             tapIsNonIdentity
-        case .hold, .doubleTap, .tapHold:
+        case .hold, .doubleTap, .combo:
             // Show dot if the slot has a configured action
             configuredStates.contains(slot)
         }
@@ -134,8 +134,8 @@ private struct BehaviorKeycapIcon: View {
                 holdIcon
             case .doubleTap:
                 doubleTapIcon
-            case .tapHold:
-                tapHoldIcon
+            case .combo:
+                comboIcon
             }
         }
         .frame(width: 28, height: 28)
@@ -211,27 +211,26 @@ private struct BehaviorKeycapIcon: View {
         }
     }
 
-    /// Tap+Hold: Keycap with tap dot then hold bar
-    private var tapHoldIcon: some View {
-        VStack(spacing: 1) {
-            // Tap indicator dot
-            Circle()
-                .fill(strokeColor)
-                .frame(width: 4, height: 4)
-
-            // Keycap
-            RoundedRectangle(cornerRadius: 4)
+    /// Combo: Two overlapping keycaps (keys pressed together)
+    private var comboIcon: some View {
+        HStack(spacing: -6) {
+            // Left keycap
+            RoundedRectangle(cornerRadius: 3)
                 .fill(fillColor)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 4)
+                    RoundedRectangle(cornerRadius: 3)
                         .strokeBorder(strokeColor, lineWidth: 1.5)
                 )
-                .frame(width: 18, height: 12)
+                .frame(width: 14, height: 16)
 
-            // Hold bar
-            RoundedRectangle(cornerRadius: 1)
-                .fill(strokeColor)
-                .frame(width: 12, height: 2)
+            // Right keycap (overlapping)
+            RoundedRectangle(cornerRadius: 3)
+                .fill(fillColor.opacity(0.9))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 3)
+                        .strokeBorder(strokeColor, lineWidth: 1.5)
+                )
+                .frame(width: 14, height: 16)
         }
     }
 }
@@ -259,7 +258,7 @@ extension BehaviorSlot {
         case .tap: "behavior-tap"
         case .hold: "behavior-hold"
         case .doubleTap: "behavior-doubletap"
-        case .tapHold: "behavior-taphold"
+        case .combo: "behavior-combo"
         }
     }
 
@@ -268,7 +267,7 @@ extension BehaviorSlot {
         case .tap: "behavior-tap-selected"
         case .hold: "behavior-hold-selected"
         case .doubleTap: "behavior-doubletap-selected"
-        case .tapHold: "behavior-taphold-selected"
+        case .combo: "behavior-combo-selected"
         }
     }
 
@@ -277,7 +276,7 @@ extension BehaviorSlot {
         case .tap: "rectangle.portrait.arrowtriangle.2.inward"
         case .hold: "rectangle.portrait.bottomhalf.filled"
         case .doubleTap: "square.on.square"
-        case .tapHold: "rectangle.portrait.on.rectangle.portrait"
+        case .combo: "rectangle.portrait.on.rectangle.portrait"
         }
     }
 }

@@ -337,6 +337,11 @@ struct MappingBehaviorEditor: View {
             behaviorType = .tapDance
             tapDanceWindow = td.windowMs
             tapDanceSteps = td.steps
+
+        case .chord:
+            // Chord behavior is not yet editable in this view
+            // Default to dualRole mode for now
+            behaviorType = .dualRole
         }
     }
 

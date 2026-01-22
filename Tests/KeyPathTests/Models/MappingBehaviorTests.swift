@@ -251,4 +251,150 @@ struct MappingBehaviorTests {
         behavior.steps = [TapDanceStep(label: "Single", action: "")]
         #expect(behavior.isValid == false)
     }
+
+    // MARK: - ChordBehavior
+
+    @Test("ChordBehavior encodes and decodes")
+    func chordRoundTrip() throws {
+        let behavior = ChordBehavior(
+            keys: ["j", "k"],
+            output: "esc",
+            timeout: 250,
+            description: "Navigation escape"
+        )
+
+        let data = try JSONEncoder().encode(behavior)
+        let decoded = try JSONDecoder().decode(ChordBehavior.self, from: data)
+
+        #expect(decoded.keys == ["j", "k"])
+        #expect(decoded.output == "esc")
+        #expect(decoded.timeout == 250)
+        #expect(decoded.description == "Navigation escape")
+    }
+
+    @Test("ChordBehavior defaults")
+    func chordDefaults() {
+        let behavior = ChordBehavior(keys: ["s", "d"], output: "enter")
+
+        #expect(behavior.timeout == 200)
+        #expect(behavior.description == nil)
+    }
+
+    @Test("ChordBehavior.twoKey factory")
+    func chordTwoKeyFactory() {
+        let chord = ChordBehavior.twoKey("j", "k", output: "esc", description: "Quick escape")
+
+        #expect(chord.keys == ["j", "k"])
+        #expect(chord.output == "esc")
+        #expect(chord.timeout == 200) // default
+        #expect(chord.description == "Quick escape")
+    }
+
+    @Test("ChordBehavior.threeKey factory")
+    func chordThreeKeyFactory() {
+        let chord = ChordBehavior.threeKey("s", "d", "f", output: "C-x", description: "Cut")
+
+        #expect(chord.keys == ["s", "d", "f"])
+        #expect(chord.output == "C-x")
+        #expect(chord.timeout == 200) // default
+        #expect(chord.description == "Cut")
+    }
+
+    @Test("ChordBehavior.isValid returns true for valid config")
+    func chordValidation() {
+        let valid = ChordBehavior(keys: ["j", "k"], output: "esc")
+        #expect(valid.isValid == true)
+    }
+
+    @Test("ChordBehavior.isValid returns false when keys mutated to single")
+    func chordInvalidSingleKey() {
+        var behavior = ChordBehavior(keys: ["j", "k"], output: "esc")
+        behavior.keys = ["j"]
+        #expect(behavior.isValid == false)
+    }
+
+    @Test("ChordBehavior.isValid returns false when output mutated to empty")
+    func chordInvalidEmptyOutput() {
+        var behavior = ChordBehavior(keys: ["j", "k"], output: "esc")
+        behavior.output = ""
+        #expect(behavior.isValid == false)
+    }
+
+    @Test("ChordBehavior.groupName generates consistent name")
+    func chordGroupName() {
+        let chord1 = ChordBehavior(keys: ["j", "k"], output: "esc")
+        let chord2 = ChordBehavior(keys: ["k", "j"], output: "esc") // reversed order
+
+        // Group names should be same regardless of key order (sorted)
+        #expect(chord1.groupName == chord2.groupName)
+        #expect(chord1.groupName == "kp-chord-j-k")
+    }
+
+    @Test("ChordBehavior timeout clamped to minimum 50ms")
+    func chordTimeoutClamped() {
+        let chord = ChordBehavior(keys: ["a", "b"], output: "x", timeout: 10)
+        #expect(chord.timeout == 50) // clamped to 50
+    }
+
+    @Test("MappingBehavior chord case round-trips")
+    func mappingBehaviorChord() throws {
+        let behavior = MappingBehavior.chord(
+            ChordBehavior(keys: ["j", "k"], output: "esc", timeout: 200)
+        )
+
+        let data = try JSONEncoder().encode(behavior)
+        let decoded = try JSONDecoder().decode(MappingBehavior.self, from: data)
+
+        if case let .chord(ch) = decoded {
+            #expect(ch.keys == ["j", "k"])
+            #expect(ch.output == "esc")
+        } else {
+            Issue.record("Expected chord case")
+        }
+    }
+
+    @Test("KeyMapping with chord behavior round-trips")
+    func keyMappingWithChordBehavior() throws {
+        let mapping = KeyMapping(
+            input: "j",
+            output: "_", // placeholder - chord doesn't use individual output
+            behavior: .chord(ChordBehavior.twoKey("j", "k", output: "esc"))
+        )
+
+        let data = try JSONEncoder().encode(mapping)
+        let decoded = try JSONDecoder().decode(KeyMapping.self, from: data)
+
+        #expect(decoded.input == "j")
+        #expect(decoded.behavior != nil)
+
+        if case let .chord(ch) = decoded.behavior {
+            #expect(ch.keys == ["j", "k"])
+            #expect(ch.output == "esc")
+        } else {
+            Issue.record("Expected chord behavior")
+        }
+    }
+
+    @Test("CustomRule with chord behavior round-trips")
+    func customRuleWithChordBehavior() throws {
+        let rule = CustomRule(
+            title: "J+K Escape",
+            input: "j",
+            output: "_",
+            behavior: .chord(ChordBehavior.twoKey("j", "k", output: "esc"))
+        )
+
+        let data = try JSONEncoder().encode(rule)
+        let decoded = try JSONDecoder().decode(CustomRule.self, from: data)
+
+        #expect(decoded.title == "J+K Escape")
+        #expect(decoded.behavior != nil)
+
+        if case let .chord(ch) = decoded.behavior {
+            #expect(ch.keys == ["j", "k"])
+            #expect(ch.output == "esc")
+        } else {
+            Issue.record("Expected chord behavior")
+        }
+    }
 }

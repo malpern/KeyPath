@@ -27,6 +27,7 @@ struct OverlayMapperSection: View {
     @State private var knownApps: [AppLaunchInfo] = []
     @State private var showingNewLayerDialog = false
     @State private var newLayerName = ""
+    @State private var isHoldVariantPopoverOpen = false
 
     /// Current behavior slot being edited (tap is default)
     @State private var selectedBehaviorSlot: BehaviorSlot = .tap
@@ -55,14 +56,14 @@ struct OverlayMapperSection: View {
         case .doubleTap:
             let action = viewModel.doubleTapAction
             return action.isEmpty ? "" : KeyDisplayFormatter.format(action)
-        case .tapHold:
-            let action = viewModel.tapHoldAction
+        case .combo:
+            let action = viewModel.comboOutput
             return action.isEmpty ? "" : KeyDisplayFormatter.format(action)
         }
     }
 
     /// Whether the current slot has an action configured
-    /// Hold/DoubleTap/TapHold are optional behaviors that must be explicitly added
+    /// Hold/DoubleTap/Combo are optional behaviors that must be explicitly added
     private var currentSlotIsConfigured: Bool {
         switch selectedBehaviorSlot {
         case .tap:
@@ -72,8 +73,8 @@ struct OverlayMapperSection: View {
             !viewModel.holdAction.isEmpty
         case .doubleTap:
             !viewModel.doubleTapAction.isEmpty
-        case .tapHold:
-            !viewModel.tapHoldAction.isEmpty
+        case .combo:
+            viewModel.advancedBehavior.hasValidCombo
         }
     }
 
@@ -86,8 +87,8 @@ struct OverlayMapperSection: View {
             viewModel.isRecordingHold
         case .doubleTap:
             viewModel.isRecordingDoubleTap
-        case .tapHold:
-            viewModel.isRecordingTapHold
+        case .combo:
+            viewModel.isRecordingComboOutput
         }
     }
 
@@ -97,7 +98,7 @@ struct OverlayMapperSection: View {
             viewModel.isRecordingOutput ||
             viewModel.isRecordingHold ||
             viewModel.isRecordingDoubleTap ||
-            viewModel.isRecordingTapHold
+            viewModel.isRecordingComboOutput
     }
 
     /// Cancel all active recording modes
@@ -105,7 +106,7 @@ struct OverlayMapperSection: View {
         viewModel.stopRecording()
         viewModel.isRecordingHold = false
         viewModel.isRecordingDoubleTap = false
-        viewModel.isRecordingTapHold = false
+        viewModel.isRecordingComboOutput = false
     }
 
     var body: some View {
@@ -139,6 +140,8 @@ struct OverlayMapperSection: View {
                 systemActionIdentifier: systemId,
                 urlIdentifier: urlId
             )
+            // Load any existing behavior (hold action, etc.) from saved rules
+            viewModel.loadBehaviorFromExistingRule(kanataManager: kanataViewModel.underlyingManager)
             // Notify parent to highlight the A key
             onKeySelected?(viewModel.inputKeyCode)
             // Pre-load running apps for instant popover display
@@ -191,6 +194,11 @@ struct OverlayMapperSection: View {
                 systemActionIdentifier: systemId,
                 urlIdentifier: urlId
             )
+
+            // Load any existing behavior (hold action, etc.) from saved rules
+            if let manager = kanataViewModel?.underlyingManager {
+                viewModel.loadBehaviorFromExistingRule(kanataManager: manager)
+            }
 
             // If app condition is provided, set it for app-specific rule editing
             if let bundleId = appBundleId, let displayName = appDisplayName {
@@ -448,6 +456,11 @@ struct OverlayMapperSection: View {
                         }
                         // Output type dropdown shown for all slots
                         outputTypeDropdown
+
+                        // Hold variant button - shown when Hold tab is selected and configured
+                        if selectedBehaviorSlot == .hold, !viewModel.holdAction.isEmpty {
+                            holdVariantButton
+                        }
                     }
                     .frame(width: keycapWidth)
                 }
@@ -789,9 +802,8 @@ struct OverlayMapperSection: View {
         // Clear tap
         viewModel.clear()
 
-        // Clear hold and doubleTap
-        viewModel.advancedBehavior.holdAction = ""
-        viewModel.advancedBehavior.doubleTapAction = ""
+        // Clear all advanced behaviors (hold, doubleTap, tapHold, timing, etc.)
+        viewModel.advancedBehavior.reset()
 
         // Update UI state
         updateConfiguredBehaviorSlots()
@@ -823,10 +835,17 @@ struct OverlayMapperSection: View {
                 AppLogger.shared.log("⚠️ [OverlayMapper] Failed to clear app rules: \(error)")
             }
 
+            // Update UI state on main thread
+            await MainActor.run {
+                updateConfiguredBehaviorSlots()
+            }
+
             // Play success sound after reset completes
             SoundPlayer.shared.playSuccessSound()
         }
         onKeySelected?(nil)
+        // Also update immediately for responsiveness
+        updateConfiguredBehaviorSlots()
     }
 
     /// Open file picker for app condition
@@ -856,8 +875,8 @@ struct OverlayMapperSection: View {
             viewModel.toggleHoldRecording()
         case .doubleTap:
             viewModel.toggleDoubleTapRecording()
-        case .tapHold:
-            viewModel.toggleTapHoldRecording()
+        case .combo:
+            viewModel.toggleComboOutputRecording()
         }
     }
 
@@ -870,8 +889,9 @@ struct OverlayMapperSection: View {
             viewModel.advancedBehavior.holdAction = ""
         case .doubleTap:
             viewModel.advancedBehavior.doubleTapAction = ""
-        case .tapHold:
-            viewModel.advancedBehavior.tapHoldAction = ""
+        case .combo:
+            viewModel.advancedBehavior.comboKeys = []
+            viewModel.advancedBehavior.comboOutput = ""
         }
         updateConfiguredBehaviorSlots()
         SoundPlayer.shared.playSuccessSound()
@@ -900,9 +920,9 @@ struct OverlayMapperSection: View {
             slots.insert(.doubleTap)
         }
 
-        // Check tap-hold slot
-        if !viewModel.tapHoldAction.isEmpty {
-            slots.insert(.tapHold)
+        // Check combo slot
+        if viewModel.advancedBehavior.hasValidCombo {
+            slots.insert(.combo)
         }
 
         configuredBehaviorSlots = slots
@@ -981,7 +1001,7 @@ struct OverlayMapperSection: View {
                     try? await Task.sleep(for: .milliseconds(120))
                 }
 
-            case .tapHold:
+            case .combo:
                 // Choreography: label first, then keycap animation
                 withAnimation(.easeOut(duration: 0.12)) {
                     showBehaviorLabel = true
@@ -995,23 +1015,18 @@ struct OverlayMapperSection: View {
                 withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) {
                     outputKeycapBounce = false
                 }
-                // Then tap-hold animation
+                // Combo animation: two quick simultaneous presses
                 try? await Task.sleep(for: .milliseconds(100))
-                // First: tap
-                withAnimation(.easeIn(duration: 0.08)) {
-                    outputKeycapScale = 0.9
-                }
-                try? await Task.sleep(for: .milliseconds(80))
-                withAnimation(.spring(response: 0.15, dampingFraction: 0.7)) {
-                    outputKeycapScale = 1.0
-                }
-                try? await Task.sleep(for: .milliseconds(150))
-                // Then: hold
-                withAnimation(.easeIn(duration: 0.15)) {
+                // Simulate pressing multiple keys together
+                withAnimation(.easeIn(duration: 0.1)) {
                     outputKeycapScale = 0.85
                 }
-                try? await Task.sleep(for: .milliseconds(400))
-                withAnimation(.spring(response: 0.25, dampingFraction: 0.5)) {
+                try? await Task.sleep(for: .milliseconds(200))
+                withAnimation(.spring(response: 0.2, dampingFraction: 0.5)) {
+                    outputKeycapScale = 1.05
+                }
+                try? await Task.sleep(for: .milliseconds(100))
+                withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) {
                     outputKeycapScale = 1.0
                 }
             }
@@ -1019,6 +1034,184 @@ struct OverlayMapperSection: View {
     }
 
     /// Output type dropdown - select what happens when the key is triggered
+    // MARK: - Hold Variant Picker
+
+    /// Button that opens the hold variant popover
+    private var holdVariantButton: some View {
+        Button {
+            isHoldVariantPopoverOpen = true
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 10))
+                Text(currentHoldVariant.label)
+                    .lineLimit(1)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8))
+            }
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.primary.opacity(0.04))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .strokeBorder(Color.primary.opacity(0.2), lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("hold-variant-button")
+        .popover(isPresented: $isHoldVariantPopoverOpen, arrowEdge: .bottom) {
+            holdVariantPopover
+        }
+    }
+
+    /// Popover content for hold variant selection
+    private var holdVariantPopover: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(HoldVariant.allCases, id: \.self) { variant in
+                holdVariantRow(variant)
+
+                if variant != HoldVariant.allCases.last {
+                    Divider().opacity(0.2).padding(.horizontal, 8)
+                }
+            }
+
+            // Custom keys input (shown when Custom is selected)
+            if viewModel.holdBehavior == .customKeys {
+                Divider().opacity(0.3).padding(.horizontal, 8)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Tap-trigger keys:")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    TextField("e.g., a s d f j k l", text: $viewModel.customTapKeysText)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.caption)
+                        .onSubmit {
+                            // Auto-save when custom keys are entered
+                            if let manager = kanataViewModel?.underlyingManager, viewModel.inputKeyCode != nil {
+                                Task {
+                                    await viewModel.save(kanataManager: manager)
+                                }
+                            }
+                        }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .transition(.opacity)
+            }
+        }
+        .padding(.vertical, 6)
+        .frame(width: 280)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .animation(.easeInOut(duration: 0.2), value: viewModel.holdBehavior)
+    }
+
+    /// Single row in hold variant popover
+    private func holdVariantRow(_ variant: HoldVariant) -> some View {
+        let isSelected = currentHoldVariant == variant
+
+        return Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                viewModel.holdBehavior = variant.toBehaviorType
+            }
+            // Auto-save when variant changes
+            if let manager = kanataViewModel?.underlyingManager, viewModel.inputKeyCode != nil {
+                Task {
+                    await viewModel.save(kanataManager: manager)
+                }
+            }
+            // Close popover unless switching to Custom (need to show text field)
+            if variant != .custom {
+                isHoldVariantPopoverOpen = false
+            }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                    .frame(width: 24)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(variant.label)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                    Text(variant.explanation)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(LayerPickerItemButtonStyle())
+        .accessibilityIdentifier("hold-variant-\(variant.rawValue)")
+    }
+
+    /// Current hold variant based on viewModel.holdBehavior
+    private var currentHoldVariant: HoldVariant {
+        HoldVariant.from(viewModel.holdBehavior)
+    }
+
+    /// Hold behavior variants with user-friendly labels and explanations
+    private enum HoldVariant: String, CaseIterable {
+        case basic
+        case press
+        case release
+        case custom
+
+        var label: String {
+            switch self {
+            case .basic: "Basic"
+            case .press: "Eager"
+            case .release: "Permissive"
+            case .custom: "Custom Keys"
+            }
+        }
+
+        var explanation: String {
+            switch self {
+            case .basic:
+                "Hold activates after timeout"
+            case .press:
+                "Hold activates when another key is pressed (best for home-row mods)"
+            case .release:
+                "Tap registers even if another key was pressed during timeout"
+            case .custom:
+                "Only specific keys trigger early tap"
+            }
+        }
+
+        var toBehaviorType: MapperViewModel.HoldBehaviorType {
+            switch self {
+            case .basic: .basic
+            case .press: .triggerEarly
+            case .release: .quickTap
+            case .custom: .customKeys
+            }
+        }
+
+        static func from(_ behaviorType: MapperViewModel.HoldBehaviorType) -> HoldVariant {
+            switch behaviorType {
+            case .basic: .basic
+            case .triggerEarly: .press
+            case .quickTap: .release
+            case .customKeys: .custom
+            }
+        }
+    }
+
+    // MARK: - Output Type Dropdown
+
     private var outputTypeDropdown: some View {
         let currentType = outputTypeDisplayInfo
 
@@ -1098,6 +1291,21 @@ struct OverlayMapperSection: View {
         ]
     }
 
+    /// Dynamic max height for the popover based on expansion state
+    private var expandedMaxHeight: CGFloat {
+        let baseHeight: CGFloat = 220 // Height for collapsed state (4 rows + dividers)
+        let systemActionsHeight: CGFloat = 480 // System actions grid when expanded
+        let appsHeight: CGFloat = 300 // Apps list when expanded
+        let layersHeight: CGFloat = 250 // Layers list when expanded
+
+        var height = baseHeight
+        if isSystemActionsExpanded { height += systemActionsHeight }
+        if isLaunchAppsExpanded { height += appsHeight }
+        if isLayersExpanded { height += layersHeight }
+
+        return min(height, 750) // Cap at reasonable screen height
+    }
+
     /// Popover content for output type picker with collapsible sections
     private var systemActionPopover: some View {
         let isKeystrokeSelected = viewModel.selectedSystemAction == nil && viewModel.selectedApp == nil && selectedLayerOutput == nil
@@ -1105,188 +1313,182 @@ struct OverlayMapperSection: View {
         let isAppSelected = viewModel.selectedApp != nil
         let isLayerSelected = selectedLayerOutput != nil
 
-        return VStack(spacing: 0) {
-            // "Keystroke" option
-            Button {
-                collapseAllSections()
-                selectedLayerOutput = nil
-                viewModel.revertToKeystroke()
-                isSystemActionPickerOpen = false
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: isKeystrokeSelected ? "checkmark.circle.fill" : "circle")
-                        .font(.title3)
-                        .foregroundStyle(isKeystrokeSelected ? Color.accentColor : .secondary)
-                        .frame(width: 24)
-                    Image(systemName: "keyboard")
-                        .font(.body)
-                        .frame(width: 20)
-                    Text("Keystroke")
-                        .font(.body)
-                    Spacer()
-                }
-                .foregroundStyle(.primary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(LayerPickerItemButtonStyle())
-            .focusable(false)
-
-            Divider().opacity(0.2).padding(.horizontal, 8)
-
-            // "System Action" option - clickable to expand/collapse
-            Button {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    isSystemActionsExpanded.toggle()
-                    if isSystemActionsExpanded {
-                        isLaunchAppsExpanded = false
-                        isLayersExpanded = false
-                    }
-                }
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: isSystemActionSelected ? "checkmark.circle.fill" : "circle")
-                        .font(.title3)
-                        .foregroundStyle(isSystemActionSelected ? Color.accentColor : .secondary)
-                        .frame(width: 24)
-                    Image(systemName: "gearshape")
-                        .font(.body)
-                        .frame(width: 20)
-                    Text("System Action")
-                        .font(.body)
-                    Spacer()
-                    if let action = viewModel.selectedSystemAction {
-                        Text(action.name)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Image(systemName: isSystemActionsExpanded ? "chevron.up" : "chevron.down")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .foregroundStyle(.primary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(LayerPickerItemButtonStyle())
-            .focusable(false)
-
-            // Collapsible system actions grid
-            if isSystemActionsExpanded {
-                VStack(spacing: 0) {
-                    ForEach(systemActionGroups, id: \.title) { group in
-                        systemActionGroupView(group)
-                    }
-                }
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-
-            Divider().opacity(0.2).padding(.horizontal, 8)
-
-            // "Launch App" option - clickable to expand/collapse
-            Button {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    isLaunchAppsExpanded.toggle()
-                    if isLaunchAppsExpanded {
-                        isSystemActionsExpanded = false
-                        isLayersExpanded = false
-                        loadKnownApps()
-                    }
-                }
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: isAppSelected ? "checkmark.circle.fill" : "circle")
-                        .font(.title3)
-                        .foregroundStyle(isAppSelected ? Color.accentColor : .secondary)
-                        .frame(width: 24)
-                    if let app = viewModel.selectedApp {
-                        Image(nsImage: app.icon)
-                            .resizable()
-                            .frame(width: 20, height: 20)
-                    } else {
-                        Image(systemName: "app.fill")
+        return ScrollView {
+            VStack(spacing: 0) {
+                // "Keystroke" option
+                Button {
+                    collapseAllSections()
+                    selectedLayerOutput = nil
+                    viewModel.revertToKeystroke()
+                    isSystemActionPickerOpen = false
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: isKeystrokeSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.title3)
+                            .foregroundStyle(isKeystrokeSelected ? Color.accentColor : .secondary)
+                            .frame(width: 24)
+                        Image(systemName: "keyboard")
                             .font(.body)
                             .frame(width: 20)
+                        Text("Keystroke")
+                            .font(.body)
+                        Spacer()
                     }
-                    Text(viewModel.selectedApp?.name ?? "Launch App")
-                        .font(.body)
-                    Spacer()
-                    if let app = viewModel.selectedApp {
-                        Text(app.name)
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(LayerPickerItemButtonStyle())
+                .focusable(false)
+
+                Divider().opacity(0.2).padding(.horizontal, 8)
+
+                // "System Action" option - clickable to expand/collapse
+                Button {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        isSystemActionsExpanded.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: isSystemActionSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.title3)
+                            .foregroundStyle(isSystemActionSelected ? Color.accentColor : .secondary)
+                            .frame(width: 24)
+                        Image(systemName: "gearshape")
+                            .font(.body)
+                            .frame(width: 20)
+                        Text("System Action")
+                            .font(.body)
+                        Spacer()
+                        if let action = viewModel.selectedSystemAction {
+                            Text(action.name)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Image(systemName: isSystemActionsExpanded ? "chevron.up" : "chevron.down")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    Image(systemName: isLaunchAppsExpanded ? "chevron.up" : "chevron.down")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .contentShape(Rectangle())
                 }
-                .foregroundStyle(.primary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(LayerPickerItemButtonStyle())
-            .focusable(false)
+                .buttonStyle(LayerPickerItemButtonStyle())
+                .focusable(false)
 
-            // Collapsible known apps list
-            if isLaunchAppsExpanded {
-                launchAppsExpandedContent
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-
-            Divider().opacity(0.2).padding(.horizontal, 8)
-
-            // "Go to Layer" option - clickable to expand/collapse
-            Button {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    isLayersExpanded.toggle()
-                    if isLayersExpanded {
-                        isSystemActionsExpanded = false
-                        isLaunchAppsExpanded = false
-                        Task { await viewModel.refreshAvailableLayers() }
+                // Collapsible system actions grid
+                if isSystemActionsExpanded {
+                    VStack(spacing: 0) {
+                        ForEach(systemActionGroups, id: \.title) { group in
+                            systemActionGroupView(group)
+                        }
                     }
+                    .transition(.opacity.combined(with: .move(edge: .top)))
                 }
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: isLayerSelected ? "checkmark.circle.fill" : "circle")
-                        .font(.title3)
-                        .foregroundStyle(isLayerSelected ? Color.accentColor : .secondary)
-                        .frame(width: 24)
-                    Image(systemName: "square.stack.3d.up")
-                        .font(.body)
-                        .frame(width: 20)
-                    Text("Go to Layer")
-                        .font(.body)
-                    Spacer()
-                    if let layer = selectedLayerOutput {
-                        Text(layer.capitalized)
+
+                Divider().opacity(0.2).padding(.horizontal, 8)
+
+                // "Launch App" option - clickable to expand/collapse
+                Button {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        isLaunchAppsExpanded.toggle()
+                        if isLaunchAppsExpanded {
+                            loadKnownApps()
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: isAppSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.title3)
+                            .foregroundStyle(isAppSelected ? Color.accentColor : .secondary)
+                            .frame(width: 24)
+                        if let app = viewModel.selectedApp {
+                            Image(nsImage: app.icon)
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                        } else {
+                            Image(systemName: "app.fill")
+                                .font(.body)
+                                .frame(width: 20)
+                        }
+                        Text(viewModel.selectedApp?.name ?? "Launch App")
+                            .font(.body)
+                        Spacer()
+                        if let app = viewModel.selectedApp {
+                            Text(app.name)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Image(systemName: isLaunchAppsExpanded ? "chevron.up" : "chevron.down")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    Image(systemName: isLayersExpanded ? "chevron.up" : "chevron.down")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .contentShape(Rectangle())
                 }
-                .foregroundStyle(.primary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(LayerPickerItemButtonStyle())
-            .focusable(false)
+                .buttonStyle(LayerPickerItemButtonStyle())
+                .focusable(false)
 
-            // Collapsible layers list
-            if isLayersExpanded {
-                layersExpandedContent
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                // Collapsible known apps list
+                if isLaunchAppsExpanded {
+                    launchAppsExpandedContent
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+
+                Divider().opacity(0.2).padding(.horizontal, 8)
+
+                // "Go to Layer" option - clickable to expand/collapse
+                Button {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        isLayersExpanded.toggle()
+                        if isLayersExpanded {
+                            Task { await viewModel.refreshAvailableLayers() }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: isLayerSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.title3)
+                            .foregroundStyle(isLayerSelected ? Color.accentColor : .secondary)
+                            .frame(width: 24)
+                        Image(systemName: "square.stack.3d.up")
+                            .font(.body)
+                            .frame(width: 20)
+                        Text("Go to Layer")
+                            .font(.body)
+                        Spacer()
+                        if let layer = selectedLayerOutput {
+                            Text(layer.capitalized)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Image(systemName: isLayersExpanded ? "chevron.up" : "chevron.down")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(LayerPickerItemButtonStyle())
+                .focusable(false)
+
+                // Collapsible layers list
+                if isLayersExpanded {
+                    layersExpandedContent
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
             }
+            .padding(.vertical, 6)
         }
-        .padding(.vertical, 6)
+        .scrollBounceBehavior(.basedOnSize)
         .frame(width: 320)
-        .frame(maxHeight: 520)
-        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxHeight: expandedMaxHeight)
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(

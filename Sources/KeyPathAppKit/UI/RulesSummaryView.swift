@@ -1524,6 +1524,13 @@ private struct MappingRowView: View {
                         behaviorItem(icon: item.0, label: item.1, key: item.2)
                     }
                 }
+
+            case let .chord(ch):
+                behaviorItem(
+                    icon: "rectangle.on.rectangle",
+                    label: "Combo",
+                    key: ch.keys.joined(separator: "+") + " → " + ch.output
+                )
             }
         }
         .foregroundColor(.secondary)

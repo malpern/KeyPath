@@ -3,13 +3,16 @@ import Foundation
 // MARK: - Mapping Behavior
 
 /// Describes advanced key behavior beyond a simple remap.
-/// When present on a KeyMapping, the generator emits tap-hold or tap-dance syntax.
+/// When present on a KeyMapping, the generator emits tap-hold, tap-dance, or chord syntax.
 public enum MappingBehavior: Codable, Equatable, Sendable {
     /// Dual-role key: tap produces one action, hold produces another.
     case dualRole(DualRoleBehavior)
 
     /// Tap-dance: different actions for single tap, double tap, etc.
     case tapDance(TapDanceBehavior)
+
+    /// Chord: multiple keys pressed together produce a single output.
+    case chord(ChordBehavior)
 }
 
 // MARK: - Dual Role
@@ -136,5 +139,69 @@ public extension TapDanceBehavior {
                 TapDanceStep(label: "Double tap", action: doubleTap)
             ]
         )
+    }
+}
+
+// MARK: - Chord Behavior
+
+/// Settings for a chord (multiple keys pressed together).
+///
+/// Chords allow combinations like j+k → Esc or s+d → Backspace.
+/// Uses Kanata's `defchords` syntax for implementation.
+public struct ChordBehavior: Codable, Equatable, Sendable {
+    /// All keys in the chord (e.g., ["j", "k"]).
+    /// Order doesn't matter - any order triggers the chord.
+    public var keys: [String]
+
+    /// Action when chord is triggered (e.g., "esc", "bspc", "C-x").
+    public var output: String
+
+    /// Time window (ms) for chord detection. Default 200. Must be > 0.
+    /// Larger values make chords easier to trigger but may cause misfires.
+    public var timeout: Int
+
+    /// Optional human-readable description of the chord's purpose.
+    public var description: String?
+
+    public init(
+        keys: [String],
+        output: String,
+        timeout: Int = 200,
+        description: String? = nil
+    ) {
+        // Validation: need at least 2 keys for a chord
+        precondition(keys.count >= 2, "ChordBehavior requires at least 2 keys")
+        precondition(!output.isEmpty, "ChordBehavior output cannot be empty")
+
+        self.keys = keys
+        self.output = output
+        // Clamp to minimum of 50ms to prevent unrealistic values
+        self.timeout = max(50, timeout)
+        self.description = description
+    }
+
+    /// Returns true if the configuration is valid for rendering.
+    public var isValid: Bool {
+        keys.count >= 2 && !output.isEmpty && timeout >= 50
+    }
+
+    /// A unique group name for this chord (used in Kanata defchords).
+    /// Generated from the sorted keys to ensure consistency.
+    public var groupName: String {
+        "kp-chord-" + keys.sorted().joined(separator: "-")
+    }
+}
+
+// MARK: - Chord Convenience Factories
+
+public extension ChordBehavior {
+    /// Create a simple two-key chord.
+    static func twoKey(_ key1: String, _ key2: String, output: String, description: String? = nil) -> ChordBehavior {
+        ChordBehavior(keys: [key1, key2], output: output, description: description)
+    }
+
+    /// Create a three-key chord.
+    static func threeKey(_ key1: String, _ key2: String, _ key3: String, output: String, description: String? = nil) -> ChordBehavior {
+        ChordBehavior(keys: [key1, key2, key3], output: output, description: description)
     }
 }

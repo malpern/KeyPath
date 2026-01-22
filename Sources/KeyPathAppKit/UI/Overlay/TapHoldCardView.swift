@@ -14,7 +14,7 @@ struct TapHoldCardView: View {
     @Binding var tapAction: BehaviorAction
     @Binding var holdAction: BehaviorAction
     @Binding var doubleTapAction: BehaviorAction
-    @Binding var tapHoldAction: BehaviorAction
+    @Binding var comboAction: BehaviorAction
 
     /// Responsiveness preset (maps to timing thresholds)
     @Binding var responsiveness: ResponsivenessLevel
@@ -53,7 +53,7 @@ struct TapHoldCardView: View {
         if tapAction != .none { states.insert(.tap) }
         if holdAction != .none { states.insert(.hold) }
         if doubleTapAction != .none { states.insert(.doubleTap) }
-        if tapHoldAction != .none { states.insert(.tapHold) }
+        if comboAction != .none { states.insert(.combo) }
         return states
     }
 
@@ -261,7 +261,7 @@ struct TapHoldCardView: View {
         case .tap: $tapAction
         case .hold: $holdAction
         case .doubleTap: $doubleTapAction
-        case .tapHold: $tapHoldAction
+        case .combo: $comboAction
         }
     }
 }
@@ -273,7 +273,7 @@ enum BehaviorSlot: String, Identifiable, CaseIterable {
     case tap
     case hold
     case doubleTap
-    case tapHold
+    case combo
 
     var id: String { rawValue }
 
@@ -282,7 +282,7 @@ enum BehaviorSlot: String, Identifiable, CaseIterable {
         case .tap: "Tap"
         case .hold: "Hold"
         case .doubleTap: "Double Tap"
-        case .tapHold: "Tap & Hold"
+        case .combo: "Combo"
         }
     }
 
@@ -292,7 +292,7 @@ enum BehaviorSlot: String, Identifiable, CaseIterable {
         case .tap: "Tap"
         case .hold: "Hold"
         case .doubleTap: "2×Tap"
-        case .tapHold: "Tap+Hold"
+        case .combo: "Combo"
         }
     }
 
@@ -301,7 +301,7 @@ enum BehaviorSlot: String, Identifiable, CaseIterable {
         case .tap: "tap"
         case .hold: "hold"
         case .doubleTap: "double tap"
-        case .tapHold: "tap then hold"
+        case .combo: "press together with"
         }
     }
 
@@ -310,7 +310,7 @@ enum BehaviorSlot: String, Identifiable, CaseIterable {
         case .tap: "hand.tap"
         case .hold: "hand.point.down.fill"
         case .doubleTap: "hand.tap.fill"
-        case .tapHold: "rectangle.compress.vertical"
+        case .combo: "rectangle.on.rectangle"
         }
     }
 }
@@ -410,7 +410,7 @@ enum LiveFeedbackState: Equatable {
             @State var tap: BehaviorAction = .key("a")
             @State var hold: BehaviorAction = .modifier("⌘")
             @State var doubleTap: BehaviorAction = .none
-            @State var tapHold: BehaviorAction = .layer("Nav")
+            @State var combo: BehaviorAction = .layer("Nav")
             @State var responsiveness: ResponsivenessLevel = .balanced
             @State var useTapImmediately = true
 
@@ -422,7 +422,7 @@ enum LiveFeedbackState: Equatable {
                     tapAction: $tap,
                     holdAction: $hold,
                     doubleTapAction: $doubleTap,
-                    tapHoldAction: $tapHold,
+                    comboAction: $combo,
                     responsiveness: $responsiveness,
                     useTapImmediately: $useTapImmediately
                 )

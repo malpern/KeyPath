@@ -76,10 +76,17 @@ public final class AdvancedBehaviorManager: ObservableObject {
         set { tapTimeout = newValue }
     }
 
-    // MARK: - Tap-Hold (Tap then Hold)
+    // MARK: - Combo (Chord)
 
-    /// Action to perform on tap-then-hold gesture
-    @Published public var tapHoldAction: String = ""
+    /// Additional keys that form the combo with the input key
+    /// For example, if input is "j" and comboKeys is ["k"], the combo is j+k pressed together
+    @Published public var comboKeys: [String] = []
+
+    /// The output when the combo is triggered (e.g., "esc", "enter", "C-x")
+    @Published public var comboOutput: String = ""
+
+    /// Timing window for combo detection in milliseconds
+    @Published public var comboTimeout: Int = 200
 
     // MARK: - Recording State
 
@@ -89,8 +96,8 @@ public final class AdvancedBehaviorManager: ObservableObject {
     /// Whether currently recording double tap action
     @Published public var isRecordingDoubleTap = false
 
-    /// Whether currently recording tap-hold action
-    @Published public var isRecordingTapHold = false
+    /// Whether currently recording combo output
+    @Published public var isRecordingComboOutput = false
 
     // MARK: - Conflict Detection
 
@@ -175,7 +182,7 @@ public final class AdvancedBehaviorManager: ObservableObject {
     public func stopAllRecording() {
         isRecordingHold = false
         isRecordingDoubleTap = false
-        isRecordingTapHold = false
+        isRecordingComboOutput = false
         for i in tapDanceSteps.indices {
             tapDanceSteps[i].isRecording = false
         }
@@ -183,7 +190,7 @@ public final class AdvancedBehaviorManager: ObservableObject {
 
     /// Check if any recording is active
     public var isAnyRecording: Bool {
-        isRecordingHold || isRecordingDoubleTap || isRecordingTapHold || tapDanceSteps.contains { $0.isRecording }
+        isRecordingHold || isRecordingDoubleTap || isRecordingComboOutput || tapDanceSteps.contains { $0.isRecording }
     }
 
     // MARK: - Reset
@@ -194,6 +201,9 @@ public final class AdvancedBehaviorManager: ObservableObject {
         holdAction = ""
         customTapKeysText = ""
         doubleTapAction = ""
+        comboKeys = []
+        comboOutput = ""
+        comboTimeout = 200
         tapDanceSteps.removeAll()
         tapTimeout = 200
         holdTimeout = 200
@@ -211,7 +221,31 @@ public final class AdvancedBehaviorManager: ObservableObject {
     public var hasAdvancedConfig: Bool {
         !holdAction.isEmpty ||
             !doubleTapAction.isEmpty ||
+            !comboOutput.isEmpty ||
             tapDanceSteps.contains { !$0.action.isEmpty } ||
             holdBehavior != .basic
+    }
+
+    // MARK: - Combo Management
+
+    /// Add a key to the combo
+    public func addComboKey(_ key: String) {
+        guard !key.isEmpty, !comboKeys.contains(key) else { return }
+        comboKeys.append(key)
+    }
+
+    /// Remove a key from the combo
+    public func removeComboKey(_ key: String) {
+        comboKeys.removeAll { $0 == key }
+    }
+
+    /// Clear all combo keys
+    public func clearComboKeys() {
+        comboKeys.removeAll()
+    }
+
+    /// Whether combo has minimum required keys (at least one additional key beyond the input)
+    public var hasValidCombo: Bool {
+        !comboKeys.isEmpty && !comboOutput.isEmpty
     }
 }

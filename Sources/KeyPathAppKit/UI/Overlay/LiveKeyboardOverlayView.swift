@@ -2423,7 +2423,7 @@ struct OverlayInspectorPanel: View {
     /// Double tap behavior action
     @State private var tapHoldDoubleTapAction: BehaviorAction = .none
     /// Tap + Hold behavior action
-    @State private var tapHoldTapHoldAction: BehaviorAction = .none
+    @State private var tapHoldComboAction: BehaviorAction = .none
     /// Responsiveness level (maps to timing thresholds)
     @State private var tapHoldResponsiveness: ResponsivenessLevel = .balanced
     /// Use tap immediately when typing starts
@@ -2469,7 +2469,7 @@ struct OverlayInspectorPanel: View {
             tapAction: $tapHoldTapAction,
             holdAction: $tapHoldHoldAction,
             doubleTapAction: $tapHoldDoubleTapAction,
-            tapHoldAction: $tapHoldTapHoldAction,
+            comboAction: $tapHoldComboAction,
             responsiveness: $tapHoldResponsiveness,
             useTapImmediately: $tapHoldUseTapImmediately
         )

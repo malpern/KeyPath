@@ -221,14 +221,19 @@ class MapperViewModel: ObservableObject {
         set { advancedBehavior.isRecordingDoubleTap = newValue }
     }
 
-    var isRecordingTapHold: Bool {
-        get { advancedBehavior.isRecordingTapHold }
-        set { advancedBehavior.isRecordingTapHold = newValue }
+    var isRecordingComboOutput: Bool {
+        get { advancedBehavior.isRecordingComboOutput }
+        set { advancedBehavior.isRecordingComboOutput = newValue }
     }
 
-    var tapHoldAction: String {
-        get { advancedBehavior.tapHoldAction }
-        set { advancedBehavior.tapHoldAction = newValue }
+    var comboOutput: String {
+        get { advancedBehavior.comboOutput }
+        set { advancedBehavior.comboOutput = newValue }
+    }
+
+    var comboKeys: [String] {
+        get { advancedBehavior.comboKeys }
+        set { advancedBehavior.comboKeys = newValue }
     }
 
     // Hold behavior type - use AdvancedBehaviorManager's type
@@ -392,6 +397,78 @@ class MapperViewModel: ObservableObject {
 
         // Update list of apps that have mappings for this key
         Task { await updateAppsWithMapping() }
+
+        // Clear previous behavior (will be loaded separately via loadBehaviorFromExistingRule)
+        advancedBehavior.holdAction = ""
+        advancedBehavior.doubleTapAction = ""
+        advancedBehavior.comboKeys = []
+        advancedBehavior.comboOutput = ""
+        advancedBehavior.holdBehavior = .basic
+        advancedBehavior.tapTimeout = 200
+        advancedBehavior.holdTimeout = 200
+        advancedBehavior.customTapKeysText = ""
+    }
+
+    /// Load behavior from existing custom rule for the current input key
+    /// Call this after setInputFromKeyClick to restore hold/tap-dance settings
+    func loadBehaviorFromExistingRule(kanataManager: RuntimeCoordinator) {
+        guard let keyCode = inputKeyCode else { return }
+        let inputKey = OverlayKeyboardView.keyCodeToKanataName(keyCode)
+
+        // Look up existing rule
+        guard let existingRule = kanataManager.getCustomRule(forInput: inputKey),
+              let behavior = existingRule.behavior
+        else {
+            AppLogger.shared.log("📖 [MapperViewModel] No existing behavior for input '\(inputKey)'")
+            return
+        }
+
+        switch behavior {
+        case let .dualRole(dualRole):
+            advancedBehavior.holdAction = dualRole.holdAction
+            advancedBehavior.tapTimeout = dualRole.tapTimeout
+            advancedBehavior.holdTimeout = dualRole.holdTimeout
+
+            // Determine hold behavior type from flags
+            if dualRole.activateHoldOnOtherKey {
+                advancedBehavior.holdBehavior = .triggerEarly
+            } else if dualRole.quickTap {
+                advancedBehavior.holdBehavior = .quickTap
+            } else if !dualRole.customTapKeys.isEmpty {
+                advancedBehavior.holdBehavior = .customKeys
+                advancedBehavior.customTapKeysText = dualRole.customTapKeys.joined(separator: " ")
+            } else {
+                advancedBehavior.holdBehavior = .basic
+            }
+
+            AppLogger.shared.log("📖 [MapperViewModel] Loaded dualRole behavior for '\(inputKey)': hold='\(dualRole.holdAction)'")
+
+        case let .tapDance(tapDance):
+            // Load timing
+            advancedBehavior.tapTimeout = tapDance.windowMs
+
+            // Load tap-dance steps
+            // First step (index 0) is single tap - already loaded in outputLabel
+            if tapDance.steps.count > 1 {
+                advancedBehavior.doubleTapAction = tapDance.steps[1].action
+            }
+            // Load additional steps into tapDanceSteps array (triple tap, quad tap, etc.)
+            if tapDance.steps.count > 2 {
+                advancedBehavior.tapDanceSteps = tapDance.steps.dropFirst(2).map { step in
+                    (label: step.label, action: step.action, isRecording: false)
+                }
+            }
+
+            AppLogger.shared.log("📖 [MapperViewModel] Loaded tapDance behavior for '\(inputKey)': \(tapDance.steps.count) steps, windowMs=\(tapDance.windowMs)")
+
+        case let .chord(chord):
+            // Load chord: remove the input key from the keys list (it's implicit)
+            advancedBehavior.comboKeys = chord.keys.filter { $0.lowercased() != inputKey.lowercased() }
+            advancedBehavior.comboOutput = chord.output
+            advancedBehavior.comboTimeout = chord.timeout
+
+            AppLogger.shared.log("📖 [MapperViewModel] Loaded chord behavior for '\(inputKey)': keys=\(chord.keys), output='\(chord.output)'")
+        }
     }
 
     /// Update the list of apps that have a mapping for the currently selected input key
@@ -567,16 +644,16 @@ class MapperViewModel: ObservableObject {
         }
     }
 
-    func toggleTapHoldRecording() {
-        if isRecordingTapHold {
-            isRecordingTapHold = false
+    func toggleComboOutputRecording() {
+        if isRecordingComboOutput {
+            isRecordingComboOutput = false
         } else {
             // Stop any other recording
             stopRecording()
-            isRecordingTapHold = true
+            isRecordingComboOutput = true
             startSimpleKeyCapture { [weak self] keyName in
-                self?.tapHoldAction = keyName
-                self?.isRecordingTapHold = false
+                self?.comboOutput = keyName
+                self?.isRecordingComboOutput = false
             }
         }
     }
@@ -848,7 +925,11 @@ class MapperViewModel: ObservableObject {
                     self.inputSequence = sequence
                     self.inputLabel = sequence.displayString
                     // Store first key's keyCode for overlay-style rendering
-                    if let firstKey = sequence.keys.first {
+                    // Guard against negative keyCodes (e.g., -1 for modifier-only keys or unknown keys)
+                    if let firstKey = sequence.keys.first,
+                       firstKey.keyCode >= 0,
+                       firstKey.keyCode <= Int64(UInt16.max)
+                    {
                         let keyCode = UInt16(firstKey.keyCode)
                         self.inputKeyCode = keyCode
 
@@ -1107,6 +1188,47 @@ class MapperViewModel: ObservableObject {
             customRule.notes = "Created via Mapper [\(currentLayer) layer]"
             customRule.targetLayer = targetLayer
 
+            // Add behavior based on configured actions
+            // Priority: holdAction → dualRole, doubleTapAction → tapDance, combo → chord
+            // (UI should prevent conflicting behaviors from being set simultaneously)
+            if !holdAction.isEmpty {
+                let dualRole = DualRoleBehavior(
+                    tapAction: outputKanata,
+                    holdAction: holdAction,
+                    tapTimeout: tapTimeout,
+                    holdTimeout: holdTimeout,
+                    activateHoldOnOtherKey: holdBehavior == .triggerEarly,
+                    quickTap: holdBehavior == .quickTap,
+                    customTapKeys: holdBehavior == .customKeys ? customTapKeysText.split(separator: " ").map(String.init) : []
+                )
+                customRule.behavior = .dualRole(dualRole)
+                AppLogger.shared.log("💾 [MapperViewModel] Adding dualRole behavior: tap='\(outputKanata)', hold='\(holdAction)'")
+            } else if !doubleTapAction.isEmpty {
+                // Build tap-dance steps: single tap + double tap + any additional steps
+                var steps = [
+                    TapDanceStep(label: "Single tap", action: outputKanata),
+                    TapDanceStep(label: "Double tap", action: doubleTapAction)
+                ]
+                // Add any additional tap-dance steps (triple tap, etc.)
+                for step in advancedBehavior.tapDanceSteps where !step.action.isEmpty {
+                    steps.append(TapDanceStep(label: step.label, action: step.action))
+                }
+                let tapDance = TapDanceBehavior(windowMs: tapTimeout, steps: steps)
+                customRule.behavior = .tapDance(tapDance)
+                AppLogger.shared.log("💾 [MapperViewModel] Adding tapDance behavior: \(steps.count) steps")
+            } else if advancedBehavior.hasValidCombo {
+                // Build chord from input key + combo keys
+                var allKeys = [inputKanata]
+                allKeys.append(contentsOf: advancedBehavior.comboKeys)
+                let chord = ChordBehavior(
+                    keys: allKeys,
+                    output: advancedBehavior.comboOutput,
+                    timeout: advancedBehavior.comboTimeout
+                )
+                customRule.behavior = .chord(chord)
+                AppLogger.shared.log("💾 [MapperViewModel] Adding chord behavior: keys=\(allKeys), output='\(chord.output)'")
+            }
+
             let customRuleSaved = await kanataManager.saveCustomRule(customRule, skipReload: true)
             AppLogger.shared.log("💾 [MapperViewModel] saveCustomRule returned: \(customRuleSaved)")
 
@@ -1149,6 +1271,8 @@ class MapperViewModel: ObservableObject {
         selectedURL = nil
         selectedAppCondition = nil
         statusMessage = nil
+        // Reset all advanced behavior settings
+        advancedBehavior.reset()
     }
 
     /// Reset for a new mapping but preserve selectedAppCondition

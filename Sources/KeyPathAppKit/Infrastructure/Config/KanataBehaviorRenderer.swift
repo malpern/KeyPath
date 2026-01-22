@@ -44,7 +44,33 @@ public enum KanataBehaviorRenderer {
             return renderDualRole(dr, hyperLinkedLayerInfos: hyperLinkedLayerInfos)
         case let .tapDance(td):
             return renderTapDance(td, hyperLinkedLayerInfos: hyperLinkedLayerInfos)
+        case let .chord(ch):
+            return renderChord(ch, hyperLinkedLayerInfos: hyperLinkedLayerInfos)
         }
+    }
+
+    // MARK: - Chord
+
+    /// Render a chord behavior.
+    /// Note: Chords in Kanata require special handling - they need a defchords block.
+    /// For individual mappings, we return an alias reference that must be defined
+    /// in a defchords section elsewhere in the config.
+    private static func renderChord(_ ch: ChordBehavior, hyperLinkedLayerInfos _: [HyperLinkedLayerInfo]) -> String {
+        // For chord behavior, we return an alias that references the chord
+        // The actual defchords definition must be generated separately
+        // Format: @chord-{groupName}
+        // This allows the chord to be referenced in deflayer while the
+        // defchords block is generated at config level
+        "@\(ch.groupName)"
+    }
+
+    /// Generate a defchords block for a chord behavior.
+    /// This should be called by the config generator to create the chord definition.
+    /// Format: (defchords groupname timeout (key1 key2 ...) output)
+    public static func renderChordDefinition(_ ch: ChordBehavior, hyperLinkedLayerInfos: [HyperLinkedLayerInfo] = []) -> String {
+        let keys = ch.keys.map { KanataKeyConverter.convertToKanataKey($0) }.joined(separator: " ")
+        let output = convertAction(ch.output, hyperLinkedLayerInfos: hyperLinkedLayerInfos)
+        return "(defchords \(ch.groupName) \(ch.timeout)\n  (\(keys)) \(output)\n)"
     }
 
     // MARK: - Dual Role

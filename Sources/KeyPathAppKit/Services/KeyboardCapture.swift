@@ -36,6 +36,7 @@ public class KeyboardCapture: ObservableObject {
     private var chordTimer: Timer?
     private var sequenceTimer: Timer?
     private var localMonitor: Any?
+    private var mediaKeyMonitor: Any?
     private var lastCapturedKey: KeyPress?
     private var lastCaptureAt: Date?
     private let dedupWindow: TimeInterval = 0.04 // 40ms
@@ -264,6 +265,17 @@ public class KeyboardCapture: ObservableObject {
                 nil
             }
         }
+
+        // Install a global monitor for media keys (volume, brightness, play/pause, etc.)
+        // These come through as systemDefined events, not regular keyDown events.
+        if mediaKeyMonitor == nil {
+            AppLogger.shared.log("🎹 [KeyboardCapture] Installing media key monitor")
+            mediaKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .systemDefined) { [weak self] event in
+                Task { @MainActor in
+                    self?.handleMediaKeyEvent(event)
+                }
+            }
+        }
         // Breadcrumb if no events arrive within 1s
         noKeyBreadcrumbTimer?.invalidate()
         noKeyBreadcrumbTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: false) {
@@ -330,6 +342,12 @@ public class KeyboardCapture: ObservableObject {
         if let monitor = localMonitor {
             NSEvent.removeMonitor(monitor)
             localMonitor = nil
+        }
+
+        // Remove media key monitor if present
+        if let monitor = mediaKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+            mediaKeyMonitor = nil
         }
 
         pressedModifierKeyCodes.removeAll()
@@ -641,6 +659,88 @@ public class KeyboardCapture: ObservableObject {
         }
     }
 
+    /// Handle media key events (volume, brightness, play/pause, etc.)
+    /// These come through NSEvent.systemDefined, not regular keyDown events.
+    private func handleMediaKeyEvent(_ event: NSEvent) {
+        guard isCapturing else { return }
+        guard event.subtype.rawValue == 8 else { return } // 8 = media key subtype
+
+        // Media key data is encoded in data1:
+        // - bits 16-23: key code (NX_KEYTYPE_*)
+        // - bit 8: key state (0 = down, 1 = up)
+        // - bits 0-7: repeat count
+        let data1 = event.data1
+        let mediaKeyCode = (data1 & 0x00FF_0000) >> 16
+        let keyState = (data1 & 0x0000_0100) >> 8
+        let isKeyDown = keyState == 0
+
+        guard isKeyDown else { return } // Only capture key down events
+
+        let keyName = mediaKeyCodeToString(Int(mediaKeyCode))
+        guard keyName != nil else { return } // Unknown media key
+
+        let now = Date()
+        AppLogger.shared.log("🎹 [KeyboardCapture] mediaKey: \(keyName!) code=\(mediaKeyCode)")
+        anyEventSeen = true
+        noKeyBreadcrumbTimer?.invalidate()
+        noKeyBreadcrumbTimer = nil
+
+        let keyPress = KeyPress(
+            baseKey: keyName!,
+            modifiers: [],
+            timestamp: now,
+            keyCode: Int64(mediaKeyCode) + 1000 // Offset to avoid collision with regular keyCodes
+        )
+
+        activityObserver?.didReceiveKeyEvent(keyPress)
+
+        // De-dup identical events
+        if let last = lastCapturedKey, let lastAt = lastCaptureAt {
+            if last.baseKey == keyPress.baseKey,
+               now.timeIntervalSince(lastAt) <= dedupWindow
+            {
+                AppLogger.shared.log("🎹 [KeyboardCapture] Deduped duplicate mediaKey: \(keyName!)")
+                return
+            }
+        }
+        lastCapturedKey = keyPress
+        lastCaptureAt = now
+
+        if sequenceCallback == nil, let legacyCallback = captureCallback {
+            legacyCallback(keyName!)
+            if !isContinuous {
+                stopCapture()
+            } else {
+                resetPauseTimer()
+            }
+            return
+        }
+
+        processKeyPress(keyPress)
+    }
+
+    /// Convert NX_KEYTYPE media key code to a string name
+    private func mediaKeyCodeToString(_ keyCode: Int) -> String? {
+        // NX_KEYTYPE values from IOKit/hidsystem/ev_keymap.h
+        let mediaKeyMap: [Int: String] = [
+            0: "volumeup", // NX_KEYTYPE_SOUND_UP
+            1: "volumedown", // NX_KEYTYPE_SOUND_DOWN
+            2: "brightnessup", // NX_KEYTYPE_BRIGHTNESS_UP
+            3: "brightnessdown", // NX_KEYTYPE_BRIGHTNESS_DOWN
+            7: "mute", // NX_KEYTYPE_MUTE
+            16: "playpause", // NX_KEYTYPE_PLAY
+            17: "next", // NX_KEYTYPE_NEXT (fast forward)
+            18: "previous", // NX_KEYTYPE_PREVIOUS (rewind)
+            19: "fastforward", // NX_KEYTYPE_FAST
+            20: "rewind", // NX_KEYTYPE_REWIND
+            14: "eject", // NX_KEYTYPE_EJECT
+            21: "kbillumup", // NX_KEYTYPE_ILLUMINATION_UP
+            22: "kbillumdown", // NX_KEYTYPE_ILLUMINATION_DOWN
+            23: "kbillumtoggle" // NX_KEYTYPE_ILLUMINATION_TOGGLE
+        ]
+        return mediaKeyMap[keyCode]
+    }
+
     private func processKeyPress(_ keyPress: KeyPress) {
         if !isModifierOnlyKeyPress(keyPress) {
             removeModifierOnlyKeys(matching: keyPress.modifiers)
@@ -768,15 +868,34 @@ public class KeyboardCapture: ObservableObject {
     private func keyCodeToString(_ keyCode: Int64) -> String {
         // Map common key codes to readable names
         let keyMap: [Int64: String] = [
+            // Letters
             0: "a", 1: "s", 2: "d", 3: "f", 4: "h", 5: "g", 6: "z", 7: "x",
             8: "c", 9: "v", 11: "b", 12: "q", 13: "w", 14: "e", 15: "r",
-            16: "y", 17: "t", 18: "1", 19: "2", 20: "3", 21: "4", 22: "6",
-            23: "5", 24: "=", 25: "9", 26: "7", 27: "-", 28: "8", 29: "0",
-            30: "]", 31: "o", 32: "u", 33: "[", 34: "i", 35: "p", 36: "return",
-            37: "l", 38: "j", 39: "'", 40: "k", 41: ";", 42: "\\", 43: ",",
-            44: "/", 45: "n", 46: "m", 47: ".", 48: "tab", 49: "space",
-            50: "`", 51: "delete", 53: "escape", 54: "rmet", 55: "lmet",
-            56: "lsft", 57: "caps", 58: "lalt", 59: "lctl", 60: "rsft", 61: "ralt", 62: "rctl"
+            16: "y", 17: "t", 31: "o", 32: "u", 34: "i", 35: "p", 37: "l",
+            38: "j", 40: "k", 45: "n", 46: "m",
+            // Numbers
+            18: "1", 19: "2", 20: "3", 21: "4", 22: "6",
+            23: "5", 25: "9", 26: "7", 28: "8", 29: "0",
+            // Symbols
+            24: "=", 27: "-", 30: "]", 33: "[", 39: "'", 41: ";", 42: "\\",
+            43: ",", 44: "/", 47: ".", 50: "`",
+            // Control keys
+            36: "return", 48: "tab", 49: "space", 51: "delete", 53: "escape",
+            // Modifiers
+            54: "rmet", 55: "lmet", 56: "lsft", 57: "caps", 58: "lalt",
+            59: "lctl", 60: "rsft", 61: "ralt", 62: "rctl", 63: "fn",
+            // Arrow keys
+            123: "left", 124: "right", 125: "down", 126: "up",
+            // Navigation
+            115: "home", 116: "pageup", 117: "forwarddelete", 119: "end", 121: "pagedown",
+            // Function keys
+            122: "f1", 120: "f2", 99: "f3", 118: "f4", 96: "f5", 97: "f6",
+            98: "f7", 100: "f8", 101: "f9", 109: "f10", 103: "f11", 111: "f12",
+            105: "f13", 107: "f14", 113: "f15", 106: "f16",
+            // Numpad
+            65: "kp.", 67: "kp*", 69: "kp+", 71: "clear", 75: "kp/", 76: "kpenter",
+            78: "kp-", 81: "kp=", 82: "kp0", 83: "kp1", 84: "kp2", 85: "kp3",
+            86: "kp4", 87: "kp5", 88: "kp6", 89: "kp7", 91: "kp8", 92: "kp9"
         ]
 
         if let keyName = keyMap[keyCode] {

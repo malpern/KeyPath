@@ -61,8 +61,99 @@ public struct KeyPress: Codable, Equatable, Sendable {
         if modifiers.contains(.shift) { result += "⇧" }
         if modifiers.contains(.command) { result += "⌘" }
 
-        // Uppercase single letters for display
-        let displayKey = baseKey.count == 1 ? baseKey.uppercased() : baseKey
+        // Convert key names to user-friendly display
+        let displayKey: String = switch baseKey.lowercased() {
+        // Modifiers
+        case "lmet", "rmet":
+            "⌘"
+        case "lctl", "rctl":
+            "⌃"
+        case "lalt", "ralt", "lopt", "ropt":
+            "⌥"
+        case "lsft", "rsft":
+            "⇧"
+        case "fn":
+            "Fn"
+        case "caps", "capslock":
+            "⇪"
+        // Common keys
+        case "space", "spc":
+            "Space"
+        case "return", "ret":
+            "↩"
+        case "escape", "esc":
+            "⎋"
+        case "delete", "bspc":
+            "⌫"
+        case "forwarddelete":
+            "⌦"
+        case "tab":
+            "⇥"
+        // Arrow keys
+        case "up":
+            "↑"
+        case "down":
+            "↓"
+        case "left":
+            "←"
+        case "right":
+            "→"
+        // Navigation
+        case "home":
+            "↖"
+        case "end":
+            "↘"
+        case "pageup":
+            "⇞"
+        case "pagedown":
+            "⇟"
+        // Function keys
+        case "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12",
+             "f13", "f14", "f15", "f16":
+            baseKey.uppercased()
+        // Media keys
+        case "volumeup":
+            "🔊"
+        case "volumedown":
+            "🔉"
+        case "mute":
+            "🔇"
+        case "brightnessup":
+            "🔆"
+        case "brightnessdown":
+            "🔅"
+        case "playpause":
+            "⏯"
+        case "next":
+            "⏭"
+        case "previous":
+            "⏮"
+        case "fastforward":
+            "⏩"
+        case "rewind":
+            "⏪"
+        case "eject":
+            "⏏"
+        case "kbillumup":
+            "🔦+"
+        case "kbillumdown":
+            "🔦-"
+        case "kbillumtoggle":
+            "🔦"
+        // Numpad
+        case "clear":
+            "⌧"
+        case "kpenter":
+            "⌤"
+        case let kp where kp.hasPrefix("kp"):
+            "KP" + kp.dropFirst(2)
+        // Unknown keys (key123 format)
+        case let unknown where unknown.hasPrefix("key"):
+            "[\(unknown.dropFirst(3))]"
+        default:
+            // Uppercase single letters for display
+            baseKey.count == 1 ? baseKey.uppercased() : baseKey
+        }
         result += displayKey
         return result
     }
